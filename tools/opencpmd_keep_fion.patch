@@ -1,0 +1,11 @@
+--- a/src/rwfopt_utils.mod.F90
++++ b/src/rwfopt_utils.mod.F90
+@@ -920,7 +920,8 @@
+        DEALLOCATE(taup,STAT=ierr)
+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+             __LINE__,__FILE__)
+-       DEALLOCATE(fion,STAT=ierr)
++       ! CPMDC embed: keep coor%fion allocated for force export after wfopts
++       ! DEALLOCATE(fion,STAT=ierr)
+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+             __LINE__,__FILE__)

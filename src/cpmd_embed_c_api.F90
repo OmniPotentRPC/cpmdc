@@ -322,9 +322,6 @@ CONTAINS
     CALL envir
     CALL setcnst
     CALL control
-    ! rwfopt: tfor = (iprint_force == 1); without this fion is left zeroed.
-    cprint%tprint = .TRUE.
-    cprint%iprint(iprint_force) = 1
     CALL dftin
     CALL sysin
     CALL setsc
@@ -351,6 +348,9 @@ CONTAINS
     CALL gle_alloc
     CALL vdw_wf_alloc
     CALL apply_method_knobs()
+    ! rwfopt: tfor = (iprint_force == 1); must be set immediately before wfopts.
+    cprint%tprint = .TRUE.
+    cprint%iprint(iprint_force) = 1
     CALL wfopts
     energy_h = REAL(ener_com%etot, KIND=c_double)
     ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
@@ -367,8 +367,7 @@ CONTAINS
         END DO
       END DO
     END IF
-    ! CLI-parity gate: energy must be finite and within 1e-3 Ha of a sane water range
-    IF (energy_h == energy_h .AND. ABS(energy_h) > 1.0_c_double) ok = 1_c_int
+    IF (ABS(energy_h) > 1.0_c_double) ok = 1_c_int
   END SUBROUTINE
 #else
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
