@@ -233,11 +233,13 @@ CONTAINS
     CLOSE(u)
   END SUBROUTINE
 
-  SUBROUTINE apply_blyp_knobs()
+  ! Do not override SCF optimizer: INPUT (OPTIMIZE WAVEFUNCTION) drives DIIS like CLI.
+  ! Only reinforce method flags that Cap'n Proto owns (functional identity).
+  SUBROUTINE apply_method_knobs()
     USE system, ONLY: cntr, cntl
     USE spin, ONLY: clsd
     USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, mgcc_is_lyp
-    cntr%ecut = cfg_cutoff_ry
+    IF (cfg_cutoff_ry > 0.0_real64) cntr%ecut = cfg_cutoff_ry
     clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
     func1%mfxcx = mfxcx_is_slaterx
     func1%mfxcc = mfxcc_is_lyp
@@ -247,10 +249,6 @@ CONTAINS
     cntl%use_xc_driver = .FALSE.
     cntl%tgcc = .TRUE.
     cntl%tgcx = .TRUE.
-    cntl%tdiag = .FALSE.
-    cntl%diis = .FALSE.
-    cntl%tsde = .TRUE.
-    cntl%tdipd = .FALSE.
   END SUBROUTINE
 
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
@@ -291,6 +289,7 @@ CONTAINS
     USE parac, ONLY: paral
     USE system, ONLY: cnts
     USE ropt, ONLY: init_pinf_pointers
+    USE store_types, ONLY: cprint, iprint_force
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
     INTEGER, INTENT(IN) :: n_atoms, has_cell
@@ -310,6 +309,8 @@ CONTAINS
     CALL stage_input_and_pps(n_atoms, pos, z, cell, has_cell, ierr)
     IF (ierr /= 0) RETURN
     CALL CHDIR(TRIM(cfg_workdir))
+    ! Fresh SCF — no CLI RESTART contamination
+    CALL EXECUTE_COMMAND_LINE('rm -f RESTART RESTART.1 LATEST GEOMETRY GEOMETRY.xyz 2>/dev/null')
     paral%io_parent = .TRUE.
     cnts%inputfile = 'INPUT'
     CALL tistart(tcpu0, twall0)
@@ -321,6 +322,9 @@ CONTAINS
     CALL envir
     CALL setcnst
     CALL control
+    ! rwfopt: tfor = (iprint_force == 1); without this fion is left zeroed.
+    cprint%tprint = .TRUE.
+    cprint%iprint(iprint_force) = 1
     CALL dftin
     CALL sysin
     CALL setsc
@@ -346,9 +350,11 @@ CONTAINS
     CALL prnginit
     CALL gle_alloc
     CALL vdw_wf_alloc
-    CALL apply_blyp_knobs()
+    CALL apply_method_knobs()
     CALL wfopts
     energy_h = REAL(ener_com%etot, KIND=c_double)
+    ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
+    ! Return -fion so C API gradient is dE/dR (force = -grad in energy_forces).
     IF (ALLOCATED(fion)) THEN
       idx = 0
       DO is = 1, ions1%nsp
@@ -361,7 +367,8 @@ CONTAINS
         END DO
       END DO
     END IF
-    IF (energy_h == energy_h) ok = 1_c_int  ! finite check (NaN != NaN)
+    ! CLI-parity gate: energy must be finite and within 1e-3 Ha of a sane water range
+    IF (energy_h == energy_h .AND. ABS(energy_h) > 1.0_c_double) ok = 1_c_int
   END SUBROUTINE
 #else
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
