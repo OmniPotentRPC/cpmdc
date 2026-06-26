@@ -185,6 +185,23 @@ if get_option('with_tests')
   )
 
   test(
+    'session-socket',
+    executable(
+      'test_session_socket',
+      'tests/test_session_socket.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [
+      cpmd_parser_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
+    suite: ['capnp', 'socket'],
+  )
+
+  test(
     'embed-shell-unavailable',
     executable(
       'test_embed_shell',
