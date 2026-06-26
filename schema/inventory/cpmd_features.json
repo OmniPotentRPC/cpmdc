@@ -1,29 +1,104 @@
 {
-  "version": 1,
+  "version": 2,
   "schema": "schema/Potentials.capnp",
+  "opencpmd_reference": "/tmp/OpenCPMD-gf14",
   "section_kinds": [
-    {"kind": "generic", "feature_id": "section.generic", "stub_applicable": true, "embed_applicable": true},
-    {"kind": "system", "feature_id": "section.system", "stub_applicable": true, "embed_applicable": true},
-    {"kind": "cpmd", "feature_id": "section.cpmd", "stub_applicable": true, "embed_applicable": true},
-    {"kind": "dft", "feature_id": "section.dft", "stub_applicable": true, "embed_applicable": true},
-    {"kind": "atoms", "feature_id": "section.atoms", "stub_applicable": true, "embed_applicable": true},
-    {"kind": "set", "feature_id": "section.set", "stub_applicable": true, "embed_applicable": false},
-    {"kind": "raw", "feature_id": "section.raw", "stub_applicable": true, "embed_applicable": true}
+    {
+      "kind": "generic",
+      "feature_id": "section.generic",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "kind": "system",
+      "feature_id": "section.system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "kind": "cpmd",
+      "feature_id": "section.cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "kind": "dft",
+      "feature_id": "section.dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "kind": "atoms",
+      "feature_id": "section.atoms",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "kind": "set",
+      "feature_id": "section.set",
+      "stub_applicable": true,
+      "embed_applicable": false
+    },
+    {
+      "kind": "raw",
+      "feature_id": "section.raw",
+      "stub_applicable": true,
+      "embed_applicable": true
+    }
   ],
   "params_fields": [
-    {"name": "functional", "feature_id": "params.functional"},
-    {"name": "cutOffRy", "feature_id": "params.cutOffRy"},
-    {"name": "charge", "feature_id": "params.charge"},
-    {"name": "multiplicity", "feature_id": "params.multiplicity"},
-    {"name": "task", "feature_id": "params.task"},
-    {"name": "title", "feature_id": "params.title"},
-    {"name": "memoryMb", "feature_id": "params.memoryMb"},
-    {"name": "scratchDir", "feature_id": "params.scratchDir"},
-    {"name": "permanentDir", "feature_id": "params.permanentDir"},
-    {"name": "cpmdRoot", "feature_id": "params.cpmdRoot"},
-    {"name": "enginePath", "feature_id": "params.enginePath"},
-    {"name": "inputBlocks", "feature_id": "params.inputBlocks"},
-    {"name": "inputSections", "feature_id": "params.inputSections"}
+    {
+      "name": "functional",
+      "feature_id": "params.functional"
+    },
+    {
+      "name": "cutOffRy",
+      "feature_id": "params.cutOffRy"
+    },
+    {
+      "name": "charge",
+      "feature_id": "params.charge"
+    },
+    {
+      "name": "multiplicity",
+      "feature_id": "params.multiplicity"
+    },
+    {
+      "name": "task",
+      "feature_id": "params.task"
+    },
+    {
+      "name": "title",
+      "feature_id": "params.title"
+    },
+    {
+      "name": "memoryMb",
+      "feature_id": "params.memoryMb"
+    },
+    {
+      "name": "scratchDir",
+      "feature_id": "params.scratchDir"
+    },
+    {
+      "name": "permanentDir",
+      "feature_id": "params.permanentDir"
+    },
+    {
+      "name": "cpmdRoot",
+      "feature_id": "params.cpmdRoot"
+    },
+    {
+      "name": "enginePath",
+      "feature_id": "params.enginePath"
+    },
+    {
+      "name": "inputBlocks",
+      "feature_id": "params.inputBlocks"
+    },
+    {
+      "name": "inputSections",
+      "feature_id": "params.inputSections"
+    }
   ],
   "abi_symbols": [
     "cpmdc_set_params",
@@ -42,6 +117,1426 @@
     "cpmdc_potential_result_size_for_force_input",
     "cpmdc_version",
     "cpmdc_available",
-    "cpmdc_finalize"
+    "cpmdc_finalize",
+    "cpmdc_feature_count",
+    "cpmdc_feature_table",
+    "cpmdc_feature_find"
+  ],
+  "cpmd_sections": [
+    "INFO",
+    "CPMD",
+    "SYSTEM",
+    "DFT",
+    "ATOMS",
+    "ATOM",
+    "BASIS",
+    "CLAS",
+    "CLASSIC",
+    "EXTE",
+    "HARDNESS",
+    "LINRES",
+    "MTS",
+    "PATH",
+    "PIMD",
+    "POTENTIAL",
+    "PROP",
+    "PROPERTIES",
+    "PTDDFT",
+    "QMMM",
+    "RESP",
+    "TDDFT",
+    "VDW",
+    "WAVEFUNCTION",
+    "F_B",
+    "BICANONICAL",
+    "CDFT"
+  ],
+  "cpmd_keywords": [
+    "OPTIMIZE WAVEFUNCTION",
+    "OPTIMIZE GEOMETRY",
+    "MOLECULAR DYNAMICS",
+    "MOLECULAR DYNAMICS CP",
+    "MOLECULAR DYNAMICS BO",
+    "MOLECULAR DYNAMICS EH",
+    "MOLECULAR DYNAMICS PT",
+    "MOLECULAR DYNAMICS CLASSICAL",
+    "MOLECULAR DYNAMICS FILE",
+    "EMASS",
+    "TIMESTEP",
+    "MAXSTEP",
+    "MAXITER",
+    "CONVERGENCE ORBITALS",
+    "CONVERGENCE GEOMETRY",
+    "NOSE",
+    "NOSE IONS",
+    "NOSE ELECTRONS",
+    "BERENDSEN",
+    "LANGEVIN",
+    "ANNEALING",
+    "QUENCH",
+    "RATTLE",
+    "SHAKE",
+    "CONSTRAINT",
+    "TROTTER",
+    "RESTART",
+    "RESTART WAVEFUNCTION",
+    "TRAJECTORY",
+    "PRINT",
+    "STORE",
+    "CENTER MOLECULE OFF",
+    "CENTER MOLECULE ON",
+    "DIIS",
+    "ODIIS",
+    "PCG",
+    "DIAGONALIZATION",
+    "FREE-ENERGY",
+    "INTERFACE",
+    "QMMM"
+  ],
+  "dft_functionals": [
+    "LDA",
+    "BONLY",
+    "BP",
+    "BP86",
+    "BLYP",
+    "GGA",
+    "PW91",
+    "PBE",
+    "REVPBE",
+    "HCTH",
+    "OPTX",
+    "OLYP",
+    "XLYP",
+    "B3LYP",
+    "B1LYP",
+    "PBE0",
+    "REVPBE0",
+    "PBES",
+    "PBE1W",
+    "TPSS",
+    "HARTREE",
+    "HARTREE-FOCK",
+    "HSE06",
+    "ACM0",
+    "ACM1",
+    "ACM3"
+  ],
+  "dft_keywords": [
+    "FUNCTIONAL",
+    "LSD",
+    "GC-CUTOFF",
+    "OLDCODE",
+    "NEWCODE",
+    "XC_DRIVER",
+    "LIBXC",
+    "LR KERNEL",
+    "REFUNCT",
+    "MTS_HIGH_FUNC",
+    "MTS_LOW_FUNC",
+    "HFX",
+    "HFX-SCREENING",
+    "HUBBARD",
+    "CORRELATION",
+    "EXCHANGE",
+    "BECKE88",
+    "ALPHA",
+    "BETA"
+  ],
+  "features": [
+    {
+      "feature_id": "section.generic",
+      "kind": "section_kind",
+      "name": "generic",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.system",
+      "kind": "section_kind",
+      "name": "system",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.cpmd",
+      "kind": "section_kind",
+      "name": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.dft",
+      "kind": "section_kind",
+      "name": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.atoms",
+      "kind": "section_kind",
+      "name": "atoms",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.set",
+      "kind": "section_kind",
+      "name": "set",
+      "stub_applicable": true,
+      "embed_applicable": false,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.raw",
+      "kind": "section_kind",
+      "name": "raw",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "catalog.section.INFO",
+      "kind": "cpmd_section",
+      "name": "INFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&INFO ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.CPMD",
+      "kind": "cpmd_section",
+      "name": "CPMD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.SYSTEM",
+      "kind": "cpmd_section",
+      "name": "SYSTEM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&SYSTEM ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.DFT",
+      "kind": "cpmd_section",
+      "name": "DFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.ATOMS",
+      "kind": "cpmd_section",
+      "name": "ATOMS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&ATOMS ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.ATOM",
+      "kind": "cpmd_section",
+      "name": "ATOM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&ATOM ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.BASIS",
+      "kind": "cpmd_section",
+      "name": "BASIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&BASIS ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.CLAS",
+      "kind": "cpmd_section",
+      "name": "CLAS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CLAS ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.CLASSIC",
+      "kind": "cpmd_section",
+      "name": "CLASSIC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CLASSIC ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.EXTE",
+      "kind": "cpmd_section",
+      "name": "EXTE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&EXTE ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.HARDNESS",
+      "kind": "cpmd_section",
+      "name": "HARDNESS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&HARDNESS ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.LINRES",
+      "kind": "cpmd_section",
+      "name": "LINRES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&LINRES ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.MTS",
+      "kind": "cpmd_section",
+      "name": "MTS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&MTS ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.PATH",
+      "kind": "cpmd_section",
+      "name": "PATH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&PATH ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.PIMD",
+      "kind": "cpmd_section",
+      "name": "PIMD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&PIMD ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.POTENTIAL",
+      "kind": "cpmd_section",
+      "name": "POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&POTENTIAL ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.PROP",
+      "kind": "cpmd_section",
+      "name": "PROP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&PROP ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.PROPERTIES",
+      "kind": "cpmd_section",
+      "name": "PROPERTIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&PROPERTIES ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.PTDDFT",
+      "kind": "cpmd_section",
+      "name": "PTDDFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&PTDDFT ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.QMMM",
+      "kind": "cpmd_section",
+      "name": "QMMM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&QMMM ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.RESP",
+      "kind": "cpmd_section",
+      "name": "RESP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&RESP ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.TDDFT",
+      "kind": "cpmd_section",
+      "name": "TDDFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&TDDFT ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.VDW",
+      "kind": "cpmd_section",
+      "name": "VDW",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&VDW ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.WAVEFUNCTION",
+      "kind": "cpmd_section",
+      "name": "WAVEFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&WAVEFUNCTION ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.F_B",
+      "kind": "cpmd_section",
+      "name": "F_B",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&F_B ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.BICANONICAL",
+      "kind": "cpmd_section",
+      "name": "BICANONICAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&BICANONICAL ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.section.CDFT",
+      "kind": "cpmd_section",
+      "name": "CDFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CDFT ... &END via generic/raw/inputBlocks or typed core",
+      "render_via": "generic_or_raw"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_WAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE WAVEFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_CP",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS CP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_BO",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS BO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_EH",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS EH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_PT",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS PT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS CLASSICAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS FILE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EMASS",
+      "kind": "cpmd_keyword",
+      "name": "EMASS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TIMESTEP",
+      "kind": "cpmd_keyword",
+      "name": "TIMESTEP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MAXSTEP",
+      "kind": "cpmd_keyword",
+      "name": "MAXSTEP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MAXITER",
+      "kind": "cpmd_keyword",
+      "name": "MAXITER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_ORBITALS",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE ORBITALS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_GEOMETRY",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE GEOMETRY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE",
+      "kind": "cpmd_keyword",
+      "name": "NOSE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "NOSE ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BERENDSEN",
+      "kind": "cpmd_keyword",
+      "name": "BERENDSEN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANNEALING",
+      "kind": "cpmd_keyword",
+      "name": "ANNEALING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QUENCH",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RATTLE",
+      "kind": "cpmd_keyword",
+      "name": "RATTLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SHAKE",
+      "kind": "cpmd_keyword",
+      "name": "SHAKE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONSTRAINT",
+      "kind": "cpmd_keyword",
+      "name": "CONSTRAINT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TROTTER",
+      "kind": "cpmd_keyword",
+      "name": "TROTTER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTART",
+      "kind": "cpmd_keyword",
+      "name": "RESTART",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTART_WAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "RESTART WAVEFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRINT",
+      "kind": "cpmd_keyword",
+      "name": "PRINT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE",
+      "kind": "cpmd_keyword",
+      "name": "STORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CENTER_MOLECULE_OFF",
+      "kind": "cpmd_keyword",
+      "name": "CENTER MOLECULE OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CENTER_MOLECULE_ON",
+      "kind": "cpmd_keyword",
+      "name": "CENTER MOLECULE ON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIIS",
+      "kind": "cpmd_keyword",
+      "name": "DIIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ODIIS",
+      "kind": "cpmd_keyword",
+      "name": "ODIIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PCG",
+      "kind": "cpmd_keyword",
+      "name": "PCG",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIAGONALIZATION",
+      "kind": "cpmd_keyword",
+      "name": "DIAGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FREE_ENERGY",
+      "kind": "cpmd_keyword",
+      "name": "FREE-ENERGY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QMMM",
+      "kind": "cpmd_keyword",
+      "name": "QMMM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD directive (typed or CPMDDirective)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_LDA",
+      "kind": "dft_functional",
+      "name": "LDA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_BONLY",
+      "kind": "dft_functional",
+      "name": "BONLY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_BP",
+      "kind": "dft_functional",
+      "name": "BP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_BP86",
+      "kind": "dft_functional",
+      "name": "BP86",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_BLYP",
+      "kind": "dft_functional",
+      "name": "BLYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_GGA",
+      "kind": "dft_functional",
+      "name": "GGA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_PW91",
+      "kind": "dft_functional",
+      "name": "PW91",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_PBE",
+      "kind": "dft_functional",
+      "name": "PBE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_REVPBE",
+      "kind": "dft_functional",
+      "name": "REVPBE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_HCTH",
+      "kind": "dft_functional",
+      "name": "HCTH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_OPTX",
+      "kind": "dft_functional",
+      "name": "OPTX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_OLYP",
+      "kind": "dft_functional",
+      "name": "OLYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_XLYP",
+      "kind": "dft_functional",
+      "name": "XLYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_B3LYP",
+      "kind": "dft_functional",
+      "name": "B3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_B1LYP",
+      "kind": "dft_functional",
+      "name": "B1LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_PBE0",
+      "kind": "dft_functional",
+      "name": "PBE0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_REVPBE0",
+      "kind": "dft_functional",
+      "name": "REVPBE0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_PBES",
+      "kind": "dft_functional",
+      "name": "PBES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_PBE1W",
+      "kind": "dft_functional",
+      "name": "PBE1W",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_TPSS",
+      "kind": "dft_functional",
+      "name": "TPSS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_HARTREE",
+      "kind": "dft_functional",
+      "name": "HARTREE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_HARTREE_FOCK",
+      "kind": "dft_functional",
+      "name": "HARTREE-FOCK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_HSE06",
+      "kind": "dft_functional",
+      "name": "HSE06",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_ACM0",
+      "kind": "dft_functional",
+      "name": "ACM0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_ACM1",
+      "kind": "dft_functional",
+      "name": "ACM1",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_ACM3",
+      "kind": "dft_functional",
+      "name": "ACM3",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL",
+      "kind": "dft_keyword",
+      "name": "FUNCTIONAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.LSD",
+      "kind": "dft_keyword",
+      "name": "LSD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.GC_CUTOFF",
+      "kind": "dft_keyword",
+      "name": "GC-CUTOFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.OLDCODE",
+      "kind": "dft_keyword",
+      "name": "OLDCODE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.NEWCODE",
+      "kind": "dft_keyword",
+      "name": "NEWCODE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.XC_DRIVER",
+      "kind": "dft_keyword",
+      "name": "XC_DRIVER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.LIBXC",
+      "kind": "dft_keyword",
+      "name": "LIBXC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.LR_KERNEL",
+      "kind": "dft_keyword",
+      "name": "LR KERNEL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.REFUNCT",
+      "kind": "dft_keyword",
+      "name": "REFUNCT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.MTS_HIGH_FUNC",
+      "kind": "dft_keyword",
+      "name": "MTS_HIGH_FUNC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.MTS_LOW_FUNC",
+      "kind": "dft_keyword",
+      "name": "MTS_LOW_FUNC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HFX",
+      "kind": "dft_keyword",
+      "name": "HFX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HFX_SCREENING",
+      "kind": "dft_keyword",
+      "name": "HFX-SCREENING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HUBBARD",
+      "kind": "dft_keyword",
+      "name": "HUBBARD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.CORRELATION",
+      "kind": "dft_keyword",
+      "name": "CORRELATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.EXCHANGE",
+      "kind": "dft_keyword",
+      "name": "EXCHANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.BECKE88",
+      "kind": "dft_keyword",
+      "name": "BECKE88",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.ALPHA",
+      "kind": "dft_keyword",
+      "name": "ALPHA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.BETA",
+      "kind": "dft_keyword",
+      "name": "BETA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "params.functional",
+      "kind": "params_field",
+      "name": "functional",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.cutOffRy",
+      "kind": "params_field",
+      "name": "cutOffRy",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.charge",
+      "kind": "params_field",
+      "name": "charge",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.multiplicity",
+      "kind": "params_field",
+      "name": "multiplicity",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.task",
+      "kind": "params_field",
+      "name": "task",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.title",
+      "kind": "params_field",
+      "name": "title",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.memoryMb",
+      "kind": "params_field",
+      "name": "memoryMb",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.scratchDir",
+      "kind": "params_field",
+      "name": "scratchDir",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.permanentDir",
+      "kind": "params_field",
+      "name": "permanentDir",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.cpmdRoot",
+      "kind": "params_field",
+      "name": "cpmdRoot",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.enginePath",
+      "kind": "params_field",
+      "name": "enginePath",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputBlocks",
+      "kind": "params_field",
+      "name": "inputBlocks",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections",
+      "kind": "params_field",
+      "name": "inputSections",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_set_params",
+      "kind": "abi",
+      "name": "cpmdc_set_params",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_energy_gradient",
+      "kind": "abi",
+      "name": "cpmdc_energy_gradient",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_energy",
+      "kind": "abi",
+      "name": "cpmdc_energy",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_energy_forces",
+      "kind": "abi",
+      "name": "cpmdc_energy_forces",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_create",
+      "kind": "abi",
+      "name": "cpmdc_session_create",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_set_params",
+      "kind": "abi",
+      "name": "cpmdc_session_set_params",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_destroy",
+      "kind": "abi",
+      "name": "cpmdc_session_destroy",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_energy_gradient",
+      "kind": "abi",
+      "name": "cpmdc_session_energy_gradient",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_energy",
+      "kind": "abi",
+      "name": "cpmdc_session_energy",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_energy_forces",
+      "kind": "abi",
+      "name": "cpmdc_session_energy_forces",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_calculate_forces",
+      "kind": "abi",
+      "name": "cpmdc_session_calculate_forces",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_session_calculate_result",
+      "kind": "abi",
+      "name": "cpmdc_session_calculate_result",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_calculate_result",
+      "kind": "abi",
+      "name": "cpmdc_calculate_result",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_potential_result_size_for_force_input",
+      "kind": "abi",
+      "name": "cpmdc_potential_result_size_for_force_input",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_version",
+      "kind": "abi",
+      "name": "cpmdc_version",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_available",
+      "kind": "abi",
+      "name": "cpmdc_available",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_finalize",
+      "kind": "abi",
+      "name": "cpmdc_finalize",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_feature_count",
+      "kind": "abi",
+      "name": "cpmdc_feature_count",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_feature_table",
+      "kind": "abi",
+      "name": "cpmdc_feature_table",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_feature_find",
+      "kind": "abi",
+      "name": "cpmdc_feature_find",
+      "stub_applicable": true,
+      "embed_applicable": true
+    }
   ]
 }

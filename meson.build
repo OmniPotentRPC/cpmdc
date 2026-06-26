@@ -373,4 +373,32 @@ if get_option('with_tests')
     suite: ['params', 'capnp'],
   )
 
+
+  params_cp_md_bin = custom_target(
+    'params_cp_md_bin',
+    input: 'tests/params_cp_md.capnp.txt',
+    output: 'params_cp_md.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  params_dft_func_bin = custom_target(
+    'params_dft_func_bin',
+    input: 'tests/params_dft_functionals.capnp.txt',
+    output: 'params_dft_functionals.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'params-cp-dft-render',
+    executable(
+      'test_params_cp_dft_render',
+      ['tests/test_params_cp_dft_render.c', 'src/cpmdc_features.c'],
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args,
+    ),
+    args: [params_cp_md_bin.full_path(), params_dft_func_bin.full_path()],
+    depends: [params_cp_md_bin, params_dft_func_bin],
+    suite: ['params', 'inventory'],
+  )
+
 endif

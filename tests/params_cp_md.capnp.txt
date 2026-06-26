@@ -1,0 +1,30 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  task = "md",
+  title = "Car-Parrinello MD expressibility",
+  inputSections = [
+    ( cpmd = (
+        optimizeWavefunction = false,
+        molecularDynamics = true,
+        convergenceOrbitals = 1.0e-5,
+        maxStep = 100,
+        timestep = 5.0,
+        trajectory = true,
+        directives = [
+          ( keyword = "MOLECULAR DYNAMICS CP", args = [] ),
+          ( keyword = "EMASS", args = [ "400.0" ] ),
+          ( keyword = "NOSE IONS", args = [ "300.0" ] ),
+          ( keyword = "ANNEALING IONS", args = [ "0.99" ] )
+        ]
+      ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( dft = ( functional = "BLYP", lsd = false,
+        directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)
