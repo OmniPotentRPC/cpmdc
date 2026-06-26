@@ -92,7 +92,7 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
-cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c'] + cpmdc_params_sources
+cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c', 'src/cpmdc_features.c'] + cpmdc_params_sources
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 
 cpmdc_embed_shell = static_library(
@@ -332,5 +332,45 @@ if get_option('with_tests')
       timeout: 600,
     )
   endif
+
+
+  test(
+    'features-cmocka',
+    executable(
+      'test_features_cmocka',
+      ['tests/test_features_cmocka.c', 'src/cpmdc_features.c'],
+      dependencies: [cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    suite: ['inventory', 'cmocka'],
+  )
+  water_params_70_txt = custom_target(
+    'water_params_70_txt',
+    output: 'water_blyp_params_70.capnp.txt',
+    command: [python, '-c',
+      'import pathlib,sys; t=pathlib.Path(sys.argv[1]).read_text().replace("50.0","70.0"); pathlib.Path(sys.argv[2]).write_text(t)',
+      meson.current_source_dir() / 'tests/water_blyp_params.capnp.txt', '@OUTPUT@'],
+  )
+  water_params_70_bin = custom_target(
+    'water_params_70_bin',
+    input: water_params_70_txt,
+    output: 'water_blyp_params_70.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'capnp-drives-config',
+    executable(
+      'test_capnp_drives_config',
+      'tests/test_capnp_drives_config.c',
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path(), water_params_70_bin.full_path()],
+    depends: [water_params_bin, water_params_70_bin],
+    suite: ['params', 'capnp'],
+  )
 
 endif
