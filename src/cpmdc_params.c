@@ -135,13 +135,15 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
   if (ncell < 0)
     return -1;
   if (ncell == 6 || ncell == 9) {
-    if (append_text(dst, dst_size, used, " CELL\n") != 0)
+    if (append_text(dst, dst_size, used, " CELL\n ") != 0)
       return -1;
     for (int i = 0; i < ncell; ++i) {
-      if (append_fmt(dst, dst_size, used, "  %.10g\n",
+      if (append_fmt(dst, dst_size, used, " %.10g",
                      capn_to_f64(capn_get64(sys->cell, i))) != 0)
         return -1;
     }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
   }
   if (append_fmt(dst, dst_size, used, " CUTOFF\n  %.10g\n", cutoff) != 0)
     return -1;
@@ -184,7 +186,7 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       return -1;
   }
   if (sec->maxStep > 0) {
-    if (append_fmt(dst, dst_size, used, " MAXSTEP\n  %d\n", sec->maxStep) != 0)
+    if (append_fmt(dst, dst_size, used, " MAXITER\n  %d\n", sec->maxStep) != 0)
       return -1;
   }
   if (sec->timestep > 0.0) {

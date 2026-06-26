@@ -88,8 +88,9 @@ static void test_parser_renders_structured_input(void **state) {
   assert_non_null(strstr(deck, "&DFT"));
   assert_non_null(strstr(deck, "FUNCTIONAL PBE"));
   assert_non_null(strstr(deck, "&ATOMS"));
-  assert_non_null(strstr(deck, "*H_H_MT_PBE.psp"));
-  assert_non_null(strstr(deck, "*O_O_MT_PBE.psp"));
+  assert_non_null(strstr(deck, "*H_MT_PBE.psp"));
+  assert_non_null(strstr(deck, "*O_MT_PBE.psp"));
+  assert_non_null(strstr(deck, "LMAX=S"));
   assert_non_null(strstr(deck, "&PIMD"));
   assert_non_null(strstr(deck, "PROC_NPROC"));
   assert_non_null(strstr(deck, "TEST BLOCK"));

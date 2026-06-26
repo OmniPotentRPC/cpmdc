@@ -6,9 +6,13 @@
   task = "gradient",
   title = "water BLYP embed demo",
   inputSections = [
-    ( dft = ( functional = "BLYP", lsd = false ) ),
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5,
+        maxStep = 40, directives = [ ( keyword = "CENTER MOLECULE OFF", args = [] ) ] ) ),
+    ( dft = ( functional = "BLYP", lsd = false,
+        directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 50.0,
-        cell = [10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0] ) ),
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        directives = [ ( keyword = "POISSON SOLVER HOCKNEY", args = [] ) ] ) ),
     ( atoms = ( pseudopotentials = [
         ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
         ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
