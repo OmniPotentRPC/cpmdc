@@ -89,7 +89,7 @@ static void test_optimizer_style_session_loop(void **state) {
 
   size_t out_size = 0;
   CPMDCResult r0 = eval_step(session, step_a, a_size, out, need_a, &out_size);
-  assert_true(r0.ok == 0 || r0.ok == 1);
+  assert_int_equal(r0.ok, 1);
   assert_true(isfinite(r0.energy_h));
   double e0 = r0.energy_h;
 

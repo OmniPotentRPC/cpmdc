@@ -71,11 +71,11 @@ static void test_single_point_calculate_result(void **state) {
   size_t out_size = 0;
   CPMDCResult r = cpmdc_calculate_result(params, params_size, step, step_size,
                                          out, need, &out_size);
-  /* SCF optional until full libcpmd */ assert_true(r.ok == 0 || r.ok == 1);
+  assert_int_equal(r.ok, 1);
   assert_true(out_size > 0);
   assert_true(out_size <= need);
   assert_true(isfinite(r.energy_h));
-  
+  assert_true(fabs(r.energy_h) > 1e-8);
 
   if (!r.ok) {
     free(out); free(params); free(step); cpmdc_finalize(); return;
