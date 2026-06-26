@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 96" role="img" aria-label="cpmdc">
+  <rect width="460" height="96" fill="none"/>
+  <!-- mark: supercell with plane wave -->
+  <g transform="translate(12,20)">
+    <rect x="2" y="8" width="52" height="40" rx="6" fill="none" stroke="#5f3dc4" stroke-width="3"/>
+    <path d="M8 36 C16 22, 24 22, 32 36 S48 50, 52 36" fill="none" stroke="#5f3dc4" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="14" cy="20" r="3.5" fill="#5f3dc4"/>
+    <circle cx="28" cy="18" r="3.5" fill="#5f3dc4"/>
+    <circle cx="42" cy="22" r="3.5" fill="#5f3dc4"/>
+  </g>
+  <text x="84" y="58" font-family="ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="700" fill="#102a43">cpmdc</text>
+  <text x="84" y="82" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#486581">C ABI for embedded OpenCPMD</text>
+</svg>

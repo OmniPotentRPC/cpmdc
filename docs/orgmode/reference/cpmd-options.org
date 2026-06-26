@@ -1,0 +1,48 @@
+#+TITLE: CPMD option mapping
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Contract
+All method knobs for the OpenCPMD backend are fields of ~CPMDParams~ in
+~schema/Potentials.capnp~.
+Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
+(or the raw C array entry points that take positions and atomic numbers).
+
+* Top-level ~CPMDParams~ fields
+
+| Field | Role |
+| --- | --- |
+| ~functional~ | Default DFT functional (also used when no ~dft~ section is present) |
+| ~cutOffRy~ | Plane-wave cutoff in Rydberg |
+| ~charge~ / ~multiplicity~ | System charge and 2S+1 (multiplicity ~> 1~ implies LSD defaults) |
+| ~task~ | Frontend hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
+| ~title~ | Optional comment header in rendered decks |
+| ~memoryMb~, ~scratchDir~, ~permanentDir~ | Embed / runtime placement knobs |
+| ~cpmdRoot~, ~enginePath~ | Tree probe / future dlopen path |
+| ~inputBlocks~ | Raw ~&SECTION~ text blocks prepended to the deck |
+| ~inputSections~ | Structured ~CPMDInputSection~ list |
+
+* ~CPMDInputSection~ kinds
+
+| Kind | Cap'n Proto type | Deck effect |
+| --- | --- | --- |
+| ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (optimize wavefunction, MD, convergence, timestep, …) |
+| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, charge, …) |
+| ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, extra directives) |
+| ~atoms~ | ~CPMDAtomsSection~ | ~&ATOMS~ (pseudopotential lines; coordinates come from ~ForceInput~) |
+| ~generic~ | ~CPMDGenericSection~ | Arbitrary ~&NAME~ … ~&END~ |
+| ~set~ | ~CPMDSetDirective~ | Embed-path logical key/value (not emitted in deck text in 0.1) |
+| ~raw~ | ~Text~ | Full section text inserted as-is |
+
+Missing core sections receive minimal defaults from the renderer so a sparse
+~CPMDParams~ still produces a valid-looking deck for debugging.
+
+* Escape hatches
+Long-tail CPMD keywords not yet typed go in ~CPMDDirective~ lists inside a
+section, ~CPMDInputSection.raw~, or ~inputBlocks~.
+Prefer new structured fields in the schema over inventing a second config file
+format.
+
+* ~PotentialConfig~
+For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union
+with ~cpmd @2 :CPMDParams~ (ordinal aligned for future shared schema evolution;
+~nwchem @1~ is reserved void in this package).

@@ -103,3 +103,17 @@ tests/                       cmocka + encoded Cap'n Proto fixtures
 
 0.1.0 — Cap'n Proto contract, C ABI, Fortran ISO_C shell, stub + parser tests.
 Full OpenCPMD energy/force evaluation is the next embed milestone.
+
+
+## Branding
+
+Wordmark and mark (SVG, light/dark) live under `branding/logo/` and are copied
+into `docs/source/_static/` for Sphinx. The mark is a periodic cell with a
+plane-wave crest (OpenCPMD PW-DFT / Car–Parrinello), indigo palette so it sits
+beside `nwchemc` teal without colliding.
+
+## Documentation
+
+Authoritative prose is Org mode under `docs/orgmode/` (same Diátaxis-ish layout
+as `nwchemc`: tutorials, howto, reference, contributing). Start at
+`docs/orgmode/index.org`.

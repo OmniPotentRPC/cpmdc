@@ -1,0 +1,29 @@
+#+TITLE: Contributing
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Development Checks
+Run the default parser, socket, and stub checks before changing the ABI or
+schema:
+
+#+begin_src bash
+meson setup build -Dwith_tests=true
+meson compile -C build
+meson test -C build --print-errorlogs
+#+end_src
+
+Params render coverage lives under ~tests/cmocka/~ and uses cmocka assertions on
+generated Cap'n Proto types (~read_CPMDParams~, deck substrings) only.
+
+* Documentation
+Documentation source lives under ~docs/orgmode~ (authoritative prose), with
+light/dark logos in ~docs/source/_static/~ and ~branding/logo/~.
+Sphinx export can be wired the same way as ~nwchemc~ (org → RST → HTML) when a
+docs environment is added.
+
+* Release Process
+#+begin_export rst
+.. toctree::
+   :maxdepth: 2
+
+   developer/release
+#+end_export

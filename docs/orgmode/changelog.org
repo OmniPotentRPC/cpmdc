@@ -1,0 +1,10 @@
+#+TITLE: Changelog
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Changelog
+The repository changelog is included verbatim below.
+
+#+begin_export rst
+.. literalinclude:: ../../CHANGELOG.md
+   :language: markdown
+#+end_export
