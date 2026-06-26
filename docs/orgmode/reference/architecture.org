@@ -15,9 +15,9 @@
   ~PotentialResult~ flat messages.
 - ~src/cpmdc.c~ owns sessions, topology checks, unit conversion for results, and
   calls into the Fortran embed shell.
-- ~src/cpmd_embed_c_api.f90~ owns the ~iso_c_binding~ / ~iso_fortran_env~ layer
-  and saved method configuration (v0.1 shell; evaluation hooks for OpenCPMD
-  follow).
+- ~src/cpmd_embed_c_api.f90~ owns the ~iso_c_binding~ / ~iso_fortran_env~ layer,
+  saved method configuration, and a deterministic reference PEF for E2E tests
+  until OpenCPMD archives are linked.
 - ~src/cpmdc_stub.c~ implements the same ABI symbols with ~cpmdc_available() == 0~
   for frontend builds that do not link the embed shell.
 

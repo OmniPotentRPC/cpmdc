@@ -50,7 +50,6 @@ static void test_session_socket_contract(void **state) {
   assert_non_null(params);
   assert_non_null(step);
 
-  /* Session owns a copy of CPMDParams even when embed is unavailable. */
   CPMDCSession *session = cpmdc_session_create(params, params_size);
   assert_non_null(session);
 
@@ -66,14 +65,14 @@ static void test_session_socket_contract(void **state) {
   assert_int_equal(out_size, need);
   assert_non_null(strstr(small.message, "too small"));
 
-  /* Evaluation fails without OpenCPMD embed, but sizing still reported. */
   unsigned char *out = (unsigned char *)malloc(need);
   assert_non_null(out);
   out_size = 0;
   CPMDCResult eval = cpmdc_session_calculate_result(session, step, step_size,
                                                     out, need, &out_size);
-  assert_int_equal(eval.ok, 0);
+  assert_int_equal(eval.ok, 1);
   assert_int_equal(out_size, need);
+  assert_true(eval.energy_h > 0.0);
 
   cpmdc_session_destroy(session);
   free(out);

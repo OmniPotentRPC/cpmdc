@@ -63,24 +63,20 @@ if has_cpmd
     error('cpmd_root is not a directory: ' + cpmd_root)
   endif
 
-  # v0.1 installs the ISO_C embed shell + Cap'n Proto ABI. Full OpenCPMD
-  # archive linking lands when embed evaluation is wired.
-  cpmd_c_args = common_c_args + ['-DCPMDC_HAS_CPMD=1']
-  cpmd_f90_args = ['-DCPMDC_HAS_CPMD=1']
+  # Shared library installs C ABI + Fortran ISO_C embed (reference PEF until
+  # full OpenCPMD archives are linked).
   cpmdc = shared_library(
     'cpmdc',
     ['src/cpmdc.c', 'src/cpmd_embed_c_api.f90'] + cpmdc_params_sources,
     include_directories: [inc] + cpmdc_params_includes,
     dependencies: cpmdc_params_deps + [math_dep],
-    c_args: cpmd_c_args,
-    fortran_args: cpmd_f90_args,
+    c_args: common_c_args,
     install: true,
   )
   install_headers('include/cpmdc.h')
 endif
 
-# Frontend embed shell: same C + Fortran ABI without CPMDC_HAS_CPMD so
-# cpmdc_available() is 0 but Cap'n Proto socket helpers still work.
+# Embed shell used by E2E / socket tests (reference PEF in Fortran).
 cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   ['src/cpmdc.c', 'src/cpmd_embed_c_api.f90'] + cpmdc_params_sources,
@@ -97,47 +93,32 @@ cpmdc_embed_shell_dep = declare_dependency(
 )
 
 if get_option('with_tests')
+  encode = [python, meson.current_source_dir() / 'tests/encode_capnp.py', capnp,
+            meson.current_source_dir() / 'schema/Potentials.capnp']
+
   cpmd_parser_params_bin = custom_target(
     'cpmd_parser_params_bin',
     input: 'tests/cpmd_params_parser.capnp.txt',
     output: 'cpmd_params_parser.bin',
-    command: [
-      python,
-      meson.current_source_dir() / 'tests/encode_capnp.py',
-      capnp,
-      meson.current_source_dir() / 'schema/Potentials.capnp',
-      'CPMDParams',
-      '@INPUT@',
-      '@OUTPUT@',
-    ],
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
   force_input_step_a_bin = custom_target(
     'force_input_step_a_bin',
     input: 'tests/force_input_step_a.capnp.txt',
     output: 'force_input_step_a.bin',
-    command: [
-      python,
-      meson.current_source_dir() / 'tests/encode_capnp.py',
-      capnp,
-      meson.current_source_dir() / 'schema/Potentials.capnp',
-      'ForceInput',
-      '@INPUT@',
-      '@OUTPUT@',
-    ],
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
   force_input_step_ev_bin = custom_target(
     'force_input_step_ev_bin',
     input: 'tests/force_input_step_ev.capnp.txt',
     output: 'force_input_step_ev.bin',
-    command: [
-      python,
-      meson.current_source_dir() / 'tests/encode_capnp.py',
-      capnp,
-      meson.current_source_dir() / 'schema/Potentials.capnp',
-      'ForceInput',
-      '@INPUT@',
-      '@OUTPUT@',
-    ],
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
+  force_input_step_species_bin = custom_target(
+    'force_input_step_species_bin',
+    input: 'tests/force_input_step_changed_species.capnp.txt',
+    output: 'force_input_step_changed_species.bin',
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
 
   test(
@@ -202,7 +183,7 @@ if get_option('with_tests')
   )
 
   test(
-    'embed-shell-unavailable',
+    'embed-shell-reference',
     executable(
       'test_embed_shell',
       'tests/test_embed_shell.c',
@@ -211,5 +192,46 @@ if get_option('with_tests')
       c_args: common_c_args,
     ),
     suite: ['embed'],
+  )
+
+  test(
+    'e2e-single-point',
+    executable(
+      'test_e2e_single_point',
+      'tests/test_e2e_single_point.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [
+      cpmd_parser_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
+    suite: ['e2e', 'cmocka'],
+  )
+
+  test(
+    'e2e-optimizer-session',
+    executable(
+      'test_e2e_optimizer_session',
+      'tests/test_e2e_optimizer_session.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [
+      cpmd_parser_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+      force_input_step_ev_bin.full_path(),
+      force_input_step_species_bin.full_path(),
+    ],
+    depends: [
+      cpmd_parser_params_bin,
+      force_input_step_a_bin,
+      force_input_step_ev_bin,
+      force_input_step_species_bin,
+    ],
+    suite: ['e2e', 'cmocka'],
   )
 endif

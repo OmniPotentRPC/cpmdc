@@ -77,7 +77,17 @@ Frontend / stub build without OpenCPMD:
 meson setup build -Dwith_tests=true
 meson compile -C build
 meson test -C build --print-errorlogs
+# End-to-end single-point + optimizer-style session (reference PEF):
+meson test -C build --suite e2e --print-errorlogs
+# or with pixi:
+pixi run test-stub
+pixi run test-e2e
 ```
+
+The embed shell enables a deterministic **reference PEF** (harmonic, Z-scaled)
+so Cap'n Proto socket paths are fully exercised without OpenCPMD archives.
+`cpmdc_available()` is `1` for that shell; the **stub** library remains
+unavailable for frontend-only links.
 
 Optional embed shell shared library (ISO_C ABI present; evaluation still
 requires a future OpenCPMD link-up):

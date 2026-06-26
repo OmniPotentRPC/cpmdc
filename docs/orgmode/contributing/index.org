@@ -17,8 +17,15 @@ generated Cap'n Proto types (~read_CPMDParams~, deck substrings) only.
 * Documentation
 Documentation source lives under ~docs/orgmode~ (authoritative prose), with
 light/dark logos in ~docs/source/_static/~ and ~branding/logo/~.
-Sphinx export can be wired the same way as ~nwchemc~ (org → RST → HTML) when a
-docs environment is added.
+Build docs (exports Org → RST, Doxygen XML, Sphinx HTML with Antics analytics):
+
+#+begin_src bash
+pixi run -e docs docbld
+#+end_src
+
+The Sphinx theme injects ~antics-api.turtletech.us/antics.js~ via
+~docs/source/_templates/partials/extra-head.html~ (same pattern as ~nwchemc~ /
+~rgpot~).
 
 * Release Process
 #+begin_export rst

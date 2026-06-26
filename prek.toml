@@ -1,0 +1,49 @@
+# Git hooks via `prek` (https://prek.j178.dev)
+#:schema https://www.schemastore.org/prek.json
+
+minimum_prek_version = "0.3.0"
+
+exclude = """(?x)(
+    ^\\.pixi/|
+    ^build(-[^/]+)?/|
+    ^docs/build/|
+    ^docs/doctrees/|
+    ^subprojects/|
+    ^schema/.*\\.capnp\\.(c|h)$|
+    ^pixi\\.lock$
+)"""
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "trailing-whitespace" },
+  { id = "end-of-file-fixer" },
+  { id = "check-yaml" },
+  { id = "check-toml" },
+  { id = "check-merge-conflict" },
+  { id = "check-added-large-files", args = ["--maxkb=1000"] },
+  { id = "detect-private-key" },
+]
+
+[[repos]]
+hooks = [{ id = "check-case-conflict" }]
+repo = "https://github.com/pre-commit/pre-commit-hooks"
+rev = "v6.0.0"
+
+[[repos]]
+repo = "local"
+hooks = [
+  {
+    id = "fortran-fprettify-check",
+    name = "Fortran fprettify (check in-tree sources)",
+    entry = "bash",
+    language = "system",
+    files = "^src/.*\\.f90$",
+    pass_filenames = true,
+    args = [
+      "-c",
+      "ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); FP=$(command -v fprettify || true); [ -z \"$FP\" ] && [ -x \"$ROOT/.pixi/envs/default/bin/fprettify\" ] && FP=\"$ROOT/.pixi/envs/default/bin/fprettify\"; if [ -z \"$FP\" ]; then echo 'fprettify not on PATH'; exit 1; fi; ec=0; for f in \"$@\"; do \"$FP\" --diff \"$f\" >/dev/null 2>&1 || { echo \"fprettify would change: $f\"; ec=1; }; done; exit $ec",
+      "--",
+    ],
+  },
+]

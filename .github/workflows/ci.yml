@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  stub-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: Full meson suite (stub + embed E2E)
+        run: pixi run test-stub
+      - name: E2E suite only
+        run: pixi run test-e2e
+      - name: Cmocka suite
+        run: pixi run test-cmocka

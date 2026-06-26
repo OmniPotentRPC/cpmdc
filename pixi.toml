@@ -1,0 +1,65 @@
+[workspace]
+authors = ["Rohit Goswami <rgoswami@ieee.org>"]
+channels = ["conda-forge"]
+description = "C ABI for embedding OpenCPMD with Cap'n Proto parameters."
+name = "cpmdc"
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+version = "0.1.0"
+
+[environments]
+docs = { features = ["docs"] }
+
+[dependencies]
+capnproto = ">=1.0.2,<2"
+cmocka = ">=1.1.7,<3"
+compilers = ">=1.8.0,<2"
+fortran-compiler = ">=1.8.0,<2"
+fprettify = ">=0.3.7,<1"
+meson = ">=1.5.2,<2"
+ninja = ">=1.11,<2"
+pkgconf = ">=2.5.1,<3"
+python = ">=3.10,<4"
+
+[feature.docs]
+platforms = ["linux-64"]
+
+[feature.docs.dependencies]
+doxygen = ">=1.13.2,<2"
+doxyrest = ">=2.1.2,<3"
+emacs = ">=30.2,<31"
+pandoc = ">=3.1,<4"
+sphinx = ">=8.0,<9"
+
+[feature.docs.pypi-dependencies]
+myst-parser = ">=4.0,<5"
+shibuya = ">=2026.1.9,<2027"
+sphinx-sitemap = ">=2.9.0,<3"
+
+[tasks]
+test-stub = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --print-errorlogs", description = "Configure, build, and test (stub + embed E2E)" }
+test-cmocka = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite cmocka --print-errorlogs", description = "Run cmocka suites (params + e2e)" }
+test-e2e = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite e2e --print-errorlogs", description = "Single-point and optimizer-session E2E" }
+prek-validate = { cmd = "prek validate-config prek.toml", description = "Validate prek/pre-commit config" }
+prek = { cmd = "prek run --all-files", description = "Run all prek hooks on the tree" }
+prek-install = { cmd = "prek install", description = "Install prek git hooks in this clone" }
+fortran-lint = { cmd = "bash -c 'for f in src/*.f90; do [ -f \"$f\" ] || continue; fprettify --diff \"$f\" >/dev/null || { echo \"fprettify would change $f\"; exit 1; }; done'", description = "Fortran fprettify check on src/" }
+lychee = { cmd = "bash -c 'lychee --config .lychee.toml README.md $(find docs/orgmode docs/newsfragments -type f \\( -name \"*.org\" -o -name \"*.md\" \\) 2>/dev/null)'", description = "Link-check owned docs/README" }
+
+[feature.docs.tasks.mkrst]
+cmd = "emacs --batch --load export.el"
+cwd = "docs"
+description = "Export docs/orgmode to docs/source RST"
+
+[feature.docs.tasks.doxybuild]
+cmd = "doxygen Doxyfile_cpmdc.cfg && (command -v doxyrest >/dev/null && doxyrest -c doxyrest-config.lua || true)"
+cwd = "docs/source"
+description = "Generate C/Fortran XML and optional doxyrest RST"
+
+[feature.docs.tasks.sphinxbld]
+cmd = "sphinx-build -d docs/doctrees docs/source docs/build"
+depends-on = ["mkrst", "doxybuild"]
+description = "Build the Sphinx HTML documentation (Antics in extra-head)"
+
+[feature.docs.tasks.docbld]
+depends-on = ["sphinxbld"]
+description = "Build the full documentation site"

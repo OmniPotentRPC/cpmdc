@@ -22,6 +22,22 @@ generates C readers for ~schema/Potentials.capnp~, and runs cmocka suites:
 cmocka is resolved through pkg-config. The parser test uses a Cap'n Proto text
 fixture encoded by the ~capnp~ CLI (~tests/encode_capnp.py~).
 
+* End-to-End Suites
+The embed shell ships a deterministic *reference PEF* (harmonic, Z-scaled) so
+single-point and multi-step session paths work without linking OpenCPMD
+archives. Real PW-DFT evaluation replaces that PEF when archives are wired.
+
+#+begin_src bash
+meson test -C build --suite e2e --print-errorlogs
+# or
+pixi run test-e2e
+#+end_src
+
+- ~e2e-single-point~ — ~cpmdc_calculate_result~ + ~cpmdc_energy_forces~ on one
+  ~ForceInput~ (HO-like geometry).
+- ~e2e-optimizer-session~ — one ~CPMDCSession~, three geometry steps (A → B → A),
+  forces on B, topology rejection, then a second session for species change.
+
 * OpenCPMD Embed Build (0.1 shell)
 The v0.1 shared library path installs the C ABI and Fortran ISO_C symbols when
 a tree path is provided. Full archive linking and energy/force evaluation are
