@@ -1,0 +1,54 @@
+(
+  functional = "PBE",
+  cutOffRy = 90.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  title = "parser fixture",
+  memoryMb = 2048,
+  scratchDir = "/scratch/cpmd",
+  permanentDir = "/perm/cpmd",
+  cpmdRoot = "/opt/cpmd",
+  inputBlocks = [
+    "&INFO\n TEST BLOCK\n&END"
+  ],
+  inputSections = [
+    (
+      cpmd = (
+        optimizeWavefunction = true,
+        convergenceOrbitals = 1.0e-7,
+        maxStep = 100
+      )
+    ),
+    (
+      system = (
+        symmetry = 0,
+        angstrom = true,
+        cutOffRy = 90.0,
+        cell = [10.0, 10.0, 10.0, 90.0, 90.0, 90.0]
+      )
+    ),
+    (
+      dft = (
+        functional = "PBE",
+        lsd = false
+      )
+    ),
+    (
+      atoms = (
+        pseudopotentials = [
+          (element = "H", path = "H_MT_PBE.psp", lmax = 0),
+          (element = "O", path = "O_MT_PBE.psp", lmax = 1)
+        ]
+      )
+    ),
+    (
+      generic = (
+        name = "PIMD",
+        directives = [
+          (keyword = "PROC_NPROC", args = ["4"])
+        ]
+      )
+    )
+  ]
+)

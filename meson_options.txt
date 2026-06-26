@@ -1,0 +1,3 @@
+option('with_tests', type: 'boolean', value: true, description: 'Build tests')
+option('with_cpmd', type: 'boolean', value: false, description: 'Build real CPMD embed library')
+option('cpmd_root', type: 'string', value: '', description: 'OpenCPMD source/build tree root')

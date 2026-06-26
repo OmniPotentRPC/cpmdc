@@ -1,0 +1,10 @@
+/build*/
+/bbdir*/
+*.o
+*.a
+*.so
+*.mod
+*.gcda
+*.gcno
+compile_commands.json
+.cache/
