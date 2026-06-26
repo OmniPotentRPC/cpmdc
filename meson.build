@@ -105,7 +105,8 @@ cpmdc_embed_shell = static_library(
 
 # When HAS_CPMD, also produce installable shared library linked to libcpmd.a
 if has_cpmd
-  cpmdc = shared_library(
+  # Prefer static link into tests; shared needs -fPIC OpenCPMD objects.
+  cpmdc = static_library(
     'cpmdc',
     ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90'] + cpmdc_params_sources,
     include_directories: cpmd_embed_inc + cpmdc_params_includes,
