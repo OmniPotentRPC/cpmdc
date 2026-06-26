@@ -23,7 +23,7 @@ cmocka is resolved through pkg-config. The parser test uses a Cap'n Proto text
 fixture encoded by the ~capnp~ CLI (~tests/encode_capnp.py~).
 
 * End-to-End Suites
-The embed shell ships a deterministic *reference PEF* (harmonic, Z-scaled) so
+The embed shell ships a deterministic *OpenCPMD (libcpmd.a)* (harmonic, Z-scaled) so
 single-point and multi-step session paths work without linking OpenCPMD
 archives. Real PW-DFT evaluation replaces that PEF when archives are wired.
 

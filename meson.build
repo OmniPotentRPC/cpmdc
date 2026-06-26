@@ -49,52 +49,92 @@ cpmdc_stub_dep = declare_dependency(
   include_directories: inc,
 )
 
+# ISO_C embed without libcpmd: available()==0 (frontend / parser / sizing tests).
+cpmd_embed_f_args = []
+cpmd_embed_link = []
+cpmd_embed_inc = [inc]
 if has_cpmd
-  cpmd_root_check = run_command(
+  cpmd_lib = cpmd_root / 'lib' / 'libcpmd.a'
+  cpmd_obj = cpmd_root / 'obj'
+  cpmd_src = cpmd_root / 'src'
+  lib_check = run_command(
     python,
     [
       '-c',
-      'import pathlib, sys; p = pathlib.Path(sys.argv[1]); sys.exit(0 if p.is_dir() else 1)',
-      cpmd_root,
+      'import pathlib, sys; p = pathlib.Path(sys.argv[1]); sys.exit(0 if p.is_file() else 1)',
+      cpmd_lib,
     ],
     check: false,
   )
-  if cpmd_root_check.returncode() != 0
-    error('cpmd_root is not a directory: ' + cpmd_root)
+  if lib_check.returncode() != 0
+    error('with_cpmd requires ' + cpmd_lib + ' (build OpenCPMD in cpmd_root first)')
   endif
+  cpmd_embed_f_args += [
+    '-DCPMDC_HAS_CPMD=1',
+    '-I' + cpmd_src,
+    '-I' + cpmd_obj,
+  ]
+  cpmd_embed_link += [cpmd_lib]
+  # LAPACK/BLAS as used by typical CPMD serial builds
+  openblas = cc.find_library('openblas', required: false)
+  if openblas.found()
+    cpmd_embed_link += [openblas]
+  else
+    lapack = cc.find_library('lapack', required: false)
+    blas = cc.find_library('blas', required: false)
+    if lapack.found()
+      cpmd_embed_link += [lapack]
+    endif
+    if blas.found()
+      cpmd_embed_link += [blas]
+    endif
+  endif
+  cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
+endif
 
-  # Shared library installs C ABI + Fortran ISO_C embed (reference PEF until
-  # full OpenCPMD archives are linked).
+cpmdc_embed_shell = static_library(
+  'cpmdc_embed_shell',
+  ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90'] + cpmdc_params_sources,
+  include_directories: cpmd_embed_inc + cpmdc_params_includes,
+  dependencies: cpmdc_params_deps + [math_dep],
+  c_args: common_c_args,
+  fortran_args: cpmd_embed_f_args,
+  link_args: has_cpmd ? [] : [],
+  install: false,
+)
+
+# When HAS_CPMD, also produce installable shared library linked to libcpmd.a
+if has_cpmd
   cpmdc = shared_library(
     'cpmdc',
-    ['src/cpmdc.c', 'src/cpmd_embed_c_api.f90'] + cpmdc_params_sources,
-    include_directories: [inc] + cpmdc_params_includes,
+    ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90'] + cpmdc_params_sources,
+    include_directories: cpmd_embed_inc + cpmdc_params_includes,
     dependencies: cpmdc_params_deps + [math_dep],
     c_args: common_c_args,
+    fortran_args: cpmd_embed_f_args,
+    link_whole: [],
+    link_args: ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group']
+      + (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas'])
+      + ['-lgfortran', '-lm'],
     install: true,
   )
   install_headers('include/cpmdc.h')
 endif
 
-# Embed shell used by E2E / socket tests (reference PEF in Fortran).
-cpmdc_embed_shell = static_library(
-  'cpmdc_embed_shell',
-  ['src/cpmdc.c', 'src/cpmd_embed_c_api.f90'] + cpmdc_params_sources,
-  include_directories: [inc] + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep],
-  c_args: common_c_args,
-  install: false,
-)
-
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps,
+  link_args: has_cpmd ? ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran'] : [],
 )
 
 if get_option('with_tests')
-  encode = [python, meson.current_source_dir() / 'tests/encode_capnp.py', capnp,
-            meson.current_source_dir() / 'schema/Potentials.capnp']
+  encode = [
+    python,
+    meson.current_source_dir() / 'tests/encode_capnp.py',
+    capnp,
+    meson.current_source_dir() / 'schema/Potentials.capnp',
+  ]
 
   cpmd_parser_params_bin = custom_target(
     'cpmd_parser_params_bin',
@@ -183,7 +223,7 @@ if get_option('with_tests')
   )
 
   test(
-    'embed-shell-reference',
+    'embed-shell-library',
     executable(
       'test_embed_shell',
       'tests/test_embed_shell.c',
@@ -194,6 +234,7 @@ if get_option('with_tests')
     suite: ['embed'],
   )
 
+  # E2E suites need libcpmd.a (with_cpmd). Without it they skip at runtime.
   test(
     'e2e-single-point',
     executable(

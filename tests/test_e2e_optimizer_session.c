@@ -59,6 +59,11 @@ static CPMDCResult eval_step(CPMDCSession *session, const unsigned char *step,
 
 static void test_optimizer_style_session_loop(void **state) {
   (void)state;
+  if (!cpmdc_available()) {
+    print_message("[  SKIP   ] libcpmd embed not linked "
+                  "(set meson -Dwith_cpmd=true -Dcpmd_root=/path/to/CPMD with lib/libcpmd.a)\n");
+    skip();
+  }
   assert_int_equal(cpmdc_available(), 1);
 
   size_t params_size = 0, a_size = 0, b_size = 0, sp_size = 0;

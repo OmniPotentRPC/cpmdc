@@ -50,6 +50,11 @@ static unsigned char *read_file(const char *path, size_t *size) {
 
 static void test_single_point_calculate_result(void **state) {
   (void)state;
+  if (!cpmdc_available()) {
+    print_message("[  SKIP   ] libcpmd embed not linked "
+                  "(set meson -Dwith_cpmd=true -Dcpmd_root=/path/to/CPMD with lib/libcpmd.a)\n");
+    skip();
+  }
   assert_int_equal(cpmdc_available(), 1);
 
   size_t params_size = 0, step_size = 0;
