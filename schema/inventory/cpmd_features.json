@@ -1,7 +1,34 @@
 {
-  "version": 2,
+  "version": 3,
   "schema": "schema/Potentials.capnp",
   "opencpmd_reference": "/tmp/OpenCPMD-gf14",
+  "opencpmd_inscan_sections": [
+    "ATOM",
+    "ATOMS",
+    "BASIS",
+    "CLAS",
+    "CPMD",
+    "DFT",
+    "EAM",
+    "EXTE",
+    "HARDNESS",
+    "INFO",
+    "LINRES",
+    "MOLSTATES",
+    "MTS",
+    "NLCC",
+    "PATH",
+    "PIMD",
+    "POTENTIAL",
+    "PROP",
+    "PTDDFT",
+    "RESP",
+    "SYSTEM",
+    "TDDFT",
+    "VDW",
+    "VECTORS",
+    "WAVEFUNCTION"
+  ],
   "section_kinds": [
     {
       "kind": "generic",
@@ -123,33 +150,31 @@
     "cpmdc_feature_find"
   ],
   "cpmd_sections": [
-    "INFO",
-    "CPMD",
-    "SYSTEM",
-    "DFT",
-    "ATOMS",
     "ATOM",
+    "ATOMS",
     "BASIS",
     "CLAS",
-    "CLASSIC",
+    "CPMD",
+    "DFT",
+    "EAM",
     "EXTE",
     "HARDNESS",
+    "INFO",
     "LINRES",
+    "MOLSTATES",
     "MTS",
+    "NLCC",
     "PATH",
     "PIMD",
     "POTENTIAL",
     "PROP",
-    "PROPERTIES",
     "PTDDFT",
-    "QMMM",
     "RESP",
+    "SYSTEM",
     "TDDFT",
     "VDW",
-    "WAVEFUNCTION",
-    "F_B",
-    "BICANONICAL",
-    "CDFT"
+    "VECTORS",
+    "WAVEFUNCTION"
   ],
   "cpmd_keywords": [
     "OPTIMIZE WAVEFUNCTION",
@@ -191,7 +216,10 @@
     "DIAGONALIZATION",
     "FREE-ENERGY",
     "INTERFACE",
-    "QMMM"
+    "QMMM",
+    "BICANONICAL ENSEMBLE",
+    "CDFT",
+    "PROPERTIES"
   ],
   "dft_functionals": [
     "LDA",
@@ -300,40 +328,14 @@
       "role": "CPMDInputSection union arm"
     },
     {
-      "feature_id": "catalog.section.INFO",
+      "feature_id": "catalog.section.ATOM",
       "kind": "cpmd_section",
-      "name": "INFO",
+      "name": "ATOM",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&INFO ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.CPMD",
-      "kind": "cpmd_section",
-      "name": "CPMD",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&CPMD ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.SYSTEM",
-      "kind": "cpmd_section",
-      "name": "SYSTEM",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&SYSTEM ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.DFT",
-      "kind": "cpmd_section",
-      "name": "DFT",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&DFT ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&ATOM')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.ATOMS",
@@ -341,17 +343,9 @@
       "name": "ATOMS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&ATOMS ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.ATOM",
-      "kind": "cpmd_section",
-      "name": "ATOM",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&ATOM ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&ATOMS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.BASIS",
@@ -359,8 +353,9 @@
       "name": "BASIS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&BASIS ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&BASIS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.CLAS",
@@ -368,17 +363,39 @@
       "name": "CLAS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CLAS ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&CLAS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
-      "feature_id": "catalog.section.CLASSIC",
+      "feature_id": "catalog.section.CPMD",
       "kind": "cpmd_section",
-      "name": "CLASSIC",
+      "name": "CPMD",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CLASSIC ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&CPMD')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.DFT",
+      "kind": "cpmd_section",
+      "name": "DFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&DFT')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.EAM",
+      "kind": "cpmd_section",
+      "name": "EAM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&EAM')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.EXTE",
@@ -386,8 +403,9 @@
       "name": "EXTE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&EXTE ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&EXTE')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.HARDNESS",
@@ -395,8 +413,19 @@
       "name": "HARDNESS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&HARDNESS ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&HARDNESS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.INFO",
+      "kind": "cpmd_section",
+      "name": "INFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&INFO')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.LINRES",
@@ -404,8 +433,19 @@
       "name": "LINRES",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&LINRES ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&LINRES')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.MOLSTATES",
+      "kind": "cpmd_section",
+      "name": "MOLSTATES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&MOLSTATES')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.MTS",
@@ -413,8 +453,19 @@
       "name": "MTS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&MTS ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&MTS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.NLCC",
+      "kind": "cpmd_section",
+      "name": "NLCC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&NLCC')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.PATH",
@@ -422,8 +473,9 @@
       "name": "PATH",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&PATH ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&PATH')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.PIMD",
@@ -431,8 +483,9 @@
       "name": "PIMD",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&PIMD ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&PIMD')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.POTENTIAL",
@@ -440,8 +493,9 @@
       "name": "POTENTIAL",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&POTENTIAL ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&POTENTIAL')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.PROP",
@@ -449,17 +503,9 @@
       "name": "PROP",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&PROP ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.PROPERTIES",
-      "kind": "cpmd_section",
-      "name": "PROPERTIES",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&PROPERTIES ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&PROP')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.PTDDFT",
@@ -467,17 +513,9 @@
       "name": "PTDDFT",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&PTDDFT ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.QMMM",
-      "kind": "cpmd_section",
-      "name": "QMMM",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&QMMM ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&PTDDFT')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.RESP",
@@ -485,8 +523,19 @@
       "name": "RESP",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&RESP ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&RESP')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.SYSTEM",
+      "kind": "cpmd_section",
+      "name": "SYSTEM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&SYSTEM')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.TDDFT",
@@ -494,8 +543,9 @@
       "name": "TDDFT",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&TDDFT ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&TDDFT')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.VDW",
@@ -503,8 +553,19 @@
       "name": "VDW",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&VDW ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&VDW')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
+    },
+    {
+      "feature_id": "catalog.section.VECTORS",
+      "kind": "cpmd_section",
+      "name": "VECTORS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "OpenCPMD inscan('&VECTORS')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.section.WAVEFUNCTION",
@@ -512,35 +573,9 @@
       "name": "WAVEFUNCTION",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&WAVEFUNCTION ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.F_B",
-      "kind": "cpmd_section",
-      "name": "F_B",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&F_B ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.BICANONICAL",
-      "kind": "cpmd_section",
-      "name": "BICANONICAL",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&BICANONICAL ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
-    },
-    {
-      "feature_id": "catalog.section.CDFT",
-      "kind": "cpmd_section",
-      "name": "CDFT",
-      "stub_applicable": true,
-      "embed_applicable": true,
-      "role": "&CDFT ... &END via generic/raw/inputBlocks or typed core",
-      "render_via": "generic_or_raw"
+      "role": "OpenCPMD inscan('&WAVEFUNCTION')",
+      "render_via": "generic_or_raw",
+      "source": "inscan"
     },
     {
       "feature_id": "catalog.cpmd.OPTIMIZE_WAVEFUNCTION",
@@ -548,7 +583,7 @@
       "name": "OPTIMIZE WAVEFUNCTION",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -557,7 +592,7 @@
       "name": "OPTIMIZE GEOMETRY",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -566,7 +601,7 @@
       "name": "MOLECULAR DYNAMICS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -575,7 +610,7 @@
       "name": "MOLECULAR DYNAMICS CP",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -584,7 +619,7 @@
       "name": "MOLECULAR DYNAMICS BO",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -593,7 +628,7 @@
       "name": "MOLECULAR DYNAMICS EH",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -602,7 +637,7 @@
       "name": "MOLECULAR DYNAMICS PT",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -611,7 +646,7 @@
       "name": "MOLECULAR DYNAMICS CLASSICAL",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -620,7 +655,7 @@
       "name": "MOLECULAR DYNAMICS FILE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -629,7 +664,7 @@
       "name": "EMASS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -638,7 +673,7 @@
       "name": "TIMESTEP",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -647,7 +682,7 @@
       "name": "MAXSTEP",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -656,7 +691,7 @@
       "name": "MAXITER",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -665,7 +700,7 @@
       "name": "CONVERGENCE ORBITALS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -674,7 +709,7 @@
       "name": "CONVERGENCE GEOMETRY",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -683,7 +718,7 @@
       "name": "NOSE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -692,7 +727,7 @@
       "name": "NOSE IONS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -701,7 +736,7 @@
       "name": "NOSE ELECTRONS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -710,7 +745,7 @@
       "name": "BERENDSEN",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -719,7 +754,7 @@
       "name": "LANGEVIN",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -728,7 +763,7 @@
       "name": "ANNEALING",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -737,7 +772,7 @@
       "name": "QUENCH",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -746,7 +781,7 @@
       "name": "RATTLE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -755,7 +790,7 @@
       "name": "SHAKE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -764,7 +799,7 @@
       "name": "CONSTRAINT",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -773,7 +808,7 @@
       "name": "TROTTER",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -782,7 +817,7 @@
       "name": "RESTART",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -791,7 +826,7 @@
       "name": "RESTART WAVEFUNCTION",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -800,7 +835,7 @@
       "name": "TRAJECTORY",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -809,7 +844,7 @@
       "name": "PRINT",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -818,7 +853,7 @@
       "name": "STORE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -827,7 +862,7 @@
       "name": "CENTER MOLECULE OFF",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -836,7 +871,7 @@
       "name": "CENTER MOLECULE ON",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -845,7 +880,7 @@
       "name": "DIIS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -854,7 +889,7 @@
       "name": "ODIIS",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -863,7 +898,7 @@
       "name": "PCG",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -872,7 +907,7 @@
       "name": "DIAGONALIZATION",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -881,7 +916,7 @@
       "name": "FREE-ENERGY",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -890,7 +925,7 @@
       "name": "INTERFACE",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -899,7 +934,34 @@
       "name": "QMMM",
       "stub_applicable": true,
       "embed_applicable": true,
-      "role": "&CPMD directive (typed or CPMDDirective)",
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BICANONICAL_ENSEMBLE",
+      "kind": "cpmd_keyword",
+      "name": "BICANONICAL ENSEMBLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT",
+      "kind": "cpmd_keyword",
+      "name": "CDFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PROPERTIES",
+      "kind": "cpmd_keyword",
+      "name": "PROPERTIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
       "section": "CPMD"
     },
     {
@@ -1538,5 +1600,6 @@
       "stub_applicable": true,
       "embed_applicable": true
     }
-  ]
+  ],
+  "notes": "cpmd_sections == OpenCPMD inscan('&NAME') set; QMMM/PROPERTIES/BICANONICAL/CDFT are keywords under &CPMD not deck sections."
 }

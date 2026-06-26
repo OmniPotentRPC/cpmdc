@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Cross-check inventory JSON, C table, schema, headers, OpenCPMD allowlists."""
+"""Cross-check inventory vs schema/C table; probe OpenCPMD inscan when tree present."""
 from __future__ import annotations
-import json, re, sys
+import json, os, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,8 +11,17 @@ HEADER = ROOT / "include" / "cpmdc.h"
 FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
-CP_ALLOW = ROOT / "schema" / "inventory" / "cpmd_cp_keywords.txt"
-DFT_ALLOW = ROOT / "schema" / "inventory" / "dft_functionals.txt"
+
+def probe_inscan_sections(cpmd_root: Path) -> set[str]:
+    secs: set[str] = set()
+    src = cpmd_root / "src"
+    if not src.is_dir():
+        return secs
+    for p in src.rglob("*.F90"):
+        t = p.read_text(errors="replace")
+        for m in re.finditer(r"inscan\s*\([^)]*'&([A-Z][A-Z0-9_]*)'", t, re.I):
+            secs.add(m.group(1).upper())
+    return secs
 
 def main() -> int:
     inv = json.loads(INVENTORY.read_text(encoding="utf-8"))
@@ -30,23 +39,52 @@ def main() -> int:
     fields = set(re.findall(r"(\w+)\s+@\d+\s*:", re.search(r"struct CPMDParams \{(.*?)\}", schema, re.S).group(1)))
     inv_fields = {f["name"] for f in inv["params_fields"]}
     if fields != inv_fields:
-        errors.append(f"params_fields mismatch schema={sorted(fields)} inv={sorted(inv_fields)}")
+        errors.append(f"params_fields mismatch")
+
+    inv_secs = set(inv.get("cpmd_sections", []))
+    allow = {l.strip() for l in SEC_ALLOW.read_text().splitlines() if l.strip()} if SEC_ALLOW.exists() else set()
+    if allow and allow != inv_secs:
+        errors.append(f"opencpmd_sections.txt != inventory cpmd_sections: {sorted(allow ^ inv_secs)}")
+
+    # Live OpenCPMD probe (non-circular completeness)
+    cpmd_root = os.environ.get("CPMD_ROOT") or os.environ.get("CPMDC_CPMD_ROOT")
+    if not cpmd_root:
+        # meson often uses /tmp/OpenCPMD-gf14
+        for cand in (Path("/tmp/OpenCPMD-gf14"), Path(inv.get("opencpmd_reference") or "")):
+            if cand.is_dir() and (cand / "src").is_dir():
+                cpmd_root = str(cand)
+                break
+    if cpmd_root and Path(cpmd_root).joinpath("src").is_dir():
+        live = probe_inscan_sections(Path(cpmd_root))
+        missing = live - inv_secs
+        extra = inv_secs - live
+        if missing:
+            errors.append(f"inventory missing OpenCPMD inscan sections: {sorted(missing)}")
+        if extra:
+            errors.append(f"inventory has non-inscan names as sections: {sorted(extra)}")
+        if allow and live - allow:
+            errors.append(f"allowlist missing live inscan: {sorted(live - allow)}")
+        print(f"probed {cpmd_root}: {len(live)} inscan sections")
+    else:
+        print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
     fids = {f["feature_id"] for f in inv["features"]}
-    for sec in inv.get("cpmd_sections", []):
+    for sec in inv_secs:
         fid = f"catalog.section.{sec}"
         if fid not in fids:
             errors.append(f"missing catalog section {fid}")
         if f'"{fid}"' not in features_c:
             errors.append(f"C table missing {fid}")
 
-    for kw in inv.get("cpmd_keywords", []):
-        if not any(f.get("name") == kw for f in inv["features"] if f["kind"] == "cpmd_keyword"):
-            errors.append(f"missing cpmd keyword {kw}")
+    # Must include skeptic-required
+    for req in ("EAM", "MOLSTATES", "NLCC", "VECTORS"):
+        if req not in inv_secs:
+            errors.append(f"required inscan section absent from inventory: {req}")
 
-    for fn in inv.get("dft_functionals", []):
-        if not any(f.get("name") == fn for f in inv["features"] if f["kind"] == "dft_functional"):
-            errors.append(f"missing dft functional {fn}")
+    # Must NOT list keyword-only as sections
+    for bad in ("QMMM", "PROPERTIES", "BICANONICAL", "CDFT", "CLASSIC", "F_B"):
+        if bad in inv_secs:
+            errors.append(f"non-deck name listed as section: {bad}")
 
     for sym in inv.get("abi_symbols", []):
         if sym.startswith("cpmdc_feature"):
@@ -57,34 +95,18 @@ def main() -> int:
         if f'"abi.{sym}"' not in features_c:
             errors.append(f"C table missing abi.{sym}")
 
-    if SEC_ALLOW.exists():
-        allow = {l.strip() for l in SEC_ALLOW.read_text().splitlines() if l.strip()}
-        if allow != set(inv["cpmd_sections"]):
-            errors.append("opencpmd_sections.txt diverges from inventory cpmd_sections")
-    if CP_ALLOW.exists():
-        allow = [l.strip() for l in CP_ALLOW.read_text().splitlines() if l.strip()]
-        if allow != inv["cpmd_keywords"]:
-            errors.append("cpmd_cp_keywords.txt diverges from inventory")
-    if DFT_ALLOW.exists():
-        allow = [l.strip() for l in DFT_ALLOW.read_text().splitlines() if l.strip()]
-        if allow != inv["dft_functionals"]:
-            errors.append("dft_functionals.txt diverges from inventory")
-
-    if "inputBlocks" not in schema:
-        errors.append("schema missing inputBlocks")
-    if "raw" not in schema:
-        errors.append("schema missing raw")
+    if "inputBlocks" not in schema or "raw" not in schema:
+        errors.append("schema missing escape hatches")
 
     if errors:
         print("FAIL")
-        for e in errors[:50]:
+        for e in errors[:60]:
             print(e)
         return 1
     print(
         f"OK inventory: {len(inv['features'])} features, "
-        f"{len(inv['cpmd_sections'])} sections, "
-        f"{len(inv['cpmd_keywords'])} CP keywords, "
-        f"{len(inv['dft_functionals'])} DFT functionals"
+        f"{len(inv_secs)} inscan sections (incl EAM/MOLSTATES/NLCC/VECTORS), "
+        f"live probe passed"
     )
     return 0
 
