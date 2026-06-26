@@ -1,0 +1,18 @@
+(
+  functional = "BLYP",
+  cutOffRy = 50.0,
+  title = "escape hatch demo",
+  inputBlocks = [ "&INFO\n DEMO KEYWORD\n&END" ],
+  inputSections = [
+    ( generic = ( name = "PROPERTIES", directives = [
+        ( keyword = "DIPOLE", args = [] )
+      ] ) ),
+    ( dft = ( functional = "BLYP", lsd = false ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 50.0 ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) ),
+    ( raw = "&EXTE\n POTENTIAL\n  0.0\n&END" )
+  ]
+)

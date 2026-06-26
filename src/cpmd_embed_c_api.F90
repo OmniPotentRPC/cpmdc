@@ -11,7 +11,7 @@ MODULE cpmd_embed_c_api
   PRIVATE
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
-  PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_energy_grad
+  PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -79,6 +79,19 @@ CONTAINS
 #else
     IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
     IF (cutoff_ry < 0.0_c_double) RETURN
+#endif
+  END FUNCTION
+
+
+  FUNCTION cpmdc_embed_set_deck(deck, deck_len) RESULT(ok) BIND(C, NAME='cpmdc_embed_set_deck')
+    CHARACTER(KIND=c_char), INTENT(IN) :: deck(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: deck_len
+    INTEGER(c_int) :: ok
+    ok = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    IF (.NOT. runtime_ready) RETURN
+    CALL cstr_to_f(deck, deck_len, cfg_input_deck)
+    ok = 1_c_int
 #endif
   END FUNCTION
 
@@ -155,9 +168,33 @@ CONTAINS
     CHARACTER(LEN=64) :: pp
     CHARACTER(LEN=8) :: lmax
     REAL(real64) :: cell_a
-    CHARACTER(LEN=1024) :: cmd, src, dst
+    CHARACTER(LEN=1024) :: src, dst
+    CHARACTER(LEN=128) :: line
     ierr = 0
     CALL ensure_workdir()
+    ! Prefer Cap'n Proto rendered deck (full method + geometry ATOMS).
+    IF (LEN_TRIM(cfg_input_deck) > 0) THEN
+      OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='REPLACE', &
+           ACTION='WRITE', IOSTAT=ierr)
+      IF (ierr /= 0) RETURN
+      WRITE(u, '(A)') TRIM(cfg_input_deck)
+      CLOSE(u)
+      ! Copy any *file.psp tokens from deck
+      OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='OLD', ACTION='READ')
+      DO
+        READ(u, '(A)', IOSTAT=j) line
+        IF (j /= 0) EXIT
+        IF (line(1:1) == '*') THEN
+          pp = ADJUSTL(line(2:))
+          dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
+          src = '/tmp/cpmdc_lib_scf_test/' // TRIM(pp)
+          CALL EXECUTE_COMMAND_LINE('cp -f "' // TRIM(src) // '" "' // TRIM(dst) // &
+               '" 2>/dev/null || true')
+        END IF
+      END DO
+      CLOSE(u)
+      RETURN
+    END IF
     cell_a = 10.0_real64
     IF (has_cell /= 0) THEN
       IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)

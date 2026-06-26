@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "schema": "schema/Potentials.capnp",
+  "section_kinds": [
+    {"kind": "generic", "feature_id": "section.generic", "stub_applicable": true, "embed_applicable": true},
+    {"kind": "system", "feature_id": "section.system", "stub_applicable": true, "embed_applicable": true},
+    {"kind": "cpmd", "feature_id": "section.cpmd", "stub_applicable": true, "embed_applicable": true},
+    {"kind": "dft", "feature_id": "section.dft", "stub_applicable": true, "embed_applicable": true},
+    {"kind": "atoms", "feature_id": "section.atoms", "stub_applicable": true, "embed_applicable": true},
+    {"kind": "set", "feature_id": "section.set", "stub_applicable": true, "embed_applicable": false},
+    {"kind": "raw", "feature_id": "section.raw", "stub_applicable": true, "embed_applicable": true}
+  ],
+  "params_fields": [
+    {"name": "functional", "feature_id": "params.functional"},
+    {"name": "cutOffRy", "feature_id": "params.cutOffRy"},
+    {"name": "charge", "feature_id": "params.charge"},
+    {"name": "multiplicity", "feature_id": "params.multiplicity"},
+    {"name": "task", "feature_id": "params.task"},
+    {"name": "title", "feature_id": "params.title"},
+    {"name": "memoryMb", "feature_id": "params.memoryMb"},
+    {"name": "scratchDir", "feature_id": "params.scratchDir"},
+    {"name": "permanentDir", "feature_id": "params.permanentDir"},
+    {"name": "cpmdRoot", "feature_id": "params.cpmdRoot"},
+    {"name": "enginePath", "feature_id": "params.enginePath"},
+    {"name": "inputBlocks", "feature_id": "params.inputBlocks"},
+    {"name": "inputSections", "feature_id": "params.inputSections"}
+  ],
+  "abi_symbols": [
+    "cpmdc_set_params",
+    "cpmdc_energy_gradient",
+    "cpmdc_energy",
+    "cpmdc_energy_forces",
+    "cpmdc_session_create",
+    "cpmdc_session_set_params",
+    "cpmdc_session_destroy",
+    "cpmdc_session_energy_gradient",
+    "cpmdc_session_energy",
+    "cpmdc_session_energy_forces",
+    "cpmdc_session_calculate_forces",
+    "cpmdc_session_calculate_result",
+    "cpmdc_calculate_result",
+    "cpmdc_potential_result_size_for_force_input",
+    "cpmdc_version",
+    "cpmdc_available",
+    "cpmdc_finalize"
+  ]
+}

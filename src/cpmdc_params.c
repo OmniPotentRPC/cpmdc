@@ -231,6 +231,17 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+/* CPMD &ATOMS: *filename.psp then LMAX=S|P|D and coordinates (Angstrom). */
+static const char *lmax_letter(int lmax) {
+  if (lmax <= 0)
+    return "S";
+  if (lmax == 1)
+    return "P";
+  if (lmax == 2)
+    return "D";
+  return "F";
+}
+
 static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
                                 struct CPMDAtomsSection *atoms) {
   if (append_text(dst, dst_size, used, "&ATOMS\n") != 0)
@@ -241,20 +252,28 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
   for (int i = 0; i < npsp; ++i) {
     struct CPMDAtomsPseudopotential psp;
     get_CPMDAtomsPseudopotential(&psp, atoms->pseudopotentials, i);
+    /* path is the PP filename (e.g. O_MT_BLYP.psp); element is Z symbol only. */
     if (append_text(dst, dst_size, used, "*") != 0)
       return -1;
-    if (append_capn_text(dst, dst_size, used, psp.element) != 0)
+    if (psp.path.str && psp.path.len > 0) {
+      if (append_capn_text(dst, dst_size, used, psp.path) != 0)
+        return -1;
+    } else if (psp.element.str && psp.element.len > 0) {
+      if (append_capn_text(dst, dst_size, used, psp.element) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, ".psp") != 0)
+        return -1;
+    } else {
       return -1;
-    if (append_text(dst, dst_size, used, "_") != 0)
-      return -1;
-    if (append_capn_text(dst, dst_size, used, psp.path) != 0)
-      return -1;
+    }
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-    if (psp.lmax >= 0) {
-      if (append_fmt(dst, dst_size, used, " LMAX=%d\n", psp.lmax) != 0)
-        return -1;
-    }
+    if (append_fmt(dst, dst_size, used, " LMAX=%s\n",
+                   lmax_letter(psp.lmax >= 0 ? psp.lmax : 0)) != 0)
+      return -1;
+    /* Coordinate counts filled by geometry merge (see render_deck_with_geometry). */
+    if (append_text(dst, dst_size, used, "   0\n") != 0)
+      return -1;
   }
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
     return -1;
@@ -437,6 +456,245 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       return -1;
   }
 
+  return 0;
+}
+
+static int element_z(const char *sym, size_t len) {
+  if (!sym || len == 0)
+    return -1;
+  char a = sym[0];
+  char b = len > 1 ? sym[1] : '\0';
+  if (a >= 'a' && a <= 'z')
+    a = (char)(a - 'a' + 'A');
+  if (b >= 'a' && b <= 'z')
+    b = (char)(b - 'a' + 'A');
+  if (a == 'H' && (b == '\0' || b == ' '))
+    return 1;
+  if (a == 'O' && (b == '\0' || b == ' '))
+    return 8;
+  if (a == 'C' && (b == '\0' || b == ' '))
+    return 6;
+  if (a == 'N' && (b == '\0' || b == ' '))
+    return 7;
+  return -1;
+}
+
+static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
+                                      struct CPMDAtomsSection *atoms,
+                                      int n_atoms, const double *pos,
+                                      const int *z) {
+  if (append_text(dst, dst_size, used, "&ATOMS\n") != 0)
+    return -1;
+  int npsp = struct_list_len(&atoms->pseudopotentials.p);
+  if (npsp < 0)
+    return -1;
+  if (npsp == 0) {
+    /* Default BLYP PPs for H/O when Cap'n Proto omits atoms list. */
+    static const struct {
+      int z;
+      const char *path;
+      const char *lmax;
+    } defs[] = {{8, "O_MT_BLYP.psp", "P"}, {1, "H_CVB_BLYP.psp", "S"}};
+    for (size_t d = 0; d < sizeof(defs) / sizeof(defs[0]); ++d) {
+      int count = 0;
+      for (int j = 0; j < n_atoms; ++j)
+        if (z[j] == defs[d].z)
+          ++count;
+      if (count == 0)
+        continue;
+      if (append_fmt(dst, dst_size, used, "*%s\n LMAX=%s\n   %d\n", defs[d].path,
+                     defs[d].lmax, count) != 0)
+        return -1;
+      for (int j = 0; j < n_atoms; ++j) {
+        if (z[j] != defs[d].z)
+          continue;
+        if (append_fmt(dst, dst_size, used, "  %.6f  %.6f  %.6f\n", pos[3 * j],
+                       pos[3 * j + 1], pos[3 * j + 2]) != 0)
+          return -1;
+      }
+    }
+    return append_text(dst, dst_size, used, "&END\n\n");
+  }
+  for (int i = 0; i < npsp; ++i) {
+    struct CPMDAtomsPseudopotential psp;
+    get_CPMDAtomsPseudopotential(&psp, atoms->pseudopotentials, i);
+    int zz = element_z(psp.element.str, (size_t)psp.element.len);
+    if (zz < 0)
+      return -1;
+    int count = 0;
+    for (int j = 0; j < n_atoms; ++j)
+      if (z[j] == zz)
+        ++count;
+    if (append_text(dst, dst_size, used, "*") != 0)
+      return -1;
+    if (psp.path.str && psp.path.len > 0) {
+      if (append_capn_text(dst, dst_size, used, psp.path) != 0)
+        return -1;
+    } else {
+      return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, " LMAX=%s\n   %d\n",
+                   lmax_letter(psp.lmax >= 0 ? psp.lmax : (zz == 8 ? 1 : 0)),
+                   count) != 0)
+      return -1;
+    for (int j = 0; j < n_atoms; ++j) {
+      if (z[j] != zz)
+        continue;
+      if (append_fmt(dst, dst_size, used, "  %.6f  %.6f  %.6f\n", pos[3 * j],
+                     pos[3 * j + 1], pos[3 * j + 2]) != 0)
+        return -1;
+    }
+  }
+  if (append_directives(dst, dst_size, used, atoms->directives) != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+int cpmdc_params_render_deck_with_geometry(
+    CPMDParams_ptr params, int n_atoms, const double *positions_ang,
+    const int *atomic_numbers, const double *cell_ang, int has_cell, char *dst,
+    size_t dst_size) {
+  if (params.p.type == CAPN_NULL || !dst || dst_size == 0 || n_atoms <= 0 ||
+      !positions_ang || !atomic_numbers)
+    return -1;
+  dst[0] = '\0';
+  size_t used = 0;
+  struct CPMDParams view;
+  read_CPMDParams(&view, params);
+
+  if (view.title.str && view.title.len > 0) {
+    if (append_text(dst, dst_size, &used, "! ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, &used, view.title) != 0)
+      return -1;
+    if (append_text(dst, dst_size, &used, "\n\n") != 0)
+      return -1;
+  }
+
+  int nblocks = pointer_list_len(&view.inputBlocks);
+  if (nblocks < 0)
+    return -1;
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(view.inputBlocks, i, empty_text);
+    if (append_capn_text(dst, dst_size, &used, block) != 0)
+      return -1;
+    if (append_text(dst, dst_size, &used, "\n\n") != 0)
+      return -1;
+  }
+
+  const char *task = cpmdc_params_text_or(view.task, "gradient");
+  const char *functional = cpmdc_params_text_or(view.functional, "BLYP");
+  double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
+  int charge = view.charge;
+  int mult = view.multiplicity > 0 ? view.multiplicity : 1;
+
+  int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
+  int nsec = struct_list_len(&view.inputSections.p);
+  if (nsec < 0)
+    return -1;
+
+  struct CPMDAtomsSection atoms_body;
+  memset(&atoms_body, 0, sizeof(atoms_body));
+
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    switch (sec.which) {
+    case CPMDInputSection_generic: {
+      struct CPMDGenericSection body;
+      read_CPMDGenericSection(&body, sec.generic);
+      if (render_generic_section(dst, dst_size, &used, &body) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_system: {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      has_system = 1;
+      if (has_cell && cell_ang && cell_ang[0] > 0.0) {
+        /* Prefer ForceInput cell A for cubic HOCKNEY-style a 1 1 0 0 0 */
+        body.cutOffRy = body.cutOffRy > 0.0 ? body.cutOffRy : cutoff;
+      }
+      if (render_system_section(dst, dst_size, &used, &body, cutoff, charge) !=
+          0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_cpmd: {
+      struct CPMDCpmdSection body;
+      read_CPMDCpmdSection(&body, sec.cpmd);
+      has_cpmd = 1;
+      if (render_cpmd_section(dst, dst_size, &used, &body, task) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_dft: {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      has_dft = 1;
+      if (render_dft_section(dst, dst_size, &used, &body, functional, mult) !=
+          0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_atoms: {
+      read_CPMDAtomsSection(&atoms_body, sec.atoms);
+      has_atoms = 1;
+      if (render_atoms_with_geometry(dst, dst_size, &used, &atoms_body, n_atoms,
+                                     positions_ang, atomic_numbers) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_set:
+      break;
+    case CPMDInputSection_raw:
+      if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
+        return -1;
+      if (append_text(dst, dst_size, &used, "\n\n") != 0)
+        return -1;
+      break;
+    default:
+      return -1;
+    }
+  }
+
+  if (!has_cpmd) {
+    struct CPMDCpmdSection def;
+    memset(&def, 0, sizeof(def));
+    def.optimizeWavefunction = 1;
+    def.convergenceOrbitals = 1.0e-5;
+    if (render_cpmd_section(dst, dst_size, &used, &def, task) != 0)
+      return -1;
+  }
+  if (!has_system) {
+    struct CPMDSystemSection def;
+    memset(&def, 0, sizeof(def));
+    def.symmetry = 0;
+    def.angstrom = 1;
+    def.cutOffRy = cutoff;
+    def.charge = charge;
+    def.multiplicity = mult;
+    if (has_cell && cell_ang && cell_ang[0] > 0.0) {
+      /* inject via directives not available; render_system uses defaults */
+    }
+    if (render_system_section(dst, dst_size, &used, &def, cutoff, charge) != 0)
+      return -1;
+  }
+  if (!has_dft) {
+    struct CPMDDftSection def;
+    memset(&def, 0, sizeof(def));
+    def.lsd = mult > 1;
+    if (render_dft_section(dst, dst_size, &used, &def, functional, mult) != 0)
+      return -1;
+  }
+  if (!has_atoms) {
+    if (render_atoms_with_geometry(dst, dst_size, &used, &atoms_body, n_atoms,
+                                   positions_ang, atomic_numbers) != 0)
+      return -1;
+  }
+  (void)has_cell;
   return 0;
 }
 

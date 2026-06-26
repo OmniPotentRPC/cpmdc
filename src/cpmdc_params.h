@@ -18,6 +18,16 @@ const char *cpmdc_params_text_or(capn_text text, const char *fallback);
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
                                    size_t dst_size);
 
+/**
+ * Render deck with &ATOMS coordinates from Cap'n Proto geometry (Angstrom).
+ * PP paths come from CPMDParams atoms.pseudopotentials; groups by Z via element
+ * symbol (H=1, O=8, …) matching ForceInput atomic_numbers.
+ */
+int cpmdc_params_render_deck_with_geometry(
+    CPMDParams_ptr params, int n_atoms, const double *positions_ang,
+    const int *atomic_numbers, const double *cell_ang, int has_cell, char *dst,
+    size_t dst_size);
+
 int cpmdc_force_input_root(const void *force_input_capnp,
                            size_t force_input_capnp_size_bytes,
                            struct capn *arena, ForceInput_ptr *force_input);

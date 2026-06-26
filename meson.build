@@ -282,4 +282,55 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
     timeout: 300,
   )
+
+  params_escape_bin = custom_target(
+    'params_escape_bin',
+    input: 'tests/params_escape_generic.capnp.txt',
+    output: 'params_escape_generic.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_params_bin = custom_target(
+    'water_params_bin',
+    input: 'tests/water_blyp_params.capnp.txt',
+    output: 'water_blyp_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_force_bin = custom_target(
+    'water_force_bin',
+    input: 'tests/force_input_water.capnp.txt',
+    output: 'force_input_water.bin',
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'feature-inventory',
+    python,
+    args: [meson.current_source_dir() / 'tools/check_feature_inventory.py'],
+    suite: ['inventory'],
+  )
+  test(
+    'params-escape-render',
+    executable(
+      'test_params_escape_render',
+      'tests/test_params_escape_render.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+    ),
+    args: [params_escape_bin.full_path()],
+    depends: [params_escape_bin],
+    suite: ['params'],
+  )
+  if has_cpmd
+    test(
+      'water-capnp-cli-parity',
+      executable(
+        'test_water_capnp_cli_parity',
+        'tests/test_water_capnp_cli_parity.c',
+        dependencies: [cpmdc_embed_shell_dep, math_dep],
+      ),
+      args: [water_params_bin.full_path(), water_force_bin.full_path()],
+      depends: [water_params_bin, water_force_bin],
+      suite: ['e2e', 'water'],
+      timeout: 600,
+    )
+  endif
+
 endif

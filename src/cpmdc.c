@@ -20,11 +20,16 @@ int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
                            const char *input_deck, int input_deck_len,
                            const char *cpmd_root, int cpmd_root_len);
+int cpmdc_embed_set_deck(const char *deck, int deck_len);
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
                             double *grad_h_bohr);
 void cpmdc_embed_finalize(void);
+
+/* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
+static unsigned char *g_params_bytes = NULL;
+static size_t g_params_size = 0;
 
 struct CPMDCSession {
   unsigned char *params_bytes;
@@ -116,12 +121,41 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
     return -1;
   if (!ensure_embed_init() || !cpmdc_embed_available())
     return -1;
-  return cpmdc_embed_set_config(functional, (int)strlen(functional), cutoff_ry,
-                                charge, multiplicity, input_deck,
-                                (int)strlen(input_deck), cpmd_root,
-                                (int)strlen(cpmd_root)) != 0
-             ? 0
-             : -1;
+  free(g_params_bytes);
+  g_params_bytes = (unsigned char *)malloc(params_capnp_size_bytes);
+  if (!g_params_bytes)
+    return -1;
+  memcpy(g_params_bytes, params_capnp, params_capnp_size_bytes);
+  g_params_size = params_capnp_size_bytes;
+  if (cpmdc_embed_set_config(functional, (int)strlen(functional), cutoff_ry,
+                             charge, multiplicity, input_deck,
+                             (int)strlen(input_deck), cpmd_root,
+                             (int)strlen(cpmd_root)) == 0)
+    return -1;
+  /* Full rendered deck (method sections); geometry merged at energy_grad. */
+  (void)cpmdc_embed_set_deck(input_deck, (int)strlen(input_deck));
+  return 0;
+}
+
+/* Merge ForceInput geometry into Cap'n Proto–derived CPMD INPUT deck. */
+static int push_geometry_deck(int n_atoms, const double *positions_ang,
+                              const int *atomic_numbers, const double *cell_ang,
+                              int has_cell) {
+  if (!g_params_bytes || g_params_size == 0)
+    return -1;
+  struct capn arena;
+  CPMDParams_ptr root;
+  if (cpmdc_params_root(g_params_bytes, g_params_size, &arena, &root) != 0)
+    return -1;
+  char deck[CPMDC_BLOCKS];
+  if (cpmdc_params_render_deck_with_geometry(root, n_atoms, positions_ang,
+                                             atomic_numbers, cell_ang, has_cell,
+                                             deck, sizeof(deck)) != 0) {
+    cpmdc_params_release(&arena);
+    return -1;
+  }
+  cpmdc_params_release(&arena);
+  return cpmdc_embed_set_deck(deck, (int)strlen(deck)) != 0 ? 0 : -1;
 }
 
 static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
@@ -144,6 +178,11 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
   double energy = 0.0;
+  if (push_geometry_deck(n_atoms, positions_ang, atomic_numbers, cell,
+                         has_cell ? 1 : 0) != 0) {
+    snprintf(r.message, sizeof(r.message), "Cap'n Proto deck render failed");
+    return r;
+  }
   cpmdc_stop_arm();
   int ok;
   if (setjmp(*cpmdc_stop_jmp()) != 0) {
@@ -270,6 +309,12 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
     free(session->params_bytes);
     free(session);
     return NULL;
+  }
+  free(g_params_bytes);
+  g_params_bytes = (unsigned char *)malloc(session->params_size);
+  if (g_params_bytes) {
+    memcpy(g_params_bytes, session->params_bytes, session->params_size);
+    g_params_size = session->params_size;
   }
   (void)configure_embed_from_session(session);
   return session;
