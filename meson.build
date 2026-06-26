@@ -153,10 +153,10 @@ if get_option('with_tests')
   )
 
   test(
-    'capnp-parser',
+    'params-render-cmocka',
     executable(
-      'test_capnp_parser',
-      'tests/test_capnp_parser.c',
+      'test_params_render_cmocka',
+      'tests/cmocka/test_params_render_cmocka.c',
       dependencies: [cmocka_dep] + cpmdc_params_deps,
       include_directories: [inc] + cpmdc_params_includes,
       sources: cpmdc_params_sources,
@@ -164,7 +164,7 @@ if get_option('with_tests')
     ),
     args: [cpmd_parser_params_bin.full_path()],
     depends: [cpmd_parser_params_bin],
-    suite: ['capnp'],
+    suite: ['cmocka', 'capnp'],
   )
 
   test(

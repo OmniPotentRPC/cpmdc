@@ -1,3 +1,8 @@
+/**
+ * Drive shipped cpmdc_params_* render paths on multi-section fixtures.
+ * Wire types come from generated Potentials.capnp.h (capnpc-c); asserts use
+ * read_CPMDParams / deck substrings only — no parallel config structs.
+ */
 #include "cpmdc_params.h"
 
 #include <errno.h>

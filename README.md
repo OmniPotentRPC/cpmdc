@@ -47,6 +47,15 @@ The first accepted session evaluation fixes atom count and ordered atomic
 numbers; later steps may change coordinates, units, and cell vectors. Topology
 changes require a new session.
 
+## Type layers
+
+| Layer | Where | Examples |
+| --- | --- | --- |
+| Cap'n Proto wire | `schema/Potentials.capnp` → generated `Potentials.capnp.h` | `struct ForceInput`, `struct CPMDParams`, `read_CPMDParams()`, `CPMDParams_ptr` |
+| Stable C ABI | `include/cpmdc.h` (hand-written, language-neutral) | `CPMDCResult`, `CPMDCSession *`, `cpmdc_session_calculate_result()` |
+
+Callers pass **opaque Cap'n Proto byte buffers** through the C ABI. The C library decodes them with the generated `capnp-c` structs; it does not define a second parallel options language (no TOML/JSON config for backends).
+
 ## Cap'n Proto (0.1 focus)
 
 | Type | Role |
