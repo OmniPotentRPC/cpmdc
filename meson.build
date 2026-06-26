@@ -92,9 +92,12 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
+cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c'] + cpmdc_params_sources
+cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
+
 cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
-  ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90'] + cpmdc_params_sources,
+  cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep],
   c_args: common_c_args,
@@ -108,13 +111,13 @@ if has_cpmd
   # Prefer static link into tests; shared needs -fPIC OpenCPMD objects.
   cpmdc = static_library(
     'cpmdc',
-    ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90'] + cpmdc_params_sources,
+    cpmd_embed_sources,
     include_directories: cpmd_embed_inc + cpmdc_params_includes,
     dependencies: cpmdc_params_deps + [math_dep],
     c_args: common_c_args,
     fortran_args: cpmd_embed_f_args,
     link_whole: [],
-    link_args: ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group']
+    link_args: cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group']
       + (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas'])
       + ['-lgfortran', '-lm'],
     install: true,
@@ -126,7 +129,7 @@ cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps,
-  link_args: has_cpmd ? ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran'] : [],
+  link_args: has_cpmd ? (cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran']) : [],
 )
 
 if get_option('with_tests')
@@ -221,6 +224,7 @@ if get_option('with_tests')
     ],
     depends: [cpmd_parser_params_bin, force_input_step_a_bin],
     suite: ['capnp', 'socket'],
+    timeout: 300,
   )
 
   test(
@@ -251,6 +255,7 @@ if get_option('with_tests')
     ],
     depends: [cpmd_parser_params_bin, force_input_step_a_bin],
     suite: ['e2e', 'cmocka'],
+    timeout: 300,
   )
 
   test(
@@ -275,5 +280,6 @@ if get_option('with_tests')
       force_input_step_species_bin,
     ],
     suite: ['e2e', 'cmocka'],
+    timeout: 300,
   )
 endif

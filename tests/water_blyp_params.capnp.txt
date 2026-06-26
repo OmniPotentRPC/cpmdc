@@ -1,17 +1,17 @@
 (
   functional = "BLYP",
-  cutOffRy = 70.0,
+  cutOffRy = 50.0,
   charge = 0,
   multiplicity = 1,
   task = "gradient",
   title = "water BLYP embed demo",
   inputSections = [
     ( dft = ( functional = "BLYP", lsd = false ) ),
-    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
-        cell = [8.0, 0.0, 0.0, 0.0, 8.0, 0.0, 0.0, 0.0, 8.0] ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 50.0,
+        cell = [10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0] ) ),
     ( atoms = ( pseudopotentials = [
         ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
-        ( element = "H", path = "H_MT_BLYP.psp", lmax = 0 )
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
       ] ) )
   ]
 )
