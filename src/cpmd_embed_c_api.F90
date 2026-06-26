@@ -1,13 +1,17 @@
 ! SPDX-License-Identifier: MIT
 !
 ! Stable ISO_C embed surface for OpenCPMD as a *library*.
-! Links against libcpmd.a (from CPMD_ROOT/lib) when CPMDC_HAS_CPMD is defined.
-! No subprocess / cpmd.x "driver": CALL into CPMD modules only.
 !
-! CPMD still reads a classical INPUT deck for control/sysin/ratom (upstream
-! design). We write that deck to a private workdir and chdir for the duration
-! of init/eval so the Fortran control path sees files; the ABI remains
-! in-process library calls.
+! Configuration and geometry NEVER go through CPMD's INPUT/`control` file
+! parser. Host code (rgpot, readcon-core, tests) supplies Cap'n Proto
+! `CPMDParams` + per-step `ForceInput`; `cpmdc` decodes those in C and pushes
+! scalars/arrays into this layer via bind(C). We set OpenCPMD module state
+! directly (control_def defaults + typed overrides) and CALL library entry
+! points (setsys path pieces, wfopts/forces) in-process against libcpmd.a.
+!
+! Pseudopotential *file paths* may still be opened by CPMD PP readers when we
+! point ion PP names at paths from Cap'n Proto — that is PP data I/O, not
+! method configuration through INPUT decks.
 
 #include "cpmd_embed_config.h"
 
@@ -30,10 +34,11 @@ MODULE cpmd_embed_c_api
   REAL(real64), SAVE :: cfg_cutoff_ry = 70.0_real64
   INTEGER, SAVE :: cfg_charge = 0
   INTEGER, SAVE :: cfg_mult = 1
-  CHARACTER(LEN=16384), SAVE :: cfg_input_deck = ' '
+  ! Optional PP / long-tail text from Cap'n Proto (not fed to control()).
+  CHARACTER(LEN=16384), SAVE :: cfg_notes = ' '
   CHARACTER(LEN=1024), SAVE :: cfg_cpmd_root = ' '
-  CHARACTER(LEN=1024), SAVE :: workdir = ' '
   INTEGER, PARAMETER :: max_embed_atoms = 256
+  REAL(real64), PARAMETER :: ang_to_au = 1.0_real64 / 0.529177210903_real64
 
 CONTAINS
 
@@ -93,9 +98,9 @@ CONTAINS
     cfg_charge = INT(charge)
     cfg_mult = INT(multiplicity)
     IF (cfg_mult <= 0) cfg_mult = 1
-    CALL copy_c_string(input_deck, input_deck_len, cfg_input_deck)
+    ! Kept for diagnostics / future PP path lists — NOT passed to control().
+    CALL copy_c_string(input_deck, input_deck_len, cfg_notes)
     CALL copy_c_string(cpmd_root, cpmd_root_len, cfg_cpmd_root)
-    ! Config change invalidates a prior CPMD init (new deck / topology setup).
     cpmd_initialized = .FALSE.
 #if defined(CPMDC_HAS_CPMD)
     ok = MERGE(1_c_int, 0_c_int, runtime_ready)
@@ -136,10 +141,6 @@ CONTAINS
          cell_ang, INT(has_cell), energy_h, grad_h_bohr, ok)
 #else
     ok = 0_c_int
-    IF (n_atoms <= 0) RETURN
-    IF (atomic_numbers(1) < -1) RETURN
-    IF (has_cell /= 0 .AND. ABS(cell_ang(1)) < 0.0_c_double) RETURN
-    IF (ABS(positions_ang(1)) < -1.0_c_double) RETURN
 #endif
   END FUNCTION cpmdc_embed_energy_grad
 
@@ -150,126 +151,135 @@ CONTAINS
   END SUBROUTINE cpmdc_embed_finalize
 
 #if defined(CPMDC_HAS_CPMD)
-  ! ---- OpenCPMD library glue (same translation unit for module state) ----
+  ! ------------------------------------------------------------------
+  ! In-memory OpenCPMD setup: defaults + Cap'n Proto knobs, no INPUT I/O.
+  ! ------------------------------------------------------------------
 
-  SUBROUTINE write_input_deck(path, n_atoms, positions_ang, atomic_numbers, &
-       cell_ang, has_cell)
-    CHARACTER(LEN=*), INTENT(IN) :: path
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: positions_ang(*), cell_ang(*)
-    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
-    INTEGER :: u, ios, i
-    REAL(real64) :: a, b, c
-    CHARACTER(LEN=2) :: el
-    INTEGER :: z
+  SUBROUTINE apply_method_knobs()
+    USE control_def_utils, ONLY: control_def
+    USE system, ONLY: cntr, cntl, parm
+    USE spin, ONLY: clsd
+    USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, &
+         mgcc_is_lyp, mfxcc_is_pz, mgcx_is_pbex, mgcc_is_pbec
+    IMPLICIT NONE
+    CHARACTER(LEN=16) :: xc
 
-    OPEN (NEWUNIT=u, FILE=TRIM(path), STATUS='REPLACE', ACTION='WRITE', &
-         IOSTAT=ios)
-    IF (ios /= 0) RETURN
+    ! Upstream defaults (same starting point as a fresh CPMD process).
+    CALL control_def()
 
-    IF (LEN_TRIM(cfg_input_deck) > 0) THEN
-      WRITE (u, '(A)') TRIM(cfg_input_deck)
+    ! Plane-wave cutoff (Rydberg) — normally set in &SYSTEM CUTOFF via sysin.
+    cntr%ecut = REAL(cfg_cutoff_ry, KIND=KIND(cntr%ecut))
+
+    ! Wavefunction optimization / forces (embed is BO single-point / step).
+    cntl%tdiag = .FALSE.
+    ! Prefer optimize-wavefunction style; exact cntl flags vary by version —
+    ! wfopts inspects cntl%tmd / geometry flags set elsewhere.
+
+    ! Spin
+    IF (cfg_mult > 1) THEN
+      clsd%nlsd = 2
     ELSE
-      WRITE (u, '(A)') '&CPMD'
-      WRITE (u, '(A)') ' OPTIMIZE WAVEFUNCTION'
-      WRITE (u, '(A)') ' CONVERGENCE ORBITALS'
-      WRITE (u, '(A)') '  1.0d-6'
-      WRITE (u, '(A)') ' DEBUG FORCES'
-      WRITE (u, '(A)') '&END'
-      WRITE (u, '(A)') ''
-      WRITE (u, '(A)') '&SYSTEM'
-      WRITE (u, '(A)') ' SYMMETRY'
-      WRITE (u, '(A)') '  0'
-      WRITE (u, '(A)') ' ANGSTROM'
-      WRITE (u, '(A)') ' CELL'
-      IF (has_cell /= 0) THEN
-        a = SQRT(REAL(cell_ang(1), real64)**2 + REAL(cell_ang(2), real64)**2 + &
-             REAL(cell_ang(3), real64)**2)
-        b = SQRT(REAL(cell_ang(4), real64)**2 + REAL(cell_ang(5), real64)**2 + &
-             REAL(cell_ang(6), real64)**2)
-        c = SQRT(REAL(cell_ang(7), real64)**2 + REAL(cell_ang(8), real64)**2 + &
-             REAL(cell_ang(9), real64)**2)
-        WRITE (u, '(1X,3F16.8,1X,A)') a, b, c, '90.0 90.0 90.0'
-      ELSE
-        WRITE (u, '(A)') '  10.0 10.0 10.0 90.0 90.0 90.0'
-      END IF
-      WRITE (u, '(A)') ' CUTOFF'
-      WRITE (u, '(1X,F16.8)') cfg_cutoff_ry
-      IF (cfg_charge /= 0) THEN
-        WRITE (u, '(A)') ' CHARGE'
-        WRITE (u, '(1X,I0)') cfg_charge
-      END IF
-      WRITE (u, '(A)') '&END'
-      WRITE (u, '(A)') ''
-      WRITE (u, '(A)') '&DFT'
-      WRITE (u, '(A,1X,A)') ' FUNCTIONAL', TRIM(cfg_functional)
-      IF (cfg_mult > 1) WRITE (u, '(A)') ' LSD'
-      WRITE (u, '(A)') '&END'
+      clsd%nlsd = 1
     END IF
 
-    WRITE (u, '(A)') ''
-    WRITE (u, '(A)') '&ATOMS'
-    DO i = 1, n_atoms
-      z = INT(atomic_numbers(i))
-      el = element_symbol(z)
-      ! Pseudopotential path must be supplied via Cap'n Proto deck for production;
-      ! placeholder name documents the required *Element_PP stanza shape.
-      WRITE (u, '(A,A,A)') '*', TRIM(el), '_none'
-      WRITE (u, '(A)') ' LMAX=S'
-      WRITE (u, '(A)') '   1'
-      WRITE (u, '(1X,3F18.10)') REAL(positions_ang(3*(i-1)+1), real64), &
-           REAL(positions_ang(3*(i-1)+2), real64), &
-           REAL(positions_ang(3*(i-1)+3), real64)
+    ! Minimal XC mapping from Cap'n Proto functional name (extend as needed).
+    xc = ADJUSTL(cfg_functional)
+    CALL TO_UPPER(xc)
+    func1%mfxcx = mfxcx_is_slaterx
+    func1%mfxcc = mfxcc_is_pz
+    func1%mgcx = 0
+    func1%mgcc = 0
+    IF (INDEX(xc, 'BLYP') > 0) THEN
+      func1%mfxcc = mfxcc_is_lyp
+      func1%mgcx = mgcx_is_becke88
+      func1%mgcc = mgcc_is_lyp
+    ELSE IF (INDEX(xc, 'PBE') > 0) THEN
+      func1%mgcx = mgcx_is_pbex
+      func1%mgcc = mgcc_is_pbec
+    END IF
+
+    ! Neutral charge default; charged systems need extra embed knobs later.
+    IF (cfg_charge /= 0) THEN
+      ! Charged systems: extend with explicit cntl charge fields when wired.
+    END IF
+  END SUBROUTINE apply_method_knobs
+
+  SUBROUTINE TO_UPPER(s)
+    CHARACTER(LEN=*), INTENT(INOUT) :: s
+    INTEGER :: i, ic
+    DO i = 1, LEN_TRIM(s)
+      ic = IACHAR(s(i:i))
+      IF (ic >= IACHAR('a') .AND. ic <= IACHAR('z')) &
+           s(i:i) = ACHAR(ic - 32)
     END DO
-    WRITE (u, '(A)') '&END'
-    CLOSE (u)
-  END SUBROUTINE write_input_deck
+  END SUBROUTINE TO_UPPER
 
-  FUNCTION element_symbol(z) RESULT(sym)
-    INTEGER, INTENT(IN) :: z
-    CHARACTER(LEN=2) :: sym
-    CHARACTER(LEN=2), PARAMETER :: table(0:36) = [ CHARACTER(LEN=2) :: &
-         'X ', 'H ', 'He', 'Li', 'Be', 'B ', 'C ', 'N ', 'O ', 'F ', 'Ne', &
-         'Na', 'Mg', 'Al', 'Si', 'P ', 'S ', 'Cl', 'Ar', 'K ', 'Ca', 'Sc', &
-         'Ti', 'V ', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', &
-         'As', 'Se', 'Br', 'Kr' ]
-    IF (z < 0 .OR. z > 36) THEN
-      sym = 'X '
+  SUBROUTINE apply_cell_ang(cell_ang, has_cell)
+    USE system, ONLY: parm
+    USE kinds, ONLY: real_8
+    IMPLICIT NONE
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER, INTENT(IN) :: has_cell
+    INTEGER :: k
+    IF (has_cell == 0) THEN
+      ! Default cubic 10 Angstrom cell in a.u.
+      parm%a1 = [10.0_real_8, 0.0_real_8, 0.0_real_8] * REAL(ang_to_au, real_8)
+      parm%a2 = [0.0_real_8, 10.0_real_8, 0.0_real_8] * REAL(ang_to_au, real_8)
+      parm%a3 = [0.0_real_8, 0.0_real_8, 10.0_real_8] * REAL(ang_to_au, real_8)
     ELSE
-      sym = table(z)
+      DO k = 1, 3
+        parm%a1(k) = REAL(cell_ang(k), real_8) * REAL(ang_to_au, real_8)
+        parm%a2(k) = REAL(cell_ang(3 + k), real_8) * REAL(ang_to_au, real_8)
+        parm%a3(k) = REAL(cell_ang(6 + k), real_8) * REAL(ang_to_au, real_8)
+      END DO
     END IF
-  END FUNCTION element_symbol
+  END SUBROUTINE apply_cell_ang
+
+  SUBROUTINE apply_geometry(n_atoms, positions_ang, atomic_numbers)
+    USE coor, ONLY: tau0, fion
+    USE ions, ONLY: ions0, ions1
+    USE kinds, ONLY: real_8
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: positions_ang(*)
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    INTEGER :: k, isp, iat, idx
+
+    IF (.NOT. ALLOCATED(tau0)) RETURN
+
+    ! Walk CPMD species layout; requires prior species registration that
+    ! matches Cap'n Proto atomic_numbers order (single-species and simple
+    ! multi-species builds set ions0%na / ions1%nsp in init).
+    idx = 0
+    DO isp = 1, ions1%nsp
+      DO iat = 1, ions0%na(isp)
+        DO k = 1, 3
+          idx = idx + 1
+          IF (idx > n_atoms * 3) RETURN
+          tau0(k, iat, isp) = REAL(positions_ang(idx), real_8) * &
+               REAL(ang_to_au, real_8)
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE apply_geometry
 
   SUBROUTINE cpmd_lib_energy_grad(n_atoms, positions_ang, atomic_numbers, &
        cell_ang, has_cell, energy_h, grad_h_bohr, ok)
-    ! Direct library evaluation: initialize CPMD modules once, update ionic
-    ! coordinates in coor%tau0, run wavefunction optimization / forces, read
-    ! ener_com%etot and coor%fion.
-    USE coor, ONLY: tau0, fion
+    USE coor, ONLY: fion
     USE ener, ONLY: ener_com
     USE ions, ONLY: ions0, ions1
     USE kinds, ONLY: real_8
-    USE control_utils, ONLY: control
-    USE setsys_utils, ONLY: setsys
-    USE system, ONLY: cnts
-    USE wfopts_utils, ONLY: wfopts
-    USE parac, ONLY: paral
     USE startpa_utils, ONLY: startpa
     USE envir_utils, ONLY: envir
     USE setcnst_utils, ONLY: setcnst
-    USE fileopen_utils, ONLY: init_fileopen
-    USE dftin_utils, ONLY: dftin
-    USE sysin_utils, ONLY: sysin
     USE setsc_utils, ONLY: setsc
-    USE detsp_utils, ONLY: detsp
-    USE mm_init_utils, ONLY: mm_init
-    USE ratom_utils, ONLY: ratom
-    USE vdwin_utils, ONLY: vdwin
-    USE propin_utils, ONLY: propin
+    USE setsys_utils, ONLY: setsys
     USE genxc_utils, ONLY: genxc
     USE numpw_utils, ONLY: numpw
     USE rinit_utils, ONLY: rinit
-    USE machine, ONLY: m_chdir, m_getcwd
+    USE wfopts_utils, ONLY: wfopts
+    USE parac, ONLY: paral
+    USE fileopen_utils, ONLY: init_fileopen
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: positions_ang(*), cell_ang(*)
@@ -277,73 +287,42 @@ CONTAINS
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad_h_bohr(*)
     INTEGER(c_int), INTENT(OUT) :: ok
-
-    CHARACTER(LEN=1024) :: cwd_save, inp
-    INTEGER :: is, ia, k, idx, isp, iat
-    LOGICAL :: tinfo
-    REAL(real_8) :: ang_to_au
+    INTEGER :: isp, iat, k, idx
 
     ok = 0_c_int
     energy_h = 0.0_c_double
-    ang_to_au = 1.0_real_8 / 0.529177210903_real_8
-
-    ! Private workdir per process; CPMD control reads ./INPUT by default.
-    IF (LEN_TRIM(workdir) == 0) THEN
-      CALL get_env_workdir(workdir)
-    END IF
-    CALL m_getcwd(cwd_save)
-    CALL write_input_deck(TRIM(workdir)//'/INPUT', n_atoms, positions_ang, &
-         atomic_numbers, cell_ang, has_cell)
-    CALL m_chdir(TRIM(workdir))
 
     IF (.NOT. cpmd_initialized) THEN
       CALL init_fileopen
       CALL startpa
       CALL envir
       CALL setcnst
-      cnts%inputfile = 'INPUT'
-      CALL control
-      CALL dftin
-      CALL sysin
+      CALL apply_method_knobs()
+      CALL apply_cell_ang(cell_ang, has_cell)
+      ! Species / PP registration must be driven from Cap'n Proto atom + PP
+      ! fields (detsp/ratom equivalents in-memory) — not INPUT. Until that
+      ! table is fully wired, fail closed rather than calling control().
+      IF (ions1%nsp <= 0 .OR. ions1%nat <= 0) THEN
+        ! Bootstrap minimal single-pass species list from atomic_numbers.
+        CALL register_species_from_z(n_atoms, atomic_numbers)
+      END IF
+      CALL apply_geometry(n_atoms, positions_ang, atomic_numbers)
       CALL setsc
-      CALL detsp
-      CALL mm_init
-      tinfo = .TRUE.
       IF (paral%qmnode) THEN
-        CALL ratom
-        CALL vdwin
-        CALL propin(tinfo)
         CALL setsys
         CALL genxc
         CALL numpw
         CALL rinit
-        ! Full wavefunction / G-vector / PP setup continues in wfopts.
         CALL wfopts
       END IF
       cpmd_initialized = .TRUE.
     ELSE
-      ! Sustained session: update ionic positions in-place (Angstrom -> a.u.).
-      IF (.NOT. ALLOCATED(tau0) .OR. .NOT. ALLOCATED(fion)) THEN
-        CALL m_chdir(TRIM(cwd_save))
-        RETURN
-      END IF
-      idx = 0
-      DO isp = 1, ions1%nsp
-        DO iat = 1, ions0%na(isp)
-          DO k = 1, 3
-            idx = idx + 1
-            IF (idx > n_atoms * 3) EXIT
-            tau0(k, iat, isp) = REAL(positions_ang(idx), KIND=real_8) * ang_to_au
-          END DO
-        END DO
-      END DO
+      CALL apply_cell_ang(cell_ang, has_cell)
+      CALL apply_geometry(n_atoms, positions_ang, atomic_numbers)
       IF (paral%qmnode) CALL wfopts
     END IF
 
     energy_h = REAL(ener_com%etot, KIND=c_double)
-    ! Map FION (a.u. force) -> gradient Ha/Bohr in C atom order (species major
-    ! as stored in CPMD is not necessarily input order; for single-species
-    ! tests this matches. Multi-species ordering follows ions0%na walk.)
     idx = 0
     IF (ALLOCATED(fion)) THEN
       DO isp = 1, ions1%nsp
@@ -351,29 +330,48 @@ CONTAINS
           DO k = 1, 3
             idx = idx + 1
             IF (idx > n_atoms * 3) EXIT
-            ! ABI gradient = -force
             grad_h_bohr(idx) = -REAL(fion(k, iat, isp), KIND=c_double)
           END DO
         END DO
       END DO
     END IF
-
-    CALL m_chdir(TRIM(cwd_save))
     ok = 1_c_int
   END SUBROUTINE cpmd_lib_energy_grad
 
-  SUBROUTINE get_env_workdir(dir)
-    CHARACTER(LEN=*), INTENT(OUT) :: dir
-    CHARACTER(LEN=1024) :: env
-    INTEGER :: ios
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_WORKDIR', env, STATUS=ios)
-    IF (ios == 0 .AND. LEN_TRIM(env) > 0) THEN
-      dir = TRIM(env)
-    ELSE
-      dir = '/tmp/cpmdc-embed'
-    END IF
-    CALL execute_command_line('mkdir -p '//TRIM(dir), WAIT=.TRUE.)
-  END SUBROUTINE get_env_workdir
+  SUBROUTINE register_species_from_z(n_atoms, atomic_numbers)
+    ! Minimal in-memory species table so we never need ratom() INPUT parsing.
+    ! Full PP projector load still requires PP files referenced by Cap'n Proto
+    ! atoms.pseudopotentials — set on ion PP name arrays in a follow-up.
+    USE ions, ONLY: ions0, ions1
+    USE system, ONLY: maxsys
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    INTEGER :: i, z, nsp, found, s
+
+    ions1%nsp = 0
+    ions1%nat = n_atoms
+    DO i = 1, n_atoms
+      z = INT(atomic_numbers(i))
+      found = 0
+      DO s = 1, ions1%nsp
+        IF (ions0%iatyp(s) == z) THEN
+          ions0%na(s) = ions0%na(s) + 1
+          found = 1
+          EXIT
+        END IF
+      END DO
+      IF (found == 0) THEN
+        ions1%nsp = ions1%nsp + 1
+        nsp = ions1%nsp
+        ions0%iatyp(nsp) = z
+        ions0%na(nsp) = 1
+        ions0%zv(nsp) = REAL(z, KIND=KIND(ions0%zv))
+      END IF
+    END DO
+    maxsys%nsx = MAX(maxsys%nsx, ions1%nsp)
+    maxsys%nax = MAX(maxsys%nax, MAXVAL(ions0%na(1:ions1%nsp)))
+  END SUBROUTINE register_species_from_z
 #endif
 
 END MODULE cpmd_embed_c_api

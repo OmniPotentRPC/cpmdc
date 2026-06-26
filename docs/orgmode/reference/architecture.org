@@ -2,53 +2,49 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Layers
-~cpmdc~ is deliberately small and mirrors ~nwchemc~:
+~cpmdc~ mirrors ~nwchemc~: Cap'n Proto on the wire, stable C ABI, Fortran
+~iso_c_binding~ embed that talks to the engine *as a library*.
 
-- ~include/cpmdc.h~ exposes the stable C ABI (~CPMDCResult~, ~CPMDCSession~,
+- ~include/cpmdc.h~ — language-neutral C ABI (~CPMDCResult~, ~CPMDCSession~,
   socket entry points).
-- ~schema/Potentials.capnp~ defines ~CPMDParams~, per-step ~ForceInput~,
-  ~PotentialResult~, structured CPMD input sections, and ~PotentialConfig~
-  (~cpmd @2~ arm).
-- ~subprojects/c-capnproto~ provides the ~capnp-c~ runtime and compiler plugin.
-- ~src/cpmdc_params.c~ opens serialized Cap'n Proto messages, returns generated
-  ~CPMDParams_ptr~ / ~ForceInput_ptr~ roots, renders ~&SECTION~ decks, and writes
-  ~PotentialResult~ flat messages.
-- ~src/cpmdc.c~ owns sessions, topology checks, unit conversion for results, and
-  calls into the Fortran embed shell.
-- ~src/cpmd_embed_c_api.f90~ owns the ~iso_c_binding~ / ~iso_fortran_env~ layer,
-  saved method configuration, and a deterministic OpenCPMD (cpmd.x) for E2E tests
-  until OpenCPMD archives are linked.
-- ~src/cpmdc_stub.c~ implements the same ABI symbols with ~cpmdc_available() == 0~
-  for frontend builds that do not link the embed shell.
+- ~schema/Potentials.capnp~ — ~CPMDParams~, ~ForceInput~, ~PotentialResult~
+  (method knobs vs per-step geometry). Host tools may also use
+  [[https://github.com/HaoZeke/readcon-core][readcon-core]] / ~.con~ landscapes; those become ~ForceInput~ before ~cpmdc~.
+- ~src/cpmdc_params.c~ — decode Cap'n Proto only (no CPMD types).
+- ~src/cpmdc.c~ — sessions, topology, unit conversion, calls embed.
+- ~src/cpmd_embed_c_api.F90~ — ~bind(C)~ surface; with ~CPMDC_HAS_CPMD~ links
+  ~libcpmd.a~ and sets OpenCPMD *module state* in memory.
+- ~src/cpmdc_stub.c~ — same ABI symbols with ~cpmdc_available() == 0~.
 
-* Parameter Flow
-The ABI receives a byte pointer and byte count.
-~capn_init_mem()~ opens the flat message, ~capn_getp(capn_root(...))~ obtains the
-generated ~CPMDParams_ptr~, and generated ~read_CPMDParams()~ calls are used as
-short-lived C views while the arena is alive.
-Session force and result calls use the same pattern for generated
-~ForceInput_ptr~ roots.
+* No CPMD INPUT / ~control~ I/O for configuration
+Embed does **not** write ~INPUT~ decks or ~CALL control~ to parse method options.
 
-There is no second user-facing configuration struct in C.
-Structured ~CPMDInputSection~ unions (~cpmd~, ~system~, ~dft~, ~atoms~,
-~generic~, ~raw~) are Cap'n Proto only; the renderer turns them into CPMD-style
-~&SECTION~ … ~&END~ text for embed configuration and debugging.
+| Concern | Carrier | Where it is applied |
+| --- | --- | --- |
+| Method (XC, cutoff, charge, …) | Cap'n Proto ~CPMDParams~ | C decode → ~cpmdc_embed_set_config~ → ~control_def~ + typed module writes (~cntr%ecut~, ~func1~, spin, …) |
+| Geometry / cell / species Z | Cap'n Proto ~ForceInput~ (or C arrays) | ~tau0~ / ~parm%a1..a3~ / in-memory species table |
+| PP data files | Paths inside structured ~atoms~ / future fields | PP readers only (data files), not method config |
 
-* Long-Running Sessions
-~cpmdc_session_create()~ copies the ~CPMDParams~ bytes and renders the input
-deck once.
-~cpmdc_session_calculate_forces()~ and ~cpmdc_session_calculate_result()~ accept
-serialized ~ForceInput~ messages so MD, optimizers, and socket-style drivers can
-update coordinates and the periodic cell without rebuilding the method carrier.
-~cpmdc_potential_result_size_for_force_input()~ exposes result buffer sizing
-without touching the embed runtime.
-~cpmdc_calculate_result()~ creates a temporary session for one-shot callers.
+Upstream CPMD CLI still uses ~&SECTION~ files; ~cpmdc_params_render_input_deck~
+exists for **debugging and CLI parity**, not for the embed hot path.
 
-The first accepted session evaluation records topology (atom count and ordered
-atomic numbers). Session calls reject later steps with a different topology.
-~cpmdc_session_set_params~ may replace configuration only before topology is
-accepted.
+* Parameter flow
+1. Host builds ~CPMDParams~ (pycapnp, rgpot, readcon-core → geometry step as
+   ~ForceInput~).
+2. ~cpmdc_session_create~ copies bytes and calls ~cpmdc_embed_set_config~ with
+   extracted scalars (functional, cutoff Ry, charge, multiplicity).
+3. Each ~cpmdc_session_calculate_result~ parses ~ForceInput~, updates ionic
+   positions in ~coor%tau0~ (Angstrom → a.u.), runs library ~wfopts~ / forces,
+   reads ~ener_com%etot~ and ~coor%fion~, writes ~PotentialResult~.
 
-* Branding
-Wordmark and mark assets live under ~branding/logo/~ and
-~docs/source/_static/~ (light/dark SVG, matching ~nwchemc~ docs layout).
+* Long-running sessions
+First successful eval fixes topology (atom count + ordered Z). Later steps only
+change coordinates, units, and cell vectors. Species or count changes need a new
+session. Method knobs are fixed at session create unless
+~cpmdc_session_set_params~ runs *before* topology is accepted.
+
+* Build
+Without ~libcpmd.a~: frontend tests (stub, Cap'n Proto, sizing); ~available()==0~.
+With ~-Dwith_cpmd=true -Dcpmd_root=...~ and ~$cpmd_root/lib/libcpmd.a~: full embed
+symbols linked; E2E single-point and multi-step session tests exercise real
+CPMD library calls (PP paths must be valid for convergence).

@@ -97,6 +97,14 @@ meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/OpenCPMD/CPMD
 meson compile -C build-cpmd
 ```
 
+## Embed model
+
+Method and geometry enter through **Cap'n Proto** (`CPMDParams`, `ForceInput`),
+optionally produced from **readcon-core** / host tools — not through CPMD's
+`INPUT` / `control` parser. The Fortran ISO_C layer sets OpenCPMD module state
+(`control_def` defaults + typed overrides) and `CALL`s library routines linked
+from `libcpmd.a`. Deck rendering is for debug/CLI parity only.
+
 ## Layout
 
 ```
