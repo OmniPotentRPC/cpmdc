@@ -81,6 +81,9 @@ Top-level ``CPMDParams`` fields
 
 Missing core sections receive minimal defaults from the renderer so a
 sparse ``CPMDParams`` still produces a valid-looking deck for debugging.
+When structured ``dft`` or ``system`` sections provide scalar method
+values (functional, cutoff, charge, multiplicity), those section values
+are also the effective embed configuration passed through the C ABI.
 
 Escape hatches
 ==============
