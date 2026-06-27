@@ -34,6 +34,16 @@ structured section fields use `params.inputSections.<section>.<field>`, for
 example `params.inputSections.cpmd.maxIter` and
 `params.inputSections.dft.hfxScreening`.
 
+## Which Interface To Use
+
+| Caller need | API surface | Data contract |
+| --- | --- | --- |
+| Configure one long-running driver | `cpmdc_session_create` | one serialized `CPMDParams` |
+| Evaluate repeated geometry steps | `cpmdc_session_calculate_result` | one serialized `ForceInput` per step, one serialized `PotentialResult` out |
+| Get native C forces without result serialization | `cpmdc_session_energy_forces` | arrays in Angstrom, forces in Hartree/Bohr |
+| Compatibility one-shot call | `cpmdc_calculate_result` | serialized `CPMDParams` + serialized `ForceInput` |
+| Check support at runtime | `cpmdc_feature_find` / `cpmdc_feature_table` | stable `abi.*`, `params.*`, and `catalog.*` IDs |
+
 ## Public ABI Surface
 
 The exported C surface is intentionally small. Use the Cap'n Proto entry points
@@ -70,11 +80,19 @@ that should merge into a typed section, `generic` for a complete unsupported
 section expressed as keyword/argument pairs, and `raw` only when preserving
 existing deck text is more important than structure.
 
-## Quick Build
+## Build And Test Matrix
 
 The default build does not need an OpenCPMD checkout. It builds the ABI,
 parser, shared `libcpmdc`, and a deterministic reference evaluator used by
 the test suite.
+
+| Path | Commands | What it proves |
+| --- | --- | --- |
+| Default ABI/test build | `meson setup build -Dwith_tests=true`; `meson compile -C build`; `meson test -C build --print-errorlogs` | parser, C ABI, feature inventory, session contract, deterministic reference evaluator |
+| cmocka render suites | `meson test -C build --suite cmocka --print-errorlogs` | Cap'n Proto decode and CPMD deck rendering |
+| Session/result E2E suites | `meson test -C build --suite e2e --print-errorlogs` | `CPMDCSession`, topology checks, unit conversion, `PotentialResult` sizing |
+| Documentation site | `pixi run -e docs docbld` | Org export, Doxygen/Doxyrest API pages, Sphinx HTML |
+| OpenCPMD archive build | `meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root="$CPMD_ROOT" -Dwith_tests=true`; `meson compile -C build-cpmd`; `CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs` | same C ABI linked to `libcpmd.a`, including live water parity when pseudopotentials are present |
 
 ```bash
 meson setup build -Dwith_tests=true
@@ -91,11 +109,13 @@ Build against a completed OpenCPMD tree with:
 
 ```bash
 export CPMD_ROOT=/path/to/OpenCPMD/CPMD
+export CPMDC_PSEUDO_DIR=/path/to/CPMD-Regtests/tests/PP_LIBRARY
 meson setup build-cpmd \
   -Dwith_cpmd=true \
   -Dcpmd_root="$CPMD_ROOT" \
   -Dwith_tests=true
 meson compile -C build-cpmd
+meson test -C build-cpmd --print-errorlogs
 ```
 
 `cpmd_root` must contain `lib/libcpmd.a`. If runtime decks use library-style

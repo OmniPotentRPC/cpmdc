@@ -6,6 +6,32 @@ the parser, generated Cap'n Proto readers, shared ``libcpmdc``, and a
 deterministic reference evaluator. No OpenCPMD checkout is needed for
 this path.
 
+Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
+pkg-config with your system package manager or use the checked-in Pixi
+environment.
+
++---------------------+----------------------------------------------------------+-----------------------+
+| Path                | Commands                                                 | Expected coverage     |
++=====================+==========================================================+=======================+
+| Full default suite  | ``meson setup build -Dwith_tests=true``;                 | parser, ABI, feature  |
+|                     | ``meson compile -C build``;                              | inventory, sessions,  |
+|                     | ``meson test -C build --print-errorlogs``                | E2E reference         |
+|                     |                                                          | evaluator             |
++---------------------+----------------------------------------------------------+-----------------------+
+| cmocka/parser focus | ``meson test -C build --suite cmocka --print-errorlogs`` | Cap'n Proto decode,   |
+|                     |                                                          | deck rendering,       |
+|                     |                                                          | feature table checks  |
++---------------------+----------------------------------------------------------+-----------------------+
+| session E2E focus   | ``meson test -C build --suite e2e --print-errorlogs``    | one-shot calls,       |
+|                     |                                                          | session calls,        |
+|                     |                                                          | topology rejection,   |
+|                     |                                                          | unit conversion       |
++---------------------+----------------------------------------------------------+-----------------------+
+| docs                | ``pixi run -e docs docbld``                              | Org export, generated |
+|                     |                                                          | C API pages, Sphinx   |
+|                     |                                                          | HTML                  |
++---------------------+----------------------------------------------------------+-----------------------+
+
 .. code:: bash
 
    meson setup build -Dwith_tests=true
@@ -16,10 +42,14 @@ This configuration compiles the vendored ``capnp-c`` runtime, generates
 C readers for ``schema/Potentials.capnp``, and runs cmocka suites:
 
 - ``stub`` — ``tests/test_stub_abi.c``
-- ``cmocka`` / ``capnp`` — ``tests/cmocka/test_params_render_cmocka.c``
-  (deck render)
-- ``socket`` — ForceInput sizing and session ``PotentialResult`` buffer
-  contract
+- ``abi`` — exported header and feature-discovery surface
+- ``cmocka`` / ``capnp`` — structured ``CPMDParams`` deck rendering
+- ``params`` / ``inventory`` — schema field coverage and CPMD catalog
+  feature IDs
+- ``socket`` — ``ForceInput`` sizing and session ``PotentialResult``
+  buffer contract
+- ``e2e`` — one-shot and session calls through the deterministic
+  reference evaluator
 
 cmocka is resolved through pkg-config. The parser tests use Cap'n Proto
 text fixtures encoded by the ``capnp`` CLI (``tests/encode_capnp.py``).
@@ -59,17 +89,23 @@ rgpot. Passing a tree path links that same C ABI surface against
 .. code:: bash
 
    export CPMD_ROOT=/path/to/OpenCPMD/CPMD
+   export CPMDC_PSEUDO_DIR=/path/to/CPMD-Regtests/tests/PP_LIBRARY
    meson setup build-cpmd \
      -Dwith_cpmd=true \
      -Dcpmd_root="$CPMD_ROOT" \
      -Dwith_tests=true
    meson compile -C build-cpmd
+   meson test -C build-cpmd --print-errorlogs
 
 The OpenCPMD tree must contain ``lib/libcpmd.a`` and ``obj/timetag.o``
 from a completed executable build. If the params use pseudopotential
 library tokens such as ``O_MT_BLYP.psp``, set ``CPMDC_PSEUDO_DIR`` to
 the directory containing those files before running real backend tests
 or embedding the library.
+
+The live build runs the same public C ABI as the default build. When
+``with_cpmd=true`` is enabled, water Cap'n Proto parity tests are added
+and the long E2E tests exercise the linked OpenCPMD archive.
 
 Cap'n Proto Fixtures
 ====================

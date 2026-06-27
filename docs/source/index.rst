@@ -36,6 +36,48 @@ The first accepted session evaluation fixes atom count and ordered
 atomic numbers. Later steps may change coordinates, units, and the 3x3
 cell; topology changes require a new session.
 
+Start Here
+==========
+
+.. list-table::
+   :header-rows: 1
+
+   * - Need
+     - Page
+   * - Build the library and run the right tests
+     - :doc:`Quickstart <tutorials/quickstart>`
+   * - Embed the C ABI from a host process
+     - :doc:`Embedding cpmdc <howto/embedding>`
+   * - Map Cap'n Proto fields to CPMD ``INPUT`` sections
+     - :doc:`CPMD option mapping <reference/cpmd-options>`
+   * - Understand the library layers and OpenCPMD archive link
+     - :doc:`Architecture <reference/architecture>`
+   * - Inspect generated C API details
+     - :doc:`API reference <api/index>`
+
+Contracts At A Glance
+=====================
+
++-------------------+------------------------+-------------------------------------+
+| Concern           | Carrier                | Public entry points                 |
++===================+========================+=====================================+
+| Method setup      | serialized             | ``cpmdc_session_create``,           |
+|                   | ``CPMDParams``         | ``cpmdc_session_set_params``,       |
+|                   |                        | ``cpmdc_set_params``                |
++-------------------+------------------------+-------------------------------------+
+| Geometry step     | serialized             | ``cpmdc_session_calculate_result``, |
+|                   | ``ForceInput`` or C    | ``cpmdc_session_calculate_forces``, |
+|                   | arrays                 | ``cpmdc_session_energy_forces``     |
++-------------------+------------------------+-------------------------------------+
+| Result carrier    | serialized             | ``cpmdc_session_calculate_result``, |
+|                   | ``PotentialResult`` or | ``cpmdc_calculate_result``,         |
+|                   | native C values        | ``CPMDCResult``                     |
++-------------------+------------------------+-------------------------------------+
+| Runtime discovery | stable feature IDs     | ``cpmdc_feature_count``,            |
+|                   |                        | ``cpmdc_feature_table``,            |
+|                   |                        | ``cpmdc_feature_find``              |
++-------------------+------------------------+-------------------------------------+
+
 .. code:: bash
 
    git clone https://github.com/OmniPotentRPC/cpmdc.git

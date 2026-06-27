@@ -1,3 +1,39 @@
+Pick The Entry Point
+====================
+
++----------------+------------------------------------+----------------+-----------------------+
+| Need           | Entry point                        | Input          | Output                |
++================+====================================+================+=======================+
+| Repeated RPC   | ``cpmdc_session_calculate_result`` | one            | serialized            |
+| or optimizer   |                                    | ``CPMDParams`` | ``PotentialResult``   |
+| steps          |                                    | session, one   |                       |
+|                |                                    | ``ForceInput`` |                       |
+|                |                                    | per step       |                       |
++----------------+------------------------------------+----------------+-----------------------+
+| Repeated       | ``cpmdc_session_energy_forces``    | one            | Hartree plus          |
+| native C       |                                    | ``CPMDParams`` | Hartree/Bohr forces   |
+| forces         |                                    | session, C     |                       |
+|                |                                    | coordinate     |                       |
+|                |                                    | arrays         |                       |
++----------------+------------------------------------+----------------+-----------------------+
+| Single         | ``cpmdc_calculate_result``         | ``CPMDParams`` | serialized            |
+| serialized     |                                    | and            | ``PotentialResult``   |
+| calculation    |                                    | ``ForceInput`` |                       |
+|                |                                    | bytes          |                       |
++----------------+------------------------------------+----------------+-----------------------+
+| Scalar         | ``cpmdc_energy_forces``            | C coordinate   | Hartree plus          |
+| compatibility  |                                    | arrays plus    | Hartree/Bohr forces   |
+| call           |                                    | ``CPMDParams`` |                       |
+|                |                                    | bytes          |                       |
++----------------+------------------------------------+----------------+-----------------------+
+| Capability     | ``cpmdc_feature_find``             | stable feature | ``CPMDCFeatureEntry`` |
+| discovery      |                                    | ID             | or ``NULL``           |
++----------------+------------------------------------+----------------+-----------------------+
+
+Use the session result path for new drivers. It keeps method setup and
+topology state in one object while preserving the same
+``PotentialResult`` carrier used by RPC frontends.
+
 C ABI
 =====
 
@@ -91,7 +127,8 @@ for RPC-style or in-process loops.
    CPMDCSession *session = cpmdc_session_create(params_bytes, params_size);
 
    if (session != NULL) {
-     double forces_h_bohr[/* n_atoms * 3 */];
+     size_t forces_len = n_atoms * 3;
+     double *forces_h_bohr = calloc(forces_len, sizeof(*forces_h_bohr));
      size_t potential_result_capacity =
          cpmdc_potential_result_size_for_force_input(
              force_input_bytes, force_input_size);
@@ -101,13 +138,14 @@ for RPC-style or in-process loops.
 
      CPMDCResult step = cpmdc_session_calculate_forces(
          session, force_input_bytes, force_input_size, forces_h_bohr,
-         /* forces_len */ 0 /* set to n_atoms * 3 */);
+         forces_len);
 
      CPMDCResult rpc_step = cpmdc_session_calculate_result(
          session, force_input_bytes, force_input_size,
          potential_result_bytes, potential_result_capacity,
          &potential_result_size);
 
+     free(forces_h_bohr);
      free(potential_result_bytes);
      cpmdc_session_destroy(session);
    }
