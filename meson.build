@@ -332,21 +332,33 @@ if get_option('with_tests')
   )
 
   # E2E suites use the deterministic reference PEF or the linked OpenCPMD runtime.
+  e2e_single_point_exe = executable(
+    'test_e2e_single_point',
+    'tests/test_e2e_single_point.c',
+    dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+    include_directories: [inc] + cpmdc_params_includes,
+    c_args: common_c_args,
+  )
   test(
     'e2e-single-point',
-    executable(
-      'test_e2e_single_point',
-      'tests/test_e2e_single_point.c',
-      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
-      include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args,
-    ),
+    e2e_single_point_exe,
     args: [
       runtime_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
     ],
     depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['e2e', 'cmocka'],
+    timeout: 300,
+  )
+  test(
+    'e2e-set-directives-session',
+    e2e_single_point_exe,
+    args: [
+      cpmd_set_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [cpmd_set_params_bin, force_input_step_a_bin],
+    suite: ['e2e', 'cmocka', 'params'],
     timeout: 300,
   )
 
