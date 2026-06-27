@@ -937,6 +937,8 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
     if (covered != n_atoms)
       return -1;
+    if (append_directives(dst, dst_size, used, atoms->directives) != 0)
+      return -1;
     if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") !=
         0)
       return -1;

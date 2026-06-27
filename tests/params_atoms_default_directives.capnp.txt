@@ -1,0 +1,14 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  task = "gradient",
+  inputSections = [
+    (
+      atoms = (
+        directives = [
+          ( keyword = "ISOLATED MOLECULE", args = [] )
+        ]
+      )
+    )
+  ]
+)

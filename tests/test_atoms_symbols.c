@@ -11,6 +11,7 @@
 #include <cmocka.h>
 
 static const char *g_params_path = NULL;
+static const char *g_default_directives_path = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -83,14 +84,50 @@ static void test_geometry_atoms_accept_silicon_symbol(void **state) {
   free(message);
 }
 
+static void test_default_atoms_keep_directives(void **state) {
+  (void)state;
+  size_t message_size = 0;
+  unsigned char *message = read_file(g_default_directives_path, &message_size);
+  assert_non_null(message);
+
+  struct capn arena;
+  CPMDParams_ptr params_root;
+  assert_int_equal(
+      cpmdc_params_root(message, message_size, &arena, &params_root), 0);
+
+  const double positions[9] = {
+      0.000000, 0.000000, 0.000000,
+      0.757160, 0.586260, 0.000000,
+      -0.757160, 0.586260, 0.000000,
+  };
+  const int atomic_numbers[3] = {8, 1, 1};
+  const double cell[9] = {10.0, 0.0, 0.0, 0.0, 10.0,
+                          0.0,  0.0, 0.0, 10.0};
+  char deck[CPMDC_BLOCKS];
+  assert_int_equal(cpmdc_params_render_deck_with_geometry(
+                       params_root, 3, positions, atomic_numbers, cell, 1,
+                       deck, sizeof(deck)),
+                   0);
+  assert_deck_has(deck, "&ATOMS");
+  assert_deck_has(deck, "*O_MT_BLYP.psp");
+  assert_deck_has(deck, "*H_CVB_BLYP.psp");
+  assert_deck_has(deck, "ISOLATED MOLECULE");
+
+  cpmdc_params_release(&arena);
+  free(message);
+}
+
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "usage: %s CPMD_PARAMS.bin\n", argv[0]);
+  if (argc < 3) {
+    fprintf(stderr, "usage: %s silicon_params.bin default_atoms_params.bin\n",
+            argv[0]);
     return 2;
   }
   g_params_path = argv[1];
+  g_default_directives_path = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_geometry_atoms_accept_silicon_symbol),
+      cmocka_unit_test(test_default_atoms_keep_directives),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

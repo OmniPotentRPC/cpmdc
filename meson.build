@@ -236,6 +236,12 @@ if get_option('with_tests')
     output: 'params_atoms_silicon.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  atoms_default_directives_params_bin = custom_target(
+    'atoms_default_directives_params_bin',
+    input: 'tests/params_atoms_default_directives.capnp.txt',
+    output: 'params_atoms_default_directives.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   runtime_params_bin = has_cpmd ? water_params_bin : cpmd_parser_params_bin
 
   test(
@@ -341,8 +347,14 @@ if get_option('with_tests')
       sources: cpmdc_params_sources,
       c_args: common_c_args + capnp_generated_c_args,
     ),
-    args: [atoms_silicon_params_bin.full_path()],
-    depends: [atoms_silicon_params_bin],
+    args: [
+      atoms_silicon_params_bin.full_path(),
+      atoms_default_directives_params_bin.full_path(),
+    ],
+    depends: [
+      atoms_silicon_params_bin,
+      atoms_default_directives_params_bin,
+    ],
     suite: ['cmocka', 'params'],
   )
 
