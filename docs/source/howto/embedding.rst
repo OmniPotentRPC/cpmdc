@@ -66,6 +66,16 @@ or another Cap'n Proto binding that writes the standard flat stream
 format. Use the scalar calls when the caller already owns arrays in
 Angstrom and wants Hartree or Hartree/Bohr output directly.
 
+For a complete host-side skeleton, see ``examples/host_step.c``. The
+checked ``example-host-step`` Meson test runs that program with
+generated fixture bytes and expects output shaped like:
+
+.. code:: text
+
+   energy_h=...
+   potential_result_size_bytes=...
+   message=...
+
 Message Flow
 ============
 

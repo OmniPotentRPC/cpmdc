@@ -384,6 +384,24 @@ if get_option('with_tests')
     suite: ['capnp', 'socket'],
     timeout: 300,
   )
+  example_host_step = executable(
+    'example_host_step',
+    'examples/host_step.c',
+    dependencies: [cpmdc_embed_shell_dep],
+    include_directories: inc,
+    c_args: common_c_args + capnp_generated_c_args,
+  )
+  test(
+    'example-host-step',
+    example_host_step,
+    args: [
+      runtime_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [runtime_params_bin, force_input_step_a_bin],
+    suite: ['examples', 'e2e'],
+    timeout: 300,
+  )
 
   test(
     'embed-shell-library',
@@ -477,6 +495,15 @@ if get_option('with_tests')
     python,
     args: [meson.current_source_dir() / 'tools/check_feature_inventory.py'],
     suite: ['inventory'],
+  )
+  test(
+    'examples-documented',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_examples_documented.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'examples'],
   )
   test(
     'params-escape-render',

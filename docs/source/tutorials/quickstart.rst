@@ -60,6 +60,34 @@ The standalone stub target is different from the default shared engine:
 availability through the reference evaluator and can run the session
 tests.
 
+Run The Host Example
+====================
+
+``examples/host_step.c`` is a minimal C host for the public ABI. It
+reads one serialized ``CPMDParams`` file and one serialized
+``ForceInput`` file, creates a ``CPMDCSession``, sizes the
+``PotentialResult`` output, evaluates one step, and prints the result
+summary.
+
+.. code:: bash
+
+   meson test -C build example-host-step --print-errorlogs
+
+The example output has this shape:
+
+.. code:: text
+
+   energy_h=...
+   potential_result_size_bytes=...
+   message=...
+
+The Meson test feeds the example from the same generated fixture
+binaries used by the E2E suites. Those fixture binaries are produced
+from ``tests/cpmd_params_parser.capnp.txt`` or
+``tests/water_blyp_params.capnp.txt`` and
+``tests/force_input_step_a.capnp.txt``, depending on whether the build
+links OpenCPMD archives.
+
 Test Selection
 ==============
 

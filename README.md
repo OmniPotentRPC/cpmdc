@@ -123,6 +123,30 @@ The reference evaluator exercises the same session, `ForceInput`, and
 `libcpmdc_stub.a` target still reports `cpmdc_available() == 0`; it exists for
 frontend links that need symbols but do not have an engine.
 
+## Run The Host Example
+
+`examples/host_step.c` is a minimal C host that reads one serialized
+`CPMDParams` file and one serialized `ForceInput` file, creates a
+`CPMDCSession`, sizes the `PotentialResult` output, and evaluates one step.
+It is built and exercised by the `example-host-step` Meson test:
+
+```bash
+meson test -C build example-host-step --print-errorlogs
+```
+
+The output has the shape embedders should expect:
+
+```text
+energy_h=...
+potential_result_size_bytes=...
+message=...
+```
+
+Use the same call order in host code:
+`cpmdc_session_create()` for setup,
+`cpmdc_potential_result_size_for_force_input()` for output sizing, and
+`cpmdc_session_calculate_result()` for each serialized step.
+
 Build against a completed OpenCPMD tree with:
 
 ```bash
