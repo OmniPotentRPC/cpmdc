@@ -70,6 +70,17 @@ struct CPMDSystemSection {
   tesr            @23 :Int32 = 0;          # TESR value; 0 => omit.
   polymer         @24 :Bool = false;       # POLYMER.
   cluster         @25 :Bool = false;       # CLUSTER.
+  cutoffShape     @26 :Text;               # CUTOFF qualifier, e.g. SPHERICAL/NOSPHERICAL.
+  hfxCutoff       @27 :List(Float64);       # HFX CUTOFF hfxwfe, hfxdee (2).
+  boxWalls        @28 :Float64 = 0.0;       # BOX WALLS skin; 0 => omit.
+  nSup            @29 :Int32 = 0;           # NSUP alpha spin states; 0 => omit.
+  states          @30 :Int32 = 0;           # STATES count; 0 => omit.
+  occupation      @31 :List(Float64);       # OCCUPATION values; length should match states.
+  occupationFixed @32 :Bool = false;        # OCCUPATION FIXED.
+  externalField   @33 :List(Float64);       # EXTERNAL FIELD vector (3).
+  pressure        @34 :Float64 = 0.0;       # PRESSURE; 0 => omit.
+  stressTensor    @35 :List(Float64);       # STRESS TENSOR values (9).
+  shockVelocity   @36 :Float64 = 0.0;       # SHOCK VELOCITY; 0 => omit.
 }
 
 struct CPMDCpmdSection {

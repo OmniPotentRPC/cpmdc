@@ -514,8 +514,28 @@ static int render_system_section_with_cell(
     if (append_text(dst, dst_size, used, " ZFLEXIBLE CELL\n") != 0)
       return -1;
   }
-  if (append_fmt(dst, dst_size, used, " CUTOFF\n  %.10g\n", cutoff) != 0)
+  if (sys->cutoffShape.str && sys->cutoffShape.len > 0) {
+    if (append_text(dst, dst_size, used, " ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sys->cutoffShape) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " CUTOFF\n") != 0)
+      return -1;
+  } else {
+    if (append_text(dst, dst_size, used, " CUTOFF\n") != 0)
+      return -1;
+  }
+  if (append_fmt(dst, dst_size, used, "  %.10g\n", cutoff) != 0)
     return -1;
+  int n_hfx_cutoff = list64_len(&sys->hfxCutoff);
+  if (n_hfx_cutoff < 0)
+    return -1;
+  if (n_hfx_cutoff > 0) {
+    if (append_text(dst, dst_size, used, " HFX CUTOFF\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->hfxCutoff, 2) != 0)
+      return -1;
+  }
   if (sys->densityCutOffRy > 0.0) {
     if (append_fmt(dst, dst_size, used, " DENSITY CUTOFF\n  %.10g\n",
                    sys->densityCutOffRy) != 0)
@@ -540,6 +560,11 @@ static int render_system_section_with_cell(
         0)
       return -1;
   }
+  if (sys->boxWalls != 0.0) {
+    if (append_fmt(dst, dst_size, used, " BOX WALLS\n  %.10g\n",
+                   sys->boxWalls) != 0)
+      return -1;
+  }
   if (sys->scale != 0.0 || sys->scaleCartesian) {
     if (append_text(dst, dst_size, used, " SCALE") != 0)
       return -1;
@@ -554,6 +579,39 @@ static int render_system_section_with_cell(
   }
   if (charge != 0) {
     if (append_fmt(dst, dst_size, used, " CHARGE\n  %d\n", charge) != 0)
+      return -1;
+  }
+  if (sys->nSup > 0) {
+    if (append_fmt(dst, dst_size, used, " NSUP\n  %d\n", sys->nSup) != 0)
+      return -1;
+  }
+  if (sys->states > 0) {
+    if (append_fmt(dst, dst_size, used, " STATES\n  %d\n", sys->states) != 0)
+      return -1;
+  }
+  int n_occupation = list64_len(&sys->occupation);
+  if (n_occupation < 0)
+    return -1;
+  if (n_occupation > 0) {
+    if (sys->states <= 0)
+      return -1;
+    if (n_occupation != sys->states)
+      return -1;
+    if (append_text(dst, dst_size, used,
+                    sys->occupationFixed ? " OCCUPATION FIXED\n"
+                                         : " OCCUPATION\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->occupation,
+                             n_occupation) != 0)
+      return -1;
+  }
+  int n_external_field = list64_len(&sys->externalField);
+  if (n_external_field < 0)
+    return -1;
+  if (n_external_field > 0) {
+    if (append_text(dst, dst_size, used, " EXTERNAL FIELD\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->externalField, 3) != 0)
       return -1;
   }
   int field_has_poisson =
@@ -597,6 +655,20 @@ static int render_system_section_with_cell(
     if (append_fmt(dst, dst_size, used, " TESR\n  %d\n", sys->tesr) != 0)
       return -1;
   }
+  if (sys->pressure != 0.0) {
+    if (append_fmt(dst, dst_size, used, " PRESSURE\n  %.10g\n",
+                   sys->pressure) != 0)
+      return -1;
+  }
+  int n_stress_tensor = list64_len(&sys->stressTensor);
+  if (n_stress_tensor < 0)
+    return -1;
+  if (n_stress_tensor > 0) {
+    if (append_text(dst, dst_size, used, " STRESS TENSOR\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->stressTensor, 9) != 0)
+      return -1;
+  }
   if (sys->surface.str && sys->surface.len > 0) {
     if (append_text(dst, dst_size, used, " SURFACE ") != 0)
       return -1;
@@ -611,6 +683,11 @@ static int render_system_section_with_cell(
   }
   if (sys->cluster) {
     if (append_text(dst, dst_size, used, " CLUSTER\n") != 0)
+      return -1;
+  }
+  if (sys->shockVelocity != 0.0) {
+    if (append_fmt(dst, dst_size, used, " SHOCK VELOCITY\n  %.10g\n",
+                   sys->shockVelocity) != 0)
       return -1;
   }
   int has_poisson = directives_have_prefix(sys->directives, "POISSON SOLVER");

@@ -1903,6 +1903,22 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.cutoffShape",
+      "kind": "structured_params_field",
+      "name": "cutoffShape",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.hfxCutoff",
+      "kind": "structured_params_field",
+      "name": "hfxCutoff",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.scale",
       "kind": "structured_params_field",
       "name": "scale",
@@ -1935,6 +1951,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.nSup",
+      "kind": "structured_params_field",
+      "name": "nSup",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.states",
+      "kind": "structured_params_field",
+      "name": "states",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.occupation",
+      "kind": "structured_params_field",
+      "name": "occupation",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.occupationFixed",
+      "kind": "structured_params_field",
+      "name": "occupationFixed",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.externalField",
+      "kind": "structured_params_field",
+      "name": "externalField",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.densityCutOffRy",
       "name": "densityCutOffRy",
       "kind": "params",
@@ -1962,6 +2018,14 @@
       "feature_id": "params.inputSections.system.constantCutoff",
       "kind": "structured_params_field",
       "name": "constantCutoff",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.boxWalls",
+      "kind": "structured_params_field",
+      "name": "boxWalls",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2034,6 +2098,30 @@
       "feature_id": "params.inputSections.system.cluster",
       "kind": "structured_params_field",
       "name": "cluster",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.pressure",
+      "kind": "structured_params_field",
+      "name": "pressure",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.stressTensor",
+      "kind": "structured_params_field",
+      "name": "stressTensor",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.shockVelocity",
+      "kind": "structured_params_field",
+      "name": "shockVelocity",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true

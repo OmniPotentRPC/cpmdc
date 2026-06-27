@@ -48,6 +48,16 @@ static int check_deck(const char *bin, const char **need, int nneed) {
   return 0;
 }
 
+static int check_render_fails(const char *bin) {
+  char deck[CPMDC_BLOCKS];
+  if (render_deck_file(bin, deck, sizeof(deck)) == 0) {
+    fprintf(stderr, "expected render failure from %s\n", bin);
+    fprintf(stderr, "--- deck ---\n%s\n", deck);
+    return -1;
+  }
+  return 0;
+}
+
 struct CatalogCoverage {
   const char *feature_id;
   const char *field_name;
@@ -234,9 +244,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 10) {
+  if (argc < 11) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin bad_occupation.bin\n",
             argv[0]);
     return 2;
   }
@@ -316,13 +326,17 @@ int main(int argc, char **argv) {
       "&SYSTEM", "SYMMETRY", "0", "ANGSTROM", "CELL", "14 1 1 0 0 0",
       "REFERENCE CELL", "15 1 1 0 0 0", "CLASSICAL CELL",
       "16 1.1 1.2 0 0 0", "ISOTROPIC CELL", "ZFLEXIBLE CELL", "CUTOFF",
-      "90", "DENSITY CUTOFF", "360", "DENSITY CUTOFF NUMBER", "64",
-      "DUAL", "5", "CONSTANT CUTOFF", "0.8 0.2 75", "CHARGE", "1",
+      "90", "NOSPHERICAL CUTOFF", "HFX CUTOFF", "35 140",
+      "DENSITY CUTOFF", "360", "DENSITY CUTOFF NUMBER", "64", "DUAL", "5",
+      "CONSTANT CUTOFF", "0.8 0.2 75", "BOX WALLS", "6.5", "CHARGE", "1",
+      "NSUP", "2", "STATES", "4", "OCCUPATION FIXED", "2 1 1 0",
+      "EXTERNAL FIELD", "0.01 0.02 0.03",
       "POISSON SOLVER HOCKNEY PARAMETER", "1.2", "MESH", "24 24 32",
-      "SCALE CARTESIAN S=1.25", "DOUBLE GRID ON",
+      "SCALE CARTESIAN S=1.25", "DOUBLE GRID ON", "PRESSURE", "12.5",
+      "STRESS TENSOR", "1 0.1 0.2 0.1 2 0.3 0.2 0.3 3",
       "SYMMETRIZE COORDINATES", "TESR", "4", "ISOLATED MOLECULE",
       "CENTER MOLECULE ON", "CENTER MOLECULE OFF", "SURFACE XY", "POLYMER",
-      "CLUSTER",
+      "CLUSTER", "SHOCK VELOCITY", "4500",
   };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
@@ -368,6 +382,8 @@ int main(int argc, char **argv) {
   if (check_deck(argv[9], system_controls_need,
                  (int)(sizeof(system_controls_need) /
                        sizeof(system_controls_need[0]))) != 0)
+    return 1;
+  if (check_render_fails(argv[10]) != 0)
     return 1;
   char *decks[9] = {0};
   for (int i = 0; i < 9; ++i) {

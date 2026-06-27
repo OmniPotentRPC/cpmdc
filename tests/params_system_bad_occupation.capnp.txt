@@ -1,0 +1,12 @@
+(
+  functional = "PBE",
+  cutOffRy = 90.0,
+  title = "Bad system occupation",
+  inputSections = [
+    ( system = (
+        states = 4,
+        occupation = [2.0, 1.0, 1.0]
+      ) ),
+    ( dft = ( functional = "PBE" ) )
+  ]
+)
