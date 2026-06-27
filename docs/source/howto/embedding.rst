@@ -24,6 +24,31 @@ fields as a second C struct language.
 or another Cap'n Proto binding that writes the standard flat stream
 format.
 
+Feature Discovery
+=================
+
+``cpmdc.h`` also exposes a small feature table. Embedders can inspect it
+before building inputs, hiding unsupported controls, or deciding whether
+a stub build is sufficient for a workflow.
+
+.. code:: c
+
+   size_t feature_count = cpmdc_feature_count();
+   const CPMDCFeatureEntry *features = cpmdc_feature_table();
+   const CPMDCFeatureEntry *pimd =
+       cpmdc_feature_find("catalog.section.PIMD");
+   const CPMDCFeatureEntry *result_call =
+       cpmdc_feature_find("abi.cpmdc_session_calculate_result");
+
+   if (pimd != NULL && pimd->embed_applicable) {
+     /* The embedded OpenCPMD build can render a &PIMD section. */
+   }
+
+Feature IDs use namespaces such as ``catalog.section.*``,
+``catalog.cpmd.*``, ``catalog.dft.*``, ``params.*``, and ``abi.*``.
+Each entry reports whether it applies to stub builds, embedded OpenCPMD
+builds, or both.
+
 Session Step Calls (direct-call socket)
 =======================================
 
