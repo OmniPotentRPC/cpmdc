@@ -77,9 +77,6 @@ static void test_single_point_calculate_result(void **state) {
   assert_true(isfinite(r.energy_h));
   assert_true(fabs(r.energy_h) > 1e-8);
 
-  if (!r.ok) {
-    free(out); free(params); free(step); cpmdc_finalize(); return;
-  }
   /* Decode PotentialResult */
   struct capn arena;
   memset(&arena, 0, sizeof(arena));
@@ -104,7 +101,8 @@ static void test_single_point_calculate_result(void **state) {
   CPMDCResult f = cpmdc_session_calculate_forces(session, step, step_size,
                                                  forces, 6);
   assert_int_equal(f.ok, 1);
-  if (f.ok) { assert_true(isfinite(f.energy_h)); }
+  assert_true(isfinite(f.energy_h));
+  assert_float_equal(f.energy_h, r.energy_h, 1e-9);
   for (int i = 0; i < 6; ++i)
     assert_true(isfinite(forces[i]));
   /* C-array entry point has no cell; energy is slightly lower than ForceInput. */
@@ -114,7 +112,7 @@ static void test_single_point_calculate_result(void **state) {
   CPMDCResult fnc = cpmdc_energy_forces(2, positions, atmnrs, params,
                                         params_size, forces_nc);
   assert_int_equal(fnc.ok, 1);
-  if (fnc.ok && r.ok) { assert_true(isfinite(fnc.energy_h)); }
+  assert_true(isfinite(fnc.energy_h));
   cpmdc_session_destroy(session);
 
   cpmdc_params_release(&arena);
