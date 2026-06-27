@@ -267,7 +267,7 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       return -1;
   }
   if (sec->maxStep > 0) {
-    if (append_fmt(dst, dst_size, used, " MAXITER\n  %d\n", sec->maxStep) != 0)
+    if (append_fmt(dst, dst_size, used, " MAXSTEP\n  %d\n", sec->maxStep) != 0)
       return -1;
   }
   if (sec->timestep > 0.0) {

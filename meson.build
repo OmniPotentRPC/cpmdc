@@ -200,6 +200,19 @@ if get_option('with_tests')
     output: 'force_input_step_changed_species.bin',
     command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
+  water_params_bin = custom_target(
+    'water_params_bin',
+    input: 'tests/water_blyp_params.capnp.txt',
+    output: 'water_blyp_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  water_force_bin = custom_target(
+    'water_force_bin',
+    input: 'tests/force_input_water.capnp.txt',
+    output: 'force_input_water.bin',
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
+  runtime_params_bin = has_cpmd ? water_params_bin : cpmd_parser_params_bin
 
   test(
     'stub-abi',
@@ -255,14 +268,14 @@ if get_option('with_tests')
       c_args: common_c_args,
     ),
     args: [
-      cpmd_parser_params_bin.full_path(),
+      runtime_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
       force_input_step_ev_bin.full_path(),
       force_input_step_species_bin.full_path(),
       cpmd_session_alt_params_bin.full_path(),
     ],
     depends: [
-      cpmd_parser_params_bin,
+      runtime_params_bin,
       force_input_step_a_bin,
       force_input_step_ev_bin,
       force_input_step_species_bin,
@@ -308,10 +321,10 @@ if get_option('with_tests')
       c_args: common_c_args,
     ),
     args: [
-      cpmd_parser_params_bin.full_path(),
+      runtime_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
     ],
-    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
+    depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['e2e', 'cmocka'],
     timeout: 300,
   )
@@ -326,13 +339,13 @@ if get_option('with_tests')
       c_args: common_c_args,
     ),
     args: [
-      cpmd_parser_params_bin.full_path(),
+      runtime_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
       force_input_step_ev_bin.full_path(),
       force_input_step_species_bin.full_path(),
     ],
     depends: [
-      cpmd_parser_params_bin,
+      runtime_params_bin,
       force_input_step_a_bin,
       force_input_step_ev_bin,
       force_input_step_species_bin,
@@ -346,18 +359,6 @@ if get_option('with_tests')
     input: 'tests/params_escape_generic.capnp.txt',
     output: 'params_escape_generic.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
-  )
-  water_params_bin = custom_target(
-    'water_params_bin',
-    input: 'tests/water_blyp_params.capnp.txt',
-    output: 'water_blyp_params.bin',
-    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
-  )
-  water_force_bin = custom_target(
-    'water_force_bin',
-    input: 'tests/force_input_water.capnp.txt',
-    output: 'force_input_water.bin',
-    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
   test(
     'feature-inventory',
