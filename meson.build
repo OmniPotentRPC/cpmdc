@@ -61,6 +61,7 @@ cpmdc_stub_dep = declare_dependency(
 cpmd_embed_f_args = []
 cpmd_embed_link = []
 cpmd_embed_inc = [inc]
+cpmd_extra_objects = []
 if has_cpmd
   cpmd_lib = cpmd_root / 'lib' / 'libcpmd.a'
   cpmd_obj = cpmd_root / 'obj'
@@ -76,6 +77,20 @@ if has_cpmd
   )
   if lib_check.returncode() != 0
     error('with_cpmd requires ' + cpmd_lib + ' (build OpenCPMD in cpmd_root first)')
+  endif
+  cpmd_timetag_obj = cpmd_obj / 'timetag.o'
+  timetag_check = run_command(
+    python,
+    [
+      '-c',
+      'import pathlib, sys; p = pathlib.Path(sys.argv[1]); sys.exit(0 if p.is_file() else 1)',
+      cpmd_timetag_obj,
+    ],
+    check: false,
+  )
+  if timetag_check.returncode() == 0
+    # OpenCPMD links timetag outside libcpmd.a for executable build stamps.
+    cpmd_extra_objects += [cpmd_timetag_obj]
   endif
   cpmd_embed_f_args += [
     '-DCPMDC_HAS_CPMD=1',
@@ -127,6 +142,7 @@ cpmdc_shared = shared_library(
   dependencies: cpmdc_params_deps + [math_dep],
   c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
+  objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
   install: true,
 )
@@ -143,6 +159,7 @@ cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps,
+  objects: cpmd_extra_objects,
   link_args: has_cpmd ? (cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran']) : [],
 )
 
