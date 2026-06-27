@@ -82,6 +82,8 @@ static void test_parser_renders_structured_input(void **state) {
   assert_non_null(strstr(deck, "&CPMD"));
   assert_non_null(strstr(deck, "OPTIMIZE WAVEFUNCTION"));
   assert_non_null(strstr(deck, "CONVERGENCE ORBITALS"));
+  assert_non_null(strstr(deck, "FILEPATH"));
+  assert_non_null(strstr(deck, "  /perm/cpmd/"));
   assert_non_null(strstr(deck, "&SYSTEM"));
   assert_non_null(strstr(deck, "CUTOFF"));
   assert_non_null(strstr(deck, "90"));
