@@ -1461,6 +1461,638 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.generic.name",
+      "kind": "structured_params_field",
+      "name": "name",
+      "section": "generic",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.generic.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "generic",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.symmetry",
+      "kind": "structured_params_field",
+      "name": "symmetry",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.angstrom",
+      "kind": "structured_params_field",
+      "name": "angstrom",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cell",
+      "kind": "structured_params_field",
+      "name": "cell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cutOffRy",
+      "kind": "structured_params_field",
+      "name": "cutOffRy",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.scale",
+      "kind": "structured_params_field",
+      "name": "scale",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.charge",
+      "kind": "structured_params_field",
+      "name": "charge",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.multiplicity",
+      "kind": "structured_params_field",
+      "name": "multiplicity",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.optimizeWavefunction",
+      "kind": "structured_params_field",
+      "name": "optimizeWavefunction",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamics",
+      "kind": "structured_params_field",
+      "name": "molecularDynamics",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceOrbitals",
+      "kind": "structured_params_field",
+      "name": "convergenceOrbitals",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.maxStep",
+      "kind": "structured_params_field",
+      "name": "maxStep",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.timestep",
+      "kind": "structured_params_field",
+      "name": "timestep",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.restartWavefunction",
+      "kind": "structured_params_field",
+      "name": "restartWavefunction",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trajectory",
+      "kind": "structured_params_field",
+      "name": "trajectory",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.optimizeGeometry",
+      "kind": "structured_params_field",
+      "name": "optimizeGeometry",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.maxIter",
+      "kind": "structured_params_field",
+      "name": "maxIter",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceGeometry",
+      "kind": "structured_params_field",
+      "name": "convergenceGeometry",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.electronMass",
+      "kind": "structured_params_field",
+      "name": "electronMass",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsCp",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsCp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsBo",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsBo",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsEh",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsEh",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsPt",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsPt",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsClassical",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsClassical",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsFile",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsFile",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nose",
+      "kind": "structured_params_field",
+      "name": "nose",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIons",
+      "kind": "structured_params_field",
+      "name": "noseIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseElectrons",
+      "kind": "structured_params_field",
+      "name": "noseElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.berendsen",
+      "kind": "structured_params_field",
+      "name": "berendsen",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.langevin",
+      "kind": "structured_params_field",
+      "name": "langevin",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.annealing",
+      "kind": "structured_params_field",
+      "name": "annealing",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.quench",
+      "kind": "structured_params_field",
+      "name": "quench",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rattle",
+      "kind": "structured_params_field",
+      "name": "rattle",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.shake",
+      "kind": "structured_params_field",
+      "name": "shake",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.constraint",
+      "kind": "structured_params_field",
+      "name": "constraint",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trotter",
+      "kind": "structured_params_field",
+      "name": "trotter",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.restart",
+      "kind": "structured_params_field",
+      "name": "restart",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.printOptions",
+      "kind": "structured_params_field",
+      "name": "printOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.storeOptions",
+      "kind": "structured_params_field",
+      "name": "storeOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
+      "kind": "structured_params_field",
+      "name": "centerMoleculeOff",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.centerMoleculeOn",
+      "kind": "structured_params_field",
+      "name": "centerMoleculeOn",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.diis",
+      "kind": "structured_params_field",
+      "name": "diis",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.odiis",
+      "kind": "structured_params_field",
+      "name": "odiis",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.pcg",
+      "kind": "structured_params_field",
+      "name": "pcg",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.diagonalization",
+      "kind": "structured_params_field",
+      "name": "diagonalization",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.freeEnergy",
+      "kind": "structured_params_field",
+      "name": "freeEnergy",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.interface",
+      "kind": "structured_params_field",
+      "name": "interface",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.qmmm",
+      "kind": "structured_params_field",
+      "name": "qmmm",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.bicanonicalEnsemble",
+      "kind": "structured_params_field",
+      "name": "bicanonicalEnsemble",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cdft",
+      "kind": "structured_params_field",
+      "name": "cdft",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.properties",
+      "kind": "structured_params_field",
+      "name": "properties",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.functional",
+      "kind": "structured_params_field",
+      "name": "functional",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.lsd",
+      "kind": "structured_params_field",
+      "name": "lsd",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.gcCutoff",
+      "kind": "structured_params_field",
+      "name": "gcCutoff",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.xcDriver",
+      "kind": "structured_params_field",
+      "name": "xcDriver",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.libxc",
+      "kind": "structured_params_field",
+      "name": "libxc",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.lrKernel",
+      "kind": "structured_params_field",
+      "name": "lrKernel",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.refunct",
+      "kind": "structured_params_field",
+      "name": "refunct",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.mtsHighFunc",
+      "kind": "structured_params_field",
+      "name": "mtsHighFunc",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.mtsLowFunc",
+      "kind": "structured_params_field",
+      "name": "mtsLowFunc",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.hfx",
+      "kind": "structured_params_field",
+      "name": "hfx",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.hfxScreening",
+      "kind": "structured_params_field",
+      "name": "hfxScreening",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.hubbard",
+      "kind": "structured_params_field",
+      "name": "hubbard",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.alpha",
+      "kind": "structured_params_field",
+      "name": "alpha",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.beta",
+      "kind": "structured_params_field",
+      "name": "beta",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.oldCode",
+      "kind": "structured_params_field",
+      "name": "oldCode",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.newCode",
+      "kind": "structured_params_field",
+      "name": "newCode",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.correlation",
+      "kind": "structured_params_field",
+      "name": "correlation",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.exchange",
+      "kind": "structured_params_field",
+      "name": "exchange",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.dft.becke88",
+      "kind": "structured_params_field",
+      "name": "becke88",
+      "section": "dft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.atoms.pseudopotentials",
+      "kind": "structured_params_field",
+      "name": "pseudopotentials",
+      "section": "atoms",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.atoms.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "atoms",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.set.key",
+      "kind": "structured_params_field",
+      "name": "key",
+      "section": "set",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.set.value",
+      "kind": "structured_params_field",
+      "name": "value",
+      "section": "set",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.raw",
+      "kind": "structured_params_field",
+      "name": "raw",
+      "section": "raw",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "abi.cpmdc_set_params",
       "kind": "abi",
       "name": "cpmdc_set_params",

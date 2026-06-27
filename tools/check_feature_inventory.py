@@ -124,6 +124,8 @@ def main() -> int:
         c_flags[fid] = (True, True)
 
     for fid in structured_param_feature_ids(schema):
+        if fid not in fids:
+            errors.append(f"inventory missing structured params feature {fid}")
         if fid not in cpmd_options_doc:
             errors.append(f"cpmd-options docs missing {fid}")
         if fid not in c_flags:
