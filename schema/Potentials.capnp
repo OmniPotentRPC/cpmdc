@@ -118,9 +118,9 @@ struct CPMDParams {
   multiplicity @3 :Int32 = 1;         # 2S+1; >1 enables LSD when rendering defaults.
   task         @4 :Text = "gradient"; # energy | gradient | md | optimize (frontend hint).
   title        @5 :Text = "";         # Optional comment header in rendered deck.
-  memoryMb     @6 :UInt32 = 0;        # 0 => CPMD / environment defaults.
-  scratchDir   @7 :Text = "";         # Optional scratch directory.
-  permanentDir @8 :Text = "";         # Optional permanent / restart directory.
+  memoryMb     @6 :UInt32 = 0;        # Frontend memory hint; 0 => environment defaults.
+  scratchDir   @7 :Text = "";         # Fallback &CPMD FILEPATH directory.
+  permanentDir @8 :Text = "";         # Preferred &CPMD FILEPATH restart directory.
   cpmdRoot     @9 :Text = "";         # OpenCPMD source/build tree; empty => env CPMD_ROOT.
   enginePath   @10 :Text = "";        # Optional dlopen path; empty => probe embed.
   inputBlocks  @11 :List(Text);       # Raw &SECTION blocks applied before generated ones.

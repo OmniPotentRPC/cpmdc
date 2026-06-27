@@ -31,8 +31,10 @@ Top-level ``CPMDParams`` fields
 | ``title``                        | Optional comment header in       |
 |                                  | rendered decks                   |
 +----------------------------------+----------------------------------+
-| ``memoryMb``, ``scratchDir``,    | Embed / runtime placement knobs  |
-| ``permanentDir``                 |                                  |
+| ``memoryMb``                     | Frontend memory hint             |
++----------------------------------+----------------------------------+
+| ``scratchDir``, ``permanentDir`` | ``&CPMD FILEPATH`` runtime file  |
+|                                  | placement; ``permanentDir`` wins |
 +----------------------------------+----------------------------------+
 | ``cpmdRoot``, ``enginePath``     | Tree probe / dlopen path         |
 +----------------------------------+----------------------------------+

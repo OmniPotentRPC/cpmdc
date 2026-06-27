@@ -293,6 +293,29 @@ static int append_set_directives_for_section(char *dst, size_t dst_size,
   return 0;
 }
 
+static capn_text selected_file_path(const struct CPMDParams *view) {
+  if (view->permanentDir.str && view->permanentDir.len > 0)
+    return view->permanentDir;
+  if (view->scratchDir.str && view->scratchDir.len > 0)
+    return view->scratchDir;
+  return empty_text;
+}
+
+static int append_file_path_directive(char *dst, size_t dst_size, size_t *used,
+                                      capn_text path) {
+  if (!path.str || path.len <= 0)
+    return 0;
+  if (append_text(dst, dst_size, used, " FILEPATH\n  ") != 0)
+    return -1;
+  if (append_capn_text(dst, dst_size, used, path) != 0)
+    return -1;
+  if (path.str[path.len - 1] != '/') {
+    if (append_text(dst, dst_size, used, "/") != 0)
+      return -1;
+  }
+  return append_text(dst, dst_size, used, "\n");
+}
+
 static int render_remaining_set_sections(char *dst, size_t dst_size,
                                          size_t *used,
                                          struct RenderSetList *sets) {
@@ -443,7 +466,8 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                                const struct CPMDCpmdSection *sec,
-                               const char *task, struct RenderSetList *sets) {
+                               const char *task, capn_text file_path,
+                               struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&CPMD\n") != 0)
     return -1;
   int opt_wf = sec->optimizeWavefunction;
@@ -485,6 +509,16 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   }
   if (append_directives(dst, dst_size, used, sec->directives) != 0)
     return -1;
+  int has_filepath = directives_have_prefix(sec->directives, "FILEPATH");
+  if (has_filepath < 0)
+    return -1;
+  int set_has_filepath = set_directives_have_prefix(sets, "CPMD", "FILEPATH");
+  if (set_has_filepath < 0)
+    return -1;
+  if (!has_filepath && !set_has_filepath) {
+    if (append_file_path_directive(dst, dst_size, used, file_path) != 0)
+      return -1;
+  }
   if (append_set_directives_for_section(dst, dst_size, used, sets, "CPMD") != 0)
     return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
@@ -659,6 +693,7 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
 
   const char *task = cpmdc_params_text_or(view.task, "gradient");
   const char *functional = cpmdc_params_text_or(view.functional, "BLYP");
+  capn_text file_path = selected_file_path(&view);
   double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
   int charge = view.charge;
   int mult = view.multiplicity > 0 ? view.multiplicity : 1;
@@ -695,7 +730,8 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
-      if (render_cpmd_section(dst, dst_size, &used, &body, task, &sets) != 0)
+      if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
+                              &sets) != 0)
         return -1;
       break;
     }
@@ -735,7 +771,8 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-6;
-    if (render_cpmd_section(dst, dst_size, &used, &def, task, &sets) != 0)
+    if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
+                            &sets) != 0)
       return -1;
   }
   if (!has_system) {
@@ -903,6 +940,7 @@ int cpmdc_params_render_deck_with_geometry(
 
   const char *task = cpmdc_params_text_or(view.task, "gradient");
   const char *functional = cpmdc_params_text_or(view.functional, "BLYP");
+  capn_text file_path = selected_file_path(&view);
   double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
   int charge = view.charge;
   int mult = view.multiplicity > 0 ? view.multiplicity : 1;
@@ -943,7 +981,8 @@ int cpmdc_params_render_deck_with_geometry(
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
-      if (render_cpmd_section(dst, dst_size, &used, &body, task, &sets) != 0)
+      if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
+                              &sets) != 0)
         return -1;
       break;
     }
@@ -983,7 +1022,8 @@ int cpmdc_params_render_deck_with_geometry(
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-5;
-    if (render_cpmd_section(dst, dst_size, &used, &def, task, &sets) != 0)
+    if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
+                            &sets) != 0)
       return -1;
   }
   if (!has_system) {
