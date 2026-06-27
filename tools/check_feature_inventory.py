@@ -76,6 +76,35 @@ def main() -> int:
         if f'"{fid}"' not in features_c:
             errors.append(f"C table missing {fid}")
 
+    c_flags = {
+        fid: (bool(int(stub)), bool(int(embed)))
+        for fid, stub, embed in re.findall(
+            r'\{"([^"]+)",\s*CPMDC_FEATURE_\w+,\s*([01]),\s*([01])\}',
+            features_c,
+        )
+    }
+
+    for feature in inv["features"]:
+        fid = feature["feature_id"]
+        if fid not in c_flags:
+            continue
+        stub, embed = c_flags[fid]
+        if bool(feature["stub_applicable"]) != stub:
+            errors.append(f"{fid} stub_applicable inventory={feature['stub_applicable']} C={stub}")
+        if bool(feature["embed_applicable"]) != embed:
+            errors.append(f"{fid} embed_applicable inventory={feature['embed_applicable']} C={embed}")
+
+    for section in inv["section_kinds"]:
+        fid = section["feature_id"]
+        if fid not in c_flags:
+            errors.append(f"section kind C table missing {fid}")
+            continue
+        stub, embed = c_flags[fid]
+        if bool(section["stub_applicable"]) != stub:
+            errors.append(f"{fid} section stub_applicable inventory={section['stub_applicable']} C={stub}")
+        if bool(section["embed_applicable"]) != embed:
+            errors.append(f"{fid} section embed_applicable inventory={section['embed_applicable']} C={embed}")
+
     # Must include skeptic-required
     for req in ("EAM", "MOLSTATES", "NLCC", "VECTORS"):
         if req not in inv_secs:
