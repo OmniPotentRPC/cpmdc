@@ -610,6 +610,70 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " RESTART\n") != 0)
       return -1;
   }
+  if (sec->printOptions.str && sec->printOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " PRINT\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->printOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->storeOptions.str && sec->storeOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " STORE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->storeOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->centerMoleculeOff) {
+    if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
+      return -1;
+  }
+  if (sec->centerMoleculeOn) {
+    if (append_text(dst, dst_size, used, " CENTER MOLECULE ON\n") != 0)
+      return -1;
+  }
+  if (sec->diis) {
+    if (append_text(dst, dst_size, used, " DIIS\n") != 0)
+      return -1;
+  }
+  if (sec->odiis) {
+    if (append_text(dst, dst_size, used, " ODIIS\n") != 0)
+      return -1;
+  }
+  if (sec->pcg) {
+    if (append_text(dst, dst_size, used, " PCG\n") != 0)
+      return -1;
+  }
+  if (sec->diagonalization) {
+    if (append_text(dst, dst_size, used, " DIAGONALIZATION\n") != 0)
+      return -1;
+  }
+  if (sec->freeEnergy) {
+    if (append_text(dst, dst_size, used, " FREE-ENERGY\n") != 0)
+      return -1;
+  }
+  if (sec->_interface) {
+    if (append_text(dst, dst_size, used, " INTERFACE\n") != 0)
+      return -1;
+  }
+  if (sec->qmmm) {
+    if (append_text(dst, dst_size, used, " QMMM\n") != 0)
+      return -1;
+  }
+  if (sec->bicanonicalEnsemble) {
+    if (append_text(dst, dst_size, used, " BICANONICAL ENSEMBLE\n") != 0)
+      return -1;
+  }
+  if (sec->cdft) {
+    if (append_text(dst, dst_size, used, " CDFT\n") != 0)
+      return -1;
+  }
+  if (sec->properties) {
+    if (append_text(dst, dst_size, used, " PROPERTIES\n") != 0)
+      return -1;
+  }
   if (sec->restartWavefunction) {
     if (append_text(dst, dst_size, used, " RESTART WAVEFUNCTION\n") != 0)
       return -1;

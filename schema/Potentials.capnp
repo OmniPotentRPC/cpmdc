@@ -85,6 +85,20 @@ struct CPMDCpmdSection {
   constraint           @27 :Text;         # CONSTRAINT.
   trotter              @28 :Text;         # TROTTER.
   restart              @29 :Bool = false; # RESTART.
+  printOptions         @30 :Text;         # PRINT.
+  storeOptions         @31 :Text;         # STORE.
+  centerMoleculeOff    @32 :Bool = false; # CENTER MOLECULE OFF.
+  centerMoleculeOn     @33 :Bool = false; # CENTER MOLECULE ON.
+  diis                 @34 :Bool = false; # DIIS.
+  odiis                @35 :Bool = false; # ODIIS.
+  pcg                  @36 :Bool = false; # PCG.
+  diagonalization      @37 :Bool = false; # DIAGONALIZATION.
+  freeEnergy           @38 :Bool = false; # FREE-ENERGY.
+  interface            @39 :Bool = false; # INTERFACE.
+  qmmm                 @40 :Bool = false; # QMMM.
+  bicanonicalEnsemble  @41 :Bool = false; # BICANONICAL ENSEMBLE.
+  cdft                 @42 :Bool = false; # CDFT.
+  properties           @43 :Bool = false; # PROPERTIES.
 }
 
 struct CPMDDftSection {

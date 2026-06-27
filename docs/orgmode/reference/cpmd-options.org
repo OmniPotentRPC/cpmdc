@@ -89,6 +89,20 @@ format.
 | ~constraint~ | ~CONSTRAINT~ |
 | ~trotter~ | ~TROTTER~ |
 | ~restart~ | ~RESTART~ |
+| ~printOptions~ | ~PRINT~ |
+| ~storeOptions~ | ~STORE~ |
+| ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
+| ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
+| ~diis~ | ~DIIS~ |
+| ~odiis~ | ~ODIIS~ |
+| ~pcg~ | ~PCG~ |
+| ~diagonalization~ | ~DIAGONALIZATION~ |
+| ~freeEnergy~ | ~FREE-ENERGY~ |
+| ~interface~ | ~INTERFACE~ |
+| ~qmmm~ | ~QMMM~ |
+| ~bicanonicalEnsemble~ | ~BICANONICAL ENSEMBLE~ |
+| ~cdft~ | ~CDFT~ |
+| ~properties~ | ~PROPERTIES~ |
 | ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
 | ~trajectory~ | ~TRAJECTORY~ |
 
