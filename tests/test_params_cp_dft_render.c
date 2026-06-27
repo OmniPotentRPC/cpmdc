@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
   const char *cp_need[] = {
       "&CPMD", "MOLECULAR DYNAMICS", "EMASS", "400.0", "NOSE IONS",
       "ANNEALING IONS", "TIMESTEP", "RESTART WAVEFUNCTION", "TRAJECTORY",
-      "&SYSTEM", "SCALE", "0.5", "CHARGE", "1", "&DFT", "FUNCTIONAL BLYP",
+      "&SYSTEM", "SCALE S=0.5", "CHARGE", "1", "&DFT", "FUNCTIONAL BLYP",
   };
   const char *dft_need[] = {
       "&DFT", "FUNCTIONAL PBE0", "LSD", "GC-CUTOFF", "&PIMD", "TROTTER",
@@ -314,9 +314,15 @@ int main(int argc, char **argv) {
   };
   const char *system_controls_need[] = {
       "&SYSTEM", "SYMMETRY", "0", "ANGSTROM", "CELL", "14 1 1 0 0 0",
-      "CUTOFF", "90", "DENSITY CUTOFF", "360", "CHARGE", "1",
-      "POISSON SOLVER HOCKNEY PARAMETER", "1.2", "ISOLATED MOLECULE",
-      "CENTER MOLECULE ON", "CENTER MOLECULE OFF", "SURFACE XY",
+      "REFERENCE CELL", "15 1 1 0 0 0", "CLASSICAL CELL",
+      "16 1.1 1.2 0 0 0", "ISOTROPIC CELL", "ZFLEXIBLE CELL", "CUTOFF",
+      "90", "DENSITY CUTOFF", "360", "DENSITY CUTOFF NUMBER", "64",
+      "DUAL", "5", "CONSTANT CUTOFF", "0.8 0.2 75", "CHARGE", "1",
+      "POISSON SOLVER HOCKNEY PARAMETER", "1.2", "MESH", "24 24 32",
+      "SCALE CARTESIAN S=1.25", "DOUBLE GRID ON",
+      "SYMMETRIZE COORDINATES", "TESR", "4", "ISOLATED MOLECULE",
+      "CENTER MOLECULE ON", "CENTER MOLECULE OFF", "SURFACE XY", "POLYMER",
+      "CLUSTER",
   };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",

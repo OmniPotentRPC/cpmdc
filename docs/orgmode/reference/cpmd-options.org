@@ -37,7 +37,7 @@ fields use ~params.inputSections.<section>.<field>~, for example
 |------+------------------+-------------|
 | ~atom~ | ~CPMDDirectiveSection~ | ~&ATOM~ keyword/value lines and nested subsections |
 | ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (wavefunction/geometry optimization, MD, isolated/centered molecule controls, convergence, iteration limits, timestep, electron mass, …) |
-| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, density cutoff, Poisson solver, surface, charge, …) |
+| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, cell/reference/classical cell, cutoff/grid/mesh controls, Poisson solver, surface/polymer/cluster, charge, …) |
 | ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, GC cutoff, XC driver, hybrid/Hubbard scalars, extra directives) |
 | ~atoms~ | ~CPMDAtomsSection~ | ~&ATOMS~ (pseudopotential lines; coordinates come from ~ForceInput~) |
 | ~basis~ | ~CPMDDirectiveSection~ | ~&BASIS~ keyword/value lines and nested subsections |
@@ -181,14 +181,28 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.symmetry~ | ~system.symmetry~ | ~&SYSTEM SYMMETRY~ |
 | ~params.inputSections.system.angstrom~ | ~system.angstrom~ | ~&SYSTEM ANGSTROM~ |
 | ~params.inputSections.system.cell~ | ~system.cell~ | ~&SYSTEM CELL~ |
+| ~params.inputSections.system.referenceCell~ | ~system.referenceCell~ | ~&SYSTEM REFERENCE CELL~ |
+| ~params.inputSections.system.classicalCell~ | ~system.classicalCell~ | ~&SYSTEM CLASSICAL CELL~ |
+| ~params.inputSections.system.isotropicCell~ | ~system.isotropicCell~ | ~&SYSTEM ISOTROPIC CELL~ |
+| ~params.inputSections.system.zFlexibleCell~ | ~system.zFlexibleCell~ | ~&SYSTEM ZFLEXIBLE CELL~ |
 | ~params.inputSections.system.cutOffRy~ | ~system.cutOffRy~ | ~&SYSTEM CUTOFF~ |
-| ~params.inputSections.system.scale~ | ~system.scale~ | ~&SYSTEM SCALE~ |
+| ~params.inputSections.system.scale~ | ~system.scale~ | ~&SYSTEM SCALE S=<value>~ |
+| ~params.inputSections.system.scaleCartesian~ | ~system.scaleCartesian~ | Add ~CARTESIAN~ to ~&SYSTEM SCALE~ |
 | ~params.inputSections.system.charge~ | ~system.charge~ | ~&SYSTEM CHARGE~ |
 | ~params.inputSections.system.multiplicity~ | ~system.multiplicity~ | ~&SYSTEM MULTIPLICITY~ |
 | ~params.inputSections.system.densityCutOffRy~ | ~system.densityCutOffRy~ | ~&SYSTEM DENSITY CUTOFF~ |
+| ~params.inputSections.system.densityCutoffNumber~ | ~system.densityCutoffNumber~ | ~&SYSTEM DENSITY CUTOFF NUMBER~ |
+| ~params.inputSections.system.dual~ | ~system.dual~ | ~&SYSTEM DUAL~ |
+| ~params.inputSections.system.constantCutoff~ | ~system.constantCutoff~ | ~&SYSTEM CONSTANT CUTOFF~ |
 | ~params.inputSections.system.poissonSolver~ | ~system.poissonSolver~ | ~&SYSTEM POISSON SOLVER~ |
 | ~params.inputSections.system.poissonParameter~ | ~system.poissonParameter~ | Optional ~POISSON ... PARAMETER~ value |
+| ~params.inputSections.system.mesh~ | ~system.mesh~ | ~&SYSTEM MESH~ |
+| ~params.inputSections.system.doubleGrid~ | ~system.doubleGrid~ | ~&SYSTEM DOUBLE GRID~ ~ON~ or ~OFF~ |
+| ~params.inputSections.system.symmetrizeCoordinates~ | ~system.symmetrizeCoordinates~ | ~&SYSTEM SYMMETRIZE COORDINATES~ |
+| ~params.inputSections.system.tesr~ | ~system.tesr~ | ~&SYSTEM TESR~ |
 | ~params.inputSections.system.surface~ | ~system.surface~ | ~&SYSTEM SURFACE~ direction |
+| ~params.inputSections.system.polymer~ | ~system.polymer~ | ~&SYSTEM POLYMER~ |
+| ~params.inputSections.system.cluster~ | ~system.cluster~ | ~&SYSTEM CLUSTER~ |
 | ~params.inputSections.system.directives~ | ~system.directives~ | Additional ~&SYSTEM~ keyword/value lines |
 | ~params.inputSections.basis.directives~ | ~basis.directives~ | Keyword/value lines inside ~&BASIS~ |
 | ~params.inputSections.basis.subsections~ | ~basis.subsections~ | Nested blocks inside ~&BASIS~ |

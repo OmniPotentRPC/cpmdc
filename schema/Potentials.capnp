@@ -56,6 +56,20 @@ struct CPMDSystemSection {
   poissonSolver   @9 :Text;               # POISSON SOLVER argument, e.g. HOCKNEY.
   poissonParameter @10 :Float64 = 0.0;    # Optional POISSON ... PARAMETER value.
   surface         @11 :Text;              # SURFACE direction, e.g. XY/YZ/ZX.
+  referenceCell   @12 :List(Float64);      # REFERENCE CELL values (6) or vectors (9).
+  classicalCell   @13 :List(Float64);      # CLASSICAL CELL values (6).
+  isotropicCell   @14 :Bool = false;       # ISOTROPIC CELL.
+  zFlexibleCell   @15 :Bool = false;       # ZFLEXIBLE CELL.
+  densityCutoffNumber @16 :Int32 = 0;      # DENSITY CUTOFF NUMBER; 0 => omit.
+  dual            @17 :Float64 = 0.0;      # DUAL density cutoff factor; 0 => omit.
+  constantCutoff  @18 :List(Float64);      # CONSTANT CUTOFF akin, skin, eckin (3).
+  mesh            @19 :List(Int32);        # MESH nr1, nr2, nr3.
+  scaleCartesian  @20 :Bool = false;       # SCALE CARTESIAN; combines with scale as S=.
+  doubleGrid      @21 :Text;               # DOUBLE GRID argument, e.g. ON/OFF.
+  symmetrizeCoordinates @22 :Bool = false; # SYMMETRIZE COORDINATES.
+  tesr            @23 :Int32 = 0;          # TESR value; 0 => omit.
+  polymer         @24 :Bool = false;       # POLYMER.
+  cluster         @25 :Bool = false;       # CLUSTER.
 }
 
 struct CPMDCpmdSection {

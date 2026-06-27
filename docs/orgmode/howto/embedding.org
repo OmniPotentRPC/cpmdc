@@ -178,7 +178,8 @@ step.
 Structured ~inputSections~ should be preferred over raw blocks when a typed arm
 exists:
 
-- ~system~ for ~CELL~, ~CUTOFF~, ~SCALE~, ~CHARGE~, and spin multiplicity
+- ~system~ for cell, cutoff/grid, Poisson, mesh/scale, isolated-shape, charge,
+  and spin multiplicity controls
 - ~cpmd~ for wavefunction optimization, MD, convergence, restart, and
   trajectory controls
 - ~dft~ for functional and spin-polarized DFT controls

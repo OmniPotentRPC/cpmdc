@@ -101,6 +101,40 @@ static int append_capn_text(char *dst, size_t dst_size, size_t *used,
   return 0;
 }
 
+static int append_f64_list_line(char *dst, size_t dst_size, size_t *used,
+                                capn_list64 *list, int expected_len) {
+  int n = list64_len(list);
+  if (n < 0)
+    return -1;
+  if (n != expected_len)
+    return n == 0 ? 0 : -1;
+  if (append_text(dst, dst_size, used, "  ") != 0)
+    return -1;
+  for (int i = 0; i < n; ++i) {
+    if (append_fmt(dst, dst_size, used, "%s%.10g", i == 0 ? "" : " ",
+                   capn_to_f64(capn_get64(*list, i))) != 0)
+      return -1;
+  }
+  return append_text(dst, dst_size, used, "\n");
+}
+
+static int append_i32_list_line(char *dst, size_t dst_size, size_t *used,
+                                capn_list32 *list, int expected_len) {
+  int n = list32_len(list);
+  if (n < 0)
+    return -1;
+  if (n != expected_len)
+    return n == 0 ? 0 : -1;
+  if (append_text(dst, dst_size, used, "  ") != 0)
+    return -1;
+  for (int i = 0; i < n; ++i) {
+    if (append_fmt(dst, dst_size, used, "%s%d", i == 0 ? "" : " ",
+                   (int)(int32_t)capn_get32(*list, i)) != 0)
+      return -1;
+  }
+  return append_text(dst, dst_size, used, "\n");
+}
+
 static int append_slice(char *dst, size_t dst_size, size_t *used,
                         const char *s, size_t len) {
   if (!s || len == 0)
@@ -451,6 +485,35 @@ static int render_system_section_with_cell(
     if (append_cpmd_cell(dst, dst_size, used, cell, ncell) != 0)
       return -1;
   }
+  int n_reference_cell = list64_len(&sys->referenceCell);
+  if (n_reference_cell < 0)
+    return -1;
+  if (n_reference_cell > 0) {
+    if (append_text(dst, dst_size, used,
+                    n_reference_cell == 9 ? " REFERENCE CELL VECTORS\n"
+                                          : " REFERENCE CELL\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->referenceCell,
+                             n_reference_cell == 9 ? 9 : 6) != 0)
+      return -1;
+  }
+  int n_classical_cell = list64_len(&sys->classicalCell);
+  if (n_classical_cell < 0)
+    return -1;
+  if (n_classical_cell > 0) {
+    if (append_text(dst, dst_size, used, " CLASSICAL CELL\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->classicalCell, 6) != 0)
+      return -1;
+  }
+  if (sys->isotropicCell) {
+    if (append_text(dst, dst_size, used, " ISOTROPIC CELL\n") != 0)
+      return -1;
+  }
+  if (sys->zFlexibleCell) {
+    if (append_text(dst, dst_size, used, " ZFLEXIBLE CELL\n") != 0)
+      return -1;
+  }
   if (append_fmt(dst, dst_size, used, " CUTOFF\n  %.10g\n", cutoff) != 0)
     return -1;
   if (sys->densityCutOffRy > 0.0) {
@@ -458,8 +521,35 @@ static int render_system_section_with_cell(
                    sys->densityCutOffRy) != 0)
       return -1;
   }
-  if (sys->scale != 0.0) {
-    if (append_fmt(dst, dst_size, used, " SCALE\n  %.10g\n", sys->scale) != 0)
+  if (sys->densityCutoffNumber > 0) {
+    if (append_fmt(dst, dst_size, used, " DENSITY CUTOFF NUMBER\n  %d\n",
+                   sys->densityCutoffNumber) != 0)
+      return -1;
+  }
+  if (sys->dual > 0.0) {
+    if (append_fmt(dst, dst_size, used, " DUAL\n  %.10g\n", sys->dual) != 0)
+      return -1;
+  }
+  int n_constant_cutoff = list64_len(&sys->constantCutoff);
+  if (n_constant_cutoff < 0)
+    return -1;
+  if (n_constant_cutoff > 0) {
+    if (append_text(dst, dst_size, used, " CONSTANT CUTOFF\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->constantCutoff, 3) !=
+        0)
+      return -1;
+  }
+  if (sys->scale != 0.0 || sys->scaleCartesian) {
+    if (append_text(dst, dst_size, used, " SCALE") != 0)
+      return -1;
+    if (sys->scaleCartesian &&
+        append_text(dst, dst_size, used, " CARTESIAN") != 0)
+      return -1;
+    if (sys->scale != 0.0 &&
+        append_fmt(dst, dst_size, used, " S=%.10g", sys->scale) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
   if (charge != 0) {
@@ -482,12 +572,45 @@ static int render_system_section_with_cell(
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  int n_mesh = list32_len(&sys->mesh);
+  if (n_mesh < 0)
+    return -1;
+  if (n_mesh > 0) {
+    if (append_text(dst, dst_size, used, " MESH\n") != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used, &sys->mesh, 3) != 0)
+      return -1;
+  }
+  if (sys->doubleGrid.str && sys->doubleGrid.len > 0) {
+    if (append_text(dst, dst_size, used, " DOUBLE GRID ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sys->doubleGrid) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sys->symmetrizeCoordinates) {
+    if (append_text(dst, dst_size, used, " SYMMETRIZE COORDINATES\n") != 0)
+      return -1;
+  }
+  if (sys->tesr > 0) {
+    if (append_fmt(dst, dst_size, used, " TESR\n  %d\n", sys->tesr) != 0)
+      return -1;
+  }
   if (sys->surface.str && sys->surface.len > 0) {
     if (append_text(dst, dst_size, used, " SURFACE ") != 0)
       return -1;
     if (append_capn_text(dst, dst_size, used, sys->surface) != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sys->polymer) {
+    if (append_text(dst, dst_size, used, " POLYMER\n") != 0)
+      return -1;
+  }
+  if (sys->cluster) {
+    if (append_text(dst, dst_size, used, " CLUSTER\n") != 0)
       return -1;
   }
   int has_poisson = directives_have_prefix(sys->directives, "POISSON SOLVER");

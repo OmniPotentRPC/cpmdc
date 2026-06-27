@@ -1863,6 +1863,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.referenceCell",
+      "kind": "structured_params_field",
+      "name": "referenceCell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.classicalCell",
+      "kind": "structured_params_field",
+      "name": "classicalCell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.isotropicCell",
+      "kind": "structured_params_field",
+      "name": "isotropicCell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.zFlexibleCell",
+      "kind": "structured_params_field",
+      "name": "zFlexibleCell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.cutOffRy",
       "kind": "structured_params_field",
       "name": "cutOffRy",
@@ -1874,6 +1906,14 @@
       "feature_id": "params.inputSections.system.scale",
       "kind": "structured_params_field",
       "name": "scale",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.scaleCartesian",
+      "kind": "structured_params_field",
+      "name": "scaleCartesian",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true
@@ -1903,6 +1943,30 @@
       "render_via": "typed"
     },
     {
+      "feature_id": "params.inputSections.system.densityCutoffNumber",
+      "kind": "structured_params_field",
+      "name": "densityCutoffNumber",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.dual",
+      "kind": "structured_params_field",
+      "name": "dual",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.constantCutoff",
+      "kind": "structured_params_field",
+      "name": "constantCutoff",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.poissonSolver",
       "name": "poissonSolver",
       "kind": "params",
@@ -1919,12 +1983,60 @@
       "render_via": "typed"
     },
     {
+      "feature_id": "params.inputSections.system.mesh",
+      "kind": "structured_params_field",
+      "name": "mesh",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.doubleGrid",
+      "kind": "structured_params_field",
+      "name": "doubleGrid",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.symmetrizeCoordinates",
+      "kind": "structured_params_field",
+      "name": "symmetrizeCoordinates",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.tesr",
+      "kind": "structured_params_field",
+      "name": "tesr",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.surface",
       "name": "surface",
       "kind": "params",
       "stub_applicable": true,
       "embed_applicable": true,
       "render_via": "typed"
+    },
+    {
+      "feature_id": "params.inputSections.system.polymer",
+      "kind": "structured_params_field",
+      "name": "polymer",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cluster",
+      "kind": "structured_params_field",
+      "name": "cluster",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
     },
     {
       "feature_id": "params.inputSections.system.directives",
