@@ -119,6 +119,7 @@ def main() -> int:
     for feature in inv["features"]:
         fid = feature["feature_id"]
         if fid not in c_flags:
+            errors.append(f"C table missing inventory feature {fid}")
             continue
         stub, embed = c_flags[fid]
         if bool(feature["stub_applicable"]) != stub:
