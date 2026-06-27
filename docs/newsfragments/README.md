@@ -1,5 +1,5 @@
 # News fragments
 
-Optional towncrier-style fragments for future releases.
-Edit fragments here; do not hand-write version sections in `CHANGELOG.md`
-above any automated marker once towncrier is enabled.
+Optional towncrier-style fragments for release-note drafts.
+Edit fragments here when automated changelog generation is enabled; otherwise
+update `CHANGELOG.md` directly.

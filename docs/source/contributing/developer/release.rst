@@ -8,8 +8,15 @@ minor; breaking field renumbers or ABI signature changes are major.
 Checklist
 =========
 
-#. ``meson test -C build --print-errorlogs`` on the stub/parser
-   configuration.
+#. Run ``meson test -C build --print-errorlogs`` on the default
+   parser/session configuration.
+#. Run ``pixi run -e docs sphinxbld`` after documentation or public
+   header changes.
+#. Run the OpenCPMD archive suite when the release changes the embed
+   path:
+   ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs``.
+#. Confirm ``cpmdc_feature_table()`` exposes any new ABI, schema,
+   section, or keyword capability.
 #. Update ``CHANGELOG.md`` for user-visible changes.
 #. Tag ``vX.Y.Z`` when publishing.
 

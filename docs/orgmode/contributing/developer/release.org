@@ -8,9 +8,16 @@ Additive Cap'n Proto fields and new ABI entry points are minor; breaking field
 renumbers or ABI signature changes are major.
 
 * Checklist
-1. ~meson test -C build --print-errorlogs~ on the stub/parser configuration.
-2. Update ~CHANGELOG.md~ for user-visible changes.
-3. Tag ~vX.Y.Z~ when publishing.
+1. Run ~meson test -C build --print-errorlogs~ on the default parser/session
+   configuration.
+2. Run ~pixi run -e docs sphinxbld~ after documentation or public header
+   changes.
+3. Run the OpenCPMD archive suite when the release changes the embed path:
+   ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~.
+4. Confirm ~cpmdc_feature_table()~ exposes any new ABI, schema, section, or
+   keyword capability.
+5. Update ~CHANGELOG.md~ for user-visible changes.
+6. Tag ~vX.Y.Z~ when publishing.
 
 0.1 covers the Cap'n Proto structure, C ABI, ISO_C embed shell,
 stub/reference backend, and archive-linked OpenCPMD energy/force path.

@@ -2,8 +2,8 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Development Checks
-Run the default parser, socket, and stub checks before changing the ABI or
-schema:
+Run the default parser, socket, and stub checks before changing the ABI,
+schema, renderer, or session runtime:
 
 #+begin_src bash
 meson setup build -Dwith_tests=true
@@ -11,8 +11,33 @@ meson compile -C build
 meson test -C build --print-errorlogs
 #+end_src
 
+Use focused suites while iterating, then run the default suite before pushing a
+public change:
+
+| Contract | Command |
+|----------+---------|
+| Full default ABI and parser suite | ~meson test -C build --print-errorlogs~ |
+| Cap'n Proto decode and deck rendering | ~meson test -C build --suite cmocka --print-errorlogs~ |
+| Session, topology, result sizing, and unit conversion | ~meson test -C build --suite e2e --print-errorlogs~ |
+| Generated feature inventory | ~meson test -C build feature-inventory --print-errorlogs~ |
+| OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
+
 Params render coverage lives under ~tests/cmocka/~ and uses cmocka assertions on
 generated Cap'n Proto types (~read_CPMDParams~, deck substrings) only.
+Session tests use encoded ~CPMDParams~ and ~ForceInput~ fixtures from
+~tests/*.capnp.txt~.
+
+* Source Layout
+
+| Path | Ownership |
+|------+-----------|
+| ~schema/Potentials.capnp~ | shared RPC and direct-call wire contract |
+| ~include/cpmdc.h~ | public C ABI and session result entry points |
+| ~include/cpmdc_features.h~ | runtime feature discovery ABI |
+| ~src/cpmdc_params.c~ | Cap'n Proto decode, effective config, CPMD deck rendering |
+| ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result writing |
+| ~src/cpmd_embed_c_api.F90~ | Fortran ~iso_c_binding~ bridge and OpenCPMD archive path |
+| ~tests/~ | encoded fixtures and C/cmocka contract tests |
 
 * Documentation
 Documentation source lives under ~docs/orgmode~ (authoritative prose), with
@@ -21,6 +46,12 @@ Build docs (exports Org → RST, Doxygen XML, Sphinx HTML with Antics analytics)
 
 #+begin_src bash
 pixi run -e docs docbld
+#+end_src
+
+Regenerate RST after editing Org sources:
+
+#+begin_src bash
+pixi run -e docs mkrst
 #+end_src
 
 The Sphinx theme injects ~antics-api.turtletech.us/antics.js~ via
