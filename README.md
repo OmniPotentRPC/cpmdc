@@ -80,6 +80,24 @@ that should merge into a typed section, `generic` for a complete unsupported
 section expressed as keyword/argument pairs, and `raw` only when preserving
 existing deck text is more important than structure.
 
+## Runtime Contracts
+
+Session callers should rely on these invariants:
+
+| Concern | Contract |
+| --- | --- |
+| Parameter lifetime | `cpmdc_session_create()` copies the serialized `CPMDParams`; the caller may release its input buffer after creation. |
+| Topology | the first successful session evaluation fixes atom count and ordered atomic numbers; coordinate, cell, and unit changes are allowed after that. |
+| Parameter replacement | `cpmdc_session_set_params()` is only valid before the session accepts a topology. |
+| Native C units | `CPMDCResult.energy_h` is Hartree; gradient and force buffers are Hartree/Bohr. |
+| Result-message units | `PotentialResult.energy` uses `ForceInput.energyUnit`; `PotentialResult.forces` use `energyUnit / lengthUnit`. |
+| Result sizing | call `cpmdc_potential_result_size_for_force_input()` before writing a `PotentialResult`; a too-small buffer returns `ok == 0` and reports the required byte count. |
+
+`ForceInput.pos` is a flat `natoms * 3` coordinate array and
+`ForceInput.atmnrs` is a `natoms` atomic-number array. The optional
+`ForceInput.box` is a row-major 3x3 cell. Unit strings default to `angstrom`
+and `eV`.
+
 ## Build And Test Matrix
 
 The default build does not need an OpenCPMD checkout. It builds the ABI,
@@ -121,6 +139,16 @@ meson test -C build-cpmd --print-errorlogs
 `cpmd_root` must contain `lib/libcpmd.a`. If runtime decks use library-style
 pseudopotential names such as `O_MT_BLYP.psp`, put those files in the working
 directory or set `CPMDC_PSEUDO_DIR`.
+
+Common diagnostics:
+
+| Symptom | Check |
+| --- | --- |
+| `with_cpmd requires ... lib/libcpmd.a` | build OpenCPMD first and pass the OpenCPMD tree as `-Dcpmd_root`, not the `cpmdc` tree. |
+| pseudopotential open/read errors | set `CPMDC_PSEUDO_DIR` to the directory containing the named `.psp` files or use absolute paths in `atoms.pseudopotentials`. |
+| topology-change errors | create a new `CPMDCSession` when atom count or ordered atomic numbers change. |
+| `PotentialResult buffer too small` | resize to the byte count returned through `potential_result_capnp_size_bytes`. |
+| unsupported unit errors | use the unit strings accepted by the schema helpers, such as `angstrom`, `bohr`, `eV`, and `hartree`. |
 
 ## Call Model
 

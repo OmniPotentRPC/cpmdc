@@ -60,6 +60,39 @@ The standalone stub target is different from the default shared engine:
 availability through the reference evaluator and can run the session
 tests.
 
+Test Selection
+==============
+
+Use the smallest suite that proves the layer you changed:
+
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| Change               | Command                                                                             | Pass condition        |
++======================+=====================================================================================+=======================+
+| Parser, feature      | ``meson test -C build --print-errorlogs``                                           | all configured tests  |
+| inventory, or C ABI  |                                                                                     | pass                  |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| Deck rendering or    | ``meson test -C build --suite cmocka --print-errorlogs``                            | cmocka render suites  |
+| Cap'n Proto fixtures |                                                                                     | pass                  |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| Session lifecycle,   | ``meson test -C build --suite e2e --print-errorlogs``                               | single-point and      |
+| topology, or units   |                                                                                     | optimizer-session     |
+|                      |                                                                                     | tests pass            |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| Public documentation | ``pixi run -e docs sphinxbld``                                                      | Sphinx build succeeds |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| Org-to-RST refresh   | ``pixi run -e docs mkrst``                                                          | checked-in            |
+|                      |                                                                                     | ``docs/source/*.rst`` |
+|                      |                                                                                     | matches the org       |
+|                      |                                                                                     | sources               |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+| OpenCPMD archive     | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs`` | default tests plus    |
+| link                 |                                                                                     | live water parity     |
+|                      |                                                                                     | pass                  |
++----------------------+-------------------------------------------------------------------------------------+-----------------------+
+
+``meson test --print-errorlogs`` is preferred because cmocka assertion
+output and OpenCPMD diagnostics stay attached to the failed test.
+
 End-to-End Suites
 =================
 
@@ -106,6 +139,38 @@ or embedding the library.
 The live build runs the same public C ABI as the default build. When
 ``with_cpmd=true`` is enabled, water Cap'n Proto parity tests are added
 and the long E2E tests exercise the linked OpenCPMD archive.
+
+Common Failures
+===============
+
+These checks usually identify environment problems before code changes
+are needed:
+
++------------------------------------------+---------------------------------------------------+
+| Symptom                                  | Check                                             |
++==========================================+===================================================+
+| ``with_cpmd requires ... lib/libcpmd.a`` | ``CPMD_ROOT`` points at a completed OpenCPMD      |
+|                                          | build tree with ``lib/libcpmd.a``                 |
++------------------------------------------+---------------------------------------------------+
+| OpenCPMD cannot find ``O_MT_BLYP.psp``   | ``CPMDC_PSEUDO_DIR`` points at the regtest        |
+| or ``H_CVB_BLYP.psp``                    | ``PP_LIBRARY`` or the params use absolute         |
+|                                          | pseudopotential paths                             |
++------------------------------------------+---------------------------------------------------+
+| A session reports a topology change      | the same ``CPMDCSession`` received a different    |
+|                                          | atom count or ordered atomic-number list; create  |
+|                                          | a new session                                     |
++------------------------------------------+---------------------------------------------------+
+| ``PotentialResult buffer too small``     | call                                              |
+|                                          | ``cpmdc_potential_result_size_for_force_input()`` |
+|                                          | and allocate at least that many bytes             |
++------------------------------------------+---------------------------------------------------+
+| Unit parsing fails                       | use supported length/energy strings such as       |
+|                                          | ``angstrom``, ``bohr``, ``eV``, and ``hartree``   |
++------------------------------------------+---------------------------------------------------+
+| ``capnp encode`` fails on a fixture      | re-run the command against                        |
+|                                          | ``schema/Potentials.capnp`` and the intended root |
+|                                          | type, either ``CPMDParams`` or ``ForceInput``     |
++------------------------------------------+---------------------------------------------------+
 
 Cap'n Proto Fixtures
 ====================

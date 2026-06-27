@@ -15,6 +15,11 @@ Use the session result path for new drivers. It keeps method setup and topology
 state in one object while preserving the same ~PotentialResult~ carrier used by
 RPC frontends.
 
+The compatibility array calls are useful when a host already owns native C
+arrays and only needs Hartree/Hartree-per-Bohr values. The serialized result
+calls are the better boundary for RPC frontends, cross-language bindings, and
+drivers that already use the shared OmniPotentRPC schema.
+
 * C ABI
 Include ~cpmdc.h~ and pass serialized Cap'n Proto message bytes to the ABI
 functions. Wire structs are generated from ~schema/Potentials.capnp~; the header
@@ -122,6 +127,37 @@ frontends.
 It avoids reparsing method setup on every step and gives the runtime one place
 to enforce topology consistency.
 
+* Result Buffer Contract
+Serialized result calls write an unpacked flat ~PotentialResult~. Size the
+output buffer from the step message before evaluating:
+
+#+begin_src c
+size_t needed = cpmdc_potential_result_size_for_force_input(
+    force_input_bytes, force_input_size);
+unsigned char *out = malloc(needed);
+size_t wrote = 0;
+
+CPMDCResult r = cpmdc_session_calculate_result(
+    session, force_input_bytes, force_input_size, out, needed, &wrote);
+#+end_src
+
+~needed == 0~ means the ~ForceInput~ message is invalid or too large for the C
+ABI. If ~needed~ is positive but the supplied capacity is smaller, the call
+returns ~ok == 0~, writes the required byte count to ~wrote~, and skips
+evaluation.
+
+* Session Lifetime
+~cpmdc_session_create()~ copies the serialized ~CPMDParams~ buffer. Callers may
+free or reuse their original input bytes after the session is created.
+
+The first successful session evaluation fixes the topology: atom count and
+ordered atomic numbers. Later steps may change coordinates, the optional 3x3
+cell, and requested units. A species change or atom-count change requires a new
+~CPMDCSession~.
+
+~cpmdc_session_set_params()~ can replace method setup only before topology is
+accepted. Once a step has succeeded, method changes also need a new session.
+
 * CPMD Input Ownership
 ~CPMDParams~ owns method and backend setup.
 ~ForceInput~ owns coordinates, atomic numbers, unit strings, and the optional
@@ -158,8 +194,15 @@ and Hartree/Bohr.
 ~PotentialResult~ energy and forces are converted to ~ForceInput.energyUnit~ and
 ~energyUnit / lengthUnit~ (for example ~eV~ and ~eV/angstrom~).
 
-* Topology
-The first accepted session evaluation fixes atom count and ordered atomic
-numbers.
-Later steps may change coordinates, units, and the 3x3 cell in ~ForceInput.box~.
-Topology changes require a new session.
+~ForceInput.pos~ and ~ForceInput.box~ use ~ForceInput.lengthUnit~. The native
+array calls take positions in Angstrom regardless of the schema defaults.
+
+* OpenCPMD Runtime Inputs
+Archive builds require ~-Dwith_cpmd=true~ and ~-Dcpmd_root=/path/to/OpenCPMD~.
+That tree must contain ~lib/libcpmd.a~ and the OpenCPMD object/include files
+from a completed executable build.
+
+Pseudopotential names in ~atoms.pseudopotentials~ can be absolute paths or
+library-style names. For library-style names, set ~CPMDC_PSEUDO_DIR~ to the
+directory containing the files. The embed layer also checks common
+pseudopotential directories under ~cpmdRoot~.

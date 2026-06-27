@@ -42,14 +42,39 @@ merges the keyword into the named section.
    positions in ~coor%tau0~ (Angstrom → a.u.), runs library ~wfopts~ / forces,
    reads ~ener_com%etot~ and ~coor%fion~, writes ~PotentialResult~.
 
+* Runtime ownership
+~CPMDParams~ is method state. ~ForceInput~ is step state. The session owns a
+copy of the serialized params and per-step scratch arrays; callers keep
+ownership of every input and output buffer they pass to the ABI.
+
+The result-carrier calls size output from the ~ForceInput~ atom count:
+~cpmdc_potential_result_size_for_force_input~ parses the step message and
+returns the byte count needed for one unpacked flat ~PotentialResult~. The
+calculation entry points do not evaluate the backend when the supplied result
+buffer is smaller than that byte count.
+
 * Long-running sessions
 First successful eval fixes topology (atom count + ordered Z). Later steps only
 change coordinates, units, and cell vectors. Species or count changes need a new
 session. Method knobs are fixed at session create unless
 ~cpmdc_session_set_params~ runs *before* topology is accepted.
 
+* Units and conversion
+The C array entry points take Angstrom positions and return Hartree plus
+Hartree/Bohr native values. The serialized ~PotentialResult~ path converts
+energy to ~ForceInput.energyUnit~ and forces to
+~ForceInput.energyUnit / ForceInput.lengthUnit~.
+
+The optional ~ForceInput.box~ is a row-major 3x3 cell in
+~ForceInput.lengthUnit~. When it is absent, the configured ~&SYSTEM CELL~
+defaults apply.
+
 * Build
 Without ~libcpmd.a~: stub, Cap'n Proto, sizing, shared dlopen, and reference PEF
 tests; the embed shell reports ~available()==1~ and the stub reports
 ~available()==0~. With ~-Dwith_cpmd=true -Dcpmd_root=...~ and
 ~$cpmd_root/lib/libcpmd.a~: full embed symbols link against the OpenCPMD archive.
+
+OpenCPMD runtime decks may name pseudopotentials by file path or by library
+token. Library tokens are resolved from ~CPMDC_PSEUDO_DIR~ and common
+pseudopotential directories under ~cpmdRoot~.
