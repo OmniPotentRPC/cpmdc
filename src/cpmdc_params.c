@@ -58,6 +58,19 @@ static int text_eq_ci(capn_text text, const char *lit) {
   return 1;
 }
 
+static int text_starts_ci(capn_text text, const char *prefix) {
+  size_t n = strlen(prefix);
+  if (text.len < (int)n || !text.str)
+    return 0;
+  for (size_t i = 0; i < n; ++i) {
+    char a = (char)tolower((unsigned char)text.str[i]);
+    char b = (char)tolower((unsigned char)prefix[i]);
+    if (a != b)
+      return 0;
+  }
+  return 1;
+}
+
 static int append_fmt(char *dst, size_t dst_size, size_t *used, const char *fmt,
                       ...) {
   if (!dst || !used || *used >= dst_size)
@@ -114,6 +127,20 @@ static int append_directives(char *dst, size_t dst_size, size_t *used,
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
     }
+  }
+  return 0;
+}
+
+static int directives_have_prefix(CPMDDirective_list directives,
+                                  const char *prefix) {
+  int n = struct_list_len(&directives.p);
+  if (n < 0)
+    return -1;
+  for (int i = 0; i < n; ++i) {
+    struct CPMDDirective d;
+    get_CPMDDirective(&d, directives, i);
+    if (text_starts_ci(d.keyword, prefix))
+      return 1;
   }
   return 0;
 }
@@ -193,6 +220,13 @@ static int render_system_section_with_cell(
   }
   if (charge != 0) {
     if (append_fmt(dst, dst_size, used, " CHARGE\n  %d\n", charge) != 0)
+      return -1;
+  }
+  int has_poisson = directives_have_prefix(sys->directives, "POISSON SOLVER");
+  if (has_poisson < 0)
+    return -1;
+  if (symmetry == 0 && !has_poisson) {
+    if (append_text(dst, dst_size, used, " POISSON SOLVER HOCKNEY\n") != 0)
       return -1;
   }
   if (append_directives(dst, dst_size, used, sys->directives) != 0)
