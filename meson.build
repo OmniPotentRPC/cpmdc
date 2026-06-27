@@ -233,6 +233,18 @@ if get_option('with_tests')
   )
 
   test(
+    'public-header-features',
+    executable(
+      'test_public_header_features',
+      'tests/test_public_header_features.c',
+      dependencies: [cpmdc_embed_shell_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    suite: ['abi'],
+  )
+
+  test(
     'params-render-cmocka',
     executable(
       'test_params_render_cmocka',
