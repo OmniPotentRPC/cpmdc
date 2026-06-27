@@ -122,7 +122,7 @@ struct CPMDParams {
   scratchDir   @7 :Text = "";         # Fallback &CPMD FILEPATH directory.
   permanentDir @8 :Text = "";         # Preferred &CPMD FILEPATH restart directory.
   cpmdRoot     @9 :Text = "";         # OpenCPMD source/build tree; empty => env CPMD_ROOT.
-  enginePath   @10 :Text = "";        # Optional dlopen path; empty => probe embed.
+  enginePath   @10 :Text = "";        # Frontend engine selection hint.
   inputBlocks  @11 :List(Text);       # Raw &SECTION blocks applied before generated ones.
   inputSections @12 :List(CPMDInputSection); # Structured CPMD input sections.
   # Long-tail options: use CPMDInputSection.raw, inputBlocks, or set.

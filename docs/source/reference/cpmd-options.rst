@@ -36,7 +36,9 @@ Top-level ``CPMDParams`` fields
 | ``scratchDir``, ``permanentDir`` | ``&CPMD FILEPATH`` runtime file  |
 |                                  | placement; ``permanentDir`` wins |
 +----------------------------------+----------------------------------+
-| ``cpmdRoot``, ``enginePath``     | Tree probe / dlopen path         |
+| ``cpmdRoot``                     | OpenCPMD source/build tree       |
++----------------------------------+----------------------------------+
+| ``enginePath``                   | Frontend engine selection hint   |
 +----------------------------------+----------------------------------+
 | ``inputBlocks``                  | Raw ``&SECTION`` text blocks     |
 |                                  | prepended to the deck            |

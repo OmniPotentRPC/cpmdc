@@ -1416,7 +1416,7 @@
       "kind": "params_field",
       "name": "memoryMb",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": false
     },
     {
       "feature_id": "params.scratchDir",
@@ -1444,7 +1444,7 @@
       "kind": "params_field",
       "name": "enginePath",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": false
     },
     {
       "feature_id": "params.inputBlocks",
