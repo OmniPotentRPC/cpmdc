@@ -39,8 +39,8 @@ struct CPMDGenericSection {
 }
 
 struct CPMDSetDirective {
-  key   @0 :Text; # Logical key for embed path (future direct knobs).
-  value @1 :Text; # Text value applied via rendered input or embed setter.
+  key   @0 :Text; # Dotted SECTION.KEYWORD, e.g. "CPMD.PRINT FORCES ON".
+  value @1 :Text; # Optional value emitted on the following indented line.
 }
 
 struct CPMDSystemSection {

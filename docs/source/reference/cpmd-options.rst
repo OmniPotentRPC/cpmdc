@@ -72,8 +72,8 @@ Top-level ``CPMDParams`` fields
 |             |                        | ``&END``                 |
 +-------------+------------------------+--------------------------+
 | ``set``     | ``CPMDSetDirective``   | Embed-path logical       |
-|             |                        | key/value (not emitted   |
-|             |                        | in deck text in 0.1)     |
+|             |                        | ``SECTION.KEYWORD``      |
+|             |                        | emitted as a section     |
 +-------------+------------------------+--------------------------+
 | ``raw``     | ``Text``               | Full section text        |
 |             |                        | inserted as-is           |
@@ -86,9 +86,11 @@ Escape hatches
 ==============
 
 Long-tail CPMD keywords not yet typed go in ``CPMDDirective`` lists
-inside a section, ``CPMDInputSection.raw``, or ``inputBlocks``. Prefer
-new structured fields in the schema over inventing a second config file
-format.
+inside a section, ``CPMDSetDirective`` dotted keys, ``CPMDInputSection.raw``,
+or ``inputBlocks``. ``set.key`` uses ``SECTION.KEYWORD`` form, for example
+``CPMD.PRINT FORCES ON`` or ``SYSTEM.POISSON SOLVER``; non-empty
+``set.value`` is emitted on the following indented line. Prefer new structured
+fields in the schema over inventing a second config file format.
 
 ``PotentialConfig``
 ===================
