@@ -865,20 +865,36 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
 static int element_z(const char *sym, size_t len) {
   if (!sym || len == 0)
     return -1;
-  char a = sym[0];
-  char b = len > 1 ? sym[1] : '\0';
-  if (a >= 'a' && a <= 'z')
-    a = (char)(a - 'a' + 'A');
-  if (b >= 'a' && b <= 'z')
-    b = (char)(b - 'a' + 'A');
-  if (a == 'H' && (b == '\0' || b == ' '))
-    return 1;
-  if (a == 'O' && (b == '\0' || b == ' '))
-    return 8;
-  if (a == 'C' && (b == '\0' || b == ' '))
-    return 6;
-  if (a == 'N' && (b == '\0' || b == ' '))
-    return 7;
+  static const char *const symbols[] = {
+      "H",  "HE", "LI", "BE", "B",  "C",  "N",  "O",  "F",  "NE",
+      "NA", "MG", "AL", "SI", "P",  "S",  "CL", "AR", "K",  "CA",
+      "SC", "TI", "V",  "CR", "MN", "FE", "CO", "NI", "CU", "ZN",
+      "GA", "GE", "AS", "SE", "BR", "KR", "RB", "SR", "Y",  "ZR",
+      "NB", "MO", "TC", "RU", "RH", "PD", "AG", "CD", "IN", "SN",
+      "SB", "TE", "I",  "XE", "CS", "BA", "LA", "CE", "PR", "ND",
+      "PM", "SM", "EU", "GD", "TB", "DY", "HO", "ER", "TM", "YB",
+      "LU", "HF", "TA", "W",  "RE", "OS", "IR", "PT", "AU", "HG",
+      "TL", "PB", "BI", "PO", "AT", "RN", "FR", "RA", "AC", "TH",
+      "PA", "U",  "NP", "PU", "AM", "CM", "BK", "CF", "ES", "FM",
+      "MD", "NO", "LR", "RF", "DB", "SG", "BH", "HS", "MT", "DS",
+      "RG", "CN", "NH", "FL", "MC", "LV", "TS", "OG",
+  };
+  char normalized[3] = {'\0', '\0', '\0'};
+  size_t used = 0;
+  for (size_t i = 0; i < len && used < 2; ++i) {
+    unsigned char c = (unsigned char)sym[i];
+    if (c == '\0' || isspace(c))
+      break;
+    if (!isalpha(c))
+      return -1;
+    normalized[used++] = (char)ascii_upper(c);
+  }
+  if (used == 0)
+    return -1;
+  for (size_t i = 0; i < sizeof(symbols) / sizeof(symbols[0]); ++i) {
+    if (strcmp(normalized, symbols[i]) == 0)
+      return (int)i + 1;
+  }
   return -1;
 }
 

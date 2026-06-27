@@ -230,6 +230,12 @@ if get_option('with_tests')
     output: 'params_effective_config_sections.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  atoms_silicon_params_bin = custom_target(
+    'atoms_silicon_params_bin',
+    input: 'tests/params_atoms_silicon.capnp.txt',
+    output: 'params_atoms_silicon.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   runtime_params_bin = has_cpmd ? water_params_bin : cpmd_parser_params_bin
 
   test(
@@ -323,6 +329,21 @@ if get_option('with_tests')
       force_input_step_a_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],
+  )
+
+  test(
+    'atoms-symbols',
+    executable(
+      'test_atoms_symbols',
+      'tests/test_atoms_symbols.c',
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [atoms_silicon_params_bin.full_path()],
+    depends: [atoms_silicon_params_bin],
+    suite: ['cmocka', 'params'],
   )
 
   test(

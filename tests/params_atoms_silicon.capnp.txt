@@ -1,0 +1,14 @@
+(
+  functional = "PBE",
+  cutOffRy = 80.0,
+  task = "gradient",
+  inputSections = [
+    (
+      atoms = (
+        pseudopotentials = [
+          ( element = "Si", path = "Si_MT_PBE.psp", lmax = 2 )
+        ]
+      )
+    )
+  ]
+)
