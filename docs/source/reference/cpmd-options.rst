@@ -51,10 +51,12 @@ Top-level ``CPMDParams`` fields
 +-------------+------------------------+--------------------------+
 | Kind        | Cap'n Proto type       | Deck effect              |
 +-------------+------------------------+--------------------------+
-| ``cpmd``    | ``CPMDCpmdSection``    | ``&CPMD`` (optimize      |
-|             |                        | wavefunction, MD,        |
-|             |                        | convergence, timestep,   |
-|             |                        | …)                       |
+| ``cpmd``    | ``CPMDCpmdSection``    | ``&CPMD``                |
+|             |                        | (wavefunction/geometry   |
+|             |                        | optimization, MD,        |
+|             |                        | convergence, iteration   |
+|             |                        | limits, timestep,        |
+|             |                        | electron mass, …)        |
 +-------------+------------------------+--------------------------+
 | ``system``  | ``CPMDSystemSection``  | ``&SYSTEM`` (symmetry,   |
 |             |                        | angstrom, cell, cutoff,  |
@@ -102,6 +104,27 @@ Long-tail CPMD keywords go in ``CPMDDirective`` lists inside a section,
 ``CPMD.PRINT FORCES ON`` or ``SYSTEM.POISSON SOLVER HOCKNEY``; non-empty
 ``set.value`` is emitted on the following indented line. Prefer new structured
 fields in the schema over inventing a second config file format.
+
+Typed ``&CPMD`` Controls
+========================
+
+``CPMDCpmdSection`` exposes the common driver controls directly:
+
+========================= ============================
+Field                     Deck keyword
+========================= ============================
+``optimizeWavefunction``  ``OPTIMIZE WAVEFUNCTION``
+``optimizeGeometry``      ``OPTIMIZE GEOMETRY``
+``molecularDynamics``     ``MOLECULAR DYNAMICS``
+``convergenceOrbitals``   ``CONVERGENCE ORBITALS``
+``convergenceGeometry``   ``CONVERGENCE GEOMETRY``
+``maxStep``               ``MAXSTEP``
+``maxIter``               ``MAXITER``
+``timestep``              ``TIMESTEP``
+``electronMass``          ``EMASS``
+``restartWavefunction``   ``RESTART WAVEFUNCTION``
+``trajectory``            ``TRAJECTORY``
+========================= ============================
 
 ``PotentialConfig``
 ===================

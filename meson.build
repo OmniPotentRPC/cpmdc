@@ -557,6 +557,12 @@ if get_option('with_tests')
     output: 'params_dft_functionals.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_cpmd_geometry_bin = custom_target(
+    'params_cpmd_geometry_bin',
+    input: 'tests/params_cpmd_geometry.capnp.txt',
+    output: 'params_cpmd_geometry.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   test(
     'params-cp-dft-render',
     executable(
@@ -567,8 +573,16 @@ if get_option('with_tests')
       sources: cpmdc_params_sources,
       c_args: common_c_args,
     ),
-    args: [params_cp_md_bin.full_path(), params_dft_func_bin.full_path()],
-    depends: [params_cp_md_bin, params_dft_func_bin],
+    args: [
+      params_cp_md_bin.full_path(),
+      params_dft_func_bin.full_path(),
+      params_cpmd_geometry_bin.full_path(),
+    ],
+    depends: [
+      params_cp_md_bin,
+      params_dft_func_bin,
+      params_cpmd_geometry_bin,
+    ],
     suite: ['params', 'inventory'],
   )
 

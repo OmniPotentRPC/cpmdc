@@ -481,6 +481,10 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " OPTIMIZE WAVEFUNCTION\n") != 0)
       return -1;
   }
+  if (sec->optimizeGeometry) {
+    if (append_text(dst, dst_size, used, " OPTIMIZE GEOMETRY\n") != 0)
+      return -1;
+  }
   if (do_md) {
     if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS\n") != 0)
       return -1;
@@ -494,9 +498,23 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_fmt(dst, dst_size, used, " MAXSTEP\n  %d\n", sec->maxStep) != 0)
       return -1;
   }
+  if (sec->maxIter > 0) {
+    if (append_fmt(dst, dst_size, used, " MAXITER\n  %d\n", sec->maxIter) != 0)
+      return -1;
+  }
+  if (sec->convergenceGeometry > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE GEOMETRY\n  %.10g\n",
+                   sec->convergenceGeometry) != 0)
+      return -1;
+  }
   if (sec->timestep > 0.0) {
     if (append_fmt(dst, dst_size, used, " TIMESTEP\n  %.10g\n", sec->timestep) !=
         0)
+      return -1;
+  }
+  if (sec->electronMass > 0.0) {
+    if (append_fmt(dst, dst_size, used, " EMASS\n  %.10g\n",
+                   sec->electronMass) != 0)
       return -1;
   }
   if (sec->restartWavefunction) {

@@ -44,8 +44,8 @@ static int check_deck(const char *bin, const char **need, int nneed) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "usage: %s cp_md.bin dft_func.bin\n", argv[0]);
+  if (argc < 4) {
+    fprintf(stderr, "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin\n", argv[0]);
     return 2;
   }
   /* inventory must resolve CP and DFT catalog ids */
@@ -66,10 +66,19 @@ int main(int argc, char **argv) {
       "&DFT", "FUNCTIONAL PBE0", "LSD", "GC-CUTOFF", "&PIMD", "TROTTER",
       "&VDW", "VDW CORRECTION",
   };
+  const char *geometry_need[] = {
+      "&CPMD", "OPTIMIZE GEOMETRY", "CONVERGENCE ORBITALS", "2e-06",
+      "CONVERGENCE GEOMETRY", "0.0001", "MAXSTEP", "50", "MAXITER", "12",
+      "TIMESTEP", "3", "EMASS", "450", "&SYSTEM", "CUTOFF", "80", "&DFT",
+      "FUNCTIONAL PBE",
+  };
   if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;
   if (check_deck(argv[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
     return 1;
-  printf("OK cp_md and dft_multi render + inventory finds\n");
+  if (check_deck(argv[3], geometry_need,
+                 (int)(sizeof(geometry_need) / sizeof(geometry_need[0]))) != 0)
+    return 1;
+  printf("OK cp_md, dft_multi, and cpmd_geometry render + inventory finds\n");
   return 0;
 }

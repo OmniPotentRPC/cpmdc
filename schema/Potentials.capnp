@@ -63,6 +63,10 @@ struct CPMDCpmdSection {
   restartWavefunction  @5 :Bool = false;  # RESTART WAVEFUNCTION.
   trajectory           @6 :Bool = false;  # TRAJECTORY.
   directives           @7 :List(CPMDDirective);
+  optimizeGeometry     @8 :Bool = false;  # OPTIMIZE GEOMETRY.
+  maxIter              @9 :Int32 = 0;     # MAXITER; 0 => omit.
+  convergenceGeometry  @10 :Float64 = 0.0; # CONVERGENCE GEOMETRY; 0 => omit.
+  electronMass         @11 :Float64 = 0.0; # EMASS; 0 => omit.
 }
 
 struct CPMDDftSection {

@@ -109,6 +109,7 @@ Long-tail CPMD input is represented with `inputSections`:
 
 - `system` for `&SYSTEM` fields such as `CELL`, `CUTOFF`, `SCALE`, `CHARGE`
 - `cpmd` for `&CPMD` controls such as `OPTIMIZE WAVEFUNCTION`, `MAXSTEP`,
+  `OPTIMIZE GEOMETRY`, `MAXITER`, `CONVERGENCE GEOMETRY`, `EMASS`,
   `RESTART WAVEFUNCTION`, `TRAJECTORY`
 - `dft` for `&DFT` controls such as `FUNCTIONAL` and `LSD`
 - `atoms` for pseudopotential entries and non-coordinate `&ATOMS` directives
