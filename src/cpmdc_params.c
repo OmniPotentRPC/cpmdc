@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -117,9 +118,49 @@ static int append_directives(char *dst, size_t dst_size, size_t *used,
   return 0;
 }
 
-static int render_system_section(char *dst, size_t dst_size, size_t *used,
-                                 struct CPMDSystemSection *sys,
-                                 double default_cutoff, int default_charge) {
+static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
+                            const double *cell, int ncell) {
+  if (ncell != 6 && ncell != 9)
+    return 0;
+  if (append_text(dst, dst_size, used, " CELL\n ") != 0)
+    return -1;
+  if (ncell == 6) {
+    double a = cell[0];
+    double b = cell[1];
+    double c = cell[2];
+    double ab = cell[3];
+    double ac = cell[4];
+    double bc = cell[5];
+    if (fabs(ab) > 1.0 || fabs(ac) > 1.0 || fabs(bc) > 1.0) {
+      const double deg = 3.14159265358979323846 / 180.0;
+      if (a != 0.0) {
+        b /= a;
+        c /= a;
+      }
+      ab = cos(ab * deg);
+      ac = cos(ac * deg);
+      bc = cos(bc * deg);
+    }
+    return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g %.10g %.10g %.10g\n",
+                      a, b, c, ab, ac, bc);
+  }
+  if (fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
+      fabs(cell[3]) < 1e-12 && fabs(cell[5]) < 1e-12 &&
+      fabs(cell[6]) < 1e-12 && fabs(cell[7]) < 1e-12 && cell[0] != 0.0) {
+    return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g 0 0 0\n",
+                      cell[0], cell[4] / cell[0], cell[8] / cell[0]);
+  }
+  for (int i = 0; i < ncell; ++i) {
+    if (append_fmt(dst, dst_size, used, " %.10g", cell[i]) != 0)
+      return -1;
+  }
+  return append_text(dst, dst_size, used, "\n");
+}
+
+static int render_system_section_with_cell(
+    char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
+    double default_cutoff, int default_charge, const double *cell_override,
+    int override_ncell) {
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
@@ -134,15 +175,14 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
   int ncell = list64_len(&sys->cell);
   if (ncell < 0)
     return -1;
-  if (ncell == 6 || ncell == 9) {
-    if (append_text(dst, dst_size, used, " CELL\n ") != 0)
+  if (override_ncell == 9 && cell_override) {
+    if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell) != 0)
       return -1;
-    for (int i = 0; i < ncell; ++i) {
-      if (append_fmt(dst, dst_size, used, " %.10g",
-                     capn_to_f64(capn_get64(sys->cell, i))) != 0)
-        return -1;
-    }
-    if (append_text(dst, dst_size, used, "\n") != 0)
+  } else if (ncell == 6 || ncell == 9) {
+    double cell[9] = {0};
+    for (int i = 0; i < ncell; ++i)
+      cell[i] = capn_to_f64(capn_get64(sys->cell, i));
+    if (append_cpmd_cell(dst, dst_size, used, cell, ncell) != 0)
       return -1;
   }
   if (append_fmt(dst, dst_size, used, " CUTOFF\n  %.10g\n", cutoff) != 0)
@@ -158,6 +198,13 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
   if (append_directives(dst, dst_size, used, sys->directives) != 0)
     return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_system_section(char *dst, size_t dst_size, size_t *used,
+                                 struct CPMDSystemSection *sys,
+                                 double default_cutoff, int default_charge) {
+  return render_system_section_with_cell(dst, dst_size, used, sys,
+                                         default_cutoff, default_charge, NULL, 0);
 }
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
@@ -615,12 +662,9 @@ int cpmdc_params_render_deck_with_geometry(
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (has_cell && cell_ang && cell_ang[0] > 0.0) {
-        /* Prefer ForceInput cell A for cubic HOCKNEY-style a 1 1 0 0 0 */
-        body.cutOffRy = body.cutOffRy > 0.0 ? body.cutOffRy : cutoff;
-      }
-      if (render_system_section(dst, dst_size, &used, &body, cutoff, charge) !=
-          0)
+      if (render_system_section_with_cell(
+              dst, dst_size, &used, &body, cutoff, charge,
+              has_cell ? cell_ang : NULL, has_cell ? 9 : 0) != 0)
         return -1;
       break;
     }
@@ -678,10 +722,9 @@ int cpmdc_params_render_deck_with_geometry(
     def.cutOffRy = cutoff;
     def.charge = charge;
     def.multiplicity = mult;
-    if (has_cell && cell_ang && cell_ang[0] > 0.0) {
-      /* inject via directives not available; render_system uses defaults */
-    }
-    if (render_system_section(dst, dst_size, &used, &def, cutoff, charge) != 0)
+    if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
+                                        charge, has_cell ? cell_ang : NULL,
+                                        has_cell ? 9 : 0) != 0)
       return -1;
   }
   if (!has_dft) {

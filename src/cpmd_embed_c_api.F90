@@ -198,18 +198,60 @@ CONTAINS
     GETPID = INT(c_getpid())
   END FUNCTION
 
+  SUBROUTINE copy_pseudo_from_dir(pp_dir, pp, copied)
+    CHARACTER(LEN=*), INTENT(IN) :: pp_dir, pp
+    LOGICAL, INTENT(OUT) :: copied
+    CHARACTER(LEN=1024) :: src, dst
+    INTEGER :: stat
+    copied = .FALSE.
+    IF (LEN_TRIM(pp_dir) == 0 .OR. LEN_TRIM(pp) == 0) RETURN
+    src = TRIM(pp_dir) // '/' // TRIM(pp)
+    dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
+    CALL EXECUTE_COMMAND_LINE('cp -f "' // TRIM(src) // '" "' // TRIM(dst) // &
+         '" 2>/dev/null', EXITSTAT=stat)
+    INQUIRE(FILE=TRIM(dst), EXIST=copied)
+  END SUBROUTINE
+
+  SUBROUTINE copy_pseudo_to_workdir(pp_line)
+    CHARACTER(LEN=*), INTENT(IN) :: pp_line
+    CHARACTER(LEN=1024) :: pp, pp_dir
+    INTEGER :: sep
+    LOGICAL :: copied, exists
+    pp = ADJUSTL(pp_line)
+    sep = SCAN(pp, ' ' // CHAR(9))
+    IF (sep > 0) pp = pp(:sep-1)
+    IF (LEN_TRIM(pp) == 0) RETURN
+    IF (pp(1:1) == '/') THEN
+      INQUIRE(FILE=TRIM(pp), EXIST=exists)
+      IF (exists) RETURN
+    END IF
+    INQUIRE(FILE=TRIM(cfg_workdir)//'/'//TRIM(pp), EXIST=exists)
+    IF (exists) RETURN
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
+    CALL copy_pseudo_from_dir(pp_dir, pp, copied)
+    IF (copied) RETURN
+    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/tests/PP_LIBRARY', pp, copied)
+    IF (copied) RETURN
+    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/PP_LIBRARY', pp, copied)
+    IF (copied) RETURN
+    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/pseudo', pp, copied)
+    IF (copied) RETURN
+    CALL copy_pseudo_from_dir('/tmp/cpmdc_lib_scf_test', pp, copied)
+  END SUBROUTINE
+
   SUBROUTINE stage_input_and_pps(n_atoms, pos, z, cell, has_cell, ierr)
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     INTEGER, INTENT(OUT) :: ierr
-    INTEGER :: u, i, j, nz, count, zz
+    INTEGER :: u, i, j, count, zz
     LOGICAL :: used(0:120)
     CHARACTER(LEN=64) :: pp
     CHARACTER(LEN=8) :: lmax
     REAL(real64) :: cell_a
-    CHARACTER(LEN=1024) :: src, dst
+    CHARACTER(LEN=1024) :: dst
     CHARACTER(LEN=128) :: line
+    LOGICAL :: found
     ierr = 0
     CALL ensure_workdir()
     ! Prefer Cap'n Proto rendered deck (full method + geometry ATOMS).
@@ -226,10 +268,7 @@ CONTAINS
         IF (j /= 0) EXIT
         IF (line(1:1) == '*') THEN
           pp = ADJUSTL(line(2:))
-          dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
-          src = '/tmp/cpmdc_lib_scf_test/' // TRIM(pp)
-          CALL EXECUTE_COMMAND_LINE('cp -f "' // TRIM(src) // '" "' // TRIM(dst) // &
-               '" 2>/dev/null || true')
+          CALL copy_pseudo_to_workdir(pp)
         END IF
       END DO
       CLOSE(u)
@@ -282,18 +321,14 @@ CONTAINS
         ierr = 1
         RETURN
       END IF
-      ! copy PP from known locations
+      CALL copy_pseudo_to_workdir(pp)
       dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
-      src = '/tmp/cpmdc_lib_scf_test/' // TRIM(pp)
-      CALL EXECUTE_COMMAND_LINE('cp -f "' // TRIM(src) // '" "' // TRIM(dst) // &
-           '" 2>/dev/null || true')
-      OPEN(NEWUNIT=nz, FILE=TRIM(dst), STATUS='OLD', ACTION='READ', IOSTAT=j)
-      IF (j /= 0) THEN
+      INQUIRE(FILE=TRIM(dst), EXIST=found)
+      IF (.NOT. found) THEN
         CLOSE(u)
         ierr = 2
         RETURN
       END IF
-      CLOSE(nz)
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
