@@ -12,8 +12,9 @@
   [[https://github.com/HaoZeke/readcon-core][readcon-core]] / ~.con~ landscapes; those become ~ForceInput~ before ~cpmdc~.
 - ~src/cpmdc_params.c~ — decode Cap'n Proto only (no CPMD types).
 - ~src/cpmdc.c~ — sessions, topology, unit conversion, calls embed.
-- ~src/cpmd_embed_c_api.F90~ — ~bind(C)~ surface; with ~CPMDC_HAS_CPMD~ links
-  ~libcpmd.a~ and sets OpenCPMD *module state* in memory.
+- ~src/cpmd_embed_c_api.F90~ — ~bind(C)~ surface with a deterministic reference
+  PEF; with ~CPMDC_HAS_CPMD~ it links ~libcpmd.a~ and sets OpenCPMD *module
+  state* in memory.
 - ~src/cpmdc_stub.c~ — same ABI symbols with ~cpmdc_available() == 0~.
 
 * No CPMD INPUT / ~control~ I/O for configuration
@@ -23,7 +24,7 @@ Embed does **not** write ~INPUT~ decks or ~CALL control~ to parse method options
 | --- | --- | --- |
 | Method (XC, cutoff, charge, …) | Cap'n Proto ~CPMDParams~ | C decode → ~cpmdc_embed_set_config~ → ~control_def~ + typed module writes (~cntr%ecut~, ~func1~, spin, …) |
 | Geometry / cell / species Z | Cap'n Proto ~ForceInput~ (or C arrays) | ~tau0~ / ~parm%a1..a3~ / in-memory species table |
-| PP data files | Paths inside structured ~atoms~ / future fields | PP readers only (data files), not method config |
+| PP data files | Paths inside structured ~atoms~ fields | PP readers only (data files), not method config |
 
 Upstream CPMD CLI still uses ~&SECTION~ files; ~cpmdc_params_render_input_deck~
 exists for **debugging and CLI parity**, not for the embed hot path.
@@ -44,7 +45,7 @@ session. Method knobs are fixed at session create unless
 ~cpmdc_session_set_params~ runs *before* topology is accepted.
 
 * Build
-Without ~libcpmd.a~: frontend tests (stub, Cap'n Proto, sizing); ~available()==0~.
-With ~-Dwith_cpmd=true -Dcpmd_root=...~ and ~$cpmd_root/lib/libcpmd.a~: full embed
-symbols linked; E2E single-point and multi-step session tests exercise real
-CPMD library calls (PP paths must be valid for convergence).
+Without ~libcpmd.a~: stub, Cap'n Proto, sizing, shared dlopen, and reference PEF
+tests; the embed shell reports ~available()==1~ and the stub reports
+~available()==0~. With ~-Dwith_cpmd=true -Dcpmd_root=...~ and
+~$cpmd_root/lib/libcpmd.a~: full embed symbols link against the OpenCPMD archive.

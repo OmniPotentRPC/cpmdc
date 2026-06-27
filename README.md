@@ -77,20 +77,20 @@ Frontend / stub build without OpenCPMD:
 meson setup build -Dwith_tests=true
 meson compile -C build
 meson test -C build --print-errorlogs
-# End-to-end single-point + optimizer-style session (OpenCPMD (libcpmd.a)):
+# End-to-end single-point + optimizer-style session:
 meson test -C build --suite e2e --print-errorlogs
 # or with pixi:
 pixi run test-stub
 pixi run test-e2e
 ```
 
-The embed shell enables a deterministic **OpenCPMD (libcpmd.a)** (harmonic, Z-scaled)
-so Cap'n Proto socket paths are fully exercised without OpenCPMD archives.
-`cpmdc_available()` is `1` for that shell; the **stub** library remains
-unavailable for frontend-only links.
+The default build emits an installable `libcpmdc.so` plus the static
+`libcpmdc_embed_shell.a` used by tests. The embed shell enables a deterministic
+reference PEF (harmonic, Z-scaled), so Cap'n Proto socket paths are fully
+exercised without OpenCPMD archives. `cpmdc_available()` is `1` for that shell;
+the **stub** library remains unavailable for frontend-only links.
 
-Optional embed shell shared library (ISO_C ABI present; evaluation still
-requires a future OpenCPMD link-up):
+OpenCPMD archive build:
 
 ```bash
 meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/OpenCPMD/CPMD
@@ -119,8 +119,8 @@ tests/                       cmocka + encoded Cap'n Proto fixtures
 
 ## Version
 
-0.1.0 — Cap'n Proto contract, C ABI, Fortran ISO_C shell, stub + parser tests.
-Full OpenCPMD energy/force evaluation is the next embed milestone.
+0.1.0 — Cap'n Proto contract, C ABI, Fortran ISO_C shell, shared dlopen engine,
+stub + parser tests.
 
 
 ## Branding

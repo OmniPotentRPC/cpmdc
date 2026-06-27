@@ -34,7 +34,7 @@ Top-level ``CPMDParams`` fields
 | ``memoryMb``, ``scratchDir``,    | Embed / runtime placement knobs  |
 | ``permanentDir``                 |                                  |
 +----------------------------------+----------------------------------+
-| ``cpmdRoot``, ``enginePath``     | Tree probe / future dlopen path  |
+| ``cpmdRoot``, ``enginePath``     | Tree probe / dlopen path         |
 +----------------------------------+----------------------------------+
 | ``inputBlocks``                  | Raw ``&SECTION`` text blocks     |
 |                                  | prepended to the deck            |
@@ -94,6 +94,5 @@ format.
 ===================
 
 For rgpot / multi-backend configure RPCs, ``PotentialConfig`` is a
-tagged union with ``cpmd @2 :CPMDParams`` (ordinal aligned for future
-shared schema evolution; ``nwchem @1`` is reserved void in this
-package).
+tagged union with ``cpmd @2 :CPMDParams`` (ordinal aligned with the
+shared schema; ``nwchem @1`` is reserved void in this package).

@@ -9,16 +9,24 @@ cc = meson.get_compiler('c')
 fc = meson.get_compiler('fortran')
 python = find_program('python3')
 math_dep = cc.find_library('m', required: false)
+dl_dep = dependency('dl', required: false)
+if not dl_dep.found()
+  dl_dep = cc.find_library('dl', required: false)
+endif
 cmocka_dep = dependency('cmocka', required: get_option('with_tests'))
 
 inc = include_directories('include', 'src')
 cpmd_root = get_option('cpmd_root')
 has_cpmd = get_option('with_cpmd') and cpmd_root != ''
-need_capnp_c = get_option('with_tests') or has_cpmd
+need_capnp_c = true
 
 common_c_args = []
+capnp_generated_c_args = []
 if cc.get_id() != 'msvc'
   common_c_args += ['-Wall', '-Wextra', '-Wpedantic']
+endif
+if cc.get_id() in ['gcc', 'clang']
+  capnp_generated_c_args += ['-Wno-missing-field-initializers']
 endif
 
 cpmdc_params_sources = []
@@ -40,7 +48,7 @@ cpmdc_stub = static_library(
   'cpmdc_stub',
   'src/cpmdc_stub.c',
   include_directories: inc,
-  c_args: common_c_args,
+  c_args: common_c_args + capnp_generated_c_args,
   install: false,
 )
 
@@ -49,7 +57,7 @@ cpmdc_stub_dep = declare_dependency(
   include_directories: inc,
 )
 
-# ISO_C embed without libcpmd: available()==0 (frontend / parser / sizing tests).
+# ISO_C embed without libcpmd: deterministic reference PEF for tests and dlopen users.
 cpmd_embed_f_args = []
 cpmd_embed_link = []
 cpmd_embed_inc = [inc]
@@ -94,36 +102,42 @@ endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c', 'src/cpmdc_features.c'] + cpmdc_params_sources
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
+cpmdc_shared_link_args = []
+if has_cpmd
+  cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
+      + (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+      + ['-lgfortran', '-lm']
+endif
 
 cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep],
-  c_args: common_c_args,
+  c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
   install: false,
 )
 
-# When HAS_CPMD, also produce installable shared library linked to libcpmd.a
-if has_cpmd
-  # Prefer static link into tests; shared needs -fPIC OpenCPMD objects.
-  cpmdc = static_library(
-    'cpmdc',
-    cpmd_embed_sources,
-    include_directories: cpmd_embed_inc + cpmdc_params_includes,
-    dependencies: cpmdc_params_deps + [math_dep],
-    c_args: common_c_args,
-    fortran_args: cpmd_embed_f_args,
-    link_whole: [],
-    link_args: cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group']
-      + (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas'])
-      + ['-lgfortran', '-lm'],
-    install: true,
-  )
-  install_headers('include/cpmdc.h')
-endif
+cpmdc_shared = shared_library(
+  'cpmdc',
+  cpmd_embed_sources,
+  include_directories: cpmd_embed_inc + cpmdc_params_includes,
+  dependencies: cpmdc_params_deps + [math_dep],
+  c_args: common_c_args + capnp_generated_c_args,
+  fortran_args: cpmd_embed_f_args,
+  link_args: cpmdc_shared_link_args,
+  install: true,
+)
+
+cpmdc_shared_dep = declare_dependency(
+  link_with: cpmdc_shared,
+  include_directories: inc,
+  dependencies: cpmdc_params_deps,
+)
+
+install_headers('include/cpmdc.h')
 
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
@@ -178,7 +192,7 @@ if get_option('with_tests')
       'tests/test_stub_abi.c',
       dependencies: [cpmdc_stub_dep, cmocka_dep],
       include_directories: inc,
-      c_args: common_c_args,
+      c_args: common_c_args + capnp_generated_c_args,
     ),
     suite: ['stub'],
   )
@@ -191,7 +205,7 @@ if get_option('with_tests')
       dependencies: [cmocka_dep] + cpmdc_params_deps,
       include_directories: [inc] + cpmdc_params_includes,
       sources: cpmdc_params_sources,
-      c_args: common_c_args,
+      c_args: common_c_args + capnp_generated_c_args,
     ),
     args: [cpmd_parser_params_bin.full_path()],
     depends: [cpmd_parser_params_bin],
@@ -205,7 +219,7 @@ if get_option('with_tests')
       'tests/test_force_input_size.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args,
+      c_args: common_c_args + capnp_generated_c_args,
     ),
     args: [
       force_input_step_a_bin.full_path(),
@@ -253,8 +267,21 @@ if get_option('with_tests')
     ),
     suite: ['embed'],
   )
+  test(
+    'shared-dlopen-abi',
+    executable(
+      'test_shared_dlopen_abi',
+      'tests/test_shared_dlopen_abi.c',
+      dependencies: [dl_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [cpmdc_shared.full_path()],
+    depends: [cpmdc_shared],
+    suite: ['embed', 'dlopen'],
+  )
 
-  # E2E suites need libcpmd.a (with_cpmd). Without it they skip at runtime.
+  # E2E suites use the deterministic reference PEF or the linked OpenCPMD runtime.
   test(
     'e2e-single-point',
     executable(

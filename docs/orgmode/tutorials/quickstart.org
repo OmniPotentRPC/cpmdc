@@ -11,9 +11,9 @@ meson compile -C build
 meson test -C build --print-errorlogs
 #+end_src
 
-This configuration builds the stub library, the ISO_C embed shell (evaluation
-unavailable until OpenCPMD is wired), compiles the vendored ~capnp-c~ runtime,
-generates C readers for ~schema/Potentials.capnp~, and runs cmocka suites:
+This configuration builds the stub library, the ISO_C embed shell with a
+deterministic reference PEF, compiles the vendored ~capnp-c~ runtime, generates
+C readers for ~schema/Potentials.capnp~, and runs cmocka suites:
 
 - ~stub~ — ~tests/test_stub_abi.c~
 - ~cmocka~ / ~capnp~ — ~tests/cmocka/test_params_render_cmocka.c~ (deck render)
@@ -38,10 +38,9 @@ pixi run test-e2e
 - ~e2e-optimizer-session~ — one ~CPMDCSession~, three geometry steps (A → B → A),
   forces on B, topology rejection, then a second session for species change.
 
-* OpenCPMD Embed Build (0.1 shell)
-The v0.1 shared library path installs the C ABI and Fortran ISO_C symbols when
-a tree path is provided. Full archive linking and energy/force evaluation are
-the next embed milestone; ~cpmdc_available()~ remains ~0~ until that lands.
+* OpenCPMD Archive Build
+The default build emits ~libcpmdc.so~ for dlopen consumers such as rgpot.
+Passing a tree path links that same C ABI surface against ~libcpmd.a~.
 
 #+begin_src bash
 export CPMD_ROOT=/path/to/OpenCPMD/CPMD

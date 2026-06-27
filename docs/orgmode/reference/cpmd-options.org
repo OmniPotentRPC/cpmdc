@@ -17,7 +17,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 | ~task~ | Frontend hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
 | ~title~ | Optional comment header in rendered decks |
 | ~memoryMb~, ~scratchDir~, ~permanentDir~ | Embed / runtime placement knobs |
-| ~cpmdRoot~, ~enginePath~ | Tree probe / future dlopen path |
+| ~cpmdRoot~, ~enginePath~ | Tree probe / dlopen path |
 | ~inputBlocks~ | Raw ~&SECTION~ text blocks prepended to the deck |
 | ~inputSections~ | Structured ~CPMDInputSection~ list |
 
@@ -44,5 +44,5 @@ format.
 
 * ~PotentialConfig~
 For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union
-with ~cpmd @2 :CPMDParams~ (ordinal aligned for future shared schema evolution;
-~nwchem @1~ is reserved void in this package).
+with ~cpmd @2 :CPMDParams~ (ordinal aligned with the shared schema; ~nwchem @1~
+is reserved void in this package).
