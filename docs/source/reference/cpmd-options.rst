@@ -84,6 +84,12 @@ sparse ``CPMDParams`` still produces a valid-looking deck for debugging.
 When structured ``dft`` or ``system`` sections provide scalar method
 values (functional, cutoff, charge, multiplicity), those section values
 are also the effective embed configuration passed through the C ABI.
+For geometry deck rendering, ``atoms.pseudopotentials`` groups
+``ForceInput`` coordinates by element symbol. Explicit pseudopotential
+entries accept standard element symbols and must cover every atomic number
+present in the step geometry; otherwise rendering fails. When no ``atoms``
+section is supplied, the renderer only provides built-in BLYP
+pseudopotential defaults for H and O.
 
 Escape hatches
 ==============
