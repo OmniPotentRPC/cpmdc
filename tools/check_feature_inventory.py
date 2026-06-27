@@ -110,6 +110,22 @@ def main() -> int:
         if req not in inv_secs:
             errors.append(f"required inscan section absent from inventory: {req}")
 
+    typed_catalog_sections = {"ATOMS", "CPMD", "DFT", "SYSTEM"}
+    for feature in inv["features"]:
+        if feature.get("kind") != "cpmd_section":
+            continue
+        name = feature["name"]
+        expected_render = (
+            "typed_or_set_or_generic_or_raw"
+            if name in typed_catalog_sections
+            else "set_or_generic_or_raw"
+        )
+        if feature.get("render_via") != expected_render:
+            errors.append(
+                f"{feature['feature_id']} render_via={feature.get('render_via')} "
+                f"expected {expected_render}"
+            )
+
     # Must NOT list keyword-only as sections
     for bad in ("QMMM", "PROPERTIES", "BICANONICAL", "CDFT", "CLASSIC", "F_B"):
         if bad in inv_secs:
