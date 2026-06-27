@@ -146,6 +146,12 @@ if get_option('with_tests')
     output: 'cpmd_params_parser.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  cpmd_session_alt_params_bin = custom_target(
+    'cpmd_session_alt_params_bin',
+    input: 'tests/cpmd_params_session_alt.capnp.txt',
+    output: 'cpmd_params_session_alt.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   force_input_step_a_bin = custom_target(
     'force_input_step_a_bin',
     input: 'tests/force_input_step_a.capnp.txt',
@@ -223,12 +229,14 @@ if get_option('with_tests')
       force_input_step_a_bin.full_path(),
       force_input_step_ev_bin.full_path(),
       force_input_step_species_bin.full_path(),
+      cpmd_session_alt_params_bin.full_path(),
     ],
     depends: [
       cpmd_parser_params_bin,
       force_input_step_a_bin,
       force_input_step_ev_bin,
       force_input_step_species_bin,
+      cpmd_session_alt_params_bin,
     ],
     suite: ['capnp', 'socket'],
     timeout: 300,

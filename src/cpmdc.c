@@ -49,6 +49,8 @@ struct CPMDCSession {
   int embed_configured;
 };
 
+static CPMDCSession *g_active_session = NULL;
+
 static int ensure_embed_init(void) {
   static int attempted = 0;
   static int ok = 0;
@@ -104,6 +106,8 @@ static int configure_embed_from_session(CPMDCSession *session) {
       (int)strlen(session->input_deck), session->cpmd_root,
       (int)strlen(session->cpmd_root));
   session->embed_configured = ok != 0;
+  if (ok)
+    g_active_session = session;
   return ok != 0 ? 0 : -1;
 }
 
@@ -132,20 +136,24 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
                              (int)strlen(input_deck), cpmd_root,
                              (int)strlen(cpmd_root)) == 0)
     return -1;
+  g_active_session = NULL;
   /* Full rendered deck (method sections); geometry merged at energy_grad. */
   (void)cpmdc_embed_set_deck(input_deck, (int)strlen(input_deck));
   return 0;
 }
 
-/* Merge ForceInput geometry into Cap'n Proto–derived CPMD INPUT deck. */
-static int push_geometry_deck(int n_atoms, const double *positions_ang,
-                              const int *atomic_numbers, const double *cell_ang,
-                              int has_cell) {
-  if (!g_params_bytes || g_params_size == 0)
+/* Merge ForceInput geometry into a Cap'n Proto-derived CPMD INPUT deck. */
+static int push_geometry_deck_from_params(const void *params_bytes,
+                                          size_t params_size, int n_atoms,
+                                          const double *positions_ang,
+                                          const int *atomic_numbers,
+                                          const double *cell_ang,
+                                          int has_cell) {
+  if (!params_bytes || params_size == 0)
     return -1;
   struct capn arena;
   CPMDParams_ptr root;
-  if (cpmdc_params_root(g_params_bytes, g_params_size, &arena, &root) != 0)
+  if (cpmdc_params_root(params_bytes, params_size, &arena, &root) != 0)
     return -1;
   char deck[CPMDC_BLOCKS];
   if (cpmdc_params_render_deck_with_geometry(root, n_atoms, positions_ang,
@@ -158,10 +166,12 @@ static int push_geometry_deck(int n_atoms, const double *positions_ang,
   return cpmdc_embed_set_deck(deck, (int)strlen(deck)) != 0 ? 0 : -1;
 }
 
-static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
-                                        const int *atomic_numbers,
-                                        const double *cell_ang, int has_cell,
-                                        double *grad_h_bohr) {
+static CPMDCResult
+energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
+                                 int n_atoms, const double *positions_ang,
+                                 const int *atomic_numbers,
+                                 const double *cell_ang, int has_cell,
+                                 double *grad_h_bohr) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
@@ -178,8 +188,9 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
   double energy = 0.0;
-  if (push_geometry_deck(n_atoms, positions_ang, atomic_numbers, cell,
-                         has_cell ? 1 : 0) != 0) {
+  if (push_geometry_deck_from_params(params_bytes, params_size, n_atoms,
+                                     positions_ang, atomic_numbers, cell,
+                                     has_cell ? 1 : 0) != 0) {
     snprintf(r.message, sizeof(r.message), "Cap'n Proto deck render failed");
     return r;
   }
@@ -200,6 +211,15 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
   r.energy_h = energy;
   snprintf(r.message, sizeof(r.message), "ok");
   return r;
+}
+
+static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
+                                        const int *atomic_numbers,
+                                        const double *cell_ang, int has_cell,
+                                        double *grad_h_bohr) {
+  return energy_gradient_cell_with_params(g_params_bytes, g_params_size, n_atoms,
+                                          positions_ang, atomic_numbers,
+                                          cell_ang, has_cell, grad_h_bohr);
 }
 
 CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
@@ -310,12 +330,6 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
     free(session);
     return NULL;
   }
-  free(g_params_bytes);
-  g_params_bytes = (unsigned char *)malloc(session->params_size);
-  if (g_params_bytes) {
-    memcpy(g_params_bytes, session->params_bytes, session->params_size);
-    g_params_size = session->params_size;
-  }
   (void)configure_embed_from_session(session);
   return session;
 }
@@ -348,6 +362,8 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
 void cpmdc_session_destroy(CPMDCSession *session) {
   if (!session)
     return;
+  if (g_active_session == session)
+    g_active_session = NULL;
   free(session->params_bytes);
   free(session->fixed_atomic_numbers);
   free(session->step_positions_ang);
@@ -363,10 +379,13 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("null session");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
-  if (!session->embed_configured && configure_embed_from_session(session) != 0)
+  if ((!session->embed_configured || g_active_session != session) &&
+      configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
-  return energy_gradient_cell(n_atoms, positions_ang, atomic_numbers, cell_ang,
-                              has_cell, grad_h_bohr);
+  return energy_gradient_cell_with_params(session->params_bytes,
+                                          session->params_size, n_atoms,
+                                          positions_ang, atomic_numbers,
+                                          cell_ang, has_cell, grad_h_bohr);
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
@@ -621,4 +640,7 @@ int cpmdc_available(void) {
   return cpmdc_embed_available() != 0;
 }
 
-void cpmdc_finalize(void) { cpmdc_embed_finalize(); }
+void cpmdc_finalize(void) {
+  g_active_session = NULL;
+  cpmdc_embed_finalize();
+}

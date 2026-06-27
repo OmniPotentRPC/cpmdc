@@ -1,0 +1,11 @@
+(
+  functional = "LDA",
+  cutOffRy = 35.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  title = "alternate session params",
+  inputBlocks = [
+    "&INFO\n ALTERNATE SESSION PARAMS FOR SOCKET OWNERSHIP\n&END"
+  ]
+)
