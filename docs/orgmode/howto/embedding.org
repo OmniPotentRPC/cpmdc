@@ -23,6 +23,8 @@ CPMDCResult forces = cpmdc_energy_forces(
 ~CPMDParams~.
 It can come from pycapnp, a memory-mapped file, rgpot, or another Cap'n Proto
 binding that writes the standard flat stream format.
+Use the scalar calls when the caller already owns arrays in Angstrom and wants
+Hartree or Hartree/Bohr output directly.
 
 * Feature Discovery
 ~cpmdc.h~ also exposes a small feature table. Embedders can inspect it before
@@ -81,6 +83,32 @@ When ~potential_result_capacity~ is too small, ~ok == 0~, the required byte coun
 is written to ~potential_result_size~, and OpenCPMD is not evaluated (same
 contract as ~nwchemc_session_calculate_result~).
 
+Use the session path for optimizers, molecular dynamics drivers, and RPC
+frontends.
+It avoids reparsing method setup on every step and gives the runtime one place
+to enforce topology consistency.
+
+* CPMD Input Ownership
+~CPMDParams~ owns method and backend setup.
+~ForceInput~ owns coordinates, atomic numbers, unit strings, and the optional
+3x3 cell for a single evaluation.
+The runtime merges those carriers into a CPMD ~INPUT~ deck for each accepted
+step.
+
+Structured ~inputSections~ should be preferred over raw blocks when a typed arm
+exists:
+
+- ~system~ for ~CELL~, ~CUTOFF~, ~SCALE~, ~CHARGE~, and spin multiplicity
+- ~cpmd~ for wavefunction optimization, MD, convergence, restart, and
+  trajectory controls
+- ~dft~ for functional and spin-polarized DFT controls
+- ~atoms~ for pseudopotential grouping and fixed non-coordinate ~&ATOMS~
+  directives
+
+Use ~generic~, ~set~, or ~raw~ for CPMD sections that do not have a typed arm.
+Typed ~atoms~ sections must cover every element present in the step geometry.
+Without an explicit ~atoms~ section, built-in BLYP defaults cover H and O only.
+
 * Units
 Native evaluation units on ~CPMDCResult.energy_h~ and force buffers are Hartree
 and Hartree/Bohr.
@@ -90,5 +118,5 @@ and Hartree/Bohr.
 * Topology
 The first accepted session evaluation fixes atom count and ordered atomic
 numbers.
-Later steps may change coordinates, units, and the 3×3 cell in ~ForceInput.box~.
+Later steps may change coordinates, units, and the 3x3 cell in ~ForceInput.box~.
 Topology changes require a new session.

@@ -1,8 +1,10 @@
 Stub And Parser Build
 =====================
 
-The default build exercises the stable C ABI and the Cap'n Proto parser
-without linking a local OpenCPMD tree.
+The default build is the fastest way to check the public ABI. It builds
+the parser, generated Cap'n Proto readers, shared ``libcpmdc``, and a
+deterministic reference evaluator. No OpenCPMD checkout is needed for
+this path.
 
 .. code:: bash
 
@@ -10,10 +12,8 @@ without linking a local OpenCPMD tree.
    meson compile -C build
    meson test -C build --print-errorlogs
 
-This configuration builds the stub library, the ISO\ :sub:`C` embed
-shell with a deterministic reference PEF, compiles the vendored
-``capnp-c`` runtime, generates C readers for
-``schema/Potentials.capnp``, and runs cmocka suites:
+This configuration compiles the vendored ``capnp-c`` runtime, generates
+C readers for ``schema/Potentials.capnp``, and runs cmocka suites:
 
 -  ``stub`` — ``tests/test_stub_abi.c``
 -  ``cmocka`` / ``capnp`` — ``tests/cmocka/test_params_render_cmocka.c``
@@ -21,17 +21,21 @@ shell with a deterministic reference PEF, compiles the vendored
 -  ``socket`` — ForceInput sizing and session ``PotentialResult`` buffer
    contract
 
-cmocka is resolved through pkg-config. The parser test uses a Cap'n
-Proto text fixture encoded by the ``capnp`` CLI
-(``tests/encode_capnp.py``).
+cmocka is resolved through pkg-config. The parser tests use Cap'n Proto
+text fixtures encoded by the ``capnp`` CLI (``tests/encode_capnp.py``).
+
+The standalone stub target is different from the default shared engine:
+``libcpmdc_stub.a`` only provides linkable symbols and reports
+``cpmdc_available() == 0``. The default shared ``libcpmdc`` reports
+availability through the reference evaluator and can run the session
+tests.
 
 End-to-End Suites
 =================
 
-The embed shell ships a deterministic **reference PEF** (harmonic,
-Z-scaled) so single-point and multi-step session paths work without
-linking OpenCPMD archives. Real PW-DFT evaluation replaces that PEF when
-archives are wired.
+The embed shell ships a deterministic harmonic evaluator so single-point
+and multi-step session paths work without linking OpenCPMD archives.
+Real PW-DFT evaluation replaces that evaluator when archives are wired.
 
 .. code:: bash
 

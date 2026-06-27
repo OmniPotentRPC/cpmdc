@@ -15,24 +15,30 @@
 #+end_export
 
 * Overview
-~cpmdc~ provides a stable C ABI for in-process [[https://github.com/OpenCPMD/CPMD][OpenCPMD]] calculations under the
-OmniPotentRPC org (same role as ~nwchemc~ for NWChem).
-Callers pass an unpacked flat Cap'n Proto message whose root is ~CPMDParams~.
-The runtime reads that message through generated ~capnp-c~ bindings and applies
-the resulting method configuration through a Fortran ~iso_c_binding~ /
-~iso_fortran_env~ embed shell.
+~cpmdc~ is the C ABI layer for embedding [[https://github.com/OpenCPMD/CPMD][OpenCPMD]] in
+OmniPotentRPC tools.
+It keeps the public boundary small and language-neutral:
 
-Geometry for each evaluation is a separate Cap'n Proto ~ForceInput~ message.
+- method setup is an unpacked flat Cap'n Proto ~CPMDParams~ message
+- per-step geometry is an unpacked flat Cap'n Proto ~ForceInput~ message
+- per-step output can be returned as native C values or as an unpacked flat
+  ~PotentialResult~ message
+
+The ABI does not expose C++ types, Rust types, or a second JSON/TOML options
+language.
+All portable configuration lives in ~schema/Potentials.capnp~; the C library
+decodes those bytes with generated ~capnp-c~ readers and renders the CPMD
+~INPUT~ deck internally.
+
 Long-running drivers create one ~CPMDCSession~ from ~CPMDParams~, then pass
-~ForceInput~ per step and receive an unpacked flat ~PotentialResult~ (direct-call
-"socket" style shared with ~nwchemc~ and ~rgpot~).
-There is no parallel TOML/JSON options language for the backend.
+~ForceInput~ per step.
+The result-carrier call, ~cpmdc_session_calculate_result()~, writes the same
+~PotentialResult~ message used by ~rgpot~ RPC clients.
 
-Wire types (~ForceInput~, ~PotentialResult~, ~CPMDParams~, section unions) are
-defined only in ~schema/Potentials.capnp~ and materialized as generated C
-structs in ~Potentials.capnp.h~.
-The public ABI in ~include/cpmdc.h~ is the language-neutral carrier around those
-byte buffers (~CPMDCResult~, opaque ~CPMDCSession~).
+The first accepted session evaluation fixes atom count and ordered atomic
+numbers.
+Later steps may change coordinates, units, and the 3x3 cell; topology changes
+require a new session.
 
 #+begin_src bash
 git clone https://github.com/OmniPotentRPC/cpmdc.git
@@ -41,6 +47,11 @@ meson setup build -Dwith_tests=true
 meson compile -C build
 meson test -C build --print-errorlogs
 #+end_src
+
+The default build includes a deterministic reference evaluator so the ABI,
+parser, session, unit-conversion, and result-buffer contracts can be tested
+without an OpenCPMD checkout.
+An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
 
 #+begin_export rst
 .. toctree::

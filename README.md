@@ -1,143 +1,144 @@
 # cpmdc
 
-Stable C ABI for embedding [OpenCPMD](https://github.com/OpenCPMD/CPMD) from
-language-neutral Cap'n Proto `CPMDParams` messages.
+`cpmdc` is the C ABI layer for embedding
+[OpenCPMD](https://github.com/OpenCPMD/CPMD) in OmniPotentRPC tools. It gives
+non-Fortran callers one stable boundary:
 
-`cpmdc` mirrors the OmniPotentRPC `nwchemc` layout: a C ABI layer, modern
-Fortran `iso_c_binding` / `iso_fortran_env` bridge code, and Cap'n Proto
-`ForceInput` / `PotentialResult` carriers for the direct-call "socket" style
-used by rgpot (session + per-step messages, no parallel user config language).
+- method setup is an unpacked flat Cap'n Proto `CPMDParams` message
+- per-step geometry is an unpacked flat Cap'n Proto `ForceInput` message
+- per-step output can be returned as native C values or as a flat
+  `PotentialResult` message
 
-The public ABI does not expose C++ or Rust types:
+The ABI does not expose C++ types, Rust types, or a second JSON/TOML options
+language. All portable configuration lives in `schema/Potentials.capnp`; the C
+library decodes those bytes with generated `capnp-c` readers and renders the
+CPMD `INPUT` deck internally.
 
-```c
-int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
-CPMDCResult cpmdc_energy_gradient(
-    int n_atoms, const double *positions_ang, const int *atomic_numbers,
-    const void *params_capnp, size_t params_capnp_size_bytes,
-    double *grad_h_bohr);
-CPMDCSession *cpmdc_session_create(
-    const void *params_capnp, size_t params_capnp_size_bytes);
-size_t cpmdc_potential_result_size_for_force_input(
-    const void *force_input_capnp, size_t force_input_capnp_size_bytes);
-CPMDCResult cpmdc_session_calculate_result(
-    CPMDCSession *session,
-    const void *force_input_capnp, size_t force_input_capnp_size_bytes,
-    void *potential_result_capnp,
-    size_t potential_result_capnp_capacity_bytes,
-    size_t *potential_result_capnp_size_bytes);
-CPMDCResult cpmdc_calculate_result(
-    const void *params_capnp, size_t params_capnp_size_bytes,
-    const void *force_input_capnp, size_t force_input_capnp_size_bytes,
-    void *potential_result_capnp,
-    size_t potential_result_capnp_capacity_bytes,
-    size_t *potential_result_capnp_size_bytes);
-void cpmdc_session_destroy(CPMDCSession *session);
-```
+## What Ships
 
-`params_capnp` is an unpacked flat Cap'n Proto message whose root is
-`CPMDParams` from `schema/Potentials.capnp`. Geometry for each evaluation is a
-serialized `ForceInput`. Long-running callers create one `CPMDCSession` from
-`CPMDParams`, then pass a `ForceInput` per step and receive `PotentialResult`
-bytes (energy/forces converted to `ForceInput.energyUnit` and
-`energyUnit / lengthUnit`). Native evaluation units remain Hartree and
-Hartree/Bohr on `CPMDCResult.energy_h` and force buffers.
-
-The first accepted session evaluation fixes atom count and ordered atomic
-numbers; later steps may change coordinates, units, and cell vectors. Topology
-changes require a new session.
-
-## Type layers
-
-| Layer | Where | Examples |
+| Component | Path | Purpose |
 | --- | --- | --- |
-| Cap'n Proto wire | `schema/Potentials.capnp` → generated `Potentials.capnp.h` | `struct ForceInput`, `struct CPMDParams`, `read_CPMDParams()`, `CPMDParams_ptr` |
-| Stable C ABI | `include/cpmdc.h` (hand-written, language-neutral) | `CPMDCResult`, `CPMDCSession *`, `cpmdc_session_calculate_result()` |
+| Public C ABI | `include/cpmdc.h` | `CPMDCResult`, opaque `CPMDCSession`, one-shot and session calls |
+| Feature table | `include/cpmdc_features.h` | Runtime discovery for ABI, schema, and CPMD catalog support |
+| Wire schema | `schema/Potentials.capnp` | `ForceInput`, `PotentialResult`, `CPMDParams`, `PotentialConfig` |
+| Parser/deck renderer | `src/cpmdc_params.c` | Reads `CPMDParams` and renders structured CPMD input sections |
+| Session runtime | `src/cpmdc.c` | Owns persistent params, topology checks, unit conversion, result writing |
+| Fortran bridge | `src/cpmd_embed_c_api.F90` | `iso_c_binding` shell around the embedded CPMD evaluator |
+| Tests and fixtures | `tests/` | cmocka tests plus encoded Cap'n Proto fixtures |
 
-Callers pass **opaque Cap'n Proto byte buffers** through the C ABI. The C library decodes them with the generated `capnp-c` structs; it does not define a second parallel options language (no TOML/JSON config for backends).
+## Quick Build
 
-## Cap'n Proto (0.1 focus)
-
-| Type | Role |
-| --- | --- |
-| `ForceInput` | Per-step geometry + units (shared with nwchemc / rgpot) |
-| `PotentialResult` | Per-step energy + forces |
-| `CPMDParams` | Method/backend setup (functional, cutoff Ry, sections, …) |
-| `CPMDInputSection` | Structured `&CPMD` / `&SYSTEM` / `&DFT` / `&ATOMS` / generic / raw |
-| `PotentialConfig` | Tagged union with `cpmd @2 :CPMDParams` arm for rgpot |
-
-`cpmdc_params_render_input_deck()` turns `CPMDParams` into a CPMD-style
-`&SECTION` … `&END` deck for embed configuration and debugging.
-
-## Build
-
-Frontend / stub build without OpenCPMD:
+The default build does not need an OpenCPMD checkout. It builds the ABI,
+parser, shared `libcpmdc`, and a deterministic reference evaluator used by
+the test suite.
 
 ```bash
 meson setup build -Dwith_tests=true
 meson compile -C build
 meson test -C build --print-errorlogs
-# End-to-end single-point + optimizer-style session:
-meson test -C build --suite e2e --print-errorlogs
-# or with pixi:
-pixi run test-stub
-pixi run test-e2e
 ```
 
-The default build emits an installable `libcpmdc.so` plus the static
-`libcpmdc_embed_shell.a` used by tests. The embed shell enables a deterministic
-reference PEF (harmonic, Z-scaled), so Cap'n Proto socket paths are fully
-exercised without OpenCPMD archives. `cpmdc_available()` is `1` for that shell;
-the **stub** library remains unavailable for frontend-only links.
+The reference evaluator exercises the same session, `ForceInput`, and
+`PotentialResult` paths as the OpenCPMD build. The standalone
+`libcpmdc_stub.a` target still reports `cpmdc_available() == 0`; it exists for
+frontend links that need symbols but do not have an engine.
 
-OpenCPMD archive build:
+Build against a completed OpenCPMD tree with:
 
 ```bash
-meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/OpenCPMD/CPMD
+export CPMD_ROOT=/path/to/OpenCPMD/CPMD
+meson setup build-cpmd \
+  -Dwith_cpmd=true \
+  -Dcpmd_root="$CPMD_ROOT" \
+  -Dwith_tests=true
 meson compile -C build-cpmd
 ```
 
-`cpmd_root` must point at a completed OpenCPMD build tree containing
-`lib/libcpmd.a` and the executable companion object `obj/timetag.o`. Runtime
-decks that reference library-style pseudopotential names such as
-`O_MT_BLYP.psp` need those files in the work directory or in
-`CPMDC_PSEUDO_DIR`.
+`cpmd_root` must contain `lib/libcpmd.a`. If runtime decks use library-style
+pseudopotential names such as `O_MT_BLYP.psp`, put those files in the working
+directory or set `CPMDC_PSEUDO_DIR`.
 
-## Embed model
+## Call Model
 
-Method and geometry enter through **Cap'n Proto** (`CPMDParams`, `ForceInput`),
-optionally produced from **readcon-core** / host tools. The C layer renders a
-CPMD `INPUT` deck internally from those typed carriers, the Fortran ISO_C layer
-sets embed-owned OpenCPMD state, and then it `CALL`s library routines linked
-from `libcpmd.a`.
+Long-running callers create one session from `CPMDParams`, then pass
+`ForceInput` bytes for each geometry step:
 
-## Layout
+```c
+CPMDCSession *session =
+    cpmdc_session_create(params_bytes, params_size);
 
+size_t capacity = cpmdc_potential_result_size_for_force_input(
+    force_input_bytes, force_input_size);
+
+CPMDCResult result = cpmdc_session_calculate_result(
+    session,
+    force_input_bytes,
+    force_input_size,
+    potential_result_bytes,
+    capacity,
+    &potential_result_size);
+
+cpmdc_session_destroy(session);
 ```
-include/cpmdc.h              Public C ABI
-src/cpmdc.c                  Session + Cap'n Proto socket path
-src/cpmdc_stub.c             Stub ABI when embed is not linked
-src/cpmdc_params.c           Cap'n Proto parse / deck render / result write
-src/cpmd_embed_c_api.f90     iso_c_binding / iso_fortran_env bridge
-schema/Potentials.capnp      Wire schema
-tests/                       cmocka + encoded Cap'n Proto fixtures
-```
 
-## Version
+`cpmdc_session_calculate_result()` converts energy and forces to
+`ForceInput.energyUnit` and `energyUnit / lengthUnit` in the returned
+`PotentialResult`. The lower-level force buffers and `CPMDCResult.energy_h`
+remain in CPMD native units: Hartree and Hartree/Bohr.
 
-0.1.0 — Cap'n Proto contract, C ABI, Fortran ISO_C shell, shared dlopen engine,
-stub + parser tests.
+The first accepted session evaluation fixes atom count and ordered atomic
+numbers. Later steps may change coordinates, units, and the 3x3 cell. Topology
+changes require a new session.
 
+## CPMD Configuration
 
-## Branding
+`CPMDParams` carries backend setup only. Geometry belongs in `ForceInput`.
 
-Wordmark and mark (SVG, light/dark) live under `branding/logo/` and are copied
-into `docs/source/_static/` for Sphinx. The mark is a periodic cell with a
-plane-wave crest (OpenCPMD PW-DFT / Car–Parrinello), indigo palette so it sits
-beside `nwchemc` teal without colliding.
+Common scalar fields include:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `functional` | `BLYP` | default DFT functional |
+| `cutOffRy` | `70.0` | plane-wave cutoff in Rydberg |
+| `charge` | `0` | system charge |
+| `multiplicity` | `1` | spin multiplicity |
+| `cpmdRoot` | empty | `CPMD_ROOT` hint for the embed layer |
+| `enginePath` | empty | frontend hint used by loaders such as rgpot |
+
+Long-tail CPMD input is represented with `inputSections`:
+
+- `system` for `&SYSTEM` fields such as `CELL`, `CUTOFF`, `SCALE`, `CHARGE`
+- `cpmd` for `&CPMD` controls such as `OPTIMIZE WAVEFUNCTION`, `MAXSTEP`,
+  `RESTART WAVEFUNCTION`, `TRAJECTORY`
+- `dft` for `&DFT` controls such as `FUNCTIONAL` and `LSD`
+- `atoms` for pseudopotential entries and non-coordinate `&ATOMS` directives
+- `generic`, `set`, and `raw` for CPMD sections that do not need a typed arm
+
+Typed `atoms` sections group `ForceInput` coordinates into CPMD `&ATOMS`
+entries by element symbol. Every atomic number in a geometry step needs a
+matching pseudopotential entry. When `atoms` is omitted, built-in BLYP defaults
+cover H and O only.
+
+## rgpot Integration
+
+`rgpot` uses the same schema. Its `PotentialConfig.cpmd` arm contains
+`CPMDParams`; `calculate()` still receives `ForceInput`. The `CPMDPot`
+frontend loads `libcpmdc` with `dlopen`, calls this C ABI, and returns the
+same `PotentialResult` carrier used by other OmniPotentRPC potentials.
 
 ## Documentation
 
-Authoritative prose is Org mode under `docs/orgmode/` (same Diátaxis-ish layout
-as `nwchemc`: tutorials, howto, reference, contributing). Start at
-`docs/orgmode/index.org`.
+The Sphinx documentation is generated from Org sources under
+`docs/orgmode/`. Start with:
+
+- `docs/orgmode/tutorials/quickstart.org`
+- `docs/orgmode/howto/embedding.org`
+- `docs/orgmode/reference/cpmd-options.org`
+
+Generated `.rst` files live under `docs/source/`.
+
+## Version
+
+0.1.0 - Cap'n Proto contract, stable C ABI, Fortran `iso_c_binding` shell,
+shared `libcpmdc`, deterministic reference evaluator, OpenCPMD archive link
+path, parser tests, session tests, and rgpot-compatible result carriers.
