@@ -159,8 +159,7 @@ cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps,
-  objects: cpmd_extra_objects,
-  link_args: has_cpmd ? (cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran']) : [],
+  link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran']) : [],
 )
 
 if get_option('with_tests')
