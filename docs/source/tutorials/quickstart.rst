@@ -15,11 +15,11 @@ this path.
 This configuration compiles the vendored ``capnp-c`` runtime, generates
 C readers for ``schema/Potentials.capnp``, and runs cmocka suites:
 
--  ``stub`` — ``tests/test_stub_abi.c``
--  ``cmocka`` / ``capnp`` — ``tests/cmocka/test_params_render_cmocka.c``
-   (deck render)
--  ``socket`` — ForceInput sizing and session ``PotentialResult`` buffer
-   contract
+- ``stub`` — ``tests/test_stub_abi.c``
+- ``cmocka`` / ``capnp`` — ``tests/cmocka/test_params_render_cmocka.c``
+  (deck render)
+- ``socket`` — ForceInput sizing and session ``PotentialResult`` buffer
+  contract
 
 cmocka is resolved through pkg-config. The parser tests use Cap'n Proto
 text fixtures encoded by the ``capnp`` CLI (``tests/encode_capnp.py``).
@@ -43,11 +43,11 @@ Real PW-DFT evaluation replaces that evaluator when archives are wired.
    # or
    pixi run test-e2e
 
--  ``e2e-single-point`` — ``cpmdc_calculate_result`` +
-   ``cpmdc_energy_forces`` on one ``ForceInput`` (HO-like geometry).
--  ``e2e-optimizer-session`` — one ``CPMDCSession``, three geometry
-   steps (A → B → A), forces on B, topology rejection, then a second
-   session for species change.
+- ``e2e-single-point`` — ``cpmdc_calculate_result`` +
+  ``cpmdc_energy_forces`` on one ``ForceInput`` (HO-like geometry).
+- ``e2e-optimizer-session`` — one ``CPMDCSession``, three geometry steps
+  (A → B → A), forces on B, topology rejection, then a second session
+  for species change.
 
 OpenCPMD Archive Build
 ======================

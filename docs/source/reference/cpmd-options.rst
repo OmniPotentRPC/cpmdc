@@ -9,80 +9,78 @@ array entry points that take positions and atomic numbers).
 Top-level ``CPMDParams`` fields
 ===============================
 
-+----------------------------------+----------------------------------+
-| Field                            | Role                             |
-+==================================+==================================+
-| ``functional``                   | Default DFT functional (also     |
-|                                  | used when no ``dft`` section is  |
-|                                  | present)                         |
-+----------------------------------+----------------------------------+
-| ``cutOffRy``                     | Plane-wave cutoff in Rydberg     |
-+----------------------------------+----------------------------------+
-| ``charge`` / ``multiplicity``    | System charge and 2S+1           |
-|                                  | (multiplicity ``> 1`` implies    |
-|                                  | LSD defaults)                    |
-+----------------------------------+----------------------------------+
-| ``task``                         | Frontend hint: ``energy``,       |
-|                                  | ``gradient``, ``md``,            |
-|                                  | ``optimize``                     |
-+----------------------------------+----------------------------------+
-| ``title``                        | Optional comment header in       |
-|                                  | rendered decks                   |
-+----------------------------------+----------------------------------+
-| ``memoryMb``                     | Frontend memory hint             |
-+----------------------------------+----------------------------------+
-| ``scratchDir``, ``permanentDir`` | ``&CPMD FILEPATH`` runtime file  |
-|                                  | placement; ``permanentDir`` wins |
-+----------------------------------+----------------------------------+
-| ``cpmdRoot``                     | OpenCPMD source/build tree       |
-+----------------------------------+----------------------------------+
-| ``enginePath``                   | Frontend engine selection hint   |
-+----------------------------------+----------------------------------+
-| ``inputBlocks``                  | Raw ``&SECTION`` text blocks     |
-|                                  | prepended to the deck            |
-+----------------------------------+----------------------------------+
-| ``inputSections``                | Structured ``CPMDInputSection``  |
-|                                  | list                             |
-+----------------------------------+----------------------------------+
++----------------------------------+-----------------------------------+
+| Field                            | Role                              |
++==================================+===================================+
+| ``functional``                   | Default DFT functional (also used |
+|                                  | when no ``dft`` section is        |
+|                                  | present)                          |
++----------------------------------+-----------------------------------+
+| ``cutOffRy``                     | Plane-wave cutoff in Rydberg      |
++----------------------------------+-----------------------------------+
+| ``charge`` / ``multiplicity``    | System charge and 2S+1            |
+|                                  | (multiplicity ``> 1`` implies LSD |
+|                                  | defaults)                         |
++----------------------------------+-----------------------------------+
+| ``task``                         | Frontend hint: ``energy``,        |
+|                                  | ``gradient``, ``md``,             |
+|                                  | ``optimize``                      |
++----------------------------------+-----------------------------------+
+| ``title``                        | Optional comment header in        |
+|                                  | rendered decks                    |
++----------------------------------+-----------------------------------+
+| ``memoryMb``                     | Frontend memory hint              |
++----------------------------------+-----------------------------------+
+| ``scratchDir``, ``permanentDir`` | ``&CPMD FILEPATH`` runtime file   |
+|                                  | placement; ``permanentDir`` wins  |
++----------------------------------+-----------------------------------+
+| ``cpmdRoot``                     | OpenCPMD source/build tree        |
++----------------------------------+-----------------------------------+
+| ``enginePath``                   | Frontend engine selection hint    |
++----------------------------------+-----------------------------------+
+| ``inputBlocks``                  | Raw ``&SECTION`` text blocks      |
+|                                  | prepended to the deck             |
++----------------------------------+-----------------------------------+
+| ``inputSections``                | Structured ``CPMDInputSection``   |
+|                                  | list                              |
++----------------------------------+-----------------------------------+
 
 ``CPMDInputSection`` kinds
 ==========================
 
-+-------------+------------------------+--------------------------+
-| Kind        | Cap'n Proto type       | Deck effect              |
-+=============+========================+==========================+
-| ``cpmd``    | ``CPMDCpmdSection``    | ``&CPMD``                |
-|             |                        | (wavefunction/geometry   |
-|             |                        | optimization, MD,        |
-|             |                        | convergence, iteration   |
-|             |                        | limits, timestep,        |
-|             |                        | electron mass, …)        |
-+-------------+------------------------+--------------------------+
-| ``system``  | ``CPMDSystemSection``  | ``&SYSTEM`` (symmetry,   |
-|             |                        | angstrom, cell, cutoff,  |
-|             |                        | charge, …)               |
-+-------------+------------------------+--------------------------+
-| ``dft``     | ``CPMDDftSection``     | ``&DFT`` (functional,    |
-|             |                        | LSD, GC cutoff, XC       |
-|             |                        | driver, hybrid/Hubbard   |
-|             |                        | scalars, extra           |
-|             |                        | directives)              |
-+-------------+------------------------+--------------------------+
-| ``atoms``   | ``CPMDAtomsSection``   | ``&ATOMS``               |
-|             |                        | (pseudopotential lines;  |
-|             |                        | coordinates come from    |
-|             |                        | ``ForceInput``)          |
-+-------------+------------------------+--------------------------+
-| ``generic`` | ``CPMDGenericSection`` | Arbitrary ``&NAME`` …    |
-|             |                        | ``&END``                 |
-+-------------+------------------------+--------------------------+
-| ``set``     | ``CPMDSetDirective``   | Embed-path logical       |
-|             |                        | ``SECTION.KEYWORD``      |
-|             |                        | merged into the section  |
-+-------------+------------------------+--------------------------+
-| ``raw``     | ``Text``               | Full section text        |
-|             |                        | inserted as-is           |
-+-------------+------------------------+--------------------------+
++-------------+------------------------+-------------------------------+
+| Kind        | Cap'n Proto type       | Deck effect                   |
++=============+========================+===============================+
+| ``cpmd``    | ``CPMDCpmdSection``    | ``&CPMD``                     |
+|             |                        | (wavefunction/geometry        |
+|             |                        | optimization, MD,             |
+|             |                        | convergence, iteration        |
+|             |                        | limits, timestep, electron    |
+|             |                        | mass, …)                      |
++-------------+------------------------+-------------------------------+
+| ``system``  | ``CPMDSystemSection``  | ``&SYSTEM`` (symmetry,        |
+|             |                        | angstrom, cell, cutoff,       |
+|             |                        | charge, …)                    |
++-------------+------------------------+-------------------------------+
+| ``dft``     | ``CPMDDftSection``     | ``&DFT`` (functional, LSD, GC |
+|             |                        | cutoff, XC driver,            |
+|             |                        | hybrid/Hubbard scalars, extra |
+|             |                        | directives)                   |
++-------------+------------------------+-------------------------------+
+| ``atoms``   | ``CPMDAtomsSection``   | ``&ATOMS`` (pseudopotential   |
+|             |                        | lines; coordinates come from  |
+|             |                        | ``ForceInput``)               |
++-------------+------------------------+-------------------------------+
+| ``generic`` | ``CPMDGenericSection`` | Arbitrary ``&NAME`` …         |
+|             |                        | ``&END``                      |
++-------------+------------------------+-------------------------------+
+| ``set``     | ``CPMDSetDirective``   | Embed-path logical            |
+|             |                        | ``SECTION.KEYWORD`` merged    |
+|             |                        | into the section              |
++-------------+------------------------+-------------------------------+
+| ``raw``     | ``Text``               | Full section text inserted    |
+|             |                        | as-is                         |
++-------------+------------------------+-------------------------------+
 
 Missing core sections receive minimal defaults from the renderer so a
 sparse ``CPMDParams`` still produces a valid-looking deck for debugging.

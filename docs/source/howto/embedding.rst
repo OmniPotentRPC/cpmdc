@@ -30,18 +30,17 @@ Message Flow
 
 There are two wire messages in a normal embedded driver:
 
-+----------------+----------------------+-------------------------+
-| Message        | Lifetime             | Contents                |
-+================+======================+=========================+
-| ``CPMDParams`` | Session setup        | method, structured CPMD |
-|                |                      | sections,               |
-|                |                      | pseudopotentials,       |
-|                |                      | engine hints            |
-+----------------+----------------------+-------------------------+
-| ``ForceInput`` | One calculation step | positions, atomic       |
-|                |                      | numbers, optional cell, |
-|                |                      | requested output units  |
-+----------------+----------------------+-------------------------+
++----------------+----------------------+------------------------------+
+| Message        | Lifetime             | Contents                     |
++================+======================+==============================+
+| ``CPMDParams`` | Session setup        | method, structured CPMD      |
+|                |                      | sections, pseudopotentials,  |
+|                |                      | engine hints                 |
++----------------+----------------------+------------------------------+
+| ``ForceInput`` | One calculation step | positions, atomic numbers,   |
+|                |                      | optional cell, requested     |
+|                |                      | output units                 |
++----------------+----------------------+------------------------------+
 
 A host should build ``CPMDParams`` once, serialize it as an unpacked
 flat Cap'n Proto message, and create a ``CPMDCSession``. Each geometry
@@ -129,13 +128,13 @@ a single evaluation. The runtime merges those carriers into a CPMD
 Structured ``inputSections`` should be preferred over raw blocks when a
 typed arm exists:
 
--  ``system`` for ``CELL``, ``CUTOFF``, ``SCALE``, ``CHARGE``, and spin
-   multiplicity
--  ``cpmd`` for wavefunction optimization, MD, convergence, restart, and
-   trajectory controls
--  ``dft`` for functional and spin-polarized DFT controls
--  ``atoms`` for pseudopotential grouping and fixed non-coordinate
-   ``&ATOMS`` directives
+- ``system`` for ``CELL``, ``CUTOFF``, ``SCALE``, ``CHARGE``, and spin
+  multiplicity
+- ``cpmd`` for wavefunction optimization, MD, convergence, restart, and
+  trajectory controls
+- ``dft`` for functional and spin-polarized DFT controls
+- ``atoms`` for pseudopotential grouping and fixed non-coordinate
+  ``&ATOMS`` directives
 
 Use ``generic``, ``set``, or ``raw`` for CPMD sections that do not have
 a typed arm. Typed ``atoms`` sections must cover every element present

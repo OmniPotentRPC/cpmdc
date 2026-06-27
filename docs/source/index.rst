@@ -7,6 +7,7 @@
    :class: dark-only
    :width: 460
    :align: center
+
 Overview
 ========
 
@@ -14,11 +15,11 @@ Overview
 `OpenCPMD <https://github.com/OpenCPMD/CPMD>`__ in OmniPotentRPC tools.
 It keeps the public boundary small and language-neutral:
 
--  method setup is an unpacked flat Cap'n Proto ``CPMDParams`` message
--  per-step geometry is an unpacked flat Cap'n Proto ``ForceInput``
-   message
--  per-step output can be returned as native C values or as an unpacked
-   flat ``PotentialResult`` message
+- method setup is an unpacked flat Cap'n Proto ``CPMDParams`` message
+- per-step geometry is an unpacked flat Cap'n Proto ``ForceInput``
+  message
+- per-step output can be returned as native C values or as an unpacked
+  flat ``PotentialResult`` message
 
 The ABI does not expose C++ types, Rust types, or a second JSON/TOML
 options language. All portable configuration lives in

@@ -1,5 +1,8 @@
 /build*/
 /bbdir*/
+/docs/build/
+/docs/doctrees/
+/docs/source/xml/
 *.o
 *.a
 *.so

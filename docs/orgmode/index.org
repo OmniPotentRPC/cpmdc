@@ -12,6 +12,7 @@
    :class: dark-only
    :width: 460
    :align: center
+
 #+end_export
 
 * Overview
