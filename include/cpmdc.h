@@ -90,15 +90,32 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
 /** @brief Release a persistent evaluation session. */
 void cpmdc_session_destroy(CPMDCSession *session);
 
+/**
+ * @brief Compute energy and nuclear gradient with session-owned parameters.
+ *
+ * Positions are Angstrom. The gradient buffer must have `n_atoms * 3` doubles
+ * and is filled in Hartree/Bohr.
+ */
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
                                           const double *positions_ang,
                                           const int *atomic_numbers,
                                           double *grad_h_bohr);
 
+/**
+ * @brief Compute total energy with session-owned parameters.
+ *
+ * Positions are Angstrom and the returned energy is Hartree.
+ */
 CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const double *positions_ang,
                                  const int *atomic_numbers);
 
+/**
+ * @brief Compute energy and nuclear forces with session-owned parameters.
+ *
+ * Positions are Angstrom. The forces buffer must have `n_atoms * 3` doubles and
+ * is filled in Hartree/Bohr.
+ */
 CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
                                         const double *positions_ang,
                                         const int *atomic_numbers,

@@ -31,21 +31,37 @@ void cpmdc_embed_finalize(void);
 static unsigned char *g_params_bytes = NULL;
 static size_t g_params_size = 0;
 
+/** Persistent method state plus topology guards for session evaluations. */
 struct CPMDCSession {
+  /** Serialized unpacked flat `CPMDParams` bytes owned by the session. */
   unsigned char *params_bytes;
+  /** Byte count of `params_bytes`. */
   size_t params_size;
+  /** Effective DFT functional passed to the embed layer. */
   char functional[64];
+  /** Effective plane-wave cutoff in Rydberg. */
   double cutoff_ry;
+  /** Effective system charge. */
   int charge;
+  /** Effective spin multiplicity. */
   int multiplicity;
+  /** Rendered CPMD input deck for the session parameters. */
   char input_deck[CPMDC_BLOCKS];
+  /** OpenCPMD source or build tree hint. */
   char cpmd_root[1024];
+  /** Non-zero once the session has accepted one topology. */
   int topology_fixed;
+  /** Atom count accepted by the first successful topology check. */
   size_t fixed_n_atoms;
+  /** Ordered atomic numbers accepted by the first successful topology check. */
   int *fixed_atomic_numbers;
+  /** Scratch positions for the current step in Angstrom. */
   double *step_positions_ang;
+  /** Scratch atomic numbers for the current step. */
   int *step_atomic_numbers;
+  /** Allocated atom capacity for step scratch buffers. */
   size_t step_atom_capacity;
+  /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
 };
 

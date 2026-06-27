@@ -145,17 +145,27 @@ static int append_directives(char *dst, size_t dst_size, size_t *used,
 
 #define CPMDC_MAX_SET_DIRECTIVES 128
 
+/** Parsed `SECTION.KEYWORD` directive waiting to merge into rendered output. */
 struct RenderSetDirective {
+  /** Section name slice from the set key. */
   const char *section;
+  /** Byte length of `section`. */
   size_t section_len;
+  /** Keyword name slice from the set key. */
   const char *keyword;
+  /** Byte length of `keyword`. */
   size_t keyword_len;
+  /** Optional directive value emitted on the following deck line. */
   capn_text value;
+  /** Non-zero once the directive has been emitted. */
   int rendered;
 };
 
+/** Bounded collection of parsed set directives. */
 struct RenderSetList {
+  /** Parsed directives in input order. */
   struct RenderSetDirective items[CPMDC_MAX_SET_DIRECTIVES];
+  /** Number of valid entries in `items`. */
   int len;
 };
 

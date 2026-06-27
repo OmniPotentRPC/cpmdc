@@ -51,9 +51,9 @@ cwd = "docs"
 description = "Export docs/orgmode to docs/source RST"
 
 [feature.docs.tasks.doxybuild]
-cmd = "doxygen Doxyfile_cpmdc.cfg && (command -v doxyrest >/dev/null && doxyrest -c doxyrest-config.lua || true)"
+cmd = "doxygen Doxyfile_cpmdc.cfg && doxyrest -c doxyrest-config.lua"
 cwd = "docs/source"
-description = "Generate C/Fortran XML and optional doxyrest RST"
+description = "Generate public C API XML and Doxyrest RST"
 
 [feature.docs.tasks.sphinxbld]
 cmd = "sphinx-build -d docs/doctrees docs/source docs/build"

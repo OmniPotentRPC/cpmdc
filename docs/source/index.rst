@@ -67,6 +67,7 @@ the same C ABI surface against ``libcpmd.a``.
 
    reference/architecture
    reference/cpmd-options
+   api/index
 
 .. toctree::
    :maxdepth: 2
