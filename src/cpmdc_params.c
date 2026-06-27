@@ -645,6 +645,34 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
     if (append_fmt(dst, dst_size, used, " BETA\n  %.10g\n", dft->beta) != 0)
       return -1;
   }
+  if (dft->oldCode) {
+    if (append_text(dst, dst_size, used, " OLDCODE\n") != 0)
+      return -1;
+  }
+  if (dft->newCode) {
+    if (append_text(dst, dst_size, used, " NEWCODE\n") != 0)
+      return -1;
+  }
+  if (dft->correlation.str && dft->correlation.len > 0) {
+    if (append_text(dst, dst_size, used, " CORRELATION\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->correlation) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->exchange.str && dft->exchange.len > 0) {
+    if (append_text(dst, dst_size, used, " EXCHANGE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->exchange) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->becke88) {
+    if (append_text(dst, dst_size, used, " BECKE88\n") != 0)
+      return -1;
+  }
   if (append_directives(dst, dst_size, used, dft->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, "DFT") != 0)

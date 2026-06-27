@@ -151,6 +151,11 @@ Field             Deck keyword
 ``hubbard``       ``HUBBARD``
 ``alpha``         ``ALPHA``
 ``beta``          ``BETA``
+``oldCode``       ``OLDCODE``
+``newCode``       ``NEWCODE``
+``correlation``   ``CORRELATION``
+``exchange``      ``EXCHANGE``
+``becke88``       ``BECKE88``
 ================= ==================
 
 ``PotentialConfig``

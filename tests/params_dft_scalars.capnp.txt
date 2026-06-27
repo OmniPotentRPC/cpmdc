@@ -17,7 +17,12 @@
         hfxScreening = "0.2",
         hubbard = "U 1 4.0",
         alpha = 0.25,
-        beta = 0.75
+        beta = 0.75,
+        oldCode = true,
+        newCode = true,
+        correlation = "LYP",
+        exchange = "B88",
+        becke88 = true
       ) ),
     ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-6 ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 85.0,

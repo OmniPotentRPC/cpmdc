@@ -79,7 +79,8 @@ int main(int argc, char **argv) {
       "XC_DRIVER", "LIBXC", "GGA_X_PBE GGA_C_PBE", "LR KERNEL", "REFUNCT",
       "MTS_HIGH_FUNC", "PBE0", "MTS_LOW_FUNC", "PBE", "HFX",
       "HFX-SCREENING", "0.2", "HUBBARD", "U 1 4.0", "ALPHA", "0.25",
-      "BETA", "0.75",
+      "BETA", "0.75", "OLDCODE", "NEWCODE", "CORRELATION", "LYP",
+      "EXCHANGE", "B88", "BECKE88",
   };
   if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;

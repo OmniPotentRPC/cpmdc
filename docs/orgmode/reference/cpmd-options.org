@@ -93,6 +93,11 @@ format.
 | ~hubbard~ | ~HUBBARD~ |
 | ~alpha~ | ~ALPHA~ |
 | ~beta~ | ~BETA~ |
+| ~oldCode~ | ~OLDCODE~ |
+| ~newCode~ | ~NEWCODE~ |
+| ~correlation~ | ~CORRELATION~ |
+| ~exchange~ | ~EXCHANGE~ |
+| ~becke88~ | ~BECKE88~ |
 
 * ~PotentialConfig~
 For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union
