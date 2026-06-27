@@ -99,6 +99,9 @@ struct CPMDCpmdSection {
   bicanonicalEnsemble  @41 :Bool = false; # BICANONICAL ENSEMBLE.
   cdft                 @42 :Bool = false; # CDFT.
   properties           @43 :Bool = false; # PROPERTIES.
+  vdwCorrection        @44 :Text;         # VDW CORRECTION argument, e.g. ON/OFF.
+  vdwWannier           @45 :Text;         # VDW WANNIER argument, e.g. ON/OFF.
+  dcacp                @46 :Bool = false; # DCACP.
 }
 
 struct CPMDDftSection {
@@ -139,6 +142,7 @@ struct CPMDAtomsSection {
 
 struct CPMDDirectiveSection {
   directives @0 :List(CPMDDirective); # Keyword/value lines inside a named section.
+  subsections @1 :List(CPMDGenericSection); # Nested NAME ... END NAME blocks.
 }
 
 enum CPMDSectionKind {

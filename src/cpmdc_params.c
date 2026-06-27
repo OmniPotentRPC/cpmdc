@@ -326,6 +326,21 @@ static int append_file_path_directive(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "\n");
 }
 
+static int append_text_keyword_arg(char *dst, size_t dst_size, size_t *used,
+                                   const char *keyword, capn_text value) {
+  if (!value.str || value.len <= 0)
+    return 0;
+  if (append_text(dst, dst_size, used, " ") != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, keyword) != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, " ") != 0)
+    return -1;
+  if (append_capn_text(dst, dst_size, used, value) != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "\n");
+}
+
 static int render_remaining_set_sections(char *dst, size_t dst_size,
                                          size_t *used,
                                          struct RenderSetList *sets) {
@@ -684,6 +699,16 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " PROPERTIES\n") != 0)
       return -1;
   }
+  if (append_text_keyword_arg(dst, dst_size, used, "VDW CORRECTION",
+                              sec->vdwCorrection) != 0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "VDW WANNIER",
+                              sec->vdwWannier) != 0)
+    return -1;
+  if (sec->dcacp) {
+    if (append_text(dst, dst_size, used, " DCACP\n") != 0)
+      return -1;
+  }
   if (sec->restartWavefunction) {
     if (append_text(dst, dst_size, used, " RESTART WAVEFUNCTION\n") != 0)
       return -1;
@@ -924,6 +949,34 @@ static int render_generic_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+static int append_subsections(char *dst, size_t dst_size, size_t *used,
+                              CPMDGenericSection_list subsections) {
+  int nsub = struct_list_len(&subsections.p);
+  if (nsub < 0)
+    return -1;
+  for (int i = 0; i < nsub; ++i) {
+    struct CPMDGenericSection sub;
+    get_CPMDGenericSection(&sub, subsections, i);
+    if (!sub.name.str || sub.name.len <= 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sub.name) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (append_directives(dst, dst_size, used, sub.directives) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " END ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sub.name) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  return 0;
+}
+
 static int render_directive_section(char *dst, size_t dst_size, size_t *used,
                                     const char *section,
                                     const struct CPMDDirectiveSection *sec,
@@ -935,6 +988,8 @@ static int render_directive_section(char *dst, size_t dst_size, size_t *used,
   if (append_text(dst, dst_size, used, "\n") != 0)
     return -1;
   if (append_directives(dst, dst_size, used, sec->directives) != 0)
+    return -1;
+  if (append_subsections(dst, dst_size, used, sec->subsections) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, section) != 0)
     return -1;

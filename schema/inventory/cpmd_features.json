@@ -373,7 +373,10 @@
     "QMMM",
     "BICANONICAL ENSEMBLE",
     "CDFT",
-    "PROPERTIES"
+    "PROPERTIES",
+    "VDW CORRECTION",
+    "VDW WANNIER",
+    "DCACP"
   ],
   "dft_functionals": [
     "LDA",
@@ -1281,6 +1284,33 @@
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DCACP",
+      "kind": "cpmd_keyword",
+      "name": "DCACP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VDW_WANNIER",
+      "kind": "cpmd_keyword",
+      "name": "VDW WANNIER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VDW_CORRECTION",
+      "kind": "cpmd_keyword",
+      "name": "VDW CORRECTION",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2215,6 +2245,30 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.vdwCorrection",
+      "kind": "structured_params_field",
+      "name": "vdwCorrection",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vdwWannier",
+      "kind": "structured_params_field",
+      "name": "vdwWannier",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dcacp",
+      "kind": "structured_params_field",
+      "name": "dcacp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.dft.functional",
       "kind": "structured_params_field",
       "name": "functional",
@@ -2415,9 +2469,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.atom.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "atom",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.basis.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "basis",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.basis.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "basis",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2431,9 +2501,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.clas.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "clas",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.eam.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "eam",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.eam.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "eam",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2447,9 +2533,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.exte.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "exte",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.hardness.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "hardness",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.hardness.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "hardness",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2463,9 +2565,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.info.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "info",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.linres.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "linres",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.linres.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "linres",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2479,9 +2597,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.molstates.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "molstates",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.mts.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "mts",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.mts.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "mts",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2495,9 +2629,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.nlcc.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "nlcc",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.path.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "path",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.path.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "path",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2511,9 +2661,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.pimd.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "pimd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.potential.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "potential",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.potential.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "potential",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2527,9 +2693,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.prop.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "prop",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.ptddft.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "ptddft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.ptddft.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "ptddft",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2543,9 +2725,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.resp.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "resp",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.tddft.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "tddft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.tddft.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "tddft",
       "stub_applicable": true,
       "embed_applicable": true
@@ -2559,6 +2757,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.vdw.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "vdw",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.vectors.directives",
       "kind": "structured_params_field",
       "name": "directives",
@@ -2567,9 +2773,25 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.vectors.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
+      "section": "vectors",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.wavefunction.directives",
       "kind": "structured_params_field",
       "name": "directives",
+      "section": "wavefunction",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.wavefunction.subsections",
+      "kind": "structured_params_field",
+      "name": "subsections",
       "section": "wavefunction",
       "stub_applicable": true,
       "embed_applicable": true

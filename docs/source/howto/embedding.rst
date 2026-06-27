@@ -229,11 +229,14 @@ typed arm exists:
 - ``dft`` for functional and spin-polarized DFT controls
 - ``atoms`` for pseudopotential grouping and fixed non-coordinate
   ``&ATOMS`` directives
+- named OpenCPMD section arms such as ``pimd``, ``vdw``, ``linres``, and
+  ``tddft`` for keyword/value lines and nested subsection blocks
 
-Use ``generic``, ``set``, or ``raw`` for CPMD sections that do not have
-a typed arm. Typed ``atoms`` sections must cover every element present
-in the step geometry. Without an explicit ``atoms`` section, built-in
-BLYP defaults cover H and O only.
+Use ``generic`` for non-catalog aliases, ``set`` for merge-only keywords
+inside a named section, and ``raw`` or ``inputBlocks`` for
+text-preserving deck fragments. Typed ``atoms`` sections must cover
+every element present in the step geometry. Without an explicit
+``atoms`` section, built-in BLYP defaults cover H and O only.
 
 Choose the least lossy structured carrier:
 
@@ -246,12 +249,16 @@ Choose the least lossy structured carrier:
 | ``CPMDSystemSection``, or        |                                  |
 | ``CPMDAtomsSection``             |                                  |
 +----------------------------------+----------------------------------+
-| One unsupported keyword belongs  | ``set`` with ``SECTION.KEYWORD`` |
+| A catalog section contains       | matching typed section arm with  |
+| keyword/value lines or nested    | ``directives`` and               |
+| blocks                           | ``subsections``                  |
++----------------------------------+----------------------------------+
+| One merge-only keyword belongs   | ``set`` with ``SECTION.KEYWORD`` |
 | inside a typed section           |                                  |
 +----------------------------------+----------------------------------+
-| A whole unsupported section can  | ``generic``                      |
-| be expressed as keywords and     |                                  |
-| argument lists                   |                                  |
+| A non-catalog alias can be       | ``generic``                      |
+| expressed as keyword/argument    |                                  |
+| lines                            |                                  |
 +----------------------------------+----------------------------------+
 | A complete deck fragment must be | ``raw`` or top-level             |
 | preserved as text                | ``inputBlocks``                  |

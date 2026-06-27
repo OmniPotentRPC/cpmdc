@@ -184,8 +184,11 @@ exists:
 - ~dft~ for functional and spin-polarized DFT controls
 - ~atoms~ for pseudopotential grouping and fixed non-coordinate ~&ATOMS~
   directives
+- named OpenCPMD section arms such as ~pimd~, ~vdw~, ~linres~, and ~tddft~
+  for keyword/value lines and nested subsection blocks
 
-Use ~generic~, ~set~, or ~raw~ for CPMD sections that do not have a typed arm.
+Use ~generic~ for non-catalog aliases, ~set~ for merge-only keywords inside a
+named section, and ~raw~ or ~inputBlocks~ for text-preserving deck fragments.
 Typed ~atoms~ sections must cover every element present in the step geometry.
 Without an explicit ~atoms~ section, built-in BLYP defaults cover H and O only.
 
@@ -194,8 +197,9 @@ Choose the least lossy structured carrier:
 | Need | Carrier |
 |------+---------|
 | A field exists in ~CPMDCpmdSection~, ~CPMDDftSection~, ~CPMDSystemSection~, or ~CPMDAtomsSection~ | typed section arm |
-| One unsupported keyword belongs inside a typed section | ~set~ with ~SECTION.KEYWORD~ |
-| A whole unsupported section can be expressed as keywords and argument lists | ~generic~ |
+| A catalog section contains keyword/value lines or nested blocks | matching typed section arm with ~directives~ and ~subsections~ |
+| One merge-only keyword belongs inside a typed section | ~set~ with ~SECTION.KEYWORD~ |
+| A non-catalog alias can be expressed as keyword/argument lines | ~generic~ |
 | A complete deck fragment must be preserved as text | ~raw~ or top-level ~inputBlocks~ |
 
 * Units

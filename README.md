@@ -230,7 +230,8 @@ Long-tail CPMD input is represented with `inputSections`:
   `LANGEVIN`, `ANNEALING`, `RATTLE`, `SHAKE`, `RESTART`,
   `PRINT`, `STORE`, `CENTER MOLECULE`, `DIIS`, `ODIIS`, `PCG`,
   `DIAGONALIZATION`, `FREE-ENERGY`, `QMMM`, `CDFT`, `PROPERTIES`,
-  `RESTART WAVEFUNCTION`, `TRAJECTORY`
+  `VDW CORRECTION`, `VDW WANNIER`, `DCACP`, `RESTART WAVEFUNCTION`,
+  `TRAJECTORY`
 - `dft` for `&DFT` controls such as `FUNCTIONAL`, `LSD`, `GC-CUTOFF`,
   `XC_DRIVER`, `LIBXC`, `LR KERNEL`, `HFX`, `HFX-SCREENING`, `HUBBARD`,
   `ALPHA`, `BETA`, `OLDCODE`, `NEWCODE`, `CORRELATION`, `EXCHANGE`, and
@@ -239,7 +240,8 @@ Long-tail CPMD input is represented with `inputSections`:
 - `atom`, `basis`, `clas`, `eam`, `exte`, `hardness`, `info`, `linres`,
   `molstates`, `mts`, `nlcc`, `path`, `pimd`, `potential`, `prop`, `ptddft`,
   `resp`, `tddft`, `vdw`, `vectors`, and `wavefunction` for named
-  OpenCPMD sections that carry directive lists
+  OpenCPMD sections that carry directive lists and nested subsections; `vdw`
+  uses subsections for `EMPIRICAL CORRECTION`
 - `generic`, `set`, and `raw` for aliases, merge-only keywords, and
   text-preserving deck fragments
 

@@ -1,0 +1,40 @@
+(
+  functional = "PBE",
+  cutOffRy = 70.0,
+  task = "gradient",
+  title = "Typed VDW controls",
+  inputSections = [
+    ( cpmd = (
+        optimizeWavefunction = true,
+        convergenceOrbitals = 1.0e-6,
+        vdwCorrection = "ON",
+        vdwWannier = "OFF",
+        dcacp = true
+      ) ),
+    ( vdw = (
+        subsections = [
+          ( name = "EMPIRICAL CORRECTION",
+            directives = [
+              ( keyword = "VDW PARAMETERS", args = [ "ALL DFT-D2" ] ),
+              ( keyword = "S6GRIMME", args = [ "PBE" ] ),
+              ( keyword = "CUTOFF", args = [ "0.01" ] ),
+              ( keyword = "CELL", args = [ "1 1 0" ] ),
+              ( keyword = "DFT-D3 PARAMETERS THREEBODY NUMGRAD",
+                args = [ "94.868329 40.0" ] ),
+              ( keyword = "DFT-D3 FUNCTIONAL VERSION=4 TZ",
+                args = [ "PBE0" ] ),
+              ( keyword = "DFT-D3 NO_CONTRIBUTION", args = [ "1 2" ] )
+            ] )
+        ],
+        directives = [
+          ( keyword = "CUSTOM VDW NOTE", args = [ "kept" ] )
+        ]
+      ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
+        cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_PBE.psp", lmax = 1 )
+      ] ) )
+  ]
+)

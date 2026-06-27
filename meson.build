@@ -614,6 +614,12 @@ if get_option('with_tests')
     output: 'params_long_tail_sections.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_vdw_controls_bin = custom_target(
+    'params_vdw_controls_bin',
+    input: 'tests/params_vdw_controls.capnp.txt',
+    output: 'params_vdw_controls.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   test(
     'params-cp-dft-render',
     executable(
@@ -632,6 +638,7 @@ if get_option('with_tests')
       params_cpmd_dynamics_bin.full_path(),
       params_cpmd_misc_bin.full_path(),
       params_long_tail_sections_bin.full_path(),
+      params_vdw_controls_bin.full_path(),
     ],
     depends: [
       params_cp_md_bin,
@@ -641,6 +648,7 @@ if get_option('with_tests')
       params_cpmd_dynamics_bin,
       params_cpmd_misc_bin,
       params_long_tail_sections_bin,
+      params_vdw_controls_bin,
     ],
     suite: ['params', 'inventory'],
   )

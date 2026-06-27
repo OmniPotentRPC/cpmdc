@@ -119,6 +119,9 @@ static const struct CatalogCoverage cpmd_coverage[] = {
      " BICANONICAL ENSEMBLE\n"},
     {"catalog.cpmd.CDFT", "cdft", " CDFT\n"},
     {"catalog.cpmd.PROPERTIES", "properties", " PROPERTIES\n"},
+    {"catalog.cpmd.VDW_CORRECTION", "vdwCorrection", " VDW CORRECTION"},
+    {"catalog.cpmd.VDW_WANNIER", "vdwWannier", " VDW WANNIER"},
+    {"catalog.cpmd.DCACP", "dcacp", " DCACP\n"},
 };
 
 static const struct CatalogCoverage dft_scalar_coverage[] = {
@@ -229,9 +232,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 8) {
+  if (argc < 9) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin\n",
             argv[0]);
     return 2;
   }
@@ -282,6 +285,31 @@ int main(int argc, char **argv) {
       "DIAGONALIZATION", "FREE-ENERGY", "INTERFACE", "QMMM",
       "BICANONICAL ENSEMBLE", "CDFT", "PROPERTIES",
   };
+  const char *vdw_controls_need[] = {
+      "&CPMD",
+      "VDW CORRECTION ON",
+      "VDW WANNIER OFF",
+      "DCACP",
+      "&VDW",
+      "EMPIRICAL CORRECTION",
+      "VDW PARAMETERS",
+      "ALL DFT-D2",
+      "S6GRIMME",
+      "PBE",
+      "CUTOFF",
+      "0.01",
+      "CELL",
+      "1 1 0",
+      "DFT-D3 PARAMETERS THREEBODY NUMGRAD",
+      "94.868329 40.0",
+      "DFT-D3 FUNCTIONAL VERSION=4 TZ",
+      "PBE0",
+      "DFT-D3 NO_CONTRIBUTION",
+      "1 2",
+      "END EMPIRICAL CORRECTION",
+      "CUSTOM VDW NOTE",
+      "kept",
+  };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
       "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
@@ -319,8 +347,12 @@ int main(int argc, char **argv) {
                  (int)(sizeof(long_tail_sections_need) /
                        sizeof(long_tail_sections_need[0]))) != 0)
     return 1;
-  char *decks[7] = {0};
-  for (int i = 0; i < 7; ++i) {
+  if (check_deck(argv[8], vdw_controls_need,
+                 (int)(sizeof(vdw_controls_need) /
+                       sizeof(vdw_controls_need[0]))) != 0)
+    return 1;
+  char *decks[8] = {0};
+  for (int i = 0; i < 8; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -329,11 +361,11 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  int coverage_rc = check_catalog_coverage(decks, 7);
-  for (int i = 0; i < 7; ++i)
+  int coverage_rc = check_catalog_coverage(decks, 8);
+  for (int i = 0; i < 8; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, and long_tail_sections render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, and vdw_controls render + inventory finds\n");
   return 0;
 }
