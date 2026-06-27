@@ -32,7 +32,7 @@ CPMD `INPUT` deck internally.
 schema fields. Top-level fields use IDs such as `params.functional`;
 structured section fields use `params.inputSections.<section>.<field>`, for
 example `params.inputSections.cpmd.maxIter` and
-`params.inputSections.dft.hfxScreening`.
+`params.inputSections.pimd.directives`.
 
 ## Which Interface To Use
 
@@ -75,10 +75,10 @@ message, and creates a `CPMDCSession`. Each geometry step is a separate
 `PotentialResult` that uses the requested `ForceInput.energyUnit` and
 `ForceInput.lengthUnit`.
 
-Use typed `inputSections` when a field exists. Use `set` for one extra keyword
-that should merge into a typed section, `generic` for a complete unsupported
-section expressed as keyword/argument pairs, and `raw` only when preserving
-existing deck text is more important than structure.
+Use typed `inputSections` for OpenCPMD catalog sections. Use `set` for one
+extra keyword that should merge into a typed section, `generic` for a
+non-catalog section alias expressed as keyword/argument pairs, and `raw` only
+when preserving existing deck text is more important than structure.
 
 ## Runtime Contracts
 
@@ -236,7 +236,12 @@ Long-tail CPMD input is represented with `inputSections`:
   `ALPHA`, `BETA`, `OLDCODE`, `NEWCODE`, `CORRELATION`, `EXCHANGE`, and
   `BECKE88`
 - `atoms` for pseudopotential entries and non-coordinate `&ATOMS` directives
-- `generic`, `set`, and `raw` for CPMD sections that do not need a typed arm
+- `atom`, `basis`, `clas`, `eam`, `exte`, `hardness`, `info`, `linres`,
+  `molstates`, `mts`, `nlcc`, `path`, `pimd`, `potential`, `prop`, `ptddft`,
+  `resp`, `tddft`, `vdw`, `vectors`, and `wavefunction` for named
+  OpenCPMD sections that carry directive lists
+- `generic`, `set`, and `raw` for aliases, merge-only keywords, and
+  text-preserving deck fragments
 
 Typed `atoms` sections group `ForceInput` coordinates into CPMD `&ATOMS`
 entries by element symbol. Every atomic number in a geometry step needs a

@@ -229,9 +229,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 7) {
+  if (argc < 8) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin\n",
             argv[0]);
     return 2;
   }
@@ -282,6 +282,20 @@ int main(int argc, char **argv) {
       "DIAGONALIZATION", "FREE-ENERGY", "INTERFACE", "QMMM",
       "BICANONICAL ENSEMBLE", "CDFT", "PROPERTIES",
   };
+  const char *long_tail_sections_need[] = {
+      "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
+      "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
+      "Cu.eam", "&EXTE", "EXTERNAL FIELD", "1.0", "&HARDNESS",
+      "CHEMICAL HARDNESS", "1.25", "&INFO", "PRINT LEVEL", "LOW",
+      "&LINRES", "DAVIDSON PARAMETER", "12", "&MOLSTATES", "STATE FILE",
+      "states.dat", "&MTS", "MTS FACTOR", "4", "&NLCC", "NLCC ON",
+      "&PATH", "REACTION COORDINATE", "path.dat", "&PIMD",
+      "TROTTER FACTOR", "16", "&POTENTIAL", "POTENTIAL FILE", "bias.dat",
+      "&PROP", "DIPOLE MOMENT", "&PTDDFT", "PROP_TSTEP", "0.25", "&RESP",
+      "RESP CHARGES", "ON", "&TDDFT", "LR-TDDFT", "SINGLET", "&VDW",
+      "VDW PARAMETERS", "GRIMME", "&VECTORS", "VECTOR FILE", "wf.vec",
+      "&WAVEFUNCTION", "WAVEFUNCTION FILE", "RESTART.1",
+  };
   if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;
   if (check_deck(argv[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
@@ -301,8 +315,12 @@ int main(int argc, char **argv) {
                  (int)(sizeof(cpmd_misc_need) /
                        sizeof(cpmd_misc_need[0]))) != 0)
     return 1;
-  char *decks[6] = {0};
-  for (int i = 0; i < 6; ++i) {
+  if (check_deck(argv[7], long_tail_sections_need,
+                 (int)(sizeof(long_tail_sections_need) /
+                       sizeof(long_tail_sections_need[0]))) != 0)
+    return 1;
+  char *decks[7] = {0};
+  for (int i = 0; i < 7; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -311,11 +329,11 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  int coverage_rc = check_catalog_coverage(decks, 6);
-  for (int i = 0; i < 6; ++i)
+  int coverage_rc = check_catalog_coverage(decks, 7);
+  for (int i = 0; i < 7; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, and cpmd_misc render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, and long_tail_sections render + inventory finds\n");
   return 0;
 }

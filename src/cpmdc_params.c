@@ -924,6 +924,62 @@ static int render_generic_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+static int render_directive_section(char *dst, size_t dst_size, size_t *used,
+                                    const char *section,
+                                    const struct CPMDDirectiveSection *sec,
+                                    struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&") != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, section) != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, "\n") != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, sec->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, section) != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_typed_directive_section(char *dst, size_t dst_size,
+                                          size_t *used,
+                                          const struct CPMDInputSection *sec,
+                                          struct RenderSetList *sets) {
+#define CPMDC_RENDER_DIRECTIVE_CASE(kind, section_name)                         \
+  case CPMDInputSection_##kind: {                                               \
+    struct CPMDDirectiveSection body;                                           \
+    read_CPMDDirectiveSection(&body, sec->kind);                                \
+    return render_directive_section(dst, dst_size, used, section_name, &body,   \
+                                    sets);                                      \
+  }
+  switch (sec->which) {
+    CPMDC_RENDER_DIRECTIVE_CASE(atom, "ATOM")
+    CPMDC_RENDER_DIRECTIVE_CASE(basis, "BASIS")
+    CPMDC_RENDER_DIRECTIVE_CASE(clas, "CLAS")
+    CPMDC_RENDER_DIRECTIVE_CASE(eam, "EAM")
+    CPMDC_RENDER_DIRECTIVE_CASE(exte, "EXTE")
+    CPMDC_RENDER_DIRECTIVE_CASE(hardness, "HARDNESS")
+    CPMDC_RENDER_DIRECTIVE_CASE(info, "INFO")
+    CPMDC_RENDER_DIRECTIVE_CASE(linres, "LINRES")
+    CPMDC_RENDER_DIRECTIVE_CASE(molstates, "MOLSTATES")
+    CPMDC_RENDER_DIRECTIVE_CASE(mts, "MTS")
+    CPMDC_RENDER_DIRECTIVE_CASE(nlcc, "NLCC")
+    CPMDC_RENDER_DIRECTIVE_CASE(path, "PATH")
+    CPMDC_RENDER_DIRECTIVE_CASE(pimd, "PIMD")
+    CPMDC_RENDER_DIRECTIVE_CASE(potential, "POTENTIAL")
+    CPMDC_RENDER_DIRECTIVE_CASE(prop, "PROP")
+    CPMDC_RENDER_DIRECTIVE_CASE(ptddft, "PTDDFT")
+    CPMDC_RENDER_DIRECTIVE_CASE(resp, "RESP")
+    CPMDC_RENDER_DIRECTIVE_CASE(tddft, "TDDFT")
+    CPMDC_RENDER_DIRECTIVE_CASE(vdw, "VDW")
+    CPMDC_RENDER_DIRECTIVE_CASE(vectors, "VECTORS")
+    CPMDC_RENDER_DIRECTIVE_CASE(wavefunction, "WAVEFUNCTION")
+  default:
+    return -1;
+  }
+#undef CPMDC_RENDER_DIRECTIVE_CASE
+}
+
 int cpmdc_params_root(const void *params_capnp, size_t params_capnp_size_bytes,
                       struct capn *arena, CPMDParams_ptr *params) {
   if (!params_capnp || params_capnp_size_bytes == 0 || !arena || !params)
@@ -1108,6 +1164,30 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
       if (append_text(dst, dst_size, &used, "\n\n") != 0)
+        return -1;
+      break;
+    case CPMDInputSection_atom:
+    case CPMDInputSection_basis:
+    case CPMDInputSection_clas:
+    case CPMDInputSection_eam:
+    case CPMDInputSection_exte:
+    case CPMDInputSection_hardness:
+    case CPMDInputSection_info:
+    case CPMDInputSection_linres:
+    case CPMDInputSection_molstates:
+    case CPMDInputSection_mts:
+    case CPMDInputSection_nlcc:
+    case CPMDInputSection_path:
+    case CPMDInputSection_pimd:
+    case CPMDInputSection_potential:
+    case CPMDInputSection_prop:
+    case CPMDInputSection_ptddft:
+    case CPMDInputSection_resp:
+    case CPMDInputSection_tddft:
+    case CPMDInputSection_vdw:
+    case CPMDInputSection_vectors:
+    case CPMDInputSection_wavefunction:
+      if (render_typed_directive_section(dst, dst_size, &used, &sec, &sets) != 0)
         return -1;
       break;
     default:
@@ -1387,6 +1467,30 @@ int cpmdc_params_render_deck_with_geometry(
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
       if (append_text(dst, dst_size, &used, "\n\n") != 0)
+        return -1;
+      break;
+    case CPMDInputSection_atom:
+    case CPMDInputSection_basis:
+    case CPMDInputSection_clas:
+    case CPMDInputSection_eam:
+    case CPMDInputSection_exte:
+    case CPMDInputSection_hardness:
+    case CPMDInputSection_info:
+    case CPMDInputSection_linres:
+    case CPMDInputSection_molstates:
+    case CPMDInputSection_mts:
+    case CPMDInputSection_nlcc:
+    case CPMDInputSection_path:
+    case CPMDInputSection_pimd:
+    case CPMDInputSection_potential:
+    case CPMDInputSection_prop:
+    case CPMDInputSection_ptddft:
+    case CPMDInputSection_resp:
+    case CPMDInputSection_tddft:
+    case CPMDInputSection_vdw:
+    case CPMDInputSection_vectors:
+    case CPMDInputSection_wavefunction:
+      if (render_typed_directive_section(dst, dst_size, &used, &sec, &sets) != 0)
         return -1;
       break;
     default:

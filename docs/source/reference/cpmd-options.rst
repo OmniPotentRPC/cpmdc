@@ -64,44 +64,109 @@ Structured fields use ``params.inputSections.<section>.<field>``, for
 example ``params.inputSections.cpmd.maxIter``,
 ``params.inputSections.dft.hfxScreening``,
 ``params.inputSections.system.cell``, and
-``params.inputSections.atoms.pseudopotentials``.
+``params.inputSections.pimd.directives``.
 
 ``CPMDInputSection`` kinds
 ==========================
 
-+-------------+------------------------+-------------------------------+
-| Kind        | Cap'n Proto type       | Deck effect                   |
-+=============+========================+===============================+
-| ``cpmd``    | ``CPMDCpmdSection``    | ``&CPMD``                     |
-|             |                        | (wavefunction/geometry        |
-|             |                        | optimization, MD,             |
-|             |                        | convergence, iteration        |
-|             |                        | limits, timestep, electron    |
-|             |                        | mass, …)                      |
-+-------------+------------------------+-------------------------------+
-| ``system``  | ``CPMDSystemSection``  | ``&SYSTEM`` (symmetry,        |
-|             |                        | angstrom, cell, cutoff,       |
-|             |                        | charge, …)                    |
-+-------------+------------------------+-------------------------------+
-| ``dft``     | ``CPMDDftSection``     | ``&DFT`` (functional, LSD, GC |
-|             |                        | cutoff, XC driver,            |
-|             |                        | hybrid/Hubbard scalars, extra |
-|             |                        | directives)                   |
-+-------------+------------------------+-------------------------------+
-| ``atoms``   | ``CPMDAtomsSection``   | ``&ATOMS`` (pseudopotential   |
-|             |                        | lines; coordinates come from  |
-|             |                        | ``ForceInput``)               |
-+-------------+------------------------+-------------------------------+
-| ``generic`` | ``CPMDGenericSection`` | Arbitrary ``&NAME`` …         |
-|             |                        | ``&END``                      |
-+-------------+------------------------+-------------------------------+
-| ``set``     | ``CPMDSetDirective``   | Embed-path logical            |
-|             |                        | ``SECTION.KEYWORD`` merged    |
-|             |                        | into the section              |
-+-------------+------------------------+-------------------------------+
-| ``raw``     | ``Text``               | Full section text inserted    |
-|             |                        | as-is                         |
-+-------------+------------------------+-------------------------------+
++------------------+--------------------------+-------------------------+
+| Kind             | Cap'n Proto type         | Deck effect             |
++==================+==========================+=========================+
+| ``atom``         | ``CPMDDirectiveSection`` | ``&ATOM`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``cpmd``         | ``CPMDCpmdSection``      | ``&CPMD``               |
+|                  |                          | (wavefunction/geometry  |
+|                  |                          | optimization, MD,       |
+|                  |                          | convergence, iteration  |
+|                  |                          | limits, timestep,       |
+|                  |                          | electron mass, …)       |
++------------------+--------------------------+-------------------------+
+| ``system``       | ``CPMDSystemSection``    | ``&SYSTEM`` (symmetry,  |
+|                  |                          | angstrom, cell, cutoff, |
+|                  |                          | charge, …)              |
++------------------+--------------------------+-------------------------+
+| ``dft``          | ``CPMDDftSection``       | ``&DFT`` (functional,   |
+|                  |                          | LSD, GC cutoff, XC      |
+|                  |                          | driver, hybrid/Hubbard  |
+|                  |                          | scalars, extra          |
+|                  |                          | directives)             |
++------------------+--------------------------+-------------------------+
+| ``atoms``        | ``CPMDAtomsSection``     | ``&ATOMS``              |
+|                  |                          | (pseudopotential lines; |
+|                  |                          | coordinates come from   |
+|                  |                          | ``ForceInput``)         |
++------------------+--------------------------+-------------------------+
+| ``basis``        | ``CPMDDirectiveSection`` | ``&BASIS``              |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``clas``         | ``CPMDDirectiveSection`` | ``&CLAS`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``eam``          | ``CPMDDirectiveSection`` | ``&EAM`` keyword/value  |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``exte``         | ``CPMDDirectiveSection`` | ``&EXTE`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``hardness``     | ``CPMDDirectiveSection`` | ``&HARDNESS``           |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``info``         | ``CPMDDirectiveSection`` | ``&INFO`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``linres``       | ``CPMDDirectiveSection`` | ``&LINRES``             |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``molstates``    | ``CPMDDirectiveSection`` | ``&MOLSTATES``          |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``mts``          | ``CPMDDirectiveSection`` | ``&MTS`` keyword/value  |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``nlcc``         | ``CPMDDirectiveSection`` | ``&NLCC`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``path``         | ``CPMDDirectiveSection`` | ``&PATH`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``pimd``         | ``CPMDDirectiveSection`` | ``&PIMD`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``potential``    | ``CPMDDirectiveSection`` | ``&POTENTIAL``          |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``prop``         | ``CPMDDirectiveSection`` | ``&PROP`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``ptddft``       | ``CPMDDirectiveSection`` | ``&PTDDFT``             |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``resp``         | ``CPMDDirectiveSection`` | ``&RESP`` keyword/value |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``tddft``        | ``CPMDDirectiveSection`` | ``&TDDFT``              |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``vdw``          | ``CPMDDirectiveSection`` | ``&VDW`` keyword/value  |
+|                  |                          | lines                   |
++------------------+--------------------------+-------------------------+
+| ``vectors``      | ``CPMDDirectiveSection`` | ``&VECTORS``            |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``wavefunction`` | ``CPMDDirectiveSection`` | ``&WAVEFUNCTION``       |
+|                  |                          | keyword/value lines     |
++------------------+--------------------------+-------------------------+
+| ``generic``      | ``CPMDGenericSection``   | Arbitrary ``&NAME`` …   |
+|                  |                          | ``&END``                |
++------------------+--------------------------+-------------------------+
+| ``set``          | ``CPMDSetDirective``     | Embed-path logical      |
+|                  |                          | ``SECTION.KEYWORD``     |
+|                  |                          | merged into the section |
++------------------+--------------------------+-------------------------+
+| ``raw``          | ``Text``                 | Full section text       |
+|                  |                          | inserted as-is          |
++------------------+--------------------------+-------------------------+
 
 Missing core sections receive minimal defaults from the renderer so a
 sparse ``CPMDParams`` still produces a valid-looking deck for debugging.
@@ -120,13 +185,13 @@ entries for additional ``&ATOMS`` keywords.
 Escape hatches
 ==============
 
-Long-tail CPMD keywords go in ``CPMDDirective`` lists inside a section,
-``CPMDSetDirective`` dotted keys, ``CPMDInputSection.raw``, or
-``inputBlocks``. ``set.key`` uses ``SECTION.KEYWORD`` form, for example
-``CPMD.PRINT FORCES ON`` or ``SYSTEM.POISSON SOLVER HOCKNEY``; non-empty
-``set.value`` is emitted on the following indented line. Prefer new
-structured fields in the schema over inventing a second config file
-format.
+Long-tail CPMD keywords go in ``CPMDDirective`` lists inside the
+matching typed section, ``CPMDSetDirective`` dotted keys,
+``CPMDInputSection.raw``, or ``inputBlocks``. ``set.key`` uses
+``SECTION.KEYWORD`` form, for example ``CPMD.PRINT FORCES ON`` or
+``SYSTEM.POISSON SOLVER HOCKNEY``; non-empty ``set.value`` is emitted on
+the following indented line. Prefer new structured fields in the schema
+over inventing a second config file format.
 
 Catalog section exposure
 ========================
@@ -140,7 +205,8 @@ a dedicated field is unnecessary.
 +----------------------------------+-------------------+------------------------+
 | Feature ID                       | Deck section      | ABI carrier            |
 +==================================+===================+========================+
-| ``catalog.section.ATOM``         | ``&ATOM``         | ``set``, ``generic``,  |
+| ``catalog.section.ATOM``         | ``&ATOM``         | typed ``atom``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
@@ -149,11 +215,13 @@ a dedicated field is unnecessary.
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.BASIS``        | ``&BASIS``        | ``set``, ``generic``,  |
+| ``catalog.section.BASIS``        | ``&BASIS``        | typed ``basis``,       |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.CLAS``         | ``&CLAS``         | ``set``, ``generic``,  |
+| ``catalog.section.CLAS``         | ``&CLAS``         | typed ``clas``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
@@ -167,59 +235,73 @@ a dedicated field is unnecessary.
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.EAM``          | ``&EAM``          | ``set``, ``generic``,  |
+| ``catalog.section.EAM``          | ``&EAM``          | typed ``eam``,         |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.EXTE``         | ``&EXTE``         | ``set``, ``generic``,  |
+| ``catalog.section.EXTE``         | ``&EXTE``         | typed ``exte``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.HARDNESS``     | ``&HARDNESS``     | ``set``, ``generic``,  |
+| ``catalog.section.HARDNESS``     | ``&HARDNESS``     | typed ``hardness``,    |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.INFO``         | ``&INFO``         | ``set``, ``generic``,  |
+| ``catalog.section.INFO``         | ``&INFO``         | typed ``info``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.LINRES``       | ``&LINRES``       | ``set``, ``generic``,  |
+| ``catalog.section.LINRES``       | ``&LINRES``       | typed ``linres``,      |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.MOLSTATES``    | ``&MOLSTATES``    | ``set``, ``generic``,  |
+| ``catalog.section.MOLSTATES``    | ``&MOLSTATES``    | typed ``molstates``,   |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.MTS``          | ``&MTS``          | ``set``, ``generic``,  |
+| ``catalog.section.MTS``          | ``&MTS``          | typed ``mts``,         |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.NLCC``         | ``&NLCC``         | ``set``, ``generic``,  |
+| ``catalog.section.NLCC``         | ``&NLCC``         | typed ``nlcc``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.PATH``         | ``&PATH``         | ``set``, ``generic``,  |
+| ``catalog.section.PATH``         | ``&PATH``         | typed ``path``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.PIMD``         | ``&PIMD``         | ``set``, ``generic``,  |
+| ``catalog.section.PIMD``         | ``&PIMD``         | typed ``pimd``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.POTENTIAL``    | ``&POTENTIAL``    | ``set``, ``generic``,  |
+| ``catalog.section.POTENTIAL``    | ``&POTENTIAL``    | typed ``potential``,   |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.PROP``         | ``&PROP``         | ``set``, ``generic``,  |
+| ``catalog.section.PROP``         | ``&PROP``         | typed ``prop``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.PTDDFT``       | ``&PTDDFT``       | ``set``, ``generic``,  |
+| ``catalog.section.PTDDFT``       | ``&PTDDFT``       | typed ``ptddft``,      |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.RESP``         | ``&RESP``         | ``set``, ``generic``,  |
+| ``catalog.section.RESP``         | ``&RESP``         | typed ``resp``,        |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
@@ -228,19 +310,24 @@ a dedicated field is unnecessary.
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.TDDFT``        | ``&TDDFT``        | ``set``, ``generic``,  |
+| ``catalog.section.TDDFT``        | ``&TDDFT``        | typed ``tddft``,       |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.VDW``          | ``&VDW``          | ``set``, ``generic``,  |
+| ``catalog.section.VDW``          | ``&VDW``          | typed ``vdw``,         |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.VECTORS``      | ``&VECTORS``      | ``set``, ``generic``,  |
+| ``catalog.section.VECTORS``      | ``&VECTORS``      | typed ``vectors``,     |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-| ``catalog.section.WAVEFUNCTION`` | ``&WAVEFUNCTION`` | ``set``, ``generic``,  |
+| ``catalog.section.WAVEFUNCTION`` | ``&WAVEFUNCTION`` | typed                  |
+|                                  |                   | ``wavefunction``,      |
+|                                  |                   | ``set``, ``generic``,  |
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
@@ -250,30 +337,30 @@ Choosing an input carrier
 
 Use the most structured carrier that represents the deck intent:
 
-+----------------------+----------------------+----------------------+
-| Requirement          | Carrier              | Reason               |
-+======================+======================+======================+
-| Supported ``&CPMD``, | typed section field  | Schema readers,      |
-| ``&DFT``,            |                      | tests, and feature   |
-| ``&SYSTEM``, or      |                      | discovery can name   |
-| ``&ATOMS`` keyword   |                      | the field directly   |
-+----------------------+----------------------+----------------------+
-| One extra keyword    | ``set``              | The renderer merges  |
-| inside a generated   |                      | it into the matching |
-| section              |                      | section without      |
-|                      |                      | duplicating defaults |
-+----------------------+----------------------+----------------------+
-| Unsupported section  | ``generic``          | The section remains  |
-| with ordinary        |                      | structured and       |
-| keyword/argument     |                      | discoverable         |
-| lines                |                      |                      |
-+----------------------+----------------------+----------------------+
-| Existing deck text   | ``raw`` or           | The renderer does    |
-| that must survive    | ``inputBlocks``      | not reinterpret the  |
-| byte-for-byte apart  |                      | fragment             |
-| from surrounding     |                      |                      |
-| output               |                      |                      |
-+----------------------+----------------------+----------------------+
++------------------------+----------------------+----------------------+
+| Requirement            | Carrier              | Reason               |
++========================+======================+======================+
+| Supported OpenCPMD     | typed section field  | Schema readers,      |
+| ``inscan('&SECTION')`` |                      | tests, and feature   |
+| block                  |                      | discovery can name   |
+|                        |                      | the field directly   |
++------------------------+----------------------+----------------------+
+| One extra keyword      | ``set``              | The renderer merges  |
+| inside a generated     |                      | it into the matching |
+| section                |                      | section without      |
+|                        |                      | duplicating defaults |
++------------------------+----------------------+----------------------+
+| Non-catalog section    | ``generic``          | The section remains  |
+| alias with ordinary    |                      | structured even when |
+| keyword/argument lines |                      | it is not an         |
+|                        |                      | inventory ID         |
++------------------------+----------------------+----------------------+
+| Existing deck text     | ``raw`` or           | The renderer does    |
+| that must survive      | ``inputBlocks``      | not reinterpret the  |
+| byte-for-byte apart    |                      | fragment             |
+| from surrounding       |                      |                      |
+| output                 |                      |                      |
++------------------------+----------------------+----------------------+
 
 For example, a compact typed setup with one extra ``&SYSTEM`` keyword
 looks like:
@@ -318,60 +405,123 @@ Other structured parameter features
 These ``params.inputSections.*`` IDs cover carriers and fields that are
 not single CPMD/DFT catalog keyword rows in the typed tables below.
 
-+-------------------------------------------------+----------------------------+--------------------------+
-| Parameter feature ID                            | Field                      | Deck effect              |
-+=================================================+============================+==========================+
-| ``params.inputSections.generic.name``           | ``generic.name``           | Section name for an      |
-|                                                 |                            | arbitrary ``&NAME``      |
-|                                                 |                            | block                    |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.generic.directives``     | ``generic.directives``     | Keyword/value lines      |
-|                                                 |                            | inside the generic       |
-|                                                 |                            | section                  |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.symmetry``        | ``system.symmetry``        | ``&SYSTEM SYMMETRY``     |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.angstrom``        | ``system.angstrom``        | ``&SYSTEM ANGSTROM``     |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.cell``            | ``system.cell``            | ``&SYSTEM CELL``         |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.cutOffRy``        | ``system.cutOffRy``        | ``&SYSTEM CUTOFF``       |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.scale``           | ``system.scale``           | ``&SYSTEM SCALE``        |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.charge``          | ``system.charge``          | ``&SYSTEM CHARGE``       |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.multiplicity``    | ``system.multiplicity``    | ``&SYSTEM MULTIPLICITY`` |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.system.directives``      | ``system.directives``      | Additional ``&SYSTEM``   |
-|                                                 |                            | keyword/value lines      |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.cpmd.directives``        | ``cpmd.directives``        | Additional ``&CPMD``     |
-|                                                 |                            | keyword/value lines      |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.dft.directives``         | ``dft.directives``         | Additional ``&DFT``      |
-|                                                 |                            | keyword/value lines      |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.atoms.pseudopotentials`` | ``atoms.pseudopotentials`` | Pseudopotential entries  |
-|                                                 |                            | grouped with             |
-|                                                 |                            | ``ForceInput``           |
-|                                                 |                            | coordinates              |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.atoms.directives``       | ``atoms.directives``       | Additional               |
-|                                                 |                            | non-coordinate           |
-|                                                 |                            | ``&ATOMS`` keyword/value |
-|                                                 |                            | lines                    |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.set.key``                | ``set.key``                | Dotted                   |
-|                                                 |                            | ``SECTION.KEYWORD``      |
-|                                                 |                            | merge target             |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.set.value``              | ``set.value``              | Optional value emitted   |
-|                                                 |                            | under the dotted key     |
-+-------------------------------------------------+----------------------------+--------------------------+
-| ``params.inputSections.raw``                    | ``raw``                    | Full section text        |
-|                                                 |                            | inserted as-is           |
-+-------------------------------------------------+----------------------------+--------------------------+
++--------------------------------------------------+-----------------------------+--------------------------+
+| Parameter feature ID                             | Field                       | Deck effect              |
++==================================================+=============================+==========================+
+| ``params.inputSections.generic.name``            | ``generic.name``            | Section name for an      |
+|                                                  |                             | arbitrary ``&NAME``      |
+|                                                  |                             | block                    |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.generic.directives``      | ``generic.directives``      | Keyword/value lines      |
+|                                                  |                             | inside the generic       |
+|                                                  |                             | section                  |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.atom.directives``         | ``atom.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&ATOM``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.symmetry``         | ``system.symmetry``         | ``&SYSTEM SYMMETRY``     |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.angstrom``         | ``system.angstrom``         | ``&SYSTEM ANGSTROM``     |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.cell``             | ``system.cell``             | ``&SYSTEM CELL``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.cutOffRy``         | ``system.cutOffRy``         | ``&SYSTEM CUTOFF``       |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.scale``            | ``system.scale``            | ``&SYSTEM SCALE``        |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.charge``           | ``system.charge``           | ``&SYSTEM CHARGE``       |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.multiplicity``     | ``system.multiplicity``     | ``&SYSTEM MULTIPLICITY`` |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.system.directives``       | ``system.directives``       | Additional ``&SYSTEM``   |
+|                                                  |                             | keyword/value lines      |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.basis.directives``        | ``basis.directives``        | Keyword/value lines      |
+|                                                  |                             | inside ``&BASIS``        |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.cpmd.directives``         | ``cpmd.directives``         | Additional ``&CPMD``     |
+|                                                  |                             | keyword/value lines      |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.dft.directives``          | ``dft.directives``          | Additional ``&DFT``      |
+|                                                  |                             | keyword/value lines      |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.clas.directives``         | ``clas.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&CLAS``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.eam.directives``          | ``eam.directives``          | Keyword/value lines      |
+|                                                  |                             | inside ``&EAM``          |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.exte.directives``         | ``exte.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&EXTE``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.hardness.directives``     | ``hardness.directives``     | Keyword/value lines      |
+|                                                  |                             | inside ``&HARDNESS``     |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.info.directives``         | ``info.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&INFO``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.linres.directives``       | ``linres.directives``       | Keyword/value lines      |
+|                                                  |                             | inside ``&LINRES``       |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.molstates.directives``    | ``molstates.directives``    | Keyword/value lines      |
+|                                                  |                             | inside ``&MOLSTATES``    |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.mts.directives``          | ``mts.directives``          | Keyword/value lines      |
+|                                                  |                             | inside ``&MTS``          |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.nlcc.directives``         | ``nlcc.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&NLCC``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.path.directives``         | ``path.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&PATH``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.pimd.directives``         | ``pimd.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&PIMD``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.potential.directives``    | ``potential.directives``    | Keyword/value lines      |
+|                                                  |                             | inside ``&POTENTIAL``    |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.prop.directives``         | ``prop.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&PROP``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.ptddft.directives``       | ``ptddft.directives``       | Keyword/value lines      |
+|                                                  |                             | inside ``&PTDDFT``       |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.resp.directives``         | ``resp.directives``         | Keyword/value lines      |
+|                                                  |                             | inside ``&RESP``         |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.tddft.directives``        | ``tddft.directives``        | Keyword/value lines      |
+|                                                  |                             | inside ``&TDDFT``        |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.vdw.directives``          | ``vdw.directives``          | Keyword/value lines      |
+|                                                  |                             | inside ``&VDW``          |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.vectors.directives``      | ``vectors.directives``      | Keyword/value lines      |
+|                                                  |                             | inside ``&VECTORS``      |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.wavefunction.directives`` | ``wavefunction.directives`` | Keyword/value lines      |
+|                                                  |                             | inside ``&WAVEFUNCTION`` |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.atoms.pseudopotentials``  | ``atoms.pseudopotentials``  | Pseudopotential entries  |
+|                                                  |                             | grouped with             |
+|                                                  |                             | ``ForceInput``           |
+|                                                  |                             | coordinates              |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.atoms.directives``        | ``atoms.directives``        | Additional               |
+|                                                  |                             | non-coordinate           |
+|                                                  |                             | ``&ATOMS`` keyword/value |
+|                                                  |                             | lines                    |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.set.key``                 | ``set.key``                 | Dotted                   |
+|                                                  |                             | ``SECTION.KEYWORD``      |
+|                                                  |                             | merge target             |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.set.value``               | ``set.value``               | Optional value emitted   |
+|                                                  |                             | under the dotted key     |
++--------------------------------------------------+-----------------------------+--------------------------+
+| ``params.inputSections.raw``                     | ``raw``                     | Full section text        |
+|                                                  |                             | inserted as-is           |
++--------------------------------------------------+-----------------------------+--------------------------+
 
 Typed ``&CPMD`` controls
 ========================

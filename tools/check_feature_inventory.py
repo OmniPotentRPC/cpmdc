@@ -34,10 +34,31 @@ def struct_fields(schema: str, struct_name: str) -> list[str]:
 def structured_param_feature_ids(schema: str) -> list[str]:
     section_structs = {
         "generic": "CPMDGenericSection",
+        "atom": "CPMDDirectiveSection",
         "system": "CPMDSystemSection",
         "cpmd": "CPMDCpmdSection",
         "dft": "CPMDDftSection",
         "atoms": "CPMDAtomsSection",
+        "basis": "CPMDDirectiveSection",
+        "clas": "CPMDDirectiveSection",
+        "eam": "CPMDDirectiveSection",
+        "exte": "CPMDDirectiveSection",
+        "hardness": "CPMDDirectiveSection",
+        "info": "CPMDDirectiveSection",
+        "linres": "CPMDDirectiveSection",
+        "molstates": "CPMDDirectiveSection",
+        "mts": "CPMDDirectiveSection",
+        "nlcc": "CPMDDirectiveSection",
+        "path": "CPMDDirectiveSection",
+        "pimd": "CPMDDirectiveSection",
+        "potential": "CPMDDirectiveSection",
+        "prop": "CPMDDirectiveSection",
+        "ptddft": "CPMDDirectiveSection",
+        "resp": "CPMDDirectiveSection",
+        "tddft": "CPMDDirectiveSection",
+        "vdw": "CPMDDirectiveSection",
+        "vectors": "CPMDDirectiveSection",
+        "wavefunction": "CPMDDirectiveSection",
         "set": "CPMDSetDirective",
     }
     ids: list[str] = []
@@ -164,7 +185,7 @@ def main() -> int:
         if req not in inv_secs:
             errors.append(f"required inscan section absent from inventory: {req}")
 
-    typed_catalog_sections = {"ATOMS", "CPMD", "DFT", "SYSTEM"}
+    typed_catalog_sections = inv_secs
     for feature in inv["features"]:
         if feature.get("kind") != "cpmd_section":
             continue

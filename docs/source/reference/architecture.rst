@@ -47,12 +47,16 @@ method options.
 |                      | fields               |                            |
 +----------------------+----------------------+----------------------------+
 
-Upstream CPMD CLI still uses ``&SECTION`` files;
-``cpmdc_params_render_input_deck`` exists for **debugging and CLI
-parity**, not for the embed hot path. Structured ``CPMDInputSection``
-arms include ``cpmd``, ``system``, ``dft``, ``atoms``, ``generic``,
-``set``, and ``raw``; ``set`` accepts dotted ``SECTION.KEYWORD`` keys
-and merges the keyword into the named section.
+Upstream CPMD CLI still uses ``&SECTION`` files. ``cpmdc`` keeps Cap'n
+Proto as the public method contract, then renders decks internally for
+debugging, CLI parity, and the linked OpenCPMD path that still consumes
+section text. Structured ``CPMDInputSection`` arms include the core
+typed sections (``cpmd``, ``system``, ``dft``, ``atoms``) plus named
+directive sections for the OpenCPMD ``inscan('&SECTION')`` inventory,
+such as ``pimd``, ``vdw``, ``linres``, and ``tddft``. ``set`` accepts
+dotted ``SECTION.KEYWORD`` keys and merges the keyword into the named
+section; ``generic`` and ``raw`` remain for aliases and text-preserving
+fragments.
 
 Parameter flow
 ==============

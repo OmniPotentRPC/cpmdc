@@ -11,6 +11,29 @@ static void test_feature_table_nonempty(void **state) {
 
 static void test_inscan_sections(void **state) {
   (void)state;
+  static const char *const section_kinds[] = {
+      "section.generic", "section.atom",      "section.atoms",
+      "section.basis",   "section.clas",      "section.cpmd",
+      "section.dft",     "section.eam",       "section.exte",
+      "section.hardness", "section.info",     "section.linres",
+      "section.molstates", "section.mts",     "section.nlcc",
+      "section.path",    "section.pimd",      "section.potential",
+      "section.prop",    "section.ptddft",    "section.resp",
+      "section.system",  "section.tddft",     "section.vdw",
+      "section.vectors", "section.wavefunction", "section.set",
+      "section.raw",
+  };
+
+  for (size_t i = 0; i < sizeof(section_kinds) / sizeof(section_kinds[0]);
+       i++) {
+    const CPMDCFeatureEntry *entry = cpmdc_feature_find(section_kinds[i]);
+    assert_non_null(entry);
+    assert_string_equal(entry->feature_id, section_kinds[i]);
+    assert_int_equal(entry->kind, CPMDC_FEATURE_SECTION);
+    assert_int_equal(entry->stub_applicable, 1);
+    assert_int_equal(entry->embed_applicable, 1);
+  }
+
   assert_non_null(cpmdc_feature_find("catalog.section.EAM"));
   assert_non_null(cpmdc_feature_find("catalog.section.MOLSTATES"));
   assert_non_null(cpmdc_feature_find("catalog.section.NLCC"));
@@ -95,6 +118,7 @@ static void test_structured_param_features(void **state) {
   static const char *const param_features[] = {
       "params.inputSections.generic.name",
       "params.inputSections.generic.directives",
+      "params.inputSections.atom.directives",
       "params.inputSections.system.symmetry",
       "params.inputSections.system.angstrom",
       "params.inputSections.system.cell",
@@ -103,6 +127,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.charge",
       "params.inputSections.system.multiplicity",
       "params.inputSections.system.directives",
+      "params.inputSections.basis.directives",
       "params.inputSections.cpmd.optimizeWavefunction",
       "params.inputSections.cpmd.molecularDynamics",
       "params.inputSections.cpmd.convergenceOrbitals",
@@ -167,6 +192,25 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.dft.correlation",
       "params.inputSections.dft.exchange",
       "params.inputSections.dft.becke88",
+      "params.inputSections.clas.directives",
+      "params.inputSections.eam.directives",
+      "params.inputSections.exte.directives",
+      "params.inputSections.hardness.directives",
+      "params.inputSections.info.directives",
+      "params.inputSections.linres.directives",
+      "params.inputSections.molstates.directives",
+      "params.inputSections.mts.directives",
+      "params.inputSections.nlcc.directives",
+      "params.inputSections.path.directives",
+      "params.inputSections.pimd.directives",
+      "params.inputSections.potential.directives",
+      "params.inputSections.prop.directives",
+      "params.inputSections.ptddft.directives",
+      "params.inputSections.resp.directives",
+      "params.inputSections.tddft.directives",
+      "params.inputSections.vdw.directives",
+      "params.inputSections.vectors.directives",
+      "params.inputSections.wavefunction.directives",
       "params.inputSections.atoms.pseudopotentials",
       "params.inputSections.atoms.directives",
       "params.inputSections.set.key",

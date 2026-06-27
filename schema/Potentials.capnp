@@ -137,6 +137,10 @@ struct CPMDAtomsSection {
   directives       @1 :List(CPMDDirective);
 }
 
+struct CPMDDirectiveSection {
+  directives @0 :List(CPMDDirective); # Keyword/value lines inside a named section.
+}
+
 enum CPMDSectionKind {
   generic @0;
   system  @1;
@@ -145,6 +149,27 @@ enum CPMDSectionKind {
   atoms   @4;
   set     @5;
   raw     @6;
+  atom    @7;
+  basis   @8;
+  clas    @9;
+  eam     @10;
+  exte    @11;
+  hardness @12;
+  info    @13;
+  linres  @14;
+  molstates @15;
+  mts     @16;
+  nlcc    @17;
+  path    @18;
+  pimd    @19;
+  potential @20;
+  prop    @21;
+  ptddft  @22;
+  resp    @23;
+  tddft   @24;
+  vdw     @25;
+  vectors @26;
+  wavefunction @27;
 }
 
 struct CPMDInputSection {
@@ -156,6 +181,27 @@ struct CPMDInputSection {
     atoms   @4 :CPMDAtomsSection;
     set     @5 :CPMDSetDirective;
     raw     @6 :Text; # Full &SECTION ... &END block text.
+    atom    @7 :CPMDDirectiveSection;
+    basis   @8 :CPMDDirectiveSection;
+    clas    @9 :CPMDDirectiveSection;
+    eam     @10 :CPMDDirectiveSection;
+    exte    @11 :CPMDDirectiveSection;
+    hardness @12 :CPMDDirectiveSection;
+    info    @13 :CPMDDirectiveSection;
+    linres  @14 :CPMDDirectiveSection;
+    molstates @15 :CPMDDirectiveSection;
+    mts     @16 :CPMDDirectiveSection;
+    nlcc    @17 :CPMDDirectiveSection;
+    path    @18 :CPMDDirectiveSection;
+    pimd    @19 :CPMDDirectiveSection;
+    potential @20 :CPMDDirectiveSection;
+    prop    @21 :CPMDDirectiveSection;
+    ptddft  @22 :CPMDDirectiveSection;
+    resp    @23 :CPMDDirectiveSection;
+    tddft   @24 :CPMDDirectiveSection;
+    vdw     @25 :CPMDDirectiveSection;
+    vectors @26 :CPMDDirectiveSection;
+    wavefunction @27 :CPMDDirectiveSection;
   }
 }
 

@@ -1,0 +1,75 @@
+(
+  functional = "BLYP",
+  cutOffRy = 60.0,
+  inputSections = [
+    ( atom = ( directives = [
+        ( keyword = "ATOM SYMBOL", args = [ "H" ] )
+      ] ) ),
+    ( basis = ( directives = [
+        ( keyword = "BASIS SET", args = [ "DZVP" ] )
+      ] ) ),
+    ( clas = ( directives = [
+        ( keyword = "CLASSICAL FORCEFIELD", args = [ "demo.ff" ] )
+      ] ) ),
+    ( eam = ( directives = [
+        ( keyword = "EAM POTENTIAL", args = [ "Cu.eam" ] )
+      ] ) ),
+    ( exte = ( directives = [
+        ( keyword = "EXTERNAL FIELD", args = [ "0.0", "0.0", "1.0" ] )
+      ] ) ),
+    ( hardness = ( directives = [
+        ( keyword = "CHEMICAL HARDNESS", args = [ "1.25" ] )
+      ] ) ),
+    ( info = ( directives = [
+        ( keyword = "PRINT LEVEL", args = [ "LOW" ] )
+      ] ) ),
+    ( linres = ( directives = [
+        ( keyword = "DAVIDSON PARAMETER", args = [ "12" ] )
+      ] ) ),
+    ( molstates = ( directives = [
+        ( keyword = "STATE FILE", args = [ "states.dat" ] )
+      ] ) ),
+    ( mts = ( directives = [
+        ( keyword = "MTS FACTOR", args = [ "4" ] )
+      ] ) ),
+    ( nlcc = ( directives = [
+        ( keyword = "NLCC ON", args = [] )
+      ] ) ),
+    ( path = ( directives = [
+        ( keyword = "REACTION COORDINATE", args = [ "path.dat" ] )
+      ] ) ),
+    ( pimd = ( directives = [
+        ( keyword = "TROTTER FACTOR", args = [ "16" ] )
+      ] ) ),
+    ( potential = ( directives = [
+        ( keyword = "POTENTIAL FILE", args = [ "bias.dat" ] )
+      ] ) ),
+    ( prop = ( directives = [
+        ( keyword = "DIPOLE MOMENT", args = [] )
+      ] ) ),
+    ( ptddft = ( directives = [
+        ( keyword = "PROP_TSTEP", args = [ "0.25" ] )
+      ] ) ),
+    ( resp = ( directives = [
+        ( keyword = "RESP CHARGES", args = [ "ON" ] )
+      ] ) ),
+    ( tddft = ( directives = [
+        ( keyword = "LR-TDDFT", args = [ "SINGLET" ] )
+      ] ) ),
+    ( vdw = ( directives = [
+        ( keyword = "VDW PARAMETERS", args = [ "GRIMME" ] )
+      ] ) ),
+    ( vectors = ( directives = [
+        ( keyword = "VECTOR FILE", args = [ "wf.vec" ] )
+      ] ) ),
+    ( wavefunction = ( directives = [
+        ( keyword = "WAVEFUNCTION FILE", args = [ "RESTART.1" ] )
+      ] ) ),
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-6 ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 60.0 ) ),
+    ( dft = ( functional = "BLYP" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)

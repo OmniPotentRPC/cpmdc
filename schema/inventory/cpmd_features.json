@@ -34,43 +34,197 @@
       "kind": "generic",
       "feature_id": "section.generic",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
     },
     {
-      "kind": "system",
-      "feature_id": "section.system",
+      "kind": "atom",
+      "feature_id": "section.atom",
       "stub_applicable": true,
-      "embed_applicable": true
-    },
-    {
-      "kind": "cpmd",
-      "feature_id": "section.cpmd",
-      "stub_applicable": true,
-      "embed_applicable": true
-    },
-    {
-      "kind": "dft",
-      "feature_id": "section.dft",
-      "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
     },
     {
       "kind": "atoms",
       "feature_id": "section.atoms",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "basis",
+      "feature_id": "section.basis",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "clas",
+      "feature_id": "section.clas",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "cpmd",
+      "feature_id": "section.cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "dft",
+      "feature_id": "section.dft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "eam",
+      "feature_id": "section.eam",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "exte",
+      "feature_id": "section.exte",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "hardness",
+      "feature_id": "section.hardness",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "info",
+      "feature_id": "section.info",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "linres",
+      "feature_id": "section.linres",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "molstates",
+      "feature_id": "section.molstates",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "mts",
+      "feature_id": "section.mts",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "nlcc",
+      "feature_id": "section.nlcc",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "path",
+      "feature_id": "section.path",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "pimd",
+      "feature_id": "section.pimd",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "potential",
+      "feature_id": "section.potential",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "prop",
+      "feature_id": "section.prop",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "ptddft",
+      "feature_id": "section.ptddft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "resp",
+      "feature_id": "section.resp",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "system",
+      "feature_id": "section.system",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "tddft",
+      "feature_id": "section.tddft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "vdw",
+      "feature_id": "section.vdw",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "vectors",
+      "feature_id": "section.vectors",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "kind": "wavefunction",
+      "feature_id": "section.wavefunction",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
     },
     {
       "kind": "set",
       "feature_id": "section.set",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
     },
     {
       "kind": "raw",
       "feature_id": "section.raw",
       "stub_applicable": true,
-      "embed_applicable": true
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
     }
   ],
   "params_fields": [
@@ -280,9 +434,33 @@
       "role": "CPMDInputSection union arm"
     },
     {
-      "feature_id": "section.system",
+      "feature_id": "section.atom",
       "kind": "section_kind",
-      "name": "system",
+      "name": "atom",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.atoms",
+      "kind": "section_kind",
+      "name": "atoms",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.basis",
+      "kind": "section_kind",
+      "name": "basis",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.clas",
+      "kind": "section_kind",
+      "name": "clas",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "CPMDInputSection union arm"
@@ -304,9 +482,153 @@
       "role": "CPMDInputSection union arm"
     },
     {
-      "feature_id": "section.atoms",
+      "feature_id": "section.eam",
       "kind": "section_kind",
-      "name": "atoms",
+      "name": "eam",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.exte",
+      "kind": "section_kind",
+      "name": "exte",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.hardness",
+      "kind": "section_kind",
+      "name": "hardness",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.info",
+      "kind": "section_kind",
+      "name": "info",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.linres",
+      "kind": "section_kind",
+      "name": "linres",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.molstates",
+      "kind": "section_kind",
+      "name": "molstates",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.mts",
+      "kind": "section_kind",
+      "name": "mts",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.nlcc",
+      "kind": "section_kind",
+      "name": "nlcc",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.path",
+      "kind": "section_kind",
+      "name": "path",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.pimd",
+      "kind": "section_kind",
+      "name": "pimd",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.potential",
+      "kind": "section_kind",
+      "name": "potential",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.prop",
+      "kind": "section_kind",
+      "name": "prop",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.ptddft",
+      "kind": "section_kind",
+      "name": "ptddft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.resp",
+      "kind": "section_kind",
+      "name": "resp",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.system",
+      "kind": "section_kind",
+      "name": "system",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.tddft",
+      "kind": "section_kind",
+      "name": "tddft",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.vdw",
+      "kind": "section_kind",
+      "name": "vdw",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.vectors",
+      "kind": "section_kind",
+      "name": "vectors",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "CPMDInputSection union arm"
+    },
+    {
+      "feature_id": "section.wavefunction",
+      "kind": "section_kind",
+      "name": "wavefunction",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "CPMDInputSection union arm"
@@ -334,7 +656,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&ATOM')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -354,7 +676,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&BASIS')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -364,7 +686,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&CLAS')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -394,7 +716,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&EAM')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -404,7 +726,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&EXTE')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -414,7 +736,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&HARDNESS')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -424,7 +746,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&INFO')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -434,7 +756,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&LINRES')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -444,7 +766,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&MOLSTATES')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -454,7 +776,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&MTS')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -464,7 +786,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&NLCC')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -474,7 +796,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PATH')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -484,7 +806,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PIMD')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -494,7 +816,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&POTENTIAL')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -504,7 +826,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PROP')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -514,7 +836,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PTDDFT')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -524,7 +846,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&RESP')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -544,7 +866,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&TDDFT')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -554,7 +876,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&VDW')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -564,7 +886,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&VECTORS')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -574,7 +896,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&WAVEFUNCTION')",
-      "render_via": "set_or_generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -2081,6 +2403,174 @@
       "kind": "structured_params_field",
       "name": "value",
       "section": "set",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.atom.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "atom",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.basis.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "basis",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.clas.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "clas",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.eam.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "eam",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.exte.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "exte",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.hardness.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "hardness",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.info.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "info",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.linres.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "linres",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.molstates.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "molstates",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.mts.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "mts",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.nlcc.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "nlcc",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.path.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "path",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.pimd.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "pimd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.potential.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "potential",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.prop.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "prop",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.ptddft.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "ptddft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.resp.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "resp",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.tddft.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "tddft",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.vdw.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "vdw",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.vectors.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "vectors",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.wavefunction.directives",
+      "kind": "structured_params_field",
+      "name": "directives",
+      "section": "wavefunction",
       "stub_applicable": true,
       "embed_applicable": true
     },
