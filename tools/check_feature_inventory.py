@@ -11,6 +11,7 @@ HEADER = ROOT / "include" / "cpmdc.h"
 FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
+CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
 
 def probe_inscan_sections(cpmd_root: Path) -> set[str]:
     secs: set[str] = set()
@@ -51,6 +52,7 @@ def main() -> int:
     header = HEADER.read_text(encoding="utf-8")
     features_c = FEATURES_C.read_text(encoding="utf-8")
     features_h = FEATURES_H.read_text(encoding="utf-8")
+    cpmd_options_doc = CPMD_OPTIONS_DOC.read_text(encoding="utf-8")
     errors: list[str] = []
 
     kinds = set(re.findall(r"(\w+)\s+@\d+;", re.search(r"enum CPMDSectionKind \{(.*?)\}", schema, re.S).group(1)))
@@ -97,6 +99,8 @@ def main() -> int:
             errors.append(f"missing catalog section {fid}")
         if f'"{fid}"' not in features_c:
             errors.append(f"C table missing {fid}")
+        if fid not in cpmd_options_doc:
+            errors.append(f"cpmd-options docs missing {fid}")
 
     c_flags = {
         fid: (bool(int(stub)), bool(int(embed)))

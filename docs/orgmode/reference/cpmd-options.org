@@ -63,6 +63,40 @@ following indented line.
 Prefer new structured fields in the schema over inventing a second config file
 format.
 
+* Catalog section exposure
+The public feature table advertises every OpenCPMD ~inscan('&SECTION')~ name as
+a ~catalog.section.<NAME>~ feature ID. Typed sections have dedicated schema
+arms; every section can still be rendered through ~set~, ~generic~, ~raw~, or
+~inputBlocks~ when a dedicated field is unnecessary.
+
+| Feature ID | Deck section | ABI carrier |
+|------------+--------------+-------------|
+| ~catalog.section.ATOM~ | ~&ATOM~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.ATOMS~ | ~&ATOMS~ | typed ~atoms~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.BASIS~ | ~&BASIS~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.CLAS~ | ~&CLAS~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.CPMD~ | ~&CPMD~ | typed ~cpmd~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.DFT~ | ~&DFT~ | typed ~dft~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.EAM~ | ~&EAM~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.EXTE~ | ~&EXTE~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.HARDNESS~ | ~&HARDNESS~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.INFO~ | ~&INFO~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.LINRES~ | ~&LINRES~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.MOLSTATES~ | ~&MOLSTATES~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.MTS~ | ~&MTS~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.NLCC~ | ~&NLCC~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.PATH~ | ~&PATH~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.PIMD~ | ~&PIMD~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.POTENTIAL~ | ~&POTENTIAL~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.PROP~ | ~&PROP~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.PTDDFT~ | ~&PTDDFT~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.RESP~ | ~&RESP~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.SYSTEM~ | ~&SYSTEM~ | typed ~system~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.TDDFT~ | ~&TDDFT~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.VDW~ | ~&VDW~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.VECTORS~ | ~&VECTORS~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+| ~catalog.section.WAVEFUNCTION~ | ~&WAVEFUNCTION~ | ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
+
 * Choosing an input carrier
 Use the most structured carrier that represents the deck intent:
 
