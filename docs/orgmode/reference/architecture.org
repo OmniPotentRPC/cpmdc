@@ -22,7 +22,7 @@
 Embed does **not** write ~INPUT~ decks or ~CALL control~ to parse method options.
 
 | Concern | Carrier | Where it is applied |
-| --- | --- | --- |
+|---------+---------+---------------------|
 | Method (XC, cutoff, charge, …) | Cap'n Proto ~CPMDParams~ | C decode → ~cpmdc_embed_set_config~ → ~control_def~ + typed module writes (~cntr%ecut~, ~func1~, spin, …) |
 | Geometry / cell / species Z | Cap'n Proto ~ForceInput~ (or C arrays) | ~tau0~ / ~parm%a1..a3~ / in-memory species table |
 | PP data files | Paths inside structured ~atoms~ fields | PP readers only (data files), not method config |

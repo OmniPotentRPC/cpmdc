@@ -10,7 +10,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 * Top-level ~CPMDParams~ fields
 
 | Field | Role |
-| --- | --- |
+|-------+------|
 | ~functional~ | Default DFT functional (also used when no ~dft~ section is present) |
 | ~cutOffRy~ | Plane-wave cutoff in Rydberg |
 | ~charge~ / ~multiplicity~ | System charge and 2S+1 (multiplicity ~> 1~ implies LSD defaults) |
@@ -26,7 +26,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 * ~CPMDInputSection~ kinds
 
 | Kind | Cap'n Proto type | Deck effect |
-| --- | --- | --- |
+|------+------------------+-------------|
 | ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (optimize wavefunction, MD, convergence, timestep, …) |
 | ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, charge, …) |
 | ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, extra directives) |
