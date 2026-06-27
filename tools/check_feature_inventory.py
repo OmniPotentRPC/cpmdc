@@ -12,6 +12,7 @@ FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
 CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
+README = ROOT / "README.md"
 
 def probe_inscan_sections(cpmd_root: Path) -> set[str]:
     secs: set[str] = set()
@@ -53,6 +54,7 @@ def main() -> int:
     features_c = FEATURES_C.read_text(encoding="utf-8")
     features_h = FEATURES_H.read_text(encoding="utf-8")
     cpmd_options_doc = CPMD_OPTIONS_DOC.read_text(encoding="utf-8")
+    readme = README.read_text(encoding="utf-8")
     errors: list[str] = []
 
     kinds = set(re.findall(r"(\w+)\s+@\d+;", re.search(r"enum CPMDSectionKind \{(.*?)\}", schema, re.S).group(1)))
@@ -182,6 +184,8 @@ def main() -> int:
             errors.append(f"header missing {sym}")
         if f'"abi.{sym}"' not in features_c:
             errors.append(f"C table missing abi.{sym}")
+        if sym not in readme:
+            errors.append(f"README missing ABI symbol {sym}")
 
     if "inputBlocks" not in schema or "raw" not in schema:
         errors.append("schema missing escape hatches")

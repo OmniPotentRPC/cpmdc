@@ -34,6 +34,22 @@ structured section fields use `params.inputSections.<section>.<field>`, for
 example `params.inputSections.cpmd.maxIter` and
 `params.inputSections.dft.hfxScreening`.
 
+## Public ABI Surface
+
+The exported C surface is intentionally small. Use the Cap'n Proto entry points
+for new callers; the coordinate-array calls are compatibility shims around the
+same session state and native CPMD units.
+
+| Group | Symbols |
+| --- | --- |
+| Library status | `cpmdc_version`, `cpmdc_available`, `cpmdc_finalize` |
+| Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
+| Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
+| Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |
+| Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
+| Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
+| One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_potential_result_size_for_force_input` |
+
 ## Data Flow
 
 There are two wire messages in normal use:
