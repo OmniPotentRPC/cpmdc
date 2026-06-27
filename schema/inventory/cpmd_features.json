@@ -334,7 +334,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&ATOM')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -344,7 +344,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&ATOMS')",
-      "render_via": "generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -354,7 +354,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&BASIS')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -364,7 +364,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&CLAS')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -374,7 +374,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&CPMD')",
-      "render_via": "generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -384,7 +384,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&DFT')",
-      "render_via": "generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -394,7 +394,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&EAM')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -404,7 +404,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&EXTE')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -414,7 +414,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&HARDNESS')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -424,7 +424,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&INFO')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -434,7 +434,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&LINRES')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -444,7 +444,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&MOLSTATES')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -454,7 +454,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&MTS')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -464,7 +464,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&NLCC')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -474,7 +474,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PATH')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -484,7 +484,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PIMD')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -494,7 +494,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&POTENTIAL')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -504,7 +504,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PROP')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -514,7 +514,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&PTDDFT')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -524,7 +524,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&RESP')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -534,7 +534,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&SYSTEM')",
-      "render_via": "generic_or_raw",
+      "render_via": "typed_or_set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -544,7 +544,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&TDDFT')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -554,7 +554,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&VDW')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -564,7 +564,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&VECTORS')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {
@@ -574,7 +574,7 @@
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "OpenCPMD inscan('&WAVEFUNCTION')",
-      "render_via": "generic_or_raw",
+      "render_via": "set_or_generic_or_raw",
       "source": "inscan"
     },
     {

@@ -30,7 +30,7 @@ Upstream CPMD CLI still uses ~&SECTION~ files; ~cpmdc_params_render_input_deck~
 exists for **debugging and CLI parity**, not for the embed hot path.
 Structured ~CPMDInputSection~ arms include ~cpmd~, ~system~, ~dft~, ~atoms~,
 ~generic~, ~set~, and ~raw~; ~set~ accepts dotted ~SECTION.KEYWORD~ keys and
-emits the keyword inside the named section.
+merges the keyword into the named section.
 
 * Parameter flow
 1. Host builds ~CPMDParams~ (pycapnp, rgpot, readcon-core → geometry step as
