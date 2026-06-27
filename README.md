@@ -26,6 +26,26 @@ CPMD `INPUT` deck internally.
 | Fortran bridge | `src/cpmd_embed_c_api.F90` | `iso_c_binding` shell around the embedded CPMD evaluator |
 | Tests and fixtures | `tests/` | cmocka tests plus encoded Cap'n Proto fixtures |
 
+## Data Flow
+
+There are two wire messages in normal use:
+
+| Message | Lifetime | Contents |
+| --- | --- | --- |
+| `CPMDParams` | session setup | method, CPMD sections, pseudopotentials, engine hints |
+| `ForceInput` | one calculation step | positions, atomic numbers, optional cell, requested output units |
+
+The host builds `CPMDParams` once, serializes it as an unpacked flat Cap'n Proto
+message, and creates a `CPMDCSession`. Each geometry step is a separate
+`ForceInput`; `cpmdc_session_calculate_result()` returns a flat
+`PotentialResult` that uses the requested `ForceInput.energyUnit` and
+`ForceInput.lengthUnit`.
+
+Use typed `inputSections` when a field exists. Use `set` for one extra keyword
+that should merge into a typed section, `generic` for a complete unsupported
+section expressed as keyword/argument pairs, and `raw` only when preserving
+existing deck text is more important than structure.
+
 ## Quick Build
 
 The default build does not need an OpenCPMD checkout. It builds the ABI,

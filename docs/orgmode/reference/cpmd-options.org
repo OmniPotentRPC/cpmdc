@@ -57,6 +57,52 @@ following indented line.
 Prefer new structured fields in the schema over inventing a second config file
 format.
 
+* Choosing an input carrier
+Use the most structured carrier that represents the deck intent:
+
+| Requirement | Carrier | Reason |
+|-------------+---------+--------|
+| Supported ~&CPMD~, ~&DFT~, ~&SYSTEM~, or ~&ATOMS~ keyword | typed section field | Schema readers, tests, and feature discovery can name the field directly |
+| One extra keyword inside a generated section | ~set~ | The renderer merges it into the matching section without duplicating defaults |
+| Unsupported section with ordinary keyword/argument lines | ~generic~ | The section remains structured and discoverable |
+| Existing deck text that must survive byte-for-byte apart from surrounding output | ~raw~ or ~inputBlocks~ | The renderer does not reinterpret the fragment |
+
+For example, a compact typed setup with one extra ~&SYSTEM~ keyword looks like:
+
+#+begin_src capnp
+(
+  functional = "PBE0",
+  cutOffRy = 85.0,
+  multiplicity = 2,
+  task = "gradient",
+  inputSections = [
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cutOffRy = 85.0,
+        cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+      ) ),
+    ( cpmd = (
+        optimizeWavefunction = true,
+        convergenceOrbitals = 1.0e-6,
+        maxStep = 50,
+        electronMass = 450.0
+      ) ),
+    ( dft = (
+        functional = "PBE0",
+        lsd = true,
+        hfx = true,
+        hfxScreening = "0.2"
+      ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) ),
+    ( set = ( key = "SYSTEM.POISSON SOLVER", value = "HOCKNEY" ) )
+  ]
+)
+#+end_src
+
 * Typed ~&CPMD~ controls
 ~CPMDCpmdSection~ exposes the common driver controls directly:
 

@@ -25,6 +25,31 @@ or another Cap'n Proto binding that writes the standard flat stream
 format. Use the scalar calls when the caller already owns arrays in
 Angstrom and wants Hartree or Hartree/Bohr output directly.
 
+Message Flow
+============
+
+There are two wire messages in a normal embedded driver:
+
++----------------+----------------------+-------------------------+
+| Message        | Lifetime             | Contents                |
++================+======================+=========================+
+| ``CPMDParams`` | Session setup        | method, structured CPMD |
+|                |                      | sections,               |
+|                |                      | pseudopotentials,       |
+|                |                      | engine hints            |
++----------------+----------------------+-------------------------+
+| ``ForceInput`` | One calculation step | positions, atomic       |
+|                |                      | numbers, optional cell, |
+|                |                      | requested output units  |
++----------------+----------------------+-------------------------+
+
+A host should build ``CPMDParams`` once, serialize it as an unpacked
+flat Cap'n Proto message, and create a ``CPMDCSession``. Each geometry
+step is a separate ``ForceInput`` message passed to
+``cpmdc_session_calculate_result()`` or the lower-level force calls. The
+``PotentialResult`` path converts output to ``ForceInput.energyUnit``
+and ``ForceInput.energyUnit / ForceInput.lengthUnit``.
+
 Feature Discovery
 =================
 
@@ -46,8 +71,8 @@ a stub build is sufficient for a workflow.
    }
 
 Feature IDs use namespaces such as ``catalog.section.*``,
-``catalog.cpmd.*``, ``catalog.dft.*``, ``params.*``, and ``abi.*``.
-Each entry reports whether it applies to stub builds, embedded OpenCPMD
+``catalog.cpmd.*``, ``catalog.dft.*``, ``params.*``, and ``abi.*``. Each
+entry reports whether it applies to stub builds, embedded OpenCPMD
 builds, or both.
 
 Session Step Calls (direct-call socket)
@@ -112,10 +137,32 @@ typed arm exists:
 -  ``atoms`` for pseudopotential grouping and fixed non-coordinate
    ``&ATOMS`` directives
 
-Use ``generic``, ``set``, or ``raw`` for CPMD sections that do not have a
-typed arm. Typed ``atoms`` sections must cover every element present in
-the step geometry. Without an explicit ``atoms`` section, built-in BLYP
-defaults cover H and O only.
+Use ``generic``, ``set``, or ``raw`` for CPMD sections that do not have
+a typed arm. Typed ``atoms`` sections must cover every element present
+in the step geometry. Without an explicit ``atoms`` section, built-in
+BLYP defaults cover H and O only.
+
+Choose the least lossy structured carrier:
+
++----------------------------------+----------------------------------+
+| Need                             | Carrier                          |
++==================================+==================================+
+| A field exists in                | typed section arm                |
+| ``CPMDCpmdSection``,             |                                  |
+| ``CPMDDftSection``,              |                                  |
+| ``CPMDSystemSection``, or        |                                  |
+| ``CPMDAtomsSection``             |                                  |
++----------------------------------+----------------------------------+
+| One unsupported keyword belongs  | ``set`` with ``SECTION.KEYWORD`` |
+| inside a typed section           |                                  |
++----------------------------------+----------------------------------+
+| A whole unsupported section can  | ``generic``                      |
+| be expressed as keywords and     |                                  |
+| argument lists                   |                                  |
++----------------------------------+----------------------------------+
+| A complete deck fragment must be | ``raw`` or top-level             |
+| preserved as text                | ``inputBlocks``                  |
++----------------------------------+----------------------------------+
 
 Units
 =====
