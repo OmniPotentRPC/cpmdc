@@ -97,13 +97,19 @@ meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/OpenCPMD/CPMD
 meson compile -C build-cpmd
 ```
 
+`cpmd_root` must point at a completed OpenCPMD build tree containing
+`lib/libcpmd.a` and the executable companion object `obj/timetag.o`. Runtime
+decks that reference library-style pseudopotential names such as
+`O_MT_BLYP.psp` need those files in the work directory or in
+`CPMDC_PSEUDO_DIR`.
+
 ## Embed model
 
 Method and geometry enter through **Cap'n Proto** (`CPMDParams`, `ForceInput`),
-optionally produced from **readcon-core** / host tools — not through CPMD's
-`INPUT` / `control` parser. The Fortran ISO_C layer sets OpenCPMD module state
-(`control_def` defaults + typed overrides) and `CALL`s library routines linked
-from `libcpmd.a`. Deck rendering is for debug/CLI parity only.
+optionally produced from **readcon-core** / host tools. The C layer renders a
+CPMD `INPUT` deck internally from those typed carriers, the Fortran ISO_C layer
+sets embed-owned OpenCPMD state, and then it `CALL`s library routines linked
+from `libcpmd.a`.
 
 ## Layout
 

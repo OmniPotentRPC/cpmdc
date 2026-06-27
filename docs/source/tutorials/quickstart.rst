@@ -61,6 +61,11 @@ rgpot. Passing a tree path links that same C ABI surface against
      -Dwith_tests=true
    meson compile -C build-cpmd
 
+The OpenCPMD tree must contain ``lib/libcpmd.a`` and ``obj/timetag.o`` from a
+completed executable build. If the params use pseudopotential library tokens
+such as ``O_MT_BLYP.psp``, set ``CPMDC_PSEUDO_DIR`` to the directory containing
+those files before running the real backend tests or embedding the library.
+
 Cap'n Proto Fixtures
 ====================
 
