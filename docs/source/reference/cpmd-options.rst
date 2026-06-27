@@ -63,7 +63,10 @@ Top-level ``CPMDParams`` fields
 |             |                        | charge, …)               |
 +-------------+------------------------+--------------------------+
 | ``dft``     | ``CPMDDftSection``     | ``&DFT`` (functional,    |
-|             |                        | LSD, extra directives)   |
+|             |                        | LSD, GC cutoff, XC       |
+|             |                        | driver, hybrid/Hubbard   |
+|             |                        | scalars, extra           |
+|             |                        | directives)              |
 +-------------+------------------------+--------------------------+
 | ``atoms``   | ``CPMDAtomsSection``   | ``&ATOMS``               |
 |             |                        | (pseudopotential lines;  |
@@ -125,6 +128,30 @@ Field                     Deck keyword
 ``restartWavefunction``   ``RESTART WAVEFUNCTION``
 ``trajectory``            ``TRAJECTORY``
 ========================= ============================
+
+Typed ``&DFT`` Controls
+=======================
+
+``CPMDDftSection`` exposes common DFT scalars directly:
+
+================= ==================
+Field             Deck keyword
+================= ==================
+``functional``    ``FUNCTIONAL``
+``lsd``           ``LSD``
+``gcCutoff``      ``GC-CUTOFF``
+``xcDriver``      ``XC_DRIVER``
+``libxc``         ``LIBXC``
+``lrKernel``      ``LR KERNEL``
+``refunct``       ``REFUNCT``
+``mtsHighFunc``   ``MTS_HIGH_FUNC``
+``mtsLowFunc``    ``MTS_LOW_FUNC``
+``hfx``           ``HFX``
+``hfxScreening``  ``HFX-SCREENING``
+``hubbard``       ``HUBBARD``
+``alpha``         ``ALPHA``
+``beta``          ``BETA``
+================= ==================
 
 ``PotentialConfig``
 ===================

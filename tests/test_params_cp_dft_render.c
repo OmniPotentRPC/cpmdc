@@ -44,8 +44,10 @@ static int check_deck(const char *bin, const char **need, int nneed) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 4) {
-    fprintf(stderr, "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin\n", argv[0]);
+  if (argc < 5) {
+    fprintf(stderr,
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin\n",
+            argv[0]);
     return 2;
   }
   /* inventory must resolve CP and DFT catalog ids */
@@ -72,6 +74,13 @@ int main(int argc, char **argv) {
       "TIMESTEP", "3", "EMASS", "450", "&SYSTEM", "CUTOFF", "80", "&DFT",
       "FUNCTIONAL PBE",
   };
+  const char *dft_scalars_need[] = {
+      "&DFT", "FUNCTIONAL PBE0", "LSD", "GC-CUTOFF", "1e-08",
+      "XC_DRIVER", "LIBXC", "GGA_X_PBE GGA_C_PBE", "LR KERNEL", "REFUNCT",
+      "MTS_HIGH_FUNC", "PBE0", "MTS_LOW_FUNC", "PBE", "HFX",
+      "HFX-SCREENING", "0.2", "HUBBARD", "U 1 4.0", "ALPHA", "0.25",
+      "BETA", "0.75",
+  };
   if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;
   if (check_deck(argv[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
@@ -79,6 +88,10 @@ int main(int argc, char **argv) {
   if (check_deck(argv[3], geometry_need,
                  (int)(sizeof(geometry_need) / sizeof(geometry_need[0]))) != 0)
     return 1;
-  printf("OK cp_md, dft_multi, and cpmd_geometry render + inventory finds\n");
+  if (check_deck(argv[4], dft_scalars_need,
+                 (int)(sizeof(dft_scalars_need) /
+                       sizeof(dft_scalars_need[0]))) != 0)
+    return 1;
+  printf("OK cp_md, dft_multi, cpmd_geometry, and dft_scalars render + inventory finds\n");
   return 0;
 }

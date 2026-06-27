@@ -29,7 +29,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 |------+------------------+-------------|
 | ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (wavefunction/geometry optimization, MD, convergence, iteration limits, timestep, electron mass, …) |
 | ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, charge, …) |
-| ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, extra directives) |
+| ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, GC cutoff, XC driver, hybrid/Hubbard scalars, extra directives) |
 | ~atoms~ | ~CPMDAtomsSection~ | ~&ATOMS~ (pseudopotential lines; coordinates come from ~ForceInput~) |
 | ~generic~ | ~CPMDGenericSection~ | Arbitrary ~&NAME~ … ~&END~ |
 | ~set~ | ~CPMDSetDirective~ | Embed-path logical ~SECTION.KEYWORD~ merged into the section |
@@ -73,6 +73,26 @@ format.
 | ~electronMass~ | ~EMASS~ |
 | ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
 | ~trajectory~ | ~TRAJECTORY~ |
+
+* Typed ~&DFT~ controls
+~CPMDDftSection~ exposes common DFT scalars directly:
+
+| Field | Deck keyword |
+|-------+--------------|
+| ~functional~ | ~FUNCTIONAL~ |
+| ~lsd~ | ~LSD~ |
+| ~gcCutoff~ | ~GC-CUTOFF~ |
+| ~xcDriver~ | ~XC_DRIVER~ |
+| ~libxc~ | ~LIBXC~ |
+| ~lrKernel~ | ~LR KERNEL~ |
+| ~refunct~ | ~REFUNCT~ |
+| ~mtsHighFunc~ | ~MTS_HIGH_FUNC~ |
+| ~mtsLowFunc~ | ~MTS_LOW_FUNC~ |
+| ~hfx~ | ~HFX~ |
+| ~hfxScreening~ | ~HFX-SCREENING~ |
+| ~hubbard~ | ~HUBBARD~ |
+| ~alpha~ | ~ALPHA~ |
+| ~beta~ | ~BETA~ |
 
 * ~PotentialConfig~
 For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union

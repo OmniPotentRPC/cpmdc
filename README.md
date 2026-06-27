@@ -111,7 +111,9 @@ Long-tail CPMD input is represented with `inputSections`:
 - `cpmd` for `&CPMD` controls such as `OPTIMIZE WAVEFUNCTION`, `MAXSTEP`,
   `OPTIMIZE GEOMETRY`, `MAXITER`, `CONVERGENCE GEOMETRY`, `EMASS`,
   `RESTART WAVEFUNCTION`, `TRAJECTORY`
-- `dft` for `&DFT` controls such as `FUNCTIONAL` and `LSD`
+- `dft` for `&DFT` controls such as `FUNCTIONAL`, `LSD`, `GC-CUTOFF`,
+  `XC_DRIVER`, `LIBXC`, `LR KERNEL`, `HFX`, `HFX-SCREENING`, `HUBBARD`,
+  `ALPHA`, and `BETA`
 - `atoms` for pseudopotential entries and non-coordinate `&ATOMS` directives
 - `generic`, `set`, and `raw` for CPMD sections that do not need a typed arm
 

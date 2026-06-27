@@ -564,6 +564,87 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " LSD\n") != 0)
       return -1;
   }
+  if (dft->gcCutoff > 0.0) {
+    if (append_fmt(dst, dst_size, used, " GC-CUTOFF\n  %.10g\n",
+                   dft->gcCutoff) != 0)
+      return -1;
+  }
+  if (dft->xcDriver.str && dft->xcDriver.len > 0) {
+    if (append_text(dst, dst_size, used, " XC_DRIVER\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->xcDriver) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->libxc.str && dft->libxc.len > 0) {
+    if (append_text(dst, dst_size, used, " LIBXC\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->libxc) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->lrKernel.str && dft->lrKernel.len > 0) {
+    if (append_text(dst, dst_size, used, " LR KERNEL\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->lrKernel) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->refunct.str && dft->refunct.len > 0) {
+    if (append_text(dst, dst_size, used, " REFUNCT\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->refunct) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->mtsHighFunc.str && dft->mtsHighFunc.len > 0) {
+    if (append_text(dst, dst_size, used, " MTS_HIGH_FUNC\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->mtsHighFunc) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->mtsLowFunc.str && dft->mtsLowFunc.len > 0) {
+    if (append_text(dst, dst_size, used, " MTS_LOW_FUNC\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->mtsLowFunc) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->hfx) {
+    if (append_text(dst, dst_size, used, " HFX\n") != 0)
+      return -1;
+  }
+  if (dft->hfxScreening.str && dft->hfxScreening.len > 0) {
+    if (append_text(dst, dst_size, used, " HFX-SCREENING\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->hfxScreening) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->hubbard.str && dft->hubbard.len > 0) {
+    if (append_text(dst, dst_size, used, " HUBBARD\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->hubbard) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (dft->alpha > 0.0) {
+    if (append_fmt(dst, dst_size, used, " ALPHA\n  %.10g\n", dft->alpha) != 0)
+      return -1;
+  }
+  if (dft->beta > 0.0) {
+    if (append_fmt(dst, dst_size, used, " BETA\n  %.10g\n", dft->beta) != 0)
+      return -1;
+  }
   if (append_directives(dst, dst_size, used, dft->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, "DFT") != 0)

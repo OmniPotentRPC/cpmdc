@@ -70,9 +70,21 @@ struct CPMDCpmdSection {
 }
 
 struct CPMDDftSection {
-  functional @0 :Text = "BLYP";           # FUNCTIONAL name (LDA, BLYP, PBE, ...).
-  lsd        @1 :Bool = false;            # LSD (spin polarized).
-  directives @2 :List(CPMDDirective);
+  functional    @0 :Text = "BLYP";        # FUNCTIONAL name (LDA, BLYP, PBE, ...).
+  lsd           @1 :Bool = false;         # LSD (spin polarized).
+  directives    @2 :List(CPMDDirective);
+  gcCutoff      @3 :Float64 = 0.0;        # GC-CUTOFF; 0 => omit.
+  xcDriver      @4 :Text;                 # XC_DRIVER.
+  libxc         @5 :Text;                 # LIBXC.
+  lrKernel      @6 :Text;                 # LR KERNEL.
+  refunct       @7 :Text;                 # REFUNCT.
+  mtsHighFunc   @8 :Text;                 # MTS_HIGH_FUNC.
+  mtsLowFunc    @9 :Text;                 # MTS_LOW_FUNC.
+  hfx           @10 :Bool = false;        # HFX.
+  hfxScreening  @11 :Text;                # HFX-SCREENING.
+  hubbard       @12 :Text;                # HUBBARD.
+  alpha         @13 :Float64 = 0.0;       # ALPHA; 0 => omit.
+  beta          @14 :Float64 = 0.0;       # BETA; 0 => omit.
 }
 
 struct CPMDAtomsPseudopotential {
