@@ -1,66 +1,88 @@
 Layers
 ======
 
-``cpmdc`` is deliberately small and mirrors ``nwchemc``:
+``cpmdc`` mirrors ``nwchemc``: Cap'n Proto on the wire, stable C ABI,
+Fortran ``iso_c_binding`` embed that talks to the engine **as a
+library**.
 
--  ``include/cpmdc.h`` exposes the stable C ABI (``CPMDCResult``,
-   ``CPMDCSession``, socket entry points, and feature discovery through
-   ``cpmdc_feature_count()``, ``cpmdc_feature_table()``, and
-   ``cpmdc_feature_find()``).
--  ``schema/Potentials.capnp`` defines ``CPMDParams``, per-step
-   ``ForceInput``, ``PotentialResult``, structured CPMD input sections,
-   and ``PotentialConfig`` (``cpmd @2`` arm).
--  ``subprojects/c-capnproto`` provides the ``capnp-c`` runtime and
-   compiler plugin.
--  ``src/cpmdc_params.c`` opens serialized Cap'n Proto messages, returns
-   generated ``CPMDParams_ptr`` / ``ForceInput_ptr`` roots, renders
-   ``&SECTION`` decks, and writes ``PotentialResult`` flat messages.
--  ``src/cpmdc.c`` owns sessions, topology checks, unit conversion for
-   results, and calls into the Fortran embed shell.
--  ``src/cpmd_embed_c_api.f90`` owns the ``iso_c_binding`` /
-   ``iso_fortran_env`` layer, saved method configuration, a deterministic
-   reference PEF, and OpenCPMD archive calls when enabled.
--  ``src/cpmdc_stub.c`` implements the same ABI symbols with
-   ``cpmdc_available() == 0`` for frontend builds that do not link the
-   embed shell.
+-  ``include/cpmdc.h`` — language-neutral C ABI (``CPMDCResult``,
+   ``CPMDCSession``, socket entry points, feature discovery via
+   ``cpmdc_feature_count`` / ``cpmdc_feature_table`` /
+   ``cpmdc_feature_find``).
+-  ``schema/Potentials.capnp`` — ``CPMDParams``, ``ForceInput``,
+   ``PotentialResult`` (method knobs vs per-step geometry). Host tools
+   may also use
+   `readcon-core <https://github.com/HaoZeke/readcon-core>`__ / ``.con``
+   landscapes; those become ``ForceInput`` before ``cpmdc``.
+-  ``src/cpmdc_params.c`` — decode Cap'n Proto only (no CPMD types).
+-  ``src/cpmdc.c`` — sessions, topology, unit conversion, calls embed.
+-  ``src/cpmd_embed_c_api.F90`` — ``bind(C)`` surface with a
+   deterministic reference PEF; with ``CPMDC_HAS_CPMD`` it links
+   ``libcpmd.a`` and sets OpenCPMD **module state** in memory.
+-  ``src/cpmdc_stub.c`` — same ABI symbols with
+   ``cpmdc_available() == 0``.
 
-Parameter Flow
+No CPMD INPUT / ``control`` I/O for configuration
+=================================================
+
+Embed does **not** write ``INPUT`` decks or ``CALL control`` to parse
+method options.
+
++----------------------+----------------------+----------------------+
+| Concern              | Carrier              | Where it is applied  |
++======================+======================+======================+
+| Method (XC, cutoff,  | Cap'n Proto          | C decode →           |
+| charge, …)           | ``CPMDParams``       | ``cpmd               |
+|                      |                      | c_embed_set_config`` |
+|                      |                      | → ``control_def`` +  |
+|                      |                      | typed module writes  |
+|                      |                      | (``cntr%ecut``,      |
+|                      |                      | ``func1``, spin, …)  |
++----------------------+----------------------+----------------------+
+| Geometry / cell /    | Cap'n Proto          | ``tau0`` /           |
+| species Z            | ``ForceInput`` (or C | ``parm%a1..a3`` /    |
+|                      | arrays)              | in-memory species    |
+|                      |                      | table                |
++----------------------+----------------------+----------------------+
+| PP data files        | Paths inside         | PP readers only      |
+|                      | structured ``atoms`` | (data files), not    |
+|                      | fields               | method config        |
++----------------------+----------------------+----------------------+
+
+Upstream CPMD CLI still uses ``&SECTION`` files;
+``cpmdc_params_render_input_deck`` exists for **debugging and CLI
+parity**, not for the embed hot path. Structured ``CPMDInputSection``
+arms include ``cpmd``, ``system``, ``dft``, ``atoms``, ``generic``,
+``set``, and ``raw``; ``set`` accepts dotted ``SECTION.KEYWORD`` keys
+and merges the keyword into the named section.
+
+Parameter flow
 ==============
 
-The ABI receives a byte pointer and byte count. ``capn_init_mem()``
-opens the flat message, ``capn_getp(capn_root(...))`` obtains the
-generated ``CPMDParams_ptr``, and generated ``read_CPMDParams()`` calls
-are used as short-lived C views while the arena is alive. Session force
-and result calls use the same pattern for generated ``ForceInput_ptr``
-roots.
+#. Host builds ``CPMDParams`` (pycapnp, rgpot, readcon-core → geometry
+   step as ``ForceInput``).
+#. ``cpmdc_session_create`` copies bytes and calls
+   ``cpmdc_embed_set_config`` with extracted scalars (functional, cutoff
+   Ry, charge, multiplicity).
+#. Each ``cpmdc_session_calculate_result`` parses ``ForceInput``,
+   updates ionic positions in ``coor%tau0`` (Angstrom → a.u.), runs
+   library ``wfopts`` / forces, reads ``ener_com%etot`` and
+   ``coor%fion``, writes ``PotentialResult``.
 
-There is no second user-facing configuration struct in C. Structured
-``CPMDInputSection`` unions (``cpmd``, ``system``, ``dft``, ``atoms``,
-``generic``, ``set``, ``raw``) are Cap'n Proto only; the renderer turns
-them into CPMD-style ``&SECTION`` … ``&END`` text for embed configuration
-and debugging. The ``set`` arm accepts dotted ``SECTION.KEYWORD`` keys and
-merges the corresponding keyword into the named section.
-
-Long-Running Sessions
+Long-running sessions
 =====================
 
-``cpmdc_session_create()`` copies the ``CPMDParams`` bytes and renders
-the input deck once. ``cpmdc_session_calculate_forces()`` and
-``cpmdc_session_calculate_result()`` accept serialized ``ForceInput``
-messages so MD, optimizers, and socket-style drivers can update
-coordinates and the periodic cell without rebuilding the method carrier.
-``cpmdc_potential_result_size_for_force_input()`` exposes result buffer
-sizing without touching the embed runtime. ``cpmdc_calculate_result()``
-creates a temporary session for one-shot callers.
+First successful eval fixes topology (atom count + ordered Z). Later
+steps only change coordinates, units, and cell vectors. Species or count
+changes need a new session. Method knobs are fixed at session create
+unless ``cpmdc_session_set_params`` runs **before** topology is
+accepted.
 
-The first accepted session evaluation records topology (atom count and
-ordered atomic numbers). Session calls reject later steps with a
-different topology. ``cpmdc_session_set_params`` may replace
-configuration only before topology is accepted.
+Build
+=====
 
-Branding
-========
-
-Wordmark and mark assets live under ``branding/logo/`` and
-``docs/source/_static/`` (light/dark SVG, matching ``nwchemc`` docs
-layout).
+Without ``libcpmd.a``: stub, Cap'n Proto, sizing, shared dlopen, and
+reference PEF tests; the embed shell reports ``available()==1`` and the
+stub reports ``available()==0``. With
+``-Dwith_cpmd=true -Dcpmd_root=...`` and ``$cpmd_root/lib/libcpmd.a``:
+full embed symbols link against the OpenCPMD archive.
