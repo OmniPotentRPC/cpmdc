@@ -10,6 +10,7 @@
         convergenceOrbitals = 1.0e-5,
         maxStep = 100,
         timestep = 5.0,
+        restartWavefunction = true,
         trajectory = true,
         directives = [
           ( keyword = "MOLECULAR DYNAMICS CP", args = [] ),
@@ -19,6 +20,8 @@
         ]
       ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
+        scale = 0.5,
+        charge = 1,
         cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
     ( dft = ( functional = "BLYP", lsd = false,
         directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),

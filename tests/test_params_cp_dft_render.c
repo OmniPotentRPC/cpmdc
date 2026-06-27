@@ -59,7 +59,8 @@ int main(int argc, char **argv) {
   }
   const char *cp_need[] = {
       "&CPMD", "MOLECULAR DYNAMICS", "EMASS", "400.0", "NOSE IONS",
-      "ANNEALING IONS", "TIMESTEP", "&DFT", "FUNCTIONAL BLYP",
+      "ANNEALING IONS", "TIMESTEP", "RESTART WAVEFUNCTION", "TRAJECTORY",
+      "&SYSTEM", "SCALE", "0.5", "CHARGE", "1", "&DFT", "FUNCTIONAL BLYP",
   };
   const char *dft_need[] = {
       "&DFT", "FUNCTIONAL PBE0", "LSD", "GC-CUTOFF", "&PIMD", "TROTTER",
