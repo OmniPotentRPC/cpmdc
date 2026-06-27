@@ -218,6 +218,18 @@ if get_option('with_tests')
     output: 'force_input_water.bin',
     command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
+  effective_top_params_bin = custom_target(
+    'effective_top_params_bin',
+    input: 'tests/params_effective_config_top.capnp.txt',
+    output: 'params_effective_config_top.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  effective_section_params_bin = custom_target(
+    'effective_section_params_bin',
+    input: 'tests/params_effective_config_sections.capnp.txt',
+    output: 'params_effective_config_sections.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   runtime_params_bin = has_cpmd ? water_params_bin : cpmd_parser_params_bin
 
   test(
@@ -289,6 +301,28 @@ if get_option('with_tests')
     ],
     depends: [force_input_step_a_bin, force_input_step_ev_bin],
     suite: ['capnp', 'socket'],
+  )
+
+  test(
+    'effective-config',
+    executable(
+      'test_effective_config',
+      'tests/test_effective_config.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      effective_top_params_bin.full_path(),
+      effective_section_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [
+      effective_top_params_bin,
+      effective_section_params_bin,
+      force_input_step_a_bin,
+    ],
+    suite: ['e2e', 'cmocka', 'params'],
   )
 
   test(

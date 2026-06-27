@@ -14,6 +14,10 @@ void cpmdc_params_release(struct capn *arena);
 
 const char *cpmdc_params_text_or(capn_text text, const char *fallback);
 
+int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
+                                  size_t functional_size, double *cutoff_ry,
+                                  int *charge, int *multiplicity);
+
 /** Render a full CPMD input deck (&SECTION ... &END) into dst. */
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
                                    size_t dst_size);

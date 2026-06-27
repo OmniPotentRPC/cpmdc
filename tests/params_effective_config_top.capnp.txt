@@ -1,0 +1,18 @@
+(
+  functional = "PBE0",
+  cutOffRy = 80.0,
+  charge = 2,
+  multiplicity = 3,
+  task = "gradient",
+  inputSections = [
+    ( dft = ( functional = "PBE0", lsd = true ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 80.0,
+        charge = 2, multiplicity = 3,
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-6 ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)

@@ -80,11 +80,11 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     return -1;
   struct CPMDParams view;
   read_CPMDParams(&view, root);
-  snprintf(functional, functional_size, "%s",
-           cpmdc_params_text_or(view.functional, "BLYP"));
-  *cutoff_ry = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
-  *charge = view.charge;
-  *multiplicity = view.multiplicity > 0 ? view.multiplicity : 1;
+  if (cpmdc_params_effective_config(root, functional, functional_size,
+                                    cutoff_ry, charge, multiplicity) != 0) {
+    cpmdc_params_release(&arena);
+    return -1;
+  }
   snprintf(cpmd_root, cpmd_root_size, "%s",
            cpmdc_params_text_or(view.cpmdRoot, ""));
   if (cpmdc_params_render_input_deck(root, input_deck, input_deck_size) != 0) {

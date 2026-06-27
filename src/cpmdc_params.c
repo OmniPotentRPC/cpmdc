@@ -661,6 +661,61 @@ const char *cpmdc_params_text_or(capn_text text, const char *fallback) {
   return fallback ? fallback : "";
 }
 
+static void copy_capn_text_or(capn_text text, const char *fallback, char *dst,
+                              size_t dst_size) {
+  if (!dst || dst_size == 0)
+    return;
+  dst[0] = '\0';
+  if (text.str && text.len > 0) {
+    size_t n = (size_t)text.len;
+    if (n >= dst_size)
+      n = dst_size - 1u;
+    memcpy(dst, text.str, n);
+    dst[n] = '\0';
+    return;
+  }
+  snprintf(dst, dst_size, "%s", fallback ? fallback : "");
+}
+
+int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
+                                  size_t functional_size, double *cutoff_ry,
+                                  int *charge, int *multiplicity) {
+  if (params.p.type == CAPN_NULL || !functional || functional_size == 0 ||
+      !cutoff_ry || !charge || !multiplicity)
+    return -1;
+
+  struct CPMDParams view;
+  read_CPMDParams(&view, params);
+  copy_capn_text_or(view.functional, "BLYP", functional, functional_size);
+  *cutoff_ry = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
+  *charge = view.charge;
+  *multiplicity = view.multiplicity > 0 ? view.multiplicity : 1;
+
+  int nsec = struct_list_len(&view.inputSections.p);
+  if (nsec < 0)
+    return -1;
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which == CPMDInputSection_system) {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      if (body.cutOffRy > 0.0)
+        *cutoff_ry = body.cutOffRy;
+      *charge = body.charge;
+      if (body.multiplicity > 0)
+        *multiplicity = body.multiplicity;
+    } else if (sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      if (body.functional.str && body.functional.len > 0)
+        copy_capn_text_or(body.functional, "BLYP", functional,
+                          functional_size);
+    }
+  }
+  return 0;
+}
+
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
                                    size_t dst_size) {
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0)
