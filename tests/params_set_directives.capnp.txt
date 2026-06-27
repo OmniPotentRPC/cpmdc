@@ -5,7 +5,7 @@
   inputSections = [
     ( set = ( key = "CPMD.PRINT FORCES ON", value = "" ) ),
     ( set = ( key = "CPMD.MAXSTEP", value = "3" ) ),
-    ( set = ( key = "SYSTEM.POISSON SOLVER", value = "TUCKERMAN" ) ),
+    ( set = ( key = "SYSTEM.POISSON SOLVER HOCKNEY", value = "" ) ),
     ( set = ( key = "DFT.GC-CUTOFF", value = "1.0e-7" ) ),
     ( atoms = ( pseudopotentials = [
         ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
