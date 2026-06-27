@@ -37,12 +37,29 @@ static void test_abi(void **state) {
   assert_non_null(cpmdc_feature_find("params.inputBlocks"));
 }
 
+static void test_param_applicability(void **state) {
+  (void)state;
+  const CPMDCFeatureEntry *memory = cpmdc_feature_find("params.memoryMb");
+  const CPMDCFeatureEntry *engine = cpmdc_feature_find("params.enginePath");
+  const CPMDCFeatureEntry *scratch = cpmdc_feature_find("params.scratchDir");
+  const CPMDCFeatureEntry *permanent = cpmdc_feature_find("params.permanentDir");
+  assert_non_null(memory);
+  assert_non_null(engine);
+  assert_non_null(scratch);
+  assert_non_null(permanent);
+  assert_int_equal(memory->embed_applicable, 0);
+  assert_int_equal(engine->embed_applicable, 0);
+  assert_int_equal(scratch->embed_applicable, 1);
+  assert_int_equal(permanent->embed_applicable, 1);
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_feature_table_nonempty),
       cmocka_unit_test(test_inscan_sections),
       cmocka_unit_test(test_cp_keywords_not_sections),
       cmocka_unit_test(test_abi),
+      cmocka_unit_test(test_param_applicability),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
