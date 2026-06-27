@@ -89,7 +89,9 @@ For geometry deck rendering, ``atoms.pseudopotentials`` groups
 entries accept standard element symbols and must cover every atomic number
 present in the step geometry; otherwise rendering fails. When no ``atoms``
 section is supplied, the renderer only provides built-in BLYP
-pseudopotential defaults for H and O.
+pseudopotential defaults for H and O. An explicit ``atoms`` section may rely on
+those H/O defaults while still carrying ``CPMDDirective`` entries for
+additional ``&ATOMS`` keywords.
 
 Escape hatches
 ==============
