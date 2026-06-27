@@ -13,5 +13,5 @@ Checklist
 #. Update ``CHANGELOG.md`` for user-visible changes.
 #. Tag ``vX.Y.Z`` when publishing.
 
-0.1 focuses on Cap'n Proto structure, C ABI, and the ISO\ :sub:`C` embed
-shell. OpenCPMD energy/force evaluation is a later embed milestone.
+0.1 covers the Cap'n Proto structure, C ABI, ISO\ :sub:`C` embed shell,
+stub/reference backend, and archive-linked OpenCPMD energy/force path.

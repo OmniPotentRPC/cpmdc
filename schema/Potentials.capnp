@@ -122,10 +122,10 @@ struct CPMDParams {
   scratchDir   @7 :Text = "";         # Optional scratch directory.
   permanentDir @8 :Text = "";         # Optional permanent / restart directory.
   cpmdRoot     @9 :Text = "";         # OpenCPMD source/build tree; empty => env CPMD_ROOT.
-  enginePath   @10 :Text = "";        # Future dlopen path; empty => probe embed.
+  enginePath   @10 :Text = "";        # Optional dlopen path; empty => probe embed.
   inputBlocks  @11 :List(Text);       # Raw &SECTION blocks applied before generated ones.
   inputSections @12 :List(CPMDInputSection); # Structured CPMD input sections.
-  # Long-tail options not yet typed: use CPMDInputSection.raw, inputBlocks, or set.
+  # Long-tail options: use CPMDInputSection.raw, inputBlocks, or set.
 }
 
 # @struct PotentialConfig

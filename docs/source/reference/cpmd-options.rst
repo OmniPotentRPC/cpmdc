@@ -73,7 +73,7 @@ Top-level ``CPMDParams`` fields
 +-------------+------------------------+--------------------------+
 | ``set``     | ``CPMDSetDirective``   | Embed-path logical       |
 |             |                        | ``SECTION.KEYWORD``      |
-|             |                        | emitted as a section     |
+|             |                        | merged into the section  |
 +-------------+------------------------+--------------------------+
 | ``raw``     | ``Text``               | Full section text        |
 |             |                        | inserted as-is           |
@@ -85,10 +85,10 @@ sparse ``CPMDParams`` still produces a valid-looking deck for debugging.
 Escape hatches
 ==============
 
-Long-tail CPMD keywords not yet typed go in ``CPMDDirective`` lists
-inside a section, ``CPMDSetDirective`` dotted keys, ``CPMDInputSection.raw``,
-or ``inputBlocks``. ``set.key`` uses ``SECTION.KEYWORD`` form, for example
-``CPMD.PRINT FORCES ON`` or ``SYSTEM.POISSON SOLVER``; non-empty
+Long-tail CPMD keywords go in ``CPMDDirective`` lists inside a section,
+``CPMDSetDirective`` dotted keys, ``CPMDInputSection.raw``, or
+``inputBlocks``. ``set.key`` uses ``SECTION.KEYWORD`` form, for example
+``CPMD.PRINT FORCES ON`` or ``SYSTEM.POISSON SOLVER HOCKNEY``; non-empty
 ``set.value`` is emitted on the following indented line. Prefer new structured
 fields in the schema over inventing a second config file format.
 
