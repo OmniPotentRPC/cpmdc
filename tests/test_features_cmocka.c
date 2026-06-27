@@ -33,7 +33,44 @@ static void test_cp_keywords_not_sections(void **state) {
 
 static void test_abi(void **state) {
   (void)state;
-  assert_non_null(cpmdc_feature_find("abi.cpmdc_feature_find"));
+  static const char *const abi_features[] = {
+      "abi.cpmdc_set_params",
+      "abi.cpmdc_energy_gradient",
+      "abi.cpmdc_energy",
+      "abi.cpmdc_energy_forces",
+      "abi.cpmdc_session_create",
+      "abi.cpmdc_session_set_params",
+      "abi.cpmdc_session_destroy",
+      "abi.cpmdc_session_energy_gradient",
+      "abi.cpmdc_session_energy",
+      "abi.cpmdc_session_energy_forces",
+      "abi.cpmdc_session_calculate_forces",
+      "abi.cpmdc_session_calculate_result",
+      "abi.cpmdc_calculate_result",
+      "abi.cpmdc_potential_result_size_for_force_input",
+      "abi.cpmdc_version",
+      "abi.cpmdc_available",
+      "abi.cpmdc_finalize",
+      "abi.cpmdc_feature_count",
+      "abi.cpmdc_feature_table",
+      "abi.cpmdc_feature_find",
+  };
+
+  const CPMDCFeatureEntry *table = cpmdc_feature_table();
+  assert_non_null(table);
+  assert_true(cpmdc_feature_count() >=
+              sizeof(abi_features) / sizeof(abi_features[0]));
+
+  for (size_t i = 0; i < sizeof(abi_features) / sizeof(abi_features[0]); i++) {
+    const CPMDCFeatureEntry *entry = cpmdc_feature_find(abi_features[i]);
+    assert_non_null(entry);
+    assert_string_equal(entry->feature_id, abi_features[i]);
+    assert_int_equal(entry->kind, CPMDC_FEATURE_ABI);
+    assert_int_equal(entry->stub_applicable, 1);
+    assert_int_equal(entry->embed_applicable, 1);
+  }
+
+  assert_null(cpmdc_feature_find("abi.cpmdc_missing"));
   assert_non_null(cpmdc_feature_find("params.inputBlocks"));
 }
 
