@@ -1,5 +1,7 @@
 #pragma once
 
+#include "cpmdc_features.h"
+
 #include <stddef.h>
 
 #ifdef __cplusplus

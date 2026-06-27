@@ -4,7 +4,9 @@ Layers
 ``cpmdc`` is deliberately small and mirrors ``nwchemc``:
 
 -  ``include/cpmdc.h`` exposes the stable C ABI (``CPMDCResult``,
-   ``CPMDCSession``, socket entry points).
+   ``CPMDCSession``, socket entry points, and feature discovery through
+   ``cpmdc_feature_count()``, ``cpmdc_feature_table()``, and
+   ``cpmdc_feature_find()``).
 -  ``schema/Potentials.capnp`` defines ``CPMDParams``, per-step
    ``ForceInput``, ``PotentialResult``, structured CPMD input sections,
    and ``PotentialConfig`` (``cpmd @2`` arm).

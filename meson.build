@@ -153,7 +153,7 @@ cpmdc_shared_dep = declare_dependency(
   dependencies: cpmdc_params_deps,
 )
 
-install_headers('include/cpmdc.h')
+install_headers('include/cpmdc.h', 'include/cpmdc_features.h')
 
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,

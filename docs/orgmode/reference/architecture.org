@@ -6,7 +6,8 @@
 ~iso_c_binding~ embed that talks to the engine *as a library*.
 
 - ~include/cpmdc.h~ — language-neutral C ABI (~CPMDCResult~, ~CPMDCSession~,
-  socket entry points).
+  socket entry points, feature discovery via ~cpmdc_feature_count~ /
+  ~cpmdc_feature_table~ / ~cpmdc_feature_find~).
 - ~schema/Potentials.capnp~ — ~CPMDParams~, ~ForceInput~, ~PotentialResult~
   (method knobs vs per-step geometry). Host tools may also use
   [[https://github.com/HaoZeke/readcon-core][readcon-core]] / ~.con~ landscapes; those become ~ForceInput~ before ~cpmdc~.
