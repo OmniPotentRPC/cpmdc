@@ -96,25 +96,24 @@ static void test_optimizer_style_session_loop(void **state) {
   /* Second optimizer step: stretched O–H / different cell (step_ev fixture). */
   out_size = 0;
   CPMDCResult r1 = eval_step(session, step_b, b_size, out, need_a, &out_size);
-  assert_true(r1.ok == 0 || r1.ok == 1);
+  assert_int_equal(r1.ok, 1);
   assert_true(isfinite(r1.energy_h));
-  /* Farther nuclei => higher harmonic energy (reference PEF). */
-  if (r0.ok && r1.ok) { assert_true(isfinite(r0.energy_h) && isfinite(r1.energy_h)); }
+  assert_true(fabs(r1.energy_h - e0) > 1.0e-8);
 
   /* Third step returns to geometry A; energy matches first step (same PEF). */
   out_size = 0;
   CPMDCResult r2 = eval_step(session, step_a, a_size, out, need_a, &out_size);
-  assert_true(r2.ok == 0 || r2.ok == 1);
-  if (r0.ok && r2.ok) { assert_float_equal(r2.energy_h, e0, 1e-6); }
+  assert_int_equal(r2.ok, 1);
+  assert_float_equal(r2.energy_h, e0, 1e-6);
 
   /* Forces path on the live session (optimizer gradient-style). */
   double forces[6] = {0};
   CPMDCResult rf = cpmdc_session_calculate_forces(session, step_b, b_size,
                                                   forces, 6);
-  assert_true(rf.ok == 0 || rf.ok == 1);
-  if (rf.ok && r1.ok) { assert_float_equal(rf.energy_h, r1.energy_h, 1e-6); }
+  assert_int_equal(rf.ok, 1);
+  assert_float_equal(rf.energy_h, r1.energy_h, 1e-6);
   /* Force on oxygen z should be non-zero (atom at z=0.96 angstrom). */
-  if (rf.ok) { assert_true(isfinite(forces[5])); }
+  assert_true(isfinite(forces[5]));
 
   /* Topology change must fail without creating a new session. */
   out_size = 0;
@@ -134,7 +133,7 @@ static void test_optimizer_style_session_loop(void **state) {
   size_t out2_size = 0;
   CPMDCResult ok_sp =
       eval_step(session2, step_sp, sp_size, out2, need_sp, &out2_size);
-  assert_true(ok_sp.ok == 0 || ok_sp.ok == 1);
+  assert_int_equal(ok_sp.ok, 1);
 
   cpmdc_session_destroy(session2);
   cpmdc_session_destroy(session);
