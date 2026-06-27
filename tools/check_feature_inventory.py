@@ -102,6 +102,12 @@ def main() -> int:
         if fid not in cpmd_options_doc:
             errors.append(f"cpmd-options docs missing {fid}")
 
+    for feature in inv["features"]:
+        fid = feature["feature_id"]
+        if fid.startswith(("catalog.cpmd.", "catalog.dft.")):
+            if fid not in cpmd_options_doc:
+                errors.append(f"cpmd-options docs missing {fid}")
+
     c_flags = {
         fid: (bool(int(stub)), bool(int(embed)))
         for fid, stub, embed in re.findall(

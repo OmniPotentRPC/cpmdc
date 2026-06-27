@@ -144,78 +144,110 @@ For example, a compact typed setup with one extra ~&SYSTEM~ keyword looks like:
 #+end_src
 
 * Typed ~&CPMD~ controls
-~CPMDCpmdSection~ exposes the common driver controls directly:
+~CPMDCpmdSection~ exposes these driver controls directly. The feature IDs are
+the stable discovery keys returned by ~cpmdc_feature_table()~.
 
-| Field | Deck keyword |
-|-------+--------------|
-| ~optimizeWavefunction~ | ~OPTIMIZE WAVEFUNCTION~ |
-| ~optimizeGeometry~ | ~OPTIMIZE GEOMETRY~ |
-| ~molecularDynamics~ | ~MOLECULAR DYNAMICS~ |
-| ~molecularDynamicsCp~ | ~MOLECULAR DYNAMICS CP~ |
-| ~molecularDynamicsBo~ | ~MOLECULAR DYNAMICS BO~ |
-| ~molecularDynamicsEh~ | ~MOLECULAR DYNAMICS EH~ |
-| ~molecularDynamicsPt~ | ~MOLECULAR DYNAMICS PT~ |
-| ~molecularDynamicsClassical~ | ~MOLECULAR DYNAMICS CLASSICAL~ |
-| ~molecularDynamicsFile~ | ~MOLECULAR DYNAMICS FILE~ |
-| ~convergenceOrbitals~ | ~CONVERGENCE ORBITALS~ |
-| ~convergenceGeometry~ | ~CONVERGENCE GEOMETRY~ |
-| ~maxStep~ | ~MAXSTEP~ |
-| ~maxIter~ | ~MAXITER~ |
-| ~timestep~ | ~TIMESTEP~ |
-| ~electronMass~ | ~EMASS~ |
-| ~nose~ | ~NOSE~ |
-| ~noseIons~ | ~NOSE IONS~ |
-| ~noseElectrons~ | ~NOSE ELECTRONS~ |
-| ~berendsen~ | ~BERENDSEN~ |
-| ~langevin~ | ~LANGEVIN~ |
-| ~annealing~ | ~ANNEALING~ |
-| ~quench~ | ~QUENCH~ |
-| ~rattle~ | ~RATTLE~ |
-| ~shake~ | ~SHAKE~ |
-| ~constraint~ | ~CONSTRAINT~ |
-| ~trotter~ | ~TROTTER~ |
-| ~restart~ | ~RESTART~ |
-| ~printOptions~ | ~PRINT~ |
-| ~storeOptions~ | ~STORE~ |
-| ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
-| ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
-| ~diis~ | ~DIIS~ |
-| ~odiis~ | ~ODIIS~ |
-| ~pcg~ | ~PCG~ |
-| ~diagonalization~ | ~DIAGONALIZATION~ |
-| ~freeEnergy~ | ~FREE-ENERGY~ |
-| ~interface~ | ~INTERFACE~ |
-| ~qmmm~ | ~QMMM~ |
-| ~bicanonicalEnsemble~ | ~BICANONICAL ENSEMBLE~ |
-| ~cdft~ | ~CDFT~ |
-| ~properties~ | ~PROPERTIES~ |
-| ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
-| ~trajectory~ | ~TRAJECTORY~ |
+| Feature ID | Field | Deck keyword |
+|------------+-------+--------------|
+| ~catalog.cpmd.OPTIMIZE_WAVEFUNCTION~ | ~optimizeWavefunction~ | ~OPTIMIZE WAVEFUNCTION~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY~ | ~optimizeGeometry~ | ~OPTIMIZE GEOMETRY~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS~ | ~molecularDynamics~ | ~MOLECULAR DYNAMICS~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_CP~ | ~molecularDynamicsCp~ | ~MOLECULAR DYNAMICS CP~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_BO~ | ~molecularDynamicsBo~ | ~MOLECULAR DYNAMICS BO~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_EH~ | ~molecularDynamicsEh~ | ~MOLECULAR DYNAMICS EH~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_PT~ | ~molecularDynamicsPt~ | ~MOLECULAR DYNAMICS PT~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL~ | ~molecularDynamicsClassical~ | ~MOLECULAR DYNAMICS CLASSICAL~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE~ | ~molecularDynamicsFile~ | ~MOLECULAR DYNAMICS FILE~ |
+| ~catalog.cpmd.EMASS~ | ~electronMass~ | ~EMASS~ |
+| ~catalog.cpmd.TIMESTEP~ | ~timestep~ | ~TIMESTEP~ |
+| ~catalog.cpmd.MAXSTEP~ | ~maxStep~ | ~MAXSTEP~ |
+| ~catalog.cpmd.MAXITER~ | ~maxIter~ | ~MAXITER~ |
+| ~catalog.cpmd.CONVERGENCE_ORBITALS~ | ~convergenceOrbitals~ | ~CONVERGENCE ORBITALS~ |
+| ~catalog.cpmd.CONVERGENCE_GEOMETRY~ | ~convergenceGeometry~ | ~CONVERGENCE GEOMETRY~ |
+| ~catalog.cpmd.NOSE~ | ~nose~ | ~NOSE~ |
+| ~catalog.cpmd.NOSE_IONS~ | ~noseIons~ | ~NOSE IONS~ |
+| ~catalog.cpmd.NOSE_ELECTRONS~ | ~noseElectrons~ | ~NOSE ELECTRONS~ |
+| ~catalog.cpmd.BERENDSEN~ | ~berendsen~ | ~BERENDSEN~ |
+| ~catalog.cpmd.LANGEVIN~ | ~langevin~ | ~LANGEVIN~ |
+| ~catalog.cpmd.ANNEALING~ | ~annealing~ | ~ANNEALING~ |
+| ~catalog.cpmd.QUENCH~ | ~quench~ | ~QUENCH~ |
+| ~catalog.cpmd.RATTLE~ | ~rattle~ | ~RATTLE~ |
+| ~catalog.cpmd.SHAKE~ | ~shake~ | ~SHAKE~ |
+| ~catalog.cpmd.CONSTRAINT~ | ~constraint~ | ~CONSTRAINT~ |
+| ~catalog.cpmd.TROTTER~ | ~trotter~ | ~TROTTER~ |
+| ~catalog.cpmd.RESTART~ | ~restart~ | ~RESTART~ |
+| ~catalog.cpmd.RESTART_WAVEFUNCTION~ | ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
+| ~catalog.cpmd.TRAJECTORY~ | ~trajectory~ | ~TRAJECTORY~ |
+| ~catalog.cpmd.PRINT~ | ~printOptions~ | ~PRINT~ |
+| ~catalog.cpmd.STORE~ | ~storeOptions~ | ~STORE~ |
+| ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
+| ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
+| ~catalog.cpmd.DIIS~ | ~diis~ | ~DIIS~ |
+| ~catalog.cpmd.ODIIS~ | ~odiis~ | ~ODIIS~ |
+| ~catalog.cpmd.PCG~ | ~pcg~ | ~PCG~ |
+| ~catalog.cpmd.DIAGONALIZATION~ | ~diagonalization~ | ~DIAGONALIZATION~ |
+| ~catalog.cpmd.FREE_ENERGY~ | ~freeEnergy~ | ~FREE-ENERGY~ |
+| ~catalog.cpmd.INTERFACE~ | ~interface~ | ~INTERFACE~ |
+| ~catalog.cpmd.QMMM~ | ~qmmm~ | ~QMMM~ |
+| ~catalog.cpmd.BICANONICAL_ENSEMBLE~ | ~bicanonicalEnsemble~ | ~BICANONICAL ENSEMBLE~ |
+| ~catalog.cpmd.CDFT~ | ~cdft~ | ~CDFT~ |
+| ~catalog.cpmd.PROPERTIES~ | ~properties~ | ~PROPERTIES~ |
 
 * Typed ~&DFT~ controls
-~CPMDDftSection~ exposes common DFT scalars directly:
+~CPMDDftSection~ exposes these DFT scalars directly:
 
-| Field | Deck keyword |
-|-------+--------------|
-| ~functional~ | ~FUNCTIONAL~ |
-| ~lsd~ | ~LSD~ |
-| ~gcCutoff~ | ~GC-CUTOFF~ |
-| ~xcDriver~ | ~XC_DRIVER~ |
-| ~libxc~ | ~LIBXC~ |
-| ~lrKernel~ | ~LR KERNEL~ |
-| ~refunct~ | ~REFUNCT~ |
-| ~mtsHighFunc~ | ~MTS_HIGH_FUNC~ |
-| ~mtsLowFunc~ | ~MTS_LOW_FUNC~ |
-| ~hfx~ | ~HFX~ |
-| ~hfxScreening~ | ~HFX-SCREENING~ |
-| ~hubbard~ | ~HUBBARD~ |
-| ~alpha~ | ~ALPHA~ |
-| ~beta~ | ~BETA~ |
-| ~oldCode~ | ~OLDCODE~ |
-| ~newCode~ | ~NEWCODE~ |
-| ~correlation~ | ~CORRELATION~ |
-| ~exchange~ | ~EXCHANGE~ |
-| ~becke88~ | ~BECKE88~ |
+| Feature ID | Field | Deck keyword |
+|------------+-------+--------------|
+| ~catalog.dft.FUNCTIONAL~ | ~functional~ | ~FUNCTIONAL~ |
+| ~catalog.dft.LSD~ | ~lsd~ | ~LSD~ |
+| ~catalog.dft.GC_CUTOFF~ | ~gcCutoff~ | ~GC-CUTOFF~ |
+| ~catalog.dft.OLDCODE~ | ~oldCode~ | ~OLDCODE~ |
+| ~catalog.dft.NEWCODE~ | ~newCode~ | ~NEWCODE~ |
+| ~catalog.dft.XC_DRIVER~ | ~xcDriver~ | ~XC_DRIVER~ |
+| ~catalog.dft.LIBXC~ | ~libxc~ | ~LIBXC~ |
+| ~catalog.dft.LR_KERNEL~ | ~lrKernel~ | ~LR KERNEL~ |
+| ~catalog.dft.REFUNCT~ | ~refunct~ | ~REFUNCT~ |
+| ~catalog.dft.MTS_HIGH_FUNC~ | ~mtsHighFunc~ | ~MTS_HIGH_FUNC~ |
+| ~catalog.dft.MTS_LOW_FUNC~ | ~mtsLowFunc~ | ~MTS_LOW_FUNC~ |
+| ~catalog.dft.HFX~ | ~hfx~ | ~HFX~ |
+| ~catalog.dft.HFX_SCREENING~ | ~hfxScreening~ | ~HFX-SCREENING~ |
+| ~catalog.dft.HUBBARD~ | ~hubbard~ | ~HUBBARD~ |
+| ~catalog.dft.CORRELATION~ | ~correlation~ | ~CORRELATION~ |
+| ~catalog.dft.EXCHANGE~ | ~exchange~ | ~EXCHANGE~ |
+| ~catalog.dft.BECKE88~ | ~becke88~ | ~BECKE88~ |
+| ~catalog.dft.ALPHA~ | ~alpha~ | ~ALPHA~ |
+| ~catalog.dft.BETA~ | ~beta~ | ~BETA~ |
+
+~catalog.dft.FUNCTIONAL_*~ IDs name accepted ~functional~ values:
+
+| Feature ID | ~functional~ value |
+|------------+--------------------|
+| ~catalog.dft.FUNCTIONAL_LDA~ | ~LDA~ |
+| ~catalog.dft.FUNCTIONAL_BONLY~ | ~BONLY~ |
+| ~catalog.dft.FUNCTIONAL_BP~ | ~BP~ |
+| ~catalog.dft.FUNCTIONAL_BP86~ | ~BP86~ |
+| ~catalog.dft.FUNCTIONAL_BLYP~ | ~BLYP~ |
+| ~catalog.dft.FUNCTIONAL_GGA~ | ~GGA~ |
+| ~catalog.dft.FUNCTIONAL_PW91~ | ~PW91~ |
+| ~catalog.dft.FUNCTIONAL_PBE~ | ~PBE~ |
+| ~catalog.dft.FUNCTIONAL_REVPBE~ | ~REVPBE~ |
+| ~catalog.dft.FUNCTIONAL_HCTH~ | ~HCTH~ |
+| ~catalog.dft.FUNCTIONAL_OPTX~ | ~OPTX~ |
+| ~catalog.dft.FUNCTIONAL_OLYP~ | ~OLYP~ |
+| ~catalog.dft.FUNCTIONAL_XLYP~ | ~XLYP~ |
+| ~catalog.dft.FUNCTIONAL_B3LYP~ | ~B3LYP~ |
+| ~catalog.dft.FUNCTIONAL_B1LYP~ | ~B1LYP~ |
+| ~catalog.dft.FUNCTIONAL_PBE0~ | ~PBE0~ |
+| ~catalog.dft.FUNCTIONAL_REVPBE0~ | ~REVPBE0~ |
+| ~catalog.dft.FUNCTIONAL_PBES~ | ~PBES~ |
+| ~catalog.dft.FUNCTIONAL_PBE1W~ | ~PBE1W~ |
+| ~catalog.dft.FUNCTIONAL_TPSS~ | ~TPSS~ |
+| ~catalog.dft.FUNCTIONAL_HARTREE~ | ~HARTREE~ |
+| ~catalog.dft.FUNCTIONAL_HARTREE_FOCK~ | ~HARTREE-FOCK~ |
+| ~catalog.dft.FUNCTIONAL_HSE06~ | ~HSE06~ |
+| ~catalog.dft.FUNCTIONAL_ACM0~ | ~ACM0~ |
+| ~catalog.dft.FUNCTIONAL_ACM1~ | ~ACM1~ |
+| ~catalog.dft.FUNCTIONAL_ACM3~ | ~ACM3~ |
 
 * ~PotentialConfig~
 For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union
