@@ -143,6 +143,156 @@ static int append_directives(char *dst, size_t dst_size, size_t *used,
   return 0;
 }
 
+#define CPMDC_MAX_SET_DIRECTIVES 128
+
+struct RenderSetDirective {
+  const char *section;
+  size_t section_len;
+  const char *keyword;
+  size_t keyword_len;
+  capn_text value;
+  int rendered;
+};
+
+struct RenderSetList {
+  struct RenderSetDirective items[CPMDC_MAX_SET_DIRECTIVES];
+  int len;
+};
+
+static int ascii_upper(int c) {
+  if (c >= 'a' && c <= 'z')
+    return c - 'a' + 'A';
+  return c;
+}
+
+static int section_name_equals(const struct RenderSetDirective *set,
+                               const char *name) {
+  size_t name_len = strlen(name);
+  if (set->section_len != name_len)
+    return 0;
+  for (size_t i = 0; i < name_len; ++i) {
+    if (ascii_upper((unsigned char)set->section[i]) !=
+        ascii_upper((unsigned char)name[i]))
+      return 0;
+  }
+  return 1;
+}
+
+static int set_sections_equal(const struct RenderSetDirective *a,
+                              const struct RenderSetDirective *b) {
+  if (a->section_len != b->section_len)
+    return 0;
+  for (size_t i = 0; i < a->section_len; ++i) {
+    if (ascii_upper((unsigned char)a->section[i]) !=
+        ascii_upper((unsigned char)b->section[i]))
+      return 0;
+  }
+  return 1;
+}
+
+static int init_render_set(struct RenderSetDirective *out,
+                           const struct CPMDSetDirective *set) {
+  if (!set->key.str || set->key.len <= 2)
+    return -1;
+  const char *dot = memchr(set->key.str, '.', (size_t)set->key.len);
+  if (!dot || dot == set->key.str ||
+      dot == set->key.str + (size_t)set->key.len - 1)
+    return -1;
+  out->section = set->key.str;
+  out->section_len = (size_t)(dot - set->key.str);
+  out->keyword = dot + 1;
+  out->keyword_len = (size_t)set->key.len - out->section_len - 1u;
+  out->value = set->value;
+  out->rendered = 0;
+  return 0;
+}
+
+static int collect_set_directives(CPMDInputSection_list sections,
+                                  struct RenderSetList *sets) {
+  int nsec = struct_list_len(&sections.p);
+  if (nsec < 0)
+    return -1;
+  sets->len = 0;
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, sections, i);
+    if (sec.which != CPMDInputSection_set)
+      continue;
+    if (sets->len >= CPMDC_MAX_SET_DIRECTIVES)
+      return -1;
+    struct CPMDSetDirective body;
+    read_CPMDSetDirective(&body, sec.set);
+    if (init_render_set(&sets->items[sets->len], &body) != 0)
+      return -1;
+    ++sets->len;
+  }
+  return 0;
+}
+
+static int append_set_payload(char *dst, size_t dst_size, size_t *used,
+                              const struct RenderSetDirective *set) {
+  if (append_text(dst, dst_size, used, " ") != 0)
+    return -1;
+  if (append_slice(dst, dst_size, used, set->keyword, set->keyword_len) != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, "\n") != 0)
+    return -1;
+  if (set->value.str && set->value.len > 0) {
+    if (append_text(dst, dst_size, used, "  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, set->value) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  return 0;
+}
+
+static int append_set_directives_for_section(char *dst, size_t dst_size,
+                                             size_t *used,
+                                             struct RenderSetList *sets,
+                                             const char *section) {
+  if (!sets)
+    return 0;
+  for (int i = 0; i < sets->len; ++i) {
+    if (sets->items[i].rendered || !section_name_equals(&sets->items[i], section))
+      continue;
+    if (append_set_payload(dst, dst_size, used, &sets->items[i]) != 0)
+      return -1;
+    sets->items[i].rendered = 1;
+  }
+  return 0;
+}
+
+static int render_remaining_set_sections(char *dst, size_t dst_size,
+                                         size_t *used,
+                                         struct RenderSetList *sets) {
+  if (!sets)
+    return 0;
+  for (int i = 0; i < sets->len; ++i) {
+    if (sets->items[i].rendered)
+      continue;
+    if (append_text(dst, dst_size, used, "&") != 0)
+      return -1;
+    if (append_slice(dst, dst_size, used, sets->items[i].section,
+                     sets->items[i].section_len) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    for (int j = i; j < sets->len; ++j) {
+      if (sets->items[j].rendered ||
+          !set_sections_equal(&sets->items[i], &sets->items[j]))
+        continue;
+      if (append_set_payload(dst, dst_size, used, &sets->items[j]) != 0)
+        return -1;
+      sets->items[j].rendered = 1;
+    }
+    if (append_text(dst, dst_size, used, "&END\n\n") != 0)
+      return -1;
+  }
+  return 0;
+}
+
 static int directives_have_prefix(CPMDDirective_list directives,
                                   const char *prefix) {
   int n = struct_list_len(&directives.p);
@@ -199,7 +349,7 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
-    int override_ncell) {
+    int override_ncell, struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
@@ -243,19 +393,24 @@ static int render_system_section_with_cell(
   }
   if (append_directives(dst, dst_size, used, sys->directives) != 0)
     return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "SYSTEM") !=
+      0)
+    return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
 static int render_system_section(char *dst, size_t dst_size, size_t *used,
                                  struct CPMDSystemSection *sys,
-                                 double default_cutoff, int default_charge) {
+                                 double default_cutoff, int default_charge,
+                                 struct RenderSetList *sets) {
   return render_system_section_with_cell(dst, dst_size, used, sys,
-                                         default_cutoff, default_charge, NULL, 0);
+                                         default_cutoff, default_charge, NULL, 0,
+                                         sets);
 }
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                                const struct CPMDCpmdSection *sec,
-                               const char *task) {
+                               const char *task, struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&CPMD\n") != 0)
     return -1;
   int opt_wf = sec->optimizeWavefunction;
@@ -297,12 +452,15 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   }
   if (append_directives(dst, dst_size, used, sec->directives) != 0)
     return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "CPMD") != 0)
+    return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
 static int render_dft_section(char *dst, size_t dst_size, size_t *used,
                               const struct CPMDDftSection *dft,
-                              const char *default_functional, int multiplicity) {
+                              const char *default_functional, int multiplicity,
+                              struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&DFT\n") != 0)
     return -1;
   if (dft->functional.str && dft->functional.len > 0) {
@@ -323,6 +481,8 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
   }
   if (append_directives(dst, dst_size, used, dft->directives) != 0)
     return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "DFT") != 0)
+    return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
@@ -338,7 +498,8 @@ static const char *lmax_letter(int lmax) {
 }
 
 static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
-                                struct CPMDAtomsSection *atoms) {
+                                struct CPMDAtomsSection *atoms,
+                                struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&ATOMS\n") != 0)
     return -1;
   int npsp = struct_list_len(&atoms->pseudopotentials.p);
@@ -372,11 +533,14 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
   }
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
     return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") != 0)
+    return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
 static int render_generic_section(char *dst, size_t dst_size, size_t *used,
-                                  const struct CPMDGenericSection *sec) {
+                                  const struct CPMDGenericSection *sec,
+                                  struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&") != 0)
     return -1;
   if (append_capn_text(dst, dst_size, used, sec->name) != 0)
@@ -385,36 +549,15 @@ static int render_generic_section(char *dst, size_t dst_size, size_t *used,
     return -1;
   if (append_directives(dst, dst_size, used, sec->directives) != 0)
     return -1;
-  return append_text(dst, dst_size, used, "&END\n\n");
-}
-
-static int render_set_section(char *dst, size_t dst_size, size_t *used,
-                              const struct CPMDSetDirective *set) {
-  if (!set->key.str || set->key.len <= 2)
-    return -1;
-  const char *dot = memchr(set->key.str, '.', (size_t)set->key.len);
-  if (!dot || dot == set->key.str ||
-      dot == set->key.str + (size_t)set->key.len - 1)
-    return -1;
-  size_t section_len = (size_t)(dot - set->key.str);
-  size_t keyword_len =
-      (size_t)set->key.len - section_len - 1u;
-  if (append_text(dst, dst_size, used, "&") != 0)
-    return -1;
-  if (append_slice(dst, dst_size, used, set->key.str, section_len) != 0)
-    return -1;
-  if (append_text(dst, dst_size, used, "\n ") != 0)
-    return -1;
-  if (append_slice(dst, dst_size, used, dot + 1, keyword_len) != 0)
-    return -1;
-  if (append_text(dst, dst_size, used, "\n") != 0)
-    return -1;
-  if (set->value.str && set->value.len > 0) {
-    if (append_text(dst, dst_size, used, "  ") != 0)
+  if (sec->name.str && sec->name.len > 0) {
+    char section[64];
+    size_t n = (size_t)sec->name.len;
+    if (n >= sizeof(section))
       return -1;
-    if (append_capn_text(dst, dst_size, used, set->value) != 0)
-      return -1;
-    if (append_text(dst, dst_size, used, "\n") != 0)
+    memcpy(section, sec->name.str, n);
+    section[n] = '\0';
+    if (append_set_directives_for_section(dst, dst_size, used, sets, section) !=
+        0)
       return -1;
   }
   return append_text(dst, dst_size, used, "&END\n\n");
@@ -491,6 +634,9 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  struct RenderSetList sets;
+  if (collect_set_directives(view.inputSections, &sets) != 0)
+    return -1;
 
   for (int i = 0; i < nsec; ++i) {
     struct CPMDInputSection sec;
@@ -499,7 +645,7 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
     case CPMDInputSection_generic: {
       struct CPMDGenericSection body;
       read_CPMDGenericSection(&body, sec.generic);
-      if (render_generic_section(dst, dst_size, &used, &body) != 0)
+      if (render_generic_section(dst, dst_size, &used, &body, &sets) != 0)
         return -1;
       break;
     }
@@ -507,8 +653,8 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (render_system_section(dst, dst_size, &used, &body, cutoff, charge) !=
-          0)
+      if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
+                                &sets) != 0)
         return -1;
       break;
     }
@@ -516,7 +662,7 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
-      if (render_cpmd_section(dst, dst_size, &used, &body, task) != 0)
+      if (render_cpmd_section(dst, dst_size, &used, &body, task, &sets) != 0)
         return -1;
       break;
     }
@@ -524,8 +670,8 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       struct CPMDDftSection body;
       read_CPMDDftSection(&body, sec.dft);
       has_dft = 1;
-      if (render_dft_section(dst, dst_size, &used, &body, functional, mult) !=
-          0)
+      if (render_dft_section(dst, dst_size, &used, &body, functional, mult,
+                             &sets) != 0)
         return -1;
       break;
     }
@@ -533,15 +679,11 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
       struct CPMDAtomsSection body;
       read_CPMDAtomsSection(&body, sec.atoms);
       has_atoms = 1;
-      if (render_atoms_section(dst, dst_size, &used, &body) != 0)
+      if (render_atoms_section(dst, dst_size, &used, &body, &sets) != 0)
         return -1;
       break;
     }
     case CPMDInputSection_set: {
-      struct CPMDSetDirective body;
-      read_CPMDSetDirective(&body, sec.set);
-      if (render_set_section(dst, dst_size, &used, &body) != 0)
-        return -1;
       break;
     }
     case CPMDInputSection_raw:
@@ -560,7 +702,7 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-6;
-    if (render_cpmd_section(dst, dst_size, &used, &def, task) != 0)
+    if (render_cpmd_section(dst, dst_size, &used, &def, task, &sets) != 0)
       return -1;
   }
   if (!has_system) {
@@ -571,22 +713,26 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
     def.cutOffRy = cutoff;
     def.charge = charge;
     def.multiplicity = mult;
-    if (render_system_section(dst, dst_size, &used, &def, cutoff, charge) != 0)
+    if (render_system_section(dst, dst_size, &used, &def, cutoff, charge,
+                              &sets) != 0)
       return -1;
   }
   if (!has_dft) {
     struct CPMDDftSection def;
     memset(&def, 0, sizeof(def));
     def.lsd = mult > 1;
-    if (render_dft_section(dst, dst_size, &used, &def, functional, mult) != 0)
+    if (render_dft_section(dst, dst_size, &used, &def, functional, mult,
+                           &sets) != 0)
       return -1;
   }
   if (!has_atoms) {
     struct CPMDAtomsSection def;
     memset(&def, 0, sizeof(def));
-    if (render_atoms_section(dst, dst_size, &used, &def) != 0)
+    if (render_atoms_section(dst, dst_size, &used, &def, &sets) != 0)
       return -1;
   }
+  if (render_remaining_set_sections(dst, dst_size, &used, &sets) != 0)
+    return -1;
 
   return 0;
 }
@@ -614,7 +760,8 @@ static int element_z(const char *sym, size_t len) {
 static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
                                       struct CPMDAtomsSection *atoms,
                                       int n_atoms, const double *pos,
-                                      const int *z) {
+                                      const int *z,
+                                      struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&ATOMS\n") != 0)
     return -1;
   int npsp = struct_list_len(&atoms->pseudopotentials.p);
@@ -645,6 +792,9 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
           return -1;
       }
     }
+    if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") !=
+        0)
+      return -1;
     return append_text(dst, dst_size, used, "&END\n\n");
   }
   for (int i = 0; i < npsp; ++i) {
@@ -680,6 +830,8 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
   }
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") != 0)
     return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
@@ -726,6 +878,9 @@ int cpmdc_params_render_deck_with_geometry(
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  struct RenderSetList sets;
+  if (collect_set_directives(view.inputSections, &sets) != 0)
+    return -1;
 
   struct CPMDAtomsSection atoms_body;
   memset(&atoms_body, 0, sizeof(atoms_body));
@@ -737,7 +892,7 @@ int cpmdc_params_render_deck_with_geometry(
     case CPMDInputSection_generic: {
       struct CPMDGenericSection body;
       read_CPMDGenericSection(&body, sec.generic);
-      if (render_generic_section(dst, dst_size, &used, &body) != 0)
+      if (render_generic_section(dst, dst_size, &used, &body, &sets) != 0)
         return -1;
       break;
     }
@@ -747,7 +902,7 @@ int cpmdc_params_render_deck_with_geometry(
       has_system = 1;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
-              has_cell ? cell_ang : NULL, has_cell ? 9 : 0) != 0)
+              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets) != 0)
         return -1;
       break;
     }
@@ -755,7 +910,7 @@ int cpmdc_params_render_deck_with_geometry(
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
-      if (render_cpmd_section(dst, dst_size, &used, &body, task) != 0)
+      if (render_cpmd_section(dst, dst_size, &used, &body, task, &sets) != 0)
         return -1;
       break;
     }
@@ -763,8 +918,8 @@ int cpmdc_params_render_deck_with_geometry(
       struct CPMDDftSection body;
       read_CPMDDftSection(&body, sec.dft);
       has_dft = 1;
-      if (render_dft_section(dst, dst_size, &used, &body, functional, mult) !=
-          0)
+      if (render_dft_section(dst, dst_size, &used, &body, functional, mult,
+                             &sets) != 0)
         return -1;
       break;
     }
@@ -772,15 +927,11 @@ int cpmdc_params_render_deck_with_geometry(
       read_CPMDAtomsSection(&atoms_body, sec.atoms);
       has_atoms = 1;
       if (render_atoms_with_geometry(dst, dst_size, &used, &atoms_body, n_atoms,
-                                     positions_ang, atomic_numbers) != 0)
+                                     positions_ang, atomic_numbers, &sets) != 0)
         return -1;
       break;
     }
     case CPMDInputSection_set: {
-      struct CPMDSetDirective body;
-      read_CPMDSetDirective(&body, sec.set);
-      if (render_set_section(dst, dst_size, &used, &body) != 0)
-        return -1;
       break;
     }
     case CPMDInputSection_raw:
@@ -799,7 +950,7 @@ int cpmdc_params_render_deck_with_geometry(
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-5;
-    if (render_cpmd_section(dst, dst_size, &used, &def, task) != 0)
+    if (render_cpmd_section(dst, dst_size, &used, &def, task, &sets) != 0)
       return -1;
   }
   if (!has_system) {
@@ -812,21 +963,24 @@ int cpmdc_params_render_deck_with_geometry(
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
                                         charge, has_cell ? cell_ang : NULL,
-                                        has_cell ? 9 : 0) != 0)
+                                        has_cell ? 9 : 0, &sets) != 0)
       return -1;
   }
   if (!has_dft) {
     struct CPMDDftSection def;
     memset(&def, 0, sizeof(def));
     def.lsd = mult > 1;
-    if (render_dft_section(dst, dst_size, &used, &def, functional, mult) != 0)
+    if (render_dft_section(dst, dst_size, &used, &def, functional, mult,
+                           &sets) != 0)
       return -1;
   }
   if (!has_atoms) {
     if (render_atoms_with_geometry(dst, dst_size, &used, &atoms_body, n_atoms,
-                                   positions_ang, atomic_numbers) != 0)
+                                   positions_ang, atomic_numbers, &sets) != 0)
       return -1;
   }
+  if (render_remaining_set_sections(dst, dst_size, &used, &sets) != 0)
+    return -1;
   (void)has_cell;
   return 0;
 }
