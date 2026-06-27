@@ -73,6 +73,12 @@ static void test_geometry_atoms_accept_silicon_symbol(void **state) {
   assert_deck_has(deck, "   1");
   assert_deck_has(deck, "0.250000  0.500000  0.750000");
 
+  const int missing_atomic_numbers[1] = {1};
+  assert_int_equal(cpmdc_params_render_deck_with_geometry(
+                       params_root, 1, positions, missing_atomic_numbers, cell,
+                       1, deck, sizeof(deck)),
+                   -1);
+
   cpmdc_params_release(&arena);
   free(message);
 }

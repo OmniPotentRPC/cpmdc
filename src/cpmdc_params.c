@@ -915,6 +915,7 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
       const char *path;
       const char *lmax;
     } defs[] = {{8, "O_MT_BLYP.psp", "P"}, {1, "H_CVB_BLYP.psp", "S"}};
+    int covered = 0;
     for (size_t d = 0; d < sizeof(defs) / sizeof(defs[0]); ++d) {
       int count = 0;
       for (int j = 0; j < n_atoms; ++j)
@@ -922,6 +923,7 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
           ++count;
       if (count == 0)
         continue;
+      covered += count;
       if (append_fmt(dst, dst_size, used, "*%s\n LMAX=%s\n   %d\n", defs[d].path,
                      defs[d].lmax, count) != 0)
         return -1;
@@ -933,11 +935,14 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
           return -1;
       }
     }
+    if (covered != n_atoms)
+      return -1;
     if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") !=
         0)
       return -1;
     return append_text(dst, dst_size, used, "&END\n\n");
   }
+  int covered = 0;
   for (int i = 0; i < npsp; ++i) {
     struct CPMDAtomsPseudopotential psp;
     get_CPMDAtomsPseudopotential(&psp, atoms->pseudopotentials, i);
@@ -948,6 +953,9 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     for (int j = 0; j < n_atoms; ++j)
       if (z[j] == zz)
         ++count;
+    if (count == 0)
+      continue;
+    covered += count;
     if (append_text(dst, dst_size, used, "*") != 0)
       return -1;
     if (psp.path.str && psp.path.len > 0) {
@@ -970,6 +978,8 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (covered != n_atoms)
+    return -1;
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") != 0)
