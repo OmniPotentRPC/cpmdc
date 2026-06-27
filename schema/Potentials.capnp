@@ -67,6 +67,24 @@ struct CPMDCpmdSection {
   maxIter              @9 :Int32 = 0;     # MAXITER; 0 => omit.
   convergenceGeometry  @10 :Float64 = 0.0; # CONVERGENCE GEOMETRY; 0 => omit.
   electronMass         @11 :Float64 = 0.0; # EMASS; 0 => omit.
+  molecularDynamicsCp        @12 :Bool = false; # MOLECULAR DYNAMICS CP.
+  molecularDynamicsBo        @13 :Bool = false; # MOLECULAR DYNAMICS BO.
+  molecularDynamicsEh        @14 :Bool = false; # MOLECULAR DYNAMICS EH.
+  molecularDynamicsPt        @15 :Bool = false; # MOLECULAR DYNAMICS PT.
+  molecularDynamicsClassical @16 :Bool = false; # MOLECULAR DYNAMICS CLASSICAL.
+  molecularDynamicsFile      @17 :Text;         # MOLECULAR DYNAMICS FILE.
+  nose                 @18 :Bool = false; # NOSE.
+  noseIons             @19 :Bool = false; # NOSE IONS.
+  noseElectrons        @20 :Bool = false; # NOSE ELECTRONS.
+  berendsen            @21 :Text;         # BERENDSEN.
+  langevin             @22 :Bool = false; # LANGEVIN.
+  annealing            @23 :Text;         # ANNEALING.
+  quench               @24 :Bool = false; # QUENCH.
+  rattle               @25 :Bool = false; # RATTLE.
+  shake                @26 :Bool = false; # SHAKE.
+  constraint           @27 :Text;         # CONSTRAINT.
+  trotter              @28 :Text;         # TROTTER.
+  restart              @29 :Bool = false; # RESTART.
 }
 
 struct CPMDDftSection {

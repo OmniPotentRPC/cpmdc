@@ -1,0 +1,33 @@
+(
+  functional = "BLYP",
+  cutOffRy = 75.0,
+  task = "md",
+  title = "Typed CPMD dynamics controls",
+  inputSections = [
+    ( cpmd = (
+        optimizeWavefunction = false,
+        molecularDynamics = true,
+        molecularDynamicsCp = true,
+        molecularDynamicsBo = true,
+        molecularDynamicsEh = true,
+        molecularDynamicsPt = true,
+        molecularDynamicsClassical = true,
+        molecularDynamicsFile = "TRAJECTORY.in",
+        nose = true,
+        noseIons = true,
+        noseElectrons = true,
+        berendsen = "300 100",
+        langevin = true,
+        annealing = "IONS 300 50",
+        quench = true,
+        rattle = true,
+        shake = true,
+        constraint = "FIX COM",
+        trotter = "8",
+        restart = true
+      ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 75.0,
+        cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( dft = ( functional = "BLYP", lsd = false ) )
+  ]
+)

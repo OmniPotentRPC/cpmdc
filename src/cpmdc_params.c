@@ -489,6 +489,35 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS\n") != 0)
       return -1;
   }
+  if (sec->molecularDynamicsCp) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS CP\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsBo) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS BO\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsEh) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS EH\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsPt) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS PT\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsClassical) {
+    if (append_text(dst, dst_size, used,
+                    " MOLECULAR DYNAMICS CLASSICAL\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsFile.str && sec->molecularDynamicsFile.len > 0) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS FILE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->molecularDynamicsFile) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)
@@ -515,6 +544,70 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   if (sec->electronMass > 0.0) {
     if (append_fmt(dst, dst_size, used, " EMASS\n  %.10g\n",
                    sec->electronMass) != 0)
+      return -1;
+  }
+  if (sec->nose) {
+    if (append_text(dst, dst_size, used, " NOSE\n") != 0)
+      return -1;
+  }
+  if (sec->noseIons) {
+    if (append_text(dst, dst_size, used, " NOSE IONS\n") != 0)
+      return -1;
+  }
+  if (sec->noseElectrons) {
+    if (append_text(dst, dst_size, used, " NOSE ELECTRONS\n") != 0)
+      return -1;
+  }
+  if (sec->berendsen.str && sec->berendsen.len > 0) {
+    if (append_text(dst, dst_size, used, " BERENDSEN\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->berendsen) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->langevin) {
+    if (append_text(dst, dst_size, used, " LANGEVIN\n") != 0)
+      return -1;
+  }
+  if (sec->annealing.str && sec->annealing.len > 0) {
+    if (append_text(dst, dst_size, used, " ANNEALING\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->annealing) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->quench) {
+    if (append_text(dst, dst_size, used, " QUENCH\n") != 0)
+      return -1;
+  }
+  if (sec->rattle) {
+    if (append_text(dst, dst_size, used, " RATTLE\n") != 0)
+      return -1;
+  }
+  if (sec->shake) {
+    if (append_text(dst, dst_size, used, " SHAKE\n") != 0)
+      return -1;
+  }
+  if (sec->constraint.str && sec->constraint.len > 0) {
+    if (append_text(dst, dst_size, used, " CONSTRAINT\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->constraint) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->trotter.str && sec->trotter.len > 0) {
+    if (append_text(dst, dst_size, used, " TROTTER\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->trotter) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->restart) {
+    if (append_text(dst, dst_size, used, " RESTART\n") != 0)
       return -1;
   }
   if (sec->restartWavefunction) {

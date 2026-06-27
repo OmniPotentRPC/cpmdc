@@ -113,21 +113,39 @@ Typed ``&CPMD`` Controls
 
 ``CPMDCpmdSection`` exposes the common driver controls directly:
 
-========================= ============================
-Field                     Deck keyword
-========================= ============================
-``optimizeWavefunction``  ``OPTIMIZE WAVEFUNCTION``
-``optimizeGeometry``      ``OPTIMIZE GEOMETRY``
-``molecularDynamics``     ``MOLECULAR DYNAMICS``
-``convergenceOrbitals``   ``CONVERGENCE ORBITALS``
-``convergenceGeometry``   ``CONVERGENCE GEOMETRY``
-``maxStep``               ``MAXSTEP``
-``maxIter``               ``MAXITER``
-``timestep``              ``TIMESTEP``
-``electronMass``          ``EMASS``
-``restartWavefunction``   ``RESTART WAVEFUNCTION``
-``trajectory``            ``TRAJECTORY``
-========================= ============================
+=============================== ================================
+Field                           Deck keyword
+=============================== ================================
+``optimizeWavefunction``        ``OPTIMIZE WAVEFUNCTION``
+``optimizeGeometry``            ``OPTIMIZE GEOMETRY``
+``molecularDynamics``           ``MOLECULAR DYNAMICS``
+``molecularDynamicsCp``         ``MOLECULAR DYNAMICS CP``
+``molecularDynamicsBo``         ``MOLECULAR DYNAMICS BO``
+``molecularDynamicsEh``         ``MOLECULAR DYNAMICS EH``
+``molecularDynamicsPt``         ``MOLECULAR DYNAMICS PT``
+``molecularDynamicsClassical``  ``MOLECULAR DYNAMICS CLASSICAL``
+``molecularDynamicsFile``       ``MOLECULAR DYNAMICS FILE``
+``convergenceOrbitals``         ``CONVERGENCE ORBITALS``
+``convergenceGeometry``         ``CONVERGENCE GEOMETRY``
+``maxStep``                     ``MAXSTEP``
+``maxIter``                     ``MAXITER``
+``timestep``                    ``TIMESTEP``
+``electronMass``                ``EMASS``
+``nose``                        ``NOSE``
+``noseIons``                    ``NOSE IONS``
+``noseElectrons``               ``NOSE ELECTRONS``
+``berendsen``                   ``BERENDSEN``
+``langevin``                    ``LANGEVIN``
+``annealing``                   ``ANNEALING``
+``quench``                      ``QUENCH``
+``rattle``                      ``RATTLE``
+``shake``                       ``SHAKE``
+``constraint``                  ``CONSTRAINT``
+``trotter``                     ``TROTTER``
+``restart``                     ``RESTART``
+``restartWavefunction``         ``RESTART WAVEFUNCTION``
+``trajectory``                  ``TRAJECTORY``
+=============================== ================================
 
 Typed ``&DFT`` Controls
 =======================

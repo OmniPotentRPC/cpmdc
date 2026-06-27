@@ -44,9 +44,9 @@ static int check_deck(const char *bin, const char **need, int nneed) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 5) {
+  if (argc < 6) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin\n",
             argv[0]);
     return 2;
   }
@@ -82,6 +82,15 @@ int main(int argc, char **argv) {
       "BETA", "0.75", "OLDCODE", "NEWCODE", "CORRELATION", "LYP",
       "EXCHANGE", "B88", "BECKE88",
   };
+  const char *cpmd_dynamics_need[] = {
+      "&CPMD", "MOLECULAR DYNAMICS", "MOLECULAR DYNAMICS CP",
+      "MOLECULAR DYNAMICS BO", "MOLECULAR DYNAMICS EH",
+      "MOLECULAR DYNAMICS PT", "MOLECULAR DYNAMICS CLASSICAL",
+      "MOLECULAR DYNAMICS FILE", "TRAJECTORY.in", "NOSE", "NOSE IONS",
+      "NOSE ELECTRONS", "BERENDSEN", "300 100", "LANGEVIN", "ANNEALING",
+      "IONS 300 50", "QUENCH", "RATTLE", "SHAKE", "CONSTRAINT", "FIX COM",
+      "TROTTER", "8", "RESTART",
+  };
   if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;
   if (check_deck(argv[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
@@ -93,6 +102,10 @@ int main(int argc, char **argv) {
                  (int)(sizeof(dft_scalars_need) /
                        sizeof(dft_scalars_need[0]))) != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, and dft_scalars render + inventory finds\n");
+  if (check_deck(argv[5], cpmd_dynamics_need,
+                 (int)(sizeof(cpmd_dynamics_need) /
+                       sizeof(cpmd_dynamics_need[0]))) != 0)
+    return 1;
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, and cpmd_dynamics render + inventory finds\n");
   return 0;
 }
