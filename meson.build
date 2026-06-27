@@ -46,7 +46,7 @@ endif
 
 cpmdc_stub = static_library(
   'cpmdc_stub',
-  'src/cpmdc_stub.c',
+  ['src/cpmdc_stub.c', 'src/cpmdc_features.c'],
   include_directories: inc,
   c_args: common_c_args + capnp_generated_c_args,
   install: false,

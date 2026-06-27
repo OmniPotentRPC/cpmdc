@@ -41,6 +41,15 @@ static void test_stub_reports_unavailable(void **state) {
       cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
   assert_int_equal(one_shot.ok, 0);
   assert_int_equal(cpmdc_potential_result_size_for_force_input(NULL, 0), 0);
+  const CPMDCFeatureEntry *features = cpmdc_feature_table();
+  assert_non_null(features);
+  assert_true(cpmdc_feature_count() > 0);
+  const CPMDCFeatureEntry *find_feature =
+      cpmdc_feature_find("abi.cpmdc_feature_find");
+  assert_non_null(find_feature);
+  assert_string_equal(find_feature->feature_id, "abi.cpmdc_feature_find");
+  assert_int_equal(find_feature->kind, CPMDC_FEATURE_ABI);
+  assert_int_equal(find_feature->stub_applicable, 1);
   cpmdc_finalize();
 }
 
