@@ -61,7 +61,10 @@ if (pimd != NULL && pimd->embed_applicable) {
 
 Feature IDs use namespaces such as ~catalog.section.*~, ~catalog.cpmd.*~,
 ~catalog.dft.*~, ~params.*~, and ~abi.*~. Each entry reports whether it applies
-to stub builds, embedded OpenCPMD builds, or both.
+to stub builds, embedded OpenCPMD builds, or both. Structured field controls are
+discoverable with ~params.inputSections.<section>.<field>~ IDs, for example
+~params.inputSections.cpmd.maxIter~, ~params.inputSections.dft.hfxScreening~,
+and ~params.inputSections.atoms.pseudopotentials~.
 
 * Session Step Calls (direct-call socket)
 Callers that drive multiple geometry steps keep method state in a session and

@@ -90,6 +90,101 @@ static void test_param_applicability(void **state) {
   assert_int_equal(permanent->embed_applicable, 1);
 }
 
+static void test_structured_param_features(void **state) {
+  (void)state;
+  static const char *const param_features[] = {
+      "params.inputSections.generic.name",
+      "params.inputSections.generic.directives",
+      "params.inputSections.system.symmetry",
+      "params.inputSections.system.angstrom",
+      "params.inputSections.system.cell",
+      "params.inputSections.system.cutOffRy",
+      "params.inputSections.system.scale",
+      "params.inputSections.system.charge",
+      "params.inputSections.system.multiplicity",
+      "params.inputSections.system.directives",
+      "params.inputSections.cpmd.optimizeWavefunction",
+      "params.inputSections.cpmd.molecularDynamics",
+      "params.inputSections.cpmd.convergenceOrbitals",
+      "params.inputSections.cpmd.maxStep",
+      "params.inputSections.cpmd.timestep",
+      "params.inputSections.cpmd.restartWavefunction",
+      "params.inputSections.cpmd.trajectory",
+      "params.inputSections.cpmd.directives",
+      "params.inputSections.cpmd.optimizeGeometry",
+      "params.inputSections.cpmd.maxIter",
+      "params.inputSections.cpmd.convergenceGeometry",
+      "params.inputSections.cpmd.electronMass",
+      "params.inputSections.cpmd.molecularDynamicsCp",
+      "params.inputSections.cpmd.molecularDynamicsBo",
+      "params.inputSections.cpmd.molecularDynamicsEh",
+      "params.inputSections.cpmd.molecularDynamicsPt",
+      "params.inputSections.cpmd.molecularDynamicsClassical",
+      "params.inputSections.cpmd.molecularDynamicsFile",
+      "params.inputSections.cpmd.nose",
+      "params.inputSections.cpmd.noseIons",
+      "params.inputSections.cpmd.noseElectrons",
+      "params.inputSections.cpmd.berendsen",
+      "params.inputSections.cpmd.langevin",
+      "params.inputSections.cpmd.annealing",
+      "params.inputSections.cpmd.quench",
+      "params.inputSections.cpmd.rattle",
+      "params.inputSections.cpmd.shake",
+      "params.inputSections.cpmd.constraint",
+      "params.inputSections.cpmd.trotter",
+      "params.inputSections.cpmd.restart",
+      "params.inputSections.cpmd.printOptions",
+      "params.inputSections.cpmd.storeOptions",
+      "params.inputSections.cpmd.centerMoleculeOff",
+      "params.inputSections.cpmd.centerMoleculeOn",
+      "params.inputSections.cpmd.diis",
+      "params.inputSections.cpmd.odiis",
+      "params.inputSections.cpmd.pcg",
+      "params.inputSections.cpmd.diagonalization",
+      "params.inputSections.cpmd.freeEnergy",
+      "params.inputSections.cpmd.interface",
+      "params.inputSections.cpmd.qmmm",
+      "params.inputSections.cpmd.bicanonicalEnsemble",
+      "params.inputSections.cpmd.cdft",
+      "params.inputSections.cpmd.properties",
+      "params.inputSections.dft.functional",
+      "params.inputSections.dft.lsd",
+      "params.inputSections.dft.directives",
+      "params.inputSections.dft.gcCutoff",
+      "params.inputSections.dft.xcDriver",
+      "params.inputSections.dft.libxc",
+      "params.inputSections.dft.lrKernel",
+      "params.inputSections.dft.refunct",
+      "params.inputSections.dft.mtsHighFunc",
+      "params.inputSections.dft.mtsLowFunc",
+      "params.inputSections.dft.hfx",
+      "params.inputSections.dft.hfxScreening",
+      "params.inputSections.dft.hubbard",
+      "params.inputSections.dft.alpha",
+      "params.inputSections.dft.beta",
+      "params.inputSections.dft.oldCode",
+      "params.inputSections.dft.newCode",
+      "params.inputSections.dft.correlation",
+      "params.inputSections.dft.exchange",
+      "params.inputSections.dft.becke88",
+      "params.inputSections.atoms.pseudopotentials",
+      "params.inputSections.atoms.directives",
+      "params.inputSections.set.key",
+      "params.inputSections.set.value",
+      "params.inputSections.raw",
+  };
+
+  for (size_t i = 0; i < sizeof(param_features) / sizeof(param_features[0]);
+       i++) {
+    const CPMDCFeatureEntry *entry = cpmdc_feature_find(param_features[i]);
+    assert_non_null(entry);
+    assert_string_equal(entry->feature_id, param_features[i]);
+    assert_int_equal(entry->kind, CPMDC_FEATURE_PARAMS);
+    assert_int_equal(entry->stub_applicable, 1);
+    assert_int_equal(entry->embed_applicable, 1);
+  }
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_feature_table_nonempty),
@@ -97,6 +192,7 @@ int main(void) {
       cmocka_unit_test(test_cp_keywords_not_sections),
       cmocka_unit_test(test_abi),
       cmocka_unit_test(test_param_applicability),
+      cmocka_unit_test(test_structured_param_features),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -72,7 +72,11 @@ a stub build is sufficient for a workflow.
 Feature IDs use namespaces such as ``catalog.section.*``,
 ``catalog.cpmd.*``, ``catalog.dft.*``, ``params.*``, and ``abi.*``. Each
 entry reports whether it applies to stub builds, embedded OpenCPMD
-builds, or both.
+builds, or both. Structured field controls are discoverable with
+``params.inputSections.<section>.<field>`` IDs, for example
+``params.inputSections.cpmd.maxIter``,
+``params.inputSections.dft.hfxScreening``, and
+``params.inputSections.atoms.pseudopotentials``.
 
 Session Step Calls (direct-call socket)
 =======================================

@@ -26,6 +26,14 @@ CPMD `INPUT` deck internally.
 | Fortran bridge | `src/cpmd_embed_c_api.F90` | `iso_c_binding` shell around the embedded CPMD evaluator |
 | Tests and fixtures | `tests/` | cmocka tests plus encoded Cap'n Proto fixtures |
 
+## Feature Discovery
+
+`cpmdc_feature_table()` exposes ABI calls, renderable CPMD catalog entries, and
+schema fields. Top-level fields use IDs such as `params.functional`;
+structured section fields use `params.inputSections.<section>.<field>`, for
+example `params.inputSections.cpmd.maxIter` and
+`params.inputSections.dft.hfxScreening`.
+
 ## Data Flow
 
 There are two wire messages in normal use:

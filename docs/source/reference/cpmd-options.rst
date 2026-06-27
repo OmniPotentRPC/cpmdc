@@ -45,6 +45,13 @@ Top-level ``CPMDParams`` fields
 |                                  | list                              |
 +----------------------------------+-----------------------------------+
 
+The feature-discovery table exposes these as ``params.<field>`` IDs.
+Structured fields use ``params.inputSections.<section>.<field>``, for
+example ``params.inputSections.cpmd.maxIter``,
+``params.inputSections.dft.hfxScreening``,
+``params.inputSections.system.cell``, and
+``params.inputSections.atoms.pseudopotentials``.
+
 ``CPMDInputSection`` kinds
 ==========================
 
