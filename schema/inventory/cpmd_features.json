@@ -64,7 +64,7 @@
       "kind": "set",
       "feature_id": "section.set",
       "stub_applicable": true,
-      "embed_applicable": false
+      "embed_applicable": true
     },
     {
       "kind": "raw",
@@ -316,7 +316,7 @@
       "kind": "section_kind",
       "name": "set",
       "stub_applicable": true,
-      "embed_applicable": false,
+      "embed_applicable": true,
       "role": "CPMDInputSection union arm"
     },
     {

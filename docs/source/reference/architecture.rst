@@ -34,9 +34,10 @@ roots.
 
 There is no second user-facing configuration struct in C. Structured
 ``CPMDInputSection`` unions (``cpmd``, ``system``, ``dft``, ``atoms``,
-``generic``, ``raw``) are Cap'n Proto only; the renderer turns them into
-CPMD-style ``&SECTION`` … ``&END`` text for embed configuration and
-debugging.
+``generic``, ``set``, ``raw``) are Cap'n Proto only; the renderer turns
+them into CPMD-style ``&SECTION`` … ``&END`` text for embed configuration
+and debugging. The ``set`` arm accepts dotted ``SECTION.KEYWORD`` keys and
+emits the corresponding keyword inside the named section.
 
 Long-Running Sessions
 =====================
