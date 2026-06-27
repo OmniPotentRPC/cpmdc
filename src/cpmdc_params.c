@@ -190,6 +190,19 @@ static int set_sections_equal(const struct RenderSetDirective *a,
   return 1;
 }
 
+static int slice_starts_ci(const char *text, size_t text_len,
+                           const char *prefix) {
+  size_t prefix_len = strlen(prefix);
+  if (!text || text_len < prefix_len)
+    return 0;
+  for (size_t i = 0; i < prefix_len; ++i) {
+    if (ascii_upper((unsigned char)text[i]) !=
+        ascii_upper((unsigned char)prefix[i]))
+      return 0;
+  }
+  return 1;
+}
+
 static int init_render_set(struct RenderSetDirective *out,
                            const struct CPMDSetDirective *set) {
   if (!set->key.str || set->key.len <= 2)
@@ -225,6 +238,22 @@ static int collect_set_directives(CPMDInputSection_list sections,
     if (init_render_set(&sets->items[sets->len], &body) != 0)
       return -1;
     ++sets->len;
+  }
+  return 0;
+}
+
+static int set_directives_have_prefix(struct RenderSetList *sets,
+                                      const char *section,
+                                      const char *prefix) {
+  if (!sets)
+    return 0;
+  for (int i = 0; i < sets->len; ++i) {
+    if (sets->items[i].rendered ||
+        !section_name_equals(&sets->items[i], section))
+      continue;
+    if (slice_starts_ci(sets->items[i].keyword, sets->items[i].keyword_len,
+                        prefix))
+      return 1;
   }
   return 0;
 }
@@ -387,7 +416,11 @@ static int render_system_section_with_cell(
   int has_poisson = directives_have_prefix(sys->directives, "POISSON SOLVER");
   if (has_poisson < 0)
     return -1;
-  if (symmetry == 0 && !has_poisson) {
+  int set_has_poisson =
+      set_directives_have_prefix(sets, "SYSTEM", "POISSON SOLVER");
+  if (set_has_poisson < 0)
+    return -1;
+  if (symmetry == 0 && !has_poisson && !set_has_poisson) {
     if (append_text(dst, dst_size, used, " POISSON SOLVER HOCKNEY\n") != 0)
       return -1;
   }
