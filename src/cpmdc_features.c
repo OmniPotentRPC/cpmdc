@@ -7,7 +7,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"section.cpmd", CPMDC_FEATURE_SECTION, 1, 1},
     {"section.dft", CPMDC_FEATURE_SECTION, 1, 1},
     {"section.atoms", CPMDC_FEATURE_SECTION, 1, 1},
-    {"section.set", CPMDC_FEATURE_SECTION, 1, 0},
+    {"section.set", CPMDC_FEATURE_SECTION, 1, 1},
     {"section.raw", CPMDC_FEATURE_SECTION, 1, 1},
     {"catalog.section.ATOM", CPMDC_FEATURE_SECTION, 1, 1},
     {"catalog.section.ATOMS", CPMDC_FEATURE_SECTION, 1, 1},

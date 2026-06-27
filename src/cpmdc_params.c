@@ -101,6 +101,18 @@ static int append_capn_text(char *dst, size_t dst_size, size_t *used,
   return 0;
 }
 
+static int append_slice(char *dst, size_t dst_size, size_t *used,
+                        const char *s, size_t len) {
+  if (!s || len == 0)
+    return 0;
+  if (*used + len >= dst_size)
+    return -1;
+  memcpy(dst + *used, s, len);
+  *used += len;
+  dst[*used] = '\0';
+  return 0;
+}
+
 static int append_directives(char *dst, size_t dst_size, size_t *used,
                              CPMDDirective_list directives) {
   int n = struct_list_len(&directives.p);
@@ -376,6 +388,38 @@ static int render_generic_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+static int render_set_section(char *dst, size_t dst_size, size_t *used,
+                              const struct CPMDSetDirective *set) {
+  if (!set->key.str || set->key.len <= 2)
+    return -1;
+  const char *dot = memchr(set->key.str, '.', (size_t)set->key.len);
+  if (!dot || dot == set->key.str ||
+      dot == set->key.str + (size_t)set->key.len - 1)
+    return -1;
+  size_t section_len = (size_t)(dot - set->key.str);
+  size_t keyword_len =
+      (size_t)set->key.len - section_len - 1u;
+  if (append_text(dst, dst_size, used, "&") != 0)
+    return -1;
+  if (append_slice(dst, dst_size, used, set->key.str, section_len) != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, "\n ") != 0)
+    return -1;
+  if (append_slice(dst, dst_size, used, dot + 1, keyword_len) != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, "\n") != 0)
+    return -1;
+  if (set->value.str && set->value.len > 0) {
+    if (append_text(dst, dst_size, used, "  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, set->value) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
 int cpmdc_params_root(const void *params_capnp, size_t params_capnp_size_bytes,
                       struct capn *arena, CPMDParams_ptr *params) {
   if (!params_capnp || params_capnp_size_bytes == 0 || !arena || !params)
@@ -493,8 +537,13 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
         return -1;
       break;
     }
-    case CPMDInputSection_set:
+    case CPMDInputSection_set: {
+      struct CPMDSetDirective body;
+      read_CPMDSetDirective(&body, sec.set);
+      if (render_set_section(dst, dst_size, &used, &body) != 0)
+        return -1;
       break;
+    }
     case CPMDInputSection_raw:
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
@@ -727,8 +776,13 @@ int cpmdc_params_render_deck_with_geometry(
         return -1;
       break;
     }
-    case CPMDInputSection_set:
+    case CPMDInputSection_set: {
+      struct CPMDSetDirective body;
+      read_CPMDSetDirective(&body, sec.set);
+      if (render_set_section(dst, dst_size, &used, &body) != 0)
+        return -1;
       break;
+    }
     case CPMDInputSection_raw:
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
