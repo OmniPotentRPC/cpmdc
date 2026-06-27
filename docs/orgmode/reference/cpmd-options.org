@@ -201,6 +201,12 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.externalField~ | ~system.externalField~ | ~&SYSTEM EXTERNAL FIELD~ |
 | ~params.inputSections.system.wCut~ | ~system.wCut~ | ~&SYSTEM WCUT~ |
 | ~params.inputSections.system.wGauss~ | ~system.wGauss~ | ~&SYSTEM WGAUSS~ sigma values |
+| ~params.inputSections.system.lowSpinExcitation~ | ~system.lowSpinExcitation~ | ~&SYSTEM LOW SPIN EXCITATION~ options |
+| ~params.inputSections.system.lowSpinExcitationLsets~ | ~system.lowSpinExcitationLsets~ | Add ~LSETS~ to ~LOW SPIN EXCITATION~ |
+| ~params.inputSections.system.lseParameters~ | ~system.lseParameters~ | ~&SYSTEM LSE PARAMETERS~ lsea/lseb |
+| ~params.inputSections.system.modifiedGoedecker~ | ~system.modifiedGoedecker~ | ~&SYSTEM MODIFIED GOEDECKER~ |
+| ~params.inputSections.system.modifiedGoedeckerParameters~ | ~system.modifiedGoedeckerParameters~ | ~&SYSTEM MODIFIED GOEDECKER PARAMETERS~ lambda values |
+| ~params.inputSections.system.energyProfile~ | ~system.energyProfile~ | ~&SYSTEM ENERGY PROFILE~ |
 | ~params.inputSections.system.densityCutOffRy~ | ~system.densityCutOffRy~ | ~&SYSTEM DENSITY CUTOFF~ |
 | ~params.inputSections.system.densityCutoffNumber~ | ~system.densityCutoffNumber~ | ~&SYSTEM DENSITY CUTOFF NUMBER~ |
 | ~params.inputSections.system.dual~ | ~system.dual~ | ~&SYSTEM DUAL~ |

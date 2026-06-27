@@ -638,6 +638,52 @@ static int render_system_section_with_cell(
         return -1;
     }
   }
+  int has_low_spin =
+      sys->lowSpinExcitation.str && sys->lowSpinExcitation.len > 0;
+  if (has_low_spin || sys->lowSpinExcitationLsets) {
+    if (append_text(dst, dst_size, used, " LOW SPIN EXCITATION") != 0)
+      return -1;
+    if (has_low_spin) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sys->lowSpinExcitation) != 0)
+        return -1;
+    }
+    if (sys->lowSpinExcitationLsets &&
+        append_text(dst, dst_size, used, " LSETS") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  int n_lse_parameters = list64_len(&sys->lseParameters);
+  if (n_lse_parameters < 0)
+    return -1;
+  if (n_lse_parameters > 0) {
+    if (append_text(dst, dst_size, used, " LSE PARAMETERS\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used, &sys->lseParameters, 2) !=
+        0)
+      return -1;
+  }
+  int n_modified_goedecker_parameters =
+      list64_len(&sys->modifiedGoedeckerParameters);
+  if (n_modified_goedecker_parameters < 0)
+    return -1;
+  if (n_modified_goedecker_parameters > 0) {
+    if (append_text(dst, dst_size, used,
+                    " MODIFIED GOEDECKER PARAMETERS\n") != 0)
+      return -1;
+    if (append_f64_list_line(dst, dst_size, used,
+                             &sys->modifiedGoedeckerParameters, 2) != 0)
+      return -1;
+  } else if (sys->modifiedGoedecker) {
+    if (append_text(dst, dst_size, used, " MODIFIED GOEDECKER\n") != 0)
+      return -1;
+  }
+  if (sys->energyProfile) {
+    if (append_text(dst, dst_size, used, " ENERGY PROFILE\n") != 0)
+      return -1;
+  }
   int field_has_poisson =
       sys->poissonSolver.str && sys->poissonSolver.len > 0;
   if (field_has_poisson) {

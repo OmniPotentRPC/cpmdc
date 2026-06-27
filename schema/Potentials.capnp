@@ -85,6 +85,12 @@ struct CPMDSystemSection {
   checkSymmetryOff @38 :Bool = false;       # CHECK SYMMETRY OFF.
   wCut            @39 :Float64 = 0.0;       # WCUT; 0 => omit.
   wGauss          @40 :List(Float64);       # WGAUSS sigma values.
+  lowSpinExcitation @41 :Text;              # LOW SPIN EXCITATION options, e.g. ROKS.
+  lowSpinExcitationLsets @42 :Bool = false; # LOW SPIN EXCITATION LSETS.
+  lseParameters   @43 :List(Float64);       # LSE PARAMETERS lsea, lseb (2).
+  modifiedGoedecker @44 :Bool = false;      # MODIFIED GOEDECKER.
+  modifiedGoedeckerParameters @45 :List(Float64); # MODIFIED GOEDECKER PARAMETERS lambda_ab, lambda_ba (2).
+  energyProfile   @46 :Bool = false;        # ENERGY PROFILE.
 }
 
 struct CPMDCpmdSection {

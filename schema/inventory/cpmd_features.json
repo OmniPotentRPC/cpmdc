@@ -2023,6 +2023,54 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.lowSpinExcitation",
+      "kind": "structured_params_field",
+      "name": "lowSpinExcitation",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.lowSpinExcitationLsets",
+      "kind": "structured_params_field",
+      "name": "lowSpinExcitationLsets",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.lseParameters",
+      "kind": "structured_params_field",
+      "name": "lseParameters",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.modifiedGoedecker",
+      "kind": "structured_params_field",
+      "name": "modifiedGoedecker",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.modifiedGoedeckerParameters",
+      "kind": "structured_params_field",
+      "name": "modifiedGoedeckerParameters",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.energyProfile",
+      "kind": "structured_params_field",
+      "name": "energyProfile",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.densityCutOffRy",
       "name": "densityCutOffRy",
       "kind": "params",

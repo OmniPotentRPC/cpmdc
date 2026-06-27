@@ -189,6 +189,13 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.externalField"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wCut"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wGauss"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitation"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitationLsets"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.lseParameters"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.modifiedGoedecker"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.modifiedGoedeckerParameters"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.energyProfile"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.densityCutOffRy"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.densityCutoffNumber"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.dual"),
