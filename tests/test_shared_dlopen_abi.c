@@ -1,3 +1,5 @@
+#include "cpmdc.h"
+
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
@@ -5,6 +7,9 @@
 typedef int (*cpmdc_available_fn)(void);
 typedef const char *(*cpmdc_version_fn)(void);
 typedef void (*cpmdc_finalize_fn)(void);
+typedef size_t (*cpmdc_feature_count_fn)(void);
+typedef const CPMDCFeatureEntry *(*cpmdc_feature_table_fn)(void);
+typedef const CPMDCFeatureEntry *(*cpmdc_feature_find_fn)(const char *);
 
 static void *required_symbol(void *handle, const char *name) {
   dlerror();
@@ -42,10 +47,25 @@ int main(int argc, char **argv) {
       handle, "cpmdc_available", cpmdc_available_fn);
   cpmdc_finalize_fn finalize = LOAD_REQUIRED_FUNCTION(
       handle, "cpmdc_finalize", cpmdc_finalize_fn);
+  cpmdc_feature_count_fn feature_count = LOAD_REQUIRED_FUNCTION(
+      handle, "cpmdc_feature_count", cpmdc_feature_count_fn);
+  cpmdc_feature_table_fn feature_table = LOAD_REQUIRED_FUNCTION(
+      handle, "cpmdc_feature_table", cpmdc_feature_table_fn);
+  cpmdc_feature_find_fn feature_find = LOAD_REQUIRED_FUNCTION(
+      handle, "cpmdc_feature_find", cpmdc_feature_find_fn);
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-  if (version == NULL || available == NULL || finalize == NULL) {
+  if (version == NULL || available == NULL || finalize == NULL ||
+      feature_count == NULL || feature_table == NULL || feature_find == NULL) {
+    dlclose(handle);
+    return 1;
+  }
+  const CPMDCFeatureEntry *feature =
+      feature_find("abi.cpmdc_session_calculate_result");
+  if (feature_count() == 0 || feature_table() == NULL || feature == NULL ||
+      feature->kind != CPMDC_FEATURE_ABI || feature->embed_applicable != 1) {
+    fprintf(stderr, "shared cpmdc feature discovery is incomplete\n");
     dlclose(handle);
     return 1;
   }
