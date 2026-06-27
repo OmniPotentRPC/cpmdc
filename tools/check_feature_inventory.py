@@ -74,6 +74,7 @@ def main() -> int:
 
     # Live OpenCPMD probe (non-circular completeness)
     cpmd_root = os.environ.get("CPMD_ROOT") or os.environ.get("CPMDC_CPMD_ROOT")
+    live_probe_status = "live probe skipped"
     if not cpmd_root:
         # meson often uses /tmp/OpenCPMD-gf14
         for cand in (Path("/tmp/OpenCPMD-gf14"), Path(inv.get("opencpmd_reference") or "")):
@@ -91,6 +92,7 @@ def main() -> int:
         if allow and live - allow:
             errors.append(f"allowlist missing live inscan: {sorted(live - allow)}")
         print(f"probed {cpmd_root}: {len(live)} inscan sections")
+        live_probe_status = "live probe passed"
     else:
         print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
@@ -205,7 +207,7 @@ def main() -> int:
     print(
         f"OK inventory: {len(inv['features'])} features, "
         f"{len(inv_secs)} inscan sections (incl EAM/MOLSTATES/NLCC/VECTORS), "
-        f"live probe passed"
+        f"{live_probe_status}"
     )
     return 0
 
