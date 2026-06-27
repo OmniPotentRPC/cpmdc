@@ -20,8 +20,30 @@ def probe_inscan_sections(cpmd_root: Path) -> set[str]:
     for p in src.rglob("*.F90"):
         t = p.read_text(errors="replace")
         for m in re.finditer(r"inscan\s*\([^)]*'&([A-Z][A-Z0-9_]*)'", t, re.I):
-            secs.add(m.group(1).upper())
+                secs.add(m.group(1).upper())
     return secs
+
+def struct_fields(schema: str, struct_name: str) -> list[str]:
+    match = re.search(rf"struct {struct_name} \{{(.*?)\n\}}", schema, re.S)
+    if not match:
+        raise ValueError(f"schema missing struct {struct_name}")
+    return re.findall(r"(\w+)\s+@\d+\s*:", match.group(1))
+
+def structured_param_feature_ids(schema: str) -> list[str]:
+    section_structs = {
+        "generic": "CPMDGenericSection",
+        "system": "CPMDSystemSection",
+        "cpmd": "CPMDCpmdSection",
+        "dft": "CPMDDftSection",
+        "atoms": "CPMDAtomsSection",
+        "set": "CPMDSetDirective",
+    }
+    ids: list[str] = []
+    for section, struct_name in section_structs.items():
+        for field in struct_fields(schema, struct_name):
+            ids.append(f"params.inputSections.{section}.{field}")
+    ids.append("params.inputSections.raw")
+    return ids
 
 def main() -> int:
     inv = json.loads(INVENTORY.read_text(encoding="utf-8"))
@@ -83,6 +105,16 @@ def main() -> int:
             features_c,
         )
     }
+    for fid in re.findall(r'CPMDC_PARAM_FEATURE\(\s*"([^"]+)"\s*\)', features_c):
+        c_flags[fid] = (True, True)
+
+    for fid in structured_param_feature_ids(schema):
+        if fid not in c_flags:
+            errors.append(f"C table missing structured params feature {fid}")
+            continue
+        stub, embed = c_flags[fid]
+        if not stub or not embed:
+            errors.append(f"{fid} structured params applicability should be stub+embed")
 
     for feature in inv["features"]:
         fid = feature["feature_id"]
