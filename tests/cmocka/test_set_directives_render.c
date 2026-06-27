@@ -49,6 +49,23 @@ static void assert_deck_has(const char *deck, const char *needle) {
     fail_msg("missing token [%s] in deck:\n%s", needle, deck);
 }
 
+static int count_occurrences(const char *haystack, const char *needle) {
+  int count = 0;
+  size_t needle_len = strlen(needle);
+  const char *cursor = haystack;
+  while ((cursor = strstr(cursor, needle)) != NULL) {
+    ++count;
+    cursor += needle_len;
+  }
+  return count;
+}
+
+static void assert_known_sections_are_unique(const char *deck) {
+  assert_int_equal(count_occurrences(deck, "&CPMD\n"), 1);
+  assert_int_equal(count_occurrences(deck, "&SYSTEM\n"), 1);
+  assert_int_equal(count_occurrences(deck, "&DFT\n"), 1);
+}
+
 static void test_set_sections_render_into_target_sections(void **state) {
   (void)state;
   const CPMDCFeatureEntry *set = cpmdc_feature_find("section.set");
@@ -77,6 +94,22 @@ static void test_set_sections_render_into_target_sections(void **state) {
   assert_deck_has(deck, "&DFT");
   assert_deck_has(deck, "GC-CUTOFF");
   assert_deck_has(deck, "  1.0e-7");
+  assert_known_sections_are_unique(deck);
+
+  double positions[6] = {0.0, 0.0, 0.7414, 0.0, 0.0, 0.0};
+  int atomic_numbers[2] = {8, 1};
+  double cell[9] = {10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0};
+  char geometry_deck[CPMDC_BLOCKS];
+  assert_int_equal(cpmdc_params_render_deck_with_geometry(
+                       params_root, 2, positions, atomic_numbers, cell, 1,
+                       geometry_deck, sizeof(geometry_deck)),
+                   0);
+  assert_deck_has(geometry_deck, "OPTIMIZE WAVEFUNCTION");
+  assert_deck_has(geometry_deck, "PRINT FORCES ON");
+  assert_deck_has(geometry_deck, "MAXSTEP");
+  assert_deck_has(geometry_deck, "POISSON SOLVER");
+  assert_deck_has(geometry_deck, "GC-CUTOFF");
+  assert_known_sections_are_unique(geometry_deck);
 
   cpmdc_params_release(&arena);
   free(message);
