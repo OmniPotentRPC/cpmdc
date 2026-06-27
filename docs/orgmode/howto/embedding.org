@@ -179,8 +179,8 @@ Structured ~inputSections~ should be preferred over raw blocks when a typed arm
 exists:
 
 - ~system~ for cells, cutoff/grid/mesh controls, state occupation, external
-  fields, pressure and stress controls, Poisson settings, isolated-shape
-  controls, charge, and spin multiplicity
+  fields, CDFT Gaussian controls, pressure and stress controls, Poisson
+  settings, isolated-shape controls, charge, and spin multiplicity
 - ~cpmd~ for wavefunction optimization, MD, convergence, restart, and
   trajectory controls
 - ~dft~ for functional and spin-polarized DFT controls

@@ -81,6 +81,10 @@ struct CPMDSystemSection {
   pressure        @34 :Float64 = 0.0;       # PRESSURE; 0 => omit.
   stressTensor    @35 :List(Float64);       # STRESS TENSOR values (9).
   shockVelocity   @36 :Float64 = 0.0;       # SHOCK VELOCITY; 0 => omit.
+  checkSymmetryPrecision @37 :Float64 = 0.0; # CHECK SYMMETRY precision; 0 => omit.
+  checkSymmetryOff @38 :Bool = false;       # CHECK SYMMETRY OFF.
+  wCut            @39 :Float64 = 0.0;       # WCUT; 0 => omit.
+  wGauss          @40 :List(Float64);       # WGAUSS sigma values.
 }
 
 struct CPMDCpmdSection {

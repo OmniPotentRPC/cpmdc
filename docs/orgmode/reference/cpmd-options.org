@@ -37,7 +37,7 @@ fields use ~params.inputSections.<section>.<field>~, for example
 |------+------------------+-------------|
 | ~atom~ | ~CPMDDirectiveSection~ | ~&ATOM~ keyword/value lines and nested subsections |
 | ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (wavefunction/geometry optimization, MD, isolated/centered molecule controls, convergence, iteration limits, timestep, electron mass, …) |
-| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, cell/reference/classical cell, cutoff/grid/mesh controls, state occupation, external fields, pressure/stress controls, Poisson solver, surface/polymer/cluster, charge, …) |
+| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, cell/reference/classical cell, cutoff/grid/mesh controls, state occupation, external fields, CDFT Gaussian controls, pressure/stress controls, Poisson solver, surface/polymer/cluster, charge, …) |
 | ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, GC cutoff, XC driver, hybrid/Hubbard scalars, extra directives) |
 | ~atoms~ | ~CPMDAtomsSection~ | ~&ATOMS~ (pseudopotential lines; coordinates come from ~ForceInput~) |
 | ~basis~ | ~CPMDDirectiveSection~ | ~&BASIS~ keyword/value lines and nested subsections |
@@ -185,6 +185,8 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.classicalCell~ | ~system.classicalCell~ | ~&SYSTEM CLASSICAL CELL~ |
 | ~params.inputSections.system.isotropicCell~ | ~system.isotropicCell~ | ~&SYSTEM ISOTROPIC CELL~ |
 | ~params.inputSections.system.zFlexibleCell~ | ~system.zFlexibleCell~ | ~&SYSTEM ZFLEXIBLE CELL~ |
+| ~params.inputSections.system.checkSymmetryPrecision~ | ~system.checkSymmetryPrecision~ | ~&SYSTEM CHECK SYMMETRY~ precision |
+| ~params.inputSections.system.checkSymmetryOff~ | ~system.checkSymmetryOff~ | ~&SYSTEM CHECK SYMMETRY OFF~ |
 | ~params.inputSections.system.cutOffRy~ | ~system.cutOffRy~ | ~&SYSTEM CUTOFF~ |
 | ~params.inputSections.system.cutoffShape~ | ~system.cutoffShape~ | ~&SYSTEM SPHERICAL/NOSPHERICAL CUTOFF~ |
 | ~params.inputSections.system.hfxCutoff~ | ~system.hfxCutoff~ | ~&SYSTEM HFX CUTOFF~ |
@@ -197,6 +199,8 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.occupation~ | ~system.occupation~ | ~&SYSTEM OCCUPATION~ values |
 | ~params.inputSections.system.occupationFixed~ | ~system.occupationFixed~ | Add ~FIXED~ to ~&SYSTEM OCCUPATION~ |
 | ~params.inputSections.system.externalField~ | ~system.externalField~ | ~&SYSTEM EXTERNAL FIELD~ |
+| ~params.inputSections.system.wCut~ | ~system.wCut~ | ~&SYSTEM WCUT~ |
+| ~params.inputSections.system.wGauss~ | ~system.wGauss~ | ~&SYSTEM WGAUSS~ sigma values |
 | ~params.inputSections.system.densityCutOffRy~ | ~system.densityCutOffRy~ | ~&SYSTEM DENSITY CUTOFF~ |
 | ~params.inputSections.system.densityCutoffNumber~ | ~system.densityCutoffNumber~ | ~&SYSTEM DENSITY CUTOFF NUMBER~ |
 | ~params.inputSections.system.dual~ | ~system.dual~ | ~&SYSTEM DUAL~ |

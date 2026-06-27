@@ -514,6 +514,14 @@ static int render_system_section_with_cell(
     if (append_text(dst, dst_size, used, " ZFLEXIBLE CELL\n") != 0)
       return -1;
   }
+  if (sys->checkSymmetryOff) {
+    if (append_text(dst, dst_size, used, " CHECK SYMMETRY OFF\n  -1\n") != 0)
+      return -1;
+  } else if (sys->checkSymmetryPrecision > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CHECK SYMMETRY\n  %.10g\n",
+                   sys->checkSymmetryPrecision) != 0)
+      return -1;
+  }
   if (sys->cutoffShape.str && sys->cutoffShape.len > 0) {
     if (append_text(dst, dst_size, used, " ") != 0)
       return -1;
@@ -613,6 +621,22 @@ static int render_system_section_with_cell(
       return -1;
     if (append_f64_list_line(dst, dst_size, used, &sys->externalField, 3) != 0)
       return -1;
+  }
+  if (sys->wCut > 0.0) {
+    if (append_fmt(dst, dst_size, used, " WCUT %.10g\n", sys->wCut) != 0)
+      return -1;
+  }
+  int n_wgauss = list64_len(&sys->wGauss);
+  if (n_wgauss < 0)
+    return -1;
+  if (n_wgauss > 0) {
+    if (append_fmt(dst, dst_size, used, " WGAUSS %d\n", n_wgauss) != 0)
+      return -1;
+    for (int i = 0; i < n_wgauss; ++i) {
+      if (append_fmt(dst, dst_size, used, "  %.10g\n",
+                     capn_to_f64(capn_get64(sys->wGauss, i))) != 0)
+        return -1;
+    }
   }
   int field_has_poisson =
       sys->poissonSolver.str && sys->poissonSolver.len > 0;

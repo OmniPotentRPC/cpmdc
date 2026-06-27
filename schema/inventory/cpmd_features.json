@@ -1895,6 +1895,22 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.checkSymmetryPrecision",
+      "kind": "structured_params_field",
+      "name": "checkSymmetryPrecision",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.checkSymmetryOff",
+      "kind": "structured_params_field",
+      "name": "checkSymmetryOff",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.cutOffRy",
       "kind": "structured_params_field",
       "name": "cutOffRy",
@@ -1986,6 +2002,22 @@
       "feature_id": "params.inputSections.system.externalField",
       "kind": "structured_params_field",
       "name": "externalField",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.wCut",
+      "kind": "structured_params_field",
+      "name": "wCut",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.wGauss",
+      "kind": "structured_params_field",
+      "name": "wGauss",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true
