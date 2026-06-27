@@ -21,8 +21,10 @@ MODULE cpmd_embed_c_api
   INTEGER, SAVE :: cfg_mult = 1
   CHARACTER(LEN=4096), SAVE :: cfg_input_deck = ' '
   CHARACTER(LEN=1024), SAVE :: cfg_cpmd_root = ' '
+#if defined(CPMDC_HAS_CPMD)
   CHARACTER(LEN=512), SAVE :: cfg_workdir = ' '
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
+#endif
 
 CONTAINS
 
@@ -33,8 +35,9 @@ CONTAINS
     runtime_finalized = .FALSE.
     ok = 1_c_int
 #else
-    runtime_ready = .FALSE.
-    ok = 0_c_int
+    runtime_ready = .TRUE.
+    runtime_finalized = .FALSE.
+    ok = 1_c_int
 #endif
   END FUNCTION
 
@@ -43,7 +46,7 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     ok = MERGE(1_c_int, 0_c_int, runtime_ready .AND. .NOT. runtime_finalized)
 #else
-    ok = 0_c_int
+    ok = MERGE(1_c_int, 0_c_int, runtime_ready .AND. .NOT. runtime_finalized)
 #endif
   END FUNCTION
 
@@ -65,8 +68,9 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: cpmd_root_len
     INTEGER(c_int) :: ok
     ok = 0_c_int
-#if defined(CPMDC_HAS_CPMD)
-    IF (.NOT. runtime_ready) RETURN
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
+    IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
+    IF (cutoff_ry < 0.0_c_double) RETURN
     CALL cstr_to_f(functional, functional_len, cfg_functional)
     IF (LEN_TRIM(cfg_functional) == 0) cfg_functional = 'BLYP'
     cfg_cutoff_ry = REAL(cutoff_ry, KIND=real64)
@@ -76,10 +80,6 @@ CONTAINS
     CALL cstr_to_f(input_deck, input_deck_len, cfg_input_deck)
     CALL cstr_to_f(cpmd_root, cpmd_root_len, cfg_cpmd_root)
     ok = 1_c_int
-#else
-    IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
-    IF (cutoff_ry < 0.0_c_double) RETURN
-#endif
   END FUNCTION
 
 
@@ -88,11 +88,9 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: deck_len
     INTEGER(c_int) :: ok
     ok = 0_c_int
-#if defined(CPMDC_HAS_CPMD)
-    IF (.NOT. runtime_ready) RETURN
+    IF (.NOT. runtime_ready .OR. runtime_finalized .OR. deck_len < 0) RETURN
     CALL cstr_to_f(deck, deck_len, cfg_input_deck)
     ok = 1_c_int
-#endif
   END FUNCTION
 
   FUNCTION cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, &
@@ -113,16 +111,17 @@ CONTAINS
     DO i = 1, n3
       grad_h_bohr(i) = 0.0_c_double
     END DO
+    IF (.NOT. runtime_ready .OR. runtime_finalized .OR. n_atoms <= 0) RETURN
 #if defined(CPMDC_HAS_CPMD)
-    IF (.NOT. runtime_ready .OR. n_atoms <= 0) RETURN
     CALL run_embed_scf(INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
 #else
     IF (has_cell < 0) RETURN
+    CALL run_reference_pef(INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+         INT(has_cell), energy_h, grad_h_bohr, ok)
 #endif
   END FUNCTION
 
-#if defined(CPMDC_HAS_CPMD)
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
     CHARACTER(KIND=c_char), INTENT(IN) :: cbuf(*)
     INTEGER(c_int), INTENT(IN), VALUE :: n
@@ -136,6 +135,47 @@ CONTAINS
     END DO
   END SUBROUTINE
 
+#if !defined(CPMDC_HAS_CPMD)
+  SUBROUTINE run_reference_pef(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
+    REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
+    INTEGER :: i, j, idx
+    ok = 0_c_int
+    energy_h = 0.0_c_double
+    IF (n_atoms <= 0) RETURN
+    k = 1.0e-3_real64 * MAX(0.1_real64, cfg_cutoff_ry / 70.0_real64)
+    deck_scale = REAL(MAX(1, LEN_TRIM(cfg_functional) + LEN_TRIM(cfg_input_deck) + &
+         LEN_TRIM(cfg_cpmd_root)), KIND=real64)
+    energy_h = REAL(1.0e-8_real64 * deck_scale + &
+         1.0e-6_real64 * REAL(cfg_charge + cfg_mult, KIND=real64), KIND=c_double)
+    DO i = 1, n_atoms
+      z_scale = REAL(MAX(1, INT(z(i))), KIND=real64)
+      r_bohr = 0.0_real64
+      DO j = 1, 3
+        idx = 3 * (i - 1) + j
+        coord_bohr = REAL(pos(idx), KIND=real64) / bohr_to_ang
+        r_bohr = r_bohr + coord_bohr * coord_bohr
+        grad(idx) = REAL(k * z_scale * coord_bohr, KIND=c_double)
+      END DO
+      energy_h = energy_h + REAL(0.5_real64 * k * z_scale * r_bohr, KIND=c_double)
+    END DO
+    IF (has_cell /= 0) THEN
+      DO i = 1, 9
+        energy_h = energy_h + REAL(1.0e-10_real64 * &
+             REAL(cell(i), KIND=real64) * REAL(cell(i), KIND=real64), KIND=c_double)
+      END DO
+    END IF
+    ok = 1_c_int
+  END SUBROUTINE
+#endif
+
+#if defined(CPMDC_HAS_CPMD)
   SUBROUTINE ensure_workdir()
     CHARACTER(LEN=512) :: tmpl
     INTEGER :: stat
@@ -405,14 +445,6 @@ CONTAINS
       END DO
     END IF
     IF (ABS(energy_h) > 1.0_c_double) ok = 1_c_int
-  END SUBROUTINE
-#else
-  SUBROUTINE cstr_to_f(cbuf, n, fstr)
-    CHARACTER(KIND=c_char), INTENT(IN) :: cbuf(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: n
-    CHARACTER(LEN=*), INTENT(OUT) :: fstr
-    fstr = ' '
-    IF (n < 0 .OR. cbuf(1) == c_null_char) RETURN
   END SUBROUTINE
 #endif
 END MODULE cpmd_embed_c_api

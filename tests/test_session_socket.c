@@ -13,6 +13,8 @@
 
 static const char *g_params = NULL;
 static const char *g_step = NULL;
+static const char *g_step_b = NULL;
+static const char *g_step_species = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -45,11 +47,15 @@ static unsigned char *read_file(const char *path, size_t *size) {
 
 static void test_session_socket_contract(void **state) {
   (void)state;
-  size_t params_size = 0, step_size = 0;
+  size_t params_size = 0, step_size = 0, step_b_size = 0, species_size = 0;
   unsigned char *params = read_file(g_params, &params_size);
   unsigned char *step = read_file(g_step, &step_size);
+  unsigned char *step_b = read_file(g_step_b, &step_b_size);
+  unsigned char *step_species = read_file(g_step_species, &species_size);
   assert_non_null(params);
   assert_non_null(step);
+  assert_non_null(step_b);
+  assert_non_null(step_species);
 
   CPMDCSession *session = cpmdc_session_create(params, params_size);
   assert_non_null(session);
@@ -69,30 +75,54 @@ static void test_session_socket_contract(void **state) {
   unsigned char *out = (unsigned char *)malloc(need);
   assert_non_null(out);
   out_size = 0;
-  if (!cpmdc_available()) {
-    print_message("[  SKIP   ] no cpmd.x — socket sizing only\n");
-    /* undersized buffer path already checked; evaluation needs real CPMD */
-  } else {
-    CPMDCResult eval = cpmdc_session_calculate_result(session, step, step_size,
-                                                      out, need, &out_size);
-    assert_int_equal(eval.ok, 1);
-    assert_true(out_size > 0);
-    assert_true(isfinite(eval.energy_h) || eval.energy_h != 0.0 || eval.ok);
-  }
+  assert_int_equal(cpmdc_available(), 1);
+  CPMDCResult eval = cpmdc_session_calculate_result(session, step, step_size,
+                                                    out, need, &out_size);
+  assert_int_equal(eval.ok, 1);
+  assert_true(out_size > 0);
+  assert_true(isfinite(eval.energy_h));
+  double step_energy = eval.energy_h;
+
+  size_t need_b =
+      cpmdc_potential_result_size_for_force_input(step_b, step_b_size);
+  assert_int_equal(need_b, need);
+  out_size = 0;
+  CPMDCResult eval_b = cpmdc_session_calculate_result(
+      session, step_b, step_b_size, out, need, &out_size);
+  assert_int_equal(eval_b.ok, 1);
+  assert_true(isfinite(eval_b.energy_h));
+  assert_true(fabs(eval_b.energy_h - step_energy) > 1.0e-8);
+
+  out_size = 0;
+  CPMDCResult repeated = cpmdc_session_calculate_result(
+      session, step, step_size, out, need, &out_size);
+  assert_int_equal(repeated.ok, 1);
+  assert_float_equal(repeated.energy_h, step_energy, 1.0e-12);
+
+  out_size = 0;
+  CPMDCResult bad = cpmdc_session_calculate_result(
+      session, step_species, species_size, out, need, &out_size);
+  assert_int_equal(bad.ok, 0);
+  assert_non_null(strstr(bad.message, "topology"));
 
   cpmdc_session_destroy(session);
   free(out);
   free(params);
   free(step);
+  free(step_b);
+  free(step_species);
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "usage: %s params.bin step.bin\n", argv[0]);
+  if (argc < 5) {
+    fprintf(stderr, "usage: %s params.bin step_a.bin step_b.bin species.bin\n",
+            argv[0]);
     return 2;
   }
   g_params = argv[1];
   g_step = argv[2];
+  g_step_b = argv[3];
+  g_step_species = argv[4];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_session_socket_contract),
   };

@@ -221,8 +221,15 @@ if get_option('with_tests')
     args: [
       cpmd_parser_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
+      force_input_step_ev_bin.full_path(),
+      force_input_step_species_bin.full_path(),
     ],
-    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
+    depends: [
+      cpmd_parser_params_bin,
+      force_input_step_a_bin,
+      force_input_step_ev_bin,
+      force_input_step_species_bin,
+    ],
     suite: ['capnp', 'socket'],
     timeout: 300,
   )
