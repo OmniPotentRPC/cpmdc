@@ -109,6 +109,9 @@ def main() -> int:
         if fid.startswith(("catalog.cpmd.", "catalog.dft.")):
             if fid not in cpmd_options_doc:
                 errors.append(f"cpmd-options docs missing {fid}")
+        if fid.startswith("params."):
+            if fid not in cpmd_options_doc:
+                errors.append(f"cpmd-options docs missing {fid}")
 
     c_flags = {
         fid: (bool(int(stub)), bool(int(embed)))
@@ -121,6 +124,8 @@ def main() -> int:
         c_flags[fid] = (True, True)
 
     for fid in structured_param_feature_ids(schema):
+        if fid not in cpmd_options_doc:
+            errors.append(f"cpmd-options docs missing {fid}")
         if fid not in c_flags:
             errors.append(f"C table missing structured params feature {fid}")
             continue
