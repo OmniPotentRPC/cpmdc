@@ -36,8 +36,8 @@ fields use ~params.inputSections.<section>.<field>~, for example
 | Kind | Cap'n Proto type | Deck effect |
 |------+------------------+-------------|
 | ~atom~ | ~CPMDDirectiveSection~ | ~&ATOM~ keyword/value lines and nested subsections |
-| ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (wavefunction/geometry optimization, MD, convergence, iteration limits, timestep, electron mass, …) |
-| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, charge, …) |
+| ~cpmd~ | ~CPMDCpmdSection~ | ~&CPMD~ (wavefunction/geometry optimization, MD, isolated/centered molecule controls, convergence, iteration limits, timestep, electron mass, …) |
+| ~system~ | ~CPMDSystemSection~ | ~&SYSTEM~ (symmetry, angstrom, cell, cutoff, density cutoff, Poisson solver, surface, charge, …) |
 | ~dft~ | ~CPMDDftSection~ | ~&DFT~ (functional, LSD, GC cutoff, XC driver, hybrid/Hubbard scalars, extra directives) |
 | ~atoms~ | ~CPMDAtomsSection~ | ~&ATOMS~ (pseudopotential lines; coordinates come from ~ForceInput~) |
 | ~basis~ | ~CPMDDirectiveSection~ | ~&BASIS~ keyword/value lines and nested subsections |
@@ -185,6 +185,10 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.scale~ | ~system.scale~ | ~&SYSTEM SCALE~ |
 | ~params.inputSections.system.charge~ | ~system.charge~ | ~&SYSTEM CHARGE~ |
 | ~params.inputSections.system.multiplicity~ | ~system.multiplicity~ | ~&SYSTEM MULTIPLICITY~ |
+| ~params.inputSections.system.densityCutOffRy~ | ~system.densityCutOffRy~ | ~&SYSTEM DENSITY CUTOFF~ |
+| ~params.inputSections.system.poissonSolver~ | ~system.poissonSolver~ | ~&SYSTEM POISSON SOLVER~ |
+| ~params.inputSections.system.poissonParameter~ | ~system.poissonParameter~ | Optional ~POISSON ... PARAMETER~ value |
+| ~params.inputSections.system.surface~ | ~system.surface~ | ~&SYSTEM SURFACE~ direction |
 | ~params.inputSections.system.directives~ | ~system.directives~ | Additional ~&SYSTEM~ keyword/value lines |
 | ~params.inputSections.basis.directives~ | ~basis.directives~ | Keyword/value lines inside ~&BASIS~ |
 | ~params.inputSections.basis.subsections~ | ~basis.subsections~ | Nested blocks inside ~&BASIS~ |
@@ -269,6 +273,7 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.RESTART~ | ~params.inputSections.cpmd.restart~ | ~restart~ | ~RESTART~ |
 | ~catalog.cpmd.RESTART_WAVEFUNCTION~ | ~params.inputSections.cpmd.restartWavefunction~ | ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
 | ~catalog.cpmd.TRAJECTORY~ | ~params.inputSections.cpmd.trajectory~ | ~trajectory~ | ~TRAJECTORY~ |
+| ~catalog.cpmd.ISOLATED_MOLECULE~ | ~params.inputSections.cpmd.isolatedMolecule~ | ~isolatedMolecule~ | ~ISOLATED MOLECULE~ |
 | ~catalog.cpmd.PRINT~ | ~params.inputSections.cpmd.printOptions~ | ~printOptions~ | ~PRINT~ |
 | ~catalog.cpmd.STORE~ | ~params.inputSections.cpmd.storeOptions~ | ~storeOptions~ | ~STORE~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |

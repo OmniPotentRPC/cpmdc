@@ -79,13 +79,17 @@ example ``params.inputSections.cpmd.maxIter``,
 | ``cpmd``         | ``CPMDCpmdSection``      | ``&CPMD``                |
 |                  |                          | (wavefunction/geometry   |
 |                  |                          | optimization, MD,        |
+|                  |                          | isolated/centered        |
+|                  |                          | molecule controls,       |
 |                  |                          | convergence, iteration   |
 |                  |                          | limits, timestep,        |
 |                  |                          | electron mass, …)        |
 +------------------+--------------------------+--------------------------+
 | ``system``       | ``CPMDSystemSection``    | ``&SYSTEM`` (symmetry,   |
 |                  |                          | angstrom, cell, cutoff,  |
-|                  |                          | charge, …)               |
+|                  |                          | density cutoff, Poisson  |
+|                  |                          | solver, surface, charge, |
+|                  |                          | …)                       |
 +------------------+--------------------------+--------------------------+
 | ``dft``          | ``CPMDDftSection``       | ``&DFT`` (functional,    |
 |                  |                          | LSD, GC cutoff, XC       |
@@ -429,187 +433,193 @@ Other structured parameter features
 These ``params.inputSections.*`` IDs cover carriers and fields that are
 not single CPMD/DFT catalog keyword rows in the typed tables below.
 
-+---------------------------------------------------+------------------------------+--------------------------+
-| Parameter feature ID                              | Field                        | Deck effect              |
-+===================================================+==============================+==========================+
-| ``params.inputSections.generic.name``             | ``generic.name``             | Section name for an      |
-|                                                   |                              | arbitrary ``&NAME``      |
-|                                                   |                              | block                    |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.generic.directives``       | ``generic.directives``       | Keyword/value lines      |
-|                                                   |                              | inside the generic       |
-|                                                   |                              | section                  |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.atom.directives``          | ``atom.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&ATOM``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.atom.subsections``         | ``atom.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&ATOM``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.symmetry``          | ``system.symmetry``          | ``&SYSTEM SYMMETRY``     |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.angstrom``          | ``system.angstrom``          | ``&SYSTEM ANGSTROM``     |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.cell``              | ``system.cell``              | ``&SYSTEM CELL``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.cutOffRy``          | ``system.cutOffRy``          | ``&SYSTEM CUTOFF``       |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.scale``             | ``system.scale``             | ``&SYSTEM SCALE``        |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.charge``            | ``system.charge``            | ``&SYSTEM CHARGE``       |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.multiplicity``      | ``system.multiplicity``      | ``&SYSTEM MULTIPLICITY`` |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.system.directives``        | ``system.directives``        | Additional ``&SYSTEM``   |
-|                                                   |                              | keyword/value lines      |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.basis.directives``         | ``basis.directives``         | Keyword/value lines      |
-|                                                   |                              | inside ``&BASIS``        |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.basis.subsections``        | ``basis.subsections``        | Nested blocks inside     |
-|                                                   |                              | ``&BASIS``               |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.cpmd.directives``          | ``cpmd.directives``          | Additional ``&CPMD``     |
-|                                                   |                              | keyword/value lines      |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.dft.directives``           | ``dft.directives``           | Additional ``&DFT``      |
-|                                                   |                              | keyword/value lines      |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.clas.directives``          | ``clas.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&CLAS``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.clas.subsections``         | ``clas.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&CLAS``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.eam.directives``           | ``eam.directives``           | Keyword/value lines      |
-|                                                   |                              | inside ``&EAM``          |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.eam.subsections``          | ``eam.subsections``          | Nested blocks inside     |
-|                                                   |                              | ``&EAM``                 |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.exte.directives``          | ``exte.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&EXTE``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.exte.subsections``         | ``exte.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&EXTE``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.hardness.directives``      | ``hardness.directives``      | Keyword/value lines      |
-|                                                   |                              | inside ``&HARDNESS``     |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.hardness.subsections``     | ``hardness.subsections``     | Nested blocks inside     |
-|                                                   |                              | ``&HARDNESS``            |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.info.directives``          | ``info.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&INFO``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.info.subsections``         | ``info.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&INFO``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.linres.directives``        | ``linres.directives``        | Keyword/value lines      |
-|                                                   |                              | inside ``&LINRES``       |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.linres.subsections``       | ``linres.subsections``       | Nested blocks inside     |
-|                                                   |                              | ``&LINRES``              |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.molstates.directives``     | ``molstates.directives``     | Keyword/value lines      |
-|                                                   |                              | inside ``&MOLSTATES``    |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.molstates.subsections``    | ``molstates.subsections``    | Nested blocks inside     |
-|                                                   |                              | ``&MOLSTATES``           |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.mts.directives``           | ``mts.directives``           | Keyword/value lines      |
-|                                                   |                              | inside ``&MTS``          |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.mts.subsections``          | ``mts.subsections``          | Nested blocks inside     |
-|                                                   |                              | ``&MTS``                 |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.nlcc.directives``          | ``nlcc.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&NLCC``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.nlcc.subsections``         | ``nlcc.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&NLCC``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.path.directives``          | ``path.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&PATH``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.path.subsections``         | ``path.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&PATH``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.pimd.directives``          | ``pimd.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&PIMD``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.pimd.subsections``         | ``pimd.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&PIMD``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.potential.directives``     | ``potential.directives``     | Keyword/value lines      |
-|                                                   |                              | inside ``&POTENTIAL``    |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.potential.subsections``    | ``potential.subsections``    | Nested blocks inside     |
-|                                                   |                              | ``&POTENTIAL``           |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.prop.directives``          | ``prop.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&PROP``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.prop.subsections``         | ``prop.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&PROP``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.ptddft.directives``        | ``ptddft.directives``        | Keyword/value lines      |
-|                                                   |                              | inside ``&PTDDFT``       |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.ptddft.subsections``       | ``ptddft.subsections``       | Nested blocks inside     |
-|                                                   |                              | ``&PTDDFT``              |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.resp.directives``          | ``resp.directives``          | Keyword/value lines      |
-|                                                   |                              | inside ``&RESP``         |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.resp.subsections``         | ``resp.subsections``         | Nested blocks inside     |
-|                                                   |                              | ``&RESP``                |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.tddft.directives``         | ``tddft.directives``         | Keyword/value lines      |
-|                                                   |                              | inside ``&TDDFT``        |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.tddft.subsections``        | ``tddft.subsections``        | Nested blocks inside     |
-|                                                   |                              | ``&TDDFT``               |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.vdw.directives``           | ``vdw.directives``           | Keyword/value lines      |
-|                                                   |                              | inside ``&VDW``          |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.vdw.subsections``          | ``vdw.subsections``          | Nested blocks inside     |
-|                                                   |                              | ``&VDW``, including      |
-|                                                   |                              | ``EMPIRICAL CORRECTION`` |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.vectors.directives``       | ``vectors.directives``       | Keyword/value lines      |
-|                                                   |                              | inside ``&VECTORS``      |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.vectors.subsections``      | ``vectors.subsections``      | Nested blocks inside     |
-|                                                   |                              | ``&VECTORS``             |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.wavefunction.directives``  | ``wavefunction.directives``  | Keyword/value lines      |
-|                                                   |                              | inside ``&WAVEFUNCTION`` |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.wavefunction.subsections`` | ``wavefunction.subsections`` | Nested blocks inside     |
-|                                                   |                              | ``&WAVEFUNCTION``        |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.atoms.pseudopotentials``   | ``atoms.pseudopotentials``   | Pseudopotential entries  |
-|                                                   |                              | grouped with             |
-|                                                   |                              | ``ForceInput``           |
-|                                                   |                              | coordinates              |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.atoms.directives``         | ``atoms.directives``         | Additional               |
-|                                                   |                              | non-coordinate           |
-|                                                   |                              | ``&ATOMS`` keyword/value |
-|                                                   |                              | lines                    |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.set.key``                  | ``set.key``                  | Dotted                   |
-|                                                   |                              | ``SECTION.KEYWORD``      |
-|                                                   |                              | merge target             |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.set.value``                | ``set.value``                | Optional value emitted   |
-|                                                   |                              | under the dotted key     |
-+---------------------------------------------------+------------------------------+--------------------------+
-| ``params.inputSections.raw``                      | ``raw``                      | Full section text        |
-|                                                   |                              | inserted as-is           |
-+---------------------------------------------------+------------------------------+--------------------------+
++---------------------------------------------------+------------------------------+----------------------------+
+| Parameter feature ID                              | Field                        | Deck effect                |
++===================================================+==============================+============================+
+| ``params.inputSections.generic.name``             | ``generic.name``             | Section name for an        |
+|                                                   |                              | arbitrary ``&NAME`` block  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.generic.directives``       | ``generic.directives``       | Keyword/value lines inside |
+|                                                   |                              | the generic section        |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.atom.directives``          | ``atom.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&ATOM``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.atom.subsections``         | ``atom.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&ATOM``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.symmetry``          | ``system.symmetry``          | ``&SYSTEM SYMMETRY``       |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.angstrom``          | ``system.angstrom``          | ``&SYSTEM ANGSTROM``       |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.cell``              | ``system.cell``              | ``&SYSTEM CELL``           |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.cutOffRy``          | ``system.cutOffRy``          | ``&SYSTEM CUTOFF``         |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.scale``             | ``system.scale``             | ``&SYSTEM SCALE``          |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.charge``            | ``system.charge``            | ``&SYSTEM CHARGE``         |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.multiplicity``      | ``system.multiplicity``      | ``&SYSTEM MULTIPLICITY``   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.densityCutOffRy``   | ``system.densityCutOffRy``   | ``&SYSTEM DENSITY CUTOFF`` |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.poissonSolver``     | ``system.poissonSolver``     | ``&SYSTEM POISSON SOLVER`` |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.poissonParameter``  | ``system.poissonParameter``  | Optional                   |
+|                                                   |                              | ``POISSON ... PARAMETER``  |
+|                                                   |                              | value                      |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.surface``           | ``system.surface``           | ``&SYSTEM SURFACE``        |
+|                                                   |                              | direction                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.system.directives``        | ``system.directives``        | Additional ``&SYSTEM``     |
+|                                                   |                              | keyword/value lines        |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.basis.directives``         | ``basis.directives``         | Keyword/value lines inside |
+|                                                   |                              | ``&BASIS``                 |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.basis.subsections``        | ``basis.subsections``        | Nested blocks inside       |
+|                                                   |                              | ``&BASIS``                 |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.cpmd.directives``          | ``cpmd.directives``          | Additional ``&CPMD``       |
+|                                                   |                              | keyword/value lines        |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.dft.directives``           | ``dft.directives``           | Additional ``&DFT``        |
+|                                                   |                              | keyword/value lines        |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.clas.directives``          | ``clas.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&CLAS``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.clas.subsections``         | ``clas.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&CLAS``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.eam.directives``           | ``eam.directives``           | Keyword/value lines inside |
+|                                                   |                              | ``&EAM``                   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.eam.subsections``          | ``eam.subsections``          | Nested blocks inside       |
+|                                                   |                              | ``&EAM``                   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.exte.directives``          | ``exte.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&EXTE``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.exte.subsections``         | ``exte.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&EXTE``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.hardness.directives``      | ``hardness.directives``      | Keyword/value lines inside |
+|                                                   |                              | ``&HARDNESS``              |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.hardness.subsections``     | ``hardness.subsections``     | Nested blocks inside       |
+|                                                   |                              | ``&HARDNESS``              |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.info.directives``          | ``info.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&INFO``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.info.subsections``         | ``info.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&INFO``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.linres.directives``        | ``linres.directives``        | Keyword/value lines inside |
+|                                                   |                              | ``&LINRES``                |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.linres.subsections``       | ``linres.subsections``       | Nested blocks inside       |
+|                                                   |                              | ``&LINRES``                |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.molstates.directives``     | ``molstates.directives``     | Keyword/value lines inside |
+|                                                   |                              | ``&MOLSTATES``             |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.molstates.subsections``    | ``molstates.subsections``    | Nested blocks inside       |
+|                                                   |                              | ``&MOLSTATES``             |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.mts.directives``           | ``mts.directives``           | Keyword/value lines inside |
+|                                                   |                              | ``&MTS``                   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.mts.subsections``          | ``mts.subsections``          | Nested blocks inside       |
+|                                                   |                              | ``&MTS``                   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.nlcc.directives``          | ``nlcc.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&NLCC``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.nlcc.subsections``         | ``nlcc.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&NLCC``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.path.directives``          | ``path.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&PATH``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.path.subsections``         | ``path.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&PATH``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.pimd.directives``          | ``pimd.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&PIMD``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.pimd.subsections``         | ``pimd.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&PIMD``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.potential.directives``     | ``potential.directives``     | Keyword/value lines inside |
+|                                                   |                              | ``&POTENTIAL``             |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.potential.subsections``    | ``potential.subsections``    | Nested blocks inside       |
+|                                                   |                              | ``&POTENTIAL``             |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.prop.directives``          | ``prop.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&PROP``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.prop.subsections``         | ``prop.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&PROP``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.ptddft.directives``        | ``ptddft.directives``        | Keyword/value lines inside |
+|                                                   |                              | ``&PTDDFT``                |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.ptddft.subsections``       | ``ptddft.subsections``       | Nested blocks inside       |
+|                                                   |                              | ``&PTDDFT``                |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.resp.directives``          | ``resp.directives``          | Keyword/value lines inside |
+|                                                   |                              | ``&RESP``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.resp.subsections``         | ``resp.subsections``         | Nested blocks inside       |
+|                                                   |                              | ``&RESP``                  |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.tddft.directives``         | ``tddft.directives``         | Keyword/value lines inside |
+|                                                   |                              | ``&TDDFT``                 |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.tddft.subsections``        | ``tddft.subsections``        | Nested blocks inside       |
+|                                                   |                              | ``&TDDFT``                 |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.vdw.directives``           | ``vdw.directives``           | Keyword/value lines inside |
+|                                                   |                              | ``&VDW``                   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.vdw.subsections``          | ``vdw.subsections``          | Nested blocks inside       |
+|                                                   |                              | ``&VDW``, including        |
+|                                                   |                              | ``EMPIRICAL CORRECTION``   |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.vectors.directives``       | ``vectors.directives``       | Keyword/value lines inside |
+|                                                   |                              | ``&VECTORS``               |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.vectors.subsections``      | ``vectors.subsections``      | Nested blocks inside       |
+|                                                   |                              | ``&VECTORS``               |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.wavefunction.directives``  | ``wavefunction.directives``  | Keyword/value lines inside |
+|                                                   |                              | ``&WAVEFUNCTION``          |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.wavefunction.subsections`` | ``wavefunction.subsections`` | Nested blocks inside       |
+|                                                   |                              | ``&WAVEFUNCTION``          |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.atoms.pseudopotentials``   | ``atoms.pseudopotentials``   | Pseudopotential entries    |
+|                                                   |                              | grouped with               |
+|                                                   |                              | ``ForceInput`` coordinates |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.atoms.directives``         | ``atoms.directives``         | Additional non-coordinate  |
+|                                                   |                              | ``&ATOMS`` keyword/value   |
+|                                                   |                              | lines                      |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.set.key``                  | ``set.key``                  | Dotted ``SECTION.KEYWORD`` |
+|                                                   |                              | merge target               |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.set.value``                | ``set.value``                | Optional value emitted     |
+|                                                   |                              | under the dotted key       |
++---------------------------------------------------+------------------------------+----------------------------+
+| ``params.inputSections.raw``                      | ``raw``                      | Full section text inserted |
+|                                                   |                              | as-is                      |
++---------------------------------------------------+------------------------------+----------------------------+
 
 Typed ``&CPMD`` controls
 ========================
@@ -677,6 +687,8 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 | ``catalog.cpmd.RESTART_WAVEFUNCTION``         | ``params.inputSections.cpmd.restartWavefunction``        | ``restartWavefunction``        | ``RESTART WAVEFUNCTION``         |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.TRAJECTORY``                   | ``params.inputSections.cpmd.trajectory``                 | ``trajectory``                 | ``TRAJECTORY``                   |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.ISOLATED_MOLECULE``            | ``params.inputSections.cpmd.isolatedMolecule``           | ``isolatedMolecule``           | ``ISOLATED MOLECULE``            |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.PRINT``                        | ``params.inputSections.cpmd.printOptions``               | ``printOptions``               | ``PRINT``                        |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+

@@ -1,0 +1,30 @@
+(
+  functional = "PBE",
+  cutOffRy = 90.0,
+  charge = 1,
+  task = "gradient",
+  title = "Typed system controls",
+  inputSections = [
+    ( cpmd = (
+        optimizeWavefunction = true,
+        isolatedMolecule = true,
+        centerMoleculeOn = true,
+        centerMoleculeOff = true
+      ) ),
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        cutOffRy = 90.0,
+        densityCutOffRy = 360.0,
+        charge = 1,
+        poissonSolver = "HOCKNEY",
+        poissonParameter = 1.2,
+        surface = "XY"
+      ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "H", path = "H_MT_PBE.psp", lmax = 0 )
+      ] ) )
+  ]
+)

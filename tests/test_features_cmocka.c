@@ -54,6 +54,7 @@ static void test_cp_keywords_not_sections(void **state) {
   assert_non_null(cpmdc_feature_find("catalog.cpmd.VDW_CORRECTION"));
   assert_non_null(cpmdc_feature_find("catalog.cpmd.VDW_WANNIER"));
   assert_non_null(cpmdc_feature_find("catalog.cpmd.DCACP"));
+  assert_non_null(cpmdc_feature_find("catalog.cpmd.ISOLATED_MOLECULE"));
   assert_non_null(cpmdc_feature_find("catalog.dft.FUNCTIONAL_BLYP"));
 }
 
@@ -130,6 +131,10 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.scale",
       "params.inputSections.system.charge",
       "params.inputSections.system.multiplicity",
+      "params.inputSections.system.densityCutOffRy",
+      "params.inputSections.system.poissonSolver",
+      "params.inputSections.system.poissonParameter",
+      "params.inputSections.system.surface",
       "params.inputSections.system.directives",
       "params.inputSections.basis.directives",
       "params.inputSections.basis.subsections",
@@ -180,6 +185,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.cpmd.vdwCorrection",
       "params.inputSections.cpmd.vdwWannier",
       "params.inputSections.cpmd.dcacp",
+      "params.inputSections.cpmd.isolatedMolecule",
       "params.inputSections.dft.functional",
       "params.inputSections.dft.lsd",
       "params.inputSections.dft.directives",

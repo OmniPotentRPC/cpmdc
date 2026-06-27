@@ -52,6 +52,10 @@ struct CPMDSystemSection {
   charge          @5 :Int32 = 0;          # CHARGE of the system.
   multiplicity    @6 :Int32 = 1;          # Spin multiplicity 2S+1 (maps to LSD/spin when >1).
   directives      @7 :List(CPMDDirective);
+  densityCutOffRy @8 :Float64 = 0.0;      # DENSITY CUTOFF; 0 => omit.
+  poissonSolver   @9 :Text;               # POISSON SOLVER argument, e.g. HOCKNEY.
+  poissonParameter @10 :Float64 = 0.0;    # Optional POISSON ... PARAMETER value.
+  surface         @11 :Text;              # SURFACE direction, e.g. XY/YZ/ZX.
 }
 
 struct CPMDCpmdSection {
@@ -102,6 +106,7 @@ struct CPMDCpmdSection {
   vdwCorrection        @44 :Text;         # VDW CORRECTION argument, e.g. ON/OFF.
   vdwWannier           @45 :Text;         # VDW WANNIER argument, e.g. ON/OFF.
   dcacp                @46 :Bool = false; # DCACP.
+  isolatedMolecule     @47 :Bool = false; # ISOLATED MOLECULE.
 }
 
 struct CPMDDftSection {

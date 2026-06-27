@@ -122,6 +122,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
     {"catalog.cpmd.VDW_CORRECTION", "vdwCorrection", " VDW CORRECTION"},
     {"catalog.cpmd.VDW_WANNIER", "vdwWannier", " VDW WANNIER"},
     {"catalog.cpmd.DCACP", "dcacp", " DCACP\n"},
+    {"catalog.cpmd.ISOLATED_MOLECULE", "isolatedMolecule",
+     " ISOLATED MOLECULE\n"},
 };
 
 static const struct CatalogCoverage dft_scalar_coverage[] = {
@@ -232,9 +234,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 9) {
+  if (argc < 10) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin\n",
             argv[0]);
     return 2;
   }
@@ -310,6 +312,12 @@ int main(int argc, char **argv) {
       "CUSTOM VDW NOTE",
       "kept",
   };
+  const char *system_controls_need[] = {
+      "&SYSTEM", "SYMMETRY", "0", "ANGSTROM", "CELL", "14 1 1 0 0 0",
+      "CUTOFF", "90", "DENSITY CUTOFF", "360", "CHARGE", "1",
+      "POISSON SOLVER HOCKNEY PARAMETER", "1.2", "ISOLATED MOLECULE",
+      "CENTER MOLECULE ON", "CENTER MOLECULE OFF", "SURFACE XY",
+  };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
       "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
@@ -351,8 +359,12 @@ int main(int argc, char **argv) {
                  (int)(sizeof(vdw_controls_need) /
                        sizeof(vdw_controls_need[0]))) != 0)
     return 1;
-  char *decks[8] = {0};
-  for (int i = 0; i < 8; ++i) {
+  if (check_deck(argv[9], system_controls_need,
+                 (int)(sizeof(system_controls_need) /
+                       sizeof(system_controls_need[0]))) != 0)
+    return 1;
+  char *decks[9] = {0};
+  for (int i = 0; i < 9; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -361,11 +373,11 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  int coverage_rc = check_catalog_coverage(decks, 8);
-  for (int i = 0; i < 8; ++i)
+  int coverage_rc = check_catalog_coverage(decks, 9);
+  for (int i = 0; i < 9; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, and vdw_controls render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, and system_controls render + inventory finds\n");
   return 0;
 }

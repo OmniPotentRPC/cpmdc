@@ -453,12 +453,41 @@ static int render_system_section_with_cell(
   }
   if (append_fmt(dst, dst_size, used, " CUTOFF\n  %.10g\n", cutoff) != 0)
     return -1;
+  if (sys->densityCutOffRy > 0.0) {
+    if (append_fmt(dst, dst_size, used, " DENSITY CUTOFF\n  %.10g\n",
+                   sys->densityCutOffRy) != 0)
+      return -1;
+  }
   if (sys->scale != 0.0) {
     if (append_fmt(dst, dst_size, used, " SCALE\n  %.10g\n", sys->scale) != 0)
       return -1;
   }
   if (charge != 0) {
     if (append_fmt(dst, dst_size, used, " CHARGE\n  %d\n", charge) != 0)
+      return -1;
+  }
+  int field_has_poisson =
+      sys->poissonSolver.str && sys->poissonSolver.len > 0;
+  if (field_has_poisson) {
+    if (append_text(dst, dst_size, used, " POISSON SOLVER ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sys->poissonSolver) != 0)
+      return -1;
+    if (sys->poissonParameter > 0.0) {
+      if (append_text(dst, dst_size, used, " PARAMETER\n  ") != 0)
+        return -1;
+      if (append_fmt(dst, dst_size, used, "%.10g", sys->poissonParameter) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sys->surface.str && sys->surface.len > 0) {
+    if (append_text(dst, dst_size, used, " SURFACE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sys->surface) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
   int has_poisson = directives_have_prefix(sys->directives, "POISSON SOLVER");
@@ -468,7 +497,8 @@ static int render_system_section_with_cell(
       set_directives_have_prefix(sets, "SYSTEM", "POISSON SOLVER");
   if (set_has_poisson < 0)
     return -1;
-  if (symmetry == 0 && !has_poisson && !set_has_poisson) {
+  if (symmetry == 0 && !field_has_poisson && !has_poisson &&
+      !set_has_poisson) {
     if (append_text(dst, dst_size, used, " POISSON SOLVER HOCKNEY\n") != 0)
       return -1;
   }
@@ -512,6 +542,10 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   }
   if (do_md) {
     if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS\n") != 0)
+      return -1;
+  }
+  if (sec->isolatedMolecule) {
+    if (append_text(dst, dst_size, used, " ISOLATED MOLECULE\n") != 0)
       return -1;
   }
   if (sec->molecularDynamicsCp) {

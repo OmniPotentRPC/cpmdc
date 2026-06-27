@@ -376,7 +376,8 @@
     "PROPERTIES",
     "VDW CORRECTION",
     "VDW WANNIER",
-    "DCACP"
+    "DCACP",
+    "ISOLATED MOLECULE"
   ],
   "dft_functionals": [
     "LDA",
@@ -1299,6 +1300,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ISOLATED_MOLECULE",
+      "kind": "cpmd_keyword",
+      "name": "ISOLATED MOLECULE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.VDW_WANNIER",
       "kind": "cpmd_keyword",
       "name": "VDW WANNIER",
@@ -1885,6 +1895,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.densityCutOffRy",
+      "name": "densityCutOffRy",
+      "kind": "params",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "render_via": "typed"
+    },
+    {
+      "feature_id": "params.inputSections.system.poissonSolver",
+      "name": "poissonSolver",
+      "kind": "params",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "render_via": "typed"
+    },
+    {
+      "feature_id": "params.inputSections.system.poissonParameter",
+      "name": "poissonParameter",
+      "kind": "params",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "render_via": "typed"
+    },
+    {
+      "feature_id": "params.inputSections.system.surface",
+      "name": "surface",
+      "kind": "params",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "render_via": "typed"
+    },
+    {
       "feature_id": "params.inputSections.system.directives",
       "kind": "structured_params_field",
       "name": "directives",
@@ -2267,6 +2309,14 @@
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.isolatedMolecule",
+      "name": "isolatedMolecule",
+      "kind": "params",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "render_via": "typed"
     },
     {
       "feature_id": "params.inputSections.dft.functional",
