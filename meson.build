@@ -182,6 +182,12 @@ if get_option('with_tests')
     output: 'cpmd_params_session_alt.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  cpmd_set_params_bin = custom_target(
+    'cpmd_set_params_bin',
+    input: 'tests/params_set_directives.capnp.txt',
+    output: 'params_set_directives.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   force_input_step_a_bin = custom_target(
     'force_input_step_a_bin',
     input: 'tests/force_input_step_a.capnp.txt',
@@ -239,6 +245,21 @@ if get_option('with_tests')
     args: [cpmd_parser_params_bin.full_path()],
     depends: [cpmd_parser_params_bin],
     suite: ['cmocka', 'capnp'],
+  )
+
+  test(
+    'set-directives-render-cmocka',
+    executable(
+      'test_set_directives_render',
+      'tests/cmocka/test_set_directives_render.c',
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources + ['src/cpmdc_features.c'],
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [cpmd_set_params_bin.full_path()],
+    depends: [cpmd_set_params_bin],
+    suite: ['cmocka', 'capnp', 'params'],
   )
 
   test(

@@ -1,0 +1,15 @@
+(
+  functional = "BLYP",
+  cutOffRy = 60.0,
+  title = "set directive expressibility",
+  inputSections = [
+    ( set = ( key = "CPMD.PRINT FORCES ON", value = "" ) ),
+    ( set = ( key = "CPMD.MAXSTEP", value = "3" ) ),
+    ( set = ( key = "SYSTEM.POISSON SOLVER", value = "TUCKERMAN" ) ),
+    ( set = ( key = "DFT.GC-CUTOFF", value = "1.0e-7" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)
