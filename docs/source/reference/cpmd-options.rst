@@ -183,6 +183,7 @@ Run the focused inventory guards with:
    meson test -C build \
      feature-inventory cpmd-base-keyword-inventory \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
+     cpmd-typed-render-field-coverage \
      --print-errorlogs
 
 ``feature-inventory`` cross-checks the JSON inventory against the
@@ -194,6 +195,9 @@ a ``catalog.cpmd.*`` row silently. ``cpmd-schema-render-coverage``
 requires typed ``CPMDCpmdSection`` fields to appear in the catalog
 render fixtures, and ``cpmd-option-token-coverage`` requires inline
 option spellings in Cap'n Proto fixtures to have render coverage.
+``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
+``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
+or render assertions.
 
 ``CPMDInputSection`` kinds
 ==========================

@@ -29,6 +29,7 @@ def main() -> int:
         "cpmd-base-keyword-inventory",
         "cpmd-schema-render-coverage",
         "cpmd-option-token-coverage",
+        "cpmd-typed-render-field-coverage",
     ]
     failures: list[str] = []
     failures.extend(require_text(root / "README.md", inventory_guards))
@@ -43,6 +44,7 @@ def main() -> int:
                 "cpmd-base-keyword-inventory",
                 "cpmd-schema-render-coverage",
                 "cpmd-option-token-coverage",
+                "cpmd-typed-render-field-coverage",
             ],
         )
     )

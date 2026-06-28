@@ -183,6 +183,7 @@ table, renderer, README, and reference docs aligned:
 | `cpmd-base-keyword-inventory` | every base `&CPMD` keyword in `schema/inventory/cpmd_cp_keywords.txt` has a normalized `catalog.cpmd.*` feature row |
 | `cpmd-schema-render-coverage` | every typed `CPMDCpmdSection` field, except `directives`, has a catalog render mapping in `tests/test_params_cp_dft_render.c` |
 | `cpmd-option-token-coverage` | inline option tokens in Cap'n Proto fixtures have catalog render coverage |
+| `cpmd-typed-render-field-coverage` | typed `cpmd`, `system`, `dft`, and `atoms` fields are mentioned by render fixtures or render assertions |
 
 Run the focused inventory group with:
 
@@ -190,6 +191,7 @@ Run the focused inventory group with:
 meson test -C build \
   feature-inventory cpmd-base-keyword-inventory \
   cpmd-schema-render-coverage cpmd-option-token-coverage \
+  cpmd-typed-render-field-coverage \
   --print-errorlogs
 ```
 

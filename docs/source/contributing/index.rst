@@ -34,6 +34,8 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------+
 | Inline option token coverage     | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                |
 +----------------------------------+-------------------------------------------------------------------------------------+
+| Typed render field coverage      | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``          |
++----------------------------------+-------------------------------------------------------------------------------------+
 | OpenCPMD archive build           | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs`` |
 +----------------------------------+-------------------------------------------------------------------------------------+
 
@@ -49,6 +51,9 @@ optional ``CPMD_ROOT`` parser section probe.
 ``catalog.cpmd.*`` row. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
 fixture inline tokens tied to render coverage.
+``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
+``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
+or render assertions.
 
 Add a typed CPMD keyword
 ========================
@@ -82,7 +87,7 @@ Run the focused failure before adding production code:
    CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
      params-cp-dft-render features-cmocka feature-inventory \
      cpmd-base-keyword-inventory cpmd-schema-render-coverage \
-     cpmd-option-token-coverage \
+     cpmd-option-token-coverage cpmd-typed-render-field-coverage \
      --print-errorlogs
 
 Then update the production and docs surface in one change:
