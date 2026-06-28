@@ -696,6 +696,8 @@ without a dedicated scalar field.
 | Feature ID | ~functional~ value |
 |------------+--------------------|
 | ~catalog.dft.FUNCTIONAL_LDA~ | ~LDA~ |
+| ~catalog.dft.FUNCTIONAL_NONE~ | ~NONE~ |
+| ~catalog.dft.FUNCTIONAL_SONLY~ | ~SONLY~ |
 | ~catalog.dft.FUNCTIONAL_BONLY~ | ~BONLY~ |
 | ~catalog.dft.FUNCTIONAL_BP~ | ~BP~ |
 | ~catalog.dft.FUNCTIONAL_BP86~ | ~BP86~ |
@@ -712,6 +714,8 @@ without a dedicated scalar field.
 | ~catalog.dft.FUNCTIONAL_B1LYP~ | ~B1LYP~ |
 | ~catalog.dft.FUNCTIONAL_PBE0~ | ~PBE0~ |
 | ~catalog.dft.FUNCTIONAL_REVPBE0~ | ~REVPBE0~ |
+| ~catalog.dft.FUNCTIONAL_ZPBE0~ | ~ZPBE0~ |
+| ~catalog.dft.FUNCTIONAL_XPBE0~ | ~XPBE0~ |
 | ~catalog.dft.FUNCTIONAL_PBES~ | ~PBES~ |
 | ~catalog.dft.FUNCTIONAL_PBE1W~ | ~PBE1W~ |
 | ~catalog.dft.FUNCTIONAL_TPSS~ | ~TPSS~ |
@@ -721,6 +725,16 @@ without a dedicated scalar field.
 | ~catalog.dft.FUNCTIONAL_ACM0~ | ~ACM0~ |
 | ~catalog.dft.FUNCTIONAL_ACM1~ | ~ACM1~ |
 | ~catalog.dft.FUNCTIONAL_ACM3~ | ~ACM3~ |
+| ~catalog.dft.FUNCTIONAL_OLDX3LYP~ | ~OLDX3LYP~ |
+| ~catalog.dft.FUNCTIONAL_MODX3LYP~ | ~MODX3LYP~ |
+| ~catalog.dft.FUNCTIONAL_X3LYP~ | ~X3LYP~ |
+| ~catalog.dft.FUNCTIONAL_OLDB3LYP~ | ~OLDB3LYP~ |
+| ~catalog.dft.FUNCTIONAL_MODB3LYP~ | ~MODB3LYP~ |
+| ~catalog.dft.FUNCTIONAL_OLDB1LYP~ | ~OLDB1LYP~ |
+| ~catalog.dft.FUNCTIONAL_MODB1LYP~ | ~MODB1LYP~ |
+| ~catalog.dft.FUNCTIONAL_SAOP~ | ~SAOP~ |
+| ~catalog.dft.FUNCTIONAL_LB94~ | ~LB94~ |
+| ~catalog.dft.FUNCTIONAL_GLLB~ | ~GLLB~ |
 
 * ~PotentialConfig~
 For rgpot / multi-backend configure RPCs, ~PotentialConfig~ is a tagged union

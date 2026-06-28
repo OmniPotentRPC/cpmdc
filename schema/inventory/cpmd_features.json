@@ -3736,6 +3736,24 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.FUNCTIONAL_NONE",
+      "kind": "dft_functional",
+      "name": "NONE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_SONLY",
+      "kind": "dft_functional",
+      "name": "SONLY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.FUNCTIONAL_BONLY",
       "kind": "dft_functional",
       "name": "BONLY",
@@ -3880,6 +3898,24 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.FUNCTIONAL_ZPBE0",
+      "kind": "dft_functional",
+      "name": "ZPBE0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_XPBE0",
+      "kind": "dft_functional",
+      "name": "XPBE0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.FUNCTIONAL_PBES",
       "kind": "dft_functional",
       "name": "PBES",
@@ -3955,6 +3991,96 @@
       "feature_id": "catalog.dft.FUNCTIONAL_ACM3",
       "kind": "dft_functional",
       "name": "ACM3",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_OLDX3LYP",
+      "kind": "dft_functional",
+      "name": "OLDX3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_MODX3LYP",
+      "kind": "dft_functional",
+      "name": "MODX3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_X3LYP",
+      "kind": "dft_functional",
+      "name": "X3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_OLDB3LYP",
+      "kind": "dft_functional",
+      "name": "OLDB3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_MODB3LYP",
+      "kind": "dft_functional",
+      "name": "MODB3LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_OLDB1LYP",
+      "kind": "dft_functional",
+      "name": "OLDB1LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_MODB1LYP",
+      "kind": "dft_functional",
+      "name": "MODB1LYP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_SAOP",
+      "kind": "dft_functional",
+      "name": "SAOP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_LB94",
+      "kind": "dft_functional",
+      "name": "LB94",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "FUNCTIONAL token in &DFT",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FUNCTIONAL_GLLB",
+      "kind": "dft_functional",
+      "name": "GLLB",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "FUNCTIONAL token in &DFT",
