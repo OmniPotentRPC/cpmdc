@@ -2820,6 +2820,45 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if (sec->cpGroups.str && sec->cpGroups.len > 0) {
+    if (append_text(dst, dst_size, used, " CP_GROUPS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->cpGroups) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->fileFusionPayload.str && sec->fileFusionPayload.len > 0) {
+    if (append_text(dst, dst_size, used, " FILE FUSION\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->fileFusionPayload) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->fileMergePayload.str && sec->fileMergePayload.len > 0) {
+    if (append_text(dst, dst_size, used, " FILE MERGE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->fileMergePayload) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->fileSeparationPayload.str &&
+      sec->fileSeparationPayload.len > 0) {
+    if (append_text(dst, dst_size, used, " FILE SEPARATION\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->fileSeparationPayload) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->noReset > 0) {
+    if (append_fmt(dst, dst_size, used, " NO_RESET\n  %d\n",
+                   sec->noReset) != 0)
+      return -1;
+  }
   if (sec->filePath.str && sec->filePath.len > 0) {
     if (append_text(dst, dst_size, used, " FILEPATH\n  ") != 0)
       return -1;

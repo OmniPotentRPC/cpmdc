@@ -2881,6 +2881,51 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CP_GROUPS",
+      "kind": "cpmd_keyword",
+      "name": "CP_GROUPS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FILE_FUSION",
+      "kind": "cpmd_keyword",
+      "name": "FILE FUSION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FILE_MERGE",
+      "kind": "cpmd_keyword",
+      "name": "FILE MERGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FILE_SEPARATION",
+      "kind": "cpmd_keyword",
+      "name": "FILE SEPARATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NO_RESET",
+      "kind": "cpmd_keyword",
+      "name": "NO_RESET",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -5281,6 +5326,46 @@
       "feature_id": "params.inputSections.cpmd.distributeFnl",
       "kind": "structured_params_field",
       "name": "distributeFnl",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cpGroups",
+      "kind": "structured_params_field",
+      "name": "cpGroups",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fileFusionPayload",
+      "kind": "structured_params_field",
+      "name": "fileFusionPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fileMergePayload",
+      "kind": "structured_params_field",
+      "name": "fileMergePayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fileSeparationPayload",
+      "kind": "structured_params_field",
+      "name": "fileSeparationPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noReset",
+      "kind": "structured_params_field",
+      "name": "noReset",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

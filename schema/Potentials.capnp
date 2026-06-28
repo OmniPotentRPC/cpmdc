@@ -459,6 +459,11 @@ struct CPMDCpmdSection {
   paraUseMpiInPlace       @301 :Bool = false; # PARA_USE_MPI_IN_PLACE.
   paraBuffSize            @302 :Int32 = 0; # PARA_BUFF_SIZE payload.
   paraStackBuffSize       @303 :Int32 = 0; # PARA_STACK_BUFF_SIZE payload.
+  cpGroups                @304 :Text; # CP_GROUPS payload line.
+  fileFusionPayload       @305 :Text; # FILE FUSION payload lines.
+  fileMergePayload        @306 :Text; # FILE MERGE payload lines.
+  fileSeparationPayload   @307 :Text; # FILE SEPARATION payload lines.
+  noReset                 @308 :Int32 = 0; # NO_RESET payload.
 }
 
 struct CPMDDftSection {
