@@ -17,7 +17,22 @@ Use this repository when you need to:
 coordinates, species, cell, and requested units. `PotentialResult` is the
 portable result carrier used by RPC-facing callers.
 
-## First Build
+## Start Here
+
+| Need | Do this first |
+| --- | --- |
+| Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
+| Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
+| Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
+| Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
+| Regenerate generated docs | Edit `docs/orgmode/`, then run `pixi run -e docs mkrst` and `pixi run -e docs sphinxbld` |
+
+New RPC and optimizer hosts should start with
+`cpmdc_session_calculate_result()`. It keeps `CPMDParams` method setup in a
+session, accepts one `ForceInput` per step, and writes the same
+`PotentialResult` message used by the RPC layer.
+
+## Build and Test
 
 The default build does not require an OpenCPMD checkout. It builds the public C
 ABI, Cap'n Proto readers, CPMD deck renderer, feature table, shared library, and
@@ -29,7 +44,7 @@ meson compile -C build
 meson test -C build --print-errorlogs
 ```
 
-With Pixi:
+With Pixi, the same default stub-library check is:
 
 ```bash
 pixi run test-stub
@@ -268,7 +283,7 @@ library-style pseudopotential names such as `O_MT_BLYP.psp`, set
 
 ## Documentation
 
-Start here:
+Read the docs in this order:
 
 - [Quickstart](docs/orgmode/tutorials/quickstart.org): build, tests, and common
   environment failures

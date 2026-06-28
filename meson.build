@@ -587,6 +587,15 @@ if get_option('with_tests')
     suite: ['docs', 'inventory'],
   )
   test(
+    'readme-navigation',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_readme_navigation.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'params-escape-render',
     executable(
       'test_params_escape_render',

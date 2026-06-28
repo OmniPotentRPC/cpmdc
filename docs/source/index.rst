@@ -61,7 +61,7 @@ Start Here
      - Run the default Meson suite and learn what it covers
      - :doc:`Quickstart <tutorials/quickstart>`
    * - Calling cpmdc from a host process
-     - Use the session result path and size output from ``ForceInput``
+     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
      - :doc:`Embedding cpmdc <howto/embedding>`
    * - Constructing ``CPMDParams``
      - Pick typed section fields before raw deck text
@@ -72,6 +72,9 @@ Start Here
    * - Checking exported C symbols
      - Inspect generated declarations and feature structs
      - :doc:`API reference <api/index>`
+   * - Editing docs
+     - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
+     - :doc:`Contributing <contributing/index>`
 
 First Command
 =============
