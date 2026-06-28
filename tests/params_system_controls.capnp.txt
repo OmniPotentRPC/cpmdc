@@ -36,6 +36,8 @@
         externalField = [0.01, 0.02, 0.03],
         wCut = 0.45,
         wGauss = [0.1234, 0.5678],
+        pointGroup = "AUTO",
+        pointGroupDelta = 0.0001,
         lowSpinExcitation = "ROKS",
         lowSpinExcitationLsets = true,
         lseParameters = [2.0, 1.0],

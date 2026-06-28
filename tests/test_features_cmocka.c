@@ -147,6 +147,8 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.externalField",
       "params.inputSections.system.wCut",
       "params.inputSections.system.wGauss",
+      "params.inputSections.system.pointGroup",
+      "params.inputSections.system.pointGroupDelta",
       "params.inputSections.system.lowSpinExcitation",
       "params.inputSections.system.lowSpinExcitationLsets",
       "params.inputSections.system.lseParameters",
