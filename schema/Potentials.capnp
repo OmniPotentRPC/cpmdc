@@ -398,6 +398,16 @@ struct CPMDCpmdSection {
   extrapolateWfnOptions   @240 :Text; # EXTRAPOLATE WFN inline options.
   extrapolateWfnOrder     @241 :Int32 = 0; # EXTRAPOLATE WFN payload; 0 => omit.
   extrapolateConstraintOrder @242 :Int32 = 0; # EXTRAPOLATE CONSTRAINT payload.
+  tsdeOptions             @243 :Text; # TSDE inline options.
+  tsdpOptions             @244 :Text; # TSDP inline options.
+  tcgp                    @245 :Bool = false; # TCGP.
+  tsdc                    @246 :Bool = false; # TSDC.
+  steepestDescentOptions  @247 :Text; # STEEPEST DESCENT inline options.
+  conjugateGradientOptions @248 :Text; # CONJUGATE GRADIENT inline options.
+  odiisOptions            @249 :Text; # ODIIS inline options.
+  odiisVectors            @250 :Int32 = 0; # ODIIS payload; 0 => omit.
+  hamiltonianCutoff       @251 :Float64 = 0.0; # HAMILTONIAN CUTOFF payload.
+  gdiisVectors            @252 :Int32 = 0; # GDIIS payload; 0 => omit.
 }
 
 struct CPMDDftSection {

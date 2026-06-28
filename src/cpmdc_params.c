@@ -1778,6 +1778,76 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->extrapolateConstraintOrder) != 0)
       return -1;
   }
+  if (sec->tsdeOptions.str && sec->tsdeOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " TSDE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->tsdeOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->tsdpOptions.str && sec->tsdpOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " TSDP ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->tsdpOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->tcgp) {
+    if (append_text(dst, dst_size, used, " TCGP\n") != 0)
+      return -1;
+  }
+  if (sec->tsdc) {
+    if (append_text(dst, dst_size, used, " TSDC\n") != 0)
+      return -1;
+  }
+  if (sec->steepestDescentOptions.str &&
+      sec->steepestDescentOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " STEEPEST DESCENT ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->steepestDescentOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->conjugateGradientOptions.str &&
+      sec->conjugateGradientOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " CONJUGATE GRADIENT ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->conjugateGradientOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->odiisOptions.str && sec->odiisOptions.len > 0) ||
+      sec->odiisVectors > 0) {
+    if (append_text(dst, dst_size, used, " ODIIS") != 0)
+      return -1;
+    if (sec->odiisOptions.str && sec->odiisOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->odiisOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->odiisVectors > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n", sec->odiisVectors) != 0)
+      return -1;
+  }
+  if (sec->hamiltonianCutoff > 0.0) {
+    if (append_fmt(dst, dst_size, used, " HAMILTONIAN CUTOFF\n  %.10g\n",
+                   sec->hamiltonianCutoff) != 0)
+      return -1;
+  }
+  if (sec->gdiisVectors > 0) {
+    if (append_fmt(dst, dst_size, used, " GDIIS\n  %d\n",
+                   sec->gdiisVectors) != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)

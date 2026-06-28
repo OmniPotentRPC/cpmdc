@@ -2200,6 +2200,96 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.TSDE",
+      "kind": "cpmd_keyword",
+      "name": "TSDE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TSDP",
+      "kind": "cpmd_keyword",
+      "name": "TSDP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TCGP",
+      "kind": "cpmd_keyword",
+      "name": "TCGP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TSDC",
+      "kind": "cpmd_keyword",
+      "name": "TSDC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ODIIS_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "ODIIS options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ODIIS_VECTORS",
+      "kind": "cpmd_keyword",
+      "name": "ODIIS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.HAMILTONIAN_CUTOFF",
+      "kind": "cpmd_keyword",
+      "name": "HAMILTONIAN CUTOFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GDIIS",
+      "kind": "cpmd_keyword",
+      "name": "GDIIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -5384,6 +5474,86 @@
       "feature_id": "params.inputSections.cpmd.extrapolateConstraintOrder",
       "kind": "structured_params_field",
       "name": "extrapolateConstraintOrder",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tsdeOptions",
+      "kind": "structured_params_field",
+      "name": "tsdeOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tsdpOptions",
+      "kind": "structured_params_field",
+      "name": "tsdpOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tcgp",
+      "kind": "structured_params_field",
+      "name": "tcgp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tsdc",
+      "kind": "structured_params_field",
+      "name": "tsdc",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.steepestDescentOptions",
+      "kind": "structured_params_field",
+      "name": "steepestDescentOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.conjugateGradientOptions",
+      "kind": "structured_params_field",
+      "name": "conjugateGradientOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.odiisOptions",
+      "kind": "structured_params_field",
+      "name": "odiisOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.odiisVectors",
+      "kind": "structured_params_field",
+      "name": "odiisVectors",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.hamiltonianCutoff",
+      "kind": "structured_params_field",
+      "name": "hamiltonianCutoff",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gdiisVectors",
+      "kind": "structured_params_field",
+      "name": "gdiisVectors",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

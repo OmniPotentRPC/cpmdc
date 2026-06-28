@@ -571,6 +571,16 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.EXTRAPOLATE_WFN~ | ~params.inputSections.cpmd.extrapolateWfnOptions~ | ~extrapolateWfnOptions~ | ~EXTRAPOLATE WFN~ |
 | ~catalog.cpmd.EXTRAPOLATE_WFN_ORDER~ | ~params.inputSections.cpmd.extrapolateWfnOrder~ | ~extrapolateWfnOrder~ | ~EXTRAPOLATE WFN payload~ |
 | ~catalog.cpmd.EXTRAPOLATE_CONSTRAINT~ | ~params.inputSections.cpmd.extrapolateConstraintOrder~ | ~extrapolateConstraintOrder~ | ~EXTRAPOLATE CONSTRAINT~ |
+| ~catalog.cpmd.TSDE~ | ~params.inputSections.cpmd.tsdeOptions~ | ~tsdeOptions~ | ~TSDE~ |
+| ~catalog.cpmd.TSDP~ | ~params.inputSections.cpmd.tsdpOptions~ | ~tsdpOptions~ | ~TSDP~ |
+| ~catalog.cpmd.TCGP~ | ~params.inputSections.cpmd.tcgp~ | ~tcgp~ | ~TCGP~ |
+| ~catalog.cpmd.TSDC~ | ~params.inputSections.cpmd.tsdc~ | ~tsdc~ | ~TSDC~ |
+| ~catalog.cpmd.STEEPEST_DESCENT~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENT~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT~ |
+| ~catalog.cpmd.ODIIS_OPTIONS~ | ~params.inputSections.cpmd.odiisOptions~ | ~odiisOptions~ | ~ODIIS~ |
+| ~catalog.cpmd.ODIIS_VECTORS~ | ~params.inputSections.cpmd.odiisVectors~ | ~odiisVectors~ | ~ODIIS payload~ |
+| ~catalog.cpmd.HAMILTONIAN_CUTOFF~ | ~params.inputSections.cpmd.hamiltonianCutoff~ | ~hamiltonianCutoff~ | ~HAMILTONIAN CUTOFF~ |
+| ~catalog.cpmd.GDIIS~ | ~params.inputSections.cpmd.gdiisVectors~ | ~gdiisVectors~ | ~GDIIS~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |
