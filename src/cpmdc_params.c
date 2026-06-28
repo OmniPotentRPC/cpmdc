@@ -1902,6 +1902,86 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if (sec->glocalizationParameters.str &&
+      sec->glocalizationParameters.len > 0) {
+    if (append_text(dst, dst_size, used,
+                    " GLOCALIZATION PARAMETERS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->glocalizationParameters) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (append_text_keyword_arg(dst, dst_size, used,
+                              "GLOCALIZATION OPTIMIZATION",
+                              sec->glocalizationOptimization) != 0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "GFUNCTIONAL TYPE",
+                              sec->gfunctionalType) != 0)
+    return -1;
+  if (sec->spreadRspace.str && sec->spreadRspace.len > 0) {
+    if (append_text(dst, dst_size, used, " SPREAD RSPACE=") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->spreadRspace) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (append_text_keyword_arg(dst, dst_size, used, "PIPPO",
+                              sec->gUnitarityOptions) != 0)
+    return -1;
+  if (sec->stepTuning) {
+    if (append_text(dst, dst_size, used, " STEP TUNING\n") != 0)
+      return -1;
+  }
+  if (sec->gAntisym || sec->gAntisymPenalty) {
+    if (append_text(dst, dst_size, used, " G_ANTISYM") != 0)
+      return -1;
+    if (sec->gAntisymPenalty &&
+        append_text(dst, dst_size, used, " PENALTY") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->gKick) {
+    if (append_text(dst, dst_size, used, " G_KICK\n") != 0)
+      return -1;
+  }
+  if (sec->gComplex) {
+    if (append_text(dst, dst_size, used, " G_COMPLEX\n") != 0)
+      return -1;
+  }
+  if (sec->gReal) {
+    if (append_text(dst, dst_size, used, " G_REAL\n") != 0)
+      return -1;
+  }
+  if (sec->readMatrix) {
+    if (append_text(dst, dst_size, used, " READ MATRIX\n") != 0)
+      return -1;
+  }
+  if (sec->gStepTune) {
+    if (append_text(dst, dst_size, used, " G_STEP TUNE\n") != 0)
+      return -1;
+  }
+  if (sec->glocWfnOutOptions.str && sec->glocWfnOutOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " GLOC WFNOUT ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->glocWfnOutOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->glocWfnOutPayload.str && sec->glocWfnOutPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->glocWfnOutPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;

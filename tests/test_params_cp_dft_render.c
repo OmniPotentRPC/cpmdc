@@ -123,6 +123,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
     {"catalog.cpmd.G_UNITARITY_OPTIONS", "gUnitarityOptions", " PIPPO "},
     {"catalog.cpmd.STEP_TUNING", "stepTuning", " STEP TUNING\n"},
     {"catalog.cpmd.G_ANTISYM", "gAntisym", " G_ANTISYM"},
+    {"catalog.cpmd.G_ANTISYM_PENALTY", "gAntisymPenalty",
+     " G_ANTISYM PENALTY"},
     {"catalog.cpmd.G_KICK", "gKick", " G_KICK\n"},
     {"catalog.cpmd.G_COMPLEX", "gComplex", " G_COMPLEX\n"},
     {"catalog.cpmd.G_REAL", "gReal", " G_REAL\n"},

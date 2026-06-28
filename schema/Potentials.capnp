@@ -294,6 +294,21 @@ struct CPMDCpmdSection {
   benchmark               @136 :Text; # BENCHMARK payload.
   mirror                  @137 :Bool = false; # MIRROR.
   shiftPotential          @138 :Text; # SHIFT POTENTIAL payload.
+  glocalizationParameters @139 :Text; # GLOCALIZATION PARAMETERS payload.
+  glocalizationOptimization @140 :Text; # GLOCALIZATION OPTIMIZATION option.
+  gfunctionalType         @141 :Text; # GFUNCTIONAL TYPE option.
+  spreadRspace            @142 :Text; # SPREAD RSPACE payload after '='.
+  gUnitarityOptions       @143 :Text; # PIPPO unitarity options.
+  stepTuning              @144 :Bool = false; # STEP TUNING.
+  gAntisym                @145 :Bool = false; # G_ANTISYM.
+  gAntisymPenalty         @146 :Bool = false; # G_ANTISYM PENALTY.
+  gKick                   @147 :Bool = false; # G_KICK.
+  gComplex                @148 :Bool = false; # G_COMPLEX.
+  gReal                   @149 :Bool = false; # G_REAL.
+  readMatrix              @150 :Bool = false; # READ MATRIX.
+  gStepTune               @151 :Bool = false; # G_STEP TUNE.
+  glocWfnOutOptions       @152 :Text; # GLOC WFNOUT inline options.
+  glocWfnOutPayload       @153 :Text; # GLOC WFNOUT payload line.
 }
 
 struct CPMDDftSection {

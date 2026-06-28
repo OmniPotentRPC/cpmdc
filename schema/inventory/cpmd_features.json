@@ -1183,6 +1183,132 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.GLOCALIZATION_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "GLOCALIZATION PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GLOCALIZATION_OPTIMIZATION",
+      "kind": "cpmd_keyword",
+      "name": "GLOCALIZATION OPTIMIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GFUNCTIONAL_TYPE",
+      "kind": "cpmd_keyword",
+      "name": "GFUNCTIONAL TYPE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPREAD_RSPACE",
+      "kind": "cpmd_keyword",
+      "name": "SPREAD RSPACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_UNITARITY_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "PIPPO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEP_TUNING",
+      "kind": "cpmd_keyword",
+      "name": "STEP TUNING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_ANTISYM",
+      "kind": "cpmd_keyword",
+      "name": "G_ANTISYM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_ANTISYM_PENALTY",
+      "kind": "cpmd_keyword",
+      "name": "G_ANTISYM PENALTY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_KICK",
+      "kind": "cpmd_keyword",
+      "name": "G_KICK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_COMPLEX",
+      "kind": "cpmd_keyword",
+      "name": "G_COMPLEX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_REAL",
+      "kind": "cpmd_keyword",
+      "name": "G_REAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.READ_MATRIX",
+      "kind": "cpmd_keyword",
+      "name": "READ MATRIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_STEP_TUNE",
+      "kind": "cpmd_keyword",
+      "name": "G_STEP TUNE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GLOC_WFNOUT",
+      "kind": "cpmd_keyword",
+      "name": "GLOC WFNOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.CENTER_MOLECULE_OFF",
       "kind": "cpmd_keyword",
       "name": "CENTER MOLECULE OFF",
@@ -3546,6 +3672,126 @@
       "feature_id": "params.inputSections.cpmd.shiftPotential",
       "kind": "structured_params_field",
       "name": "shiftPotential",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.glocalizationParameters",
+      "kind": "structured_params_field",
+      "name": "glocalizationParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.glocalizationOptimization",
+      "kind": "structured_params_field",
+      "name": "glocalizationOptimization",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gfunctionalType",
+      "kind": "structured_params_field",
+      "name": "gfunctionalType",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.spreadRspace",
+      "kind": "structured_params_field",
+      "name": "spreadRspace",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gUnitarityOptions",
+      "kind": "structured_params_field",
+      "name": "gUnitarityOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.stepTuning",
+      "kind": "structured_params_field",
+      "name": "stepTuning",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gAntisym",
+      "kind": "structured_params_field",
+      "name": "gAntisym",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gAntisymPenalty",
+      "kind": "structured_params_field",
+      "name": "gAntisymPenalty",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gKick",
+      "kind": "structured_params_field",
+      "name": "gKick",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gComplex",
+      "kind": "structured_params_field",
+      "name": "gComplex",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gReal",
+      "kind": "structured_params_field",
+      "name": "gReal",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.readMatrix",
+      "kind": "structured_params_field",
+      "name": "readMatrix",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gStepTune",
+      "kind": "structured_params_field",
+      "name": "gStepTune",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.glocWfnOutOptions",
+      "kind": "structured_params_field",
+      "name": "glocWfnOutOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.glocWfnOutPayload",
+      "kind": "structured_params_field",
+      "name": "glocWfnOutPayload",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
