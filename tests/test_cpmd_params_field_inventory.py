@@ -103,7 +103,7 @@ def write_inventory_with_extra_section_feature(repo: Path, tmpdir: Path) -> Path
 
 def write_features_c_with_extra_section(repo: Path, tmpdir: Path) -> Path:
     text = (repo / "src/cpmdc_features.c").read_text(encoding="utf-8")
-    row = f'    {{"{EXTRA_SECTION_FEATURE}", CPMDC_FEATURE_SECTION, 1, 1}},\n'
+    row = f'    {{ "{EXTRA_SECTION_FEATURE}", CPMDC_FEATURE_SECTION, 1, 1}},\n'
     path = tmpdir / "cpmdc_features_extra_section.c"
     path.write_text(
         text.replace(

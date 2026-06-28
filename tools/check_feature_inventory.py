@@ -260,7 +260,7 @@ def main() -> int:
                 errors.append(f"cpmd-options docs missing {fid}")
 
     c_literal_entries = re.findall(
-        r'\{"([^"]+)",\s*CPMDC_FEATURE_\w+,\s*([01]),\s*([01])\}',
+        r'\{\s*"([^"]+)",\s*CPMDC_FEATURE_\w+,\s*([01]),\s*([01])\s*\}',
         features_c,
     )
     c_param_features = re.findall(

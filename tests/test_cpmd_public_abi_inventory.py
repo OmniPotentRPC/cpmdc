@@ -82,7 +82,7 @@ def write_inventory_with_extra_abi_feature(
 
 def write_features_c_with_extra_symbol(repo: Path, tmpdir: Path, symbol: str) -> Path:
     text = (repo / "src/cpmdc_features.c").read_text(encoding="utf-8")
-    row = f'    {{"abi.{symbol}", CPMDC_FEATURE_ABI, 1, 1}},\n'
+    row = f'    {{ "abi.{symbol}", CPMDC_FEATURE_ABI, 1, 1}},\n'
     path = tmpdir / "cpmdc_features.c"
     path.write_text(
         text.replace(
