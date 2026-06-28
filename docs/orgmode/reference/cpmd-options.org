@@ -432,6 +432,8 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TRAJECTORY~ | ~params.inputSections.cpmd.trajectory~ | ~trajectory~ | ~TRAJECTORY~ |
 | ~catalog.cpmd.ISOLATED_MOLECULE~ | ~params.inputSections.cpmd.isolatedMolecule~ | ~isolatedMolecule~ | ~ISOLATED MOLECULE~ |
 | ~catalog.cpmd.PRINT~ | ~params.inputSections.cpmd.printOptions~ | ~printOptions~ | ~PRINT~ |
+| ~catalog.cpmd.STRUCTURE~ | ~params.inputSections.cpmd.structureOptions~ | ~structureOptions~ | ~STRUCTURE~ |
+| ~catalog.cpmd.STRUCTURE_SELECTION~ | ~params.inputSections.cpmd.structureSelection~ | ~structureSelection~ | ~STRUCTURE SELECT payload~ |
 | ~catalog.cpmd.STORE~ | ~params.inputSections.cpmd.storeOptions~ | ~storeOptions~ | ~STORE~ |
 | ~catalog.cpmd.STORE_SELECTION~ | ~params.inputSections.cpmd.storeSelection~ | ~storeSelection~ | ~STORE~ |
 | ~catalog.cpmd.STORE_INTERVAL~ | ~params.inputSections.cpmd.storeInterval~ | ~storeInterval~ | ~STORE interval~ |

@@ -2490,6 +2490,28 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if ((sec->structureOptions.str && sec->structureOptions.len > 0) ||
+      (sec->structureSelection.str && sec->structureSelection.len > 0)) {
+    if (append_text(dst, dst_size, used, " STRUCTURE") != 0)
+      return -1;
+    if (sec->structureOptions.str && sec->structureOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->structureOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->structureSelection.str && sec->structureSelection.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->structureSelection) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->storeOptions.str && sec->storeOptions.len > 0) {
     if (append_text(dst, dst_size, used, " STORE\n  ") != 0)
       return -1;

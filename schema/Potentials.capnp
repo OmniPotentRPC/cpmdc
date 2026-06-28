@@ -450,6 +450,8 @@ struct CPMDCpmdSection {
   traceProcedure          @292 :Text; # TRACE_PROCEDURE payload line.
   traceMaxDepth           @293 :Int32 = 0; # TRACE_MAX_DEPTH payload.
   traceMaxCalls           @294 :Int32 = 0; # TRACE_MAX_CALLS payload.
+  structureOptions        @295 :Text; # STRUCTURE inline options.
+  structureSelection      @296 :Text; # STRUCTURE SELECT payload lines.
 }
 
 struct CPMDDftSection {

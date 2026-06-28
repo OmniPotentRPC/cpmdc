@@ -362,6 +362,8 @@
     "RESTART WAVEFUNCTION",
     "TRAJECTORY",
     "PRINT",
+    "STRUCTURE",
+    "STRUCTURE SELECTION",
     "STORE",
     "CENTER MOLECULE OFF",
     "CENTER MOLECULE ON",
@@ -1309,6 +1311,24 @@
       "feature_id": "catalog.cpmd.PRINT",
       "kind": "cpmd_keyword",
       "name": "PRINT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE_SELECTION",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE SELECT payload",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4669,6 +4689,22 @@
       "feature_id": "params.inputSections.cpmd.printOptions",
       "kind": "structured_params_field",
       "name": "printOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.structureOptions",
+      "kind": "structured_params_field",
+      "name": "structureOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.structureSelection",
+      "kind": "structured_params_field",
+      "name": "structureSelection",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
