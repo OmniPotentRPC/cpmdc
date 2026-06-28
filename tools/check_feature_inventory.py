@@ -229,6 +229,16 @@ def main() -> int:
     for fid in re.findall(r'CPMDC_PARAM_FEATURE\(\s*"([^"]+)"\s*\)', features_c):
         c_flags[fid] = (True, True)
 
+    inventory_feature_ids = fids | {
+        section["feature_id"] for section in inv["section_kinds"]
+    }
+    for fid in sorted(c_flags):
+        if fid not in inventory_feature_ids:
+            if fid.startswith("abi."):
+                errors.append(f"C table has ABI feature outside inventory: {fid}")
+            else:
+                errors.append(f"C table has feature outside inventory: {fid}")
+
     for fid in structured_param_feature_ids(schema):
         if fid not in fids:
             errors.append(f"inventory missing structured params feature {fid}")

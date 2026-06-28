@@ -15,6 +15,7 @@ from pathlib import Path
 
 ADDED_SYMBOL = "cpmdc_uninventoried_demo"
 UNIMPLEMENTED_SYMBOL = "cpmdc_unimplemented_demo"
+EXTRA_TABLE_SYMBOL = "cpmdc_extra_table_demo"
 
 
 def load_checker(repo: Path):
@@ -142,6 +143,21 @@ def main() -> int:
     )
     if code == 0 or expected not in output:
         print("expected public ABI implementation failure")
+        print(output)
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="cpmd-public-abi-extra-table-") as raw:
+        tmpdir = Path(raw)
+        code, output = run_checker_with_paths(
+            checker,
+            FEATURES_C=write_features_c_with_extra_symbol(
+                repo, tmpdir, EXTRA_TABLE_SYMBOL
+            ),
+        )
+
+    expected = f"C table has ABI feature outside inventory: abi.{EXTRA_TABLE_SYMBOL}"
+    if code == 0 or expected not in output:
+        print("expected public ABI extra table failure")
         print(output)
         return 1
     return 0
