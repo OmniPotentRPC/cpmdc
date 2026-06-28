@@ -142,6 +142,11 @@ def main() -> int:
         errors,
     )
     add_duplicate_errors(
+        [section["feature_id"] for section in inv["section_kinds"]],
+        "section_kinds feature_id",
+        errors,
+    )
+    add_duplicate_errors(
         [field["name"] for field in inv["params_fields"]],
         "params_fields",
         errors,
@@ -166,6 +171,13 @@ def main() -> int:
     inv_kinds = {s["kind"] for s in inv["section_kinds"]}
     if kinds != inv_kinds:
         errors.append(f"section_kinds mismatch schema={sorted(kinds)} inv={sorted(inv_kinds)}")
+    for section in inv["section_kinds"]:
+        expected_fid = f"section.{section['kind']}"
+        if section["feature_id"] != expected_fid:
+            errors.append(
+                "section_kinds feature_id/kind mismatch: "
+                f"{section['feature_id']} / {section['kind']}"
+            )
 
     fields = set(re.findall(r"(\w+)\s+@\d+\s*:", re.search(r"struct CPMDParams \{(.*?)\}", schema, re.S).group(1)))
     inv_fields = {f["name"] for f in inv["params_fields"]}

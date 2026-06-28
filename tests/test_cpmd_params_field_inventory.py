@@ -17,6 +17,7 @@ REMOVED_FEATURE = "params.functional"
 DUPLICATED_FEATURE = "params.functional"
 EXTRA_SECTION_FEATURE = "catalog.section.EXTRA"
 DUPLICATE_C_FEATURE = "catalog.section.ATOM"
+MISMATCHED_SECTION_FEATURE_ID = "section.atom"
 
 
 def load_checker(repo: Path):
@@ -79,6 +80,16 @@ def write_inventory_with_removed_list_entry(
     data = json.loads((repo / "schema/inventory/cpmd_features.json").read_text())
     data[key] = data[key][1:]
     path = tmpdir / f"cpmd_features_removed_{key}.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def write_inventory_with_section_feature_id_mismatch(
+    repo: Path, tmpdir: Path
+) -> Path:
+    data = json.loads((repo / "schema/inventory/cpmd_features.json").read_text())
+    data["section_kinds"][0]["feature_id"] = MISMATCHED_SECTION_FEATURE_ID
+    path = tmpdir / "cpmd_features_section_feature_id_mismatch.json"
     path.write_text(json.dumps(data), encoding="utf-8")
     return path
 
@@ -231,6 +242,12 @@ def main() -> int:
             checker,
             FEATURES_C=write_features_c_with_duplicate_row(repo, tmpdir),
         )
+        section_feature_mismatch_code, section_feature_mismatch_output = (
+            run_checker_with_inventory(
+                checker,
+                write_inventory_with_section_feature_id_mismatch(repo, tmpdir),
+            )
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
     if missing_code == 0 or expected not in missing_output:
@@ -292,6 +309,17 @@ def main() -> int:
     ):
         print("expected duplicate C feature table failure")
         print(duplicate_c_row_output)
+        return 1
+    expected_section_mismatch = (
+        f"section_kinds feature_id/kind mismatch: "
+        f"{MISMATCHED_SECTION_FEATURE_ID} / generic"
+    )
+    if (
+        section_feature_mismatch_code == 0
+        or expected_section_mismatch not in section_feature_mismatch_output
+    ):
+        print("expected section feature_id mismatch failure")
+        print(section_feature_mismatch_output)
         return 1
     return 0
 
