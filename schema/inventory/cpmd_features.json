@@ -2023,6 +2023,22 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.pointGroup",
+      "kind": "structured_params_field",
+      "name": "pointGroup",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.pointGroupDelta",
+      "kind": "structured_params_field",
+      "name": "pointGroupDelta",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.lowSpinExcitation",
       "kind": "structured_params_field",
       "name": "lowSpinExcitation",

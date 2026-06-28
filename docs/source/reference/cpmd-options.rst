@@ -510,6 +510,10 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.wGauss``                      | ``system.wGauss``                      | ``&SYSTEM WGAUSS`` sigma values           |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.pointGroup``                  | ``system.pointGroup``                  | ``&SYSTEM POINT GROUP`` selector line     |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.pointGroupDelta``             | ``system.pointGroupDelta``             | ``&SYSTEM POINT GROUP DELTA=`` accuracy   |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.lowSpinExcitation``           | ``system.lowSpinExcitation``           | ``&SYSTEM LOW SPIN EXCITATION`` options   |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.lowSpinExcitationLsets``      | ``system.lowSpinExcitationLsets``      | Add ``LSETS`` to ``LOW SPIN EXCITATION``  |

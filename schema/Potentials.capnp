@@ -91,6 +91,8 @@ struct CPMDSystemSection {
   modifiedGoedecker @44 :Bool = false;      # MODIFIED GOEDECKER.
   modifiedGoedeckerParameters @45 :List(Float64); # MODIFIED GOEDECKER PARAMETERS lambda_ab, lambda_ba (2).
   energyProfile   @46 :Bool = false;        # ENERGY PROFILE.
+  pointGroup       @47 :Text;                # POINT GROUP selector line, e.g. AUTO, NAME=C2v, or 26.
+  pointGroupDelta  @48 :Float64 = 0.0;       # POINT GROUP DELTA accuracy; 0 => omit.
 }
 
 struct CPMDCpmdSection {

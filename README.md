@@ -234,7 +234,7 @@ Typed section quick map:
 
 | Section arm | Renders | Use for |
 | --- | --- | --- |
-| `system` | `&SYSTEM` | cells, cutoffs, grids, symmetry, occupations, external fields, pressure, charge |
+| `system` | `&SYSTEM` | cells, cutoffs, grids, symmetry, point groups, occupations, external fields, pressure, charge |
 | `cpmd` | `&CPMD` | optimization, MD mode, iteration limits, convergence, thermostats, restarts, print/store controls |
 | `dft` | `&DFT` | functional selection, LSD, GC cutoff, XC driver, hybrid/Hubbard options |
 | `atoms` | `&ATOMS` | pseudopotential entries and non-coordinate atom-section directives |

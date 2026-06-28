@@ -189,6 +189,8 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.externalField"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wCut"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wGauss"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.pointGroup"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.pointGroupDelta"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitation"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitationLsets"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lseParameters"),

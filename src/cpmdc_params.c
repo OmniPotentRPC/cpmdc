@@ -638,6 +638,23 @@ static int render_system_section_with_cell(
         return -1;
     }
   }
+  int has_point_group = sys->pointGroup.str && sys->pointGroup.len > 0;
+  if (has_point_group) {
+    if (append_text(dst, dst_size, used, " POINT GROUP") != 0)
+      return -1;
+    if (sys->pointGroupDelta > 0.0 &&
+        append_fmt(dst, dst_size, used, " DELTA=%.10g",
+                   sys->pointGroupDelta) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sys->pointGroup) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  } else if (sys->pointGroupDelta > 0.0) {
+    return -1;
+  }
   int has_low_spin =
       sys->lowSpinExcitation.str && sys->lowSpinExcitation.len > 0;
   if (has_low_spin || sys->lowSpinExcitationLsets) {
