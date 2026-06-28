@@ -404,6 +404,8 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.SUBTRACT_COMVEL~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~SUBTRACT COMVEL~ |
 | ~catalog.cpmd.SUBTRACT_ROTVEL~ | ~params.inputSections.cpmd.subtractRotVelocity~ | ~subtractRotVelocity~ | ~SUBTRACT ROTVEL~ |
 | ~catalog.cpmd.SUBTRACT~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~SUBTRACT~ |
+| ~catalog.cpmd.COMVEL~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~COMVEL~ |
+| ~catalog.cpmd.ROTVEL~ | ~params.inputSections.cpmd.subtractRotVelocity~ | ~subtractRotVelocity~ | ~ROTVEL~ |
 | ~catalog.cpmd.PRNGSEED~ | ~params.inputSections.cpmd.prngSeed~ | ~prngSeed~ | ~PRNGSEED~ |
 | ~catalog.cpmd.TEMPCONTROL_IONS~ | ~params.inputSections.cpmd.tempControlIons~ | ~tempControlIons~ | ~TEMPCONTROL IONS~ |
 | ~catalog.cpmd.TEMPCONTROL_ELECTRONS~ | ~params.inputSections.cpmd.tempControlElectrons~ | ~tempControlElectrons~ | ~TEMPCONTROL ELECTRONS~ |
@@ -452,6 +454,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.FFT_N_DEVICES_PER_TASK~ | ~params.inputSections.cpmd.fftNDevicesPerTask~ | ~fftNDevicesPerTask~ | ~FFT_N_DEVICES_PER_TASK~ |
 | ~catalog.cpmd.USE_MPI_IO~ | ~params.inputSections.cpmd.useMpiIo~ | ~useMpiIo~ | ~USE_MPI_IO~ |
 | ~catalog.cpmd.TRACE~ | ~params.inputSections.cpmd.traceOptions~ | ~traceOptions~ | ~TRACE~ |
+| ~catalog.cpmd.TRACE_MASTER~ | ~params.inputSections.cpmd.traceOptions~ | ~traceOptions~ | ~TRACE MASTER~ |
 | ~catalog.cpmd.TRACE_PROCEDURE~ | ~params.inputSections.cpmd.traceProcedure~ | ~traceProcedure~ | ~TRACE_PROCEDURE~ |
 | ~catalog.cpmd.TRACE_MAX_DEPTH~ | ~params.inputSections.cpmd.traceMaxDepth~ | ~traceMaxDepth~ | ~TRACE_MAX_DEPTH~ |
 | ~catalog.cpmd.TRACE_MAX_CALLS~ | ~params.inputSections.cpmd.traceMaxCalls~ | ~traceMaxCalls~ | ~TRACE_MAX_CALLS~ |
@@ -543,6 +546,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.FINITE_DIFFERENCES~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCES~ |
 | ~catalog.cpmd.TASKGROUPS~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS~ |
 | ~catalog.cpmd.TASKGROUPS_COUNT~ | ~params.inputSections.cpmd.taskGroupsCount~ | ~taskGroupsCount~ | ~TASKGROUPS count~ |
+| ~catalog.cpmd.TASKGROUPS_MINI~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS MINI~ |
 | ~catalog.cpmd.DISTRIBUTE_FNL~ | ~params.inputSections.cpmd.distributeFnl~ | ~distributeFnl~ | ~DISTRIBUTE FNL~ |
 | ~catalog.cpmd.CP_GROUPS~ | ~params.inputSections.cpmd.cpGroups~ | ~cpGroups~ | ~CP_GROUPS~ |
 | ~catalog.cpmd.FILE_FUSION~ | ~params.inputSections.cpmd.fileFusionPayload~ | ~fileFusionPayload~ | ~FILE FUSION~ |
@@ -559,6 +563,9 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.GFUNCTIONAL_TYPE~ | ~params.inputSections.cpmd.gfunctionalType~ | ~gfunctionalType~ | ~GFUNCTIONAL TYPE~ |
 | ~catalog.cpmd.SPREAD_RSPACE~ | ~params.inputSections.cpmd.spreadRspace~ | ~spreadRspace~ | ~SPREAD RSPACE=~ |
 | ~catalog.cpmd.G_UNITARITY_OPTIONS~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO~ |
+| ~catalog.cpmd.PIPPO~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO~ |
+| ~catalog.cpmd.PIPPO_ORTHO~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO ORTHO~ |
+| ~catalog.cpmd.PIPPO_APPROX~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO APPROX~ |
 | ~catalog.cpmd.STEP_TUNING~ | ~params.inputSections.cpmd.stepTuning~ | ~stepTuning~ | ~STEP TUNING~ |
 | ~catalog.cpmd.G_ANTISYM~ | ~params.inputSections.cpmd.gAntisym~ | ~gAntisym~ | ~G_ANTISYM~ |
 | ~catalog.cpmd.G_ANTISYM_PENALTY~ | ~params.inputSections.cpmd.gAntisymPenalty~ | ~gAntisymPenalty~ | ~G_ANTISYM PENALTY~ |
@@ -566,6 +573,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.G_COMPLEX~ | ~params.inputSections.cpmd.gComplex~ | ~gComplex~ | ~G_COMPLEX~ |
 | ~catalog.cpmd.G_REAL~ | ~params.inputSections.cpmd.gReal~ | ~gReal~ | ~G_REAL~ |
 | ~catalog.cpmd.READ_MATRIX~ | ~params.inputSections.cpmd.readMatrix~ | ~readMatrix~ | ~READ MATRIX~ |
+| ~catalog.cpmd.G_STEP~ | ~params.inputSections.cpmd.gStepTune~ | ~gStepTune~ | ~G_STEP~ |
 | ~catalog.cpmd.G_STEP_TUNE~ | ~params.inputSections.cpmd.gStepTune~ | ~gStepTune~ | ~G_STEP TUNE~ |
 | ~catalog.cpmd.GLOC_WFNOUT~ | ~params.inputSections.cpmd.glocWfnOutOptions~ | ~glocWfnOutOptions~ | ~GLOC WFNOUT~ |
 | ~catalog.cpmd.GLOC_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.glocWfnOutPayload~ | ~glocWfnOutPayload~ | ~GLOC WFNOUT payload~ |
@@ -616,6 +624,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.KOHN_SHAM_ENERGIES_COUNT~ | ~params.inputSections.cpmd.kohnShamEnergiesCount~ | ~kohnShamEnergiesCount~ | ~KOHN-SHAM ENERGIES payload~ |
 | ~catalog.cpmd.SURFACE_HOPPING~ | ~params.inputSections.cpmd.surfaceHoppingOptions~ | ~surfaceHoppingOptions~ | ~SURFACE HOPPING~ |
 | ~catalog.cpmd.ROKS~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS~ |
+| ~catalog.cpmd.ROKS_LOCALIZED~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS LOCALIZED~ |
 | ~catalog.cpmd.ROKS_EXPERT~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT~ |
 | ~catalog.cpmd.ROKS_EXPERT_PAYLOAD~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT payload~ |
 | ~catalog.cpmd.PATH_SAMPLING~ | ~params.inputSections.cpmd.pathSampling~ | ~pathSampling~ | ~PATH SAMPLING~ |
@@ -639,9 +648,15 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.PATH_INTEGRAL~ | ~params.inputSections.cpmd.pathIntegral~ | ~pathIntegral~ | ~PATH INTEGRAL~ |
 | ~catalog.cpmd.PATH_MINIMIZATION~ | ~params.inputSections.cpmd.pathMinimization~ | ~pathMinimization~ | ~PATH MINIMIZATION~ |
 | ~catalog.cpmd.LANGEVIN_OPTIONS~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN~ |
+| ~catalog.cpmd.LANGEVIN_CPMD~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN CPMD~ |
+| ~catalog.cpmd.LANGEVIN_OPTIMAL~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN OPTIMAL~ |
+| ~catalog.cpmd.LANGEVIN_SMART~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN SMART~ |
+| ~catalog.cpmd.LANGEVIN_CUSTOM~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN CUSTOM~ |
 | ~catalog.cpmd.LANGEVIN_PARAMETER~ | ~params.inputSections.cpmd.langevinParameter~ | ~langevinParameter~ | ~LANGEVIN payload~ |
 | ~catalog.cpmd.QMMMEASY~ | ~params.inputSections.cpmd.qmmmEasy~ | ~qmmmEasy~ | ~QMMMEASY~ |
 | ~catalog.cpmd.INTERFACE_OPTIONS~ | ~params.inputSections.cpmd.interfaceOptions~ | ~interfaceOptions~ | ~INTERFACE~ |
+| ~catalog.cpmd.INTERFACE_GMX~ | ~params.inputSections.cpmd.interfaceOptions~ | ~interfaceOptions~ | ~INTERFACE GMX~ |
+| ~catalog.cpmd.INTERFACE_IPHIGENIE~ | ~params.inputSections.cpmd.interfaceOptions~ | ~interfaceOptions~ | ~INTERFACE IPHIGENIE~ |
 | ~catalog.cpmd.TROTTER_FACTOR~ | ~params.inputSections.cpmd.trotterFactorCount~ | ~trotterFactorCount~ | ~TROTTER FACTOR=~ |
 | ~catalog.cpmd.TROTTER_FACTOR_PAYLOAD~ | ~params.inputSections.cpmd.trotterFactorPayload~ | ~trotterFactorPayload~ | ~TROTTER FACTOR payload~ |
 | ~catalog.cpmd.TROTTER_FACTORIZATION~ | ~params.inputSections.cpmd.trotterFactorization~ | ~trotterFactorization~ | ~TROTTER FACTORIZATION~ |
@@ -657,6 +672,8 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.NONORTHOGONAL_ORBITALS~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsOptions~ | ~nonorthogonalOrbitalsOptions~ | ~NONORTHOGONAL ORBITALS~ |
 | ~catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsLimit~ | ~nonorthogonalOrbitalsLimit~ | ~NONORTHOGONAL ORBITALS payload~ |
 | ~catalog.cpmd.LANCZOS_DIAGONALIZATION~ | ~params.inputSections.cpmd.lanczosDiagonalizationOptions~ | ~lanczosDiagonalizationOptions~ | ~LANCZOS DIAGONALIZATION~ |
+| ~catalog.cpmd.LANCZOS_PERIODIC~ | ~params.inputSections.cpmd.lanczosDiagonalizationOptions~ | ~lanczosDiagonalizationOptions~ | ~LANCZOS PERIODIC~ |
+| ~catalog.cpmd.LANCZOS_RESET~ | ~params.inputSections.cpmd.lanczosDiagonalizationOptions~ | ~lanczosDiagonalizationOptions~ | ~LANCZOS RESET~ |
 | ~catalog.cpmd.LANCZOS_PARAMETERS~ | ~params.inputSections.cpmd.lanczosParametersCount~ | ~lanczosParametersCount~ | ~LANCZOS PARAMETERS N=~ |
 | ~catalog.cpmd.LANCZOS_PARAMETER~ | ~params.inputSections.cpmd.lanczosParametersCount~ | ~lanczosParametersCount~ | ~LANCZOS PARAMETER~ |
 | ~catalog.cpmd.LANCZOS_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.lanczosParametersPayload~ | ~lanczosParametersPayload~ | ~LANCZOS PARAMETERS payload~ |

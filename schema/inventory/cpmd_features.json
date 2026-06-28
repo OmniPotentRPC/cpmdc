@@ -1442,6 +1442,33 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.PIPPO",
+      "kind": "cpmd_keyword",
+      "name": "PIPPO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PIPPO_ORTHO",
+      "kind": "cpmd_keyword",
+      "name": "PIPPO ORTHO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PIPPO_APPROX",
+      "kind": "cpmd_keyword",
+      "name": "PIPPO APPROX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.STEP_TUNING",
       "kind": "cpmd_keyword",
       "name": "STEP TUNING",
@@ -1499,6 +1526,15 @@
       "feature_id": "catalog.cpmd.READ_MATRIX",
       "kind": "cpmd_keyword",
       "name": "READ MATRIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.G_STEP",
+      "kind": "cpmd_keyword",
+      "name": "G_STEP",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -1946,6 +1982,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ROKS_LOCALIZED",
+      "kind": "cpmd_keyword",
+      "name": "ROKS LOCALIZED",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.ROKS_EXPERT_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "ROKS EXPERT payload",
@@ -2153,6 +2198,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LANGEVIN_CPMD",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN CPMD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN_OPTIMAL",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN OPTIMAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN_SMART",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN SMART",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN_CUSTOM",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN CUSTOM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.LANGEVIN_PARAMETER",
       "kind": "cpmd_keyword",
       "name": "LANGEVIN payload",
@@ -2174,6 +2255,24 @@
       "feature_id": "catalog.cpmd.INTERFACE_OPTIONS",
       "kind": "cpmd_keyword",
       "name": "INTERFACE options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE_GMX",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE GMX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE_IPHIGENIE",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE IPHIGENIE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2309,6 +2408,24 @@
       "feature_id": "catalog.cpmd.LANCZOS_DIAGONALIZATION",
       "kind": "cpmd_keyword",
       "name": "LANCZOS DIAGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_PERIODIC",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS PERIODIC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_RESET",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS RESET",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3089,6 +3206,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.TRACE_MASTER",
+      "kind": "cpmd_keyword",
+      "name": "TRACE MASTER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.TRACE_PROCEDURE",
       "kind": "cpmd_keyword",
       "name": "TRACE_PROCEDURE",
@@ -3497,6 +3623,24 @@
       "feature_id": "catalog.cpmd.SUBTRACT",
       "kind": "cpmd_keyword",
       "name": "SUBTRACT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMVEL",
+      "kind": "cpmd_keyword",
+      "name": "COMVEL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ROTVEL",
+      "kind": "cpmd_keyword",
+      "name": "ROTVEL",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4235,6 +4379,15 @@
       "feature_id": "catalog.cpmd.TASKGROUPS_COUNT",
       "kind": "cpmd_keyword",
       "name": "TASKGROUPS count",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TASKGROUPS_MINI",
+      "kind": "cpmd_keyword",
+      "name": "TASKGROUPS MINI",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
