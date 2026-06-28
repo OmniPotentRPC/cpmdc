@@ -3063,6 +3063,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.hessian",
+      "kind": "structured_params_field",
+      "name": "hessian",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.project",
+      "kind": "structured_params_field",
+      "name": "project",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.stressTensorSample",
+      "kind": "structured_params_field",
+      "name": "stressTensorSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.stressTensorVirial",
+      "kind": "structured_params_field",
+      "name": "stressTensorVirial",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.classStressSample",
+      "kind": "structured_params_field",
+      "name": "classStressSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.quench",
       "kind": "structured_params_field",
       "name": "quench",

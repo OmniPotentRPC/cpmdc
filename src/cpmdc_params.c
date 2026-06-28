@@ -1541,6 +1541,27 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->dampingCell) != 0)
       return -1;
   }
+  if (append_text_keyword_arg(dst, dst_size, used, "HESSIAN", sec->hessian) !=
+      0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "PROJECT", sec->project) !=
+      0)
+    return -1;
+  if (sec->stressTensorSample > 0) {
+    if (append_text(dst, dst_size, used, " STRESS TENSOR") != 0)
+      return -1;
+    if (sec->stressTensorVirial &&
+        append_text(dst, dst_size, used, " VIRIAL") != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "\n  %d\n",
+                   sec->stressTensorSample) != 0)
+      return -1;
+  }
+  if (sec->classStressSample > 0) {
+    if (append_fmt(dst, dst_size, used, " CLASSTRESS\n  %d\n",
+                   sec->classStressSample) != 0)
+      return -1;
+  }
   if (sec->quench) {
     if (append_text(dst, dst_size, used, " QUENCH\n") != 0)
       return -1;

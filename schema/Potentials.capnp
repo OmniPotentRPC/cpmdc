@@ -241,6 +241,11 @@ struct CPMDCpmdSection {
   dampingIons             @83 :Float64 = 0.0; # DAMPING IONS; 0 => omit.
   dampingElectrons        @84 :Float64 = 0.0; # DAMPING ELECTRONS; 0 => omit.
   dampingCell             @85 :Float64 = 0.0; # DAMPING CELL; 0 => omit.
+  hessian                 @86 :Text; # HESSIAN inline options.
+  project                 @87 :Text; # PROJECT inline option.
+  stressTensorSample      @88 :Int32 = 0; # STRESS TENSOR sample; 0 => omit.
+  stressTensorVirial      @89 :Bool = false; # STRESS TENSOR VIRIAL.
+  classStressSample       @90 :Int32 = 0; # CLASSTRESS sample; 0 => omit.
 }
 
 struct CPMDDftSection {
