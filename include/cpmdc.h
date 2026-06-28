@@ -38,6 +38,19 @@ typedef struct CPMDCSession CPMDCSession;
 /**
  * @brief Apply CPMD method parameters from a Cap'n Proto message.
  *
+ * Callers do not need C setter functions for individual CPMD keywords. Build
+ * one `CPMDParams` message with top-level fields, structured `inputSections`,
+ * and literal `inputBlocks`, then pass its bytes to this function or to
+ * `cpmdc_session_create()`.
+ *
+ * Feature discovery mirrors the schema carriers: typed fields such as
+ * `params.inputSections.cpmd.maxIter`, `params.inputSections.system.cell`,
+ * `params.inputSections.dft.hfxScreening`, and
+ * `params.inputSections.atoms.pseudopotentials`; catalog sections such as
+ * `catalog.section.VDW`; and escape hatches such as
+ * `params.inputSections.raw`. The same serialized params buffer is accepted by
+ * `cpmdc_calculate_result()` for one-shot calls.
+ *
  * @param params_capnp Pointer to an unpacked flat `CPMDParams` message.
  * @param params_capnp_size_bytes Size of `params_capnp` in bytes.
  * @return 0 on success, -1 on parse or configuration failure.

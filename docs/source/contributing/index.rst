@@ -53,6 +53,8 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | Embedding docs coverage          | ``meson test -C build cpmd-embedding-docs-coverage --print-errorlogs``                    |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Public header docs coverage      | ``meson test -C build cpmd-public-header-docs-coverage --print-errorlogs``                |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | Public host example docs         | ``meson test -C build examples-documented --print-errorlogs``                             |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | README and quickstart navigation | ``meson test -C build readme-navigation --print-errorlogs``                               |
@@ -93,7 +95,9 @@ long-tail fixture, render assertions, and option reference.
 render tests, and option docs. ``cpmd-embedding-docs-coverage`` requires
 the embedding how-to to name the public ABI feature IDs plus the typed,
 long-tail, and escape-hatch ``CPMDParams`` carrier IDs used by host
-authors. ``examples-documented`` requires public docs to point at the
+authors. ``cpmd-public-header-docs-coverage`` requires the public header
+and generated C API docs to describe the serialized ``CPMDParams`` input
+surface. ``examples-documented`` requires public docs to point at the
 runnable ``examples/host_step.c`` host program. ``readme-navigation``
 keeps the README and quickstart docs focused on entry paths, work-loop
 labels, and current wording.

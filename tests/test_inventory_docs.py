@@ -39,6 +39,7 @@ def main() -> int:
     ]
     docs_guards = [
         "cpmd-embedding-docs-coverage",
+        "cpmd-public-header-docs-coverage",
         "examples-documented",
         "readme-navigation",
     ]

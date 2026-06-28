@@ -123,6 +123,10 @@ Global Functions
 
 Apply CPMD method parameters from a Cap'n Proto message.
 
+Callers do not need C setter functions for individual CPMD keywords. Build one ``CPMDParams`` message with top-level fields, structured ``inputSections``, and literal ``inputBlocks``, then pass its bytes to this function or to ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```.
+
+Feature discovery mirrors the schema carriers: typed fields such as ``params.inputSections.cpmd.maxIter``, ``params.inputSections.system.cell``, ``params.inputSections.dft.hfxScreening``, and ``params.inputSections.atoms.pseudopotentials``; catalog sections such as ``catalog.section.VDW``; and escape hatches such as ``params.inputSections.raw``. The same serialized params buffer is accepted by ``:ref:`cpmdc_calculate_result() <doxid-cpmdc_8h_1a9b206e2d2173eafb39c00977101da25b>``` for one-shot calls.
+
 
 
 .. rubric:: Parameters:

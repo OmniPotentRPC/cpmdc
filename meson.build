@@ -614,6 +614,15 @@ if get_option('with_tests')
     suite: ['docs', 'abi', 'params'],
   )
   test(
+    'cpmd-public-header-docs-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_public_header_docs_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'abi', 'params'],
+  )
+  test(
     'readme-navigation',
     python,
     args: [
