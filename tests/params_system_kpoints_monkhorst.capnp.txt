@@ -1,0 +1,24 @@
+(
+  functional = "PBE",
+  cutOffRy = 90.0,
+  task = "gradient",
+  title = "Typed Monkhorst k-points",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true ) ),
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        cutOffRy = 90.0,
+        kpointsMonkhorstPack = [2, 3, 4],
+        kpointsMonkhorstSymmetrized = true,
+        kpointsMonkhorstFull = true,
+        kpointsMonkhorstKdp = true,
+        kpointsMonkhorstShift = [0.5, 0.25, 0.0]
+      ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "H", path = "H_MT_PBE.psp", lmax = 0 )
+      ] ) )
+  ]
+)

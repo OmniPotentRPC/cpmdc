@@ -244,9 +244,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 11) {
+  if (argc < 12) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin bad_occupation.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin bad_occupation.bin\n",
             argv[0]);
     return 2;
   }
@@ -344,6 +344,10 @@ int main(int argc, char **argv) {
       "CENTER MOLECULE ON", "CENTER MOLECULE OFF", "SURFACE XY", "POLYMER",
       "CLUSTER", "SHOCK VELOCITY", "4500",
   };
+  const char *system_monkhorst_need[] = {
+      "&SYSTEM", "KPOINTS MONKHORST-PACK SYMMETRIZED FULL KDP",
+      "2 3 4 SHIFT=0.5 0.25 0",
+  };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
       "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
@@ -389,10 +393,14 @@ int main(int argc, char **argv) {
                  (int)(sizeof(system_controls_need) /
                        sizeof(system_controls_need[0]))) != 0)
     return 1;
-  if (check_render_fails(argv[10]) != 0)
+  if (check_deck(argv[10], system_monkhorst_need,
+                 (int)(sizeof(system_monkhorst_need) /
+                       sizeof(system_monkhorst_need[0]))) != 0)
     return 1;
-  char *decks[9] = {0};
-  for (int i = 0; i < 9; ++i) {
+  if (check_render_fails(argv[11]) != 0)
+    return 1;
+  char *decks[10] = {0};
+  for (int i = 0; i < 10; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -401,11 +409,11 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
-  int coverage_rc = check_catalog_coverage(decks, 9);
-  for (int i = 0; i < 9; ++i)
+  int coverage_rc = check_catalog_coverage(decks, 10);
+  for (int i = 0; i < 10; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, and system_controls render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, and system_monkhorst render + inventory finds\n");
   return 0;
 }
