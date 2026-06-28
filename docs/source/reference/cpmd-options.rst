@@ -927,6 +927,16 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
 | ``catalog.cpmd.RESTFILE_SAMPLE``              | ``params.inputSections.cpmd.restFileSample``              | ``restFileSample``              | ``RESTFILE SAMPLE``              |
 +-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TRAJECTORY_OPTIONS``           | ``params.inputSections.cpmd.trajectoryOptions``           | ``trajectoryOptions``           | ``TRAJECTORY``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TRAJECTORY_SAMPLE``            | ``params.inputSections.cpmd.trajectorySample``            | ``trajectorySample``            | ``TRAJECTORY SAMPLE``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TRAJECTORY_RANGE``             | ``params.inputSections.cpmd.trajectoryRange``             | ``trajectoryRange``             | ``TRAJECTORY RANGE``             |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOVIE_SAMPLE``                 | ``params.inputSections.cpmd.movieSample``                 | ``movieSample``                 | ``MOVIE SAMPLE``                 |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOVIE_OFF``                    | ``params.inputSections.cpmd.movieOff``                    | ``movieOff``                    | ``MOVIE OFF``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
 | ``catalog.cpmd.CENTER_MOLECULE_OFF``          | ``params.inputSections.cpmd.centerMoleculeOff``           | ``centerMoleculeOff``           | ``CENTER MOLECULE OFF``          |
 +-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
 | ``catalog.cpmd.CENTER_MOLECULE_ON``           | ``params.inputSections.cpmd.centerMoleculeOn``            | ``centerMoleculeOn``            | ``CENTER MOLECULE ON``           |

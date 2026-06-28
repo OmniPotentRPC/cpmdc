@@ -252,6 +252,11 @@ struct CPMDCpmdSection {
   storeOffSelection       @94 :Text; # STORE OFF inline selection.
   restFileCount           @95 :Int32 = 0; # RESTFILE count; 0 => omit.
   restFileSample          @96 :Text; # RESTFILE SAMPLE payload.
+  trajectoryOptions       @97 :Text; # TRAJECTORY inline options.
+  trajectorySample        @98 :Int32 = 0; # TRAJECTORY SAMPLE value; 0 => omit.
+  trajectoryRange         @99 :Text; # TRAJECTORY RANGE payload.
+  movieSample             @100 :Int32 = 0; # MOVIE SAMPLE value; 0 => omit.
+  movieOff                @101 :Bool = false; # MOVIE OFF.
 }
 
 struct CPMDDftSection {

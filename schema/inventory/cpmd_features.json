@@ -3215,6 +3215,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.trajectoryOptions",
+      "kind": "structured_params_field",
+      "name": "trajectoryOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trajectorySample",
+      "kind": "structured_params_field",
+      "name": "trajectorySample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trajectoryRange",
+      "kind": "structured_params_field",
+      "name": "trajectoryRange",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.movieSample",
+      "kind": "structured_params_field",
+      "name": "movieSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.movieOff",
+      "kind": "structured_params_field",
+      "name": "movieOff",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
       "kind": "structured_params_field",
       "name": "centerMoleculeOff",

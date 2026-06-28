@@ -1646,6 +1646,46 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  int has_traj_options = sec->trajectoryOptions.str &&
+                         sec->trajectoryOptions.len > 0;
+  int has_traj_range = sec->trajectoryRange.str && sec->trajectoryRange.len > 0;
+  if (has_traj_options || has_traj_range || sec->trajectorySample > 0) {
+    if (append_text(dst, dst_size, used, " TRAJECTORY") != 0)
+      return -1;
+    if (has_traj_options) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->trajectoryOptions) != 0)
+        return -1;
+    }
+    if (has_traj_range && append_text(dst, dst_size, used, " RANGE") != 0)
+      return -1;
+    if (sec->trajectorySample > 0 &&
+        append_text(dst, dst_size, used, " SAMPLE") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (has_traj_range) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->trajectoryRange) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (sec->trajectorySample > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n", sec->trajectorySample) != 0)
+      return -1;
+  }
+  if (sec->movieSample > 0) {
+    if (append_fmt(dst, dst_size, used, " MOVIE SAMPLE\n  %d\n",
+                   sec->movieSample) != 0)
+      return -1;
+  }
+  if (sec->movieOff) {
+    if (append_text(dst, dst_size, used, " MOVIE OFF\n") != 0)
+      return -1;
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;
