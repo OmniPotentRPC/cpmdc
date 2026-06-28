@@ -1,0 +1,8 @@
+(
+  inputSections = [
+    ( system = (
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        couplingsProductDisplacement = 0.02
+      ) )
+  ]
+)
