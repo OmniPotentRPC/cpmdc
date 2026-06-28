@@ -27,6 +27,7 @@ def main() -> int:
     inventory_guards = [
         "feature-inventory",
         "cpmd-base-keyword-inventory",
+        "cpmd-params-field-inventory",
         "cpmd-schema-render-coverage",
         "cpmd-option-token-coverage",
         "cpmd-typed-render-field-coverage",
@@ -42,6 +43,7 @@ def main() -> int:
             [
                 "schema/inventory/cpmd_cp_keywords.txt",
                 "cpmd-base-keyword-inventory",
+                "cpmd-params-field-inventory",
                 "cpmd-schema-render-coverage",
                 "cpmd-option-token-coverage",
                 "cpmd-typed-render-field-coverage",

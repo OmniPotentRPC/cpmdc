@@ -29,6 +29,9 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------+
 | Base ``&CPMD`` keyword inventory | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``               |
 +----------------------------------+-------------------------------------------------------------------------------------+
+| Top-level ``CPMDParams`` feature | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``               |
+| rows                             |                                                                                     |
++----------------------------------+-------------------------------------------------------------------------------------+
 | ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``               |
 | mappings                         |                                                                                     |
 +----------------------------------+-------------------------------------------------------------------------------------+
@@ -48,7 +51,9 @@ public feature table, docs, public headers, ABI symbol list, and
 optional ``CPMD_ROOT`` parser section probe.
 ``cpmd-base-keyword-inventory`` requires every base ``&CPMD`` keyword in
 ``schema/inventory/cpmd_cp_keywords.txt`` to resolve to a
-``catalog.cpmd.*`` row. ``cpmd-schema-render-coverage`` and
+``catalog.cpmd.*`` row. ``cpmd-params-field-inventory`` requires every
+top-level ``CPMDParams`` schema field to resolve to a ``params.*``
+feature row. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
 fixture inline tokens tied to render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
@@ -86,8 +91,9 @@ Run the focused failure before adding production code:
 
    CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
      params-cp-dft-render features-cmocka feature-inventory \
-     cpmd-base-keyword-inventory cpmd-schema-render-coverage \
-     cpmd-option-token-coverage cpmd-typed-render-field-coverage \
+     cpmd-base-keyword-inventory cpmd-params-field-inventory \
+     cpmd-schema-render-coverage cpmd-option-token-coverage \
+     cpmd-typed-render-field-coverage \
      --print-errorlogs
 
 Then update the production and docs surface in one change:

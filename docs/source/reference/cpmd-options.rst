@@ -182,6 +182,7 @@ Run the focused inventory guards with:
 
    meson test -C build \
      feature-inventory cpmd-base-keyword-inventory \
+     cpmd-params-field-inventory \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
      cpmd-typed-render-field-coverage \
      --print-errorlogs
@@ -191,10 +192,12 @@ schema, public C feature table, README, and this reference page. When
 ``CPMD_ROOT`` points at an OpenCPMD tree, it also compares parser
 ``inscan('&SECTION')`` calls with the checked-in section inventory.
 ``cpmd-base-keyword-inventory`` proves the base keyword list cannot drop
-a ``catalog.cpmd.*`` row silently. ``cpmd-schema-render-coverage``
-requires typed ``CPMDCpmdSection`` fields to appear in the catalog
-render fixtures, and ``cpmd-option-token-coverage`` requires inline
-option spellings in Cap'n Proto fixtures to have render coverage.
+a ``catalog.cpmd.*`` row silently. ``cpmd-params-field-inventory``
+requires every top-level ``CPMDParams`` schema field to keep a
+``params.*`` feature row. ``cpmd-schema-render-coverage`` requires typed
+``CPMDCpmdSection`` fields to appear in the catalog render fixtures, and
+``cpmd-option-token-coverage`` requires inline option spellings in Cap'n
+Proto fixtures to have render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
 ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
 or render assertions.
