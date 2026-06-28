@@ -311,6 +311,10 @@ def main() -> int:
             errors.append(f"README missing ABI symbol {sym}")
 
     abi_symbols = set(inv.get("abi_symbols", []))
+    for sym in sorted(fid[4:] for fid in fids if fid.startswith("abi.")):
+        if sym not in abi_symbols:
+            errors.append(f"inventory abi_symbols missing ABI feature row: {sym}")
+
     for sym in sorted(public_header_functions(header, features_h)):
         if sym not in abi_symbols:
             errors.append(

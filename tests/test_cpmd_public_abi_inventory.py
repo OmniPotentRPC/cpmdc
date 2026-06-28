@@ -16,6 +16,7 @@ from pathlib import Path
 ADDED_SYMBOL = "cpmdc_uninventoried_demo"
 UNIMPLEMENTED_SYMBOL = "cpmdc_unimplemented_demo"
 EXTRA_TABLE_SYMBOL = "cpmdc_extra_table_demo"
+UNLISTED_FEATURE_SYMBOL = "cpmdc_unlisted_feature_demo"
 
 
 def load_checker(repo: Path):
@@ -43,6 +44,27 @@ def write_inventory_with_extra_symbol(repo: Path, tmpdir: Path, symbol: str) -> 
         (repo / "schema/inventory/cpmd_features.json").read_text(encoding="utf-8")
     )
     inventory["abi_symbols"].append(symbol)
+    inventory["features"].append(
+        {
+            "feature_id": f"abi.{symbol}",
+            "kind": "abi",
+            "stub_applicable": True,
+            "embed_applicable": True,
+            "name": symbol,
+            "source": "public C ABI",
+        }
+    )
+    path = tmpdir / "cpmd_features.json"
+    path.write_text(json.dumps(inventory), encoding="utf-8")
+    return path
+
+
+def write_inventory_with_extra_abi_feature(
+    repo: Path, tmpdir: Path, symbol: str
+) -> Path:
+    inventory = json.loads(
+        (repo / "schema/inventory/cpmd_features.json").read_text(encoding="utf-8")
+    )
     inventory["features"].append(
         {
             "feature_id": f"abi.{symbol}",
@@ -158,6 +180,27 @@ def main() -> int:
     expected = f"C table has ABI feature outside inventory: abi.{EXTRA_TABLE_SYMBOL}"
     if code == 0 or expected not in output:
         print("expected public ABI extra table failure")
+        print(output)
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="cpmd-public-abi-unlisted-feature-") as raw:
+        tmpdir = Path(raw)
+        code, output = run_checker_with_paths(
+            checker,
+            INVENTORY=write_inventory_with_extra_abi_feature(
+                repo, tmpdir, UNLISTED_FEATURE_SYMBOL
+            ),
+            FEATURES_C=write_features_c_with_extra_symbol(
+                repo, tmpdir, UNLISTED_FEATURE_SYMBOL
+            ),
+        )
+
+    expected = (
+        "inventory abi_symbols missing ABI feature row: "
+        f"{UNLISTED_FEATURE_SYMBOL}"
+    )
+    if code == 0 or expected not in output:
+        print("expected public ABI unlisted feature failure")
         print(output)
         return 1
     return 0
