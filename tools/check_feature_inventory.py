@@ -78,6 +78,10 @@ def main() -> int:
     readme = README.read_text(encoding="utf-8")
     errors: list[str] = []
 
+    reference = str(inv.get("opencpmd_reference") or "")
+    if reference.startswith(("/", "~")):
+        errors.append("opencpmd_reference must describe the reference source, not a host-local path")
+
     kinds = set(re.findall(r"(\w+)\s+@\d+;", re.search(r"enum CPMDSectionKind \{(.*?)\}", schema, re.S).group(1)))
     inv_kinds = {s["kind"] for s in inv["section_kinds"]}
     if kinds != inv_kinds:
