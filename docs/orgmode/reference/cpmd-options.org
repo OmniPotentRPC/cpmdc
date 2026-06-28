@@ -398,6 +398,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TEMPERATURE_RAMP~ | ~params.inputSections.cpmd.temperatureRamp~ | ~temperatureRamp~ | ~TEMPERATURE RAMP~ |
 | ~catalog.cpmd.TEMPERATURE_RAMP_TIME~ | ~params.inputSections.cpmd.temperatureRampTime~ | ~temperatureRampTime~ | ~TEMPERATURE RAMP payload~ |
 | ~catalog.cpmd.TEMPERATURE_RAMP_RATE~ | ~params.inputSections.cpmd.temperatureRampRate~ | ~temperatureRampRate~ | ~TEMPERATURE RAMP payload~ |
+| ~catalog.cpmd.RESCALE_VELOCITIES~ | ~params.inputSections.cpmd.rescaleOldVelocities~ | ~rescaleOldVelocities~ | ~RESCALE VELOCITIES~ |
 | ~catalog.cpmd.RESCALE_OLD_VELOCITIES~ | ~params.inputSections.cpmd.rescaleOldVelocities~ | ~rescaleOldVelocities~ | ~RESCALE OLD VELOCITIES~ |
 | ~catalog.cpmd.REVERSE_VELOCITIES~ | ~params.inputSections.cpmd.reverseVelocities~ | ~reverseVelocities~ | ~REVERSE VELOCITIES~ |
 | ~catalog.cpmd.SUBTRACT_COMVEL~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~SUBTRACT COMVEL~ |

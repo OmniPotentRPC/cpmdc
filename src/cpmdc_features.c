@@ -344,6 +344,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.TEMPERATURE_RAMP", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TEMPERATURE_RAMP_TIME", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TEMPERATURE_RAMP_RATE", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.RESCALE_VELOCITIES", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.RESCALE_OLD_VELOCITIES", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.REVERSE_VELOCITIES", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.SUBTRACT_COMVEL", CPMDC_FEATURE_KEYWORD, 1, 1},

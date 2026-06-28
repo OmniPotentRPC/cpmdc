@@ -3368,6 +3368,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.RESCALE_VELOCITIES",
+      "kind": "cpmd_keyword",
+      "name": "RESCALE VELOCITIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.RESCALE_OLD_VELOCITIES",
       "kind": "cpmd_keyword",
       "name": "RESCALE OLD VELOCITIES",

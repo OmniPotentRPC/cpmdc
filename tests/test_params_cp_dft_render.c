@@ -448,6 +448,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
      "300 400 25"},
     {"catalog.cpmd.TEMPERATURE_RAMP_RATE", "temperatureRampRate",
      "300 400 25"},
+    {"catalog.cpmd.RESCALE_VELOCITIES", "rescaleOldVelocities",
+     " RESCALE OLD VELOCITIES\n"},
     {"catalog.cpmd.RESCALE_OLD_VELOCITIES", "rescaleOldVelocities",
      " RESCALE OLD VELOCITIES\n"},
     {"catalog.cpmd.REVERSE_VELOCITIES", "reverseVelocities",

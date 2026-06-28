@@ -71,6 +71,7 @@ static void test_documented_cpmd_catalog_keywords(void **state) {
       "catalog.cpmd.TEMPERATURE_RAMP",
       "catalog.cpmd.TEMPERATURE_RAMP_TIME",
       "catalog.cpmd.TEMPERATURE_RAMP_RATE",
+      "catalog.cpmd.RESCALE_VELOCITIES",
       "catalog.cpmd.RESCALE_OLD_VELOCITIES",
       "catalog.cpmd.REVERSE_VELOCITIES",
       "catalog.cpmd.SUBTRACT",
