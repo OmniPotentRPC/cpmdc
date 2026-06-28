@@ -204,6 +204,8 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.couplingsLinresNvects"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.couplingsLinresSpecify"),
     CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsLinresThresholds"),
+    CPMDC_PARAM_FEATURE(
         "params.inputSections.system.couplingsLinresBruteForce"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorAtoms"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorWeights"),

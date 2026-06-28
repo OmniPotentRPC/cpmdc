@@ -677,10 +677,15 @@ static int render_system_section_with_cell(
   int has_couplings_fd = sys->couplingsFiniteDifference ||
                          sys->couplingsFiniteDifferenceDisplacement != 0.0;
   int has_couplings_prod = sys->couplingsProductDisplacement != 0.0;
+  int n_couplings_linres_thresholds =
+      list64_len(&sys->couplingsLinresThresholds);
+  if (n_couplings_linres_thresholds < 0)
+    return -1;
   int has_couplings_linres = sys->couplingsLinres ||
                              sys->couplingsLinresTolerance != 0.0 ||
                              sys->couplingsLinresNvects != 0 ||
                              sys->couplingsLinresSpecify ||
+                             n_couplings_linres_thresholds > 0 ||
                              sys->couplingsLinresBruteForce;
   if (has_couplings_fd + has_couplings_prod + has_couplings_linres > 1)
     return -1;
@@ -702,6 +707,9 @@ static int render_system_section_with_cell(
       return -1;
     if (sys->couplingsLinresSpecify && sys->couplingsLinresNvects <= 0)
       return -1;
+    if (n_couplings_linres_thresholds != 0 &&
+        n_couplings_linres_thresholds != 6)
+      return -1;
     if (append_text(dst, dst_size, used, " COUPLINGS LINRES") != 0)
       return -1;
     if (sys->couplingsLinresTolerance != 0.0 &&
@@ -715,11 +723,24 @@ static int render_system_section_with_cell(
     if (sys->couplingsLinresSpecify &&
         append_text(dst, dst_size, used, " SPECIFY") != 0)
       return -1;
+    if (n_couplings_linres_thresholds > 0 &&
+        append_text(dst, dst_size, used, " THRESHOLDS") != 0)
+      return -1;
     if (sys->couplingsLinresBruteForce &&
         append_text(dst, dst_size, used, " BRUTE FORCE") != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
+    if (n_couplings_linres_thresholds > 0) {
+      for (int i = 0; i < 6; i += 2) {
+        if (append_fmt(dst, dst_size, used, "  %.10g %.10g\n",
+                       capn_to_f64(capn_get64(sys->couplingsLinresThresholds,
+                                              i)),
+                       capn_to_f64(capn_get64(sys->couplingsLinresThresholds,
+                                              i + 1))) != 0)
+          return -1;
+      }
+    }
   }
   int n_cdft_donor_atoms = list32_len(&sys->cdftDonorAtoms);
   if (n_cdft_donor_atoms < 0)

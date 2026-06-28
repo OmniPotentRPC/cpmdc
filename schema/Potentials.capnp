@@ -135,6 +135,7 @@ struct CPMDSystemSection {
   couplingsLinresNvects @77 :Int32 = 0;        # COUPLINGS LINRES NVECT=; 0 => omit.
   couplingsLinresSpecify @78 :Bool = false;    # COUPLINGS LINRES NVECT=... SPECIFY.
   couplingsLinresBruteForce @79 :Bool = false; # COUPLINGS LINRES BRUTE FORCE.
+  couplingsLinresThresholds @80 :List(Float64); # COUPLINGS LINRES THRESHOLDS low/med/high pairs.
 }
 
 struct CPMDCpmdSection {

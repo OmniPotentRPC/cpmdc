@@ -530,6 +530,9 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.couplingsLinresSpecify``                | ``system.couplingsLinresSpecify``                | Add ``SPECIFY`` to ``COUPLINGS LINRES``   |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinresThresholds``             | ``system.couplingsLinresThresholds``             | Add ``THRESHOLDS`` payload to             |
+|                                                                       |                                                  | ``COUPLINGS LINRES``                      |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.couplingsLinresBruteForce``             | ``system.couplingsLinresBruteForce``             | Add ``BRUTE FORCE`` to                    |
 |                                                                       |                                                  | ``COUPLINGS LINRES``                      |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+

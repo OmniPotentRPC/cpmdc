@@ -2103,6 +2103,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.couplingsLinresThresholds",
+      "kind": "structured_params_field",
+      "name": "couplingsLinresThresholds",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.couplingsLinresBruteForce",
       "kind": "structured_params_field",
       "name": "couplingsLinresBruteForce",
