@@ -674,6 +674,7 @@ without a dedicated scalar field.
 | ~catalog.dft.HARTREE_FOCK~ | ~params.inputSections.dft.directives~ | ~directives~ | ~HARTREE-FOCK~ |
 | ~catalog.dft.HARTREE~ | ~params.inputSections.dft.directives~ | ~directives~ | ~HARTREE~ |
 | ~catalog.dft.SLATER~ | ~params.inputSections.dft.directives~ | ~directives~ | ~SLATER~ |
+| ~catalog.dft.LDA_CORRELATION~ | ~params.inputSections.dft.directives~ | ~directives~ | ~LDA CORRELATION~ |
 | ~catalog.dft.OLDCODE~ | ~params.inputSections.dft.oldCode~ | ~oldCode~ | ~OLDCODE~ |
 | ~catalog.dft.NEWCODE~ | ~params.inputSections.dft.newCode~ | ~newCode~ | ~NEWCODE~ |
 | ~catalog.dft.XC_DRIVER~ | ~params.inputSections.dft.xcDriver~ | ~xcDriver~ | ~XC_DRIVER~ |

@@ -45,6 +45,7 @@
           ( keyword = "HARTREE-FOCK", args = [] ),
           ( keyword = "HARTREE", args = [] ),
           ( keyword = "SLATER", args = [ "0.6666667" ] ),
+          ( keyword = "LDA CORRELATION PZ", args = [] ),
           ( keyword = "HFX_BLOCK_SIZE", args = [ "64" ] ),
           ( keyword = "SCALED EXCHANGE", args = [] ),
           ( keyword = "HFX_DISTRIBUTION BLOCK_CYCLIC", args = [] ),

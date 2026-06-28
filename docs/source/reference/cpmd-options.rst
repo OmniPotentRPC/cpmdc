@@ -1441,6 +1441,8 @@ catalog ID without a dedicated scalar field.
 +------------------------------------------+-------------------------------------------+------------------+------------------------------+
 | ``catalog.dft.SLATER``                   | ``params.inputSections.dft.directives``   | ``directives``   | ``SLATER``                   |
 +------------------------------------------+-------------------------------------------+------------------+------------------------------+
+| ``catalog.dft.LDA_CORRELATION``          | ``params.inputSections.dft.directives``   | ``directives``   | ``LDA CORRELATION``          |
++------------------------------------------+-------------------------------------------+------------------+------------------------------+
 | ``catalog.dft.OLDCODE``                  | ``params.inputSections.dft.oldCode``      | ``oldCode``      | ``OLDCODE``                  |
 +------------------------------------------+-------------------------------------------+------------------+------------------------------+
 | ``catalog.dft.NEWCODE``                  | ``params.inputSections.dft.newCode``      | ``newCode``      | ``NEWCODE``                  |

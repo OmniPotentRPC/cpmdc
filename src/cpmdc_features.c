@@ -448,6 +448,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.dft.HARTREE_FOCK", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.dft.HARTREE", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.dft.SLATER", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.dft.LDA_CORRELATION", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.dft.OLDCODE", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.dft.NEWCODE", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.dft.XC_DRIVER", CPMDC_FEATURE_KEYWORD, 1, 1},

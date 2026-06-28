@@ -4294,6 +4294,15 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.LDA_CORRELATION",
+      "kind": "dft_keyword",
+      "name": "LDA CORRELATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.OLDCODE",
       "kind": "dft_keyword",
       "name": "OLDCODE",
