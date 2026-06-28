@@ -80,6 +80,13 @@ def cpmd_base_keywords() -> list[str]:
         if line.strip()
     ]
 
+def add_duplicate_errors(values: list[str], label: str, errors: list[str]) -> None:
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            errors.append(f"inventory {label} duplicated: {value}")
+        seen.add(value)
+
 def main() -> int:
     inv = json.loads(INVENTORY.read_text(encoding="utf-8"))
     schema = SCHEMA.read_text(encoding="utf-8")
@@ -90,12 +97,27 @@ def main() -> int:
     readme = README.read_text(encoding="utf-8")
     errors: list[str] = []
 
-    seen_feature_ids: set[str] = set()
-    for feature in inv["features"]:
-        fid = feature["feature_id"]
-        if fid in seen_feature_ids:
-            errors.append(f"inventory feature_id duplicated: {fid}")
-        seen_feature_ids.add(fid)
+    add_duplicate_errors(
+        [feature["feature_id"] for feature in inv["features"]],
+        "feature_id",
+        errors,
+    )
+    add_duplicate_errors(
+        [section["kind"] for section in inv["section_kinds"]],
+        "section_kinds",
+        errors,
+    )
+    add_duplicate_errors(
+        [field["name"] for field in inv["params_fields"]],
+        "params_fields",
+        errors,
+    )
+    add_duplicate_errors(
+        list(inv.get("cpmd_sections", [])),
+        "cpmd_sections",
+        errors,
+    )
+    add_duplicate_errors(list(inv.get("abi_symbols", [])), "abi_symbols", errors)
 
     reference = str(inv.get("opencpmd_reference") or "")
     if reference.startswith(("/", "~")):
