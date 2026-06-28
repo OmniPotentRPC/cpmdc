@@ -143,7 +143,12 @@
         tddft = true,
         ssic = 0.5,
         nonorthogonalOrbitalsOptions = "ON",
-        nonorthogonalOrbitalsLimit = 1e-06
+        nonorthogonalOrbitalsLimit = 1e-06,
+        lanczosDiagonalizationOptions = "ALL NEW PERIODIC=4",
+        lanczosParametersCount = 2,
+        lanczosParametersPayload = "4 16 2 1e-08\n  0.5 2e-08",
+        davidsonDiagonalization = true,
+        davidsonParameters = "8 1e-06 4"
       ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
         cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
