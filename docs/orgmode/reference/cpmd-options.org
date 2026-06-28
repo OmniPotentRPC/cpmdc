@@ -480,6 +480,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.RESTART_WAVEFUNCTION~ | ~params.inputSections.cpmd.restartWavefunction~ | ~restartWavefunction~ | ~RESTART WAVEFUNCTION~ |
 | ~catalog.cpmd.TRAJECTORY~ | ~params.inputSections.cpmd.trajectory~ | ~trajectory~ | ~TRAJECTORY~ |
 | ~catalog.cpmd.ISOLATED_MOLECULE~ | ~params.inputSections.cpmd.isolatedMolecule~ | ~isolatedMolecule~ | ~ISOLATED MOLECULE~ |
+| ~catalog.cpmd.MOLECULE_ISOLATED~ | ~params.inputSections.cpmd.isolatedMolecule~ | ~isolatedMolecule~ | ~MOLECULE ISOLATED~ |
 | ~catalog.cpmd.PRINT~ | ~params.inputSections.cpmd.printOptions~ | ~printOptions~ | ~PRINT~ |
 | ~catalog.cpmd.STRUCTURE~ | ~params.inputSections.cpmd.structureOptions~ | ~structureOptions~ | ~STRUCTURE~ |
 | ~catalog.cpmd.STRUCTURE_SELECTION~ | ~params.inputSections.cpmd.structureSelection~ | ~structureSelection~ | ~STRUCTURE SELECT payload~ |
@@ -521,6 +522,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.WANNIER_SERIAL~ | ~params.inputSections.cpmd.wannierSerial~ | ~wannierSerial~ | ~WANNIER SERIAL~ |
 | ~catalog.cpmd.WANNIER_DOS~ | ~params.inputSections.cpmd.wannierDos~ | ~wannierDos~ | ~WANNIER DOS~ |
 | ~catalog.cpmd.WANNIER_MOLECULAR~ | ~params.inputSections.cpmd.wannierMolecular~ | ~wannierMolecular~ | ~WANNIER MOLECULAR~ |
+| ~catalog.cpmd.WANNIER_WFNOUT~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_OPTIONS~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.wannierWfnOutPayload~ | ~wannierWfnOutPayload~ | ~WANNIER WFNOUT payload~ |
 | ~catalog.cpmd.PARA_USE_MPI_IN_PLACE~ | ~params.inputSections.cpmd.paraUseMpiInPlace~ | ~paraUseMpiInPlace~ | ~PARA_USE_MPI_IN_PLACE~ |
@@ -551,6 +553,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.BENCHMARK~ | ~params.inputSections.cpmd.benchmark~ | ~benchmark~ | ~BENCHMARK~ |
 | ~catalog.cpmd.MIRROR~ | ~params.inputSections.cpmd.mirror~ | ~mirror~ | ~MIRROR~ |
 | ~catalog.cpmd.SHIFT_POTENTIAL~ | ~params.inputSections.cpmd.shiftPotential~ | ~shiftPotential~ | ~SHIFT POTENTIAL~ |
+| ~catalog.cpmd.GLOCALIZATION_PARAMETER~ | ~params.inputSections.cpmd.glocalizationParameters~ | ~glocalizationParameters~ | ~GLOCALIZATION PARAMETER~ |
 | ~catalog.cpmd.GLOCALIZATION_PARAMETERS~ | ~params.inputSections.cpmd.glocalizationParameters~ | ~glocalizationParameters~ | ~GLOCALIZATION PARAMETERS~ |
 | ~catalog.cpmd.GLOCALIZATION_OPTIMIZATION~ | ~params.inputSections.cpmd.glocalizationOptimization~ | ~glocalizationOptimization~ | ~GLOCALIZATION OPTIMIZATION~ |
 | ~catalog.cpmd.GFUNCTIONAL_TYPE~ | ~params.inputSections.cpmd.gfunctionalType~ | ~gfunctionalType~ | ~GFUNCTIONAL TYPE~ |
@@ -578,6 +581,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
 | ~catalog.cpmd.CENTER_MOLECULE~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE~ |
+| ~catalog.cpmd.MOLECULE_CENTER~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~MOLECULE CENTER~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |
 | ~catalog.cpmd.ODIIS~ | ~params.inputSections.cpmd.odiis~ | ~odiis~ | ~ODIIS~ |
 | ~catalog.cpmd.PCG~ | ~params.inputSections.cpmd.pcg~ | ~pcg~ | ~PCG~ |
@@ -612,6 +616,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.KOHN_SHAM_ENERGIES_COUNT~ | ~params.inputSections.cpmd.kohnShamEnergiesCount~ | ~kohnShamEnergiesCount~ | ~KOHN-SHAM ENERGIES payload~ |
 | ~catalog.cpmd.SURFACE_HOPPING~ | ~params.inputSections.cpmd.surfaceHoppingOptions~ | ~surfaceHoppingOptions~ | ~SURFACE HOPPING~ |
 | ~catalog.cpmd.ROKS~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS~ |
+| ~catalog.cpmd.ROKS_EXPERT~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT~ |
 | ~catalog.cpmd.ROKS_EXPERT_PAYLOAD~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT payload~ |
 | ~catalog.cpmd.PATH_SAMPLING~ | ~params.inputSections.cpmd.pathSampling~ | ~pathSampling~ | ~PATH SAMPLING~ |
 | ~catalog.cpmd.FIXRHO_UPWFN~ | ~params.inputSections.cpmd.fixrhoUpwfnOptions~ | ~fixrhoUpwfnOptions~ | ~FIXRHO UPWFN~ |
