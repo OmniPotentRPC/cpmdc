@@ -437,6 +437,7 @@
     "DEBUG FILEOPEN",
     "DEBUG FORCES",
     "DEBUG NOACC",
+    "SOC",
     "HARMONIC REFERENCE SYSTEM",
     "LOCAL SPIN DENSITY",
     "LANCZOS PARAMETER",
@@ -2028,6 +2029,15 @@
       "feature_id": "catalog.cpmd.SPIN_ORBIT_COUPLING",
       "kind": "cpmd_keyword",
       "name": "SPIN-ORBIT COUPLING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SOC",
+      "kind": "cpmd_keyword",
+      "name": "SOC",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

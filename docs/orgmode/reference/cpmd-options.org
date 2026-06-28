@@ -592,6 +592,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.VIBRATIONAL_ANALYSIS_MODE~ | ~params.inputSections.cpmd.vibrationalAnalysisMode~ | ~vibrationalAnalysisMode~ | ~VIBRATIONAL ANALYSIS MODE=~ |
 | ~catalog.cpmd.ELECTRONIC_SPECTRA~ | ~params.inputSections.cpmd.electronicSpectra~ | ~electronicSpectra~ | ~ELECTRONIC SPECTRA~ |
 | ~catalog.cpmd.SPIN_ORBIT_COUPLING~ | ~params.inputSections.cpmd.spinOrbitCouplingStates~ | ~spinOrbitCouplingStates~ | ~SPIN-ORBIT COUPLING~ |
+| ~catalog.cpmd.SOC~ | ~params.inputSections.cpmd.spinOrbitCouplingStates~ | ~spinOrbitCouplingStates~ | ~SOC~ |
 | ~catalog.cpmd.PROPAGATION_SPECTRA~ | ~params.inputSections.cpmd.propagationSpectra~ | ~propagationSpectra~ | ~PROPAGATION SPECTRA~ |
 | ~catalog.cpmd.PROPAGATION_DISTRUB~ | ~params.inputSections.cpmd.propagationDistrub~ | ~propagationDistrub~ | ~PROPAGATION DISTRUB~ |
 | ~catalog.cpmd.GAUGEPULSE~ | ~params.inputSections.cpmd.gaugePulse~ | ~gaugePulse~ | ~GAUGEPULSE~ |

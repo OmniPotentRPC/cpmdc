@@ -204,6 +204,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.VIBRATIONAL_ANALYSIS_MODE", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.ELECTRONIC_SPECTRA", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.SPIN_ORBIT_COUPLING", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.SOC", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.PROPAGATION_SPECTRA", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.PROPAGATION_DISTRUB", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.GAUGEPULSE", CPMDC_FEATURE_KEYWORD, 1, 1},
