@@ -7,6 +7,8 @@
     ( cpmd = (
         optimizeWavefunction = true,
         printOptions = "FORCES ON",
+        structureOptions = "BONDS ANGLES DIHEDRALS SELECT",
+        structureSelection = "3\n  1 2 3",
         storeOptions = "WAVEFUNCTION",
         storeSelection = "WAVEFUNCTION DENSITY",
         storeInterval = 25,

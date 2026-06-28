@@ -303,6 +303,8 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.cpmd.trotter",
       "params.inputSections.cpmd.restart",
       "params.inputSections.cpmd.printOptions",
+      "params.inputSections.cpmd.structureOptions",
+      "params.inputSections.cpmd.structureSelection",
       "params.inputSections.cpmd.storeOptions",
       "params.inputSections.cpmd.storeSelection",
       "params.inputSections.cpmd.storeInterval",

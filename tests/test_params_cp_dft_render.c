@@ -130,6 +130,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
      " RESTART WAVEFUNCTION\n"},
     {"catalog.cpmd.TRAJECTORY", "trajectory", " TRAJECTORY\n"},
     {"catalog.cpmd.PRINT", "printOptions", " PRINT\n"},
+    {"catalog.cpmd.STRUCTURE", "structureOptions", " STRUCTURE "},
+    {"catalog.cpmd.STRUCTURE_SELECTION", "structureSelection", "1 2 3"},
     {"catalog.cpmd.STORE", "storeOptions", " STORE\n"},
     {"catalog.cpmd.GLOCALIZATION_PARAMETERS", "glocalizationParameters",
      " GLOCALIZATION PARAMETERS\n"},
@@ -536,6 +538,7 @@ int main(int argc, char **argv) {
   };
   const char *cpmd_misc_need[] = {
       "&CPMD", "PRINT", "FORCES ON", "STORE", "WAVEFUNCTION",
+      "STRUCTURE BONDS ANGLES DIHEDRALS SELECT", "1 2 3",
       "STORE WAVEFUNCTION DENSITY", "25 SC=5", "STORE OFF POTENTIAL",
       "RESTFILE SAMPLE", "3", "10 20 30",
       "TRAJECTORY XYZ BINARY FORCES RANGE SAMPLE", "1 4", "7",
