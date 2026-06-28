@@ -361,7 +361,8 @@ int main(int argc, char **argv) {
       "&SYSTEM", "COUPLINGS PROD=0.02",
   };
   const char *system_couplings_linres_need[] = {
-      "&SYSTEM", "COUPLINGS LINRES TOL=1e-05 NVECT=8 SPECIFY BRUTE FORCE",
+      "&SYSTEM", "COUPLINGS LINRES TOL=1e-05 NVECT=8 SPECIFY THRESHOLDS BRUTE FORCE",
+      "0.1 0.2", "0.3 0.4", "0.5 0.6",
   };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
