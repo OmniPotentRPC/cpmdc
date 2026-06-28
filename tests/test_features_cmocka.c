@@ -159,6 +159,8 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.couplingsLinresSpecify",
       "params.inputSections.system.couplingsLinresThresholds",
       "params.inputSections.system.couplingsLinresBruteForce",
+      "params.inputSections.system.couplingsSurfaces",
+      "params.inputSections.system.couplingsFiniteDifferenceAtoms",
       "params.inputSections.system.cdftDonorAtoms",
       "params.inputSections.system.cdftDonorWeights",
       "params.inputSections.system.cdftAcceptorAtoms",

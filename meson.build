@@ -656,6 +656,12 @@ if get_option('with_tests')
     output: 'params_system_couplings_linres.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_system_couplings_lists_bin = custom_target(
+    'params_system_couplings_lists_bin',
+    input: 'tests/params_system_couplings_lists.capnp.txt',
+    output: 'params_system_couplings_lists.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   params_system_bad_occupation_bin = custom_target(
     'params_system_bad_occupation_bin',
     input: 'tests/params_system_bad_occupation.capnp.txt',
@@ -687,6 +693,7 @@ if get_option('with_tests')
       params_system_cdft_acceptor_wmult_bin.full_path(),
       params_system_couplings_prod_bin.full_path(),
       params_system_couplings_linres_bin.full_path(),
+      params_system_couplings_lists_bin.full_path(),
       params_system_bad_occupation_bin.full_path(),
     ],
     depends: [
@@ -704,6 +711,7 @@ if get_option('with_tests')
       params_system_cdft_acceptor_wmult_bin,
       params_system_couplings_prod_bin,
       params_system_couplings_linres_bin,
+      params_system_couplings_lists_bin,
       params_system_bad_occupation_bin,
     ],
     suite: ['params', 'inventory'],
