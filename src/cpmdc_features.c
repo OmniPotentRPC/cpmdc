@@ -192,6 +192,12 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.externalField"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wCut"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.wGauss"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsFiniteDifference"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsFiniteDifferenceDisplacement"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsProductDisplacement"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorAtoms"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorWeights"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftAcceptorAtoms"),

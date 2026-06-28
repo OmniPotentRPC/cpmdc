@@ -2047,6 +2047,30 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.couplingsFiniteDifference",
+      "kind": "structured_params_field",
+      "name": "couplingsFiniteDifference",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsFiniteDifferenceDisplacement",
+      "kind": "structured_params_field",
+      "name": "couplingsFiniteDifferenceDisplacement",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsProductDisplacement",
+      "kind": "structured_params_field",
+      "name": "couplingsProductDisplacement",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.cdftDonorAtoms",
       "kind": "structured_params_field",
       "name": "cdftDonorAtoms",

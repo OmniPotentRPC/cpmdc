@@ -127,6 +127,9 @@ struct CPMDSystemSection {
   cdftAcceptorAtoms @69 :List(Int32);          # ACCEPTOR atom indexes.
   cdftAcceptorHdasDonors @70 :List(Int32);     # ACCEPTOR HDAS donor atom indexes.
   cdftAcceptorWeights @71 :List(Int32);        # ACCEPTOR WMULT integer weights.
+  couplingsFiniteDifference @72 :Bool = false; # COUPLINGS FD.
+  couplingsFiniteDifferenceDisplacement @73 :Float64 = 0.0; # COUPLINGS FD=eps; 0 => omit value.
+  couplingsProductDisplacement @74 :Float64 = 0.0; # COUPLINGS PROD=eps; 0 => omit.
 }
 
 struct CPMDCpmdSection {

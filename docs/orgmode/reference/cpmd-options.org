@@ -214,6 +214,9 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.externalField~ | ~system.externalField~ | ~&SYSTEM EXTERNAL FIELD~ |
 | ~params.inputSections.system.wCut~ | ~system.wCut~ | ~&SYSTEM WCUT~ |
 | ~params.inputSections.system.wGauss~ | ~system.wGauss~ | ~&SYSTEM WGAUSS~ sigma values |
+| ~params.inputSections.system.couplingsFiniteDifference~ | ~system.couplingsFiniteDifference~ | Add ~FD~ to ~&SYSTEM COUPLINGS~ |
+| ~params.inputSections.system.couplingsFiniteDifferenceDisplacement~ | ~system.couplingsFiniteDifferenceDisplacement~ | ~&SYSTEM COUPLINGS FD=~ displacement |
+| ~params.inputSections.system.couplingsProductDisplacement~ | ~system.couplingsProductDisplacement~ | ~&SYSTEM COUPLINGS PROD=~ displacement |
 | ~params.inputSections.system.cdftDonorAtoms~ | ~system.cdftDonorAtoms~ | ~&SYSTEM DONOR~ atom list |
 | ~params.inputSections.system.cdftDonorWeights~ | ~system.cdftDonorWeights~ | Add ~WMULT~ weights to ~DONOR~ |
 | ~params.inputSections.system.cdftAcceptorAtoms~ | ~system.cdftAcceptorAtoms~ | ~&SYSTEM ACCEPTOR~ atom list |
