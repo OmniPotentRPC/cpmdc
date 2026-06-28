@@ -4394,9 +4394,27 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.VDW_WANNIER_OFF",
+      "kind": "cpmd_keyword",
+      "name": "VDW WANNIER OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.VDW_CORRECTION",
       "kind": "cpmd_keyword",
       "name": "VDW CORRECTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VDW_CORRECTION_ON",
+      "kind": "cpmd_keyword",
+      "name": "VDW CORRECTION ON",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

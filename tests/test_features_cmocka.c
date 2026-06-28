@@ -273,6 +273,8 @@ static void test_documented_cpmd_catalog_keywords(void **state) {
       "catalog.cpmd.BROYDEN_MIXING_NFRBROY",
       "catalog.cpmd.BROYDEN_MIXING_RESET",
       "catalog.cpmd.BROYDEN_MIXING_KERMIX",
+      "catalog.cpmd.VDW_CORRECTION_ON",
+      "catalog.cpmd.VDW_WANNIER_OFF",
       "catalog.cpmd.DEBUG_HUBBARD",
       "catalog.cpmd.KOHN_SHAM_ENERGIES_NOWAVEFUNCTION",
       "catalog.cpmd.SURFACE_HOPPING_NEW",
