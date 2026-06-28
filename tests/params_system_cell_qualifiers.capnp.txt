@@ -1,0 +1,15 @@
+(
+  inputSections = [
+    ( system = (
+        cell = [10.0, 11.0, 12.0, 90.0, 100.0, 110.0],
+        cellAbsolute = true,
+        cellDegree = true,
+        referenceCell = [13.0, 14.0, 15.0, 80.0, 85.0, 95.0],
+        referenceCellAbsolute = true,
+        referenceCellDegree = true,
+        classicalCell = [16.0, 17.0, 18.0, 70.0, 75.0, 85.0],
+        classicalCellAbsolute = true,
+        classicalCellDegree = true
+      ) )
+  ]
+)
