@@ -4186,6 +4186,114 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.COMPATIBILITY",
+      "kind": "dft_keyword",
+      "name": "COMPATIBILITY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.ANALYTICAL_DIV",
+      "kind": "dft_keyword",
+      "name": "ANALYTICAL_DIV",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.NUMERICAL_DIV",
+      "kind": "dft_keyword",
+      "name": "NUMERICAL_DIV",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PBE_FLEX_KAPPA",
+      "kind": "dft_keyword",
+      "name": "PBE_FLEX_KAPPA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PBE_FLEX_MU",
+      "kind": "dft_keyword",
+      "name": "PBE_FLEX_MU",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PBE_FLEX_BETA",
+      "kind": "dft_keyword",
+      "name": "PBE_FLEX_BETA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PBE_FLEX_GAMMA",
+      "kind": "dft_keyword",
+      "name": "PBE_FLEX_GAMMA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PBE_FLEX_UEG_CORRELATION",
+      "kind": "dft_keyword",
+      "name": "PBE_FLEX_UEG_CORRELATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.GRADIENT_CORRECTION",
+      "kind": "dft_keyword",
+      "name": "GRADIENT CORRECTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HARTREE_FOCK",
+      "kind": "dft_keyword",
+      "name": "HARTREE-FOCK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HARTREE",
+      "kind": "dft_keyword",
+      "name": "HARTREE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.SLATER",
+      "kind": "dft_keyword",
+      "name": "SLATER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.OLDCODE",
       "kind": "dft_keyword",
       "name": "OLDCODE",
@@ -4294,6 +4402,42 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.RANGE_SEPARATION",
+      "kind": "dft_keyword",
+      "name": "RANGE SEPARATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.SCREENED_EXCHANGE",
+      "kind": "dft_keyword",
+      "name": "SCREENED EXCHANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.BECKE_BETA",
+      "kind": "dft_keyword",
+      "name": "BECKE BETA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.EXCHANGE_TABLE",
+      "kind": "dft_keyword",
+      "name": "EXCHANGE TABLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.HFX_SCALE",
       "kind": "dft_keyword",
       "name": "HFX_SCALE",
@@ -4369,6 +4513,42 @@
       "feature_id": "catalog.dft.HFX_SCREENING",
       "kind": "dft_keyword",
       "name": "HFX-SCREENING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.ACM0",
+      "kind": "dft_keyword",
+      "name": "ACM0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.ACM1",
+      "kind": "dft_keyword",
+      "name": "ACM1",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.ACM3",
+      "kind": "dft_keyword",
+      "name": "ACM3",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.FORCE_NEW_HFX",
+      "kind": "dft_keyword",
+      "name": "FORCE_NEW_HFX",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&DFT directive",
