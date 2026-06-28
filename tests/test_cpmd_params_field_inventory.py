@@ -15,6 +15,7 @@ from pathlib import Path
 
 REMOVED_FEATURE = "params.functional"
 DUPLICATED_FEATURE = "params.functional"
+EXTRA_SECTION_FEATURE = "catalog.section.EXTRA"
 
 
 def load_checker(repo: Path):
@@ -81,17 +82,55 @@ def write_inventory_with_removed_list_entry(
     return path
 
 
+def write_inventory_with_extra_section_feature(repo: Path, tmpdir: Path) -> Path:
+    data = json.loads((repo / "schema/inventory/cpmd_features.json").read_text())
+    data["features"].append(
+        {
+            "feature_id": EXTRA_SECTION_FEATURE,
+            "kind": "cpmd_section",
+            "name": "EXTRA",
+            "stub_applicable": True,
+            "embed_applicable": True,
+            "render_via": "set_or_generic_or_raw",
+            "source": "inscan",
+        }
+    )
+    path = tmpdir / "cpmd_features_extra_section.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def write_features_c_with_extra_section(repo: Path, tmpdir: Path) -> Path:
+    text = (repo / "src/cpmdc_features.c").read_text(encoding="utf-8")
+    row = f'    {{"{EXTRA_SECTION_FEATURE}", CPMDC_FEATURE_SECTION, 1, 1}},\n'
+    path = tmpdir / "cpmdc_features_extra_section.c"
+    path.write_text(
+        text.replace(
+            "\n};\n\n#undef CPMDC_PARAM_FEATURE",
+            f"\n{row}}};\n\n#undef CPMDC_PARAM_FEATURE",
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def run_checker_with_inventory(checker, inventory: Path) -> tuple[int, str]:
-    old_inventory = checker.INVENTORY
+    return run_checker_with_paths(checker, INVENTORY=inventory)
+
+
+def run_checker_with_paths(checker, **paths: Path) -> tuple[int, str]:
+    old_paths = {name: getattr(checker, name) for name in paths}
     old_cpmd_root = os.environ.pop("CPMD_ROOT", None)
     old_cpmdc_root = os.environ.pop("CPMDC_CPMD_ROOT", None)
     stream = io.StringIO()
     try:
-        checker.INVENTORY = inventory
+        for name, path in paths.items():
+            setattr(checker, name, path)
         with contextlib.redirect_stdout(stream):
             code = checker.main()
     finally:
-        checker.INVENTORY = old_inventory
+        for name, path in old_paths.items():
+            setattr(checker, name, path)
         if old_cpmd_root is not None:
             os.environ["CPMD_ROOT"] = old_cpmd_root
         if old_cpmdc_root is not None:
@@ -154,6 +193,11 @@ def main() -> int:
                 repo, tmpdir, "opencpmd_inscan_sections"
             ),
         )
+        extra_section_code, extra_section_output = run_checker_with_paths(
+            checker,
+            INVENTORY=write_inventory_with_extra_section_feature(repo, tmpdir),
+            FEATURES_C=write_features_c_with_extra_section(repo, tmpdir),
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
     if missing_code == 0 or expected not in missing_output:
@@ -189,6 +233,16 @@ def main() -> int:
     ):
         print("expected opencpmd_inscan_sections mismatch failure")
         print(mismatched_inscan_output)
+        return 1
+    expected_extra_section = (
+        f"inventory cpmd_section feature outside cpmd_sections: {EXTRA_SECTION_FEATURE}"
+    )
+    if (
+        extra_section_code == 0
+        or expected_extra_section not in extra_section_output
+    ):
+        print("expected extra cpmd section feature failure")
+        print(extra_section_output)
         return 1
     return 0
 

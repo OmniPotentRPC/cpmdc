@@ -197,6 +197,18 @@ def main() -> int:
         print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
     fids = {f["feature_id"] for f in inv["features"]}
+    for feature in inv["features"]:
+        if feature.get("kind") != "cpmd_section":
+            continue
+        name = str(feature.get("name") or "")
+        fid = feature["feature_id"]
+        if fid != f"catalog.section.{name}":
+            errors.append(f"cpmd_section feature_id/name mismatch: {fid} / {name}")
+        if name not in inv_secs:
+            errors.append(
+                f"inventory cpmd_section feature outside cpmd_sections: {fid}"
+            )
+
     for field in sorted(fields):
         fid = f"params.{field}"
         if fid not in fids:
