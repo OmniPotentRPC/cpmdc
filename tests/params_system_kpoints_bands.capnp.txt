@@ -1,0 +1,25 @@
+(
+  functional = "PBE",
+  cutOffRy = 90.0,
+  task = "gradient",
+  title = "Typed band k-points",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true ) ),
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        cutOffRy = 90.0,
+        kpointsScaled = true,
+        kpointBands = [
+          ( points = 4,
+            start = [0.0, 0.0, 0.0],
+            end = [0.5, 0.5, 0.0] )
+        ]
+      ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "H", path = "H_MT_PBE.psp", lmax = 0 )
+      ] ) )
+  ]
+)

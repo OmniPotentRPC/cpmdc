@@ -632,6 +632,12 @@ if get_option('with_tests')
     output: 'params_system_kpoints_monkhorst.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_system_kpoints_bands_bin = custom_target(
+    'params_system_kpoints_bands_bin',
+    input: 'tests/params_system_kpoints_bands.capnp.txt',
+    output: 'params_system_kpoints_bands.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   params_system_bad_occupation_bin = custom_target(
     'params_system_bad_occupation_bin',
     input: 'tests/params_system_bad_occupation.capnp.txt',
@@ -659,6 +665,7 @@ if get_option('with_tests')
       params_vdw_controls_bin.full_path(),
       params_system_controls_bin.full_path(),
       params_system_kpoints_monkhorst_bin.full_path(),
+      params_system_kpoints_bands_bin.full_path(),
       params_system_bad_occupation_bin.full_path(),
     ],
     depends: [
@@ -672,6 +679,7 @@ if get_option('with_tests')
       params_vdw_controls_bin,
       params_system_controls_bin,
       params_system_kpoints_monkhorst_bin,
+      params_system_kpoints_bands_bin,
       params_system_bad_occupation_bin,
     ],
     suite: ['params', 'inventory'],

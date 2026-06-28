@@ -175,6 +175,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.kpointsMonkhorstFull",
       "params.inputSections.system.kpointsMonkhorstKdp",
       "params.inputSections.system.kpointsMonkhorstShift",
+      "params.inputSections.system.kpointBands",
       "params.inputSections.system.doubleGrid",
       "params.inputSections.system.symmetrizeCoordinates",
       "params.inputSections.system.tesr",
