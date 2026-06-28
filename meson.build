@@ -112,16 +112,24 @@ if has_cpmd
       cpmd_embed_link += [blas]
     endif
   endif
+  # FFTW3 when OpenCPMD was configured with -D__FFTW3 / -D__HAS_FFT_FFTW3
+  fftw3 = cc.find_library('fftw3', required: false)
+  if fftw3.found()
+    cpmd_embed_link += [fftw3]
+  endif
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c', 'src/cpmdc_features.c'] + cpmdc_params_sources
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
+cpmd_archive_math_libs = []
 if has_cpmd
-  cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
-      + (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+  cpmd_archive_math_libs = (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+      + (fftw3.found() ? ['-lfftw3'] : []) \
       + ['-lgfortran', '-lm']
+  cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
+      + cpmd_archive_math_libs
 endif
 
 cpmdc_embed_shell = static_library(
@@ -159,7 +167,7 @@ cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
   dependencies: cpmdc_params_deps,
-  link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group', '-lopenblas', '-lgfortran']) : [],
+  link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] + cpmd_archive_math_libs) : [],
 )
 
 if get_option('with_tests')
