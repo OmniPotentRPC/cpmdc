@@ -496,6 +496,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.PARA_STACK_BUFF_SIZE~ | ~params.inputSections.cpmd.paraStackBuffSize~ | ~paraStackBuffSize~ | ~PARA_STACK_BUFF_SIZE~ |
 | ~catalog.cpmd.COMPRESS~ | ~params.inputSections.cpmd.compress~ | ~compress~ | ~COMPRESS~ |
 | ~catalog.cpmd.MEMORY~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY~ |
+| ~catalog.cpmd.CHECK_MEMORY~ | ~params.inputSections.cpmd.checkMemory~ | ~checkMemory~ | ~CHECK MEMORY~ |
 | ~catalog.cpmd.REAL_SPACE_WFN_KEEP~ | ~params.inputSections.cpmd.realSpaceWfnKeep~ | ~realSpaceWfnKeep~ | ~REAL SPACE WFN KEEP~ |
 | ~catalog.cpmd.REAL_SPACE_WFN_SIZE~ | ~params.inputSections.cpmd.realSpaceWfnSize~ | ~realSpaceWfnSize~ | ~REAL SPACE WFN SIZE~ |
 | ~catalog.cpmd.SPLINE_OPTIONS~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE~ |
