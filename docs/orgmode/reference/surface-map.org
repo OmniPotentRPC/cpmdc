@@ -92,3 +92,12 @@ ABI, QMMM beyond catalog, parser N_STREAMS / PBEoriginal modeling.
 - =ad11009= — docs/example alignment for components path
 - =866b1f4= — =fix(build): link FFTW3 when embedding OpenCPMD archive=
 
+
+* Extended result surfaces (this implementation)
+
+- =PotentialResult= append-only fields: hessian/dipole/quadrupole/optimizedPos
+  (nwchemc-aligned), =energyComponents= + =componentsValid=, charge/multi-state/MD/polarizability lists.
+- C getters: =cpmdc_last_charge_integrals=, =cpmdc_last_multi_state_energies=,
+  =cpmdc_last_md_trajectory_row=, =cpmdc_last_property_snapshot= (PEF: invalid/empty MD/PROP; embed fills chrg/multi-state when SCF ok).
+- Unsupported host inputs rejected: lone =N_STREAMS=, =PBEoriginal= (=cpmdc_params_reject_unsupported_inputs=).
+- QMMM remains catalog =catalog.cpmd.QMMM= / =qmmm= / =qmmmEasy= render path (no PEF QMMM forces).

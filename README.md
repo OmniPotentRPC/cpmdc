@@ -104,6 +104,7 @@ For a complete mapping table, see
 | --- | --- |
 | Library status | `cpmdc_version`, `cpmdc_available`, `cpmdc_finalize` |
 | Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
+| Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |

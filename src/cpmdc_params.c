@@ -3721,6 +3721,55 @@ static int render_typed_directive_section(char *dst, size_t dst_size,
 #undef CPMDC_RENDER_DIRECTIVE_CASE
 }
 
+/* Deprecated/fatal OpenCPMD keywords modeled as non-supported host inputs. */
+static int cpmdc_keyword_is_unsupported(const char *kw) {
+  if (!kw)
+    return 0;
+  /* Exact deprecated CPMD control keyword (not BLAS_/FFT_N_STREAMS_PER_DEVICE). */
+  if (strcmp(kw, "N_STREAMS") == 0)
+    return 1;
+  if (strcmp(kw, "PBEoriginal") == 0 || strcmp(kw, "PBEORIGINAL") == 0 ||
+      strcmp(kw, "pbeoriginal") == 0)
+    return 1;
+  return 0;
+}
+
+int cpmdc_params_reject_unsupported_inputs(const char *functional,
+                                           const char *input_deck) {
+  if (functional && (strcmp(functional, "PBEoriginal") == 0 ||
+                     strcmp(functional, "PBEORIGINAL") == 0 ||
+                     strcmp(functional, "pbeoriginal") == 0))
+    return -1;
+  if (!input_deck)
+    return 0;
+  const char *line = input_deck;
+  while (*line) {
+    const char *start = line;
+    while (*line && *line != '\n')
+      line++;
+    size_t len = (size_t)(line - start);
+    char buf[128];
+    if (len >= sizeof(buf))
+      len = sizeof(buf) - 1;
+    memcpy(buf, start, len);
+    buf[len] = '\0';
+    /* Trim leading spaces */
+    char *s = buf;
+    while (*s == ' ' || *s == '\t')
+      s++;
+    if (strcmp(s, "N_STREAMS") == 0 || strncmp(s, "N_STREAMS ", 10) == 0)
+      return -1;
+    if (strstr(s, "PBEoriginal") || strstr(s, "PBEORIGINAL"))
+      return -1;
+    if (*line == '\n')
+      line++;
+  }
+  return 0;
+}
+
+
+
+
 int cpmdc_params_root(const void *params_capnp, size_t params_capnp_size_bytes,
                       struct capn *arena, CPMDParams_ptr *params) {
   if (!params_capnp || params_capnp_size_bytes == 0 || !arena || !params)
@@ -4421,9 +4470,11 @@ int cpmdc_force_input_result_factors(ForceInput_ptr force_input,
 }
 
 size_t cpmdc_potential_result_flat_size(size_t force_count) {
-  if (force_count > (SIZE_MAX - 32u) / 8u)
+  /* Budget for optional property/component lists beyond energy+forces. */
+  const size_t overhead = 2048u;
+  if (force_count > (SIZE_MAX - overhead) / 8u)
     return 0;
-  return 32u + force_count * 8u;
+  return overhead + force_count * 8u;
 }
 
 int cpmdc_potential_result_write(double energy, const double *forces,
@@ -4456,9 +4507,27 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   for (size_t i = 0; i < force_count; ++i)
     capn_set64(force_list, (int)i, capn_from_f64(forces[i]));
 
+  /* Optional energyComponents: etot mirrors energy; full list filled by embed
+   * hosts via cpmdc_last_energy_components. Params-only link units omit embed. */
+  int cvalid = 1;
+  double comps[24];
+  for (int i = 0; i < 24; ++i)
+    comps[i] = 0.0;
+  comps[0] = energy; /* etot in caller units matches PotentialResult.energy */
+  capn_list64 comp_list = capn_new_list64(root.seg, 24);
+  if (comp_list.p.type != CAPN_NULL) {
+    for (int i = 0; i < 24; ++i)
+      capn_set64(comp_list, i, capn_from_f64(comps[i]));
+  } else {
+    cvalid = 0;
+  }
+
   struct PotentialResult view;
+  memset(&view, 0, sizeof(view));
   view.energy = energy;
   view.forces = force_list;
+  view.energyComponents = comp_list;
+  view.componentsValid = cvalid ? 1 : 0;
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {
     capn_free(&arena);

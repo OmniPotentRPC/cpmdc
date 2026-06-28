@@ -164,6 +164,28 @@ size_t cpmdc_potential_result_size_for_force_input(
   return 0;
 }
 
+
+int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
   if (out)
     memset(out, 0, sizeof(*out));

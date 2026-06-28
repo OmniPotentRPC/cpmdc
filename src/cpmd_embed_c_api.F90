@@ -13,6 +13,10 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_last_energy_components
+  PUBLIC :: cpmdc_embed_last_charge_integrals
+  PUBLIC :: cpmdc_embed_last_multi_state
+  PUBLIC :: cpmdc_embed_last_md_row
+  PUBLIC :: cpmdc_embed_last_properties
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -48,6 +52,25 @@ MODULE cpmd_embed_c_api
   REAL(c_double), SAVE :: last_ehsic = 0.0_c_double
   REAL(c_double), SAVE :: last_erestr = 0.0_c_double
   REAL(c_double), SAVE :: last_eefield = 0.0_c_double
+
+  INTEGER(c_int), SAVE :: last_chrg_valid = 0_c_int
+  REAL(c_double), SAVE :: last_csumg = 0.0_c_double
+  REAL(c_double), SAVE :: last_csumr = 0.0_c_double
+  REAL(c_double), SAVE :: last_csums = 0.0_c_double
+  REAL(c_double), SAVE :: last_csumsabs = 0.0_c_double
+  INTEGER(c_int), SAVE :: last_ms_valid = 0_c_int
+  INTEGER(c_int), SAVE :: last_ms_count = 0_c_int
+  REAL(c_double), SAVE :: last_ms_vals(64) = 0.0_c_double
+  INTEGER(c_int), SAVE :: last_md_valid = 0_c_int
+  INTEGER(c_int), SAVE :: last_md_count = 0_c_int
+  REAL(c_double), SAVE :: last_md_vals(32) = 0.0_c_double
+  INTEGER(c_int), SAVE :: last_prop_valid = 0_c_int
+  INTEGER(c_int), SAVE :: last_hess_count = 0_c_int
+  REAL(c_double), SAVE :: last_hess(4096) = 0.0_c_double
+  INTEGER(c_int), SAVE :: last_dip_count = 0_c_int
+  REAL(c_double), SAVE :: last_dip(3) = 0.0_c_double
+  INTEGER(c_int), SAVE :: last_pol_count = 0_c_int
+  REAL(c_double), SAVE :: last_pol(9) = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
   CHARACTER(LEN=512), SAVE :: cfg_workdir = ' '
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
@@ -81,6 +104,25 @@ CONTAINS
     last_ehsic = 0.0_c_double
     last_erestr = 0.0_c_double
     last_eefield = 0.0_c_double
+
+    last_chrg_valid = 0_c_int
+    last_csumg = 0.0_c_double
+    last_csumr = 0.0_c_double
+    last_csums = 0.0_c_double
+    last_csumsabs = 0.0_c_double
+    last_ms_valid = 0_c_int
+    last_ms_count = 0_c_int
+    last_ms_vals = 0.0_c_double
+    last_md_valid = 0_c_int
+    last_md_count = 0_c_int
+    last_md_vals = 0.0_c_double
+    last_prop_valid = 0_c_int
+    last_hess_count = 0_c_int
+    last_hess = 0.0_c_double
+    last_dip_count = 0_c_int
+    last_dip = 0.0_c_double
+    last_pol_count = 0_c_int
+    last_pol = 0.0_c_double
   END SUBROUTINE
 
   SUBROUTINE snapshot_total_only(energy_h)
@@ -224,6 +266,74 @@ CONTAINS
 #endif
   END FUNCTION
 
+  FUNCTION cpmdc_embed_last_charge_integrals(valid, csumg, csumr, csums, csumsabs) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_charge_integrals')
+    INTEGER(c_int), INTENT(OUT) :: valid
+    REAL(c_double), INTENT(OUT) :: csumg, csumr, csums, csumsabs
+    INTEGER(c_int) :: ok
+    valid = last_chrg_valid
+    csumg = last_csumg
+    csumr = last_csumr
+    csums = last_csums
+    csumsabs = last_csumsabs
+    ok = MERGE(0_c_int, -1_c_int, last_chrg_valid /= 0_c_int)
+  END FUNCTION
+
+  FUNCTION cpmdc_embed_last_multi_state(valid, count, values, capacity) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_multi_state')
+    INTEGER(c_int), INTENT(OUT) :: valid, count
+    REAL(c_double), INTENT(OUT) :: values(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: capacity
+    INTEGER(c_int) :: ok, i, n
+    valid = last_ms_valid
+    n = MIN(INT(capacity), INT(last_ms_count), 64)
+    count = n
+    DO i = 1, n
+      values(i) = last_ms_vals(i)
+    END DO
+    ok = MERGE(0_c_int, -1_c_int, last_ms_valid /= 0_c_int)
+  END FUNCTION
+
+  FUNCTION cpmdc_embed_last_md_row(valid, count, values, capacity) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_md_row')
+    INTEGER(c_int), INTENT(OUT) :: valid, count
+    REAL(c_double), INTENT(OUT) :: values(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: capacity
+    INTEGER(c_int) :: ok, i, n
+    valid = last_md_valid
+    n = MIN(INT(capacity), INT(last_md_count), 32)
+    count = n
+    DO i = 1, n
+      values(i) = last_md_vals(i)
+    END DO
+    ok = MERGE(0_c_int, -1_c_int, last_md_valid /= 0_c_int)
+  END FUNCTION
+
+  FUNCTION cpmdc_embed_last_properties(valid, hess_count, hess, hess_cap, &
+      dip_count, dip, pol_count, pol) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_properties')
+    INTEGER(c_int), INTENT(OUT) :: valid, hess_count, dip_count, pol_count
+    REAL(c_double), INTENT(OUT) :: hess(*), dip(*), pol(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: hess_cap
+    INTEGER(c_int) :: ok, i, n
+    valid = last_prop_valid
+    n = MIN(INT(hess_cap), INT(last_hess_count), 4096)
+    hess_count = n
+    DO i = 1, n
+      hess(i) = last_hess(i)
+    END DO
+    dip_count = MIN(3_c_int, last_dip_count)
+    DO i = 1, INT(dip_count)
+      dip(i) = last_dip(i)
+    END DO
+    pol_count = MIN(9_c_int, last_pol_count)
+    DO i = 1, INT(pol_count)
+      pol(i) = last_pol(i)
+    END DO
+    ok = MERGE(0_c_int, -1_c_int, last_prop_valid /= 0_c_int)
+  END FUNCTION
+
+
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
     CHARACTER(KIND=c_char), INTENT(IN) :: cbuf(*)
     INTEGER(c_int), INTENT(IN), VALUE :: n
@@ -276,6 +386,10 @@ CONTAINS
     ok = 1_c_int
     ! Reference PEF has no full ener_com; expose total only (in-process, not CLI scrape).
     CALL snapshot_total_only(energy_h)
+    last_chrg_valid = 0_c_int
+    last_ms_valid = 0_c_int
+    last_md_valid = 0_c_int
+    last_prop_valid = 0_c_int
   END SUBROUTINE
 #endif
 
@@ -499,7 +613,7 @@ CONTAINS
     USE gle_utils, ONLY: gle_alloc
     USE vdw_wf_alloc_utils, ONLY: vdw_wf_alloc
     USE wfopts_utils, ONLY: wfopts
-    USE ener, ONLY: ener_com
+    USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: fion
     USE ions, ONLY: ions0, ions1
     USE parac, ONLY: paral
@@ -595,6 +709,27 @@ CONTAINS
     last_erestr = REAL(ener_com%erestr, KIND=c_double)
     last_eefield = REAL(ener_com%eefield, KIND=c_double)
     last_ener_valid = 1_c_int
+    ! Charge integrals + multi-state catalog (may be zero if CAS22 not active).
+    last_csumg = REAL(chrg%csumg, KIND=c_double)
+    last_csumr = REAL(chrg%csumr, KIND=c_double)
+    last_csums = REAL(chrg%csums, KIND=c_double)
+    last_csumsabs = REAL(chrg%csumsabs, KIND=c_double)
+    last_chrg_valid = 1_c_int
+    last_ms_vals(1) = REAL(ener_c%etot_a, KIND=c_double)
+    last_ms_vals(2) = REAL(ener_c%etot_2, KIND=c_double)
+    last_ms_vals(3) = REAL(ener_c%etot_ab, KIND=c_double)
+    last_ms_vals(4) = REAL(ener_d%etot_b, KIND=c_double)
+    last_ms_vals(5) = REAL(ener_d%ecas, KIND=c_double)
+    last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
+    last_ms_count = 6_c_int
+    last_ms_valid = 1_c_int
+    ! MD ENERGY/EKINC and PROP tensors: SCF embed path leaves empty/invalid.
+    last_md_valid = 0_c_int
+    last_md_count = 0_c_int
+    last_prop_valid = 0_c_int
+    last_hess_count = 0_c_int
+    last_dip_count = 0_c_int
+    last_pol_count = 0_c_int
     ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
     ! Return -fion so C API gradient is dE/dR (force = -grad in energy_forces).
     IF (ALLOCATED(fion)) THEN

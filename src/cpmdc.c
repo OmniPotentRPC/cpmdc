@@ -33,6 +33,15 @@ int cpmdc_embed_last_energy_components(
     double *eext, double *etddft, double *ehsic, double *erestr,
     double *eefield);
 void cpmdc_embed_finalize(void);
+int cpmdc_embed_last_charge_integrals(int *valid, double *csumg, double *csumr,
+                                      double *csums, double *csumsabs);
+int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
+                                 int capacity);
+int cpmdc_embed_last_md_row(int *valid, int *count, double *values, int capacity);
+int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
+                                int hess_cap, int *dip_count, double *dip,
+                                int *pol_count, double *pol);
+
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
 static unsigned char *g_params_bytes = NULL;
@@ -111,6 +120,10 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
   snprintf(cpmd_root, cpmd_root_size, "%s",
            cpmdc_params_text_or(view.cpmdRoot, ""));
   if (cpmdc_params_render_input_deck(root, input_deck, input_deck_size) != 0) {
+    cpmdc_params_release(&arena);
+    return -1;
+  }
+  if (cpmdc_params_reject_unsupported_inputs(functional, input_deck) != 0) {
     cpmdc_params_release(&arena);
     return -1;
   }
@@ -628,6 +641,66 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
       potential_result_capnp_size_bytes);
   cpmdc_session_destroy(session);
   return r;
+}
+
+
+int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0;
+  int rc = cpmdc_embed_last_charge_integrals(&valid, &out->csumg, &out->csumr,
+                                             &out->csums, &out->csumsabs);
+  out->valid = valid;
+  return rc;
+}
+
+int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0, count = 0;
+  int rc = cpmdc_embed_last_multi_state(&valid, &count, out->values,
+                                        (int)(sizeof(out->values) / sizeof(out->values[0])));
+  out->valid = valid;
+  out->count = count > 0 ? (size_t)count : 0;
+  return rc;
+}
+
+int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0, count = 0;
+  int rc = cpmdc_embed_last_md_row(&valid, &count, out->values,
+                                   (int)(sizeof(out->values) / sizeof(out->values[0])));
+  out->valid = valid;
+  out->count = count > 0 ? (size_t)count : 0;
+  return rc;
+}
+
+int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0, hc = 0, dc = 0, pc = 0;
+  int rc = cpmdc_embed_last_properties(
+      &valid, &hc, out->hessian,
+      (int)(sizeof(out->hessian) / sizeof(out->hessian[0])), &dc, out->dipole,
+      &pc, out->polarizability);
+  out->valid = valid;
+  out->hessian_count = hc > 0 ? (size_t)hc : 0;
+  out->dipole_count = dc > 0 ? (size_t)dc : 0;
+  out->polarizability_count = pc > 0 ? (size_t)pc : 0;
+  return rc;
 }
 
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {

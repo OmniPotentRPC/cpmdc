@@ -24,6 +24,25 @@ struct ForceInput {
 struct PotentialResult {
   energy @0 :Float64;       # Calculated potential energy.
   forces @1 :List(Float64); # Flat array of atomic forces [natoms * 3].
+  # Align with nwchemc property carriers (optional; empty when unset).
+  hessian @2 :List(Float64); # Dense Cartesian Hessian [natoms*3]^2.
+  dipole @3 :List(Float64); # Dipole [3] a.u.
+  quadrupole @4 :List(Float64); # Traceless quadrupole [6] a.u.
+  optimizedPos @5 :List(Float64); # Optimized positions [natoms*3].
+  # OpenCPMD post-SCF ener_com scalars (Hartree), order matches CPMDCEnergyComponents
+  # fields etot..eefield (24 doubles). Ignored by readers that only use energy/forces.
+  energyComponents @6 :List(Float64);
+  componentsValid @7 :Bool = false;
+  # OpenCPMD chrg_t: csumg, csumr, csums, csumsabs
+  chargeIntegrals @8 :List(Float64);
+  chargeValid @9 :Bool = false;
+  # Flattened ener_c + ener_d multi-state catalog (CAS22-class); length backend-defined.
+  multiStateEnergies @10 :List(Float64);
+  multiStateValid @11 :Bool = false;
+  # Last MD ENERGY-style row including EKINC when MD ran; empty for SCF-only.
+  mdTrajectoryRow @12 :List(Float64);
+  mdTrajectoryValid @13 :Bool = false;
+  polarizability @14 :List(Float64); # Polarizability tensor elements when PROP ran.
 }
 
 # --- CPMD structured input (section-oriented, mirrors CPMD &SECTION decks) ---

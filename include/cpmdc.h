@@ -69,6 +69,53 @@ typedef struct CPMDCEnergyComponents {
   double eefield;
 } CPMDCEnergyComponents;
 
+/**
+ * @brief OpenCPMD `chrg_t` density integrals (post-SCF module state).
+ */
+typedef struct CPMDCChargeIntegrals {
+  int valid;
+  double csumg;
+  double csumr;
+  double csums;
+  double csumsabs;
+} CPMDCChargeIntegrals;
+
+/**
+ * @brief Flattened CAS22-class multi-state catalog (`ener_c` + `ener_d`).
+ *
+ * Layout is backend-defined; `count` is the number of doubles copied into
+ * `values` (caller provides capacity). Returns -1 when no snapshot.
+ */
+typedef struct CPMDCMultiStateEnergies {
+  int valid;
+  size_t count;
+  double values[64];
+} CPMDCMultiStateEnergies;
+
+/**
+ * @brief One MD ENERGY-style trajectory row (includes EKINC when MD ran).
+ */
+typedef struct CPMDCMDTrajectoryRow {
+  int valid;
+  size_t count;
+  double values[32];
+} CPMDCMDTrajectoryRow;
+
+/**
+ * @brief PROP-style property snapshot (Hessian/dipole/polarizability).
+ *
+ * Lists are length-prefixed; zeros and valid==0 when OpenCPMD did not compute.
+ */
+typedef struct CPMDCPropertySnapshot {
+  int valid;
+  size_t hessian_count;
+  double hessian[4096];
+  size_t dipole_count;
+  double dipole[3];
+  size_t polarizability_count;
+  double polarizability[9];
+} CPMDCPropertySnapshot;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
 
@@ -240,6 +287,11 @@ void cpmdc_finalize(void);
  * builds always return -1 and leave `out` zeroed). Values are Hartree.
  */
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
+
+int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
+int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
+int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
+int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
 
 #ifdef __cplusplus
 }

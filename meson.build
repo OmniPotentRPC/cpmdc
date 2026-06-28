@@ -514,6 +514,20 @@ if get_option('with_tests')
     include_directories: inc,
     c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
   )
+
+  extended_surface_exe = executable(
+    'test_extended_surface',
+    'tests/test_extended_surface.c',
+    dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+    include_directories: [inc] + cpmdc_params_includes,
+    c_args: common_c_args,
+  )
+  test(
+    'extended-surface',
+    extended_surface_exe,
+    suite: ['abi', 'params', 'cmocka'],
+  )
+
   test(
     'energy-components',
     energy_components_exe,

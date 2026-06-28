@@ -55,3 +55,4 @@ int cpmdc_potential_result_write(double energy, const double *forces,
                                  void *potential_result_capnp,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes);
+int cpmdc_params_reject_unsupported_inputs(const char *functional, const char *input_deck);
