@@ -27,6 +27,13 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------+
 | Generated feature inventory      | ``meson test -C build feature-inventory --print-errorlogs``                         |
 +----------------------------------+-------------------------------------------------------------------------------------+
+| Base ``&CPMD`` keyword inventory | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``               |
++----------------------------------+-------------------------------------------------------------------------------------+
+| ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``               |
+| mappings                         |                                                                                     |
++----------------------------------+-------------------------------------------------------------------------------------+
+| Inline option token coverage     | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                |
++----------------------------------+-------------------------------------------------------------------------------------+
 | OpenCPMD archive build           | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs`` |
 +----------------------------------+-------------------------------------------------------------------------------------+
 
@@ -34,6 +41,14 @@ Params render coverage lives under ``tests/cmocka/`` and uses cmocka
 assertions on generated Cap'n Proto types (``read_CPMDParams``, deck
 substrings) only. Session tests use encoded ``CPMDParams`` and
 ``ForceInput`` fixtures from ``tests/*.capnp.txt``.
+``feature-inventory`` ties the generated JSON inventory to the schema,
+public feature table, docs, public headers, ABI symbol list, and
+optional ``CPMD_ROOT`` parser section probe.
+``cpmd-base-keyword-inventory`` requires every base ``&CPMD`` keyword in
+``schema/inventory/cpmd_cp_keywords.txt`` to resolve to a
+``catalog.cpmd.*`` row. ``cpmd-schema-render-coverage`` and
+``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
+fixture inline tokens tied to render coverage.
 
 Add a typed CPMD keyword
 ========================
@@ -66,6 +81,8 @@ Run the focused failure before adding production code:
 
    CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
      params-cp-dft-render features-cmocka feature-inventory \
+     cpmd-base-keyword-inventory cpmd-schema-render-coverage \
+     cpmd-option-token-coverage \
      --print-errorlogs
 
 Then update the production and docs surface in one change:
@@ -83,6 +100,10 @@ Then update the production and docs surface in one change:
 |                                             | feature table rows               |
 +---------------------------------------------+----------------------------------+
 | ``schema/inventory/cpmd_features.json``     | Add matching inventory metadata  |
++---------------------------------------------+----------------------------------+
+| ``schema/inventory/cpmd_cp_keywords.txt``   | Add a base ``&CPMD`` keyword     |
+|                                             | when the parser accepts it as a  |
+|                                             | top-level control                |
 +---------------------------------------------+----------------------------------+
 | ``docs/orgmode/reference/cpmd-options.org`` | Document every writable field ID |
 +---------------------------------------------+----------------------------------+

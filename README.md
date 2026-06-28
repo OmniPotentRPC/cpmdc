@@ -172,6 +172,31 @@ spelling that the renderer emits through an existing text field. Fall back to
 `inputBlocks` only when the typed schema and catalog rows do not represent the
 deck form.
 
+## Inventory Verification
+
+The default Meson suite includes inventory checks that keep the schema, feature
+table, renderer, README, and reference docs aligned:
+
+| Test | Contract |
+| --- | --- |
+| `feature-inventory` | `schema/inventory/cpmd_features.json` agrees with `schema/Potentials.capnp`, `src/cpmdc_features.c`, public headers, README, and CPMD option docs |
+| `cpmd-base-keyword-inventory` | every base `&CPMD` keyword in `schema/inventory/cpmd_cp_keywords.txt` has a normalized `catalog.cpmd.*` feature row |
+| `cpmd-schema-render-coverage` | every typed `CPMDCpmdSection` field, except `directives`, has a catalog render mapping in `tests/test_params_cp_dft_render.c` |
+| `cpmd-option-token-coverage` | inline option tokens in Cap'n Proto fixtures have catalog render coverage |
+
+Run the focused inventory group with:
+
+```bash
+meson test -C build \
+  feature-inventory cpmd-base-keyword-inventory \
+  cpmd-schema-render-coverage cpmd-option-token-coverage \
+  --print-errorlogs
+```
+
+When `CPMD_ROOT` points at an OpenCPMD source tree, `feature-inventory` also
+probes parser `inscan('&SECTION')` calls and compares them with the checked-in
+section inventory.
+
 ## Feature ID namespaces
 
 Feature IDs separate writable schema fields from parser/catalog capability

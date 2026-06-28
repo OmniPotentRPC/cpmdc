@@ -533,6 +533,15 @@ if get_option('with_tests')
     suite: ['docs', 'examples'],
   )
   test(
+    'inventory-docs',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_inventory_docs.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'inventory'],
+  )
+  test(
     'params-escape-render',
     executable(
       'test_params_escape_render',

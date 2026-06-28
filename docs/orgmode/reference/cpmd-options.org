@@ -89,6 +89,32 @@ Examples:
 | ~CENTER MOLECULE ON~ | ~centerMoleculeOn~ | ~catalog.cpmd.CENTER_MOLECULE_ON~ |
 | ~BOX WALLS~ in ~&SYSTEM~ | ~system.boxWalls~ | ~params.inputSections.system.boxWalls~ |
 
+* Inventory guardrails
+The inventory files are part of the public compatibility contract, not only
+generated lookup data. ~schema/inventory/cpmd_cp_keywords.txt~ lists base
+~&CPMD~ controls that must exist as normalized ~catalog.cpmd.*~ feature rows.
+Punctuation and spaces normalize to underscores, so ~FREE-ENERGY~ maps to
+~catalog.cpmd.FREE_ENERGY~.
+
+Run the focused inventory guards with:
+
+#+begin_src bash
+meson test -C build \
+  feature-inventory cpmd-base-keyword-inventory \
+  cpmd-schema-render-coverage cpmd-option-token-coverage \
+  --print-errorlogs
+#+end_src
+
+~feature-inventory~ cross-checks the JSON inventory against the schema, public
+C feature table, README, and this reference page. When ~CPMD_ROOT~ points at an
+OpenCPMD tree, it also compares parser ~inscan('&SECTION')~ calls with the
+checked-in section inventory.
+~cpmd-base-keyword-inventory~ proves the base keyword list cannot drop a
+~catalog.cpmd.*~ row silently. ~cpmd-schema-render-coverage~ requires typed
+~CPMDCpmdSection~ fields to appear in the catalog render fixtures, and
+~cpmd-option-token-coverage~ requires inline option spellings in Cap'n Proto
+fixtures to have render coverage.
+
 * ~CPMDInputSection~ kinds
 
 | Kind | Cap'n Proto type | Deck effect |
