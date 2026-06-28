@@ -550,6 +550,7 @@ static const struct CatalogCoverage dft_scalar_coverage[] = {
     {"catalog.dft.HARTREE_FOCK", "directives", " HARTREE-FOCK\n"},
     {"catalog.dft.HARTREE", "directives", " HARTREE\n"},
     {"catalog.dft.SLATER", "directives", " SLATER\n"},
+    {"catalog.dft.LDA_CORRELATION", "directives", " LDA CORRELATION PZ\n"},
     {"catalog.dft.OLDCODE", "oldCode", " OLDCODE\n"},
     {"catalog.dft.NEWCODE", "newCode", " NEWCODE\n"},
     {"catalog.dft.XC_DRIVER", "xcDriver", " XC_DRIVER\n"},
