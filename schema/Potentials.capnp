@@ -492,6 +492,7 @@ struct CPMDCpmdSection {
   noseIonsLocalRanges     @334 :Text; # NOSE IONS LOCAL range payload lines.
   noseIonsCafesGroupCount @335 :Int32 = 0; # NOSE IONS CAFES group count.
   noseIonsCafesGroups     @336 :Text; # NOSE IONS CAFES group payload lines.
+  trotterFactorization    @337 :Float64 = 0.0; # TROTTER FACTORIZATION payload; 0 => omit.
 }
 
 struct CPMDDftSection {

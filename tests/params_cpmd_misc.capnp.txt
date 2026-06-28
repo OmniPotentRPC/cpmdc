@@ -152,6 +152,7 @@
         interfaceOptions = "GMX ESP PCGFIRST",
         trotterFactorCount = 2,
         trotterFactorPayload = "0.1 0.2\n  0.3 0.4",
+        trotterFactorization = 0.75,
         trotterFactorizationOff = true,
         linearResponse = true,
         harmonicReference = "OFF",

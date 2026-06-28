@@ -1580,6 +1580,11 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (sec->trotterFactorization > 0.0) {
+    if (append_fmt(dst, dst_size, used, " TROTTER FACTORIZATION\n  %.10g\n",
+                   sec->trotterFactorization) != 0)
+      return -1;
+  }
   if (sec->trotterFactorizationOff) {
     if (append_text(dst, dst_size, used,
                     " TROTTER FACTORIZATION OFF\n") != 0)

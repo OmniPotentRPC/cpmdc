@@ -2171,6 +2171,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.TROTTER_FACTORIZATION",
+      "kind": "cpmd_keyword",
+      "name": "TROTTER FACTORIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.TROTTER_FACTORIZATION_OFF",
       "kind": "cpmd_keyword",
       "name": "TROTTER FACTORIZATION OFF",
@@ -7828,6 +7837,14 @@
       "feature_id": "params.inputSections.cpmd.trotterFactorPayload",
       "kind": "structured_params_field",
       "name": "trotterFactorPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trotterFactorization",
+      "kind": "structured_params_field",
+      "name": "trotterFactorization",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

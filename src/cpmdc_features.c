@@ -220,6 +220,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.INTERFACE_OPTIONS", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TROTTER_FACTOR", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TROTTER_FACTOR_PAYLOAD", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.TROTTER_FACTORIZATION", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TROTTER_FACTORIZATION_OFF",
      CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.LINEAR_RESPONSE", CPMDC_FEATURE_KEYWORD, 1, 1},
@@ -911,6 +912,7 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.interfaceOptions"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.trotterFactorCount"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.trotterFactorPayload"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.trotterFactorization"),
     CPMDC_PARAM_FEATURE(
         "params.inputSections.cpmd.trotterFactorizationOff"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.linearResponse"),
