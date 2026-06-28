@@ -740,6 +740,36 @@ static int render_system_section_with_cell(
     if (append_i32_list_line(dst, dst_size, used, &sys->mesh, 3) != 0)
       return -1;
   }
+  int n_kpoints = struct_list_len(&sys->kpoints.p);
+  if (n_kpoints < 0)
+    return -1;
+  if (n_kpoints > 0) {
+    if (append_text(dst, dst_size, used, " KPOINTS") != 0)
+      return -1;
+    if (sys->kpointsScaled &&
+        append_text(dst, dst_size, used, " SCALED") != 0)
+      return -1;
+    if (sys->kpointsOnlyDiagonal &&
+        append_text(dst, dst_size, used, " ONLYDIAG") != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "\n  %d\n", n_kpoints) != 0)
+      return -1;
+    for (int i = 0; i < n_kpoints; ++i) {
+      struct CPMDKPoint kp;
+      get_CPMDKPoint(&kp, sys->kpoints, i);
+      int n_coordinates = list64_len(&kp.coordinates);
+      if (n_coordinates != 3)
+        return -1;
+      if (append_fmt(dst, dst_size, used, "  %.10g %.10g %.10g %.10g\n",
+                     capn_to_f64(capn_get64(kp.coordinates, 0)),
+                     capn_to_f64(capn_get64(kp.coordinates, 1)),
+                     capn_to_f64(capn_get64(kp.coordinates, 2)),
+                     kp.weight) != 0)
+        return -1;
+    }
+  } else if (sys->kpointsScaled || sys->kpointsOnlyDiagonal) {
+    return -1;
+  }
   if (sys->doubleGrid.str && sys->doubleGrid.len > 0) {
     if (append_text(dst, dst_size, used, " DOUBLE GRID ") != 0)
       return -1;

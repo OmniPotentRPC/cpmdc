@@ -43,6 +43,11 @@ struct CPMDSetDirective {
   value @1 :Text; # Optional value emitted on the following indented line.
 }
 
+struct CPMDKPoint {
+  coordinates @0 :List(Float64); # Explicit KPOINTS coordinates kx, ky, kz.
+  weight      @1 :Float64 = 1.0; # KPOINTS integration weight.
+}
+
 struct CPMDSystemSection {
   symmetry        @0 :Int32 = 0;          # SYMMETRY code.
   angstrom        @1 :Bool = true;        # Emit ANGSTROM for CELL / ATOMS.
@@ -97,6 +102,9 @@ struct CPMDSystemSection {
   scaleX         @50 :Float64 = 0.0;          # SCALE SX= value; 0 => omit.
   scaleY         @51 :Float64 = 0.0;          # SCALE SY= value; 0 => omit.
   scaleZ         @52 :Float64 = 0.0;          # SCALE SZ= value; 0 => omit.
+  kpoints        @53 :List(CPMDKPoint);       # KPOINTS explicit weighted points.
+  kpointsScaled  @54 :Bool = false;           # KPOINTS SCALED.
+  kpointsOnlyDiagonal @55 :Bool = false;      # KPOINTS ONLYDIAG.
 }
 
 struct CPMDCpmdSection {

@@ -551,6 +551,13 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.mesh``                        | ``system.mesh``                        | ``&SYSTEM MESH``                          |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpoints``                     | ``system.kpoints``                     | ``&SYSTEM KPOINTS`` explicit weighted     |
+|                                                             |                                        | points                                    |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsScaled``               | ``system.kpointsScaled``               | Add ``SCALED`` to ``&SYSTEM KPOINTS``     |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsOnlyDiagonal``         | ``system.kpointsOnlyDiagonal``         | Add ``ONLYDIAG`` to ``&SYSTEM KPOINTS``   |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.doubleGrid``                  | ``system.doubleGrid``                  | ``&SYSTEM DOUBLE GRID`` ``ON`` or ``OFF`` |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.symmetrizeCoordinates``       | ``system.symmetrizeCoordinates``       | ``&SYSTEM SYMMETRIZE COORDINATES``        |

@@ -2183,6 +2183,30 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.kpoints",
+      "kind": "structured_params_field",
+      "name": "kpoints",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsScaled",
+      "kind": "structured_params_field",
+      "name": "kpointsScaled",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsOnlyDiagonal",
+      "kind": "structured_params_field",
+      "name": "kpointsOnlyDiagonal",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.doubleGrid",
       "kind": "structured_params_field",
       "name": "doubleGrid",
