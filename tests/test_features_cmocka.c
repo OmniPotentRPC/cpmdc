@@ -158,6 +158,37 @@ static void test_documented_cpmd_catalog_keywords(void **state) {
   }
 }
 
+static void test_parser_dft_functional_catalog_keywords(void **state) {
+  (void)state;
+  static const char *const dft_functionals[] = {
+      "catalog.dft.FUNCTIONAL_NONE",
+      "catalog.dft.FUNCTIONAL_SONLY",
+      "catalog.dft.FUNCTIONAL_ZPBE0",
+      "catalog.dft.FUNCTIONAL_XPBE0",
+      "catalog.dft.FUNCTIONAL_OLDX3LYP",
+      "catalog.dft.FUNCTIONAL_MODX3LYP",
+      "catalog.dft.FUNCTIONAL_X3LYP",
+      "catalog.dft.FUNCTIONAL_OLDB3LYP",
+      "catalog.dft.FUNCTIONAL_MODB3LYP",
+      "catalog.dft.FUNCTIONAL_OLDB1LYP",
+      "catalog.dft.FUNCTIONAL_MODB1LYP",
+      "catalog.dft.FUNCTIONAL_SAOP",
+      "catalog.dft.FUNCTIONAL_LB94",
+      "catalog.dft.FUNCTIONAL_GLLB",
+  };
+
+  for (size_t i = 0; i < sizeof(dft_functionals) / sizeof(dft_functionals[0]);
+       i++) {
+    const CPMDCFeatureEntry *entry =
+        cpmdc_feature_find(dft_functionals[i]);
+    assert_non_null(entry);
+    assert_string_equal(entry->feature_id, dft_functionals[i]);
+    assert_int_equal(entry->kind, CPMDC_FEATURE_KEYWORD);
+    assert_int_equal(entry->stub_applicable, 1);
+    assert_int_equal(entry->embed_applicable, 1);
+  }
+}
+
 static void test_abi(void **state) {
   (void)state;
   static const char *const abi_features[] = {
@@ -708,6 +739,7 @@ int main(void) {
       cmocka_unit_test(test_inscan_sections),
       cmocka_unit_test(test_cp_keywords_not_sections),
       cmocka_unit_test(test_documented_cpmd_catalog_keywords),
+      cmocka_unit_test(test_parser_dft_functional_catalog_keywords),
       cmocka_unit_test(test_abi),
       cmocka_unit_test(test_param_applicability),
       cmocka_unit_test(test_structured_param_features),
