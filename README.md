@@ -144,6 +144,27 @@ keywords, and section arms. Examples:
 - `catalog.cpmd.OPTIMIZE_WAVEFUNCTION`
 - `catalog.section.PIMD`
 
+## Feature ID namespaces
+
+Feature IDs separate writable schema fields from parser/catalog capability
+rows:
+
+| Namespace | Meaning |
+| --- | --- |
+| `abi.*` | exported C ABI symbols |
+| `params.*` | top-level `CPMDParams` fields |
+| `params.inputSections.*` | typed fields and directive carriers inside `CPMDInputSection` |
+| `catalog.cpmd.*` | named `&CPMD` keyword capability rows |
+| `catalog.dft.*` | named `&DFT` keyword capability rows |
+| `catalog.section.*` | OpenCPMD section names discovered from parser `inscan('&SECTION')` calls |
+
+Use `params.inputSections.system.*` for structured `&SYSTEM` controls such as
+cell, cutoff, Poisson, KPOINTS, CDFT, pressure, and stress fields.
+`catalog.section.SYSTEM` means the `&SYSTEM` deck section is recognized as a
+section kind; individual `&SYSTEM` controls stay under
+`params.inputSections.system.*` rather than a separate `catalog.system.*`
+namespace.
+
 ## OpenCPMD Archive Build
 
 The default build uses a reference evaluator. To link the same C ABI against a

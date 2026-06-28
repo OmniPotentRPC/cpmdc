@@ -66,6 +66,44 @@ example ``params.inputSections.cpmd.maxIter``,
 ``params.inputSections.system.cell``, and
 ``params.inputSections.pimd.directives``.
 
+Feature ID namespaces
+=====================
+
+Feature IDs separate writable schema fields from parser/catalog
+capability rows.
+
++-----------------------------------+----------------------------------+
+| Namespace                         | Meaning                          |
++===================================+==================================+
+| ``abi.*``                         | Exported C ABI symbols           |
++-----------------------------------+----------------------------------+
+| ``params.*``                      | Top-level ``CPMDParams`` fields  |
++-----------------------------------+----------------------------------+
+| ``params.inputSections.*``        | Typed fields and directive       |
+|                                   | carriers inside                  |
+|                                   | ``CPMDInputSection``             |
++-----------------------------------+----------------------------------+
+| ``params.inputSections.system.*`` | Structured ``&SYSTEM`` controls  |
+|                                   | such as cell, cutoff, Poisson,   |
+|                                   | KPOINTS, CDFT, pressure, and     |
+|                                   | stress fields                    |
++-----------------------------------+----------------------------------+
+| ``catalog.cpmd.*``                | Named ``&CPMD`` keyword          |
+|                                   | capability rows                  |
++-----------------------------------+----------------------------------+
+| ``catalog.dft.*``                 | Named ``&DFT`` keyword           |
+|                                   | capability rows                  |
++-----------------------------------+----------------------------------+
+| ``catalog.section.*``             | OpenCPMD section names           |
+|                                   | discovered from parser           |
+|                                   | ``inscan('&SECTION')`` calls     |
++-----------------------------------+----------------------------------+
+
+``catalog.section.SYSTEM`` means the ``&SYSTEM`` deck section is
+recognized as a section kind. Individual ``&SYSTEM`` controls stay under
+``params.inputSections.system.*`` rather than a separate
+``catalog.system.*`` namespace.
+
 ``CPMDInputSection`` kinds
 ==========================
 
