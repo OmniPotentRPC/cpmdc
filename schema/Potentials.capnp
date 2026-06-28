@@ -481,6 +481,7 @@ struct CPMDCpmdSection {
   prfoHessianType         @323 :Int32 = 0; # PRFO HESSTYPE payload; 0 => omit.
   lsd                     @324 :Bool = false; # LSD / LOCAL SPIN DENSITY.
   checkMemory             @325 :Bool = false; # CHECK MEMORY.
+  trotterFactorizationOff @326 :Bool = false; # TROTTER FACTORIZATION OFF.
 }
 
 struct CPMDDftSection {

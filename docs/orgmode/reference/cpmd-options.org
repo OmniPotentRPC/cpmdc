@@ -595,6 +595,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.INTERFACE_OPTIONS~ | ~params.inputSections.cpmd.interfaceOptions~ | ~interfaceOptions~ | ~INTERFACE~ |
 | ~catalog.cpmd.TROTTER_FACTOR~ | ~params.inputSections.cpmd.trotterFactorCount~ | ~trotterFactorCount~ | ~TROTTER FACTOR=~ |
 | ~catalog.cpmd.TROTTER_FACTOR_PAYLOAD~ | ~params.inputSections.cpmd.trotterFactorPayload~ | ~trotterFactorPayload~ | ~TROTTER FACTOR payload~ |
+| ~catalog.cpmd.TROTTER_FACTORIZATION_OFF~ | ~params.inputSections.cpmd.trotterFactorizationOff~ | ~trotterFactorizationOff~ | ~TROTTER FACTORIZATION OFF~ |
 | ~catalog.cpmd.LINEAR_RESPONSE~ | ~params.inputSections.cpmd.linearResponse~ | ~linearResponse~ | ~LINEAR RESPONSE~ |
 | ~catalog.cpmd.HARMONIC_REFERENCE~ | ~params.inputSections.cpmd.harmonicReference~ | ~harmonicReference~ | ~HARMONIC REFERENCE~ |
 | ~catalog.cpmd.SCALED_MASSES~ | ~params.inputSections.cpmd.scaledMasses~ | ~scaledMasses~ | ~SCALED MASSES~ |

@@ -1580,6 +1580,11 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (sec->trotterFactorizationOff) {
+    if (append_text(dst, dst_size, used,
+                    " TROTTER FACTORIZATION OFF\n") != 0)
+      return -1;
+  }
   if (sec->linearResponse) {
     if (append_text(dst, dst_size, used, " LINEAR RESPONSE\n") != 0)
       return -1;
