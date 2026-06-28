@@ -41,6 +41,7 @@
         pointGroupDelta = 0.0001,
         lowSpinExcitation = "ROKS",
         lowSpinExcitationLsets = true,
+        lowSpinExcitationPenalty = 0.75,
         lseParameters = [2.0, 1.0],
         modifiedGoedecker = true,
         modifiedGoedeckerParameters = [-0.25, 0.25],

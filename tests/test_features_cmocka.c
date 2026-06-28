@@ -155,6 +155,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.pointGroupDelta",
       "params.inputSections.system.lowSpinExcitation",
       "params.inputSections.system.lowSpinExcitationLsets",
+      "params.inputSections.system.lowSpinExcitationPenalty",
       "params.inputSections.system.lseParameters",
       "params.inputSections.system.modifiedGoedecker",
       "params.inputSections.system.modifiedGoedeckerParameters",
