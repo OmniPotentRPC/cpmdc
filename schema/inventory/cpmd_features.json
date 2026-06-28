@@ -1879,6 +1879,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.cellVectors",
+      "kind": "structured_params_field",
+      "name": "cellVectors",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.referenceCell",
       "kind": "structured_params_field",
       "name": "referenceCell",
@@ -1898,6 +1906,14 @@
       "feature_id": "params.inputSections.system.referenceCellDegree",
       "kind": "structured_params_field",
       "name": "referenceCellDegree",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.referenceCellVectors",
+      "kind": "structured_params_field",
+      "name": "referenceCellVectors",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true

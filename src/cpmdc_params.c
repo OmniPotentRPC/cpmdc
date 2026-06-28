@@ -420,10 +420,16 @@ static int directives_have_prefix(CPMDDirective_list directives,
 
 static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
                             const double *cell, int ncell, int absolute,
-                            int degree) {
+                            int degree, int vectors) {
   if (ncell != 6 && ncell != 9)
     return 0;
+  if (vectors && ncell != 9)
+    return -1;
+  if (vectors && (absolute || degree))
+    return -1;
   if (append_text(dst, dst_size, used, " CELL") != 0)
+    return -1;
+  if (vectors && append_text(dst, dst_size, used, " VECTORS") != 0)
     return -1;
   if (absolute && append_text(dst, dst_size, used, " ABSOLUTE") != 0)
     return -1;
@@ -452,7 +458,7 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g %.10g %.10g %.10g\n",
                       a, b, c, ab, ac, bc);
   }
-  if (fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
+  if (!vectors && fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
       fabs(cell[3]) < 1e-12 && fabs(cell[5]) < 1e-12 &&
       fabs(cell[6]) < 1e-12 && fabs(cell[7]) < 1e-12 && cell[0] != 0.0) {
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g 0 0 0\n",
@@ -508,33 +514,43 @@ static int render_system_section_with_cell(
   int ncell = list64_len(&sys->cell);
   if (ncell < 0)
     return -1;
+  if (sys->cellVectors && (sys->cellAbsolute || sys->cellDegree))
+    return -1;
+  if (sys->cellVectors && ncell != 9)
+    return -1;
   if ((sys->cellAbsolute || sys->cellDegree) && ncell != 6)
     return -1;
   if (override_ncell == 9 && cell_override) {
     if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell, 0,
-                         0) != 0)
+                         0, 0) != 0)
       return -1;
   } else if (ncell == 6 || ncell == 9) {
     double cell[9] = {0};
     for (int i = 0; i < ncell; ++i)
       cell[i] = capn_to_f64(capn_get64(sys->cell, i));
     if (append_cpmd_cell(dst, dst_size, used, cell, ncell, sys->cellAbsolute,
-                         sys->cellDegree) != 0)
+                         sys->cellDegree, sys->cellVectors) != 0)
       return -1;
   }
   int n_reference_cell = list64_len(&sys->referenceCell);
   if (n_reference_cell < 0)
     return -1;
   if (n_reference_cell == 0 &&
-      (sys->referenceCellAbsolute || sys->referenceCellDegree))
+      (sys->referenceCellAbsolute || sys->referenceCellDegree ||
+       sys->referenceCellVectors))
     return -1;
   if (n_reference_cell > 0) {
+    if (sys->referenceCellVectors &&
+        (sys->referenceCellAbsolute || sys->referenceCellDegree))
+      return -1;
+    if (sys->referenceCellVectors && n_reference_cell != 9)
+      return -1;
     if ((sys->referenceCellAbsolute || sys->referenceCellDegree) &&
         n_reference_cell != 6)
       return -1;
     if (append_text(dst, dst_size, used, " REFERENCE CELL") != 0)
       return -1;
-    if (n_reference_cell == 9 &&
+    if ((n_reference_cell == 9 || sys->referenceCellVectors) &&
         append_text(dst, dst_size, used, " VECTORS") != 0)
       return -1;
     if (sys->referenceCellAbsolute &&

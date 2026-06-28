@@ -193,9 +193,11 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.system.cell~ | ~system.cell~ | ~&SYSTEM CELL~ |
 | ~params.inputSections.system.cellAbsolute~ | ~system.cellAbsolute~ | Add ~ABSOLUTE~ to ~&SYSTEM CELL~ |
 | ~params.inputSections.system.cellDegree~ | ~system.cellDegree~ | Add ~DEGREE~ to ~&SYSTEM CELL~ |
+| ~params.inputSections.system.cellVectors~ | ~system.cellVectors~ | Add ~VECTORS~ to ~&SYSTEM CELL~ |
 | ~params.inputSections.system.referenceCell~ | ~system.referenceCell~ | ~&SYSTEM REFERENCE CELL~ |
 | ~params.inputSections.system.referenceCellAbsolute~ | ~system.referenceCellAbsolute~ | Add ~ABSOLUTE~ to ~REFERENCE CELL~ |
 | ~params.inputSections.system.referenceCellDegree~ | ~system.referenceCellDegree~ | Add ~DEGREE~ to ~REFERENCE CELL~ |
+| ~params.inputSections.system.referenceCellVectors~ | ~system.referenceCellVectors~ | Add ~VECTORS~ to ~REFERENCE CELL~ |
 | ~params.inputSections.system.classicalCell~ | ~system.classicalCell~ | ~&SYSTEM CLASSICAL CELL~ |
 | ~params.inputSections.system.classicalCellAbsolute~ | ~system.classicalCellAbsolute~ | Add ~ABSOLUTE~ to ~CLASSICAL CELL~ |
 | ~params.inputSections.system.classicalCellDegree~ | ~system.classicalCellDegree~ | Add ~DEGREE~ to ~CLASSICAL CELL~ |

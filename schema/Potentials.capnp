@@ -150,6 +150,8 @@ struct CPMDSystemSection {
   referenceCellDegree @86 :Bool = false;   # REFERENCE CELL DEGREE.
   classicalCellAbsolute @87 :Bool = false; # CLASSICAL CELL ABSOLUTE.
   classicalCellDegree @88 :Bool = false;   # CLASSICAL CELL DEGREE.
+  cellVectors @89 :Bool = false;            # CELL VECTORS.
+  referenceCellVectors @90 :Bool = false;   # REFERENCE CELL VECTORS.
 }
 
 struct CPMDCpmdSection {
