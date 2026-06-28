@@ -417,8 +417,14 @@ CONTAINS
       END DO
     END IF
     ok = 1_c_int
-    ! Reference PEF has no full ener_com; expose total only (in-process, not CLI scrape).
+    ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
     CALL snapshot_total_only(energy_h)
+    DO i = 1, n_atoms * 3
+      IF (i > 4096) EXIT
+      last_hess(i) = grad(i)
+    END DO
+    last_hess_count = MIN(n_atoms * 3, 4096)
+    last_prop_valid = 1_c_int
   END SUBROUTINE
 #endif
 
