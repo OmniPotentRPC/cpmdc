@@ -835,6 +835,22 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.CONVERGENCE_GEOMETRY``         | ``params.inputSections.cpmd.convergenceGeometry``        | ``convergenceGeometry``        | ``CONVERGENCE GEOMETRY``         |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CELL``             | ``params.inputSections.cpmd.convergenceCell``            | ``convergenceCell``            | ``CONVERGENCE CELL``             |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_ADAPT``            | ``params.inputSections.cpmd.convergenceAdapt``           | ``convergenceAdapt``           | ``CONVERGENCE ADAPT``            |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_ENERGY``           | ``params.inputSections.cpmd.convergenceEnergy``          | ``convergenceEnergy``          | ``CONVERGENCE ENERGY``           |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CALFOR``           | ``params.inputSections.cpmd.convergenceCalfor``          | ``convergenceCalfor``          | ``CONVERGENCE CALFOR``           |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_RELAX``            | ``params.inputSections.cpmd.convergenceRelax``           | ``convergenceRelax``           | ``CONVERGENCE RELAX``            |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_RHOFIX``           | ``params.inputSections.cpmd.convergenceRhofix``          | ``convergenceRhofix``          | ``CONVERGENCE RHOFIX``           |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_INITIAL``          | ``params.inputSections.cpmd.convergenceInitial``         | ``convergenceInitial``         | ``CONVERGENCE INITIAL``          |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CONSTRAINT``       | ``params.inputSections.cpmd.convergenceConstraint``      | ``convergenceConstraint``      | ``CONVERGENCE CONSTRAINT``       |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.NOSE``                         | ``params.inputSections.cpmd.nose``                       | ``nose``                       | ``NOSE``                         |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.NOSE_IONS``                    | ``params.inputSections.cpmd.noseIons``                   | ``noseIons``                   | ``NOSE IONS``                    |

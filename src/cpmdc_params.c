@@ -1282,6 +1282,49 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->convergenceGeometry) != 0)
       return -1;
   }
+  if (sec->convergenceCell > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE CELL\n  %.10g\n",
+                   sec->convergenceCell) != 0)
+      return -1;
+  }
+  if (sec->convergenceAdapt > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE ADAPT\n  %.10g\n",
+                   sec->convergenceAdapt) != 0)
+      return -1;
+  }
+  if (sec->convergenceEnergy > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE ENERGY\n  %.10g\n",
+                   sec->convergenceEnergy) != 0)
+      return -1;
+  }
+  if (sec->convergenceCalfor > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE CALFOR\n  %.10g\n",
+                   sec->convergenceCalfor) != 0)
+      return -1;
+  }
+  if (sec->convergenceRelax > 0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE RELAX\n  %d\n",
+                   sec->convergenceRelax) != 0)
+      return -1;
+  }
+  if (sec->convergenceRhofix > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE RHOFIX\n  %.10g\n",
+                   sec->convergenceRhofix) != 0)
+      return -1;
+  }
+  if (sec->convergenceInitial > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CONVERGENCE INITIAL\n  %.10g\n",
+                   sec->convergenceInitial) != 0)
+      return -1;
+  }
+  if (sec->convergenceConstraint.str && sec->convergenceConstraint.len > 0) {
+    if (append_text(dst, dst_size, used, " CONVERGENCE CONSTRAINT\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->convergenceConstraint) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->timestep > 0.0) {
     if (append_fmt(dst, dst_size, used, " TIMESTEP\n  %.10g\n", sec->timestep) !=
         0)

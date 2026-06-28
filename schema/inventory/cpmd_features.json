@@ -2639,6 +2639,70 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.convergenceCell",
+      "kind": "structured_params_field",
+      "name": "convergenceCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceAdapt",
+      "kind": "structured_params_field",
+      "name": "convergenceAdapt",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceEnergy",
+      "kind": "structured_params_field",
+      "name": "convergenceEnergy",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceCalfor",
+      "kind": "structured_params_field",
+      "name": "convergenceCalfor",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceRelax",
+      "kind": "structured_params_field",
+      "name": "convergenceRelax",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceRhofix",
+      "kind": "structured_params_field",
+      "name": "convergenceRhofix",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceInitial",
+      "kind": "structured_params_field",
+      "name": "convergenceInitial",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.convergenceConstraint",
+      "kind": "structured_params_field",
+      "name": "convergenceConstraint",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.temperatureElectron",
       "kind": "structured_params_field",
       "name": "temperatureElectron",

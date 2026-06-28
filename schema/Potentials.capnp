@@ -227,6 +227,14 @@ struct CPMDCpmdSection {
   noseElectronsThermostat @69 :Text; # NOSE ELECTRONS payload.
   noseCellThermostat      @70 :Text; # NOSE CELL payload.
   noseParameters          @71 :Text; # NOSE PARAMETERS payload.
+  convergenceCell         @72 :Float64 = 0.0; # CONVERGENCE CELL; 0 => omit.
+  convergenceAdapt        @73 :Float64 = 0.0; # CONVERGENCE ADAPT; 0 => omit.
+  convergenceEnergy       @74 :Float64 = 0.0; # CONVERGENCE ENERGY; 0 => omit.
+  convergenceCalfor       @75 :Float64 = 0.0; # CONVERGENCE CALFOR; 0 => omit.
+  convergenceRelax        @76 :Int32 = 0; # CONVERGENCE RELAX; 0 => omit.
+  convergenceRhofix       @77 :Float64 = 0.0; # CONVERGENCE RHOFIX; 0 => omit.
+  convergenceInitial      @78 :Float64 = 0.0; # CONVERGENCE INITIAL; 0 => omit.
+  convergenceConstraint   @79 :Text; # CONVERGENCE CONSTRAINT payload.
 }
 
 struct CPMDDftSection {
