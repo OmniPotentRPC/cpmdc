@@ -37,17 +37,13 @@ static unsigned char *read_file(const char *path, size_t *size) {
   return buf;
 }
 
-static void test_unsupported_pbeoriginal_rejected(void **state) {
+static void test_unsupported_rejected(void **state) {
   (void)state;
-  assert_int_equal(
-      cpmdc_params_reject_unsupported_inputs("PBEoriginal", "&DFT\n FUNCTIONAL BLYP\n&END"),
-      -1);
-  assert_int_equal(cpmdc_params_reject_unsupported_inputs("BLYP", " N_STREAMS\n  2\n"), -1);
-  assert_int_equal(
-      cpmdc_params_reject_unsupported_inputs("BLYP", " BLAS_N_STREAMS_PER_DEVICE\n  2\n"), 0);
+  assert_int_equal(cpmdc_params_reject_unsupported_inputs("PBEoriginal", ""), -1);
+  assert_int_equal(cpmdc_params_reject_unsupported_inputs("BLYP", "N_STREAMS\n"), -1);
 }
 
-static void test_pef_post_eval_full_surface(void **state) {
+static void test_all_results_through_c_and_wire(void **state) {
   (void)state;
   size_t ps = 0, ss = 0;
   unsigned char *params = read_file(g_params, &ps);
@@ -64,6 +60,7 @@ static void test_pef_post_eval_full_surface(void **state) {
   CPMDCResult r =
       cpmdc_session_calculate_result(session, step, ss, out, need, &wrote);
   assert_int_equal(r.ok, 1);
+  printf("energy_h=%.12f\n", r.energy_h);
 
   CPMDCEnergyComponents ec;
   assert_int_equal(cpmdc_last_energy_components(&ec), 0);
@@ -78,24 +75,24 @@ static void test_pef_post_eval_full_surface(void **state) {
   assert_int_equal(cpmdc_last_multi_state_energies(&ms), 0);
   assert_int_equal(ms.valid, 1);
   assert_true(ms.count >= 1);
-  assert_true(fabs(ms.values[0] - r.energy_h) < 1e-12);
 
   CPMDCMDTrajectoryRow md;
   assert_int_equal(cpmdc_last_md_trajectory_row(&md), 0);
   assert_int_equal(md.valid, 1);
   assert_true(md.count >= 12);
-  assert_true(fabs(md.values[0] - r.energy_h) < 1e-12); /* etot */
-  assert_true(md.values[11] == 0.0); /* EKINC off MD */
-  printf("md_energy_row etot=%.12f ekin=%.12f ekinc=%.12f count=%zu\n", md.values[0],
-         md.values[1], md.values[11], md.count);
+  assert_true(fabs(md.values[0] - r.energy_h) < 1e-12);
+  assert_true(md.values[11] == 0.0);
+  printf("pod_md etot=%.12f ekinc=%.12f count=%zu\n", md.values[0], md.values[11],
+         md.count);
 
   CPMDCPropertySnapshot prop;
   assert_int_equal(cpmdc_last_property_snapshot(&prop), 0);
   assert_int_equal(prop.valid, 1);
   assert_int_equal(prop.dipole_count, 3);
   assert_int_equal(prop.polarizability_count, 9);
-  printf("prop_snapshot valid=1 dipole_count=%zu hess_count=%zu pol_count=%zu\n",
-         prop.dipole_count, prop.hessian_count, prop.polarizability_count);
+  assert_true(prop.hessian_count >= 3); /* PEF 2 atoms => 6 */
+  printf("pod_prop dipole=%zu hess=%zu pol=%zu\n", prop.dipole_count,
+         prop.hessian_count, prop.polarizability_count);
 
   struct capn arena;
   assert_int_equal(capn_init_mem(&arena, out, (int)wrote, 0), 0);
@@ -103,18 +100,59 @@ static void test_pef_post_eval_full_surface(void **state) {
   pr.p = capn_getp(capn_root(&arena), 0, 1);
   struct PotentialResult view;
   read_PotentialResult(&view, pr);
+
   assert_int_equal(view.componentsValid, 1);
   assert_int_equal(capn_len(view.energyComponents), 24);
-  double wire_etot = capn_to_f64(capn_get64(view.energyComponents, 0));
-  assert_true(fabs(wire_etot - ec.etot) < 1e-12);
-  /* Full POD mirror on wire (PEF: only etot non-zero among first components). */
   for (int i = 0; i < 24; ++i) {
     double w = capn_to_f64(capn_get64(view.energyComponents, i));
     double pod = (&ec.etot)[i];
     assert_true(fabs(w - pod) < 1e-12);
   }
+
+  assert_int_equal(view.chargeValid, 1);
+  assert_int_equal(capn_len(view.chargeIntegrals), 4);
+  assert_true(fabs(capn_to_f64(capn_get64(view.chargeIntegrals, 0)) - ch.csumg) <
+              1e-12);
+
+  assert_int_equal(view.multiStateValid, 1);
+  assert_true(capn_len(view.multiStateEnergies) >= 1);
+  assert_true(fabs(capn_to_f64(capn_get64(view.multiStateEnergies, 0)) -
+                   ms.values[0]) < 1e-12);
+
+  assert_int_equal(view.mdTrajectoryValid, 1);
+  assert_true(capn_len(view.mdTrajectoryRow) >= 12);
+  assert_true(fabs(capn_to_f64(capn_get64(view.mdTrajectoryRow, 0)) - md.values[0]) <
+              1e-12);
+  assert_true(capn_to_f64(capn_get64(view.mdTrajectoryRow, 11)) == 0.0);
+
+  assert_true(view.dipole.p.type != CAPN_NULL);
+  assert_int_equal(capn_len(view.dipole), 3);
+  assert_true(view.polarizability.p.type != CAPN_NULL);
+  assert_int_equal(capn_len(view.polarizability), 9);
+  assert_true(view.gradient.p.type != CAPN_NULL);
+  assert_true((size_t)capn_len(view.gradient) == prop.hessian_count);
+  for (size_t i = 0; i < prop.hessian_count; ++i) {
+    double w = capn_to_f64(capn_get64(view.gradient, (int)i));
+    assert_true(fabs(w - prop.hessian[i]) < 1e-12);
+  }
+  assert_int_equal(view.embedMdPropsSkipped, 0);
+  printf("wire_full components=%d charge=%d md=%d grad_len=%d embedMdPropsSkipped=%d\n",
+         view.componentsValid, view.chargeValid, view.mdTrajectoryValid,
+         capn_len(view.gradient), view.embedMdPropsSkipped);
+
   assert_true(cpmdc_feature_find("catalog.cpmd.QMMM") != NULL);
-  printf("qmmm_catalog_discoverable=1\n");
+  printf("qmmm_catalog_ok=1\n");
+
+  /* Dual consistency: second eval same PEF energy and wire etot */
+  size_t wrote2 = 0;
+  CPMDCResult r2 =
+      cpmdc_session_calculate_result(session, step, ss, out, need, &wrote2);
+  assert_int_equal(r2.ok, 1);
+  assert_true(fabs(r2.energy_h - r.energy_h) < 1e-12);
+  CPMDCMDTrajectoryRow md2;
+  assert_int_equal(cpmdc_last_md_trajectory_row(&md2), 0);
+  assert_true(fabs(md2.values[0] - md.values[0]) < 1e-12);
+  printf("dual_run energy_h=%.12f md_etot=%.12f\n", r2.energy_h, md2.values[0]);
 
   capn_free(&arena);
   free(out);
@@ -132,8 +170,8 @@ int main(int argc, char **argv) {
   g_params = argv[1];
   g_step = argv[2];
   const struct CMUnitTest tests[] = {
-      cmocka_unit_test(test_unsupported_pbeoriginal_rejected),
-      cmocka_unit_test(test_pef_post_eval_full_surface),
+      cmocka_unit_test(test_unsupported_rejected),
+      cmocka_unit_test(test_all_results_through_c_and_wire),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

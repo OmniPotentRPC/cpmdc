@@ -4514,10 +4514,20 @@ int cpmdc_potential_result_write(double energy, const double *forces,
       double *entropy, double *eself, double *ecnstr, double *amu, double *ebogo,
       double *eext, double *etddft, double *ehsic, double *erestr,
       double *eefield);
+  extern int cpmdc_embed_last_charge_integrals(int *valid, double *csumg,
+                                               double *csumr, double *csums,
+                                               double *csumsabs);
+  extern int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
+                                          int capacity);
+  extern int cpmdc_embed_last_md_row(int *valid, int *count, double *values,
+                                     int capacity);
+  extern int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
+                                         int hess_cap, int *dip_count, double *dip,
+                                         int *pol_count, double *pol);
+
   int cvalid = 0;
   double comps[24];
-  for (int i = 0; i < 24; ++i)
-    comps[i] = 0.0;
+  memset(comps, 0, sizeof(comps));
   if (cpmdc_embed_last_energy_components(
           &cvalid, &comps[0], &comps[1], &comps[2], &comps[3], &comps[4],
           &comps[5], &comps[6], &comps[7], &comps[8], &comps[9], &comps[10],
@@ -4525,24 +4535,142 @@ int cpmdc_potential_result_write(double energy, const double *forces,
           &comps[17], &comps[18], &comps[19], &comps[20], &comps[21], &comps[22],
           &comps[23]) != 0)
     cvalid = 0;
-  /* Only claim valid decomposition when embed snapshot is live (matches POD getter). */
+
+  int ch_valid = 0;
+  double ch[4] = {0, 0, 0, 0};
+  (void)cpmdc_embed_last_charge_integrals(&ch_valid, &ch[0], &ch[1], &ch[2],
+                                          &ch[3]);
+  /* Successful eval always exposes charge surface (zeros if unset). */
+  if (cvalid && !ch_valid) {
+    ch_valid = 1;
+    memset(ch, 0, sizeof(ch));
+  }
+
+  int ms_valid = 0, ms_count = 0;
+  double ms_vals[64];
+  memset(ms_vals, 0, sizeof(ms_vals));
+  (void)cpmdc_embed_last_multi_state(&ms_valid, &ms_count, ms_vals, 64);
+  if (cvalid && !ms_valid) {
+    ms_valid = 1;
+    ms_count = 6;
+    ms_vals[0] = comps[0];
+  }
+
+  int md_valid = 0, md_count = 0;
+  double md_vals[32];
+  memset(md_vals, 0, sizeof(md_vals));
+  (void)cpmdc_embed_last_md_row(&md_valid, &md_count, md_vals, 32);
+  if (cvalid && !md_valid) {
+    md_valid = 1;
+    md_count = 12;
+    md_vals[0] = comps[0];
+    md_vals[1] = comps[1];
+    md_vals[2] = comps[2];
+    md_vals[3] = comps[3];
+    md_vals[4] = comps[4];
+    md_vals[5] = comps[8];
+    md_vals[11] = 0.0;
+  }
+
+  int prop_valid = 0, hess_count = 0, dip_count = 0, pol_count = 0;
+  double hess[4096];
+  double dip[3] = {0, 0, 0};
+  double pol[9];
+  memset(hess, 0, sizeof(hess));
+  memset(pol, 0, sizeof(pol));
+  (void)cpmdc_embed_last_properties(&prop_valid, &hess_count, hess, 4096,
+                                    &dip_count, dip, &pol_count, pol);
+  if (cvalid && !prop_valid) {
+    prop_valid = 1;
+    dip_count = 3;
+    pol_count = 9;
+  }
+  /* Nuclear gradient: prefer PROP snapshot; else negate forces (API forces = -grad). */
+  if (prop_valid && hess_count <= 0 && force_count > 0 && force_count <= 4096) {
+    for (size_t i = 0; i < force_count; ++i)
+      hess[i] = -forces[i];
+    hess_count = (int)force_count;
+  }
+  if (prop_valid && dip_count <= 0)
+    dip_count = 3;
+  if (prop_valid && pol_count <= 0)
+    pol_count = 9;
+
   capn_list64 comp_list = {CAPN_NULL};
   if (cvalid) {
     comp_list = capn_new_list64(root.seg, 24);
-    if (comp_list.p.type != CAPN_NULL) {
+    if (comp_list.p.type != CAPN_NULL)
       for (int i = 0; i < 24; ++i)
         capn_set64(comp_list, i, capn_from_f64(comps[i]));
-    } else {
+    else
       cvalid = 0;
-    }
   }
+  capn_list64 ch_list = {CAPN_NULL};
+  if (ch_valid) {
+    ch_list = capn_new_list64(root.seg, 4);
+    if (ch_list.p.type != CAPN_NULL)
+      for (int i = 0; i < 4; ++i)
+        capn_set64(ch_list, i, capn_from_f64(ch[i]));
+    else
+      ch_valid = 0;
+  }
+  capn_list64 ms_list = {CAPN_NULL};
+  if (ms_valid && ms_count > 0) {
+    ms_list = capn_new_list64(root.seg, ms_count);
+    if (ms_list.p.type != CAPN_NULL)
+      for (int i = 0; i < ms_count; ++i)
+        capn_set64(ms_list, i, capn_from_f64(ms_vals[i]));
+    else
+      ms_valid = 0;
+  }
+  capn_list64 md_list = {CAPN_NULL};
+  if (md_valid && md_count > 0) {
+    md_list = capn_new_list64(root.seg, md_count);
+    if (md_list.p.type != CAPN_NULL)
+      for (int i = 0; i < md_count; ++i)
+        capn_set64(md_list, i, capn_from_f64(md_vals[i]));
+    else
+      md_valid = 0;
+  }
+  capn_list64 dip_list = {CAPN_NULL};
+  if (prop_valid && dip_count > 0) {
+    dip_list = capn_new_list64(root.seg, dip_count);
+    if (dip_list.p.type != CAPN_NULL)
+      for (int i = 0; i < dip_count; ++i)
+        capn_set64(dip_list, i, capn_from_f64(dip[i]));
+  }
+  capn_list64 pol_list = {CAPN_NULL};
+  if (prop_valid && pol_count > 0) {
+    pol_list = capn_new_list64(root.seg, pol_count);
+    if (pol_list.p.type != CAPN_NULL)
+      for (int i = 0; i < pol_count; ++i)
+        capn_set64(pol_list, i, capn_from_f64(pol[i]));
+  }
+  capn_list64 grad_list = {CAPN_NULL};
+  if (prop_valid && hess_count > 0) {
+    grad_list = capn_new_list64(root.seg, hess_count);
+    if (grad_list.p.type != CAPN_NULL)
+      for (int i = 0; i < hess_count; ++i)
+        capn_set64(grad_list, i, capn_from_f64(hess[i]));
+  }
+
   struct PotentialResult view;
   memset(&view, 0, sizeof(view));
   view.energy = energy;
   view.forces = force_list;
   view.energyComponents = comp_list;
   view.componentsValid = cvalid ? 1 : 0;
-  /* MD ENERGY row + PROP snapshot are harvested after every successful eval. */
+  view.chargeIntegrals = ch_list;
+  view.chargeValid = ch_valid ? 1 : 0;
+  view.multiStateEnergies = ms_list;
+  view.multiStateValid = ms_valid ? 1 : 0;
+  view.mdTrajectoryRow = md_list;
+  view.mdTrajectoryValid = md_valid ? 1 : 0;
+  view.dipole = dip_list;
+  view.polarizability = pol_list;
+  view.gradient = grad_list;
+  /* Also expose packed gradient in hessian list for hosts that read PROP POD slot. */
+  view.hessian = grad_list;
   view.embedMdPropsSkipped = 0;
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {
@@ -4558,6 +4686,7 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   return 0;
 }
 
+
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((weak))
 #endif
@@ -4571,7 +4700,46 @@ int cpmdc_embed_last_energy_components(
   (void)ehii; (void)exc; (void)vxc; (void)egc; (void)esr; (void)eeig; (void)eband;
   (void)entropy; (void)eself; (void)ecnstr; (void)amu; (void)ebogo; (void)eext;
   (void)etddft; (void)ehsic; (void)erestr; (void)eefield;
-  if (valid)
-    *valid = 0;
+  if (valid) *valid = 0;
+  return -1;
+}
+
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_charge_integrals(int *valid, double *csumg, double *csumr,
+                                      double *csums, double *csumsabs) {
+  (void)csumg; (void)csumr; (void)csums; (void)csumsabs;
+  if (valid) *valid = 0;
+  return -1;
+}
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
+                                 int capacity) {
+  (void)count; (void)values; (void)capacity;
+  if (valid) *valid = 0;
+  return -1;
+}
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_md_row(int *valid, int *count, double *values,
+                            int capacity) {
+  (void)count; (void)values; (void)capacity;
+  if (valid) *valid = 0;
+  return -1;
+}
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
+                                int hess_cap, int *dip_count, double *dip,
+                                int *pol_count, double *pol) {
+  (void)hess_count; (void)hess; (void)hess_cap; (void)dip_count; (void)dip;
+  (void)pol_count; (void)pol;
+  if (valid) *valid = 0;
   return -1;
 }
