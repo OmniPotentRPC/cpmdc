@@ -560,6 +560,7 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.DAVIDSON_DIAGONALIZATION~ | ~params.inputSections.cpmd.davidsonDiagonalization~ | ~davidsonDiagonalization~ | ~DAVIDSON DIAGONALIZATION~ |
 | ~catalog.cpmd.DAVIDSON_PARAMETERS~ | ~params.inputSections.cpmd.davidsonParameters~ | ~davidsonParameters~ | ~DAVIDSON PARAMETERS~ |
 | ~catalog.cpmd.ALEXANDER_MIXING~ | ~params.inputSections.cpmd.alexanderMixing~ | ~alexanderMixing~ | ~ALEXANDER MIXING~ |
+| ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingGspace~ | ~andersonMixingGspace~ | ~ANDERSON MIXING G-SPACE~ |
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingCount~ | ~andersonMixingCount~ | ~ANDERSON MIXING N=~ |
 | ~catalog.cpmd.ANDERSON_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.andersonMixingPayload~ | ~andersonMixingPayload~ | ~ANDERSON MIXING payload~ |
 | ~catalog.cpmd.BROYDEN_MIXING~ | ~params.inputSections.cpmd.broydenMixingOptions~ | ~broydenMixingOptions~ | ~BROYDEN MIXING~ |

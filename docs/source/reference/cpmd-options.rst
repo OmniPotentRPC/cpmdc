@@ -1219,6 +1219,8 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.ALEXANDER_MIXING``                | ``params.inputSections.cpmd.alexanderMixing``                 | ``alexanderMixing``                 | ``ALEXANDER MIXING``                |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ANDERSON_MIXING``                 | ``params.inputSections.cpmd.andersonMixingGspace``            | ``andersonMixingGspace``            | ``ANDERSON MIXING G-SPACE``         |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.ANDERSON_MIXING``                 | ``params.inputSections.cpmd.andersonMixingCount``             | ``andersonMixingCount``             | ``ANDERSON MIXING N=``              |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.ANDERSON_MIXING_PAYLOAD``         | ``params.inputSections.cpmd.andersonMixingPayload``           | ``andersonMixingPayload``           | ``ANDERSON MIXING payload``         |
