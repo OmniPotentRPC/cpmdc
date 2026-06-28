@@ -750,26 +750,44 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.DIIS_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.diisMixingPayload~ | ~diisMixingPayload~ | ~DIIS MIXING payload~ |
 | ~catalog.cpmd.MOVERHO~ | ~params.inputSections.cpmd.moverhoMixing~ | ~moverhoMixing~ | ~MOVERHO~ |
 | ~catalog.cpmd.EXTRAPOLATE_WFN~ | ~params.inputSections.cpmd.extrapolateWfnOptions~ | ~extrapolateWfnOptions~ | ~EXTRAPOLATE WFN~ |
+| ~catalog.cpmd.EXTRAPOLATE_WFN_STORE~ | ~params.inputSections.cpmd.extrapolateWfnOptions~ | ~extrapolateWfnOptions~ | ~EXTRAPOLATE WFN STORE~ |
+| ~catalog.cpmd.EXTRAPOLATE_WFN_ASPC~ | ~params.inputSections.cpmd.extrapolateWfnOptions~ | ~extrapolateWfnOptions~ | ~EXTRAPOLATE WFN ASPC~ |
+| ~catalog.cpmd.EXTRAPOLATE_WFN_CSTEPS~ | ~params.inputSections.cpmd.extrapolateWfnOptions~ | ~extrapolateWfnOptions~ | ~EXTRAPOLATE WFN CSTEPS~ |
 | ~catalog.cpmd.EXTRAPOLATE_WFN_ORDER~ | ~params.inputSections.cpmd.extrapolateWfnOrder~ | ~extrapolateWfnOrder~ | ~EXTRAPOLATE WFN payload~ |
 | ~catalog.cpmd.EXTRAPOLATE_CONSTRAINT~ | ~params.inputSections.cpmd.extrapolateConstraintOrder~ | ~extrapolateConstraintOrder~ | ~EXTRAPOLATE CONSTRAINT~ |
 | ~catalog.cpmd.TSDE~ | ~params.inputSections.cpmd.tsdeOptions~ | ~tsdeOptions~ | ~TSDE~ |
+| ~catalog.cpmd.TSDE_NOPREC~ | ~params.inputSections.cpmd.tsdeOptions~ | ~tsdeOptions~ | ~TSDE NOPREC~ |
 | ~catalog.cpmd.TSDP~ | ~params.inputSections.cpmd.tsdpOptions~ | ~tsdpOptions~ | ~TSDP~ |
+| ~catalog.cpmd.TSDP_LINE~ | ~params.inputSections.cpmd.tsdpOptions~ | ~tsdpOptions~ | ~TSDP LINE~ |
 | ~catalog.cpmd.TCGP~ | ~params.inputSections.cpmd.tcgp~ | ~tcgp~ | ~TCGP~ |
 | ~catalog.cpmd.TSDC~ | ~params.inputSections.cpmd.tsdc~ | ~tsdc~ | ~TSDC~ |
 | ~catalog.cpmd.STEEPEST_DESCENT~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT~ |
+| ~catalog.cpmd.STEEPEST_DESCENT_ELECTRONS~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT ELECTRONS~ |
+| ~catalog.cpmd.STEEPEST_DESCENT_NOPREC~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT NOPREC~ |
+| ~catalog.cpmd.STEEPEST_DESCENT_IONS~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT IONS~ |
+| ~catalog.cpmd.STEEPEST_DESCENT_LINE~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT LINE~ |
+| ~catalog.cpmd.STEEPEST_DESCENT_CELL~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT CELL~ |
 | ~catalog.cpmd.CONJUGATE_GRADIENT~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT~ |
 | ~catalog.cpmd.CONJUGATE_GRADIENTS~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENTS~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENT_ELECTRONS~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT ELECTRONS~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENT_NOPREC~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT NOPREC~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENT_MINIMIZE~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT MINIMIZE~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENT_IONS~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT IONS~ |
 | ~catalog.cpmd.ODIIS_OPTIONS~ | ~params.inputSections.cpmd.odiisOptions~ | ~odiisOptions~ | ~ODIIS~ |
+| ~catalog.cpmd.ODIIS_NOPREC~ | ~params.inputSections.cpmd.odiisOptions~ | ~odiisOptions~ | ~ODIIS NOPREC~ |
+| ~catalog.cpmd.ODIIS_NO_RESET~ | ~params.inputSections.cpmd.odiisOptions~ | ~odiisOptions~ | ~ODIIS NO_RESET~ |
 | ~catalog.cpmd.ODIIS_VECTORS~ | ~params.inputSections.cpmd.odiisVectors~ | ~odiisVectors~ | ~ODIIS payload~ |
 | ~catalog.cpmd.HAMILTONIAN_CUTOFF~ | ~params.inputSections.cpmd.hamiltonianCutoff~ | ~hamiltonianCutoff~ | ~HAMILTONIAN CUTOFF~ |
 | ~catalog.cpmd.GDIIS~ | ~params.inputSections.cpmd.gdiisVectors~ | ~gdiisVectors~ | ~GDIIS~ |
 | ~catalog.cpmd.LBFGS~ | ~params.inputSections.cpmd.lbfgsOptions~ | ~lbfgsOptions~ | ~LBFGS~ |
+| ~catalog.cpmd.LBFGS_NREM~ | ~params.inputSections.cpmd.lbfgsOptions~ | ~lbfgsOptions~ | ~LBFGS NREM~ |
 | ~catalog.cpmd.LBFGS_PAYLOAD~ | ~params.inputSections.cpmd.lbfgsPayload~ | ~lbfgsPayload~ | ~LBFGS payload~ |
 | ~catalog.cpmd.LBFGS_NTRUST~ | ~params.inputSections.cpmd.lbfgsNtrust~ | ~lbfgsNtrust~ | ~LBFGS NTRUST~ |
 | ~catalog.cpmd.LBFGS_NRESTT~ | ~params.inputSections.cpmd.lbfgsNrestt~ | ~lbfgsNrestt~ | ~LBFGS NRESTT~ |
 | ~catalog.cpmd.LBFGS_NTRSTR~ | ~params.inputSections.cpmd.lbfgsNtrstr~ | ~lbfgsNtrstr~ | ~LBFGS NTRSTR~ |
 | ~catalog.cpmd.LBFGS_TRUSTR~ | ~params.inputSections.cpmd.lbfgsTrustr~ | ~lbfgsTrustr~ | ~LBFGS TRUSTR~ |
 | ~catalog.cpmd.PRFO~ | ~params.inputSections.cpmd.prfoOptions~ | ~prfoOptions~ | ~PRFO~ |
+| ~catalog.cpmd.PRFO_NVAR~ | ~params.inputSections.cpmd.prfoOptions~ | ~prfoOptions~ | ~PRFO NVAR~ |
 | ~catalog.cpmd.PRFO_PAYLOAD~ | ~params.inputSections.cpmd.prfoPayload~ | ~prfoPayload~ | ~PRFO payload~ |
 | ~catalog.cpmd.PRFO_MODE~ | ~params.inputSections.cpmd.prfoMode~ | ~prfoMode~ | ~PRFO MODE~ |
 | ~catalog.cpmd.PRFO_MDLOCK~ | ~params.inputSections.cpmd.prfoMdlock~ | ~prfoMdlock~ | ~PRFO MDLOCK~ |
@@ -793,6 +811,11 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.INR_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.inrParametersPayload~ | ~inrParametersPayload~ | ~INR PARAMETERS payload~ |
 | ~catalog.cpmd.TURBOCICCIO~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~TURBOCICCIO~ |
 | ~catalog.cpmd.IMPLICIT_NEWTON~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_CONTINUE~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON CONTINUE~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_PRECONDITIONED~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON PRECONDITIONED~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_ALTERNATIVE~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON ALTERNATIVE~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_STEP~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON STEP~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_VERBOSE~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON VERBOSE~ |
 | ~catalog.cpmd.IMPLICIT_NEWTON_MAXITER~ | ~params.inputSections.cpmd.implicitNewtonMaxIter~ | ~implicitNewtonMaxIter~ | ~IMPLICIT NEWTON payload~ |
 | ~catalog.cpmd.MIXSD~ | ~params.inputSections.cpmd.mixsd~ | ~mixsd~ | ~MIXSD~ |
 | ~catalog.cpmd.MIXDIIS~ | ~params.inputSections.cpmd.mixdiis~ | ~mixdiis~ | ~MIXDIIS~ |

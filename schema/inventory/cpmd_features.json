@@ -2864,6 +2864,33 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN_STORE",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE WFN STORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN_ASPC",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE WFN ASPC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN_CSTEPS",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE WFN CSTEPS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN_ORDER",
       "kind": "cpmd_keyword",
       "name": "EXTRAPOLATE WFN payload",
@@ -2891,9 +2918,27 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.TSDE_NOPREC",
+      "kind": "cpmd_keyword",
+      "name": "TSDE NOPREC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.TSDP",
       "kind": "cpmd_keyword",
       "name": "TSDP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TSDP_LINE",
+      "kind": "cpmd_keyword",
+      "name": "TSDP LINE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2927,6 +2972,51 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT_NOPREC",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT NOPREC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT_IONS",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT_LINE",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT LINE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STEEPEST_DESCENT_CELL",
+      "kind": "cpmd_keyword",
+      "name": "STEEPEST DESCENT CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT",
       "kind": "cpmd_keyword",
       "name": "CONJUGATE GRADIENT",
@@ -2945,9 +3035,63 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENT ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT_NOPREC",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENT NOPREC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT_MINIMIZE",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENT MINIMIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT_IONS",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENT IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.ODIIS_OPTIONS",
       "kind": "cpmd_keyword",
       "name": "ODIIS options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ODIIS_NOPREC",
+      "kind": "cpmd_keyword",
+      "name": "ODIIS NOPREC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ODIIS_NO_RESET",
+      "kind": "cpmd_keyword",
+      "name": "ODIIS NO_RESET",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2984,6 +3128,15 @@
       "feature_id": "catalog.cpmd.LBFGS",
       "kind": "cpmd_keyword",
       "name": "LBFGS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LBFGS_NREM",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS NREM",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3038,6 +3191,15 @@
       "feature_id": "catalog.cpmd.PRFO",
       "kind": "cpmd_keyword",
       "name": "PRFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_NVAR",
+      "kind": "cpmd_keyword",
+      "name": "PRFO NVAR",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3245,6 +3407,51 @@
       "feature_id": "catalog.cpmd.IMPLICIT_NEWTON",
       "kind": "cpmd_keyword",
       "name": "IMPLICIT NEWTON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_CONTINUE",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON CONTINUE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_PRECONDITIONED",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON PRECONDITIONED",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_ALTERNATIVE",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON ALTERNATIVE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_STEP",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON STEP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_VERBOSE",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON VERBOSE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
