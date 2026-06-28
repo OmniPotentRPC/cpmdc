@@ -3665,6 +3665,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.STRESS_TENSOR",
+      "kind": "cpmd_keyword",
+      "name": "STRESS TENSOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.STRESS_TENSOR_SAMPLE",
       "kind": "cpmd_keyword",
       "name": "STRESS TENSOR",
@@ -3971,6 +3980,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.SPLINE",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.SPLINE_OPTIONS",
       "kind": "cpmd_keyword",
       "name": "SPLINE",
@@ -3992,6 +4010,15 @@
       "feature_id": "catalog.cpmd.SPLINE_RANGE",
       "kind": "cpmd_keyword",
       "name": "SPLINE RANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FINITE_DIFFERENCE",
+      "kind": "cpmd_keyword",
+      "name": "FINITE DIFFERENCE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
