@@ -2747,6 +2747,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.INR_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "INR PARAMETER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.INR_PARAMETERS",
       "kind": "cpmd_keyword",
       "name": "INR PARAMETERS",
@@ -2756,9 +2765,36 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.TURBOCICCIO_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "TURBOCICCIO PARAMETER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TURBOCICCIO_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "TURBOCICCIO PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.INR_PARAMETERS_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "INR PARAMETERS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TURBOCICCIO",
+      "kind": "cpmd_keyword",
+      "name": "TURBOCICCIO",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
