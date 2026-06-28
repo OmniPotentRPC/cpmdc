@@ -35,8 +35,13 @@ def main() -> int:
         "cpmd-option-token-coverage",
         "cpmd-typed-render-field-coverage",
     ]
+    docs_guards = [
+        "examples-documented",
+        "readme-navigation",
+    ]
     failures: list[str] = []
     failures.extend(require_text(root / "README.md", inventory_guards))
+    failures.extend(require_text(root / "README.md", docs_guards))
     failures.extend(
         require_text(
             root / "README.md",
@@ -49,6 +54,9 @@ def main() -> int:
     )
     failures.extend(
         require_text(root / "docs/orgmode/contributing/index.org", inventory_guards)
+    )
+    failures.extend(
+        require_text(root / "docs/orgmode/contributing/index.org", docs_guards)
     )
     failures.extend(
         require_text(

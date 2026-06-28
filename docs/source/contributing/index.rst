@@ -46,6 +46,10 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | Typed render field coverage      | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``                |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Public host example docs         | ``meson test -C build examples-documented --print-errorlogs``                             |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| README and quickstart navigation | ``meson test -C build readme-navigation --print-errorlogs``                               |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | OpenCPMD archive build           | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs``       |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 
@@ -74,7 +78,10 @@ shared-library ``dlopen`` test to load every ``abi_symbols`` entry from
 fixture inline tokens tied to render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
 ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
-or render assertions.
+or render assertions. ``examples-documented`` requires public docs to
+point at the runnable ``examples/host_step.c`` host program.
+``readme-navigation`` keeps the README and quickstart docs focused on
+entry paths, work-loop labels, and current wording.
 
 Add a typed CPMD keyword
 ========================
