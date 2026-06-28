@@ -1441,6 +1441,90 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if ((sec->vibrationalAnalysisOptions.str &&
+       sec->vibrationalAnalysisOptions.len > 0) ||
+      sec->vibrationalAnalysisSample > 0 ||
+      sec->vibrationalAnalysisMode > 0) {
+    if (append_text(dst, dst_size, used, " VIBRATIONAL ANALYSIS") != 0)
+      return -1;
+    if (sec->vibrationalAnalysisOptions.str &&
+        sec->vibrationalAnalysisOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->vibrationalAnalysisOptions) != 0)
+        return -1;
+    }
+    if (sec->vibrationalAnalysisSample > 0 &&
+        append_text(dst, dst_size, used, " SAMPLE") != 0)
+      return -1;
+    if (sec->vibrationalAnalysisMode > 0 &&
+        append_fmt(dst, dst_size, used, " MODE=%d",
+                   sec->vibrationalAnalysisMode) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->vibrationalAnalysisSample > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->vibrationalAnalysisSample) != 0)
+      return -1;
+  }
+  if (sec->electronicSpectra) {
+    if (append_text(dst, dst_size, used, " ELECTRONIC SPECTRA\n") != 0)
+      return -1;
+  }
+  int n_spin_orbit = list32_len((capn_list32 *)&sec->spinOrbitCouplingStates);
+  if (n_spin_orbit < 0)
+    return -1;
+  if (n_spin_orbit > 0) {
+    if (n_spin_orbit != 2)
+      return -1;
+    if (append_text(dst, dst_size, used, " SPIN-ORBIT COUPLING\n") != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used,
+                             (capn_list32 *)&sec->spinOrbitCouplingStates,
+                             2) != 0)
+      return -1;
+  }
+  if (sec->propagationSpectra) {
+    if (append_text(dst, dst_size, used, " PROPAGATION SPECTRA\n") != 0)
+      return -1;
+  }
+  if (sec->propagationDistrub) {
+    if (append_text(dst, dst_size, used, " PROPAGATION DISTRUB\n") != 0)
+      return -1;
+  }
+  if (sec->gaugePulse) {
+    if (append_text(dst, dst_size, used, " GAUGEPULSE\n") != 0)
+      return -1;
+  }
+  if (sec->gaugeFieldFrequency > 0.0) {
+    if (append_fmt(dst, dst_size, used, " GAUGEFIELD\n  %.10g\n",
+                   sec->gaugeFieldFrequency) != 0)
+      return -1;
+  }
+  if (sec->nacv) {
+    if (append_text(dst, dst_size, used, " NACV\n") != 0)
+      return -1;
+  }
+  if (sec->orbitalHardnessOptions.str &&
+      sec->orbitalHardnessOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " ORBITAL HARDNESS ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->orbitalHardnessOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->pathIntegral) {
+    if (append_text(dst, dst_size, used, " PATH INTEGRAL\n") != 0)
+      return -1;
+  }
+  if (sec->pathMinimization) {
+    if (append_text(dst, dst_size, used, " PATH MINIMIZATION\n") != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)

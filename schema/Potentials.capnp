@@ -355,6 +355,19 @@ struct CPMDCpmdSection {
   fixrhoLoop              @197 :Text; # FIXRHO LOOP min/max payload.
   fixrhoWftol             @198 :Float64 = 0.0; # FIXRHO WFTOL; 0 => omit.
   bogoliubovCorrection    @199 :Text; # BOGOLIUBOV CORRECTION inline option.
+  vibrationalAnalysisOptions @200 :Text; # VIBRATIONAL ANALYSIS inline options.
+  vibrationalAnalysisSample @201 :Int32 = 0; # VIBRATIONAL ANALYSIS SAMPLE payload.
+  vibrationalAnalysisMode @202 :Int32 = 0; # VIBRATIONAL ANALYSIS MODE= value.
+  electronicSpectra       @203 :Bool = false; # ELECTRONIC SPECTRA.
+  spinOrbitCouplingStates @204 :List(Int32); # SPIN-ORBIT COUPLING state pair.
+  propagationSpectra      @205 :Bool = false; # PROPAGATION SPECTRA.
+  propagationDistrub      @206 :Bool = false; # PROPAGATION DISTRUB.
+  gaugePulse              @207 :Bool = false; # GAUGEPULSE.
+  gaugeFieldFrequency     @208 :Float64 = 0.0; # GAUGEFIELD payload; 0 => omit.
+  nacv                    @209 :Bool = false; # NACV.
+  orbitalHardnessOptions  @210 :Text; # ORBITAL HARDNESS inline options.
+  pathIntegral            @211 :Bool = false; # PATH INTEGRAL.
+  pathMinimization        @212 :Bool = false; # PATH MINIMIZATION.
 }
 
 struct CPMDDftSection {

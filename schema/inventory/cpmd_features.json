@@ -1822,6 +1822,123 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_MODE",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS MODE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ELECTRONIC_SPECTRA",
+      "kind": "cpmd_keyword",
+      "name": "ELECTRONIC SPECTRA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPIN_ORBIT_COUPLING",
+      "kind": "cpmd_keyword",
+      "name": "SPIN-ORBIT COUPLING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PROPAGATION_SPECTRA",
+      "kind": "cpmd_keyword",
+      "name": "PROPAGATION SPECTRA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PROPAGATION_DISTRUB",
+      "kind": "cpmd_keyword",
+      "name": "PROPAGATION DISTRUB",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GAUGEPULSE",
+      "kind": "cpmd_keyword",
+      "name": "GAUGEPULSE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GAUGEFIELD",
+      "kind": "cpmd_keyword",
+      "name": "GAUGEFIELD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NACV",
+      "kind": "cpmd_keyword",
+      "name": "NACV",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ORBITAL_HARDNESS",
+      "kind": "cpmd_keyword",
+      "name": "ORBITAL HARDNESS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PATH_INTEGRAL",
+      "kind": "cpmd_keyword",
+      "name": "PATH INTEGRAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PATH_MINIMIZATION",
+      "kind": "cpmd_keyword",
+      "name": "PATH MINIMIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -4662,6 +4779,110 @@
       "feature_id": "params.inputSections.cpmd.bogoliubovCorrection",
       "kind": "structured_params_field",
       "name": "bogoliubovCorrection",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vibrationalAnalysisOptions",
+      "kind": "structured_params_field",
+      "name": "vibrationalAnalysisOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vibrationalAnalysisSample",
+      "kind": "structured_params_field",
+      "name": "vibrationalAnalysisSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vibrationalAnalysisMode",
+      "kind": "structured_params_field",
+      "name": "vibrationalAnalysisMode",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.electronicSpectra",
+      "kind": "structured_params_field",
+      "name": "electronicSpectra",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.spinOrbitCouplingStates",
+      "kind": "structured_params_field",
+      "name": "spinOrbitCouplingStates",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.propagationSpectra",
+      "kind": "structured_params_field",
+      "name": "propagationSpectra",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.propagationDistrub",
+      "kind": "structured_params_field",
+      "name": "propagationDistrub",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gaugePulse",
+      "kind": "structured_params_field",
+      "name": "gaugePulse",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gaugeFieldFrequency",
+      "kind": "structured_params_field",
+      "name": "gaugeFieldFrequency",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nacv",
+      "kind": "structured_params_field",
+      "name": "nacv",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.orbitalHardnessOptions",
+      "kind": "structured_params_field",
+      "name": "orbitalHardnessOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.pathIntegral",
+      "kind": "structured_params_field",
+      "name": "pathIntegral",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.pathMinimization",
+      "kind": "structured_params_field",
+      "name": "pathMinimization",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

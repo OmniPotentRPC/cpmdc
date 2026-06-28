@@ -1155,6 +1155,32 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.BOGOLIUBOV_CORRECTION``           | ``params.inputSections.cpmd.bogoliubovCorrection``            | ``bogoliubovCorrection``            | ``BOGOLIUBOV CORRECTION``           |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.VIBRATIONAL_ANALYSIS``            | ``params.inputSections.cpmd.vibrationalAnalysisOptions``      | ``vibrationalAnalysisOptions``      | ``VIBRATIONAL ANALYSIS``            |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.VIBRATIONAL_ANALYSIS_SAMPLE``     | ``params.inputSections.cpmd.vibrationalAnalysisSample``       | ``vibrationalAnalysisSample``       | ``VIBRATIONAL ANALYSIS SAMPLE``     |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.VIBRATIONAL_ANALYSIS_MODE``       | ``params.inputSections.cpmd.vibrationalAnalysisMode``         | ``vibrationalAnalysisMode``         | ``VIBRATIONAL ANALYSIS MODE=``      |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ELECTRONIC_SPECTRA``              | ``params.inputSections.cpmd.electronicSpectra``               | ``electronicSpectra``               | ``ELECTRONIC SPECTRA``              |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.SPIN_ORBIT_COUPLING``             | ``params.inputSections.cpmd.spinOrbitCouplingStates``         | ``spinOrbitCouplingStates``         | ``SPIN-ORBIT COUPLING``             |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.PROPAGATION_SPECTRA``             | ``params.inputSections.cpmd.propagationSpectra``              | ``propagationSpectra``              | ``PROPAGATION SPECTRA``             |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.PROPAGATION_DISTRUB``             | ``params.inputSections.cpmd.propagationDistrub``              | ``propagationDistrub``              | ``PROPAGATION DISTRUB``             |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.GAUGEPULSE``                      | ``params.inputSections.cpmd.gaugePulse``                      | ``gaugePulse``                      | ``GAUGEPULSE``                      |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.GAUGEFIELD``                      | ``params.inputSections.cpmd.gaugeFieldFrequency``             | ``gaugeFieldFrequency``             | ``GAUGEFIELD``                      |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.NACV``                            | ``params.inputSections.cpmd.nacv``                            | ``nacv``                            | ``NACV``                            |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ORBITAL_HARDNESS``                | ``params.inputSections.cpmd.orbitalHardnessOptions``          | ``orbitalHardnessOptions``          | ``ORBITAL HARDNESS``                |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.PATH_INTEGRAL``                   | ``params.inputSections.cpmd.pathIntegral``                    | ``pathIntegral``                    | ``PATH INTEGRAL``                   |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.PATH_MINIMIZATION``               | ``params.inputSections.cpmd.pathMinimization``                | ``pathMinimization``                | ``PATH MINIMIZATION``               |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.PROPERTIES``                      | ``params.inputSections.cpmd.properties``                      | ``properties``                      | ``PROPERTIES``                      |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.VDW_CORRECTION``                  | ``params.inputSections.cpmd.vdwCorrection``                   | ``vdwCorrection``                   | ``VDW CORRECTION``                  |
