@@ -1813,6 +1813,95 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (append_text_keyword_arg(dst, dst_size, used, "COMPRESS", sec->compress) !=
+      0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "MEMORY", sec->memory) != 0)
+    return -1;
+  if (sec->realSpaceWfnKeep || sec->realSpaceWfnSize > 0.0) {
+    if (append_text(dst, dst_size, used, " REAL SPACE WFN") != 0)
+      return -1;
+    if (sec->realSpaceWfnKeep &&
+        append_text(dst, dst_size, used, " KEEP") != 0)
+      return -1;
+    if (sec->realSpaceWfnSize > 0.0 &&
+        append_text(dst, dst_size, used, " SIZE") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->realSpaceWfnSize > 0.0 &&
+        append_fmt(dst, dst_size, used, "  %.10g\n",
+                   sec->realSpaceWfnSize) != 0)
+      return -1;
+  }
+  if (sec->splineOptions.str && sec->splineOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " SPLINE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->splineOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->splinePoints > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n", sec->splinePoints) != 0)
+      return -1;
+    if (sec->splineRange > 0.0 &&
+        append_fmt(dst, dst_size, used, "  %.10g\n", sec->splineRange) != 0)
+      return -1;
+  }
+  if (sec->finiteDifferences.str && sec->finiteDifferences.len > 0) {
+    if (append_text(dst, dst_size, used, " FINITE DIFFERENCES\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->finiteDifferences) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->taskGroups.str && sec->taskGroups.len > 0 &&
+      sec->taskGroupsCount > 0) {
+    if (append_text(dst, dst_size, used, " TASKGROUPS ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->taskGroups) != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "\n  %d\n",
+                   sec->taskGroupsCount) != 0)
+      return -1;
+  }
+  if (sec->distributeFnl.str && sec->distributeFnl.len > 0) {
+    if (append_text(dst, dst_size, used, " DISTRIBUTE FNL ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->distributeFnl) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->filePath.str && sec->filePath.len > 0) {
+    if (append_text(dst, dst_size, used, " FILEPATH\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->filePath) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->benchmark.str && sec->benchmark.len > 0) {
+    if (append_text(dst, dst_size, used, " BENCHMARK\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->benchmark) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->mirror) {
+    if (append_text(dst, dst_size, used, " MIRROR\n") != 0)
+      return -1;
+  }
+  if (sec->shiftPotential.str && sec->shiftPotential.len > 0) {
+    if (append_text(dst, dst_size, used, " SHIFT POTENTIAL\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->shiftPotential) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;

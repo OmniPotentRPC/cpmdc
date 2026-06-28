@@ -3431,6 +3431,126 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.compress",
+      "kind": "structured_params_field",
+      "name": "compress",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.memory",
+      "kind": "structured_params_field",
+      "name": "memory",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.realSpaceWfnKeep",
+      "kind": "structured_params_field",
+      "name": "realSpaceWfnKeep",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.realSpaceWfnSize",
+      "kind": "structured_params_field",
+      "name": "realSpaceWfnSize",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.splineOptions",
+      "kind": "structured_params_field",
+      "name": "splineOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.splinePoints",
+      "kind": "structured_params_field",
+      "name": "splinePoints",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.splineRange",
+      "kind": "structured_params_field",
+      "name": "splineRange",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.finiteDifferences",
+      "kind": "structured_params_field",
+      "name": "finiteDifferences",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.taskGroups",
+      "kind": "structured_params_field",
+      "name": "taskGroups",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.taskGroupsCount",
+      "kind": "structured_params_field",
+      "name": "taskGroupsCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.distributeFnl",
+      "kind": "structured_params_field",
+      "name": "distributeFnl",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.filePath",
+      "kind": "structured_params_field",
+      "name": "filePath",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.benchmark",
+      "kind": "structured_params_field",
+      "name": "benchmark",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.mirror",
+      "kind": "structured_params_field",
+      "name": "mirror",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.shiftPotential",
+      "kind": "structured_params_field",
+      "name": "shiftPotential",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
       "kind": "structured_params_field",
       "name": "centerMoleculeOff",

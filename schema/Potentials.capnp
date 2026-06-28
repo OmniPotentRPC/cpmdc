@@ -279,6 +279,21 @@ struct CPMDCpmdSection {
   wannierMolecular        @121 :Bool = false; # WANNIER MOLECULAR.
   wannierWfnOutOptions    @122 :Text; # WANNIER WFNOUT inline options.
   wannierWfnOutPayload    @123 :Text; # WANNIER WFNOUT payload.
+  compress                @124 :Text; # COMPRESS inline option.
+  memory                  @125 :Text; # MEMORY inline options.
+  realSpaceWfnKeep        @126 :Bool = false; # REAL SPACE WFN KEEP.
+  realSpaceWfnSize        @127 :Float64 = 0.0; # REAL SPACE WFN SIZE; 0 => omit.
+  splineOptions           @128 :Text; # SPLINE inline options.
+  splinePoints            @129 :Int32 = 0; # SPLINE POINTS payload; 0 => omit.
+  splineRange             @130 :Float64 = 0.0; # SPLINE RANGE payload; 0 => omit.
+  finiteDifferences       @131 :Text; # FINITE DIFFERENCES payload.
+  taskGroups              @132 :Text; # TASKGROUPS inline option.
+  taskGroupsCount         @133 :Int32 = 0; # TASKGROUPS count; 0 => omit.
+  distributeFnl           @134 :Text; # DISTRIBUTE FNL ON/OFF.
+  filePath                @135 :Text; # FILEPATH payload.
+  benchmark               @136 :Text; # BENCHMARK payload.
+  mirror                  @137 :Bool = false; # MIRROR.
+  shiftPotential          @138 :Text; # SHIFT POTENTIAL payload.
 }
 
 struct CPMDDftSection {

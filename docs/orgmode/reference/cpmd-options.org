@@ -441,6 +441,21 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.WANNIER_MOLECULAR~ | ~params.inputSections.cpmd.wannierMolecular~ | ~wannierMolecular~ | ~WANNIER MOLECULAR~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_OPTIONS~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.wannierWfnOutPayload~ | ~wannierWfnOutPayload~ | ~WANNIER WFNOUT payload~ |
+| ~catalog.cpmd.COMPRESS~ | ~params.inputSections.cpmd.compress~ | ~compress~ | ~COMPRESS~ |
+| ~catalog.cpmd.MEMORY~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY~ |
+| ~catalog.cpmd.REAL_SPACE_WFN_KEEP~ | ~params.inputSections.cpmd.realSpaceWfnKeep~ | ~realSpaceWfnKeep~ | ~REAL SPACE WFN KEEP~ |
+| ~catalog.cpmd.REAL_SPACE_WFN_SIZE~ | ~params.inputSections.cpmd.realSpaceWfnSize~ | ~realSpaceWfnSize~ | ~REAL SPACE WFN SIZE~ |
+| ~catalog.cpmd.SPLINE_OPTIONS~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE~ |
+| ~catalog.cpmd.SPLINE_POINTS~ | ~params.inputSections.cpmd.splinePoints~ | ~splinePoints~ | ~SPLINE POINTS~ |
+| ~catalog.cpmd.SPLINE_RANGE~ | ~params.inputSections.cpmd.splineRange~ | ~splineRange~ | ~SPLINE RANGE~ |
+| ~catalog.cpmd.FINITE_DIFFERENCES~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCES~ |
+| ~catalog.cpmd.TASKGROUPS~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS~ |
+| ~catalog.cpmd.TASKGROUPS_COUNT~ | ~params.inputSections.cpmd.taskGroupsCount~ | ~taskGroupsCount~ | ~TASKGROUPS count~ |
+| ~catalog.cpmd.DISTRIBUTE_FNL~ | ~params.inputSections.cpmd.distributeFnl~ | ~distributeFnl~ | ~DISTRIBUTE FNL~ |
+| ~catalog.cpmd.FILEPATH~ | ~params.inputSections.cpmd.filePath~ | ~filePath~ | ~FILEPATH~ |
+| ~catalog.cpmd.BENCHMARK~ | ~params.inputSections.cpmd.benchmark~ | ~benchmark~ | ~BENCHMARK~ |
+| ~catalog.cpmd.MIRROR~ | ~params.inputSections.cpmd.mirror~ | ~mirror~ | ~MIRROR~ |
+| ~catalog.cpmd.SHIFT_POTENTIAL~ | ~params.inputSections.cpmd.shiftPotential~ | ~shiftPotential~ | ~SHIFT POTENTIAL~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |
