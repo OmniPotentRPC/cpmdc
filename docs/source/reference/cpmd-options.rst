@@ -762,189 +762,201 @@ Typed ``&CPMD`` controls
 ``CPMDCpmdSection`` exposes these driver controls directly. The feature
 IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| Catalog feature ID                            | Parameter feature ID                                     | Field                          | Deck keyword                     |
-+===============================================+==========================================================+================================+==================================+
-| ``catalog.cpmd.OPTIMIZE_WAVEFUNCTION``        | ``params.inputSections.cpmd.optimizeWavefunction``       | ``optimizeWavefunction``       | ``OPTIMIZE WAVEFUNCTION``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.OPTIMIZE_GEOMETRY``            | ``params.inputSections.cpmd.optimizeGeometry``           | ``optimizeGeometry``           | ``OPTIMIZE GEOMETRY``            |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS``           | ``params.inputSections.cpmd.molecularDynamics``          | ``molecularDynamics``          | ``MOLECULAR DYNAMICS``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_CP``        | ``params.inputSections.cpmd.molecularDynamicsCp``        | ``molecularDynamicsCp``        | ``MOLECULAR DYNAMICS CP``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_BO``        | ``params.inputSections.cpmd.molecularDynamicsBo``        | ``molecularDynamicsBo``        | ``MOLECULAR DYNAMICS BO``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_EH``        | ``params.inputSections.cpmd.molecularDynamicsEh``        | ``molecularDynamicsEh``        | ``MOLECULAR DYNAMICS EH``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_PT``        | ``params.inputSections.cpmd.molecularDynamicsPt``        | ``molecularDynamicsPt``        | ``MOLECULAR DYNAMICS PT``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL`` | ``params.inputSections.cpmd.molecularDynamicsClassical`` | ``molecularDynamicsClassical`` | ``MOLECULAR DYNAMICS CLASSICAL`` |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MOLECULAR_DYNAMICS_FILE``      | ``params.inputSections.cpmd.molecularDynamicsFile``      | ``molecularDynamicsFile``      | ``MOLECULAR DYNAMICS FILE``      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.EMASS``                        | ``params.inputSections.cpmd.electronMass``               | ``electronMass``               | ``EMASS``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TIMESTEP``                     | ``params.inputSections.cpmd.timestep``                   | ``timestep``                   | ``TIMESTEP``                     |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MAXRUNTIME``                   | ``params.inputSections.cpmd.maxRuntime``                 | ``maxRuntime``                 | ``MAXRUNTIME``                   |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TIMESTEP_ELECTRONS``           | ``params.inputSections.cpmd.timestepElectrons``          | ``timestepElectrons``          | ``TIMESTEP ELECTRONS``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TIMESTEP_IONS``                | ``params.inputSections.cpmd.timestepIons``               | ``timestepIons``               | ``TIMESTEP IONS``                |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CMASS``                        | ``params.inputSections.cpmd.cellMass``                   | ``cellMass``                   | ``CMASS``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPERATURE_ELECTRON``         | ``params.inputSections.cpmd.temperatureElectron``        | ``temperatureElectron``        | ``TEMPERATURE ELECTRON``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPERATURE``                  | ``params.inputSections.cpmd.temperature``                | ``temperature``                | ``TEMPERATURE``                  |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPERATURE_RAMP``             | ``params.inputSections.cpmd.temperatureRamp``            | ``temperatureRamp``            | ``TEMPERATURE RAMP``             |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPERATURE_RAMP_TIME``        | ``params.inputSections.cpmd.temperatureRampTime``        | ``temperatureRampTime``        | ``TEMPERATURE RAMP payload``     |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPERATURE_RAMP_RATE``        | ``params.inputSections.cpmd.temperatureRampRate``        | ``temperatureRampRate``        | ``TEMPERATURE RAMP payload``     |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.RESCALE_OLD_VELOCITIES``       | ``params.inputSections.cpmd.rescaleOldVelocities``       | ``rescaleOldVelocities``       | ``RESCALE OLD VELOCITIES``       |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.REVERSE_VELOCITIES``           | ``params.inputSections.cpmd.reverseVelocities``          | ``reverseVelocities``          | ``REVERSE VELOCITIES``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.SUBTRACT_COMVEL``              | ``params.inputSections.cpmd.subtractComVelocity``        | ``subtractComVelocity``        | ``SUBTRACT COMVEL``              |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.SUBTRACT_ROTVEL``              | ``params.inputSections.cpmd.subtractRotVelocity``        | ``subtractRotVelocity``        | ``SUBTRACT ROTVEL``              |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.PRNGSEED``                     | ``params.inputSections.cpmd.prngSeed``                   | ``prngSeed``                   | ``PRNGSEED``                     |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPCONTROL_IONS``             | ``params.inputSections.cpmd.tempControlIons``            | ``tempControlIons``            | ``TEMPCONTROL IONS``             |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPCONTROL_ELECTRONS``        | ``params.inputSections.cpmd.tempControlElectrons``       | ``tempControlElectrons``       | ``TEMPCONTROL ELECTRONS``        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TEMPCONTROL_CELL``             | ``params.inputSections.cpmd.tempControlCell``            | ``tempControlCell``            | ``TEMPCONTROL CELL``             |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.BERENDSEN_IONS``               | ``params.inputSections.cpmd.berendsenIons``              | ``berendsenIons``              | ``BERENDSEN IONS``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.BERENDSEN_ELECTRONS``          | ``params.inputSections.cpmd.berendsenElectrons``         | ``berendsenElectrons``         | ``BERENDSEN ELECTRONS``          |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.BERENDSEN_CELL``               | ``params.inputSections.cpmd.berendsenCell``              | ``berendsenCell``              | ``BERENDSEN CELL``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MAXSTEP``                      | ``params.inputSections.cpmd.maxStep``                    | ``maxStep``                    | ``MAXSTEP``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.MAXITER``                      | ``params.inputSections.cpmd.maxIter``                    | ``maxIter``                    | ``MAXITER``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_ORBITALS``         | ``params.inputSections.cpmd.convergenceOrbitals``        | ``convergenceOrbitals``        | ``CONVERGENCE ORBITALS``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_GEOMETRY``         | ``params.inputSections.cpmd.convergenceGeometry``        | ``convergenceGeometry``        | ``CONVERGENCE GEOMETRY``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_CELL``             | ``params.inputSections.cpmd.convergenceCell``            | ``convergenceCell``            | ``CONVERGENCE CELL``             |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_ADAPT``            | ``params.inputSections.cpmd.convergenceAdapt``           | ``convergenceAdapt``           | ``CONVERGENCE ADAPT``            |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_ENERGY``           | ``params.inputSections.cpmd.convergenceEnergy``          | ``convergenceEnergy``          | ``CONVERGENCE ENERGY``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_CALFOR``           | ``params.inputSections.cpmd.convergenceCalfor``          | ``convergenceCalfor``          | ``CONVERGENCE CALFOR``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_RELAX``            | ``params.inputSections.cpmd.convergenceRelax``           | ``convergenceRelax``           | ``CONVERGENCE RELAX``            |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_RHOFIX``           | ``params.inputSections.cpmd.convergenceRhofix``          | ``convergenceRhofix``          | ``CONVERGENCE RHOFIX``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_INITIAL``          | ``params.inputSections.cpmd.convergenceInitial``         | ``convergenceInitial``         | ``CONVERGENCE INITIAL``          |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONVERGENCE_CONSTRAINT``       | ``params.inputSections.cpmd.convergenceConstraint``      | ``convergenceConstraint``      | ``CONVERGENCE CONSTRAINT``       |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE``                         | ``params.inputSections.cpmd.nose``                       | ``nose``                       | ``NOSE``                         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_IONS``                    | ``params.inputSections.cpmd.noseIons``                   | ``noseIons``                   | ``NOSE IONS``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_ELECTRONS``               | ``params.inputSections.cpmd.noseElectrons``              | ``noseElectrons``              | ``NOSE ELECTRONS``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_IONS_PAYLOAD``            | ``params.inputSections.cpmd.noseIonsThermostat``         | ``noseIonsThermostat``         | ``NOSE IONS``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_ELECTRONS_PAYLOAD``       | ``params.inputSections.cpmd.noseElectronsThermostat``    | ``noseElectronsThermostat``    | ``NOSE ELECTRONS``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_CELL_PAYLOAD``            | ``params.inputSections.cpmd.noseCellThermostat``         | ``noseCellThermostat``         | ``NOSE CELL``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.NOSE_PARAMETERS``              | ``params.inputSections.cpmd.noseParameters``             | ``noseParameters``             | ``NOSE PARAMETERS``              |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.BERENDSEN``                    | ``params.inputSections.cpmd.berendsen``                  | ``berendsen``                  | ``BERENDSEN``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.LANGEVIN``                     | ``params.inputSections.cpmd.langevin``                   | ``langevin``                   | ``LANGEVIN``                     |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ANNEALING``                    | ``params.inputSections.cpmd.annealing``                  | ``annealing``                  | ``ANNEALING``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ANNEALING_IONS``               | ``params.inputSections.cpmd.annealingIons``              | ``annealingIons``              | ``ANNEALING IONS``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ANNEALING_ELECTRONS``          | ``params.inputSections.cpmd.annealingElectrons``         | ``annealingElectrons``         | ``ANNEALING ELECTRONS``          |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ANNEALING_CELL``               | ``params.inputSections.cpmd.annealingCell``              | ``annealingCell``              | ``ANNEALING CELL``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DAMPING_IONS``                 | ``params.inputSections.cpmd.dampingIons``                | ``dampingIons``                | ``DAMPING IONS``                 |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DAMPING_ELECTRONS``            | ``params.inputSections.cpmd.dampingElectrons``           | ``dampingElectrons``           | ``DAMPING ELECTRONS``            |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DAMPING_CELL``                 | ``params.inputSections.cpmd.dampingCell``                | ``dampingCell``                | ``DAMPING CELL``                 |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.HESSIAN``                      | ``params.inputSections.cpmd.hessian``                    | ``hessian``                    | ``HESSIAN``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.PROJECT``                      | ``params.inputSections.cpmd.project``                    | ``project``                    | ``PROJECT``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.STRESS_TENSOR_SAMPLE``         | ``params.inputSections.cpmd.stressTensorSample``         | ``stressTensorSample``         | ``STRESS TENSOR``                |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.STRESS_TENSOR_VIRIAL``         | ``params.inputSections.cpmd.stressTensorVirial``         | ``stressTensorVirial``         | ``STRESS TENSOR VIRIAL``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CLASSTRESS``                   | ``params.inputSections.cpmd.classStressSample``          | ``classStressSample``          | ``CLASSTRESS``                   |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.QUENCH``                       | ``params.inputSections.cpmd.quench``                     | ``quench``                     | ``QUENCH``                       |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.RATTLE``                       | ``params.inputSections.cpmd.rattle``                     | ``rattle``                     | ``RATTLE``                       |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.SHAKE``                        | ``params.inputSections.cpmd.shake``                      | ``shake``                      | ``SHAKE``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CONSTRAINT``                   | ``params.inputSections.cpmd.constraint``                 | ``constraint``                 | ``CONSTRAINT``                   |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TROTTER``                      | ``params.inputSections.cpmd.trotter``                    | ``trotter``                    | ``TROTTER``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.RESTART``                      | ``params.inputSections.cpmd.restart``                    | ``restart``                    | ``RESTART``                      |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.RESTART_WAVEFUNCTION``         | ``params.inputSections.cpmd.restartWavefunction``        | ``restartWavefunction``        | ``RESTART WAVEFUNCTION``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.TRAJECTORY``                   | ``params.inputSections.cpmd.trajectory``                 | ``trajectory``                 | ``TRAJECTORY``                   |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ISOLATED_MOLECULE``            | ``params.inputSections.cpmd.isolatedMolecule``           | ``isolatedMolecule``           | ``ISOLATED MOLECULE``            |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.PRINT``                        | ``params.inputSections.cpmd.printOptions``               | ``printOptions``               | ``PRINT``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.STORE``                        | ``params.inputSections.cpmd.storeOptions``               | ``storeOptions``               | ``STORE``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CENTER_MOLECULE_OFF``          | ``params.inputSections.cpmd.centerMoleculeOff``          | ``centerMoleculeOff``          | ``CENTER MOLECULE OFF``          |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CENTER_MOLECULE_ON``           | ``params.inputSections.cpmd.centerMoleculeOn``           | ``centerMoleculeOn``           | ``CENTER MOLECULE ON``           |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DIIS``                         | ``params.inputSections.cpmd.diis``                       | ``diis``                       | ``DIIS``                         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.ODIIS``                        | ``params.inputSections.cpmd.odiis``                      | ``odiis``                      | ``ODIIS``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.PCG``                          | ``params.inputSections.cpmd.pcg``                        | ``pcg``                        | ``PCG``                          |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DIAGONALIZATION``              | ``params.inputSections.cpmd.diagonalization``            | ``diagonalization``            | ``DIAGONALIZATION``              |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.FREE_ENERGY``                  | ``params.inputSections.cpmd.freeEnergy``                 | ``freeEnergy``                 | ``FREE-ENERGY``                  |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.INTERFACE``                    | ``params.inputSections.cpmd.interface``                  | ``interface``                  | ``INTERFACE``                    |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.QMMM``                         | ``params.inputSections.cpmd.qmmm``                       | ``qmmm``                       | ``QMMM``                         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.BICANONICAL_ENSEMBLE``         | ``params.inputSections.cpmd.bicanonicalEnsemble``        | ``bicanonicalEnsemble``        | ``BICANONICAL ENSEMBLE``         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.CDFT``                         | ``params.inputSections.cpmd.cdft``                       | ``cdft``                       | ``CDFT``                         |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.PROPERTIES``                   | ``params.inputSections.cpmd.properties``                 | ``properties``                 | ``PROPERTIES``                   |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.VDW_CORRECTION``               | ``params.inputSections.cpmd.vdwCorrection``              | ``vdwCorrection``              | ``VDW CORRECTION``               |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.VDW_WANNIER``                  | ``params.inputSections.cpmd.vdwWannier``                 | ``vdwWannier``                 | ``VDW WANNIER``                  |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
-| ``catalog.cpmd.DCACP``                        | ``params.inputSections.cpmd.dcacp``                      | ``dcacp``                      | ``DCACP``                        |
-+-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| Catalog feature ID                            | Parameter feature ID                                      | Field                           | Deck keyword                     |
++===============================================+===========================================================+=================================+==================================+
+| ``catalog.cpmd.OPTIMIZE_WAVEFUNCTION``        | ``params.inputSections.cpmd.optimizeWavefunction``        | ``optimizeWavefunction``        | ``OPTIMIZE WAVEFUNCTION``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.OPTIMIZE_GEOMETRY``            | ``params.inputSections.cpmd.optimizeGeometry``            | ``optimizeGeometry``            | ``OPTIMIZE GEOMETRY``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS``           | ``params.inputSections.cpmd.molecularDynamics``           | ``molecularDynamics``           | ``MOLECULAR DYNAMICS``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_CP``        | ``params.inputSections.cpmd.molecularDynamicsCp``         | ``molecularDynamicsCp``         | ``MOLECULAR DYNAMICS CP``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_BO``        | ``params.inputSections.cpmd.molecularDynamicsBo``         | ``molecularDynamicsBo``         | ``MOLECULAR DYNAMICS BO``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_EH``        | ``params.inputSections.cpmd.molecularDynamicsEh``         | ``molecularDynamicsEh``         | ``MOLECULAR DYNAMICS EH``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_PT``        | ``params.inputSections.cpmd.molecularDynamicsPt``         | ``molecularDynamicsPt``         | ``MOLECULAR DYNAMICS PT``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL`` | ``params.inputSections.cpmd.molecularDynamicsClassical``  | ``molecularDynamicsClassical``  | ``MOLECULAR DYNAMICS CLASSICAL`` |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MOLECULAR_DYNAMICS_FILE``      | ``params.inputSections.cpmd.molecularDynamicsFile``       | ``molecularDynamicsFile``       | ``MOLECULAR DYNAMICS FILE``      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.EMASS``                        | ``params.inputSections.cpmd.electronMass``                | ``electronMass``                | ``EMASS``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TIMESTEP``                     | ``params.inputSections.cpmd.timestep``                    | ``timestep``                    | ``TIMESTEP``                     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MAXRUNTIME``                   | ``params.inputSections.cpmd.maxRuntime``                  | ``maxRuntime``                  | ``MAXRUNTIME``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TIMESTEP_ELECTRONS``           | ``params.inputSections.cpmd.timestepElectrons``           | ``timestepElectrons``           | ``TIMESTEP ELECTRONS``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TIMESTEP_IONS``                | ``params.inputSections.cpmd.timestepIons``                | ``timestepIons``                | ``TIMESTEP IONS``                |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CMASS``                        | ``params.inputSections.cpmd.cellMass``                    | ``cellMass``                    | ``CMASS``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_ELECTRON``         | ``params.inputSections.cpmd.temperatureElectron``         | ``temperatureElectron``         | ``TEMPERATURE ELECTRON``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE``                  | ``params.inputSections.cpmd.temperature``                 | ``temperature``                 | ``TEMPERATURE``                  |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP``             | ``params.inputSections.cpmd.temperatureRamp``             | ``temperatureRamp``             | ``TEMPERATURE RAMP``             |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP_TIME``        | ``params.inputSections.cpmd.temperatureRampTime``         | ``temperatureRampTime``         | ``TEMPERATURE RAMP payload``     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP_RATE``        | ``params.inputSections.cpmd.temperatureRampRate``         | ``temperatureRampRate``         | ``TEMPERATURE RAMP payload``     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RESCALE_OLD_VELOCITIES``       | ``params.inputSections.cpmd.rescaleOldVelocities``        | ``rescaleOldVelocities``        | ``RESCALE OLD VELOCITIES``       |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.REVERSE_VELOCITIES``           | ``params.inputSections.cpmd.reverseVelocities``           | ``reverseVelocities``           | ``REVERSE VELOCITIES``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.SUBTRACT_COMVEL``              | ``params.inputSections.cpmd.subtractComVelocity``         | ``subtractComVelocity``         | ``SUBTRACT COMVEL``              |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.SUBTRACT_ROTVEL``              | ``params.inputSections.cpmd.subtractRotVelocity``         | ``subtractRotVelocity``         | ``SUBTRACT ROTVEL``              |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.PRNGSEED``                     | ``params.inputSections.cpmd.prngSeed``                    | ``prngSeed``                    | ``PRNGSEED``                     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_IONS``             | ``params.inputSections.cpmd.tempControlIons``             | ``tempControlIons``             | ``TEMPCONTROL IONS``             |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_ELECTRONS``        | ``params.inputSections.cpmd.tempControlElectrons``        | ``tempControlElectrons``        | ``TEMPCONTROL ELECTRONS``        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_CELL``             | ``params.inputSections.cpmd.tempControlCell``             | ``tempControlCell``             | ``TEMPCONTROL CELL``             |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_IONS``               | ``params.inputSections.cpmd.berendsenIons``               | ``berendsenIons``               | ``BERENDSEN IONS``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_ELECTRONS``          | ``params.inputSections.cpmd.berendsenElectrons``          | ``berendsenElectrons``          | ``BERENDSEN ELECTRONS``          |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_CELL``               | ``params.inputSections.cpmd.berendsenCell``               | ``berendsenCell``               | ``BERENDSEN CELL``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MAXSTEP``                      | ``params.inputSections.cpmd.maxStep``                     | ``maxStep``                     | ``MAXSTEP``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.MAXITER``                      | ``params.inputSections.cpmd.maxIter``                     | ``maxIter``                     | ``MAXITER``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_ORBITALS``         | ``params.inputSections.cpmd.convergenceOrbitals``         | ``convergenceOrbitals``         | ``CONVERGENCE ORBITALS``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_GEOMETRY``         | ``params.inputSections.cpmd.convergenceGeometry``         | ``convergenceGeometry``         | ``CONVERGENCE GEOMETRY``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CELL``             | ``params.inputSections.cpmd.convergenceCell``             | ``convergenceCell``             | ``CONVERGENCE CELL``             |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_ADAPT``            | ``params.inputSections.cpmd.convergenceAdapt``            | ``convergenceAdapt``            | ``CONVERGENCE ADAPT``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_ENERGY``           | ``params.inputSections.cpmd.convergenceEnergy``           | ``convergenceEnergy``           | ``CONVERGENCE ENERGY``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CALFOR``           | ``params.inputSections.cpmd.convergenceCalfor``           | ``convergenceCalfor``           | ``CONVERGENCE CALFOR``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_RELAX``            | ``params.inputSections.cpmd.convergenceRelax``            | ``convergenceRelax``            | ``CONVERGENCE RELAX``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_RHOFIX``           | ``params.inputSections.cpmd.convergenceRhofix``           | ``convergenceRhofix``           | ``CONVERGENCE RHOFIX``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_INITIAL``          | ``params.inputSections.cpmd.convergenceInitial``          | ``convergenceInitial``          | ``CONVERGENCE INITIAL``          |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONVERGENCE_CONSTRAINT``       | ``params.inputSections.cpmd.convergenceConstraint``       | ``convergenceConstraint``       | ``CONVERGENCE CONSTRAINT``       |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE``                         | ``params.inputSections.cpmd.nose``                        | ``nose``                        | ``NOSE``                         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_IONS``                    | ``params.inputSections.cpmd.noseIons``                    | ``noseIons``                    | ``NOSE IONS``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_ELECTRONS``               | ``params.inputSections.cpmd.noseElectrons``               | ``noseElectrons``               | ``NOSE ELECTRONS``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_IONS_PAYLOAD``            | ``params.inputSections.cpmd.noseIonsThermostat``          | ``noseIonsThermostat``          | ``NOSE IONS``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_ELECTRONS_PAYLOAD``       | ``params.inputSections.cpmd.noseElectronsThermostat``     | ``noseElectronsThermostat``     | ``NOSE ELECTRONS``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_CELL_PAYLOAD``            | ``params.inputSections.cpmd.noseCellThermostat``          | ``noseCellThermostat``          | ``NOSE CELL``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_PARAMETERS``              | ``params.inputSections.cpmd.noseParameters``              | ``noseParameters``              | ``NOSE PARAMETERS``              |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN``                    | ``params.inputSections.cpmd.berendsen``                   | ``berendsen``                   | ``BERENDSEN``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.LANGEVIN``                     | ``params.inputSections.cpmd.langevin``                    | ``langevin``                    | ``LANGEVIN``                     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ANNEALING``                    | ``params.inputSections.cpmd.annealing``                   | ``annealing``                   | ``ANNEALING``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ANNEALING_IONS``               | ``params.inputSections.cpmd.annealingIons``               | ``annealingIons``               | ``ANNEALING IONS``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ANNEALING_ELECTRONS``          | ``params.inputSections.cpmd.annealingElectrons``          | ``annealingElectrons``          | ``ANNEALING ELECTRONS``          |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ANNEALING_CELL``               | ``params.inputSections.cpmd.annealingCell``               | ``annealingCell``               | ``ANNEALING CELL``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DAMPING_IONS``                 | ``params.inputSections.cpmd.dampingIons``                 | ``dampingIons``                 | ``DAMPING IONS``                 |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DAMPING_ELECTRONS``            | ``params.inputSections.cpmd.dampingElectrons``            | ``dampingElectrons``            | ``DAMPING ELECTRONS``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DAMPING_CELL``                 | ``params.inputSections.cpmd.dampingCell``                 | ``dampingCell``                 | ``DAMPING CELL``                 |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.HESSIAN``                      | ``params.inputSections.cpmd.hessian``                     | ``hessian``                     | ``HESSIAN``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.PROJECT``                      | ``params.inputSections.cpmd.project``                     | ``project``                     | ``PROJECT``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STRESS_TENSOR_SAMPLE``         | ``params.inputSections.cpmd.stressTensorSample``          | ``stressTensorSample``          | ``STRESS TENSOR``                |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STRESS_TENSOR_VIRIAL``         | ``params.inputSections.cpmd.stressTensorVirial``          | ``stressTensorVirial``          | ``STRESS TENSOR VIRIAL``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CLASSTRESS``                   | ``params.inputSections.cpmd.classStressSample``           | ``classStressSample``           | ``CLASSTRESS``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.QUENCH``                       | ``params.inputSections.cpmd.quench``                      | ``quench``                      | ``QUENCH``                       |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RATTLE``                       | ``params.inputSections.cpmd.rattle``                      | ``rattle``                      | ``RATTLE``                       |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.SHAKE``                        | ``params.inputSections.cpmd.shake``                       | ``shake``                       | ``SHAKE``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CONSTRAINT``                   | ``params.inputSections.cpmd.constraint``                  | ``constraint``                  | ``CONSTRAINT``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TROTTER``                      | ``params.inputSections.cpmd.trotter``                     | ``trotter``                     | ``TROTTER``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RESTART``                      | ``params.inputSections.cpmd.restart``                     | ``restart``                     | ``RESTART``                      |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RESTART_WAVEFUNCTION``         | ``params.inputSections.cpmd.restartWavefunction``         | ``restartWavefunction``         | ``RESTART WAVEFUNCTION``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.TRAJECTORY``                   | ``params.inputSections.cpmd.trajectory``                  | ``trajectory``                  | ``TRAJECTORY``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ISOLATED_MOLECULE``            | ``params.inputSections.cpmd.isolatedMolecule``            | ``isolatedMolecule``            | ``ISOLATED MOLECULE``            |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.PRINT``                        | ``params.inputSections.cpmd.printOptions``                | ``printOptions``                | ``PRINT``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STORE``                        | ``params.inputSections.cpmd.storeOptions``                | ``storeOptions``                | ``STORE``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STORE_SELECTION``              | ``params.inputSections.cpmd.storeSelection``              | ``storeSelection``              | ``STORE``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STORE_INTERVAL``               | ``params.inputSections.cpmd.storeInterval``               | ``storeInterval``               | ``STORE interval``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STORE_SC_INTERVAL``            | ``params.inputSections.cpmd.storeSelfConsistentInterval`` | ``storeSelfConsistentInterval`` | ``STORE SC= interval``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.STORE_OFF``                    | ``params.inputSections.cpmd.storeOffSelection``           | ``storeOffSelection``           | ``STORE OFF``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RESTFILE``                     | ``params.inputSections.cpmd.restFileCount``               | ``restFileCount``               | ``RESTFILE``                     |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.RESTFILE_SAMPLE``              | ``params.inputSections.cpmd.restFileSample``              | ``restFileSample``              | ``RESTFILE SAMPLE``              |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CENTER_MOLECULE_OFF``          | ``params.inputSections.cpmd.centerMoleculeOff``           | ``centerMoleculeOff``           | ``CENTER MOLECULE OFF``          |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CENTER_MOLECULE_ON``           | ``params.inputSections.cpmd.centerMoleculeOn``            | ``centerMoleculeOn``            | ``CENTER MOLECULE ON``           |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DIIS``                         | ``params.inputSections.cpmd.diis``                        | ``diis``                        | ``DIIS``                         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.ODIIS``                        | ``params.inputSections.cpmd.odiis``                       | ``odiis``                       | ``ODIIS``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.PCG``                          | ``params.inputSections.cpmd.pcg``                         | ``pcg``                         | ``PCG``                          |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DIAGONALIZATION``              | ``params.inputSections.cpmd.diagonalization``             | ``diagonalization``             | ``DIAGONALIZATION``              |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.FREE_ENERGY``                  | ``params.inputSections.cpmd.freeEnergy``                  | ``freeEnergy``                  | ``FREE-ENERGY``                  |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.INTERFACE``                    | ``params.inputSections.cpmd.interface``                   | ``interface``                   | ``INTERFACE``                    |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.QMMM``                         | ``params.inputSections.cpmd.qmmm``                        | ``qmmm``                        | ``QMMM``                         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.BICANONICAL_ENSEMBLE``         | ``params.inputSections.cpmd.bicanonicalEnsemble``         | ``bicanonicalEnsemble``         | ``BICANONICAL ENSEMBLE``         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.CDFT``                         | ``params.inputSections.cpmd.cdft``                        | ``cdft``                        | ``CDFT``                         |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.PROPERTIES``                   | ``params.inputSections.cpmd.properties``                  | ``properties``                  | ``PROPERTIES``                   |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.VDW_CORRECTION``               | ``params.inputSections.cpmd.vdwCorrection``               | ``vdwCorrection``               | ``VDW CORRECTION``               |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.VDW_WANNIER``                  | ``params.inputSections.cpmd.vdwWannier``                  | ``vdwWannier``                  | ``VDW WANNIER``                  |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
+| ``catalog.cpmd.DCACP``                        | ``params.inputSections.cpmd.dcacp``                       | ``dcacp``                       | ``DCACP``                        |
++-----------------------------------------------+-----------------------------------------------------------+---------------------------------+----------------------------------+
 
 Typed ``&DFT`` controls
 =======================

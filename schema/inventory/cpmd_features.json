@@ -3167,6 +3167,54 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.storeSelection",
+      "kind": "structured_params_field",
+      "name": "storeSelection",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.storeInterval",
+      "kind": "structured_params_field",
+      "name": "storeInterval",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.storeSelfConsistentInterval",
+      "kind": "structured_params_field",
+      "name": "storeSelfConsistentInterval",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.storeOffSelection",
+      "kind": "structured_params_field",
+      "name": "storeOffSelection",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.restFileCount",
+      "kind": "structured_params_field",
+      "name": "restFileCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.restFileSample",
+      "kind": "structured_params_field",
+      "name": "restFileSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
       "kind": "structured_params_field",
       "name": "centerMoleculeOff",

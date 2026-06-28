@@ -345,6 +345,13 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.restart"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.printOptions"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.storeOptions"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.storeSelection"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.storeInterval"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.cpmd.storeSelfConsistentInterval"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.storeOffSelection"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.restFileCount"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.restFileSample"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.centerMoleculeOff"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.centerMoleculeOn"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.diis"),

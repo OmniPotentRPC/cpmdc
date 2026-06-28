@@ -408,6 +408,12 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ISOLATED_MOLECULE~ | ~params.inputSections.cpmd.isolatedMolecule~ | ~isolatedMolecule~ | ~ISOLATED MOLECULE~ |
 | ~catalog.cpmd.PRINT~ | ~params.inputSections.cpmd.printOptions~ | ~printOptions~ | ~PRINT~ |
 | ~catalog.cpmd.STORE~ | ~params.inputSections.cpmd.storeOptions~ | ~storeOptions~ | ~STORE~ |
+| ~catalog.cpmd.STORE_SELECTION~ | ~params.inputSections.cpmd.storeSelection~ | ~storeSelection~ | ~STORE~ |
+| ~catalog.cpmd.STORE_INTERVAL~ | ~params.inputSections.cpmd.storeInterval~ | ~storeInterval~ | ~STORE interval~ |
+| ~catalog.cpmd.STORE_SC_INTERVAL~ | ~params.inputSections.cpmd.storeSelfConsistentInterval~ | ~storeSelfConsistentInterval~ | ~STORE SC= interval~ |
+| ~catalog.cpmd.STORE_OFF~ | ~params.inputSections.cpmd.storeOffSelection~ | ~storeOffSelection~ | ~STORE OFF~ |
+| ~catalog.cpmd.RESTFILE~ | ~params.inputSections.cpmd.restFileCount~ | ~restFileCount~ | ~RESTFILE~ |
+| ~catalog.cpmd.RESTFILE_SAMPLE~ | ~params.inputSections.cpmd.restFileSample~ | ~restFileSample~ | ~RESTFILE SAMPLE~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |

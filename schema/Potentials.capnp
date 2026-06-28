@@ -246,6 +246,12 @@ struct CPMDCpmdSection {
   stressTensorSample      @88 :Int32 = 0; # STRESS TENSOR sample; 0 => omit.
   stressTensorVirial      @89 :Bool = false; # STRESS TENSOR VIRIAL.
   classStressSample       @90 :Int32 = 0; # CLASSTRESS sample; 0 => omit.
+  storeSelection          @91 :Text; # STORE inline selection.
+  storeInterval           @92 :Int32 = 0; # STORE interval; 0 => omit.
+  storeSelfConsistentInterval @93 :Int32 = 0; # STORE SC interval; 0 => omit.
+  storeOffSelection       @94 :Text; # STORE OFF inline selection.
+  restFileCount           @95 :Int32 = 0; # RESTFILE count; 0 => omit.
+  restFileSample          @96 :Text; # RESTFILE SAMPLE payload.
 }
 
 struct CPMDDftSection {

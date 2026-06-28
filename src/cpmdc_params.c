@@ -1610,6 +1610,42 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if (sec->storeSelection.str && sec->storeSelection.len > 0 &&
+      sec->storeInterval > 0) {
+    if (append_text(dst, dst_size, used, " STORE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->storeSelection) != 0)
+      return -1;
+    if (sec->storeSelfConsistentInterval > 0) {
+      if (append_fmt(dst, dst_size, used, "\n  %d SC=%d\n",
+                     sec->storeInterval,
+                     sec->storeSelfConsistentInterval) != 0)
+        return -1;
+    } else if (append_fmt(dst, dst_size, used, "\n  %d\n",
+                          sec->storeInterval) != 0) {
+      return -1;
+    }
+  }
+  if (append_text_keyword_arg(dst, dst_size, used, "STORE OFF",
+                              sec->storeOffSelection) != 0)
+    return -1;
+  if (sec->restFileCount > 0) {
+    int has_samples = sec->restFileSample.str && sec->restFileSample.len > 0;
+    if (append_text(dst, dst_size, used,
+                    has_samples ? " RESTFILE SAMPLE\n  " : " RESTFILE\n  ") !=
+        0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "%d\n", sec->restFileCount) != 0)
+      return -1;
+    if (has_samples) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->restFileSample) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;
