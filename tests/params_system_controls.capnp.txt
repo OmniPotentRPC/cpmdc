@@ -50,6 +50,9 @@
         mesh = [24, 24, 32],
         kpointsScaled = true,
         kpointsOnlyDiagonal = true,
+        kpointsBlock = 2,
+        kpointsBlockAll = true,
+        kpointsBlockNoSwap = true,
         kpoints = [
           ( coordinates = [0.0, 0.0, 0.0], weight = 0.5 ),
           ( coordinates = [0.5, 0.0, 0.0], weight = 0.5 )
