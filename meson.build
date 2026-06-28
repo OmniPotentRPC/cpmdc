@@ -524,6 +524,15 @@ if get_option('with_tests')
     suite: ['inventory'],
   )
   test(
+    'cpmd-typed-render-field-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_typed_render_field_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['params', 'inventory'],
+  )
+  test(
     'examples-documented',
     python,
     args: [

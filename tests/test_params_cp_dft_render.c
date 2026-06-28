@@ -1223,7 +1223,7 @@ int main(int argc, char **argv) {
       "CLUSTER", "SHOCK VELOCITY", "4500",
   };
   const char *system_monkhorst_need[] = {
-      "&SYSTEM", "KPOINTS MONKHORST-PACK SYMMETRIZED FULL KDP",
+      "&SYSTEM", "KPOINTS BLOCK=1 CALCULATED MONKHORST-PACK SYMMETRIZED FULL KDP",
       "2 3 4 SHIFT=0.5 0.25 0",
   };
   const char *system_kpoint_bands_need[] = {
@@ -1248,6 +1248,7 @@ int main(int argc, char **argv) {
       "&SYSTEM", "CELL ABSOLUTE DEGREE", "10 11 12 90 100 110",
       "REFERENCE CELL ABSOLUTE DEGREE", "13 14 15 80 85 95",
       "CLASSICAL CELL ABSOLUTE DEGREE", "16 17 18 70 75 85",
+      "CHECK SYMMETRY OFF", "-1",
   };
   const char *system_cell_vectors_need[] = {
       "&SYSTEM", "CELL VECTORS", "1 0 0 0 2 0 0 0 3",

@@ -10,6 +10,8 @@
         angstrom = true,
         cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
         cutOffRy = 90.0,
+        kpointsBlock = 1,
+        kpointsBlockCalculated = true,
         kpointsMonkhorstPack = [2, 3, 4],
         kpointsMonkhorstSymmetrized = true,
         kpointsMonkhorstFull = true,
