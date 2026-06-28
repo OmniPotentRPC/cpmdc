@@ -71,6 +71,31 @@ static int text_starts_ci(capn_text text, const char *prefix) {
   return 1;
 }
 
+static int text_has_word_ci(capn_text text, const char *word) {
+  size_t n = strlen(word);
+  if (!text.str || text.len < (int)n)
+    return 0;
+  for (int i = 0; i <= text.len - (int)n; ++i) {
+    int before = i == 0 || !isalnum((unsigned char)text.str[i - 1]);
+    int after = i + (int)n == text.len ||
+                !isalnum((unsigned char)text.str[i + (int)n]);
+    if (!before || !after)
+      continue;
+    int match = 1;
+    for (size_t j = 0; j < n; ++j) {
+      char a = (char)tolower((unsigned char)text.str[i + (int)j]);
+      char b = (char)tolower((unsigned char)word[j]);
+      if (a != b) {
+        match = 0;
+        break;
+      }
+    }
+    if (match)
+      return 1;
+  }
+  return 0;
+}
+
 static int append_fmt(char *dst, size_t dst_size, size_t *used, const char *fmt,
                       ...) {
   if (!dst || !used || *used >= dst_size)
@@ -1380,8 +1405,10 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  int has_roks_expert = sec->roksExpertPayload.str &&
+                        sec->roksExpertPayload.len > 0;
   if ((sec->roksOptions.str && sec->roksOptions.len > 0) ||
-      (sec->roksExpertPayload.str && sec->roksExpertPayload.len > 0)) {
+      has_roks_expert) {
     if (append_text(dst, dst_size, used, " ROKS") != 0)
       return -1;
     if (sec->roksOptions.str && sec->roksOptions.len > 0) {
@@ -1390,9 +1417,12 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       if (append_capn_text(dst, dst_size, used, sec->roksOptions) != 0)
         return -1;
     }
+    if (has_roks_expert && !text_has_word_ci(sec->roksOptions, "EXPERT") &&
+        append_text(dst, dst_size, used, " EXPERT") != 0)
+      return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-    if (sec->roksExpertPayload.str && sec->roksExpertPayload.len > 0) {
+    if (has_roks_expert) {
       if (append_text(dst, dst_size, used, "  ") != 0)
         return -1;
       if (append_capn_text(dst, dst_size, used, sec->roksExpertPayload) != 0)
