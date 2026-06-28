@@ -2207,6 +2207,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.kpointsBlock",
+      "kind": "structured_params_field",
+      "name": "kpointsBlock",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsBlockAll",
+      "kind": "structured_params_field",
+      "name": "kpointsBlockAll",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsBlockCalculated",
+      "kind": "structured_params_field",
+      "name": "kpointsBlockCalculated",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsBlockNoSwap",
+      "kind": "structured_params_field",
+      "name": "kpointsBlockNoSwap",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.kpointsMonkhorstPack",
       "kind": "structured_params_field",
       "name": "kpointsMonkhorstPack",

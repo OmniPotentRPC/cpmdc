@@ -117,6 +117,10 @@ struct CPMDSystemSection {
   kpointsMonkhorstKdp @59 :Bool = false;      # KPOINTS MONKHORST-PACK KDP.
   kpointsMonkhorstShift @60 :List(Float64);   # KPOINTS MONKHORST-PACK mesh-line SHIFT vector.
   kpointBands    @61 :List(CPMDKPointBand);   # KPOINTS BANDS segments.
+  kpointsBlock   @62 :Int32 = 0;              # KPOINTS BLOCK=n; 0 => omit.
+  kpointsBlockAll @63 :Bool = false;          # KPOINTS BLOCK ALL.
+  kpointsBlockCalculated @64 :Bool = false;   # KPOINTS BLOCK CALCULATED.
+  kpointsBlockNoSwap @65 :Bool = false;       # KPOINTS BLOCK NOSWAP.
 }
 
 struct CPMDCpmdSection {

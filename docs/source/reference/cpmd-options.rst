@@ -558,6 +558,14 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.kpointsOnlyDiagonal``         | ``system.kpointsOnlyDiagonal``         | Add ``ONLYDIAG`` to ``&SYSTEM KPOINTS``   |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsBlock``                | ``system.kpointsBlock``                | Add ``BLOCK=`` to ``&SYSTEM KPOINTS``     |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsBlockAll``             | ``system.kpointsBlockAll``             | Add ``ALL`` to ``KPOINTS BLOCK``          |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsBlockCalculated``      | ``system.kpointsBlockCalculated``      | Add ``CALCULATED`` to ``KPOINTS BLOCK``   |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsBlockNoSwap``          | ``system.kpointsBlockNoSwap``          | Add ``NOSWAP`` to ``KPOINTS BLOCK``       |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.kpointsMonkhorstPack``        | ``system.kpointsMonkhorstPack``        | ``&SYSTEM KPOINTS MONKHORST-PACK`` mesh   |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.kpointsMonkhorstSymmetrized`` | ``system.kpointsMonkhorstSymmetrized`` | Add ``SYMMETRIZED`` to                    |

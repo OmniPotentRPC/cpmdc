@@ -457,6 +457,31 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "\n");
 }
 
+static int append_kpoints_block_options(char *dst, size_t dst_size,
+                                        size_t *used,
+                                        struct CPMDSystemSection *sys) {
+  int has_block_option = sys->kpointsBlockAll || sys->kpointsBlockCalculated ||
+                         sys->kpointsBlockNoSwap;
+  if (sys->kpointsBlock < 0)
+    return -1;
+  if (sys->kpointsBlock == 0 && has_block_option)
+    return -1;
+  if (sys->kpointsBlockAll && sys->kpointsBlockCalculated)
+    return -1;
+  if (sys->kpointsBlock > 0 &&
+      append_fmt(dst, dst_size, used, " BLOCK=%d", sys->kpointsBlock) != 0)
+    return -1;
+  if (sys->kpointsBlockAll && append_text(dst, dst_size, used, " ALL") != 0)
+    return -1;
+  if (sys->kpointsBlockCalculated &&
+      append_text(dst, dst_size, used, " CALCULATED") != 0)
+    return -1;
+  if (sys->kpointsBlockNoSwap &&
+      append_text(dst, dst_size, used, " NOSWAP") != 0)
+    return -1;
+  return 0;
+}
+
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
@@ -756,6 +781,9 @@ static int render_system_section_with_cell(
                               sys->kpointsMonkhorstFull ||
                               sys->kpointsMonkhorstKdp ||
                               n_monkhorst_shift > 0;
+  int has_block_options = sys->kpointsBlock > 0 || sys->kpointsBlockAll ||
+                          sys->kpointsBlockCalculated ||
+                          sys->kpointsBlockNoSwap;
   if (n_kpoints > 0 &&
       (n_monkhorst > 0 || n_kpoint_bands > 0 || has_monkhorst_options))
     return -1;
@@ -769,6 +797,8 @@ static int render_system_section_with_cell(
       return -1;
     if (sys->kpointsOnlyDiagonal &&
         append_text(dst, dst_size, used, " ONLYDIAG") != 0)
+      return -1;
+    if (append_kpoints_block_options(dst, dst_size, used, sys) != 0)
       return -1;
     if (append_fmt(dst, dst_size, used, "\n  %d\n", n_kpoints) != 0)
       return -1;
@@ -796,6 +826,8 @@ static int render_system_section_with_cell(
       return -1;
     if (sys->kpointsOnlyDiagonal &&
         append_text(dst, dst_size, used, " ONLYDIAG") != 0)
+      return -1;
+    if (append_kpoints_block_options(dst, dst_size, used, sys) != 0)
       return -1;
     if (append_text(dst, dst_size, used, " MONKHORST-PACK") != 0)
       return -1;
@@ -830,6 +862,8 @@ static int render_system_section_with_cell(
     if (sys->kpointsOnlyDiagonal &&
         append_text(dst, dst_size, used, " ONLYDIAG") != 0)
       return -1;
+    if (append_kpoints_block_options(dst, dst_size, used, sys) != 0)
+      return -1;
     if (append_text(dst, dst_size, used, " BANDS") != 0)
       return -1;
     if (sys->kpointsScaled &&
@@ -857,7 +891,7 @@ static int render_system_section_with_cell(
     if (append_text(dst, dst_size, used, "  0 0 0 0 0 0 0\n") != 0)
       return -1;
   } else if (sys->kpointsScaled || sys->kpointsOnlyDiagonal ||
-             has_monkhorst_options) {
+             has_monkhorst_options || has_block_options) {
     return -1;
   }
   if (sys->doubleGrid.str && sys->doubleGrid.len > 0) {
