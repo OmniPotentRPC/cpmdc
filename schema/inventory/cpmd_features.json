@@ -2047,6 +2047,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.cdftDonorAtoms",
+      "kind": "structured_params_field",
+      "name": "cdftDonorAtoms",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cdftDonorWeights",
+      "kind": "structured_params_field",
+      "name": "cdftDonorWeights",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cdftAcceptorAtoms",
+      "kind": "structured_params_field",
+      "name": "cdftAcceptorAtoms",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cdftAcceptorHdasDonors",
+      "kind": "structured_params_field",
+      "name": "cdftAcceptorHdasDonors",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cdftAcceptorWeights",
+      "kind": "structured_params_field",
+      "name": "cdftAcceptorWeights",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.pointGroup",
       "kind": "structured_params_field",
       "name": "pointGroup",

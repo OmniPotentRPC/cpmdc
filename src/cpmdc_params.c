@@ -674,6 +674,77 @@ static int render_system_section_with_cell(
         return -1;
     }
   }
+  int n_cdft_donor_atoms = list32_len(&sys->cdftDonorAtoms);
+  if (n_cdft_donor_atoms < 0)
+    return -1;
+  int n_cdft_donor_weights = list32_len(&sys->cdftDonorWeights);
+  if (n_cdft_donor_weights < 0)
+    return -1;
+  if (n_cdft_donor_weights > 0 &&
+      n_cdft_donor_weights != n_cdft_donor_atoms)
+    return -1;
+  if (n_cdft_donor_atoms > 0) {
+    if (append_fmt(dst, dst_size, used, " DONOR %d", n_cdft_donor_atoms) !=
+        0)
+      return -1;
+    if (n_cdft_donor_weights > 0 &&
+        append_text(dst, dst_size, used, " WMULT") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used, &sys->cdftDonorAtoms,
+                             n_cdft_donor_atoms) != 0)
+      return -1;
+    if (n_cdft_donor_weights > 0 &&
+        append_i32_list_line(dst, dst_size, used, &sys->cdftDonorWeights,
+                             n_cdft_donor_weights) != 0)
+      return -1;
+  }
+  int n_cdft_acceptor_atoms = list32_len(&sys->cdftAcceptorAtoms);
+  if (n_cdft_acceptor_atoms < 0)
+    return -1;
+  int n_cdft_acceptor_hdas_donors =
+      list32_len(&sys->cdftAcceptorHdasDonors);
+  if (n_cdft_acceptor_hdas_donors < 0)
+    return -1;
+  int n_cdft_acceptor_weights = list32_len(&sys->cdftAcceptorWeights);
+  if (n_cdft_acceptor_weights < 0)
+    return -1;
+  if (n_cdft_acceptor_hdas_donors > 0 && n_cdft_acceptor_weights > 0)
+    return -1;
+  if ((n_cdft_acceptor_hdas_donors > 0 &&
+       n_cdft_acceptor_hdas_donors != n_cdft_acceptor_atoms) ||
+      (n_cdft_acceptor_weights > 0 &&
+       n_cdft_acceptor_weights != n_cdft_acceptor_atoms))
+    return -1;
+  if (n_cdft_acceptor_atoms > 0) {
+    if (append_fmt(dst, dst_size, used, " ACCEPTOR %d",
+                   n_cdft_acceptor_atoms) != 0)
+      return -1;
+    if (n_cdft_acceptor_hdas_donors > 0 &&
+        append_text(dst, dst_size, used, " HDAS") != 0)
+      return -1;
+    if (n_cdft_acceptor_weights > 0 &&
+        append_text(dst, dst_size, used, " WMULT") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used, &sys->cdftAcceptorAtoms,
+                             n_cdft_acceptor_atoms) != 0)
+      return -1;
+    if (n_cdft_acceptor_hdas_donors > 0 &&
+        append_i32_list_line(dst, dst_size, used,
+                             &sys->cdftAcceptorHdasDonors,
+                             n_cdft_acceptor_hdas_donors) != 0)
+      return -1;
+    if (n_cdft_acceptor_weights > 0 &&
+        append_i32_list_line(dst, dst_size, used, &sys->cdftAcceptorWeights,
+                             n_cdft_acceptor_weights) != 0)
+      return -1;
+  } else if (n_cdft_acceptor_hdas_donors > 0 ||
+             n_cdft_acceptor_weights > 0) {
+    return -1;
+  }
   int has_point_group = sys->pointGroup.str && sys->pointGroup.len > 0;
   if (has_point_group) {
     if (append_text(dst, dst_size, used, " POINT GROUP") != 0)

@@ -122,6 +122,11 @@ struct CPMDSystemSection {
   kpointsBlockCalculated @64 :Bool = false;   # KPOINTS BLOCK CALCULATED.
   kpointsBlockNoSwap @65 :Bool = false;       # KPOINTS BLOCK NOSWAP.
   lowSpinExcitationPenalty @66 :Float64 = 0.0; # LOW SPIN EXCITATION PENALTY; 0 => omit.
+  cdftDonorAtoms @67 :List(Int32);             # DONOR atom indexes.
+  cdftDonorWeights @68 :List(Int32);           # DONOR WMULT integer weights.
+  cdftAcceptorAtoms @69 :List(Int32);          # ACCEPTOR atom indexes.
+  cdftAcceptorHdasDonors @70 :List(Int32);     # ACCEPTOR HDAS donor atom indexes.
+  cdftAcceptorWeights @71 :List(Int32);        # ACCEPTOR WMULT integer weights.
 }
 
 struct CPMDCpmdSection {

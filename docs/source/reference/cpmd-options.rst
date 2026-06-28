@@ -516,6 +516,16 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.wGauss``                      | ``system.wGauss``                      | ``&SYSTEM WGAUSS`` sigma values           |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.cdftDonorAtoms``              | ``system.cdftDonorAtoms``              | ``&SYSTEM DONOR`` atom list               |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.cdftDonorWeights``            | ``system.cdftDonorWeights``            | Add ``WMULT`` weights to ``DONOR``        |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.cdftAcceptorAtoms``           | ``system.cdftAcceptorAtoms``           | ``&SYSTEM ACCEPTOR`` atom list            |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.cdftAcceptorHdasDonors``      | ``system.cdftAcceptorHdasDonors``      | Add ``HDAS`` donor list to ``ACCEPTOR``   |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.cdftAcceptorWeights``         | ``system.cdftAcceptorWeights``         | Add ``WMULT`` weights to ``ACCEPTOR``     |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.pointGroup``                  | ``system.pointGroup``                  | ``&SYSTEM POINT GROUP`` selector line     |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.pointGroupMolecule``          | ``system.pointGroupMolecule``          | Add ``MOLECULE`` to ``POINT GROUP``       |
