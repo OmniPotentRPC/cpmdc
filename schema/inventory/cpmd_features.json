@@ -1,7 +1,7 @@
 {
   "version": 3,
   "schema": "schema/Potentials.capnp",
-  "opencpmd_reference": "/tmp/OpenCPMD-gf14",
+  "opencpmd_reference": "OpenCPMD CPMD source tree; set CPMD_ROOT for live probing",
   "opencpmd_inscan_sections": [
     "ATOM",
     "ATOMS",

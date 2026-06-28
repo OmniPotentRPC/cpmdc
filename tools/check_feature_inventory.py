@@ -100,12 +100,6 @@ def main() -> int:
     # Live OpenCPMD probe (non-circular completeness)
     cpmd_root = os.environ.get("CPMD_ROOT") or os.environ.get("CPMDC_CPMD_ROOT")
     live_probe_status = "live probe skipped"
-    if not cpmd_root:
-        # meson often uses /tmp/OpenCPMD-gf14
-        for cand in (Path("/tmp/OpenCPMD-gf14"), Path(inv.get("opencpmd_reference") or "")):
-            if cand.is_dir() and (cand / "src").is_dir():
-                cpmd_root = str(cand)
-                break
     if cpmd_root and Path(cpmd_root).joinpath("src").is_dir():
         live = probe_inscan_sections(Path(cpmd_root))
         missing = live - inv_secs
@@ -118,6 +112,8 @@ def main() -> int:
             errors.append(f"allowlist missing live inscan: {sorted(live - allow)}")
         print(f"probed {cpmd_root}: {len(live)} inscan sections")
         live_probe_status = "live probe passed"
+    elif cpmd_root:
+        print(f"WARN: {cpmd_root} has no src directory; skipping live completeness")
     else:
         print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
