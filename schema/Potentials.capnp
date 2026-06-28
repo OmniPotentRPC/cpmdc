@@ -386,6 +386,18 @@ struct CPMDCpmdSection {
   lanczosParametersPayload @228 :Text; # LANCZOS PARAMETERS payload lines.
   davidsonDiagonalization @229 :Bool = false; # DAVIDSON DIAGONALIZATION.
   davidsonParameters      @230 :Text; # DAVIDSON PARAMETERS payload line.
+  alexanderMixing         @231 :Float64 = 0.0; # ALEXANDER MIXING payload; 0 => omit.
+  andersonMixingGspace    @232 :Bool = false; # ANDERSON MIXING G-SPACE.
+  andersonMixingCount     @233 :Int32 = 0; # ANDERSON MIXING N= count.
+  andersonMixingPayload   @234 :Text; # ANDERSON MIXING payload lines.
+  broydenMixingOptions    @235 :Text; # BROYDEN MIXING inline options.
+  broydenMixingPayload    @236 :Text; # BROYDEN MIXING payload line.
+  diisMixingCount         @237 :Int32 = 0; # DIIS MIXING N= count.
+  diisMixingPayload       @238 :Text; # DIIS MIXING payload lines.
+  moverhoMixing           @239 :Float64 = 0.0; # MOVERHO payload; 0 => omit.
+  extrapolateWfnOptions   @240 :Text; # EXTRAPOLATE WFN inline options.
+  extrapolateWfnOrder     @241 :Int32 = 0; # EXTRAPOLATE WFN payload; 0 => omit.
+  extrapolateConstraintOrder @242 :Int32 = 0; # EXTRAPOLATE CONSTRAINT payload.
 }
 
 struct CPMDDftSection {

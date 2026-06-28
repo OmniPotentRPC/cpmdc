@@ -1217,6 +1217,28 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.DAVIDSON_PARAMETERS``             | ``params.inputSections.cpmd.davidsonParameters``              | ``davidsonParameters``              | ``DAVIDSON PARAMETERS``             |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ALEXANDER_MIXING``                | ``params.inputSections.cpmd.alexanderMixing``                 | ``alexanderMixing``                 | ``ALEXANDER MIXING``                |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ANDERSON_MIXING``                 | ``params.inputSections.cpmd.andersonMixingCount``             | ``andersonMixingCount``             | ``ANDERSON MIXING N=``              |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.ANDERSON_MIXING_PAYLOAD``         | ``params.inputSections.cpmd.andersonMixingPayload``           | ``andersonMixingPayload``           | ``ANDERSON MIXING payload``         |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.BROYDEN_MIXING``                  | ``params.inputSections.cpmd.broydenMixingOptions``            | ``broydenMixingOptions``            | ``BROYDEN MIXING``                  |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.BROYDEN_MIXING_PAYLOAD``          | ``params.inputSections.cpmd.broydenMixingPayload``            | ``broydenMixingPayload``            | ``BROYDEN MIXING payload``          |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.DIIS_MIXING``                     | ``params.inputSections.cpmd.diisMixingCount``                 | ``diisMixingCount``                 | ``DIIS MIXING N=``                  |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.DIIS_MIXING_PAYLOAD``             | ``params.inputSections.cpmd.diisMixingPayload``               | ``diisMixingPayload``               | ``DIIS MIXING payload``             |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.MOVERHO``                         | ``params.inputSections.cpmd.moverhoMixing``                   | ``moverhoMixing``                   | ``MOVERHO``                         |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.EXTRAPOLATE_WFN``                 | ``params.inputSections.cpmd.extrapolateWfnOptions``           | ``extrapolateWfnOptions``           | ``EXTRAPOLATE WFN``                 |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.EXTRAPOLATE_WFN_ORDER``           | ``params.inputSections.cpmd.extrapolateWfnOrder``             | ``extrapolateWfnOrder``             | ``EXTRAPOLATE WFN payload``         |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.EXTRAPOLATE_CONSTRAINT``          | ``params.inputSections.cpmd.extrapolateConstraintOrder``      | ``extrapolateConstraintOrder``      | ``EXTRAPOLATE CONSTRAINT``          |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.PROPERTIES``                      | ``params.inputSections.cpmd.properties``                      | ``properties``                      | ``PROPERTIES``                      |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.VDW_CORRECTION``                  | ``params.inputSections.cpmd.vdwCorrection``                   | ``vdwCorrection``                   | ``VDW CORRECTION``                  |

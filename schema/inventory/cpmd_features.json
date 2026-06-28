@@ -2101,6 +2101,105 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ALEXANDER_MIXING",
+      "kind": "cpmd_keyword",
+      "name": "ALEXANDER MIXING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANDERSON_MIXING",
+      "kind": "cpmd_keyword",
+      "name": "ANDERSON MIXING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANDERSON_MIXING_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "ANDERSON MIXING payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIIS_MIXING",
+      "kind": "cpmd_keyword",
+      "name": "DIIS MIXING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIIS_MIXING_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "DIIS MIXING payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOVERHO",
+      "kind": "cpmd_keyword",
+      "name": "MOVERHO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE WFN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_WFN_ORDER",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE WFN payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTRAPOLATE_CONSTRAINT",
+      "kind": "cpmd_keyword",
+      "name": "EXTRAPOLATE CONSTRAINT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -5189,6 +5288,102 @@
       "feature_id": "params.inputSections.cpmd.davidsonParameters",
       "kind": "structured_params_field",
       "name": "davidsonParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.alexanderMixing",
+      "kind": "structured_params_field",
+      "name": "alexanderMixing",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.andersonMixingGspace",
+      "kind": "structured_params_field",
+      "name": "andersonMixingGspace",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.andersonMixingCount",
+      "kind": "structured_params_field",
+      "name": "andersonMixingCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.andersonMixingPayload",
+      "kind": "structured_params_field",
+      "name": "andersonMixingPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.broydenMixingOptions",
+      "kind": "structured_params_field",
+      "name": "broydenMixingOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.broydenMixingPayload",
+      "kind": "structured_params_field",
+      "name": "broydenMixingPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.diisMixingCount",
+      "kind": "structured_params_field",
+      "name": "diisMixingCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.diisMixingPayload",
+      "kind": "structured_params_field",
+      "name": "diisMixingPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.moverhoMixing",
+      "kind": "structured_params_field",
+      "name": "moverhoMixing",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.extrapolateWfnOptions",
+      "kind": "structured_params_field",
+      "name": "extrapolateWfnOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.extrapolateWfnOrder",
+      "kind": "structured_params_field",
+      "name": "extrapolateWfnOrder",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.extrapolateConstraintOrder",
+      "kind": "structured_params_field",
+      "name": "extrapolateConstraintOrder",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

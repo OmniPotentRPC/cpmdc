@@ -1672,6 +1672,112 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if (sec->alexanderMixing > 0.0) {
+    if (append_fmt(dst, dst_size, used, " ALEXANDER MIXING\n  %.10g\n",
+                   sec->alexanderMixing) != 0)
+      return -1;
+  }
+  if ((sec->andersonMixingPayload.str &&
+       sec->andersonMixingPayload.len > 0) ||
+      sec->andersonMixingCount > 0 || sec->andersonMixingGspace) {
+    if (append_text(dst, dst_size, used, " ANDERSON MIXING") != 0)
+      return -1;
+    if (sec->andersonMixingGspace &&
+        append_text(dst, dst_size, used, " G-SPACE") != 0)
+      return -1;
+    if (sec->andersonMixingCount > 0 &&
+        append_fmt(dst, dst_size, used, " N=%d",
+                   sec->andersonMixingCount) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->andersonMixingPayload.str &&
+        sec->andersonMixingPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->andersonMixingPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if ((sec->broydenMixingOptions.str &&
+       sec->broydenMixingOptions.len > 0) ||
+      (sec->broydenMixingPayload.str &&
+       sec->broydenMixingPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " BROYDEN MIXING") != 0)
+      return -1;
+    if (sec->broydenMixingOptions.str &&
+        sec->broydenMixingOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->broydenMixingOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->broydenMixingPayload.str &&
+        sec->broydenMixingPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->broydenMixingPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if ((sec->diisMixingPayload.str && sec->diisMixingPayload.len > 0) ||
+      sec->diisMixingCount > 0) {
+    if (append_text(dst, dst_size, used, " DIIS MIXING") != 0)
+      return -1;
+    if (sec->diisMixingCount > 0 &&
+        append_fmt(dst, dst_size, used, " N=%d", sec->diisMixingCount) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->diisMixingPayload.str && sec->diisMixingPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->diisMixingPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->moverhoMixing > 0.0) {
+    if (append_fmt(dst, dst_size, used, " MOVERHO\n  %.10g\n",
+                   sec->moverhoMixing) != 0)
+      return -1;
+  }
+  if ((sec->extrapolateWfnOptions.str &&
+       sec->extrapolateWfnOptions.len > 0) ||
+      sec->extrapolateWfnOrder > 0) {
+    if (append_text(dst, dst_size, used, " EXTRAPOLATE WFN") != 0)
+      return -1;
+    if (sec->extrapolateWfnOptions.str &&
+        sec->extrapolateWfnOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->extrapolateWfnOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->extrapolateWfnOrder > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->extrapolateWfnOrder) != 0)
+      return -1;
+  }
+  if (sec->extrapolateConstraintOrder > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " EXTRAPOLATE CONSTRAINT\n  %d\n",
+                   sec->extrapolateConstraintOrder) != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)
