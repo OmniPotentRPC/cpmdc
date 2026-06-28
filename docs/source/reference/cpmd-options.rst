@@ -197,10 +197,13 @@ requires every top-level ``CPMDParams`` schema field to keep a
 ``params.*`` feature row and rejects duplicate inventory IDs/lists
 before set comparisons can hide them. ``cpmd-public-abi-inventory``
 requires every public ``cpmdc_*`` header function to resolve through
-``abi_symbols`` and the feature table. ``cpmd-schema-render-coverage``
-requires typed ``CPMDCpmdSection`` fields to appear in the catalog
-render fixtures, and ``cpmd-option-token-coverage`` requires inline
-option spellings in Cap'n Proto fixtures to have render coverage.
+``abi_symbols`` and the feature table, then verifies the native
+``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or shared
+``src/cpmdc_features.c`` implementation that exports it.
+``cpmd-schema-render-coverage`` requires typed ``CPMDCpmdSection``
+fields to appear in the catalog render fixtures, and
+``cpmd-option-token-coverage`` requires inline option spellings in Cap'n
+Proto fixtures to have render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
 ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
 or render assertions.

@@ -36,7 +36,27 @@ def main() -> int:
     failures: list[str] = []
     failures.extend(require_text(root / "README.md", inventory_guards))
     failures.extend(
+        require_text(
+            root / "README.md",
+            [
+                "src/cpmdc.c",
+                "src/cpmdc_stub.c",
+                "src/cpmdc_features.c",
+            ],
+        )
+    )
+    failures.extend(
         require_text(root / "docs/orgmode/contributing/index.org", inventory_guards)
+    )
+    failures.extend(
+        require_text(
+            root / "docs/orgmode/contributing/index.org",
+            [
+                "src/cpmdc.c",
+                "src/cpmdc_stub.c",
+                "src/cpmdc_features.c",
+            ],
+        )
     )
     failures.extend(
         require_text(
@@ -49,6 +69,9 @@ def main() -> int:
                 "cpmd-schema-render-coverage",
                 "cpmd-option-token-coverage",
                 "cpmd-typed-render-field-coverage",
+                "src/cpmdc.c",
+                "src/cpmdc_stub.c",
+                "src/cpmdc_features.c",
             ],
         )
     )

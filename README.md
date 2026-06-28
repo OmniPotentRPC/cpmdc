@@ -182,7 +182,7 @@ table, renderer, README, and reference docs aligned:
 | `feature-inventory` | `schema/inventory/cpmd_features.json` agrees with `schema/Potentials.capnp`, `src/cpmdc_features.c`, public headers, README, and CPMD option docs |
 | `cpmd-base-keyword-inventory` | every base `&CPMD` keyword in `schema/inventory/cpmd_cp_keywords.txt` has a normalized `catalog.cpmd.*` feature row |
 | `cpmd-params-field-inventory` | every top-level `CPMDParams` schema field has a matching `params.*` feature row, and duplicate inventory IDs/lists are rejected |
-| `cpmd-public-abi-inventory` | every public `cpmdc_*` header function is listed in `abi_symbols` and documented through the feature table |
+| `cpmd-public-abi-inventory` | every public `cpmdc_*` header function is listed in `abi_symbols`, documented through the feature table, and implemented in `src/cpmdc.c`, `src/cpmdc_stub.c`, or `src/cpmdc_features.c` |
 | `cpmd-schema-render-coverage` | every typed `CPMDCpmdSection` field, except `directives`, has a catalog render mapping in `tests/test_params_cp_dft_render.c` |
 | `cpmd-option-token-coverage` | inline option tokens in Cap'n Proto fixtures have catalog render coverage |
 | `cpmd-typed-render-field-coverage` | typed `cpmd`, `system`, `dft`, and `atoms` fields are mentioned by render fixtures or render assertions |

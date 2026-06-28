@@ -59,7 +59,9 @@ top-level ``CPMDParams`` schema field to resolve to a ``params.*``
 feature row and rejects duplicate inventory IDs/lists before set
 comparisons can hide them. ``cpmd-public-abi-inventory`` requires every
 public ``cpmdc_*`` header function to resolve through ``abi_symbols``
-and the feature table. ``cpmd-schema-render-coverage`` and
+and the feature table, then verifies the native ``src/cpmdc.c``, stub
+``src/cpmdc_stub.c``, or shared ``src/cpmdc_features.c`` implementation
+that exports it. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
 fixture inline tokens tied to render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
