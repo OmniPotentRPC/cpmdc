@@ -93,7 +93,12 @@ typedef struct CPMDCMultiStateEnergies {
 } CPMDCMultiStateEnergies;
 
 /**
- * @brief One MD ENERGY-style trajectory row (includes EKINC when MD ran).
+ * @brief One ENERGY-file-equivalent trajectory row (Hartree).
+ *
+ * Layout (count >= 12 after a successful eval):
+ *   [0] etot  [1] ekin  [2] epseu  [3] enl  [4] eht  [5] exc
+ *   [6] ehep  [7] ehee  [8] ehii   [9] esr  [10] eself
+ *   [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)
  */
 typedef struct CPMDCMDTrajectoryRow {
   int valid;
@@ -102,9 +107,12 @@ typedef struct CPMDCMDTrajectoryRow {
 } CPMDCMDTrajectoryRow;
 
 /**
- * @brief PROP-style property snapshot (Hessian/dipole/polarizability).
+ * @brief PROP-style property snapshot after a successful evaluation.
  *
- * Lists are length-prefixed; zeros and valid==0 when OpenCPMD did not compute.
+ * - dipole[3]: OpenCPMD `ddip%pdipole` (a.u.) when linked; PEF zeros
+ * - polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
+ * - hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs
+ *   dedicated PROP/Hessian run; gradient is always available after force eval)
  */
 typedef struct CPMDCPropertySnapshot {
   int valid;

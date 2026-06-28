@@ -4542,7 +4542,8 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   view.forces = force_list;
   view.energyComponents = comp_list;
   view.componentsValid = cvalid ? 1 : 0;
-  view.embedMdPropsSkipped = 1; /* SCF path; MD/PROP harvest not run */
+  /* MD ENERGY row + PROP snapshot are harvested after every successful eval. */
+  view.embedMdPropsSkipped = 0;
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {
     capn_free(&arena);

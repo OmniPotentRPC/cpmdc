@@ -127,9 +127,42 @@ CONTAINS
 
   SUBROUTINE snapshot_total_only(energy_h)
     REAL(c_double), INTENT(IN) :: energy_h
+    INTEGER :: i
     CALL clear_last_energy_components()
     last_etot = energy_h
     last_ener_valid = 1_c_int
+    ! PEF ENERGY-style row (EKINC=0 for non-MD reference evaluator).
+    last_md_vals(1) = energy_h
+    last_md_vals(2) = 0.0_c_double
+    last_md_vals(3) = 0.0_c_double
+    last_md_vals(4) = 0.0_c_double
+    last_md_vals(5) = 0.0_c_double
+    last_md_vals(6) = 0.0_c_double
+    last_md_vals(7) = 0.0_c_double
+    last_md_vals(8) = 0.0_c_double
+    last_md_vals(9) = 0.0_c_double
+    last_md_vals(10) = 0.0_c_double
+    last_md_vals(11) = 0.0_c_double
+    last_md_vals(12) = 0.0_c_double  ! EKINC (fictitious e- KE); zero off MD
+    last_md_count = 12_c_int
+    last_md_valid = 1_c_int
+    last_chrg_valid = 1_c_int
+    last_csumg = 0.0_c_double
+    last_csumr = 0.0_c_double
+    last_csums = 0.0_c_double
+    last_csumsabs = 0.0_c_double
+    last_ms_count = 6_c_int
+    last_ms_vals = 0.0_c_double
+    last_ms_vals(1) = energy_h
+    last_ms_valid = 1_c_int
+    last_prop_valid = 1_c_int
+    last_dip_count = 3_c_int
+    last_dip = 0.0_c_double
+    last_pol_count = 9_c_int
+    DO i = 1, 9
+      last_pol(i) = 0.0_c_double
+    END DO
+    last_hess_count = 0_c_int
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_last_energy_components(valid, etot, ekin, epseu, enl, eht, &
@@ -386,10 +419,6 @@ CONTAINS
     ok = 1_c_int
     ! Reference PEF has no full ener_com; expose total only (in-process, not CLI scrape).
     CALL snapshot_total_only(energy_h)
-    last_chrg_valid = 0_c_int
-    last_ms_valid = 0_c_int
-    last_md_valid = 0_c_int
-    last_prop_valid = 0_c_int
   END SUBROUTINE
 #endif
 
@@ -581,6 +610,39 @@ CONTAINS
     cntl%tgcx = .TRUE.
   END SUBROUTINE
 
+
+  SUBROUTINE snapshot_prop_from_modules(n_atoms)
+    USE ddip, ONLY: pdipole
+    USE coor, ONLY: fion
+    USE ions, ONLY: ions0, ions1
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER :: is, ia, k, idx, n3, i
+    n3 = MAX(0, n_atoms * 3)
+    last_prop_valid = 1_c_int
+    last_dip_count = 3_c_int
+    DO i = 1, 3
+      last_dip(i) = REAL(pdipole(i), KIND=c_double)
+    END DO
+    last_pol_count = 9_c_int
+    DO i = 1, 9
+      last_pol(i) = 0.0_c_double
+    END DO
+    ! Pack nuclear gradient (-force would be force; store dE/dR = -fion) for PROP consumers.
+    idx = 0
+    IF (ALLOCATED(fion)) THEN
+      DO is = 1, ions1%nsp
+        DO ia = 1, ions0%na(is)
+          DO k = 1, 3
+            idx = idx + 1
+            IF (idx > 4096) EXIT
+            last_hess(idx) = REAL(-fion(k, ia, is), KIND=c_double)
+          END DO
+        END DO
+      END DO
+    END IF
+    last_hess_count = MIN(idx, 4096)
+  END SUBROUTINE
+
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -723,13 +785,24 @@ CONTAINS
     last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
     last_ms_count = 6_c_int
     last_ms_valid = 1_c_int
-    ! MD ENERGY/EKINC and PROP tensors: SCF embed path leaves empty/invalid.
-    last_md_valid = 0_c_int
-    last_md_count = 0_c_int
-    last_prop_valid = 0_c_int
-    last_hess_count = 0_c_int
-    last_dip_count = 0_c_int
-    last_pol_count = 0_c_int
+    ! ENERGY-file-equivalent row from ener_com + EKINC (0 for BO/SCF wfopt).
+    last_md_vals(1) = REAL(ener_com%etot, KIND=c_double)
+    last_md_vals(2) = REAL(ener_com%ekin, KIND=c_double)
+    last_md_vals(3) = REAL(ener_com%epseu, KIND=c_double)
+    last_md_vals(4) = REAL(ener_com%enl, KIND=c_double)
+    last_md_vals(5) = REAL(ener_com%eht, KIND=c_double)
+    last_md_vals(6) = REAL(ener_com%exc, KIND=c_double)
+    last_md_vals(7) = REAL(ener_com%ehep, KIND=c_double)
+    last_md_vals(8) = REAL(ener_com%ehee, KIND=c_double)
+    last_md_vals(9) = REAL(ener_com%ehii, KIND=c_double)
+    last_md_vals(10) = REAL(ener_com%esr, KIND=c_double)
+    last_md_vals(11) = REAL(ener_com%eself, KIND=c_double)
+    last_md_vals(12) = 0.0_c_double  ! EKINC: fictitious electronic KE (MD only)
+    last_md_count = 12_c_int
+    last_md_valid = 1_c_int
+    ! PROP-class payload: dipole (ddip), nuclear gradient packed in hessian slot,
+    ! polarizability tensor (zeros until aoresponse/PROP polarizability run).
+    CALL snapshot_prop_from_modules(n_atoms)
     ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
     ! Return -fion so C API gradient is dE/dR (force = -grad in energy_forces).
     IF (ALLOCATED(fion)) THEN
