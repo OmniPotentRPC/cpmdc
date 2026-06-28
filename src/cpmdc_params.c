@@ -1223,8 +1223,45 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " OPTIMIZE WAVEFUNCTION\n") != 0)
       return -1;
   }
-  if (sec->optimizeGeometry) {
-    if (append_text(dst, dst_size, used, " OPTIMIZE GEOMETRY\n") != 0)
+  if (sec->optimizeGeometry ||
+      (sec->optimizeGeometryOptions.str &&
+       sec->optimizeGeometryOptions.len > 0) ||
+      sec->optimizeGeometrySample > 0) {
+    if (append_text(dst, dst_size, used, " OPTIMIZE GEOMETRY") != 0)
+      return -1;
+    if (sec->optimizeGeometryOptions.str &&
+        sec->optimizeGeometryOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->optimizeGeometryOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->optimizeGeometrySample > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->optimizeGeometrySample) != 0)
+      return -1;
+  }
+  if ((sec->optimizeCombinedOptions.str &&
+       sec->optimizeCombinedOptions.len > 0) ||
+      sec->optimizeCombinedSample > 0) {
+    if (append_text(dst, dst_size, used, " OPTIMIZE COMBINED") != 0)
+      return -1;
+    if (sec->optimizeCombinedOptions.str &&
+        sec->optimizeCombinedOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->optimizeCombinedOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->optimizeCombinedSample > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->optimizeCombinedSample) != 0)
       return -1;
   }
   if (do_md) {
@@ -1262,6 +1299,47 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_capn_text(dst, dst_size, used, sec->molecularDynamicsFile) != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsFileOptions.str &&
+      sec->molecularDynamicsFileOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " MOLECULAR DYNAMICS FILE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->molecularDynamicsFileOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->molecularDynamicsBdTrajectories > 0) {
+    if (append_fmt(dst, dst_size, used, " MOLECULAR DYNAMICS BD\n  %d\n",
+                   sec->molecularDynamicsBdTrajectories) != 0)
+      return -1;
+  }
+  if (sec->parrinelloRahmanOptions.str &&
+      sec->parrinelloRahmanOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " PARRINELLO-RAHMAN ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->parrinelloRahmanOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->cheby) {
+    if (append_text(dst, dst_size, used, " CHEBY\n") != 0)
+      return -1;
+  }
+  if (sec->cayley) {
+    if (append_text(dst, dst_size, used, " CAYLEY\n") != 0)
+      return -1;
+  }
+  if (sec->rungeKutta) {
+    if (append_text(dst, dst_size, used, " RUNGE-KUTTA\n") != 0)
+      return -1;
+  }
+  if (sec->forceMatch) {
+    if (append_text(dst, dst_size, used, " FORCEMATCH\n") != 0)
       return -1;
   }
   if (sec->convergenceOrbitals > 0.0) {

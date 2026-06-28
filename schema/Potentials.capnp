@@ -332,6 +332,17 @@ struct CPMDCpmdSection {
   woutOptions             @174 :Text; # WOUT inline options.
   woutPayload             @175 :Text; # WOUT payload line.
   xfmqcTrajectories       @176 :Int32 = 0; # XFMQC trajectory count; 0 => omit.
+  molecularDynamicsFileOptions @177 :Text; # MOLECULAR DYNAMICS FILE inline options.
+  molecularDynamicsBdTrajectories @178 :Int32 = 0; # MOLECULAR DYNAMICS BD payload.
+  parrinelloRahmanOptions @179 :Text; # PARRINELLO-RAHMAN inline options.
+  optimizeGeometryOptions @180 :Text; # OPTIMIZE GEOMETRY inline options.
+  optimizeGeometrySample  @181 :Int32 = 0; # OPTIMIZE GEOMETRY SAMPLE payload.
+  optimizeCombinedOptions @182 :Text; # OPTIMIZE COMBINED inline options.
+  optimizeCombinedSample  @183 :Int32 = 0; # OPTIMIZE COMBINED SAMPLE payload.
+  cheby                   @184 :Bool = false; # CHEBY.
+  cayley                  @185 :Bool = false; # CAYLEY.
+  rungeKutta              @186 :Bool = false; # RUNGE-KUTTA.
+  forceMatch              @187 :Bool = false; # FORCEMATCH.
 }
 
 struct CPMDDftSection {

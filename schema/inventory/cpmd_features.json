@@ -922,6 +922,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_COMBINED",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE COMBINED",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE COMBINED SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS",
       "kind": "cpmd_keyword",
       "name": "MOLECULAR DYNAMICS",
@@ -979,6 +1015,69 @@
       "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE",
       "kind": "cpmd_keyword",
       "name": "MOLECULAR DYNAMICS FILE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS FILE options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_BD",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS BD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARRINELLO_RAHMAN",
+      "kind": "cpmd_keyword",
+      "name": "PARRINELLO-RAHMAN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CHEBY",
+      "kind": "cpmd_keyword",
+      "name": "CHEBY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CAYLEY",
+      "kind": "cpmd_keyword",
+      "name": "CAYLEY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RUNGE_KUTTA",
+      "kind": "cpmd_keyword",
+      "name": "RUNGE-KUTTA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FORCEMATCH",
+      "kind": "cpmd_keyword",
+      "name": "FORCEMATCH",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3228,6 +3327,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.optimizeGeometryOptions",
+      "kind": "structured_params_field",
+      "name": "optimizeGeometryOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.optimizeGeometrySample",
+      "kind": "structured_params_field",
+      "name": "optimizeGeometrySample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.optimizeCombinedOptions",
+      "kind": "structured_params_field",
+      "name": "optimizeCombinedOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.optimizeCombinedSample",
+      "kind": "structured_params_field",
+      "name": "optimizeCombinedSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.maxIter",
       "kind": "structured_params_field",
       "name": "maxIter",
@@ -3295,6 +3426,62 @@
       "feature_id": "params.inputSections.cpmd.molecularDynamicsFile",
       "kind": "structured_params_field",
       "name": "molecularDynamicsFile",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsFileOptions",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsFileOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.molecularDynamicsBdTrajectories",
+      "kind": "structured_params_field",
+      "name": "molecularDynamicsBdTrajectories",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.parrinelloRahmanOptions",
+      "kind": "structured_params_field",
+      "name": "parrinelloRahmanOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cheby",
+      "kind": "structured_params_field",
+      "name": "cheby",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cayley",
+      "kind": "structured_params_field",
+      "name": "cayley",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rungeKutta",
+      "kind": "structured_params_field",
+      "name": "rungeKutta",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.forceMatch",
+      "kind": "structured_params_field",
+      "name": "forceMatch",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

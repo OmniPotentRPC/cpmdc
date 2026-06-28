@@ -335,6 +335,10 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 |--------------------+----------------------+-------+--------------|
 | ~catalog.cpmd.OPTIMIZE_WAVEFUNCTION~ | ~params.inputSections.cpmd.optimizeWavefunction~ | ~optimizeWavefunction~ | ~OPTIMIZE WAVEFUNCTION~ |
 | ~catalog.cpmd.OPTIMIZE_GEOMETRY~ | ~params.inputSections.cpmd.optimizeGeometry~ | ~optimizeGeometry~ | ~OPTIMIZE GEOMETRY~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY_OPTIONS~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ | ~optimizeGeometryOptions~ | ~OPTIMIZE GEOMETRY~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE~ | ~params.inputSections.cpmd.optimizeGeometrySample~ | ~optimizeGeometrySample~ | ~OPTIMIZE GEOMETRY SAMPLE~ |
+| ~catalog.cpmd.OPTIMIZE_COMBINED~ | ~params.inputSections.cpmd.optimizeCombinedOptions~ | ~optimizeCombinedOptions~ | ~OPTIMIZE COMBINED~ |
+| ~catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE~ | ~params.inputSections.cpmd.optimizeCombinedSample~ | ~optimizeCombinedSample~ | ~OPTIMIZE COMBINED SAMPLE~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS~ | ~params.inputSections.cpmd.molecularDynamics~ | ~molecularDynamics~ | ~MOLECULAR DYNAMICS~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_CP~ | ~params.inputSections.cpmd.molecularDynamicsCp~ | ~molecularDynamicsCp~ | ~MOLECULAR DYNAMICS CP~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_BO~ | ~params.inputSections.cpmd.molecularDynamicsBo~ | ~molecularDynamicsBo~ | ~MOLECULAR DYNAMICS BO~ |
@@ -342,6 +346,13 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_PT~ | ~params.inputSections.cpmd.molecularDynamicsPt~ | ~molecularDynamicsPt~ | ~MOLECULAR DYNAMICS PT~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL~ | ~params.inputSections.cpmd.molecularDynamicsClassical~ | ~molecularDynamicsClassical~ | ~MOLECULAR DYNAMICS CLASSICAL~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE~ | ~params.inputSections.cpmd.molecularDynamicsFile~ | ~molecularDynamicsFile~ | ~MOLECULAR DYNAMICS FILE~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE_OPTIONS~ | ~params.inputSections.cpmd.molecularDynamicsFileOptions~ | ~molecularDynamicsFileOptions~ | ~MOLECULAR DYNAMICS FILE options~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_BD~ | ~params.inputSections.cpmd.molecularDynamicsBdTrajectories~ | ~molecularDynamicsBdTrajectories~ | ~MOLECULAR DYNAMICS BD~ |
+| ~catalog.cpmd.PARRINELLO_RAHMAN~ | ~params.inputSections.cpmd.parrinelloRahmanOptions~ | ~parrinelloRahmanOptions~ | ~PARRINELLO-RAHMAN~ |
+| ~catalog.cpmd.CHEBY~ | ~params.inputSections.cpmd.cheby~ | ~cheby~ | ~CHEBY~ |
+| ~catalog.cpmd.CAYLEY~ | ~params.inputSections.cpmd.cayley~ | ~cayley~ | ~CAYLEY~ |
+| ~catalog.cpmd.RUNGE_KUTTA~ | ~params.inputSections.cpmd.rungeKutta~ | ~rungeKutta~ | ~RUNGE-KUTTA~ |
+| ~catalog.cpmd.FORCEMATCH~ | ~params.inputSections.cpmd.forceMatch~ | ~forceMatch~ | ~FORCEMATCH~ |
 | ~catalog.cpmd.EMASS~ | ~params.inputSections.cpmd.electronMass~ | ~electronMass~ | ~EMASS~ |
 | ~catalog.cpmd.TIMESTEP~ | ~params.inputSections.cpmd.timestep~ | ~timestep~ | ~TIMESTEP~ |
 | ~catalog.cpmd.MAXRUNTIME~ | ~params.inputSections.cpmd.maxRuntime~ | ~maxRuntime~ | ~MAXRUNTIME~ |
