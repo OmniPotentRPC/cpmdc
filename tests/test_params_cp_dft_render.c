@@ -311,6 +311,8 @@ int main(int argc, char **argv) {
   };
   const char *cpmd_misc_need[] = {
       "&CPMD", "PRINT", "FORCES ON", "STORE", "WAVEFUNCTION",
+      "STORE WAVEFUNCTION DENSITY", "25 SC=5", "STORE OFF POTENTIAL",
+      "RESTFILE SAMPLE", "3", "10 20 30",
       "CENTER MOLECULE OFF", "CENTER MOLECULE ON", "DIIS", "ODIIS", "PCG",
       "DIAGONALIZATION", "FREE-ENERGY", "INTERFACE", "QMMM",
       "BICANONICAL ENSEMBLE", "CDFT", "PROPERTIES",
