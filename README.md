@@ -63,6 +63,18 @@ Generated Sphinx sources live under `docs/source/`.
 | Native C compatibility call | `cpmdc_energy_forces` |
 | Runtime capability checks | `cpmdc_feature_find` or `cpmdc_feature_table` |
 
+## Public ABI Surface
+
+| Group | Symbols |
+| --- | --- |
+| Library status | `cpmdc_version`, `cpmdc_available`, `cpmdc_finalize` |
+| Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
+| Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
+| Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |
+| Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
+| Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
+| One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_potential_result_size_for_force_input` |
+
 New RPC-style callers should use the session result path:
 
 ```c
@@ -87,6 +99,28 @@ cpmdc_session_destroy(session);
 successful session evaluation fixes atom count and ordered atomic numbers.
 Coordinates, units, and the 3x3 cell may change between later steps; atom count
 or species changes require a new session.
+
+## Host Example
+
+`examples/host_step.c` is the smallest complete host-side program in the tree.
+It reads one serialized `CPMDParams` file and one serialized `ForceInput` file,
+creates a session, sizes the `PotentialResult` output, evaluates one step, and
+prints:
+
+```text
+energy_h=...
+potential_result_size_bytes=...
+message=...
+```
+
+Run it through Meson:
+
+```bash
+meson test -C build example-host-step --print-errorlogs
+```
+
+The `example-host-step` test uses generated fixture binaries from the same
+Cap'n Proto text fixtures used by the E2E suites.
 
 ## CPMD Input Model
 
