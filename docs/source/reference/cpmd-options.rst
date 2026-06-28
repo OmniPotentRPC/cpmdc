@@ -175,6 +175,10 @@ only generated lookup data. ``schema/inventory/cpmd_cp_keywords.txt``
 lists base ``&CPMD`` controls that must exist as normalized
 ``catalog.cpmd.*`` feature rows. Punctuation and spaces normalize to
 underscores, so ``FREE-ENERGY`` maps to ``catalog.cpmd.FREE_ENERGY``.
+The JSON inventory carries both ``opencpmd_inscan_sections`` and
+``cpmd_sections``; they must describe the same OpenCPMD parser section
+set. ``catalog.section.*`` feature rows must be owned by that set and by
+the checked-in ``schema/inventory/opencpmd_sections.txt`` allowlist.
 
 Run the focused inventory guards with:
 

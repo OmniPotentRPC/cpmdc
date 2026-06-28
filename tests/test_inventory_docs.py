@@ -76,6 +76,8 @@ def main() -> int:
                 "src/cpmdc.c",
                 "src/cpmdc_stub.c",
                 "src/cpmdc_features.c",
+                "opencpmd_inscan_sections",
+                "cpmd_sections",
             ],
         )
     )
