@@ -23,6 +23,7 @@ public change:
 | Base ~&CPMD~ keyword inventory | ~meson test -C build cpmd-base-keyword-inventory --print-errorlogs~ |
 | Top-level ~CPMDParams~ feature rows and duplicate inventory lists | ~meson test -C build cpmd-params-field-inventory --print-errorlogs~ |
 | Public C ABI inventory | ~meson test -C build cpmd-public-abi-inventory --print-errorlogs~ |
+| Shared library ABI exports | ~meson test -C build shared-dlopen-symbol-coverage shared-dlopen-abi --print-errorlogs~ |
 | ~CPMDCpmdSection~ render mappings | ~meson test -C build cpmd-schema-render-coverage --print-errorlogs~ |
 | Inline option token coverage | ~meson test -C build cpmd-option-token-coverage --print-errorlogs~ |
 | Typed render field coverage | ~meson test -C build cpmd-typed-render-field-coverage --print-errorlogs~ |
@@ -44,6 +45,8 @@ IDs/lists before set comparisons can hide them.
 resolve through ~abi_symbols~ and the feature table, then verifies the native
 ~src/cpmdc.c~, stub ~src/cpmdc_stub.c~, or shared ~src/cpmdc_features.c~
 implementation that exports it.
+~shared-dlopen-symbol-coverage~ requires the shared-library ~dlopen~ test to
+load every ~abi_symbols~ entry from ~libcpmdc.so~.
 ~cpmd-schema-render-coverage~ and ~cpmd-option-token-coverage~ keep typed
 ~CPMDCpmdSection~ fields and fixture inline tokens tied to render coverage.
 ~cpmd-typed-render-field-coverage~ requires typed ~cpmd~, ~system~, ~dft~, and
@@ -70,6 +73,7 @@ CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
   params-cp-dft-render features-cmocka feature-inventory \
   cpmd-base-keyword-inventory cpmd-params-field-inventory \
   cpmd-public-abi-inventory cpmd-schema-render-coverage \
+  shared-dlopen-symbol-coverage \
   cpmd-option-token-coverage cpmd-typed-render-field-coverage \
   --print-errorlogs
 #+end_src

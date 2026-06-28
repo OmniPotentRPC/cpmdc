@@ -13,37 +13,39 @@ schema, renderer, or session runtime:
 Use focused suites while iterating, then run the default suite before
 pushing a public change:
 
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Contract                         | Command                                                                             |
-+==================================+=====================================================================================+
-| Full default ABI and parser      | ``meson test -C build --print-errorlogs``                                           |
-| suite                            |                                                                                     |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Cap'n Proto decode and deck      | ``meson test -C build --suite cmocka --print-errorlogs``                            |
-| rendering                        |                                                                                     |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Session, topology, result        | ``meson test -C build --suite e2e --print-errorlogs``                               |
-| sizing, and unit conversion      |                                                                                     |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Generated feature inventory      | ``meson test -C build feature-inventory --print-errorlogs``                         |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Base ``&CPMD`` keyword inventory | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``               |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Top-level ``CPMDParams`` feature | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``               |
-| rows and duplicate inventory     |                                                                                     |
-| lists                            |                                                                                     |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Public C ABI inventory           | ``meson test -C build cpmd-public-abi-inventory --print-errorlogs``                 |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``               |
-| mappings                         |                                                                                     |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Inline option token coverage     | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| Typed render field coverage      | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``          |
-+----------------------------------+-------------------------------------------------------------------------------------+
-| OpenCPMD archive build           | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs`` |
-+----------------------------------+-------------------------------------------------------------------------------------+
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Contract                         | Command                                                                                   |
++==================================+===========================================================================================+
+| Full default ABI and parser      | ``meson test -C build --print-errorlogs``                                                 |
+| suite                            |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Cap'n Proto decode and deck      | ``meson test -C build --suite cmocka --print-errorlogs``                                  |
+| rendering                        |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Session, topology, result        | ``meson test -C build --suite e2e --print-errorlogs``                                     |
+| sizing, and unit conversion      |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Generated feature inventory      | ``meson test -C build feature-inventory --print-errorlogs``                               |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Base ``&CPMD`` keyword inventory | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``                     |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Top-level ``CPMDParams`` feature | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``                     |
+| rows and duplicate inventory     |                                                                                           |
+| lists                            |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Public C ABI inventory           | ``meson test -C build cpmd-public-abi-inventory --print-errorlogs``                       |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Shared library ABI exports       | ``meson test -C build shared-dlopen-symbol-coverage shared-dlopen-abi --print-errorlogs`` |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``                     |
+| mappings                         |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Inline option token coverage     | ``meson test -C build cpmd-option-token-coverage --print-errorlogs``                      |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| Typed render field coverage      | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``                |
++----------------------------------+-------------------------------------------------------------------------------------------+
+| OpenCPMD archive build           | ``CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs``       |
++----------------------------------+-------------------------------------------------------------------------------------------+
 
 Params render coverage lives under ``tests/cmocka/`` and uses cmocka
 assertions on generated Cap'n Proto types (``read_CPMDParams``, deck
@@ -61,7 +63,9 @@ comparisons can hide them. ``cpmd-public-abi-inventory`` requires every
 public ``cpmdc_*`` header function to resolve through ``abi_symbols``
 and the feature table, then verifies the native ``src/cpmdc.c``, stub
 ``src/cpmdc_stub.c``, or shared ``src/cpmdc_features.c`` implementation
-that exports it. ``cpmd-schema-render-coverage`` and
+that exports it. ``shared-dlopen-symbol-coverage`` requires the
+shared-library ``dlopen`` test to load every ``abi_symbols`` entry from
+``libcpmdc.so``. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
 fixture inline tokens tied to render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
@@ -101,6 +105,7 @@ Run the focused failure before adding production code:
      params-cp-dft-render features-cmocka feature-inventory \
      cpmd-base-keyword-inventory cpmd-params-field-inventory \
      cpmd-public-abi-inventory cpmd-schema-render-coverage \
+     shared-dlopen-symbol-coverage \
      cpmd-option-token-coverage cpmd-typed-render-field-coverage \
      --print-errorlogs
 
