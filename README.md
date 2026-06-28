@@ -63,6 +63,26 @@ Generated Sphinx sources live under `docs/source/`.
 | Native C compatibility call | `cpmdc_energy_forces` |
 | Runtime capability checks | `cpmdc_feature_find` or `cpmdc_feature_table` |
 
+## Map a CPMD Input Line
+
+When translating a CPMD manual line, separate the writable schema carrier from
+the discovery row:
+
+| Manual line | Writable carrier | Discovery row |
+| --- | --- | --- |
+| `OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE` | `params.inputSections.cpmd.optimizeGeometryOptions` and `optimizeGeometrySample` | `catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL`, `catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ`, `catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION` |
+| `NOSE IONS ULTRA MASSIVE T0` | `params.inputSections.cpmd.noseIonsOptions` | `catalog.cpmd.NOSE_IONS_ULTRA`, `catalog.cpmd.NOSE_IONS_MASSIVE`, `catalog.cpmd.NOSE_IONS_T0` |
+| `BOX WALLS` inside `&SYSTEM` | `params.inputSections.system.boxWalls` | `params.inputSections.system.boxWalls` |
+| `&VDW ... EMPIRICAL CORRECTION ...` | `inputSections.vdw.directives` and `subsections` | `catalog.section.VDW` |
+
+Use the `params.*` feature ID when the schema owns a typed field. Use
+`catalog.cpmd.*` for recognized `&CPMD` keywords or inline option spellings
+that render through an existing text field. Use `catalog.section.*` only to
+check section support.
+
+For a complete mapping table, see
+[`docs/orgmode/reference/cpmd-options.org`](docs/orgmode/reference/cpmd-options.org).
+
 ## Public ABI Surface
 
 | Group | Symbols |

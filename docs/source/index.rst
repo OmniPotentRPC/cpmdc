@@ -86,6 +86,35 @@ The default build does not need an OpenCPMD checkout. It uses a
 deterministic reference evaluator to test the public ABI, parser,
 feature table, sessions, result sizing, and unit conversion.
 
+Map A CPMD Input Line
+=====================
+
+The main rule is to separate writable schema fields from
+capability/discovery rows.
+
++--------------------------------------------+-------------------------------------------------------+--------------------------------------------------+
+| Manual line                                | Writable carrier                                      | Discovery row                                    |
++============================================+=======================================================+==================================================+
+| ``OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE`` | ``params.inputSections.cpmd.optimizeGeometryOptions`` | ``catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL``,    |
+|                                            | plus ``optimizeGeometrySample``                       | ``catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ``,          |
+|                                            |                                                       | ``catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION`` |
++--------------------------------------------+-------------------------------------------------------+--------------------------------------------------+
+| ``NOSE IONS ULTRA MASSIVE T0``             | ``params.inputSections.cpmd.noseIonsOptions``         | ``catalog.cpmd.NOSE_IONS_ULTRA``,                |
+|                                            |                                                       | ``catalog.cpmd.NOSE_IONS_MASSIVE``,              |
+|                                            |                                                       | ``catalog.cpmd.NOSE_IONS_T0``                    |
++--------------------------------------------+-------------------------------------------------------+--------------------------------------------------+
+| ``BOX WALLS`` in ``&SYSTEM``               | ``params.inputSections.system.boxWalls``              | ``params.inputSections.system.boxWalls``         |
++--------------------------------------------+-------------------------------------------------------+--------------------------------------------------+
+| ``&VDW`` with nested                       | ``inputSections.vdw.directives`` and ``subsections``  | ``catalog.section.VDW``                          |
+| ``EMPIRICAL CORRECTION``                   |                                                       |                                                  |
++--------------------------------------------+-------------------------------------------------------+--------------------------------------------------+
+
+Use ``params.*`` IDs when a typed schema field owns the value. Use
+``catalog.cpmd.*`` rows for recognized ``&CPMD`` keywords and inline
+option spellings that render through an existing text field. Use
+``catalog.section.*`` rows to check whole-section support. The complete
+table lives in `CPMD option mapping <reference/cpmd-options.org>`__.
+
 Runtime Contracts
 =================
 
