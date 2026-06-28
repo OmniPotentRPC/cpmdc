@@ -244,9 +244,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 18) {
+  if (argc < 19) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin system_couplings_prod.bin system_couplings_linres.bin system_couplings_lists.bin system_cell_qualifiers.bin bad_occupation.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin system_couplings_prod.bin system_couplings_linres.bin system_couplings_lists.bin system_cell_qualifiers.bin system_cell_vectors.bin bad_occupation.bin\n",
             argv[0]);
     return 2;
   }
@@ -373,6 +373,10 @@ int main(int argc, char **argv) {
       "REFERENCE CELL ABSOLUTE DEGREE", "13 14 15 80 85 95",
       "CLASSICAL CELL ABSOLUTE DEGREE", "16 17 18 70 75 85",
   };
+  const char *system_cell_vectors_need[] = {
+      "&SYSTEM", "CELL VECTORS", "1 0 0 0 2 0 0 0 3",
+      "REFERENCE CELL VECTORS", "2 0 0 0 3 0 0 0 4",
+  };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
       "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
@@ -446,10 +450,14 @@ int main(int argc, char **argv) {
                  (int)(sizeof(system_cell_qualifiers_need) /
                        sizeof(system_cell_qualifiers_need[0]))) != 0)
     return 1;
-  if (check_render_fails(argv[17]) != 0)
+  if (check_deck(argv[17], system_cell_vectors_need,
+                 (int)(sizeof(system_cell_vectors_need) /
+                       sizeof(system_cell_vectors_need[0]))) != 0)
     return 1;
-  char *decks[16] = {0};
-  for (int i = 0; i < 16; ++i) {
+  if (check_render_fails(argv[18]) != 0)
+    return 1;
+  char *decks[17] = {0};
+  for (int i = 0; i < 17; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -459,10 +467,10 @@ int main(int argc, char **argv) {
     }
   }
   int coverage_rc = check_catalog_coverage(decks, 11);
-  for (int i = 0; i < 16; ++i)
+  for (int i = 0; i < 17; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, system_couplings_prod, system_couplings_linres, system_couplings_lists, and system_cell_qualifiers render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, system_couplings_prod, system_couplings_linres, system_couplings_lists, system_cell_qualifiers, and system_cell_vectors render + inventory finds\n");
   return 0;
 }
