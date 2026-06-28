@@ -35,6 +35,8 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | Public C ABI inventory           | ``meson test -C build cpmd-public-abi-inventory --print-errorlogs``                       |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Stub ABI feature rows            | ``meson test -C build stub-abi-symbol-coverage stub-abi --print-errorlogs``               |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | Shared library ABI exports       | ``meson test -C build shared-dlopen-symbol-coverage shared-dlopen-abi --print-errorlogs`` |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``                     |
@@ -63,7 +65,9 @@ comparisons can hide them. ``cpmd-public-abi-inventory`` requires every
 public ``cpmdc_*`` header function to resolve through ``abi_symbols``
 and the feature table, then verifies the native ``src/cpmdc.c``, stub
 ``src/cpmdc_stub.c``, or shared ``src/cpmdc_features.c`` implementation
-that exports it. ``shared-dlopen-symbol-coverage`` requires the
+that exports it. ``stub-abi-symbol-coverage`` requires the standalone
+stub test to assert every ``abi_symbols`` feature row is present and
+stub-applicable. ``shared-dlopen-symbol-coverage`` requires the
 shared-library ``dlopen`` test to load every ``abi_symbols`` entry from
 ``libcpmdc.so``. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
@@ -105,6 +109,7 @@ Run the focused failure before adding production code:
      params-cp-dft-render features-cmocka feature-inventory \
      cpmd-base-keyword-inventory cpmd-params-field-inventory \
      cpmd-public-abi-inventory cpmd-schema-render-coverage \
+     stub-abi-symbol-coverage \
      shared-dlopen-symbol-coverage \
      cpmd-option-token-coverage cpmd-typed-render-field-coverage \
      --print-errorlogs

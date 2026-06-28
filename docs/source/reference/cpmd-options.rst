@@ -183,6 +183,7 @@ Run the focused inventory guards with:
    meson test -C build \
      feature-inventory cpmd-base-keyword-inventory \
      cpmd-params-field-inventory cpmd-public-abi-inventory \
+     stub-abi-symbol-coverage \
      shared-dlopen-symbol-coverage \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
      cpmd-typed-render-field-coverage \
@@ -201,6 +202,8 @@ requires every public ``cpmdc_*`` header function to resolve through
 ``abi_symbols`` and the feature table, then verifies the native
 ``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or shared
 ``src/cpmdc_features.c`` implementation that exports it.
+``stub-abi-symbol-coverage`` requires the standalone stub test to assert
+every ``abi_symbols`` feature row is present and stub-applicable.
 ``shared-dlopen-symbol-coverage`` requires the shared-library ``dlopen``
 test to load every ``abi_symbols`` entry from ``libcpmdc.so``.
 ``cpmd-schema-render-coverage`` requires typed ``CPMDCpmdSection``
