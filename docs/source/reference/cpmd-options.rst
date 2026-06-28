@@ -182,7 +182,7 @@ Run the focused inventory guards with:
 
    meson test -C build \
      feature-inventory cpmd-base-keyword-inventory \
-     cpmd-params-field-inventory \
+     cpmd-params-field-inventory cpmd-public-abi-inventory \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
      cpmd-typed-render-field-coverage \
      --print-errorlogs
@@ -195,7 +195,9 @@ schema, public C feature table, README, and this reference page. When
 a ``catalog.cpmd.*`` row silently. ``cpmd-params-field-inventory``
 requires every top-level ``CPMDParams`` schema field to keep a
 ``params.*`` feature row and rejects duplicate inventory IDs/lists
-before set comparisons can hide them. ``cpmd-schema-render-coverage``
+before set comparisons can hide them. ``cpmd-public-abi-inventory``
+requires every public ``cpmdc_*`` header function to resolve through
+``abi_symbols`` and the feature table. ``cpmd-schema-render-coverage``
 requires typed ``CPMDCpmdSection`` fields to appear in the catalog
 render fixtures, and ``cpmd-option-token-coverage`` requires inline
 option spellings in Cap'n Proto fixtures to have render coverage.
