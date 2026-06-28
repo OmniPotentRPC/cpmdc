@@ -213,6 +213,12 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.kpoints"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsScaled"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsOnlyDiagonal"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsMonkhorstPack"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.kpointsMonkhorstSymmetrized"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsMonkhorstFull"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsMonkhorstKdp"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.kpointsMonkhorstShift"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.doubleGrid"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.symmetrizeCoordinates"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.tesr"),

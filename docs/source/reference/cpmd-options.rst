@@ -558,6 +558,19 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.kpointsOnlyDiagonal``         | ``system.kpointsOnlyDiagonal``         | Add ``ONLYDIAG`` to ``&SYSTEM KPOINTS``   |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsMonkhorstPack``        | ``system.kpointsMonkhorstPack``        | ``&SYSTEM KPOINTS MONKHORST-PACK`` mesh   |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsMonkhorstSymmetrized`` | ``system.kpointsMonkhorstSymmetrized`` | Add ``SYMMETRIZED`` to                    |
+|                                                             |                                        | ``KPOINTS MONKHORST-PACK``                |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsMonkhorstFull``        | ``system.kpointsMonkhorstFull``        | Add ``FULL`` to                           |
+|                                                             |                                        | ``KPOINTS MONKHORST-PACK``                |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsMonkhorstKdp``         | ``system.kpointsMonkhorstKdp``         | Add ``KDP`` to ``KPOINTS MONKHORST-PACK`` |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointsMonkhorstShift``       | ``system.kpointsMonkhorstShift``       | Add mesh-line ``SHIFT=`` to               |
+|                                                             |                                        | ``KPOINTS MONKHORST-PACK``                |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.doubleGrid``                  | ``system.doubleGrid``                  | ``&SYSTEM DOUBLE GRID`` ``ON`` or ``OFF`` |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.symmetrizeCoordinates``       | ``system.symmetrizeCoordinates``       | ``&SYSTEM SYMMETRIZE COORDINATES``        |

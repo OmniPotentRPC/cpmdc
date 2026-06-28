@@ -743,6 +743,18 @@ static int render_system_section_with_cell(
   int n_kpoints = struct_list_len(&sys->kpoints.p);
   if (n_kpoints < 0)
     return -1;
+  int n_monkhorst = list32_len(&sys->kpointsMonkhorstPack);
+  if (n_monkhorst < 0)
+    return -1;
+  int n_monkhorst_shift = list64_len(&sys->kpointsMonkhorstShift);
+  if (n_monkhorst_shift < 0)
+    return -1;
+  int has_monkhorst_options = sys->kpointsMonkhorstSymmetrized ||
+                              sys->kpointsMonkhorstFull ||
+                              sys->kpointsMonkhorstKdp ||
+                              n_monkhorst_shift > 0;
+  if (n_kpoints > 0 && (n_monkhorst > 0 || has_monkhorst_options))
+    return -1;
   if (n_kpoints > 0) {
     if (append_text(dst, dst_size, used, " KPOINTS") != 0)
       return -1;
@@ -767,7 +779,45 @@ static int render_system_section_with_cell(
                      kp.weight) != 0)
         return -1;
     }
-  } else if (sys->kpointsScaled || sys->kpointsOnlyDiagonal) {
+  } else if (n_monkhorst > 0) {
+    if (n_monkhorst != 3)
+      return -1;
+    if (sys->kpointsScaled)
+      return -1;
+    if (n_monkhorst_shift != 0 && n_monkhorst_shift != 3)
+      return -1;
+    if (append_text(dst, dst_size, used, " KPOINTS") != 0)
+      return -1;
+    if (sys->kpointsOnlyDiagonal &&
+        append_text(dst, dst_size, used, " ONLYDIAG") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " MONKHORST-PACK") != 0)
+      return -1;
+    if (sys->kpointsMonkhorstSymmetrized &&
+        append_text(dst, dst_size, used, " SYMMETRIZED") != 0)
+      return -1;
+    if (sys->kpointsMonkhorstFull &&
+        append_text(dst, dst_size, used, " FULL") != 0)
+      return -1;
+    if (sys->kpointsMonkhorstKdp &&
+        append_text(dst, dst_size, used, " KDP") != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "\n  %d %d %d",
+                   capn_get32(sys->kpointsMonkhorstPack, 0),
+                   capn_get32(sys->kpointsMonkhorstPack, 1),
+                   capn_get32(sys->kpointsMonkhorstPack, 2)) != 0)
+      return -1;
+    if (n_monkhorst_shift > 0 &&
+        append_fmt(dst, dst_size, used, " SHIFT=%.10g %.10g %.10g",
+                   capn_to_f64(capn_get64(sys->kpointsMonkhorstShift, 0)),
+                   capn_to_f64(capn_get64(sys->kpointsMonkhorstShift, 1)),
+                   capn_to_f64(capn_get64(sys->kpointsMonkhorstShift, 2))) !=
+            0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  } else if (sys->kpointsScaled || sys->kpointsOnlyDiagonal ||
+             has_monkhorst_options) {
     return -1;
   }
   if (sys->doubleGrid.str && sys->doubleGrid.len > 0) {

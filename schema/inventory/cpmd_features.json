@@ -2207,6 +2207,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.kpointsMonkhorstPack",
+      "kind": "structured_params_field",
+      "name": "kpointsMonkhorstPack",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsMonkhorstSymmetrized",
+      "kind": "structured_params_field",
+      "name": "kpointsMonkhorstSymmetrized",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsMonkhorstFull",
+      "kind": "structured_params_field",
+      "name": "kpointsMonkhorstFull",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsMonkhorstKdp",
+      "kind": "structured_params_field",
+      "name": "kpointsMonkhorstKdp",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.kpointsMonkhorstShift",
+      "kind": "structured_params_field",
+      "name": "kpointsMonkhorstShift",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.doubleGrid",
       "kind": "structured_params_field",
       "name": "doubleGrid",

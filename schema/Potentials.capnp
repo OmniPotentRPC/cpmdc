@@ -105,6 +105,11 @@ struct CPMDSystemSection {
   kpoints        @53 :List(CPMDKPoint);       # KPOINTS explicit weighted points.
   kpointsScaled  @54 :Bool = false;           # KPOINTS SCALED.
   kpointsOnlyDiagonal @55 :Bool = false;      # KPOINTS ONLYDIAG.
+  kpointsMonkhorstPack @56 :List(Int32);      # KPOINTS MONKHORST-PACK nk1, nk2, nk3.
+  kpointsMonkhorstSymmetrized @57 :Bool = false; # KPOINTS MONKHORST-PACK SYMMETRIZED.
+  kpointsMonkhorstFull @58 :Bool = false;     # KPOINTS MONKHORST-PACK FULL.
+  kpointsMonkhorstKdp @59 :Bool = false;      # KPOINTS MONKHORST-PACK KDP.
+  kpointsMonkhorstShift @60 :List(Float64);   # KPOINTS MONKHORST-PACK mesh-line SHIFT vector.
 }
 
 struct CPMDCpmdSection {
