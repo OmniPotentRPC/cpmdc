@@ -228,6 +228,84 @@ inside the matching typed section, ``CPMDSetDirective`` dotted keys,
 structured fields in the schema over inventing a second config file
 format.
 
+Choosing an input carrier
+=========================
+
+Use the most structured carrier that represents the deck intent. The
+usual path is:
+
+#. Put functional, cutoff, charge, multiplicity, task, and embed hints
+   in the top-level ``CPMDParams`` fields.
+#. Put named OpenCPMD section controls in typed ``inputSections`` arms
+   such as ``system``, ``cpmd``, ``dft``, and ``atoms``.
+#. Put extra section keywords in that section's ``directives`` list when
+   they naturally belong to a typed section.
+#. Use ``set`` for one merge-only keyword, ``generic`` for a non-catalog
+   section alias, and ``raw`` or ``inputBlocks`` for text that must
+   remain literal.
+
++------------------------+----------------------+----------------------+
+| Requirement            | Carrier              | Reason               |
++========================+======================+======================+
+| Supported OpenCPMD     | typed section field  | Schema readers,      |
+| ``inscan('&SECTION')`` |                      | tests, and feature   |
+| block                  |                      | discovery can name   |
+|                        |                      | the field directly   |
++------------------------+----------------------+----------------------+
+| One extra keyword      | ``set``              | The renderer merges  |
+| inside a generated     |                      | it into the matching |
+| section                |                      | section without      |
+|                        |                      | duplicating defaults |
++------------------------+----------------------+----------------------+
+| Non-catalog section    | ``generic``          | The section remains  |
+| alias with ordinary    |                      | structured even when |
+| keyword/argument lines |                      | it is not an         |
+|                        |                      | inventory ID         |
++------------------------+----------------------+----------------------+
+| Existing deck text     | ``raw`` or           | The renderer does    |
+| that must survive      | ``inputBlocks``      | not reinterpret the  |
+| byte-for-byte apart    |                      | fragment             |
+| from surrounding       |                      |                      |
+| output                 |                      |                      |
++------------------------+----------------------+----------------------+
+
+For example, a compact typed setup with one extra ``&SYSTEM`` keyword
+looks like:
+
+.. code:: capnp
+
+   (
+     functional = "PBE0",
+     cutOffRy = 85.0,
+     multiplicity = 2,
+     task = "gradient",
+     inputSections = [
+       ( system = (
+           symmetry = 0,
+           angstrom = true,
+           cutOffRy = 85.0,
+           cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+         ) ),
+       ( cpmd = (
+           optimizeWavefunction = true,
+           convergenceOrbitals = 1.0e-6,
+           maxStep = 50,
+           electronMass = 450.0
+         ) ),
+       ( dft = (
+           functional = "PBE0",
+           lsd = true,
+           hfx = true,
+           hfxScreening = "0.2"
+         ) ),
+       ( atoms = ( pseudopotentials = [
+           ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+           ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+         ] ) ),
+       ( set = ( key = "SYSTEM.POISSON SOLVER", value = "HOCKNEY" ) )
+     ]
+   )
+
 Catalog section exposure
 ========================
 
@@ -366,73 +444,6 @@ a dedicated field is unnecessary.
 |                                  |                   | ``raw``, or            |
 |                                  |                   | ``inputBlocks``        |
 +----------------------------------+-------------------+------------------------+
-
-Choosing an input carrier
-=========================
-
-Use the most structured carrier that represents the deck intent:
-
-+------------------------+----------------------+----------------------+
-| Requirement            | Carrier              | Reason               |
-+========================+======================+======================+
-| Supported OpenCPMD     | typed section field  | Schema readers,      |
-| ``inscan('&SECTION')`` |                      | tests, and feature   |
-| block                  |                      | discovery can name   |
-|                        |                      | the field directly   |
-+------------------------+----------------------+----------------------+
-| One extra keyword      | ``set``              | The renderer merges  |
-| inside a generated     |                      | it into the matching |
-| section                |                      | section without      |
-|                        |                      | duplicating defaults |
-+------------------------+----------------------+----------------------+
-| Non-catalog section    | ``generic``          | The section remains  |
-| alias with ordinary    |                      | structured even when |
-| keyword/argument lines |                      | it is not an         |
-|                        |                      | inventory ID         |
-+------------------------+----------------------+----------------------+
-| Existing deck text     | ``raw`` or           | The renderer does    |
-| that must survive      | ``inputBlocks``      | not reinterpret the  |
-| byte-for-byte apart    |                      | fragment             |
-| from surrounding       |                      |                      |
-| output                 |                      |                      |
-+------------------------+----------------------+----------------------+
-
-For example, a compact typed setup with one extra ``&SYSTEM`` keyword
-looks like:
-
-.. code:: capnp
-
-   (
-     functional = "PBE0",
-     cutOffRy = 85.0,
-     multiplicity = 2,
-     task = "gradient",
-     inputSections = [
-       ( system = (
-           symmetry = 0,
-           angstrom = true,
-           cutOffRy = 85.0,
-           cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0]
-         ) ),
-       ( cpmd = (
-           optimizeWavefunction = true,
-           convergenceOrbitals = 1.0e-6,
-           maxStep = 50,
-           electronMass = 450.0
-         ) ),
-       ( dft = (
-           functional = "PBE0",
-           lsd = true,
-           hfx = true,
-           hfxScreening = "0.2"
-         ) ),
-       ( atoms = ( pseudopotentials = [
-           ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
-           ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
-         ] ) ),
-       ( set = ( key = "SYSTEM.POISSON SOLVER", value = "HOCKNEY" ) )
-     ]
-   )
 
 Other structured parameter features
 ===================================

@@ -210,7 +210,16 @@ changes require a new session.
 
 `CPMDParams` carries backend setup only. Geometry belongs in `ForceInput`.
 
-Common scalar fields include:
+Route parameters in this order:
+
+| Need | Use | Why |
+| --- | --- | --- |
+| Core method defaults | top-level `CPMDParams` scalars | short setup for common callers |
+| OpenCPMD `&SYSTEM`, `&CPMD`, `&DFT`, and `&ATOMS` options | typed `inputSections` arms | schema-visible fields with feature IDs and render tests |
+| A supported section with a keyword that is not typed yet | `inputSections.set` or section `directives` | merges into the generated section without raw deck text |
+| Existing deck text that must survive unchanged | `inputBlocks` or `inputSections.raw` | preserves the fragment instead of interpreting it |
+
+Common top-level scalars:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -221,45 +230,55 @@ Common scalar fields include:
 | `cpmdRoot` | empty | `CPMD_ROOT` hint for the embed layer |
 | `enginePath` | empty | frontend hint used by loaders such as rgpot |
 
-Long-tail CPMD input is represented with `inputSections`:
+Typed section quick map:
 
-- `system` for `&SYSTEM` fields such as `CELL`, `REFERENCE CELL`,
-  `CLASSICAL CELL`, `ISOTROPIC CELL`, `ZFLEXIBLE CELL`, `CUTOFF`,
-  `CHECK SYMMETRY`, `SPHERICAL CUTOFF`, `NOSPHERICAL CUTOFF`, `HFX CUTOFF`,
-  `NSUP`, `STATES`, `OCCUPATION`, `EXTERNAL FIELD`, `WCUT`, `WGAUSS`,
-  `LOW SPIN EXCITATION`, `LSE PARAMETERS`, `MODIFIED GOEDECKER`,
-  `ENERGY PROFILE`,
-  `DENSITY CUTOFF`,
-  `DENSITY CUTOFF NUMBER`, `DUAL`, `CONSTANT CUTOFF`, `BOX WALLS`,
-  `POISSON SOLVER`, `MESH`, `SCALE`, `DOUBLE GRID`,
-  `SYMMETRIZE COORDINATES`, `TESR`, `SURFACE`, `POLYMER`, `CLUSTER`,
-  `PRESSURE`, `STRESS TENSOR`, `SHOCK VELOCITY`, `CHARGE`
-- `cpmd` for `&CPMD` controls such as `OPTIMIZE WAVEFUNCTION`, `MAXSTEP`,
-  `OPTIMIZE GEOMETRY`, `MAXITER`, `CONVERGENCE GEOMETRY`, `EMASS`,
-  `MOLECULAR DYNAMICS CP/BO/EH/PT/CLASSICAL`, `NOSE`, `BERENDSEN`,
-  `LANGEVIN`, `ANNEALING`, `RATTLE`, `SHAKE`, `RESTART`,
-  `PRINT`, `STORE`, `ISOLATED MOLECULE`, `CENTER MOLECULE`, `DIIS`,
-  `ODIIS`, `PCG`,
-  `DIAGONALIZATION`, `FREE-ENERGY`, `QMMM`, `CDFT`, `PROPERTIES`,
-  `VDW CORRECTION`, `VDW WANNIER`, `DCACP`, `RESTART WAVEFUNCTION`,
-  `TRAJECTORY`
-- `dft` for `&DFT` controls such as `FUNCTIONAL`, `LSD`, `GC-CUTOFF`,
-  `XC_DRIVER`, `LIBXC`, `LR KERNEL`, `HFX`, `HFX-SCREENING`, `HUBBARD`,
-  `ALPHA`, `BETA`, `OLDCODE`, `NEWCODE`, `CORRELATION`, `EXCHANGE`, and
-  `BECKE88`
-- `atoms` for pseudopotential entries and non-coordinate `&ATOMS` directives
-- `atom`, `basis`, `clas`, `eam`, `exte`, `hardness`, `info`, `linres`,
-  `molstates`, `mts`, `nlcc`, `path`, `pimd`, `potential`, `prop`, `ptddft`,
-  `resp`, `tddft`, `vdw`, `vectors`, and `wavefunction` for named
-  OpenCPMD sections that carry directive lists and nested subsections; `vdw`
-  uses subsections for `EMPIRICAL CORRECTION`
-- `generic`, `set`, and `raw` for aliases, merge-only keywords, and
-  text-preserving deck fragments
+| Section arm | Renders | Use for |
+| --- | --- | --- |
+| `system` | `&SYSTEM` | cells, cutoffs, grids, symmetry, occupations, external fields, pressure, charge |
+| `cpmd` | `&CPMD` | optimization, MD mode, iteration limits, convergence, thermostats, restarts, print/store controls |
+| `dft` | `&DFT` | functional selection, LSD, GC cutoff, XC driver, hybrid/Hubbard options |
+| `atoms` | `&ATOMS` | pseudopotential entries and non-coordinate atom-section directives |
+| directive sections | named OpenCPMD sections | keyword/value lists and nested blocks for sections such as `&PIMD`, `&VDW`, and `&PROP` |
+| `set`, `generic`, `raw` | generated or literal sections | merge-only keywords, non-catalog aliases, and text-preserving fragments |
+
+For example, this setup renders typed `&SYSTEM`, `&CPMD`, `&DFT`, and
+`&ATOMS` sections while geometry still comes from each `ForceInput` message:
+
+```capnp
+(
+  functional = "PBE0",
+  cutOffRy = 85.0,
+  task = "gradient",
+  inputSections = [
+    ( system = (
+        angstrom = true,
+        cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        cutOffRy = 85.0,
+        poissonSolver = "HOCKNEY"
+      ) ),
+    ( cpmd = (
+        optimizeWavefunction = true,
+        convergenceOrbitals = 1.0e-6,
+        maxStep = 50
+      ) ),
+    ( dft = (
+        functional = "PBE0",
+        lsd = true,
+        hfx = true
+      ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)
+```
 
 Typed `atoms` sections group `ForceInput` coordinates into CPMD `&ATOMS`
 entries by element symbol. Every atomic number in a geometry step needs a
 matching pseudopotential entry. When `atoms` is omitted, built-in BLYP defaults
-cover H and O only.
+cover H and O only. The full field inventory is in
+`docs/orgmode/reference/cpmd-options.org`.
 
 ## rgpot Integration
 
