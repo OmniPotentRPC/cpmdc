@@ -1811,6 +1811,78 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CDFT_ALL",
+      "kind": "cpmd_keyword",
+      "name": "CDFT ALL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_NEWTON",
+      "kind": "cpmd_keyword",
+      "name": "CDFT NEWTON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_HDA",
+      "kind": "cpmd_keyword",
+      "name": "CDFT HDA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_PROJECT",
+      "kind": "cpmd_keyword",
+      "name": "CDFT PROJECT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_AUTO",
+      "kind": "cpmd_keyword",
+      "name": "CDFT AUTO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_NOCCOR",
+      "kind": "cpmd_keyword",
+      "name": "CDFT NOCCOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_RESWF",
+      "kind": "cpmd_keyword",
+      "name": "CDFT RESWF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_PHIOUT",
+      "kind": "cpmd_keyword",
+      "name": "CDFT PHIOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.CDFT_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "CDFT payload",
@@ -1856,6 +1928,33 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_REFLECT",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS REFLECT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_SAB",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS SAB",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_NONORTH",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS NONORTH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "COMBINE SYSTEMS payload",
@@ -1883,6 +1982,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.KSHAM_MATRIX",
+      "kind": "cpmd_keyword",
+      "name": "KSHAM MATRIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KSHAM_ROUT",
+      "kind": "cpmd_keyword",
+      "name": "KSHAM ROUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.KSHAM_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "KSHAM payload",
@@ -1904,6 +2021,15 @@
       "feature_id": "catalog.cpmd.WOUT",
       "kind": "cpmd_keyword",
       "name": "WOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WOUT_SLICE",
+      "kind": "cpmd_keyword",
+      "name": "WOUT SLICE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
