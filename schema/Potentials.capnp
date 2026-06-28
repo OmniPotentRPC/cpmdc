@@ -93,6 +93,7 @@ struct CPMDSystemSection {
   energyProfile   @46 :Bool = false;        # ENERGY PROFILE.
   pointGroup       @47 :Text;                # POINT GROUP selector line, e.g. AUTO, NAME=C2v, or 26.
   pointGroupDelta  @48 :Float64 = 0.0;       # POINT GROUP DELTA accuracy; 0 => omit.
+  pointGroupMolecule @49 :Bool = false;      # POINT GROUP MOLECULE.
 }
 
 struct CPMDCpmdSection {

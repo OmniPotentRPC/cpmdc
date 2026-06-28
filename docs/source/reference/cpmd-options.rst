@@ -512,6 +512,8 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.pointGroup``                  | ``system.pointGroup``                  | ``&SYSTEM POINT GROUP`` selector line     |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.pointGroupMolecule``          | ``system.pointGroupMolecule``          | Add ``MOLECULE`` to ``POINT GROUP``       |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.pointGroupDelta``             | ``system.pointGroupDelta``             | ``&SYSTEM POINT GROUP DELTA=`` accuracy   |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.lowSpinExcitation``           | ``system.lowSpinExcitation``           | ``&SYSTEM LOW SPIN EXCITATION`` options   |

@@ -642,6 +642,9 @@ static int render_system_section_with_cell(
   if (has_point_group) {
     if (append_text(dst, dst_size, used, " POINT GROUP") != 0)
       return -1;
+    if (sys->pointGroupMolecule &&
+        append_text(dst, dst_size, used, " MOLECULE") != 0)
+      return -1;
     if (sys->pointGroupDelta > 0.0 &&
         append_fmt(dst, dst_size, used, " DELTA=%.10g",
                    sys->pointGroupDelta) != 0)
@@ -652,7 +655,7 @@ static int render_system_section_with_cell(
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-  } else if (sys->pointGroupDelta > 0.0) {
+  } else if (sys->pointGroupMolecule || sys->pointGroupDelta > 0.0) {
     return -1;
   }
   int has_low_spin =

@@ -2031,6 +2031,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.pointGroupMolecule",
+      "kind": "structured_params_field",
+      "name": "pointGroupMolecule",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.pointGroupDelta",
       "kind": "structured_params_field",
       "name": "pointGroupDelta",
