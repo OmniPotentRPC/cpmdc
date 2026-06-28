@@ -1,14 +1,33 @@
-Stub And Parser Build
-=====================
+Default Build
+=============
 
-The default build is the fastest way to check the public ABI. It builds
-the parser, generated Cap'n Proto readers, shared ``libcpmdc``, and a
-deterministic reference evaluator. No OpenCPMD checkout is needed for
-this path.
+The default build is the first check for this repository. It builds the
+parser, generated Cap'n Proto readers, shared ``libcpmdc``, feature
+table, session runtime, and deterministic reference evaluator. No
+OpenCPMD checkout is needed.
 
 Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager or use the checked-in Pixi
-environment.
+pkg-config with your system package manager, or use the checked-in Pixi
+environment:
+
+.. code:: bash
+
+   pixi run test-stub
+
+The equivalent explicit commands are:
+
+.. code:: bash
+
+   meson setup build -Dwith_tests=true
+   meson compile -C build
+   meson test -C build --print-errorlogs
+
+The pass condition is a green Meson run covering parser, ABI, feature
+inventory, session lifecycle, result sizing, unit conversion, and
+reference-evaluator E2E tests.
+
+Common Paths
+============
 
 +---------------------+----------------------------------------------------------+-----------------------+
 | Path                | Commands                                                 | Expected coverage     |
@@ -32,12 +51,6 @@ environment.
 |                     |                                                          | HTML                  |
 +---------------------+----------------------------------------------------------+-----------------------+
 
-.. code:: bash
-
-   meson setup build -Dwith_tests=true
-   meson compile -C build
-   meson test -C build --print-errorlogs
-
 This configuration compiles the vendored ``capnp-c`` runtime, generates
 C readers for ``schema/Potentials.capnp``, and runs cmocka suites:
 
@@ -59,6 +72,23 @@ The standalone stub target is different from the default shared engine:
 ``cpmdc_available() == 0``. The default shared ``libcpmdc`` reports
 availability through the reference evaluator and can run the session
 tests.
+
+What To Read After The First Run
+================================
+
+.. list-table::
+   :header-rows: 1
+
+   * - Need
+     - Page
+   * - Call the C ABI from a host process
+     - :doc:`Embedding cpmdc </howto/embedding>`
+   * - Choose structured ``CPMDParams`` fields
+     - :doc:`CPMD option mapping </reference/cpmd-options>`
+   * - Understand sessions, units, and topology
+     - :doc:`Architecture </reference/architecture>`
+   * - Link against a real OpenCPMD archive
+     - :doc:`Architecture </reference/architecture>` and `OpenCPMD Archive Build`_ below
 
 Run The Host Example
 ====================

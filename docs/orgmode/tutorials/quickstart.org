@@ -1,15 +1,33 @@
 #+TITLE: Quickstart
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-* Stub And Parser Build
-The default build is the fastest way to check the public ABI.
-It builds the parser, generated Cap'n Proto readers, shared ~libcpmdc~, and a
-deterministic reference evaluator.
-No OpenCPMD checkout is needed for this path.
+* Default Build
+The default build is the first check for this repository.
+It builds the parser, generated Cap'n Proto readers, shared ~libcpmdc~, feature
+table, session runtime, and deterministic reference evaluator.
+No OpenCPMD checkout is needed.
 
 Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager or use the checked-in Pixi
-environment.
+pkg-config with your system package manager, or use the checked-in Pixi
+environment:
+
+#+begin_src bash
+pixi run test-stub
+#+end_src
+
+The equivalent explicit commands are:
+
+#+begin_src bash
+meson setup build -Dwith_tests=true
+meson compile -C build
+meson test -C build --print-errorlogs
+#+end_src
+
+The pass condition is a green Meson run covering parser, ABI, feature inventory,
+session lifecycle, result sizing, unit conversion, and reference-evaluator E2E
+tests.
+
+* Common Paths
 
 | Path | Commands | Expected coverage |
 |------+----------+-------------------|
@@ -17,12 +35,6 @@ environment.
 | cmocka/parser focus | ~meson test -C build --suite cmocka --print-errorlogs~ | Cap'n Proto decode, deck rendering, feature table checks |
 | session E2E focus | ~meson test -C build --suite e2e --print-errorlogs~ | one-shot calls, session calls, topology rejection, unit conversion |
 | docs | ~pixi run -e docs docbld~ | Org export, generated C API pages, Sphinx HTML |
-
-#+begin_src bash
-meson setup build -Dwith_tests=true
-meson compile -C build
-meson test -C build --print-errorlogs
-#+end_src
 
 This configuration compiles the vendored ~capnp-c~ runtime, generates C readers
 for ~schema/Potentials.capnp~, and runs cmocka suites:
@@ -43,6 +55,25 @@ The standalone stub target is different from the default shared engine:
 ~cpmdc_available() == 0~.
 The default shared ~libcpmdc~ reports availability through the reference
 evaluator and can run the session tests.
+
+* What To Read After The First Run
+
+#+begin_export rst
+.. list-table::
+   :header-rows: 1
+
+   * - Need
+     - Page
+   * - Call the C ABI from a host process
+     - :doc:`Embedding cpmdc </howto/embedding>`
+   * - Choose structured ``CPMDParams`` fields
+     - :doc:`CPMD option mapping </reference/cpmd-options>`
+   * - Understand sessions, units, and topology
+     - :doc:`Architecture </reference/architecture>`
+   * - Link against a real OpenCPMD archive
+     - :doc:`Architecture </reference/architecture>` and `OpenCPMD Archive Build`_ below
+
+#+end_export
 
 * Run The Host Example
 ~examples/host_step.c~ is a minimal C host for the public ABI.

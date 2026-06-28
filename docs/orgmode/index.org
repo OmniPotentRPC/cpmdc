@@ -18,12 +18,15 @@
 * Overview
 ~cpmdc~ is the C ABI layer for embedding [[https://github.com/OpenCPMD/CPMD][OpenCPMD]] in
 OmniPotentRPC tools.
-It keeps the public boundary small and language-neutral:
+It keeps the public boundary small and language-neutral.
+Hosts pass method setup once, pass geometry for each calculation step, and get
+native C results or a serialized result message back.
 
-- method setup is an unpacked flat Cap'n Proto ~CPMDParams~ message
-- per-step geometry is an unpacked flat Cap'n Proto ~ForceInput~ message
-- per-step output can be returned as native C values or as an unpacked flat
-  ~PotentialResult~ message
+| Message | Owns | Typical lifetime |
+|---------+------+------------------|
+| ~CPMDParams~ | method setup, CPMD sections, pseudopotentials, backend hints | one session |
+| ~ForceInput~ | positions, atomic numbers, optional cell, requested units | one calculation step |
+| ~PotentialResult~ | energy, forces, status, message | one calculation result |
 
 The ABI does not expose C++ types, Rust types, or a second JSON/TOML options
 language.
@@ -47,22 +50,40 @@ require a new session.
 .. list-table::
    :header-rows: 1
 
-   * - Need
+   * - You are
+     - Start with
      - Page
-   * - Build the library and run the right tests
+   * - Building the project for the first time
+     - Run the default Meson suite and learn what it covers
      - :doc:`Quickstart <tutorials/quickstart>`
-   * - Embed the C ABI from a host process
+   * - Calling cpmdc from a host process
+     - Use the session result path and size output from ``ForceInput``
      - :doc:`Embedding cpmdc <howto/embedding>`
-   * - Map Cap'n Proto fields to CPMD ``INPUT`` sections
+   * - Constructing ``CPMDParams``
+     - Pick typed section fields before raw deck text
      - :doc:`CPMD option mapping <reference/cpmd-options>`
-   * - Understand the library layers and OpenCPMD archive link
+   * - Linking a real OpenCPMD archive
+     - Check the C/Fortran layer boundary and runtime data ownership
      - :doc:`Architecture <reference/architecture>`
-   * - Inspect generated C API details
+   * - Checking exported C symbols
+     - Inspect generated declarations and feature structs
      - :doc:`API reference <api/index>`
 
 #+end_export
 
-* Contracts At A Glance
+* First Command
+
+#+begin_src bash
+meson setup build -Dwith_tests=true
+meson compile -C build
+meson test -C build --print-errorlogs
+#+end_src
+
+The default build does not need an OpenCPMD checkout.
+It uses a deterministic reference evaluator to test the public ABI, parser,
+feature table, sessions, result sizing, and unit conversion.
+
+* Runtime Contracts
 
 | Concern | Carrier | Public entry points |
 |---------+---------+---------------------|
@@ -71,17 +92,6 @@ require a new session.
 | Result carrier | serialized ~PotentialResult~ or native C values | ~cpmdc_session_calculate_result~, ~cpmdc_calculate_result~, ~CPMDCResult~ |
 | Runtime discovery | stable feature IDs | ~cpmdc_feature_count~, ~cpmdc_feature_table~, ~cpmdc_feature_find~ |
 
-#+begin_src bash
-git clone https://github.com/OmniPotentRPC/cpmdc.git
-cd cpmdc
-meson setup build -Dwith_tests=true
-meson compile -C build
-meson test -C build --print-errorlogs
-#+end_src
-
-The default build includes a deterministic reference evaluator so the ABI,
-parser, session, unit-conversion, and result-buffer contracts can be tested
-without an OpenCPMD checkout.
 An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
 
 #+begin_export rst
