@@ -419,10 +419,17 @@ static int directives_have_prefix(CPMDDirective_list directives,
 }
 
 static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
-                            const double *cell, int ncell) {
+                            const double *cell, int ncell, int absolute,
+                            int degree) {
   if (ncell != 6 && ncell != 9)
     return 0;
-  if (append_text(dst, dst_size, used, " CELL\n ") != 0)
+  if (append_text(dst, dst_size, used, " CELL") != 0)
+    return -1;
+  if (absolute && append_text(dst, dst_size, used, " ABSOLUTE") != 0)
+    return -1;
+  if (degree && append_text(dst, dst_size, used, " DEGREE") != 0)
+    return -1;
+  if (append_text(dst, dst_size, used, "\n ") != 0)
     return -1;
   if (ncell == 6) {
     double a = cell[0];
@@ -431,7 +438,8 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
     double ab = cell[3];
     double ac = cell[4];
     double bc = cell[5];
-    if (fabs(ab) > 1.0 || fabs(ac) > 1.0 || fabs(bc) > 1.0) {
+    if (!absolute && !degree &&
+        (fabs(ab) > 1.0 || fabs(ac) > 1.0 || fabs(bc) > 1.0)) {
       const double deg = 3.14159265358979323846 / 180.0;
       if (a != 0.0) {
         b /= a;
@@ -500,23 +508,42 @@ static int render_system_section_with_cell(
   int ncell = list64_len(&sys->cell);
   if (ncell < 0)
     return -1;
+  if ((sys->cellAbsolute || sys->cellDegree) && ncell != 6)
+    return -1;
   if (override_ncell == 9 && cell_override) {
-    if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell) != 0)
+    if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell, 0,
+                         0) != 0)
       return -1;
   } else if (ncell == 6 || ncell == 9) {
     double cell[9] = {0};
     for (int i = 0; i < ncell; ++i)
       cell[i] = capn_to_f64(capn_get64(sys->cell, i));
-    if (append_cpmd_cell(dst, dst_size, used, cell, ncell) != 0)
+    if (append_cpmd_cell(dst, dst_size, used, cell, ncell, sys->cellAbsolute,
+                         sys->cellDegree) != 0)
       return -1;
   }
   int n_reference_cell = list64_len(&sys->referenceCell);
   if (n_reference_cell < 0)
     return -1;
+  if (n_reference_cell == 0 &&
+      (sys->referenceCellAbsolute || sys->referenceCellDegree))
+    return -1;
   if (n_reference_cell > 0) {
-    if (append_text(dst, dst_size, used,
-                    n_reference_cell == 9 ? " REFERENCE CELL VECTORS\n"
-                                          : " REFERENCE CELL\n") != 0)
+    if ((sys->referenceCellAbsolute || sys->referenceCellDegree) &&
+        n_reference_cell != 6)
+      return -1;
+    if (append_text(dst, dst_size, used, " REFERENCE CELL") != 0)
+      return -1;
+    if (n_reference_cell == 9 &&
+        append_text(dst, dst_size, used, " VECTORS") != 0)
+      return -1;
+    if (sys->referenceCellAbsolute &&
+        append_text(dst, dst_size, used, " ABSOLUTE") != 0)
+      return -1;
+    if (sys->referenceCellDegree &&
+        append_text(dst, dst_size, used, " DEGREE") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
     if (append_f64_list_line(dst, dst_size, used, &sys->referenceCell,
                              n_reference_cell == 9 ? 9 : 6) != 0)
@@ -525,8 +552,21 @@ static int render_system_section_with_cell(
   int n_classical_cell = list64_len(&sys->classicalCell);
   if (n_classical_cell < 0)
     return -1;
+  if (n_classical_cell == 0 &&
+      (sys->classicalCellAbsolute || sys->classicalCellDegree))
+    return -1;
   if (n_classical_cell > 0) {
-    if (append_text(dst, dst_size, used, " CLASSICAL CELL\n") != 0)
+    if (n_classical_cell != 6)
+      return -1;
+    if (append_text(dst, dst_size, used, " CLASSICAL CELL") != 0)
+      return -1;
+    if (sys->classicalCellAbsolute &&
+        append_text(dst, dst_size, used, " ABSOLUTE") != 0)
+      return -1;
+    if (sys->classicalCellDegree &&
+        append_text(dst, dst_size, used, " DEGREE") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
     if (append_f64_list_line(dst, dst_size, used, &sys->classicalCell, 6) != 0)
       return -1;

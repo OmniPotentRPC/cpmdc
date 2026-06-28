@@ -1863,6 +1863,22 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.cellAbsolute",
+      "kind": "structured_params_field",
+      "name": "cellAbsolute",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.cellDegree",
+      "kind": "structured_params_field",
+      "name": "cellDegree",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.referenceCell",
       "kind": "structured_params_field",
       "name": "referenceCell",
@@ -1871,9 +1887,41 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.referenceCellAbsolute",
+      "kind": "structured_params_field",
+      "name": "referenceCellAbsolute",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.referenceCellDegree",
+      "kind": "structured_params_field",
+      "name": "referenceCellDegree",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.classicalCell",
       "kind": "structured_params_field",
       "name": "classicalCell",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.classicalCellAbsolute",
+      "kind": "structured_params_field",
+      "name": "classicalCellAbsolute",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.classicalCellDegree",
+      "kind": "structured_params_field",
+      "name": "classicalCellDegree",
       "section": "system",
       "stub_applicable": true,
       "embed_applicable": true

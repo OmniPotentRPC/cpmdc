@@ -144,6 +144,12 @@ struct CPMDSystemSection {
   couplingsLinresThresholds @80 :List(Float64); # COUPLINGS LINRES THRESHOLDS low/med/high pairs.
   couplingsSurfaces @81 :List(CPMDCouplingSurface); # COUPLINGS NSURF surface triples.
   couplingsFiniteDifferenceAtoms @82 :List(Int32); # COUPLINGS NAT atom indexes.
+  cellAbsolute @83 :Bool = false;          # CELL ABSOLUTE.
+  cellDegree @84 :Bool = false;            # CELL DEGREE.
+  referenceCellAbsolute @85 :Bool = false; # REFERENCE CELL ABSOLUTE.
+  referenceCellDegree @86 :Bool = false;   # REFERENCE CELL DEGREE.
+  classicalCellAbsolute @87 :Bool = false; # CLASSICAL CELL ABSOLUTE.
+  classicalCellDegree @88 :Bool = false;   # CLASSICAL CELL DEGREE.
 }
 
 struct CPMDCpmdSection {
