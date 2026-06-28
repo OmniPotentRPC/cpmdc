@@ -516,6 +516,18 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.WOUT~ | ~params.inputSections.cpmd.woutOptions~ | ~woutOptions~ | ~WOUT~ |
 | ~catalog.cpmd.WOUT_PAYLOAD~ | ~params.inputSections.cpmd.woutPayload~ | ~woutPayload~ | ~WOUT payload~ |
 | ~catalog.cpmd.XFMQC~ | ~params.inputSections.cpmd.xfmqcTrajectories~ | ~xfmqcTrajectories~ | ~XFMQC~ |
+| ~catalog.cpmd.DEBUG~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG~ |
+| ~catalog.cpmd.KOHN_SHAM_ENERGIES~ | ~params.inputSections.cpmd.kohnShamEnergiesOptions~ | ~kohnShamEnergiesOptions~ | ~KOHN-SHAM ENERGIES~ |
+| ~catalog.cpmd.KOHN_SHAM_ENERGIES_COUNT~ | ~params.inputSections.cpmd.kohnShamEnergiesCount~ | ~kohnShamEnergiesCount~ | ~KOHN-SHAM ENERGIES payload~ |
+| ~catalog.cpmd.SURFACE_HOPPING~ | ~params.inputSections.cpmd.surfaceHoppingOptions~ | ~surfaceHoppingOptions~ | ~SURFACE HOPPING~ |
+| ~catalog.cpmd.ROKS~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS~ |
+| ~catalog.cpmd.ROKS_EXPERT_PAYLOAD~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT payload~ |
+| ~catalog.cpmd.PATH_SAMPLING~ | ~params.inputSections.cpmd.pathSampling~ | ~pathSampling~ | ~PATH SAMPLING~ |
+| ~catalog.cpmd.FIXRHO_UPWFN~ | ~params.inputSections.cpmd.fixrhoUpwfnOptions~ | ~fixrhoUpwfnOptions~ | ~FIXRHO UPWFN~ |
+| ~catalog.cpmd.FIXRHO_VECT~ | ~params.inputSections.cpmd.fixrhoVectors~ | ~fixrhoVectors~ | ~FIXRHO VECT~ |
+| ~catalog.cpmd.FIXRHO_LOOP~ | ~params.inputSections.cpmd.fixrhoLoop~ | ~fixrhoLoop~ | ~FIXRHO LOOP~ |
+| ~catalog.cpmd.FIXRHO_WFTOL~ | ~params.inputSections.cpmd.fixrhoWftol~ | ~fixrhoWftol~ | ~FIXRHO WFTOL~ |
+| ~catalog.cpmd.BOGOLIUBOV_CORRECTION~ | ~params.inputSections.cpmd.bogoliubovCorrection~ | ~bogoliubovCorrection~ | ~BOGOLIUBOV CORRECTION~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |

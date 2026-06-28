@@ -1714,6 +1714,114 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.DEBUG",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KOHN_SHAM_ENERGIES",
+      "kind": "cpmd_keyword",
+      "name": "KOHN-SHAM ENERGIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KOHN_SHAM_ENERGIES_COUNT",
+      "kind": "cpmd_keyword",
+      "name": "KOHN-SHAM ENERGIES payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SURFACE_HOPPING",
+      "kind": "cpmd_keyword",
+      "name": "SURFACE HOPPING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ROKS",
+      "kind": "cpmd_keyword",
+      "name": "ROKS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ROKS_EXPERT_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "ROKS EXPERT payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PATH_SAMPLING",
+      "kind": "cpmd_keyword",
+      "name": "PATH SAMPLING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FIXRHO_UPWFN",
+      "kind": "cpmd_keyword",
+      "name": "FIXRHO UPWFN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FIXRHO_VECT",
+      "kind": "cpmd_keyword",
+      "name": "FIXRHO VECT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FIXRHO_LOOP",
+      "kind": "cpmd_keyword",
+      "name": "FIXRHO LOOP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FIXRHO_WFTOL",
+      "kind": "cpmd_keyword",
+      "name": "FIXRHO WFTOL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BOGOLIUBOV_CORRECTION",
+      "kind": "cpmd_keyword",
+      "name": "BOGOLIUBOV CORRECTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -4458,6 +4566,102 @@
       "feature_id": "params.inputSections.cpmd.xfmqcTrajectories",
       "kind": "structured_params_field",
       "name": "xfmqcTrajectories",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.debugOptions",
+      "kind": "structured_params_field",
+      "name": "debugOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.kohnShamEnergiesOptions",
+      "kind": "structured_params_field",
+      "name": "kohnShamEnergiesOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.kohnShamEnergiesCount",
+      "kind": "structured_params_field",
+      "name": "kohnShamEnergiesCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.surfaceHoppingOptions",
+      "kind": "structured_params_field",
+      "name": "surfaceHoppingOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.roksOptions",
+      "kind": "structured_params_field",
+      "name": "roksOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.roksExpertPayload",
+      "kind": "structured_params_field",
+      "name": "roksExpertPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.pathSampling",
+      "kind": "structured_params_field",
+      "name": "pathSampling",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fixrhoUpwfnOptions",
+      "kind": "structured_params_field",
+      "name": "fixrhoUpwfnOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fixrhoVectors",
+      "kind": "structured_params_field",
+      "name": "fixrhoVectors",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fixrhoLoop",
+      "kind": "structured_params_field",
+      "name": "fixrhoLoop",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fixrhoWftol",
+      "kind": "structured_params_field",
+      "name": "fixrhoWftol",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.bogoliubovCorrection",
+      "kind": "structured_params_field",
+      "name": "bogoliubovCorrection",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

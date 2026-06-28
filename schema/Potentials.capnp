@@ -343,6 +343,18 @@ struct CPMDCpmdSection {
   cayley                  @185 :Bool = false; # CAYLEY.
   rungeKutta              @186 :Bool = false; # RUNGE-KUTTA.
   forceMatch              @187 :Bool = false; # FORCEMATCH.
+  debugOptions            @188 :Text; # DEBUG inline options.
+  kohnShamEnergiesOptions @189 :Text; # KOHN-SHAM ENERGIES inline options.
+  kohnShamEnergiesCount   @190 :Int32 = 0; # KOHN-SHAM ENERGIES payload count.
+  surfaceHoppingOptions   @191 :Text; # SURFACE HOPPING inline options.
+  roksOptions             @192 :Text; # ROKS inline options.
+  roksExpertPayload       @193 :Text; # ROKS EXPERT payload line.
+  pathSampling            @194 :Bool = false; # PATH SAMPLING.
+  fixrhoUpwfnOptions      @195 :Text; # FIXRHO UPWFN inline options.
+  fixrhoVectors           @196 :Int32 = 0; # FIXRHO VECT payload; 0 => omit.
+  fixrhoLoop              @197 :Text; # FIXRHO LOOP min/max payload.
+  fixrhoWftol             @198 :Float64 = 0.0; # FIXRHO WFTOL; 0 => omit.
+  bogoliubovCorrection    @199 :Text; # BOGOLIUBOV CORRECTION inline option.
 }
 
 struct CPMDDftSection {

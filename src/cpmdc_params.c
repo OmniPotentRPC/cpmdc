@@ -1342,6 +1342,105 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " FORCEMATCH\n") != 0)
       return -1;
   }
+  if (sec->debugOptions.str && sec->debugOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " DEBUG ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->debugOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->kohnShamEnergiesOptions.str &&
+       sec->kohnShamEnergiesOptions.len > 0) ||
+      sec->kohnShamEnergiesCount > 0) {
+    if (append_text(dst, dst_size, used, " KOHN-SHAM ENERGIES") != 0)
+      return -1;
+    if (sec->kohnShamEnergiesOptions.str &&
+        sec->kohnShamEnergiesOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->kohnShamEnergiesOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->kohnShamEnergiesCount > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->kohnShamEnergiesCount) != 0)
+      return -1;
+  }
+  if (sec->surfaceHoppingOptions.str &&
+      sec->surfaceHoppingOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " SURFACE HOPPING ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->surfaceHoppingOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->roksOptions.str && sec->roksOptions.len > 0) ||
+      (sec->roksExpertPayload.str && sec->roksExpertPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " ROKS") != 0)
+      return -1;
+    if (sec->roksOptions.str && sec->roksOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->roksOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->roksExpertPayload.str && sec->roksExpertPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->roksExpertPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->pathSampling) {
+    if (append_text(dst, dst_size, used, " PATH SAMPLING\n") != 0)
+      return -1;
+  }
+  if (sec->fixrhoUpwfnOptions.str && sec->fixrhoUpwfnOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " FIXRHO UPWFN ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->fixrhoUpwfnOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->fixrhoVectors > 0) {
+    if (append_fmt(dst, dst_size, used, " FIXRHO VECT\n  %d\n",
+                   sec->fixrhoVectors) != 0)
+      return -1;
+  }
+  if (sec->fixrhoLoop.str && sec->fixrhoLoop.len > 0) {
+    if (append_text(dst, dst_size, used, " FIXRHO LOOP\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->fixrhoLoop) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->fixrhoWftol > 0.0) {
+    if (append_fmt(dst, dst_size, used, " FIXRHO WFTOL\n  %.10g\n",
+                   sec->fixrhoWftol) != 0)
+      return -1;
+  }
+  if (sec->bogoliubovCorrection.str &&
+      sec->bogoliubovCorrection.len > 0) {
+    if (append_text(dst, dst_size, used, " BOGOLIUBOV CORRECTION ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->bogoliubovCorrection) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)
