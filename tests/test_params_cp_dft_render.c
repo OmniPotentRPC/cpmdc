@@ -244,9 +244,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 13) {
+  if (argc < 14) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin bad_occupation.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin bad_occupation.bin\n",
             argv[0]);
     return 2;
   }
@@ -332,8 +332,7 @@ int main(int argc, char **argv) {
       "CHARGE", "1", "NSUP", "2", "STATES", "4", "OCCUPATION FIXED",
       "2 1 1 0", "EXTERNAL FIELD", "0.01 0.02 0.03", "WCUT 0.45",
       "WGAUSS 2", "0.1234", "0.5678", "DONOR 2 WMULT", "1 3",
-      "2 4", "ACCEPTOR 2 HDAS", "2 4", "1 3", "ACCEPTOR 2 WMULT",
-      "5 6",
+      "2 4", "ACCEPTOR 2 HDAS", "2 4", "1 3",
       "POINT GROUP MOLECULE DELTA=0.0001", "DNH 2",
       "LOW SPIN EXCITATION ROKS PENALTY LSETS", "0.75",
       "LSE PARAMETERS", "2 1", "MODIFIED GOEDECKER PARAMETERS",
@@ -354,6 +353,9 @@ int main(int argc, char **argv) {
   const char *system_kpoint_bands_need[] = {
       "&SYSTEM", "KPOINTS BANDS SCALED", "4 0 0 0 0.5 0.5 0",
       "0 0 0 0 0 0 0",
+  };
+  const char *system_cdft_acceptor_wmult_need[] = {
+      "&SYSTEM", "ACCEPTOR 2 WMULT", "2 4", "5 6",
   };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
@@ -408,10 +410,14 @@ int main(int argc, char **argv) {
                  (int)(sizeof(system_kpoint_bands_need) /
                        sizeof(system_kpoint_bands_need[0]))) != 0)
     return 1;
-  if (check_render_fails(argv[12]) != 0)
+  if (check_deck(argv[12], system_cdft_acceptor_wmult_need,
+                 (int)(sizeof(system_cdft_acceptor_wmult_need) /
+                       sizeof(system_cdft_acceptor_wmult_need[0]))) != 0)
     return 1;
-  char *decks[11] = {0};
-  for (int i = 0; i < 11; ++i) {
+  if (check_render_fails(argv[13]) != 0)
+    return 1;
+  char *decks[12] = {0};
+  for (int i = 0; i < 12; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -421,10 +427,10 @@ int main(int argc, char **argv) {
     }
   }
   int coverage_rc = check_catalog_coverage(decks, 11);
-  for (int i = 0; i < 11; ++i)
+  for (int i = 0; i < 12; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, and system_kpoint_bands render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, and system_cdft_acceptor_wmult render + inventory finds\n");
   return 0;
 }

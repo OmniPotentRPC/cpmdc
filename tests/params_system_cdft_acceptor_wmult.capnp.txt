@@ -1,0 +1,9 @@
+(
+  inputSections = [
+    ( system = (
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        cdftAcceptorAtoms = [2, 4],
+        cdftAcceptorWeights = [5, 6]
+      ) )
+  ]
+)
