@@ -164,6 +164,9 @@ cell, cutoff, Poisson, KPOINTS, CDFT, pressure, and stress fields.
 section kind; individual `&SYSTEM` controls stay under
 `params.inputSections.system.*` rather than a separate `catalog.system.*`
 namespace.
+Use `params.inputSections.atoms.*` for pseudopotential entries and fixed
+non-coordinate `&ATOMS` keywords; geometry coordinates remain in each
+`ForceInput` step.
 
 ## OpenCPMD Archive Build
 
