@@ -2504,6 +2504,14 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->annealingCell) != 0)
       return -1;
   }
+  if (sec->damping.str && sec->damping.len > 0) {
+    if (append_text(dst, dst_size, used, " DAMPING\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->damping) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->dampingIons > 0.0) {
     if (append_fmt(dst, dst_size, used, " DAMPING IONS\n  %.10g\n",
                    sec->dampingIons) != 0)

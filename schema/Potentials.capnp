@@ -482,6 +482,7 @@ struct CPMDCpmdSection {
   lsd                     @324 :Bool = false; # LSD / LOCAL SPIN DENSITY.
   checkMemory             @325 :Bool = false; # CHECK MEMORY.
   trotterFactorizationOff @326 :Bool = false; # TROTTER FACTORIZATION OFF.
+  damping                 @327 :Text; # DAMPING payload for ions/electrons/cell.
 }
 
 struct CPMDDftSection {

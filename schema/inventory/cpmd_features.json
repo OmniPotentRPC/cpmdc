@@ -354,6 +354,7 @@
     "BERENDSEN",
     "LANGEVIN",
     "ANNEALING",
+    "DAMPING",
     "QUENCH",
     "RATTLE",
     "SHAKE",
@@ -3610,6 +3611,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.DAMPING",
+      "kind": "cpmd_keyword",
+      "name": "DAMPING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.DAMPING_IONS",
       "kind": "cpmd_keyword",
       "name": "DAMPING IONS",
@@ -6358,6 +6368,14 @@
       "feature_id": "params.inputSections.cpmd.annealingCell",
       "kind": "structured_params_field",
       "name": "annealingCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.damping",
+      "kind": "structured_params_field",
+      "name": "damping",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

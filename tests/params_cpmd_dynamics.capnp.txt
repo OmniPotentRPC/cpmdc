@@ -62,6 +62,7 @@
         annealingElectrons = 0.97,
         annealingCell = 0.96,
         annealing = "IONS 300 50",
+        damping = "0.21 0.22 0.23",
         dampingIons = 0.11,
         dampingElectrons = 0.12,
         dampingCell = 0.13,
