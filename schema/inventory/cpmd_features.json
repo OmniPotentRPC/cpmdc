@@ -3970,6 +3970,24 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.USE_CP",
+      "kind": "dft_keyword",
+      "name": "USE_CP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.USE_LIBXC",
+      "kind": "dft_keyword",
+      "name": "USE_LIBXC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.LSD",
       "kind": "dft_keyword",
       "name": "LSD",
@@ -3982,6 +4000,60 @@
       "feature_id": "catalog.dft.GC_CUTOFF",
       "kind": "dft_keyword",
       "name": "GC-CUTOFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.LIBRARY",
+      "kind": "dft_keyword",
+      "name": "LIBRARY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.KERNEL_LIBRARY",
+      "kind": "dft_keyword",
+      "name": "KERNEL_LIBRARY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.MTS_LOW_FUNC_LIBRARY",
+      "kind": "dft_keyword",
+      "name": "MTS_LOW_FUNC_LIBRARY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.SCALES",
+      "kind": "dft_keyword",
+      "name": "SCALES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.KERNEL_SCALES",
+      "kind": "dft_keyword",
+      "name": "KERNEL_SCALES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.MTS_LOW_FUNC_SCALES",
+      "kind": "dft_keyword",
+      "name": "MTS_LOW_FUNC_SCALES",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&DFT directive",
@@ -4069,9 +4141,117 @@
       "section": "DFT"
     },
     {
+      "feature_id": "catalog.dft.HFX_BLOCK_SIZE",
+      "kind": "dft_keyword",
+      "name": "HFX_BLOCK_SIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.SCALED_EXCHANGE",
+      "kind": "dft_keyword",
+      "name": "SCALED EXCHANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HFX_DISTRIBUTION",
+      "kind": "dft_keyword",
+      "name": "HFX_DISTRIBUTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.HFX_SCALE",
+      "kind": "dft_keyword",
+      "name": "HFX_SCALE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.KERNEL_HFX_SCALE",
+      "kind": "dft_keyword",
+      "name": "KERNEL_HFX_SCALE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.MTS_LOW_FUNC_HFX_SCALE",
+      "kind": "dft_keyword",
+      "name": "MTS_LOW_FUNC_HFX_SCALE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PHFX",
+      "kind": "dft_keyword",
+      "name": "PHFX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PXGC",
+      "kind": "dft_keyword",
+      "name": "PXGC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PCGC",
+      "kind": "dft_keyword",
+      "name": "PCGC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PXLDA",
+      "kind": "dft_keyword",
+      "name": "PXLDA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.PCLDA",
+      "kind": "dft_keyword",
+      "name": "PCLDA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
       "feature_id": "catalog.dft.HFX_SCREENING",
       "kind": "dft_keyword",
       "name": "HFX-SCREENING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&DFT directive",
+      "section": "DFT"
+    },
+    {
+      "feature_id": "catalog.dft.SMOOTHING",
+      "kind": "dft_keyword",
+      "name": "SMOOTHING",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&DFT directive",
