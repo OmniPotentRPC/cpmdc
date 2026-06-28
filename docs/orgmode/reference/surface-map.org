@@ -1,0 +1,94 @@
+#+TITLE: cpmdc public C surface map
+#+DATE: 2026-06-28
+
+Mechanical audit of the *in-process stable C ABI* (not full OpenCPMD manual
+keyword parity). Source tree: =OmniPotentRPC/cpmdc= on =main= (commits through
+=ad11009= / =cd22046=).
+
+* Scope
+
+- Public headers: =include/cpmdc.h=, =include/cpmdc_features.h=
+- Inventory: =schema/inventory/cpmd_features.json= (=abi_symbols= + feature rows)
+- Implementations: =src/cpmdc.c=, =src/cpmdc_stub.c=, =src/cpmdc_features.c=,
+  =src/cpmd_embed_c_api.F90=
+- Carriers: =schema/Potentials.capnp= (=CPMDParams=, =ForceInput=, =PotentialResult=,
+  =PotentialConfig=)
+
+* Cap'n Proto carriers
+
+| Carrier | Role |
+|---+------|
+| =CPMDParams= | Method / backend setup (sections, catalog, escape hatches) |
+| =ForceInput= | Per-step geometry (pos, Z, optional cell, units) |
+| =PotentialResult= | Wire energy + forces only (shared with nwchemc/rgpot) |
+| =PotentialConfig= | Tagged multi-backend configure union |
+
+* Evaluation backends
+
+| Path | =cpmdc_available= | Energy components via =cpmdc_last_energy_components= |
+|---+-------------------+-----------------------------------------------------|
+| Stub (=libcpmdc_stub=) | 0 | Returns -1; zeros; no invent |
+| Reference PEF (default =libcpmdc.so=) | 1 | =valid=; =etot= only (=energy_h=) |
+| OpenCPMD archive (=libcpmd.a=, =-Dwith_cpmd=true=) | 1 | Full =ener_com_t= after =wfopts= |
+
+* Public symbol table (header × inventory × impl)
+
+Columns: *header* always Y for symbols declared in public headers; *abi_sym*
+membership in inventory =abi_symbols=; *real* body in =cpmdc.c= or
+=cpmdc_features.c=; *stub* body in =cpmdc_stub.c= (feature symbols live only in
+=cpmdc_features.c=, linked into both builds); *feat_row* =abi.cpmdc_*= feature
+table entry.
+
+| symbol | role | header | abi_sym | real | stub | feat_row |
+|---+------+--------+---------+------+------+----------|
+| =cpmdc_available= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_energy= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_energy_forces= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_energy_gradient= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_feature_count= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_feature_find= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_feature_table= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_finalize= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_last_energy_components= | result-components | Y | Y | Y | Y | Y |
+| =cpmdc_potential_result_size_for_force_input= | result-size | Y | Y | Y | Y | Y |
+| =cpmdc_session_calculate_forces= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_session_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_session_create= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_session_destroy= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy_forces= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy_gradient= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_set_params= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_set_params= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_version= | lifecycle | Y | Y | Y | Y | Y |
+
+Header symbols: 21
+abi_symbols: 21
+Missing parity: NONE
+
+* Inscan sections (OpenCPMD =inscan('&SECTION')= set, 25)
+
+ATOM, ATOMS, BASIS, CLAS, CPMD, DFT, EAM, EXTE, HARDNESS, INFO, LINRES,
+MOLSTATES, MTS, NLCC, PATH, PIMD, POTENTIAL, PROP, PTDDFT, RESP, SYSTEM,
+TDDFT, VDW, VECTORS, WAVEFUNCTION
+
+* Result surfaces (post-eval)
+
+- =CPMDCResult.energy_h= — total Hartree (native)
+- =PotentialResult= Cap'n Proto — energy + forces (unit-converted on socket path)
+- =CPMDCEnergyComponents= / =cpmdc_last_energy_components= — full OpenCPMD
+  =ener_com= POD (=etot= … =eefield=); =etot= matches =energy_h= on success
+
+* Deferred (vault issues, not blocking host path)
+
+See =Software/cpmdc/issues.org=: PotentialResult wire =ener_com= fields, MD
+ENERGY/EKINC trajectory, CAS22 =ener_c=/=ener_d=, =chrg= snapshot, Hessian/dipole
+ABI, QMMM beyond catalog, parser N_STREAMS / PBEoriginal modeling.
+
+* Related commits
+
+- =cd22046= — =feat(abi): expose in-process ener_com energy components=
+- =ad11009= — docs/example alignment for components path
+- =866b1f4= — =fix(build): link FFTW3 when embedding OpenCPMD archive=
+

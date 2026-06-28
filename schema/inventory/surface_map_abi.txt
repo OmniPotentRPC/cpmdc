@@ -1,0 +1,27 @@
+| symbol | role | header | abi_sym | real | stub | feat_row |
+|---+------+--------+---------+------+------+----------|
+| =cpmdc_available= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_energy= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_energy_forces= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_energy_gradient= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_feature_count= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_feature_find= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_feature_table= | discovery | Y | Y | Y | Y | Y |
+| =cpmdc_finalize= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_last_energy_components= | result-components | Y | Y | Y | Y | Y |
+| =cpmdc_potential_result_size_for_force_input= | result-size | Y | Y | Y | Y | Y |
+| =cpmdc_session_calculate_forces= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_session_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
+| =cpmdc_session_create= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_session_destroy= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy_forces= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_energy_gradient= | step-native | Y | Y | Y | Y | Y |
+| =cpmdc_session_set_params= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_set_params= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_version= | lifecycle | Y | Y | Y | Y | Y |
+
+Header symbols: 21
+abi_symbols: 21
+Missing parity: NONE
