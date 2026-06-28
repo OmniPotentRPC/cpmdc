@@ -103,6 +103,7 @@ For a complete mapping table, see
 | Group | Symbols |
 | --- | --- |
 | Library status | `cpmdc_version`, `cpmdc_available`, `cpmdc_finalize` |
+| Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |

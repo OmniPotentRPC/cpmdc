@@ -299,6 +299,7 @@
     "cpmdc_version",
     "cpmdc_available",
     "cpmdc_finalize",
+    "cpmdc_last_energy_components",
     "cpmdc_feature_count",
     "cpmdc_feature_table",
     "cpmdc_feature_find"
@@ -10780,6 +10781,13 @@
       "feature_id": "abi.cpmdc_finalize",
       "kind": "abi",
       "name": "cpmdc_finalize",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_last_energy_components",
+      "kind": "abi",
+      "name": "cpmdc_last_energy_components",
       "stub_applicable": true,
       "embed_applicable": true
     },

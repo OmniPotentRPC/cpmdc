@@ -507,6 +507,25 @@ if get_option('with_tests')
     output: 'params_escape_generic.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  energy_components_exe = executable(
+    'test_energy_components',
+    'tests/test_energy_components.c',
+    dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+    include_directories: inc,
+    c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+  )
+  test(
+    'energy-components',
+    energy_components_exe,
+    args: [
+      runtime_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [runtime_params_bin, force_input_step_a_bin],
+    suite: ['e2e', 'cmocka', 'params'],
+    timeout: 300,
+  )
+
   test(
     'feature-inventory',
     python,

@@ -25,6 +25,13 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
                             double *grad_h_bohr);
+int cpmdc_embed_last_energy_components(
+    int *valid, double *etot, double *ekin, double *epseu, double *enl,
+    double *eht, double *ehep, double *ehee, double *ehii, double *exc,
+    double *vxc, double *egc, double *esr, double *eeig, double *eband,
+    double *entropy, double *eself, double *ecnstr, double *amu, double *ebogo,
+    double *eext, double *etddft, double *ehsic, double *erestr,
+    double *eefield);
 void cpmdc_embed_finalize(void);
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
@@ -621,6 +628,23 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
       potential_result_capnp_size_bytes);
   cpmdc_session_destroy(session);
   return r;
+}
+
+int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0;
+  int rc = cpmdc_embed_last_energy_components(
+      &valid, &out->etot, &out->ekin, &out->epseu, &out->enl, &out->eht,
+      &out->ehep, &out->ehee, &out->ehii, &out->exc, &out->vxc, &out->egc,
+      &out->esr, &out->eeig, &out->eband, &out->entropy, &out->eself,
+      &out->ecnstr, &out->amu, &out->ebogo, &out->eext, &out->etddft,
+      &out->ehsic, &out->erestr, &out->eefield);
+  out->valid = valid;
+  return rc;
 }
 
 size_t cpmdc_potential_result_size_for_force_input(

@@ -1296,6 +1296,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_version", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_available", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_finalize", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_last_energy_components", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_count", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_table", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_find", CPMDC_FEATURE_ABI, 1, 1},

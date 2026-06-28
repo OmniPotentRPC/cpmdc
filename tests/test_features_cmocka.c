@@ -454,6 +454,7 @@ static void test_abi(void **state) {
       "abi.cpmdc_session_energy_gradient",
       "abi.cpmdc_session_energy",
       "abi.cpmdc_session_energy_forces",
+      "abi.cpmdc_last_energy_components",
       "abi.cpmdc_session_calculate_forces",
       "abi.cpmdc_session_calculate_result",
       "abi.cpmdc_calculate_result",

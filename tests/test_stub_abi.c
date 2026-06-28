@@ -18,6 +18,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_energy_gradient",
     "abi.cpmdc_session_energy",
     "abi.cpmdc_session_energy_forces",
+    "abi.cpmdc_last_energy_components",
     "abi.cpmdc_session_calculate_forces",
     "abi.cpmdc_session_calculate_result",
     "abi.cpmdc_calculate_result",
@@ -64,6 +65,11 @@ static void test_stub_reports_unavailable(void **state) {
       cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
   assert_int_equal(one_shot.ok, 0);
   assert_int_equal(cpmdc_potential_result_size_for_force_input(NULL, 0), 0);
+  CPMDCEnergyComponents components;
+  memset(&components, 0xab, sizeof(components));
+  assert_int_equal(cpmdc_last_energy_components(&components), -1);
+  assert_int_equal(components.valid, 0);
+  assert_true(components.etot == 0.0);
   const CPMDCFeatureEntry *features = cpmdc_feature_table();
   assert_non_null(features);
   assert_true(cpmdc_feature_count() > 0);

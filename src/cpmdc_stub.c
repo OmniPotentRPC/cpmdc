@@ -1,6 +1,7 @@
 #include "cpmdc.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static CPMDCResult stub_fail(void) {
   CPMDCResult r;
@@ -161,4 +162,10 @@ size_t cpmdc_potential_result_size_for_force_input(
   (void)force_input_capnp;
   (void)force_input_capnp_size_bytes;
   return 0;
+}
+
+int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
 }

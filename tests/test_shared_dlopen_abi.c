@@ -36,6 +36,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_session_energy_gradient",
     "cpmdc_session_energy",
     "cpmdc_session_energy_forces",
+    "cpmdc_last_energy_components",
     "cpmdc_session_calculate_forces",
     "cpmdc_session_calculate_result",
     "cpmdc_calculate_result",

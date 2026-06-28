@@ -32,6 +32,43 @@ typedef struct CPMDCResult {
   char message[512];
 } CPMDCResult;
 
+/**
+ * @brief In-process snapshot of OpenCPMD `ener_com` scalars (Hartree a.u.).
+ *
+ * Filled after a successful embed SCF (`wfopts`) or reference PEF evaluation.
+ * Hosts read this via `cpmdc_last_energy_components()` without parsing CLI
+ * ENERGY files or opening a network socket. Field names mirror `ener_com_t`
+ * in OpenCPMD `ener.mod.F90`. Zero fields are valid (not set for that run).
+ */
+typedef struct CPMDCEnergyComponents {
+  /** Non-zero when the snapshot was written by a successful evaluation. */
+  int valid;
+  double etot;
+  double ekin;
+  double epseu;
+  double enl;
+  double eht;
+  double ehep;
+  double ehee;
+  double ehii;
+  double exc;
+  double vxc;
+  double egc;
+  double esr;
+  double eeig;
+  double eband;
+  double entropy;
+  double eself;
+  double ecnstr;
+  double amu;
+  double ebogo;
+  double eext;
+  double etddft;
+  double ehsic;
+  double erestr;
+  double eefield;
+} CPMDCEnergyComponents;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
 
@@ -193,6 +230,16 @@ int cpmdc_available(void);
 
 /** @brief Finalize an owned embedded CPMD runtime. */
 void cpmdc_finalize(void);
+
+/**
+ * @brief Copy the last in-process `ener_com` energy decomposition.
+ *
+ * Call after a successful `cpmdc_energy*`, `cpmdc_session_energy*`, or
+ * `cpmdc_*_calculate_*` evaluation in the same process. Returns 0 when
+ * `out->valid` is set; -1 when no successful evaluation has run yet (stub
+ * builds always return -1 and leave `out` zeroed). Values are Hartree.
+ */
+int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
 
 #ifdef __cplusplus
 }

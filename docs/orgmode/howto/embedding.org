@@ -221,6 +221,12 @@ Choose the least lossy structured carrier:
 | A complete deck fragment must be prepended before structured sections | top-level ~inputBlocks~ | ~params.inputBlocks~ |
 
 * Units
+After a successful in-process evaluation (~cpmdc_session_energy_forces~,
+~cpmdc_session_calculate_result~, or one-shot ~cpmdc_energy*~), call
+~cpmdc_last_energy_components~ to read the OpenCPMD ~ener_com~ snapshot
+(~etot~, ~ekin~, ~epseu~, ~enl~, ~eht~, ~exc~, …) in Hartree without parsing
+CLI ~ENERGY~ files. ~etot~ matches ~CPMDCResult.energy_h~ for that step.
+
 Native evaluation units on ~CPMDCResult.energy_h~ and force buffers are Hartree
 and Hartree/Bohr.
 ~PotentialResult~ energy and forces are converted to ~ForceInput.energyUnit~ and

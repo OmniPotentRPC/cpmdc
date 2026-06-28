@@ -12,6 +12,7 @@ MODULE cpmd_embed_c_api
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
+  PUBLIC :: cpmdc_embed_last_energy_components
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -21,6 +22,32 @@ MODULE cpmd_embed_c_api
   INTEGER, SAVE :: cfg_mult = 1
   CHARACTER(LEN=4096), SAVE :: cfg_input_deck = ' '
   CHARACTER(LEN=1024), SAVE :: cfg_cpmd_root = ' '
+  ! Last successful evaluation ener_com snapshot (Hartree); valid==0 until first ok SCF/PEF.
+  INTEGER(c_int), SAVE :: last_ener_valid = 0_c_int
+  REAL(c_double), SAVE :: last_etot = 0.0_c_double
+  REAL(c_double), SAVE :: last_ekin = 0.0_c_double
+  REAL(c_double), SAVE :: last_epseu = 0.0_c_double
+  REAL(c_double), SAVE :: last_enl = 0.0_c_double
+  REAL(c_double), SAVE :: last_eht = 0.0_c_double
+  REAL(c_double), SAVE :: last_ehep = 0.0_c_double
+  REAL(c_double), SAVE :: last_ehee = 0.0_c_double
+  REAL(c_double), SAVE :: last_ehii = 0.0_c_double
+  REAL(c_double), SAVE :: last_exc = 0.0_c_double
+  REAL(c_double), SAVE :: last_vxc = 0.0_c_double
+  REAL(c_double), SAVE :: last_egc = 0.0_c_double
+  REAL(c_double), SAVE :: last_esr = 0.0_c_double
+  REAL(c_double), SAVE :: last_eeig = 0.0_c_double
+  REAL(c_double), SAVE :: last_eband = 0.0_c_double
+  REAL(c_double), SAVE :: last_entropy = 0.0_c_double
+  REAL(c_double), SAVE :: last_eself = 0.0_c_double
+  REAL(c_double), SAVE :: last_ecnstr = 0.0_c_double
+  REAL(c_double), SAVE :: last_amu = 0.0_c_double
+  REAL(c_double), SAVE :: last_ebogo = 0.0_c_double
+  REAL(c_double), SAVE :: last_eext = 0.0_c_double
+  REAL(c_double), SAVE :: last_etddft = 0.0_c_double
+  REAL(c_double), SAVE :: last_ehsic = 0.0_c_double
+  REAL(c_double), SAVE :: last_erestr = 0.0_c_double
+  REAL(c_double), SAVE :: last_eefield = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
   CHARACTER(LEN=512), SAVE :: cfg_workdir = ' '
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
@@ -28,8 +55,82 @@ MODULE cpmd_embed_c_api
 
 CONTAINS
 
+  SUBROUTINE clear_last_energy_components()
+    last_ener_valid = 0_c_int
+    last_etot = 0.0_c_double
+    last_ekin = 0.0_c_double
+    last_epseu = 0.0_c_double
+    last_enl = 0.0_c_double
+    last_eht = 0.0_c_double
+    last_ehep = 0.0_c_double
+    last_ehee = 0.0_c_double
+    last_ehii = 0.0_c_double
+    last_exc = 0.0_c_double
+    last_vxc = 0.0_c_double
+    last_egc = 0.0_c_double
+    last_esr = 0.0_c_double
+    last_eeig = 0.0_c_double
+    last_eband = 0.0_c_double
+    last_entropy = 0.0_c_double
+    last_eself = 0.0_c_double
+    last_ecnstr = 0.0_c_double
+    last_amu = 0.0_c_double
+    last_ebogo = 0.0_c_double
+    last_eext = 0.0_c_double
+    last_etddft = 0.0_c_double
+    last_ehsic = 0.0_c_double
+    last_erestr = 0.0_c_double
+    last_eefield = 0.0_c_double
+  END SUBROUTINE
+
+  SUBROUTINE snapshot_total_only(energy_h)
+    REAL(c_double), INTENT(IN) :: energy_h
+    CALL clear_last_energy_components()
+    last_etot = energy_h
+    last_ener_valid = 1_c_int
+  END SUBROUTINE
+
+  FUNCTION cpmdc_embed_last_energy_components(valid, etot, ekin, epseu, enl, eht, &
+      ehep, ehee, ehii, exc, vxc, egc, esr, eeig, eband, entropy, eself, ecnstr, &
+      amu, ebogo, eext, etddft, ehsic, erestr, eefield) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_energy_components')
+    INTEGER(c_int), INTENT(OUT) :: valid
+    REAL(c_double), INTENT(OUT) :: etot, ekin, epseu, enl, eht, ehep, ehee, ehii
+    REAL(c_double), INTENT(OUT) :: exc, vxc, egc, esr, eeig, eband, entropy, eself
+    REAL(c_double), INTENT(OUT) :: ecnstr, amu, ebogo, eext, etddft, ehsic, erestr
+    REAL(c_double), INTENT(OUT) :: eefield
+    INTEGER(c_int) :: ok
+    valid = last_ener_valid
+    etot = last_etot
+    ekin = last_ekin
+    epseu = last_epseu
+    enl = last_enl
+    eht = last_eht
+    ehep = last_ehep
+    ehee = last_ehee
+    ehii = last_ehii
+    exc = last_exc
+    vxc = last_vxc
+    egc = last_egc
+    esr = last_esr
+    eeig = last_eeig
+    eband = last_eband
+    entropy = last_entropy
+    eself = last_eself
+    ecnstr = last_ecnstr
+    amu = last_amu
+    ebogo = last_ebogo
+    eext = last_eext
+    etddft = last_etddft
+    ehsic = last_ehsic
+    erestr = last_erestr
+    eefield = last_eefield
+    ok = MERGE(0_c_int, -1_c_int, last_ener_valid /= 0_c_int)
+  END FUNCTION
+
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok
+    CALL clear_last_energy_components()
 #if defined(CPMDC_HAS_CPMD)
     runtime_ready = .TRUE.
     runtime_finalized = .FALSE.
@@ -53,6 +154,7 @@ CONTAINS
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
     runtime_ready = .FALSE.
     runtime_finalized = .TRUE.
+    CALL clear_last_energy_components()
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_set_config(functional, functional_len, cutoff_ry, charge, &
@@ -172,6 +274,8 @@ CONTAINS
       END DO
     END IF
     ok = 1_c_int
+    ! Reference PEF has no full ener_com; expose total only (in-process, not CLI scrape).
+    CALL snapshot_total_only(energy_h)
   END SUBROUTINE
 #endif
 
@@ -465,6 +569,32 @@ CONTAINS
     cprint%iprint(iprint_force) = 1
     CALL wfopts
     energy_h = REAL(ener_com%etot, KIND=c_double)
+    ! In-process ener_com snapshot (Hartree) — hosts use cpmdc_last_energy_components.
+    last_etot = REAL(ener_com%etot, KIND=c_double)
+    last_ekin = REAL(ener_com%ekin, KIND=c_double)
+    last_epseu = REAL(ener_com%epseu, KIND=c_double)
+    last_enl = REAL(ener_com%enl, KIND=c_double)
+    last_eht = REAL(ener_com%eht, KIND=c_double)
+    last_ehep = REAL(ener_com%ehep, KIND=c_double)
+    last_ehee = REAL(ener_com%ehee, KIND=c_double)
+    last_ehii = REAL(ener_com%ehii, KIND=c_double)
+    last_exc = REAL(ener_com%exc, KIND=c_double)
+    last_vxc = REAL(ener_com%vxc, KIND=c_double)
+    last_egc = REAL(ener_com%egc, KIND=c_double)
+    last_esr = REAL(ener_com%esr, KIND=c_double)
+    last_eeig = REAL(ener_com%eeig, KIND=c_double)
+    last_eband = REAL(ener_com%eband, KIND=c_double)
+    last_entropy = REAL(ener_com%entropy, KIND=c_double)
+    last_eself = REAL(ener_com%eself, KIND=c_double)
+    last_ecnstr = REAL(ener_com%ecnstr, KIND=c_double)
+    last_amu = REAL(ener_com%amu, KIND=c_double)
+    last_ebogo = REAL(ener_com%ebogo, KIND=c_double)
+    last_eext = REAL(ener_com%eext, KIND=c_double)
+    last_etddft = REAL(ener_com%etddft, KIND=c_double)
+    last_ehsic = REAL(ener_com%ehsic, KIND=c_double)
+    last_erestr = REAL(ener_com%erestr, KIND=c_double)
+    last_eefield = REAL(ener_com%eefield, KIND=c_double)
+    last_ener_valid = 1_c_int
     ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
     ! Return -fion so C API gradient is dE/dR (force = -grad in energy_forces).
     IF (ALLOCATED(fion)) THEN
@@ -480,6 +610,7 @@ CONTAINS
       END DO
     END IF
     IF (ABS(energy_h) > 1.0_c_double) ok = 1_c_int
+    IF (ok == 0_c_int) CALL clear_last_energy_components()
   END SUBROUTINE
 #endif
 END MODULE cpmd_embed_c_api
