@@ -7,6 +7,29 @@
 
 #include <cmocka.h>
 
+static const char *const required_abi_features[] = {
+    "abi.cpmdc_set_params",
+    "abi.cpmdc_energy_gradient",
+    "abi.cpmdc_energy",
+    "abi.cpmdc_energy_forces",
+    "abi.cpmdc_session_create",
+    "abi.cpmdc_session_set_params",
+    "abi.cpmdc_session_destroy",
+    "abi.cpmdc_session_energy_gradient",
+    "abi.cpmdc_session_energy",
+    "abi.cpmdc_session_energy_forces",
+    "abi.cpmdc_session_calculate_forces",
+    "abi.cpmdc_session_calculate_result",
+    "abi.cpmdc_calculate_result",
+    "abi.cpmdc_potential_result_size_for_force_input",
+    "abi.cpmdc_version",
+    "abi.cpmdc_available",
+    "abi.cpmdc_finalize",
+    "abi.cpmdc_feature_count",
+    "abi.cpmdc_feature_table",
+    "abi.cpmdc_feature_find",
+};
+
 static void test_stub_reports_unavailable(void **state) {
   (void)state;
   assert_int_equal(cpmdc_available(), 0);
@@ -44,12 +67,16 @@ static void test_stub_reports_unavailable(void **state) {
   const CPMDCFeatureEntry *features = cpmdc_feature_table();
   assert_non_null(features);
   assert_true(cpmdc_feature_count() > 0);
-  const CPMDCFeatureEntry *find_feature =
-      cpmdc_feature_find("abi.cpmdc_feature_find");
-  assert_non_null(find_feature);
-  assert_string_equal(find_feature->feature_id, "abi.cpmdc_feature_find");
-  assert_int_equal(find_feature->kind, CPMDC_FEATURE_ABI);
-  assert_int_equal(find_feature->stub_applicable, 1);
+  for (size_t i = 0;
+       i < sizeof(required_abi_features) / sizeof(required_abi_features[0]);
+       ++i) {
+    const CPMDCFeatureEntry *feature =
+        cpmdc_feature_find(required_abi_features[i]);
+    assert_non_null(feature);
+    assert_string_equal(feature->feature_id, required_abi_features[i]);
+    assert_int_equal(feature->kind, CPMDC_FEATURE_ABI);
+    assert_int_equal(feature->stub_applicable, 1);
+  }
   cpmdc_finalize();
 }
 

@@ -255,6 +255,15 @@ if get_option('with_tests')
     ),
     suite: ['stub'],
   )
+  test(
+    'stub-abi-symbol-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_stub_abi_symbol_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['stub', 'abi', 'inventory'],
+  )
 
   test(
     'public-header-features',
