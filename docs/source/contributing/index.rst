@@ -30,7 +30,8 @@ pushing a public change:
 | Base ``&CPMD`` keyword inventory | ``meson test -C build cpmd-base-keyword-inventory --print-errorlogs``               |
 +----------------------------------+-------------------------------------------------------------------------------------+
 | Top-level ``CPMDParams`` feature | ``meson test -C build cpmd-params-field-inventory --print-errorlogs``               |
-| rows                             |                                                                                     |
+| rows and duplicate inventory     |                                                                                     |
+| lists                            |                                                                                     |
 +----------------------------------+-------------------------------------------------------------------------------------+
 | ``CPMDCpmdSection`` render       | ``meson test -C build cpmd-schema-render-coverage --print-errorlogs``               |
 | mappings                         |                                                                                     |
@@ -53,7 +54,8 @@ optional ``CPMD_ROOT`` parser section probe.
 ``schema/inventory/cpmd_cp_keywords.txt`` to resolve to a
 ``catalog.cpmd.*`` row. ``cpmd-params-field-inventory`` requires every
 top-level ``CPMDParams`` schema field to resolve to a ``params.*``
-feature row. ``cpmd-schema-render-coverage`` and
+feature row and rejects duplicate inventory IDs/lists before set
+comparisons can hide them. ``cpmd-schema-render-coverage`` and
 ``cpmd-option-token-coverage`` keep typed ``CPMDCpmdSection`` fields and
 fixture inline tokens tied to render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,

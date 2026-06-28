@@ -113,7 +113,8 @@ OpenCPMD tree, it also compares parser ~inscan('&SECTION')~ calls with the
 checked-in section inventory.
 ~cpmd-base-keyword-inventory~ proves the base keyword list cannot drop a
 ~catalog.cpmd.*~ row silently. ~cpmd-params-field-inventory~ requires every
-top-level ~CPMDParams~ schema field to keep a ~params.*~ feature row.
+top-level ~CPMDParams~ schema field to keep a ~params.*~ feature row and
+rejects duplicate inventory IDs/lists before set comparisons can hide them.
 ~cpmd-schema-render-coverage~ requires typed
 ~CPMDCpmdSection~ fields to appear in the catalog render fixtures, and
 ~cpmd-option-token-coverage~ requires inline option spellings in Cap'n Proto

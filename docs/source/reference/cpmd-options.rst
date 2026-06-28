@@ -194,10 +194,11 @@ schema, public C feature table, README, and this reference page. When
 ``cpmd-base-keyword-inventory`` proves the base keyword list cannot drop
 a ``catalog.cpmd.*`` row silently. ``cpmd-params-field-inventory``
 requires every top-level ``CPMDParams`` schema field to keep a
-``params.*`` feature row. ``cpmd-schema-render-coverage`` requires typed
-``CPMDCpmdSection`` fields to appear in the catalog render fixtures, and
-``cpmd-option-token-coverage`` requires inline option spellings in Cap'n
-Proto fixtures to have render coverage.
+``params.*`` feature row and rejects duplicate inventory IDs/lists
+before set comparisons can hide them. ``cpmd-schema-render-coverage``
+requires typed ``CPMDCpmdSection`` fields to appear in the catalog
+render fixtures, and ``cpmd-option-token-coverage`` requires inline
+option spellings in Cap'n Proto fixtures to have render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
 ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
 or render assertions.
