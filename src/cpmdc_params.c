@@ -2867,7 +2867,8 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " CHECK MEMORY\n") != 0)
       return -1;
   }
-  if (sec->realSpaceWfnKeep || sec->realSpaceWfnSize > 0.0) {
+  if (sec->realSpaceWfn || sec->realSpaceWfnKeep ||
+      sec->realSpaceWfnSize > 0.0) {
     if (append_text(dst, dst_size, used, " REAL SPACE WFN") != 0)
       return -1;
     if (sec->realSpaceWfnKeep &&

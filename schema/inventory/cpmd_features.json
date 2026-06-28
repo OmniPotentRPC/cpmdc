@@ -3962,6 +3962,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.REAL_SPACE_WFN",
+      "kind": "cpmd_keyword",
+      "name": "REAL SPACE WFN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.REALSPACE_WFN",
+      "kind": "cpmd_keyword",
+      "name": "REALSPACE WFN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.REAL_SPACE_WFN_KEEP",
       "kind": "cpmd_keyword",
       "name": "REAL SPACE WFN KEEP",
@@ -6908,6 +6926,14 @@
       "feature_id": "params.inputSections.cpmd.checkMemory",
       "kind": "structured_params_field",
       "name": "checkMemory",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.realSpaceWfn",
+      "kind": "structured_params_field",
+      "name": "realSpaceWfn",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
