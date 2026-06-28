@@ -348,6 +348,7 @@
     "CONVERGENCE GEOMETRY",
     "NOSE",
     "NOSE IONS",
+    "NOSE IONS OPTIONS",
     "NOSE ELECTRONS",
     "BERENDSEN",
     "LANGEVIN",
@@ -392,6 +393,19 @@
     "NABDY_REDISTR_AMPLI",
     "NABDY_SCALEP",
     "NABDY_THERMO",
+    "USE_IN_STREAM",
+    "USE_OUT_STREAM",
+    "USE_CUBLAS",
+    "USE_CUFFT",
+    "BLAS_N_STREAMS_PER_DEVICE",
+    "BLAS_N_DEVICES_PER_TASK",
+    "FFT_N_STREAMS_PER_DEVICE",
+    "FFT_N_DEVICES_PER_TASK",
+    "USE_MPI_IO",
+    "TRACE",
+    "TRACE_PROCEDURE",
+    "TRACE_MAX_DEPTH",
+    "TRACE_MAX_CALLS",
     "PROPERTIES",
     "VDW CORRECTION",
     "VDW WANNIER",
@@ -1169,6 +1183,15 @@
       "feature_id": "catalog.cpmd.NOSE_IONS",
       "kind": "cpmd_keyword",
       "name": "NOSE IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS options",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2555,6 +2578,123 @@
       "feature_id": "catalog.cpmd.NABDY_THERMO",
       "kind": "cpmd_keyword",
       "name": "NABDY_THERMO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_IN_STREAM",
+      "kind": "cpmd_keyword",
+      "name": "USE_IN_STREAM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_OUT_STREAM",
+      "kind": "cpmd_keyword",
+      "name": "USE_OUT_STREAM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_CUBLAS",
+      "kind": "cpmd_keyword",
+      "name": "USE_CUBLAS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_CUFFT",
+      "kind": "cpmd_keyword",
+      "name": "USE_CUFFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BLAS_N_STREAMS_PER_DEVICE",
+      "kind": "cpmd_keyword",
+      "name": "BLAS_N_STREAMS_PER_DEVICE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BLAS_N_DEVICES_PER_TASK",
+      "kind": "cpmd_keyword",
+      "name": "BLAS_N_DEVICES_PER_TASK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FFT_N_STREAMS_PER_DEVICE",
+      "kind": "cpmd_keyword",
+      "name": "FFT_N_STREAMS_PER_DEVICE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FFT_N_DEVICES_PER_TASK",
+      "kind": "cpmd_keyword",
+      "name": "FFT_N_DEVICES_PER_TASK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_MPI_IO",
+      "kind": "cpmd_keyword",
+      "name": "USE_MPI_IO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRACE",
+      "kind": "cpmd_keyword",
+      "name": "TRACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRACE_PROCEDURE",
+      "kind": "cpmd_keyword",
+      "name": "TRACE_PROCEDURE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRACE_MAX_DEPTH",
+      "kind": "cpmd_keyword",
+      "name": "TRACE_MAX_DEPTH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRACE_MAX_CALLS",
+      "kind": "cpmd_keyword",
+      "name": "TRACE_MAX_CALLS",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4105,6 +4245,14 @@
       "feature_id": "params.inputSections.cpmd.berendsenCell",
       "kind": "structured_params_field",
       "name": "berendsenCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsOptions",
+      "kind": "structured_params_field",
+      "name": "noseIonsOptions",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
@@ -6049,6 +6197,110 @@
       "feature_id": "params.inputSections.cpmd.nabdyThermo",
       "kind": "structured_params_field",
       "name": "nabdyThermo",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useInStream",
+      "kind": "structured_params_field",
+      "name": "useInStream",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useOutStream",
+      "kind": "structured_params_field",
+      "name": "useOutStream",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useCublas",
+      "kind": "structured_params_field",
+      "name": "useCublas",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useCufft",
+      "kind": "structured_params_field",
+      "name": "useCufft",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.blasNStreamsPerDevice",
+      "kind": "structured_params_field",
+      "name": "blasNStreamsPerDevice",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.blasNDevicesPerTask",
+      "kind": "structured_params_field",
+      "name": "blasNDevicesPerTask",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fftNStreamsPerDevice",
+      "kind": "structured_params_field",
+      "name": "fftNStreamsPerDevice",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.fftNDevicesPerTask",
+      "kind": "structured_params_field",
+      "name": "fftNDevicesPerTask",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useMpiIo",
+      "kind": "structured_params_field",
+      "name": "useMpiIo",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.traceOptions",
+      "kind": "structured_params_field",
+      "name": "traceOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.traceProcedure",
+      "kind": "structured_params_field",
+      "name": "traceProcedure",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.traceMaxDepth",
+      "kind": "structured_params_field",
+      "name": "traceMaxDepth",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.traceMaxCalls",
+      "kind": "structured_params_field",
+      "name": "traceMaxCalls",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

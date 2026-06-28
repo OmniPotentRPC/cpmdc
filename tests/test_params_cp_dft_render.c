@@ -112,7 +112,7 @@ static const struct CatalogCoverage cpmd_coverage[] = {
     {"catalog.cpmd.CONVERGENCE_GEOMETRY", "convergenceGeometry",
      " CONVERGENCE GEOMETRY\n"},
     {"catalog.cpmd.NOSE", "nose", " NOSE\n"},
-    {"catalog.cpmd.NOSE_IONS", "noseIons", " NOSE IONS\n"},
+    {"catalog.cpmd.NOSE_IONS", "noseIons", " NOSE IONS"},
     {"catalog.cpmd.NOSE_IONS_OPTIONS", "noseIonsOptions",
      " NOSE IONS "},
     {"catalog.cpmd.NOSE_ELECTRONS", "noseElectrons",

@@ -436,6 +436,20 @@ struct CPMDCpmdSection {
   nabdyRedistributeAmplitude @278 :Bool = false; # NABDY_REDISTR_AMPLI.
   nabdyScaleP             @279 :Bool = false; # NABDY_SCALEP.
   nabdyThermo             @280 :Text; # NABDY_THERMO payload line.
+  noseIonsOptions         @281 :Text; # NOSE IONS inline options.
+  useInStream             @282 :Bool = false; # USE_IN_STREAM.
+  useOutStream            @283 :Bool = false; # USE_OUT_STREAM.
+  useCublas               @284 :Bool = false; # USE_CUBLAS.
+  useCufft                @285 :Bool = false; # USE_CUFFT.
+  blasNStreamsPerDevice   @286 :Int32 = 0; # BLAS_N_STREAMS_PER_DEVICE payload.
+  blasNDevicesPerTask     @287 :Int32 = 0; # BLAS_N_DEVICES_PER_TASK payload.
+  fftNStreamsPerDevice    @288 :Int32 = 0; # FFT_N_STREAMS_PER_DEVICE payload.
+  fftNDevicesPerTask      @289 :Int32 = 0; # FFT_N_DEVICES_PER_TASK payload.
+  useMpiIo                @290 :Bool = false; # USE_MPI_IO.
+  traceOptions            @291 :Text; # TRACE inline options.
+  traceProcedure          @292 :Text; # TRACE_PROCEDURE payload line.
+  traceMaxDepth           @293 :Int32 = 0; # TRACE_MAX_DEPTH payload.
+  traceMaxCalls           @294 :Int32 = 0; # TRACE_MAX_CALLS payload.
 }
 
 struct CPMDDftSection {

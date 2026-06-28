@@ -389,11 +389,25 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.CONVERGENCE_CONSTRAINT~ | ~params.inputSections.cpmd.convergenceConstraint~ | ~convergenceConstraint~ | ~CONVERGENCE CONSTRAINT~ |
 | ~catalog.cpmd.NOSE~ | ~params.inputSections.cpmd.nose~ | ~nose~ | ~NOSE~ |
 | ~catalog.cpmd.NOSE_IONS~ | ~params.inputSections.cpmd.noseIons~ | ~noseIons~ | ~NOSE IONS~ |
+| ~catalog.cpmd.NOSE_IONS_OPTIONS~ | ~params.inputSections.cpmd.noseIonsOptions~ | ~noseIonsOptions~ | ~NOSE IONS options~ |
 | ~catalog.cpmd.NOSE_ELECTRONS~ | ~params.inputSections.cpmd.noseElectrons~ | ~noseElectrons~ | ~NOSE ELECTRONS~ |
 | ~catalog.cpmd.NOSE_IONS_PAYLOAD~ | ~params.inputSections.cpmd.noseIonsThermostat~ | ~noseIonsThermostat~ | ~NOSE IONS~ |
 | ~catalog.cpmd.NOSE_ELECTRONS_PAYLOAD~ | ~params.inputSections.cpmd.noseElectronsThermostat~ | ~noseElectronsThermostat~ | ~NOSE ELECTRONS~ |
 | ~catalog.cpmd.NOSE_CELL_PAYLOAD~ | ~params.inputSections.cpmd.noseCellThermostat~ | ~noseCellThermostat~ | ~NOSE CELL~ |
 | ~catalog.cpmd.NOSE_PARAMETERS~ | ~params.inputSections.cpmd.noseParameters~ | ~noseParameters~ | ~NOSE PARAMETERS~ |
+| ~catalog.cpmd.USE_IN_STREAM~ | ~params.inputSections.cpmd.useInStream~ | ~useInStream~ | ~USE_IN_STREAM~ |
+| ~catalog.cpmd.USE_OUT_STREAM~ | ~params.inputSections.cpmd.useOutStream~ | ~useOutStream~ | ~USE_OUT_STREAM~ |
+| ~catalog.cpmd.USE_CUBLAS~ | ~params.inputSections.cpmd.useCublas~ | ~useCublas~ | ~USE_CUBLAS~ |
+| ~catalog.cpmd.USE_CUFFT~ | ~params.inputSections.cpmd.useCufft~ | ~useCufft~ | ~USE_CUFFT~ |
+| ~catalog.cpmd.BLAS_N_STREAMS_PER_DEVICE~ | ~params.inputSections.cpmd.blasNStreamsPerDevice~ | ~blasNStreamsPerDevice~ | ~BLAS_N_STREAMS_PER_DEVICE~ |
+| ~catalog.cpmd.BLAS_N_DEVICES_PER_TASK~ | ~params.inputSections.cpmd.blasNDevicesPerTask~ | ~blasNDevicesPerTask~ | ~BLAS_N_DEVICES_PER_TASK~ |
+| ~catalog.cpmd.FFT_N_STREAMS_PER_DEVICE~ | ~params.inputSections.cpmd.fftNStreamsPerDevice~ | ~fftNStreamsPerDevice~ | ~FFT_N_STREAMS_PER_DEVICE~ |
+| ~catalog.cpmd.FFT_N_DEVICES_PER_TASK~ | ~params.inputSections.cpmd.fftNDevicesPerTask~ | ~fftNDevicesPerTask~ | ~FFT_N_DEVICES_PER_TASK~ |
+| ~catalog.cpmd.USE_MPI_IO~ | ~params.inputSections.cpmd.useMpiIo~ | ~useMpiIo~ | ~USE_MPI_IO~ |
+| ~catalog.cpmd.TRACE~ | ~params.inputSections.cpmd.traceOptions~ | ~traceOptions~ | ~TRACE~ |
+| ~catalog.cpmd.TRACE_PROCEDURE~ | ~params.inputSections.cpmd.traceProcedure~ | ~traceProcedure~ | ~TRACE_PROCEDURE~ |
+| ~catalog.cpmd.TRACE_MAX_DEPTH~ | ~params.inputSections.cpmd.traceMaxDepth~ | ~traceMaxDepth~ | ~TRACE_MAX_DEPTH~ |
+| ~catalog.cpmd.TRACE_MAX_CALLS~ | ~params.inputSections.cpmd.traceMaxCalls~ | ~traceMaxCalls~ | ~TRACE_MAX_CALLS~ |
 | ~catalog.cpmd.BERENDSEN~ | ~params.inputSections.cpmd.berendsen~ | ~berendsen~ | ~BERENDSEN~ |
 | ~catalog.cpmd.LANGEVIN~ | ~params.inputSections.cpmd.langevin~ | ~langevin~ | ~LANGEVIN~ |
 | ~catalog.cpmd.ANNEALING~ | ~params.inputSections.cpmd.annealing~ | ~annealing~ | ~ANNEALING~ |

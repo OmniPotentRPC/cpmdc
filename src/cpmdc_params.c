@@ -2254,15 +2254,29 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   }
   int has_nose_ions = sec->noseIonsThermostat.str &&
                       sec->noseIonsThermostat.len > 0;
+  int has_nose_ions_options = sec->noseIonsOptions.str &&
+                              sec->noseIonsOptions.len > 0;
   int has_nose_electrons = sec->noseElectronsThermostat.str &&
                            sec->noseElectronsThermostat.len > 0;
-  if (has_nose_ions) {
-    if (append_text(dst, dst_size, used, " NOSE IONS\n  ") != 0)
+  if (has_nose_ions || has_nose_ions_options) {
+    if (append_text(dst, dst_size, used, " NOSE IONS") != 0)
       return -1;
-    if (append_capn_text(dst, dst_size, used, sec->noseIonsThermostat) != 0)
-      return -1;
+    if (has_nose_ions_options) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->noseIonsOptions) != 0)
+        return -1;
+    }
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
+    if (has_nose_ions) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->noseIonsThermostat) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
   } else if (sec->noseIons) {
     if (append_text(dst, dst_size, used, " NOSE IONS\n") != 0)
       return -1;
@@ -2293,6 +2307,76 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_capn_text(dst, dst_size, used, sec->noseParameters) != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->useInStream) {
+    if (append_text(dst, dst_size, used, " USE_IN_STREAM\n") != 0)
+      return -1;
+  }
+  if (sec->useOutStream) {
+    if (append_text(dst, dst_size, used, " USE_OUT_STREAM\n") != 0)
+      return -1;
+  }
+  if (sec->useCublas) {
+    if (append_text(dst, dst_size, used, " USE_CUBLAS\n") != 0)
+      return -1;
+  }
+  if (sec->useCufft) {
+    if (append_text(dst, dst_size, used, " USE_CUFFT\n") != 0)
+      return -1;
+  }
+  if (sec->blasNStreamsPerDevice > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " BLAS_N_STREAMS_PER_DEVICE\n  %d\n",
+                   sec->blasNStreamsPerDevice) != 0)
+      return -1;
+  }
+  if (sec->blasNDevicesPerTask > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " BLAS_N_DEVICES_PER_TASK\n  %d\n",
+                   sec->blasNDevicesPerTask) != 0)
+      return -1;
+  }
+  if (sec->fftNStreamsPerDevice > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " FFT_N_STREAMS_PER_DEVICE\n  %d\n",
+                   sec->fftNStreamsPerDevice) != 0)
+      return -1;
+  }
+  if (sec->fftNDevicesPerTask > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " FFT_N_DEVICES_PER_TASK\n  %d\n",
+                   sec->fftNDevicesPerTask) != 0)
+      return -1;
+  }
+  if (sec->useMpiIo) {
+    if (append_text(dst, dst_size, used, " USE_MPI_IO\n") != 0)
+      return -1;
+  }
+  if (sec->traceOptions.str && sec->traceOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " TRACE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->traceOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->traceProcedure.str && sec->traceProcedure.len > 0) {
+    if (append_text(dst, dst_size, used, " TRACE_PROCEDURE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->traceProcedure) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->traceMaxDepth > 0) {
+    if (append_fmt(dst, dst_size, used, " TRACE_MAX_DEPTH\n  %d\n",
+                   sec->traceMaxDepth) != 0)
+      return -1;
+  }
+  if (sec->traceMaxCalls > 0) {
+    if (append_fmt(dst, dst_size, used, " TRACE_MAX_CALLS\n  %d\n",
+                   sec->traceMaxCalls) != 0)
       return -1;
   }
   if (sec->berendsen.str && sec->berendsen.len > 0) {
