@@ -76,8 +76,8 @@ Start Here
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
 
-First Command
-=============
+Build and Test
+==============
 
 .. code:: bash
 

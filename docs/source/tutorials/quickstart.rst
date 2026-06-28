@@ -22,9 +22,9 @@ The equivalent explicit commands are:
    meson compile -C build
    meson test -C build --print-errorlogs
 
-The pass condition is a green Meson run covering parser, ABI, feature
-inventory, session lifecycle, result sizing, unit conversion, and
-reference-evaluator E2E tests.
+The pass condition is a successful Meson run covering parser, ABI,
+feature inventory, session lifecycle, result sizing, unit conversion,
+and reference-evaluator E2E tests.
 
 Common Paths
 ============

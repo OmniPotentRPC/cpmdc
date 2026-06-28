@@ -16,6 +16,15 @@ def require_text(path: Path, needles: list[str]) -> list[str]:
     ]
 
 
+def reject_text(path: Path, needles: list[str]) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    return [
+        f"{path} still mentions {needle!r}"
+        for needle in needles
+        if needle in text
+    ]
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: test_readme_navigation.py SOURCE_ROOT", file=sys.stderr)
@@ -44,6 +53,15 @@ def main() -> int:
                 "Run the full suite before publishing",
             ],
         )
+    )
+    failures.extend(
+        require_text(root / "docs/orgmode/index.org", ["Build and Test"])
+    )
+    failures.extend(
+        reject_text(root / "docs/orgmode/index.org", ["First Command"])
+    )
+    failures.extend(
+        reject_text(root / "docs/orgmode/tutorials/quickstart.org", ["green Meson"])
     )
     if failures:
         print("\n".join(failures), file=sys.stderr)

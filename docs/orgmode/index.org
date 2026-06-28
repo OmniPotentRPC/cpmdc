@@ -74,7 +74,7 @@ require a new session.
 
 #+end_export
 
-* First Command
+* Build and Test
 
 #+begin_src bash
 meson setup build -Dwith_tests=true
