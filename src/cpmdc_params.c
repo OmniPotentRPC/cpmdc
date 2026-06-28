@@ -4507,27 +4507,42 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   for (size_t i = 0; i < force_count; ++i)
     capn_set64(force_list, (int)i, capn_from_f64(forces[i]));
 
-  /* Optional energyComponents: etot mirrors energy; full list filled by embed
-   * hosts via cpmdc_last_energy_components. Params-only link units omit embed. */
-  int cvalid = 1;
+  extern int cpmdc_embed_last_energy_components(
+      int *valid, double *etot, double *ekin, double *epseu, double *enl,
+      double *eht, double *ehep, double *ehee, double *ehii, double *exc,
+      double *vxc, double *egc, double *esr, double *eeig, double *eband,
+      double *entropy, double *eself, double *ecnstr, double *amu, double *ebogo,
+      double *eext, double *etddft, double *ehsic, double *erestr,
+      double *eefield);
+  int cvalid = 0;
   double comps[24];
   for (int i = 0; i < 24; ++i)
     comps[i] = 0.0;
-  comps[0] = energy; /* etot in caller units matches PotentialResult.energy */
-  capn_list64 comp_list = capn_new_list64(root.seg, 24);
-  if (comp_list.p.type != CAPN_NULL) {
-    for (int i = 0; i < 24; ++i)
-      capn_set64(comp_list, i, capn_from_f64(comps[i]));
-  } else {
+  if (cpmdc_embed_last_energy_components(
+          &cvalid, &comps[0], &comps[1], &comps[2], &comps[3], &comps[4],
+          &comps[5], &comps[6], &comps[7], &comps[8], &comps[9], &comps[10],
+          &comps[11], &comps[12], &comps[13], &comps[14], &comps[15], &comps[16],
+          &comps[17], &comps[18], &comps[19], &comps[20], &comps[21], &comps[22],
+          &comps[23]) != 0)
     cvalid = 0;
+  /* Only claim valid decomposition when embed snapshot is live (matches POD getter). */
+  capn_list64 comp_list = {CAPN_NULL};
+  if (cvalid) {
+    comp_list = capn_new_list64(root.seg, 24);
+    if (comp_list.p.type != CAPN_NULL) {
+      for (int i = 0; i < 24; ++i)
+        capn_set64(comp_list, i, capn_from_f64(comps[i]));
+    } else {
+      cvalid = 0;
+    }
   }
-
   struct PotentialResult view;
   memset(&view, 0, sizeof(view));
   view.energy = energy;
   view.forces = force_list;
   view.energyComponents = comp_list;
   view.componentsValid = cvalid ? 1 : 0;
+  view.embedMdPropsSkipped = 1; /* SCF path; MD/PROP harvest not run */
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {
     capn_free(&arena);
@@ -4540,4 +4555,22 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     return -1;
   *potential_result_size_bytes = (size_t)wrote;
   return 0;
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_energy_components(
+    int *valid, double *etot, double *ekin, double *epseu, double *enl, double *eht,
+    double *ehep, double *ehee, double *ehii, double *exc, double *vxc, double *egc,
+    double *esr, double *eeig, double *eband, double *entropy, double *eself,
+    double *ecnstr, double *amu, double *ebogo, double *eext, double *etddft,
+    double *ehsic, double *erestr, double *eefield) {
+  (void)etot; (void)ekin; (void)epseu; (void)enl; (void)eht; (void)ehep; (void)ehee;
+  (void)ehii; (void)exc; (void)vxc; (void)egc; (void)esr; (void)eeig; (void)eband;
+  (void)entropy; (void)eself; (void)ecnstr; (void)amu; (void)ebogo; (void)eext;
+  (void)etddft; (void)ehsic; (void)erestr; (void)eefield;
+  if (valid)
+    *valid = 0;
+  return -1;
 }

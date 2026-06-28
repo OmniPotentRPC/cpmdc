@@ -525,6 +525,8 @@ if get_option('with_tests')
   test(
     'extended-surface',
     extended_surface_exe,
+    args: [runtime_params_bin.full_path(), force_input_step_a_bin.full_path()],
+    depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['abi', 'params', 'cmocka'],
   )
 
