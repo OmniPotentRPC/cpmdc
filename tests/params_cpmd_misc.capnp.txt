@@ -170,7 +170,16 @@
         odiisOptions = "NOPREC NO_RESET=6",
         odiisVectors = 7,
         hamiltonianCutoff = 0.001,
-        gdiisVectors = 8
+        gdiisVectors = 8,
+        lbfgsOptions = "NREM",
+        lbfgsPayload = "5",
+        prfoOptions = "NVAR",
+        prfoPayload = "9",
+        hesscore = true,
+        bfgs = true,
+        rfoOrder = 3,
+        inrParametersCount = 2,
+        inrParametersPayload = "0.1 1e-04\n  0.2 2e-04"
       ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
         cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
