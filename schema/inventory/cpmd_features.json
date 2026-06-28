@@ -2247,6 +2247,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.kpointBands",
+      "kind": "structured_params_field",
+      "name": "kpointBands",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.doubleGrid",
       "kind": "structured_params_field",
       "name": "doubleGrid",

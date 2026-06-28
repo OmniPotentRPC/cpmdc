@@ -749,11 +749,17 @@ static int render_system_section_with_cell(
   int n_monkhorst_shift = list64_len(&sys->kpointsMonkhorstShift);
   if (n_monkhorst_shift < 0)
     return -1;
+  int n_kpoint_bands = struct_list_len(&sys->kpointBands.p);
+  if (n_kpoint_bands < 0)
+    return -1;
   int has_monkhorst_options = sys->kpointsMonkhorstSymmetrized ||
                               sys->kpointsMonkhorstFull ||
                               sys->kpointsMonkhorstKdp ||
                               n_monkhorst_shift > 0;
-  if (n_kpoints > 0 && (n_monkhorst > 0 || has_monkhorst_options))
+  if (n_kpoints > 0 &&
+      (n_monkhorst > 0 || n_kpoint_bands > 0 || has_monkhorst_options))
+    return -1;
+  if (n_monkhorst > 0 && n_kpoint_bands > 0)
     return -1;
   if (n_kpoints > 0) {
     if (append_text(dst, dst_size, used, " KPOINTS") != 0)
@@ -815,6 +821,40 @@ static int render_system_section_with_cell(
             0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  } else if (n_kpoint_bands > 0) {
+    if (has_monkhorst_options)
+      return -1;
+    if (append_text(dst, dst_size, used, " KPOINTS") != 0)
+      return -1;
+    if (sys->kpointsOnlyDiagonal &&
+        append_text(dst, dst_size, used, " ONLYDIAG") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " BANDS") != 0)
+      return -1;
+    if (sys->kpointsScaled &&
+        append_text(dst, dst_size, used, " SCALED") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    for (int i = 0; i < n_kpoint_bands; ++i) {
+      struct CPMDKPointBand band;
+      get_CPMDKPointBand(&band, sys->kpointBands, i);
+      int n_start = list64_len(&band.start);
+      int n_end = list64_len(&band.end);
+      if (band.points <= 1 || n_start != 3 || n_end != 3)
+        return -1;
+      if (append_fmt(dst, dst_size, used,
+                     "  %d %.10g %.10g %.10g %.10g %.10g %.10g\n",
+                     band.points, capn_to_f64(capn_get64(band.start, 0)),
+                     capn_to_f64(capn_get64(band.start, 1)),
+                     capn_to_f64(capn_get64(band.start, 2)),
+                     capn_to_f64(capn_get64(band.end, 0)),
+                     capn_to_f64(capn_get64(band.end, 1)),
+                     capn_to_f64(capn_get64(band.end, 2))) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "  0 0 0 0 0 0 0\n") != 0)
       return -1;
   } else if (sys->kpointsScaled || sys->kpointsOnlyDiagonal ||
              has_monkhorst_options) {

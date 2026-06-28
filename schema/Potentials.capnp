@@ -48,6 +48,12 @@ struct CPMDKPoint {
   weight      @1 :Float64 = 1.0; # KPOINTS integration weight.
 }
 
+struct CPMDKPointBand {
+  points @0 :Int32 = 0;      # Number of interpolated KPOINTS BANDS points.
+  start  @1 :List(Float64);  # Initial KPOINTS BANDS vector.
+  end    @2 :List(Float64);  # Final KPOINTS BANDS vector.
+}
+
 struct CPMDSystemSection {
   symmetry        @0 :Int32 = 0;          # SYMMETRY code.
   angstrom        @1 :Bool = true;        # Emit ANGSTROM for CELL / ATOMS.
@@ -110,6 +116,7 @@ struct CPMDSystemSection {
   kpointsMonkhorstFull @58 :Bool = false;     # KPOINTS MONKHORST-PACK FULL.
   kpointsMonkhorstKdp @59 :Bool = false;      # KPOINTS MONKHORST-PACK KDP.
   kpointsMonkhorstShift @60 :List(Float64);   # KPOINTS MONKHORST-PACK mesh-line SHIFT vector.
+  kpointBands    @61 :List(CPMDKPointBand);   # KPOINTS BANDS segments.
 }
 
 struct CPMDCpmdSection {

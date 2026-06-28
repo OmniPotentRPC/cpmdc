@@ -571,6 +571,8 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 | ``params.inputSections.system.kpointsMonkhorstShift``       | ``system.kpointsMonkhorstShift``       | Add mesh-line ``SHIFT=`` to               |
 |                                                             |                                        | ``KPOINTS MONKHORST-PACK``                |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.kpointBands``                 | ``system.kpointBands``                 | ``&SYSTEM KPOINTS BANDS`` segments        |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.doubleGrid``                  | ``system.doubleGrid``                  | ``&SYSTEM DOUBLE GRID`` ``ON`` or ``OFF`` |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.symmetrizeCoordinates``       | ``system.symmetrizeCoordinates``       | ``&SYSTEM SYMMETRIZE COORDINATES``        |
