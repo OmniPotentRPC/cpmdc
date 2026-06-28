@@ -479,6 +479,7 @@ struct CPMDCpmdSection {
   prfoProjectedHessian    @321 :Bool = false; # PRFO PRJHES.
   prfoDisplacement        @322 :Float64 = 0.0; # PRFO DISPL payload; 0 => omit.
   prfoHessianType         @323 :Int32 = 0; # PRFO HESSTYPE payload; 0 => omit.
+  lsd                     @324 :Bool = false; # LSD / LOCAL SPIN DENSITY.
 }
 
 struct CPMDDftSection {

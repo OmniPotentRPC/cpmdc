@@ -534,7 +534,7 @@ static const struct CatalogCoverage cpmd_coverage[] = {
     {"catalog.cpmd.SHIFT_POTENTIAL", "shiftPotential",
      " SHIFT POTENTIAL\n"},
     {"catalog.cpmd.GLOC_WFNOUT_PAYLOAD", "glocWfnOutPayload", "2 5"},
-    {"catalog.cpmd.LSD", "lsd", " LSD\n&END\n\n&SYSTEM"},
+    {"catalog.cpmd.LSD", "lsd", " TDDFT\n LSD\n SSIC"},
 };
 
 static const struct CatalogCoverage dft_scalar_coverage[] = {
@@ -827,7 +827,7 @@ int main(int argc, char **argv) {
       "LANGEVIN SMART MOVECM CENTROIDOFF", "0.02", "QMMMEASY",
       "INTERFACE GMX ESP PCGFIRST", "TROTTER FACTOR=2", "0.1 0.2",
       "0.3 0.4", "LINEAR RESPONSE", "HARMONIC REFERENCE OFF",
-      "SCALED MASSES OFF", "TDDFT", "SSIC", "0.5",
+      "SCALED MASSES OFF", "TDDFT", "LSD", "SSIC", "0.5",
       "NONORTHOGONAL ORBITALS ON", "1e-06",
       "LANCZOS DIAGONALIZATION ALL NEW PERIODIC=4",
       "LANCZOS PARAMETERS N=2", "4 16 2 1e-08", "0.5 2e-08",

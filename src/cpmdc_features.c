@@ -952,6 +952,7 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.traceProcedure"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.traceMaxDepth"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.traceMaxCalls"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.lsd"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.properties"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.vdwCorrection"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.vdwWannier"),

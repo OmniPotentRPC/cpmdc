@@ -8149,6 +8149,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.lsd",
+      "kind": "structured_params_field",
+      "name": "lsd",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.properties",
       "kind": "structured_params_field",
       "name": "properties",
