@@ -1478,9 +1478,36 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.GLOCALIZATION_OPTIMIZATION_SD",
+      "kind": "cpmd_keyword",
+      "name": "GLOCALIZATION OPTIMIZATION SD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GLOCALIZATION_OPTIMIZATION_INTEGRATION",
+      "kind": "cpmd_keyword",
+      "name": "GLOCALIZATION OPTIMIZATION INTEGRATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.GFUNCTIONAL_TYPE",
       "kind": "cpmd_keyword",
       "name": "GFUNCTIONAL TYPE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GFUNCTIONAL_TYPE_ZETANUMBER",
+      "kind": "cpmd_keyword",
+      "name": "GFUNCTIONAL TYPE ZETANUMBER",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -5033,9 +5060,36 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.COMPRESS_WRITE32",
+      "kind": "cpmd_keyword",
+      "name": "COMPRESS WRITE32",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.MEMORY",
       "kind": "cpmd_keyword",
       "name": "MEMORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MEMORY_CHECK",
+      "kind": "cpmd_keyword",
+      "name": "MEMORY CHECK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MEMORY_SMALL",
+      "kind": "cpmd_keyword",
+      "name": "MEMORY SMALL",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -5105,6 +5159,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.SPLINE_POINTS_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE POINTS option",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_QFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE QFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_INIT",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE INIT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_RANGE_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE RANGE option",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.SPLINE_POINTS",
       "kind": "cpmd_keyword",
       "name": "SPLINE POINTS",
@@ -5135,6 +5225,24 @@
       "feature_id": "catalog.cpmd.FINITE_DIFFERENCES",
       "kind": "cpmd_keyword",
       "name": "FINITE DIFFERENCES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FINITE_DIFFERENCES_COORD",
+      "kind": "cpmd_keyword",
+      "name": "FINITE DIFFERENCES COORD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FINITE_DIFFERENCES_RADIUS",
+      "kind": "cpmd_keyword",
+      "name": "FINITE DIFFERENCES RADIUS",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

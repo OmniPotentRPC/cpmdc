@@ -573,7 +573,10 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.PARA_BUFF_SIZE~ | ~params.inputSections.cpmd.paraBuffSize~ | ~paraBuffSize~ | ~PARA_BUFF_SIZE~ |
 | ~catalog.cpmd.PARA_STACK_BUFF_SIZE~ | ~params.inputSections.cpmd.paraStackBuffSize~ | ~paraStackBuffSize~ | ~PARA_STACK_BUFF_SIZE~ |
 | ~catalog.cpmd.COMPRESS~ | ~params.inputSections.cpmd.compress~ | ~compress~ | ~COMPRESS~ |
+| ~catalog.cpmd.COMPRESS_WRITE32~ | ~params.inputSections.cpmd.compress~ | ~compress~ | ~COMPRESS WRITE32~ |
 | ~catalog.cpmd.MEMORY~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY~ |
+| ~catalog.cpmd.MEMORY_CHECK~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY CHECK~ |
+| ~catalog.cpmd.MEMORY_SMALL~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY SMALL~ |
 | ~catalog.cpmd.CHECK_MEMORY~ | ~params.inputSections.cpmd.checkMemory~ | ~checkMemory~ | ~CHECK MEMORY~ |
 | ~catalog.cpmd.REAL_SPACE_WFN~ | ~params.inputSections.cpmd.realSpaceWfn~ | ~realSpaceWfn~ | ~REAL SPACE WFN~ |
 | ~catalog.cpmd.REALSPACE_WFN~ | ~params.inputSections.cpmd.realSpaceWfn~ | ~realSpaceWfn~ | ~REALSPACE WFN~ |
@@ -581,10 +584,16 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.REAL_SPACE_WFN_SIZE~ | ~params.inputSections.cpmd.realSpaceWfnSize~ | ~realSpaceWfnSize~ | ~REAL SPACE WFN SIZE~ |
 | ~catalog.cpmd.SPLINE~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE~ |
 | ~catalog.cpmd.SPLINE_OPTIONS~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE~ |
+| ~catalog.cpmd.SPLINE_POINTS_OPTION~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE POINTS option~ |
+| ~catalog.cpmd.SPLINE_QFUNCTION~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE QFUNCTION~ |
+| ~catalog.cpmd.SPLINE_INIT~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE INIT~ |
+| ~catalog.cpmd.SPLINE_RANGE_OPTION~ | ~params.inputSections.cpmd.splineOptions~ | ~splineOptions~ | ~SPLINE RANGE option~ |
 | ~catalog.cpmd.SPLINE_POINTS~ | ~params.inputSections.cpmd.splinePoints~ | ~splinePoints~ | ~SPLINE POINTS~ |
 | ~catalog.cpmd.SPLINE_RANGE~ | ~params.inputSections.cpmd.splineRange~ | ~splineRange~ | ~SPLINE RANGE~ |
 | ~catalog.cpmd.FINITE_DIFFERENCE~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCE~ |
 | ~catalog.cpmd.FINITE_DIFFERENCES~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCES~ |
+| ~catalog.cpmd.FINITE_DIFFERENCES_COORD~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCES COORD~ |
+| ~catalog.cpmd.FINITE_DIFFERENCES_RADIUS~ | ~params.inputSections.cpmd.finiteDifferences~ | ~finiteDifferences~ | ~FINITE DIFFERENCES RADIUS~ |
 | ~catalog.cpmd.TASKGROUPS~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS~ |
 | ~catalog.cpmd.TASKGROUPS_COUNT~ | ~params.inputSections.cpmd.taskGroupsCount~ | ~taskGroupsCount~ | ~TASKGROUPS count~ |
 | ~catalog.cpmd.TASKGROUPS_CARTESIAN~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS CARTESIAN~ |
@@ -602,7 +611,10 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.GLOCALIZATION_PARAMETER~ | ~params.inputSections.cpmd.glocalizationParameters~ | ~glocalizationParameters~ | ~GLOCALIZATION PARAMETER~ |
 | ~catalog.cpmd.GLOCALIZATION_PARAMETERS~ | ~params.inputSections.cpmd.glocalizationParameters~ | ~glocalizationParameters~ | ~GLOCALIZATION PARAMETERS~ |
 | ~catalog.cpmd.GLOCALIZATION_OPTIMIZATION~ | ~params.inputSections.cpmd.glocalizationOptimization~ | ~glocalizationOptimization~ | ~GLOCALIZATION OPTIMIZATION~ |
+| ~catalog.cpmd.GLOCALIZATION_OPTIMIZATION_SD~ | ~params.inputSections.cpmd.glocalizationOptimization~ | ~glocalizationOptimization~ | ~GLOCALIZATION OPTIMIZATION SD~ |
+| ~catalog.cpmd.GLOCALIZATION_OPTIMIZATION_INTEGRATION~ | ~params.inputSections.cpmd.glocalizationOptimization~ | ~glocalizationOptimization~ | ~GLOCALIZATION OPTIMIZATION INTEGRATION~ |
 | ~catalog.cpmd.GFUNCTIONAL_TYPE~ | ~params.inputSections.cpmd.gfunctionalType~ | ~gfunctionalType~ | ~GFUNCTIONAL TYPE~ |
+| ~catalog.cpmd.GFUNCTIONAL_TYPE_ZETANUMBER~ | ~params.inputSections.cpmd.gfunctionalType~ | ~gfunctionalType~ | ~GFUNCTIONAL TYPE ZETANUMBER~ |
 | ~catalog.cpmd.SPREAD_RSPACE~ | ~params.inputSections.cpmd.spreadRspace~ | ~spreadRspace~ | ~SPREAD RSPACE=~ |
 | ~catalog.cpmd.G_UNITARITY_OPTIONS~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO~ |
 | ~catalog.cpmd.PIPPO~ | ~params.inputSections.cpmd.gUnitarityOptions~ | ~gUnitarityOptions~ | ~PIPPO~ |
