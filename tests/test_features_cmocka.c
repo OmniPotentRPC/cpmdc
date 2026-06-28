@@ -55,6 +55,7 @@ static void test_cp_keywords_not_sections(void **state) {
   assert_non_null(cpmdc_feature_find("catalog.cpmd.VDW_WANNIER"));
   assert_non_null(cpmdc_feature_find("catalog.cpmd.DCACP"));
   assert_non_null(cpmdc_feature_find("catalog.cpmd.ISOLATED_MOLECULE"));
+  assert_non_null(cpmdc_feature_find("catalog.cpmd.LSD"));
   assert_non_null(cpmdc_feature_find("catalog.dft.FUNCTIONAL_BLYP"));
 }
 
