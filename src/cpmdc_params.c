@@ -1869,6 +1869,26 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (sec->lbfgsNtrust > 0) {
+    if (append_fmt(dst, dst_size, used, " LBFGS NTRUST\n  %d\n",
+                   sec->lbfgsNtrust) != 0)
+      return -1;
+  }
+  if (sec->lbfgsNrestt > 0) {
+    if (append_fmt(dst, dst_size, used, " LBFGS NRESTT\n  %d\n",
+                   sec->lbfgsNrestt) != 0)
+      return -1;
+  }
+  if (sec->lbfgsNtrstr > 0) {
+    if (append_fmt(dst, dst_size, used, " LBFGS NTRSTR\n  %d\n",
+                   sec->lbfgsNtrstr) != 0)
+      return -1;
+  }
+  if (sec->lbfgsTrustr > 0.0) {
+    if (append_fmt(dst, dst_size, used, " LBFGS TRUSTR\n  %.10g\n",
+                   sec->lbfgsTrustr) != 0)
+      return -1;
+  }
   if ((sec->prfoOptions.str && sec->prfoOptions.len > 0) ||
       (sec->prfoPayload.str && sec->prfoPayload.len > 0)) {
     if (append_text(dst, dst_size, used, " PRFO") != 0)
@@ -1889,6 +1909,67 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
     }
+  }
+  if (sec->prfoMode > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO MODE\n  %d\n",
+                   sec->prfoMode) != 0)
+      return -1;
+  }
+  if (sec->prfoMdlock > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO MDLOCK\n  %d\n",
+                   sec->prfoMdlock) != 0)
+      return -1;
+  }
+  if (sec->prfoTolenv > 0.0) {
+    if (append_fmt(dst, dst_size, used, " PRFO TOLENV\n  %.10g\n",
+                   sec->prfoTolenv) != 0)
+      return -1;
+  }
+  if (sec->prfoTrustp > 0.0) {
+    if (append_fmt(dst, dst_size, used, " PRFO TRUSTP\n  %.10g\n",
+                   sec->prfoTrustp) != 0)
+      return -1;
+  }
+  if (sec->prfoOmin > 0.0) {
+    if (append_fmt(dst, dst_size, used, " PRFO OMIN\n  %.10g\n",
+                   sec->prfoOmin) != 0)
+      return -1;
+  }
+  if (sec->prfoNsvib > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO NSVIB\n  %d\n",
+                   sec->prfoNsvib) != 0)
+      return -1;
+  }
+  int n_prfo_core = list32_len((capn_list32 *)&sec->prfoCoreAtoms);
+  if (n_prfo_core < 0)
+    return -1;
+  if (n_prfo_core > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO CORE=%d\n",
+                   n_prfo_core) != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used,
+                             (capn_list32 *)&sec->prfoCoreAtoms,
+                             n_prfo_core) != 0)
+      return -1;
+  }
+  if (sec->prfoNsmaxp > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO NSMAXP\n  %d\n",
+                   sec->prfoNsmaxp) != 0)
+      return -1;
+  }
+  if (sec->prfoProjectedHessian) {
+    if (append_text(dst, dst_size, used, " PRFO PRJHES\n") != 0)
+      return -1;
+  }
+  if (sec->prfoDisplacement > 0.0) {
+    if (append_fmt(dst, dst_size, used, " PRFO DISPL\n  %.10g\n",
+                   sec->prfoDisplacement) != 0)
+      return -1;
+  }
+  if (sec->prfoHessianType > 0) {
+    if (append_fmt(dst, dst_size, used, " PRFO HESSTYPE\n  %d\n",
+                   sec->prfoHessianType) != 0)
+      return -1;
   }
   if (sec->hesscore) {
     if (append_text(dst, dst_size, used, " HESSCORE\n") != 0)

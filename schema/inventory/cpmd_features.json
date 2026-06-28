@@ -2395,6 +2395,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LBFGS_NTRUST",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS NTRUST",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LBFGS_NRESTT",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS NRESTT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LBFGS_NTRSTR",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS NTRSTR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LBFGS_TRUSTR",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS TRUSTR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PRFO",
       "kind": "cpmd_keyword",
       "name": "PRFO",
@@ -2407,6 +2443,105 @@
       "feature_id": "catalog.cpmd.PRFO_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "PRFO payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_MODE",
+      "kind": "cpmd_keyword",
+      "name": "PRFO MODE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_MDLOCK",
+      "kind": "cpmd_keyword",
+      "name": "PRFO MDLOCK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_TOLENV",
+      "kind": "cpmd_keyword",
+      "name": "PRFO TOLENV",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_TRUSTP",
+      "kind": "cpmd_keyword",
+      "name": "PRFO TRUSTP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_OMIN",
+      "kind": "cpmd_keyword",
+      "name": "PRFO OMIN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_NSVIB",
+      "kind": "cpmd_keyword",
+      "name": "PRFO NSVIB",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_CORE",
+      "kind": "cpmd_keyword",
+      "name": "PRFO CORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_NSMAXP",
+      "kind": "cpmd_keyword",
+      "name": "PRFO NSMAXP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_PRJHES",
+      "kind": "cpmd_keyword",
+      "name": "PRFO PRJHES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_DISPL",
+      "kind": "cpmd_keyword",
+      "name": "PRFO DISPL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_HESSTYPE",
+      "kind": "cpmd_keyword",
+      "name": "PRFO HESSTYPE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -7582,6 +7717,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.lbfgsNtrust",
+      "kind": "structured_params_field",
+      "name": "lbfgsNtrust",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lbfgsNrestt",
+      "kind": "structured_params_field",
+      "name": "lbfgsNrestt",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lbfgsNtrstr",
+      "kind": "structured_params_field",
+      "name": "lbfgsNtrstr",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lbfgsTrustr",
+      "kind": "structured_params_field",
+      "name": "lbfgsTrustr",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.prfoOptions",
       "kind": "structured_params_field",
       "name": "prfoOptions",
@@ -7593,6 +7760,94 @@
       "feature_id": "params.inputSections.cpmd.prfoPayload",
       "kind": "structured_params_field",
       "name": "prfoPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoMode",
+      "kind": "structured_params_field",
+      "name": "prfoMode",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoMdlock",
+      "kind": "structured_params_field",
+      "name": "prfoMdlock",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoTolenv",
+      "kind": "structured_params_field",
+      "name": "prfoTolenv",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoTrustp",
+      "kind": "structured_params_field",
+      "name": "prfoTrustp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoOmin",
+      "kind": "structured_params_field",
+      "name": "prfoOmin",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoNsvib",
+      "kind": "structured_params_field",
+      "name": "prfoNsvib",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoCoreAtoms",
+      "kind": "structured_params_field",
+      "name": "prfoCoreAtoms",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoNsmaxp",
+      "kind": "structured_params_field",
+      "name": "prfoNsmaxp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoProjectedHessian",
+      "kind": "structured_params_field",
+      "name": "prfoProjectedHessian",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoDisplacement",
+      "kind": "structured_params_field",
+      "name": "prfoDisplacement",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoHessianType",
+      "kind": "structured_params_field",
+      "name": "prfoHessianType",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

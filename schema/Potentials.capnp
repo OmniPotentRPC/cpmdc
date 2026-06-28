@@ -464,6 +464,21 @@ struct CPMDCpmdSection {
   fileMergePayload        @306 :Text; # FILE MERGE payload lines.
   fileSeparationPayload   @307 :Text; # FILE SEPARATION payload lines.
   noReset                 @308 :Int32 = 0; # NO_RESET payload.
+  lbfgsNtrust             @309 :Int32 = 0; # LBFGS NTRUST payload; 0 => omit.
+  lbfgsNrestt             @310 :Int32 = 0; # LBFGS NRESTT payload; 0 => omit.
+  lbfgsNtrstr             @311 :Int32 = 0; # LBFGS NTRSTR payload; 0 => omit.
+  lbfgsTrustr             @312 :Float64 = 0.0; # LBFGS TRUSTR payload; 0 => omit.
+  prfoMode                @313 :Int32 = 0; # PRFO MODE payload; 0 => omit.
+  prfoMdlock              @314 :Int32 = 0; # PRFO MDLOCK payload; 0 => omit.
+  prfoTolenv              @315 :Float64 = 0.0; # PRFO TOLENV payload; 0 => omit.
+  prfoTrustp              @316 :Float64 = 0.0; # PRFO TRUSTP payload; 0 => omit.
+  prfoOmin                @317 :Float64 = 0.0; # PRFO OMIN payload; 0 => omit.
+  prfoNsvib               @318 :Int32 = 0; # PRFO NSVIB payload; 0 => omit.
+  prfoCoreAtoms           @319 :List(Int32); # PRFO CORE=<n> atom indexes.
+  prfoNsmaxp              @320 :Int32 = 0; # PRFO NSMAXP payload; 0 => omit.
+  prfoProjectedHessian    @321 :Bool = false; # PRFO PRJHES.
+  prfoDisplacement        @322 :Float64 = 0.0; # PRFO DISPL payload; 0 => omit.
+  prfoHessianType         @323 :Int32 = 0; # PRFO HESSTYPE payload; 0 => omit.
 }
 
 struct CPMDDftSection {
