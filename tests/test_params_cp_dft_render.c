@@ -304,9 +304,10 @@ int main(int argc, char **argv) {
       "3 4 5 6.0 7 8", "BERENDSEN", "LANGEVIN", "ANNEALING",
       "ANNEALING IONS", "0.98", "ANNEALING ELECTRONS", "0.97",
       "ANNEALING CELL", "0.96", "IONS 300 50", "DAMPING IONS", "0.11",
-      "DAMPING ELECTRONS", "0.12", "DAMPING CELL", "0.13", "QUENCH",
-      "RATTLE", "SHAKE", "CONSTRAINT", "FIX COM", "TROTTER", "8",
-      "RESTART",
+      "DAMPING ELECTRONS", "0.12", "DAMPING CELL", "0.13",
+      "HESSIAN SCHLEGEL PARTIAL", "PROJECT FULL", "STRESS TENSOR VIRIAL",
+      "15", "CLASSTRESS", "20", "QUENCH", "RATTLE", "SHAKE",
+      "CONSTRAINT", "FIX COM", "TROTTER", "8", "RESTART",
   };
   const char *cpmd_misc_need[] = {
       "&CPMD", "PRINT", "FORCES ON", "STORE", "WAVEFUNCTION",
