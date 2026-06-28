@@ -207,6 +207,16 @@ struct CPMDCpmdSection {
   timestepElectrons    @49 :Float64 = 0.0; # TIMESTEP ELECTRONS; 0 => omit.
   timestepIons         @50 :Float64 = 0.0; # TIMESTEP IONS; 0 => omit.
   cellMass             @51 :Float64 = 0.0; # CMASS; 0 => omit.
+  temperatureElectron  @52 :Float64 = 0.0; # TEMPERATURE ELECTRON; 0 => omit.
+  temperature          @53 :Float64 = 0.0; # TEMPERATURE; 0 => omit.
+  temperatureRamp      @54 :Bool = false; # TEMPERATURE RAMP.
+  temperatureRampTime  @55 :Float64 = 0.0; # TEMPERATURE RAMP second value.
+  temperatureRampRate  @56 :Float64 = 0.0; # TEMPERATURE RAMP third value.
+  rescaleOldVelocities @57 :Bool = false; # RESCALE OLD VELOCITIES.
+  reverseVelocities    @58 :Bool = false; # REVERSE VELOCITIES.
+  subtractComVelocity  @59 :Int32 = 0; # SUBTRACT COMVEL; 0 => omit.
+  subtractRotVelocity  @60 :Int32 = 0; # SUBTRACT ROTVEL; 0 => omit.
+  prngSeed             @61 :Int32 = 0; # PRNGSEED; 0 => omit.
 }
 
 struct CPMDDftSection {

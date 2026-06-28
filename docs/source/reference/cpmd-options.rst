@@ -795,6 +795,26 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.CMASS``                        | ``params.inputSections.cpmd.cellMass``                   | ``cellMass``                   | ``CMASS``                        |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_ELECTRON``         | ``params.inputSections.cpmd.temperatureElectron``        | ``temperatureElectron``        | ``TEMPERATURE ELECTRON``         |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE``                  | ``params.inputSections.cpmd.temperature``                | ``temperature``                | ``TEMPERATURE``                  |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP``             | ``params.inputSections.cpmd.temperatureRamp``            | ``temperatureRamp``            | ``TEMPERATURE RAMP``             |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP_TIME``        | ``params.inputSections.cpmd.temperatureRampTime``        | ``temperatureRampTime``        | ``TEMPERATURE RAMP payload``     |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPERATURE_RAMP_RATE``        | ``params.inputSections.cpmd.temperatureRampRate``        | ``temperatureRampRate``        | ``TEMPERATURE RAMP payload``     |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.RESCALE_OLD_VELOCITIES``       | ``params.inputSections.cpmd.rescaleOldVelocities``       | ``rescaleOldVelocities``       | ``RESCALE OLD VELOCITIES``       |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.REVERSE_VELOCITIES``           | ``params.inputSections.cpmd.reverseVelocities``          | ``reverseVelocities``          | ``REVERSE VELOCITIES``           |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.SUBTRACT_COMVEL``              | ``params.inputSections.cpmd.subtractComVelocity``        | ``subtractComVelocity``        | ``SUBTRACT COMVEL``              |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.SUBTRACT_ROTVEL``              | ``params.inputSections.cpmd.subtractRotVelocity``        | ``subtractRotVelocity``        | ``SUBTRACT ROTVEL``              |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.PRNGSEED``                     | ``params.inputSections.cpmd.prngSeed``                   | ``prngSeed``                   | ``PRNGSEED``                     |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.MAXSTEP``                      | ``params.inputSections.cpmd.maxStep``                    | ``maxStep``                    | ``MAXSTEP``                      |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.MAXITER``                      | ``params.inputSections.cpmd.maxIter``                    | ``maxIter``                    | ``MAXITER``                      |

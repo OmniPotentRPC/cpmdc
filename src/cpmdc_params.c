@@ -1312,6 +1312,47 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         0)
       return -1;
   }
+  if (sec->temperatureElectron > 0.0) {
+    if (append_fmt(dst, dst_size, used, " TEMPERATURE ELECTRON\n  %.10g\n",
+                   sec->temperatureElectron) != 0)
+      return -1;
+  }
+  if (sec->temperature > 0.0) {
+    if (sec->temperatureRamp) {
+      if (append_fmt(dst, dst_size, used,
+                     " TEMPERATURE RAMP\n  %.10g %.10g %.10g\n",
+                     sec->temperature, sec->temperatureRampTime,
+                     sec->temperatureRampRate) != 0)
+        return -1;
+    } else {
+      if (append_fmt(dst, dst_size, used, " TEMPERATURE\n  %.10g\n",
+                     sec->temperature) != 0)
+        return -1;
+    }
+  }
+  if (sec->rescaleOldVelocities) {
+    if (append_text(dst, dst_size, used, " RESCALE OLD VELOCITIES\n") != 0)
+      return -1;
+  }
+  if (sec->reverseVelocities) {
+    if (append_text(dst, dst_size, used, " REVERSE VELOCITIES\n") != 0)
+      return -1;
+  }
+  if (sec->subtractComVelocity > 0) {
+    if (append_fmt(dst, dst_size, used, " SUBTRACT COMVEL\n  %d\n",
+                   sec->subtractComVelocity) != 0)
+      return -1;
+  }
+  if (sec->subtractRotVelocity > 0) {
+    if (append_fmt(dst, dst_size, used, " SUBTRACT ROTVEL\n  %d\n",
+                   sec->subtractRotVelocity) != 0)
+      return -1;
+  }
+  if (sec->prngSeed > 0) {
+    if (append_fmt(dst, dst_size, used, " PRNGSEED\n  %d\n", sec->prngSeed) !=
+        0)
+      return -1;
+  }
   if (sec->nose) {
     if (append_text(dst, dst_size, used, " NOSE\n") != 0)
       return -1;

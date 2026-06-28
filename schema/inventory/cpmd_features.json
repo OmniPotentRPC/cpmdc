@@ -2639,6 +2639,86 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.temperatureElectron",
+      "kind": "structured_params_field",
+      "name": "temperatureElectron",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.temperature",
+      "kind": "structured_params_field",
+      "name": "temperature",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.temperatureRamp",
+      "kind": "structured_params_field",
+      "name": "temperatureRamp",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.temperatureRampTime",
+      "kind": "structured_params_field",
+      "name": "temperatureRampTime",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.temperatureRampRate",
+      "kind": "structured_params_field",
+      "name": "temperatureRampRate",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rescaleOldVelocities",
+      "kind": "structured_params_field",
+      "name": "rescaleOldVelocities",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.reverseVelocities",
+      "kind": "structured_params_field",
+      "name": "reverseVelocities",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.subtractComVelocity",
+      "kind": "structured_params_field",
+      "name": "subtractComVelocity",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.subtractRotVelocity",
+      "kind": "structured_params_field",
+      "name": "subtractRotVelocity",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prngSeed",
+      "kind": "structured_params_field",
+      "name": "prngSeed",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.restartWavefunction",
       "kind": "structured_params_field",
       "name": "restartWavefunction",
