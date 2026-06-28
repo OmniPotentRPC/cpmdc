@@ -112,6 +112,13 @@ def add_duplicate_errors(values: list[str], label: str, errors: list[str]) -> No
             errors.append(f"inventory {label} duplicated: {value}")
         seen.add(value)
 
+def add_c_feature_duplicate_errors(values: list[str], errors: list[str]) -> None:
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            errors.append(f"C feature table duplicated: {value}")
+        seen.add(value)
+
 def main() -> int:
     inv = json.loads(INVENTORY.read_text(encoding="utf-8"))
     schema = SCHEMA.read_text(encoding="utf-8")
@@ -252,14 +259,23 @@ def main() -> int:
             if fid not in cpmd_options_doc:
                 errors.append(f"cpmd-options docs missing {fid}")
 
+    c_literal_entries = re.findall(
+        r'\{"([^"]+)",\s*CPMDC_FEATURE_\w+,\s*([01]),\s*([01])\}',
+        features_c,
+    )
+    c_param_features = re.findall(
+        r'CPMDC_PARAM_FEATURE\(\s*"([^"]+)"\s*\)',
+        features_c,
+    )
+    add_c_feature_duplicate_errors(
+        [fid for fid, _, _ in c_literal_entries] + c_param_features,
+        errors,
+    )
     c_flags = {
         fid: (bool(int(stub)), bool(int(embed)))
-        for fid, stub, embed in re.findall(
-            r'\{"([^"]+)",\s*CPMDC_FEATURE_\w+,\s*([01]),\s*([01])\}',
-            features_c,
-        )
+        for fid, stub, embed in c_literal_entries
     }
-    for fid in re.findall(r'CPMDC_PARAM_FEATURE\(\s*"([^"]+)"\s*\)', features_c):
+    for fid in c_param_features:
         c_flags[fid] = (True, True)
 
     inventory_feature_ids = fids | {

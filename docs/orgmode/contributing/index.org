@@ -43,7 +43,7 @@ feature table, docs, public headers, ABI symbol list, and optional
 ~schema/inventory/cpmd_cp_keywords.txt~ to resolve to a ~catalog.cpmd.*~ row.
 ~cpmd-params-field-inventory~ requires every top-level ~CPMDParams~ schema
 field to resolve to a ~params.*~ feature row and rejects duplicate inventory
-IDs/lists before set comparisons can hide them.
+IDs/lists and C feature table duplicates before set comparisons can hide them.
 ~cpmd-public-abi-inventory~ requires every public ~cpmdc_*~ header function to
 resolve through ~abi_symbols~ and the feature table, then verifies the native
 ~src/cpmdc.c~, stub ~src/cpmdc_stub.c~, or shared ~src/cpmdc_features.c~

@@ -16,6 +16,7 @@ from pathlib import Path
 REMOVED_FEATURE = "params.functional"
 DUPLICATED_FEATURE = "params.functional"
 EXTRA_SECTION_FEATURE = "catalog.section.EXTRA"
+DUPLICATE_C_FEATURE = "catalog.section.ATOM"
 
 
 def load_checker(repo: Path):
@@ -104,6 +105,20 @@ def write_features_c_with_extra_section(repo: Path, tmpdir: Path) -> Path:
     text = (repo / "src/cpmdc_features.c").read_text(encoding="utf-8")
     row = f'    {{"{EXTRA_SECTION_FEATURE}", CPMDC_FEATURE_SECTION, 1, 1}},\n'
     path = tmpdir / "cpmdc_features_extra_section.c"
+    path.write_text(
+        text.replace(
+            "\n};\n\n#undef CPMDC_PARAM_FEATURE",
+            f"\n{row}}};\n\n#undef CPMDC_PARAM_FEATURE",
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def write_features_c_with_duplicate_row(repo: Path, tmpdir: Path) -> Path:
+    text = (repo / "src/cpmdc_features.c").read_text(encoding="utf-8")
+    row = f'    {{"{DUPLICATE_C_FEATURE}", CPMDC_FEATURE_SECTION, 1, 1}},\n'
+    path = tmpdir / "cpmdc_features_duplicate_row.c"
     path.write_text(
         text.replace(
             "\n};\n\n#undef CPMDC_PARAM_FEATURE",
@@ -212,6 +227,10 @@ def main() -> int:
             checker,
             SEC_ALLOW=write_allowlist_with_duplicate(repo, tmpdir),
         )
+        duplicate_c_row_code, duplicate_c_row_output = run_checker_with_paths(
+            checker,
+            FEATURES_C=write_features_c_with_duplicate_row(repo, tmpdir),
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
     if missing_code == 0 or expected not in missing_output:
@@ -265,6 +284,14 @@ def main() -> int:
     ):
         print("expected duplicate opencpmd_sections.txt failure")
         print(duplicate_allow_output)
+        return 1
+    expected_c_duplicate = f"C feature table duplicated: {DUPLICATE_C_FEATURE}"
+    if (
+        duplicate_c_row_code == 0
+        or expected_c_duplicate not in duplicate_c_row_output
+    ):
+        print("expected duplicate C feature table failure")
+        print(duplicate_c_row_output)
         return 1
     return 0
 

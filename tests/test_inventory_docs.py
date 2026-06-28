@@ -56,6 +56,12 @@ def main() -> int:
         require_text(root / "docs/orgmode/contributing/index.org", inventory_guards)
     )
     failures.extend(
+        require_text(
+            root / "docs/orgmode/contributing/index.org",
+            ["C feature table duplicates"],
+        )
+    )
+    failures.extend(
         require_text(root / "docs/orgmode/contributing/index.org", docs_guards)
     )
     failures.extend(
@@ -86,6 +92,7 @@ def main() -> int:
                 "src/cpmdc_features.c",
                 "opencpmd_inscan_sections",
                 "cpmd_sections",
+                "C feature table duplicates",
             ],
         )
     )

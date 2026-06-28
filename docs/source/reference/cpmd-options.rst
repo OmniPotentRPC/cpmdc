@@ -200,12 +200,12 @@ schema, public C feature table, README, and this reference page. When
 ``cpmd-base-keyword-inventory`` proves the base keyword list cannot drop
 a ``catalog.cpmd.*`` row silently. ``cpmd-params-field-inventory``
 requires every top-level ``CPMDParams`` schema field to keep a
-``params.*`` feature row and rejects duplicate inventory IDs/lists
-before set comparisons can hide them. ``cpmd-public-abi-inventory``
-requires every public ``cpmdc_*`` header function to resolve through
-``abi_symbols`` and the feature table, then verifies the native
-``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or shared
-``src/cpmdc_features.c`` implementation that exports it.
+``params.*`` feature row and rejects duplicate inventory IDs/lists and C
+feature table duplicates before set comparisons can hide them.
+``cpmd-public-abi-inventory`` requires every public ``cpmdc_*`` header
+function to resolve through ``abi_symbols`` and the feature table, then
+verifies the native ``src/cpmdc.c``, stub ``src/cpmdc_stub.c``, or
+shared ``src/cpmdc_features.c`` implementation that exports it.
 ``stub-abi-symbol-coverage`` requires the standalone stub test to assert
 every ``abi_symbols`` feature row is present and stub-applicable.
 ``shared-dlopen-symbol-coverage`` requires the shared-library ``dlopen``

@@ -196,7 +196,7 @@ table, renderer, README, and reference docs aligned:
 | --- | --- |
 | `feature-inventory` | `schema/inventory/cpmd_features.json` agrees with `schema/Potentials.capnp`, `src/cpmdc_features.c`, public headers, README, and CPMD option docs |
 | `cpmd-base-keyword-inventory` | every base `&CPMD` keyword in `schema/inventory/cpmd_cp_keywords.txt` has a normalized `catalog.cpmd.*` feature row |
-| `cpmd-params-field-inventory` | every top-level `CPMDParams` schema field has a matching `params.*` feature row, and duplicate inventory IDs/lists are rejected |
+| `cpmd-params-field-inventory` | every top-level `CPMDParams` schema field has a matching `params.*` feature row, and duplicate inventory IDs/lists plus C feature table duplicates are rejected |
 | `cpmd-public-abi-inventory` | every public `cpmdc_*` header function is listed in `abi_symbols`, documented through the feature table, and implemented in `src/cpmdc.c`, `src/cpmdc_stub.c`, or `src/cpmdc_features.c` |
 | `stub-abi-symbol-coverage` | the standalone stub test asserts every `abi_symbols` feature row is present and stub-applicable |
 | `shared-dlopen-symbol-coverage` | the shared-library `dlopen` test loads every `abi_symbols` entry from `libcpmdc.so` |
