@@ -515,6 +515,15 @@ if get_option('with_tests')
     suite: ['params', 'inventory'],
   )
   test(
+    'cpmd-base-keyword-inventory',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_base_keyword_inventory.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['inventory'],
+  )
+  test(
     'examples-documented',
     python,
     args: [

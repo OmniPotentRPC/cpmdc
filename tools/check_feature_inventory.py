@@ -11,6 +11,7 @@ HEADER = ROOT / "include" / "cpmdc.h"
 FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
+CPMD_CP_KEYWORDS = ROOT / "schema" / "inventory" / "cpmd_cp_keywords.txt"
 CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
 README = ROOT / "README.md"
 
@@ -68,6 +69,17 @@ def structured_param_feature_ids(schema: str) -> list[str]:
     ids.append("params.inputSections.raw")
     return ids
 
+def cpmd_keyword_feature_id(keyword: str) -> str:
+    name = re.sub(r"[^A-Z0-9]+", "_", keyword.upper()).strip("_")
+    return f"catalog.cpmd.{name}"
+
+def cpmd_base_keywords() -> list[str]:
+    return [
+        line.strip()
+        for line in CPMD_CP_KEYWORDS.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
 def main() -> int:
     inv = json.loads(INVENTORY.read_text(encoding="utf-8"))
     schema = SCHEMA.read_text(encoding="utf-8")
@@ -118,6 +130,14 @@ def main() -> int:
         print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
     fids = {f["feature_id"] for f in inv["features"]}
+    for keyword in cpmd_base_keywords():
+        fid = cpmd_keyword_feature_id(keyword)
+        if fid not in fids:
+            errors.append(
+                "inventory missing CPMD base keyword from "
+                f"cpmd_cp_keywords.txt: {keyword}"
+            )
+
     for sec in inv_secs:
         fid = f"catalog.section.{sec}"
         if fid not in fids:
