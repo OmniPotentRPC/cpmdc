@@ -344,6 +344,10 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE~ | ~params.inputSections.cpmd.molecularDynamicsFile~ | ~molecularDynamicsFile~ | ~MOLECULAR DYNAMICS FILE~ |
 | ~catalog.cpmd.EMASS~ | ~params.inputSections.cpmd.electronMass~ | ~electronMass~ | ~EMASS~ |
 | ~catalog.cpmd.TIMESTEP~ | ~params.inputSections.cpmd.timestep~ | ~timestep~ | ~TIMESTEP~ |
+| ~catalog.cpmd.MAXRUNTIME~ | ~params.inputSections.cpmd.maxRuntime~ | ~maxRuntime~ | ~MAXRUNTIME~ |
+| ~catalog.cpmd.TIMESTEP_ELECTRONS~ | ~params.inputSections.cpmd.timestepElectrons~ | ~timestepElectrons~ | ~TIMESTEP ELECTRONS~ |
+| ~catalog.cpmd.TIMESTEP_IONS~ | ~params.inputSections.cpmd.timestepIons~ | ~timestepIons~ | ~TIMESTEP IONS~ |
+| ~catalog.cpmd.CMASS~ | ~params.inputSections.cpmd.cellMass~ | ~cellMass~ | ~CMASS~ |
 | ~catalog.cpmd.MAXSTEP~ | ~params.inputSections.cpmd.maxStep~ | ~maxStep~ | ~MAXSTEP~ |
 | ~catalog.cpmd.MAXITER~ | ~params.inputSections.cpmd.maxIter~ | ~maxIter~ | ~MAXITER~ |
 | ~catalog.cpmd.CONVERGENCE_ORBITALS~ | ~params.inputSections.cpmd.convergenceOrbitals~ | ~convergenceOrbitals~ | ~CONVERGENCE ORBITALS~ |

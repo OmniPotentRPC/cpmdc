@@ -1287,9 +1287,29 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         0)
       return -1;
   }
+  if (sec->maxRuntime > 0.0) {
+    if (append_fmt(dst, dst_size, used, " MAXRUNTIME\n  %.10g\n",
+                   sec->maxRuntime) != 0)
+      return -1;
+  }
+  if (sec->timestepElectrons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " TIMESTEP ELECTRONS\n  %.10g\n",
+                   sec->timestepElectrons) != 0)
+      return -1;
+  }
+  if (sec->timestepIons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " TIMESTEP IONS\n  %.10g\n",
+                   sec->timestepIons) != 0)
+      return -1;
+  }
   if (sec->electronMass > 0.0) {
     if (append_fmt(dst, dst_size, used, " EMASS\n  %.10g\n",
                    sec->electronMass) != 0)
+      return -1;
+  }
+  if (sec->cellMass > 0.0) {
+    if (append_fmt(dst, dst_size, used, " CMASS\n  %.10g\n", sec->cellMass) !=
+        0)
       return -1;
   }
   if (sec->nose) {

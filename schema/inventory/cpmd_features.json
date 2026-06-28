@@ -2607,6 +2607,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.maxRuntime",
+      "kind": "structured_params_field",
+      "name": "maxRuntime",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.timestepElectrons",
+      "kind": "structured_params_field",
+      "name": "timestepElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.timestepIons",
+      "kind": "structured_params_field",
+      "name": "timestepIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cellMass",
+      "kind": "structured_params_field",
+      "name": "cellMass",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.restartWavefunction",
       "kind": "structured_params_field",
       "name": "restartWavefunction",

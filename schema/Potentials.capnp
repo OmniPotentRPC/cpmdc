@@ -203,6 +203,10 @@ struct CPMDCpmdSection {
   vdwWannier           @45 :Text;         # VDW WANNIER argument, e.g. ON/OFF.
   dcacp                @46 :Bool = false; # DCACP.
   isolatedMolecule     @47 :Bool = false; # ISOLATED MOLECULE.
+  maxRuntime           @48 :Float64 = 0.0; # MAXRUNTIME; 0 => omit.
+  timestepElectrons    @49 :Float64 = 0.0; # TIMESTEP ELECTRONS; 0 => omit.
+  timestepIons         @50 :Float64 = 0.0; # TIMESTEP IONS; 0 => omit.
+  cellMass             @51 :Float64 = 0.0; # CMASS; 0 => omit.
 }
 
 struct CPMDDftSection {
