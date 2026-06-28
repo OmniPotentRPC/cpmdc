@@ -7,6 +7,10 @@
     ( cpmd = (
         optimizeWavefunction = false,
         optimizeGeometry = true,
+        optimizeGeometryOptions = "CLASSICAL XYZ SAMPLE",
+        optimizeGeometrySample = 3,
+        optimizeCombinedOptions = "XYZ SAMPLE",
+        optimizeCombinedSample = 4,
         molecularDynamics = false,
         convergenceOrbitals = 2.0e-6,
         convergenceGeometry = 1.0e-4,
