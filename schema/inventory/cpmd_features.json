@@ -2719,6 +2719,54 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.tempControlIons",
+      "kind": "structured_params_field",
+      "name": "tempControlIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tempControlElectrons",
+      "kind": "structured_params_field",
+      "name": "tempControlElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tempControlCell",
+      "kind": "structured_params_field",
+      "name": "tempControlCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.berendsenIons",
+      "kind": "structured_params_field",
+      "name": "berendsenIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.berendsenElectrons",
+      "kind": "structured_params_field",
+      "name": "berendsenElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.berendsenCell",
+      "kind": "structured_params_field",
+      "name": "berendsenCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.restartWavefunction",
       "kind": "structured_params_field",
       "name": "restartWavefunction",

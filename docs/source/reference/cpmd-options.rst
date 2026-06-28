@@ -815,6 +815,18 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.PRNGSEED``                     | ``params.inputSections.cpmd.prngSeed``                   | ``prngSeed``                   | ``PRNGSEED``                     |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_IONS``             | ``params.inputSections.cpmd.tempControlIons``            | ``tempControlIons``            | ``TEMPCONTROL IONS``             |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_ELECTRONS``        | ``params.inputSections.cpmd.tempControlElectrons``       | ``tempControlElectrons``       | ``TEMPCONTROL ELECTRONS``        |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.TEMPCONTROL_CELL``             | ``params.inputSections.cpmd.tempControlCell``            | ``tempControlCell``            | ``TEMPCONTROL CELL``             |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_IONS``               | ``params.inputSections.cpmd.berendsenIons``              | ``berendsenIons``              | ``BERENDSEN IONS``               |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_ELECTRONS``          | ``params.inputSections.cpmd.berendsenElectrons``         | ``berendsenElectrons``         | ``BERENDSEN ELECTRONS``          |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.BERENDSEN_CELL``               | ``params.inputSections.cpmd.berendsenCell``              | ``berendsenCell``              | ``BERENDSEN CELL``               |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.MAXSTEP``                      | ``params.inputSections.cpmd.maxStep``                    | ``maxStep``                    | ``MAXSTEP``                      |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.MAXITER``                      | ``params.inputSections.cpmd.maxIter``                    | ``maxIter``                    | ``MAXITER``                      |

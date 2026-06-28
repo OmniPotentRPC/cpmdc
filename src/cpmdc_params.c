@@ -1353,6 +1353,54 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         0)
       return -1;
   }
+  if (sec->tempControlIons.str && sec->tempControlIons.len > 0) {
+    if (append_text(dst, dst_size, used, " TEMPCONTROL IONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->tempControlIons) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->tempControlElectrons.str && sec->tempControlElectrons.len > 0) {
+    if (append_text(dst, dst_size, used, " TEMPCONTROL ELECTRONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->tempControlElectrons) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->tempControlCell.str && sec->tempControlCell.len > 0) {
+    if (append_text(dst, dst_size, used, " TEMPCONTROL CELL\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->tempControlCell) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->berendsenIons.str && sec->berendsenIons.len > 0) {
+    if (append_text(dst, dst_size, used, " BERENDSEN IONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->berendsenIons) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->berendsenElectrons.str && sec->berendsenElectrons.len > 0) {
+    if (append_text(dst, dst_size, used, " BERENDSEN ELECTRONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->berendsenElectrons) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->berendsenCell.str && sec->berendsenCell.len > 0) {
+    if (append_text(dst, dst_size, used, " BERENDSEN CELL\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->berendsenCell) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->nose) {
     if (append_text(dst, dst_size, used, " NOSE\n") != 0)
       return -1;

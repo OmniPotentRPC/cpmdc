@@ -217,6 +217,12 @@ struct CPMDCpmdSection {
   subtractComVelocity  @59 :Int32 = 0; # SUBTRACT COMVEL; 0 => omit.
   subtractRotVelocity  @60 :Int32 = 0; # SUBTRACT ROTVEL; 0 => omit.
   prngSeed             @61 :Int32 = 0; # PRNGSEED; 0 => omit.
+  tempControlIons      @62 :Text; # TEMPCONTROL IONS payload.
+  tempControlElectrons @63 :Text; # TEMPCONTROL ELECTRONS payload.
+  tempControlCell      @64 :Text; # TEMPCONTROL CELL payload.
+  berendsenIons        @65 :Text; # BERENDSEN IONS payload.
+  berendsenElectrons   @66 :Text; # BERENDSEN ELECTRONS payload.
+  berendsenCell        @67 :Text; # BERENDSEN CELL payload.
 }
 
 struct CPMDDftSection {
