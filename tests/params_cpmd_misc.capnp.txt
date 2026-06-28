@@ -52,6 +52,7 @@
         paraStackBuffSize = 2048,
         compress = "WRITE32",
         memory = "CHECK SMALL",
+        checkMemory = true,
         realSpaceWfnKeep = true,
         realSpaceWfnSize = 2048.0,
         splineOptions = "POINTS QFUNCTION INIT RANGE",
