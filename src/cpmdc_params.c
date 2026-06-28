@@ -1982,6 +1982,41 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (sec->noGeoCheck) {
+    if (append_text(dst, dst_size, used, " NO_GEO_CHECK\n") != 0)
+      return -1;
+  }
+  if (sec->brokenSymmetry) {
+    if (append_text(dst, dst_size, used, " BROKEN\n") != 0)
+      return -1;
+  }
+  if (append_text_keyword_arg(dst, dst_size, used, "DISTRIBUTED LINALG",
+                              sec->distributedLinalg) != 0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "LINALG NEWORTHO",
+                              sec->linalgNewOrtho) != 0)
+    return -1;
+  if (sec->disorthoBlockSize > 0) {
+    if (append_fmt(dst, dst_size, used, " DISORTHO_BSIZE\n  %d\n",
+                   sec->disorthoBlockSize) != 0)
+      return -1;
+  }
+  if (sec->statesBlockSize > 0) {
+    if (append_fmt(dst, dst_size, used, " BLOCKSIZE STATES\n  %d\n",
+                   sec->statesBlockSize) != 0)
+      return -1;
+  }
+  if (append_text_keyword_arg(dst, dst_size, used, "ALLTOALL",
+                              sec->allToAllPrecision) != 0)
+    return -1;
+  if (sec->gshell) {
+    if (append_text(dst, dst_size, used, " GSHELL\n") != 0)
+      return -1;
+  }
+  if (sec->localPotential) {
+    if (append_text(dst, dst_size, used, " LOCAL POTENTIAL\n") != 0)
+      return -1;
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;

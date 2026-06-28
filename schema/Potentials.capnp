@@ -309,6 +309,15 @@ struct CPMDCpmdSection {
   gStepTune               @151 :Bool = false; # G_STEP TUNE.
   glocWfnOutOptions       @152 :Text; # GLOC WFNOUT inline options.
   glocWfnOutPayload       @153 :Text; # GLOC WFNOUT payload line.
+  noGeoCheck              @154 :Bool = false; # NO_GEO_CHECK.
+  brokenSymmetry          @155 :Bool = false; # BROKEN symmetry.
+  distributedLinalg       @156 :Text; # DISTRIBUTED LINALG ON/OFF.
+  linalgNewOrtho          @157 :Text; # LINALG NEWORTHO ON/OFF.
+  disorthoBlockSize       @158 :Int32 = 0; # DISORTHO_BSIZE; 0 => omit.
+  statesBlockSize         @159 :Int32 = 0; # BLOCKSIZE STATES; 0 => omit.
+  allToAllPrecision       @160 :Text; # ALLTOALL precision option.
+  gshell                  @161 :Bool = false; # GSHELL.
+  localPotential          @162 :Bool = false; # LOCAL POTENTIAL.
 }
 
 struct CPMDDftSection {

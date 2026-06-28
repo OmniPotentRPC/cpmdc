@@ -1309,6 +1309,87 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.NO_GEO_CHECK",
+      "kind": "cpmd_keyword",
+      "name": "NO_GEO_CHECK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROKEN",
+      "kind": "cpmd_keyword",
+      "name": "BROKEN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DISTRIBUTED_LINALG",
+      "kind": "cpmd_keyword",
+      "name": "DISTRIBUTED LINALG",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LINALG_NEWORTHO",
+      "kind": "cpmd_keyword",
+      "name": "LINALG NEWORTHO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DISORTHO_BSIZE",
+      "kind": "cpmd_keyword",
+      "name": "DISORTHO_BSIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BLOCKSIZE_STATES",
+      "kind": "cpmd_keyword",
+      "name": "BLOCKSIZE STATES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ALLTOALL",
+      "kind": "cpmd_keyword",
+      "name": "ALLTOALL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GSHELL",
+      "kind": "cpmd_keyword",
+      "name": "GSHELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LOCAL_POTENTIAL",
+      "kind": "cpmd_keyword",
+      "name": "LOCAL POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.CENTER_MOLECULE_OFF",
       "kind": "cpmd_keyword",
       "name": "CENTER MOLECULE OFF",
@@ -3792,6 +3873,78 @@
       "feature_id": "params.inputSections.cpmd.glocWfnOutPayload",
       "kind": "structured_params_field",
       "name": "glocWfnOutPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noGeoCheck",
+      "kind": "structured_params_field",
+      "name": "noGeoCheck",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.brokenSymmetry",
+      "kind": "structured_params_field",
+      "name": "brokenSymmetry",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.distributedLinalg",
+      "kind": "structured_params_field",
+      "name": "distributedLinalg",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.linalgNewOrtho",
+      "kind": "structured_params_field",
+      "name": "linalgNewOrtho",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.disorthoBlockSize",
+      "kind": "structured_params_field",
+      "name": "disorthoBlockSize",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.statesBlockSize",
+      "kind": "structured_params_field",
+      "name": "statesBlockSize",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.allToAllPrecision",
+      "kind": "structured_params_field",
+      "name": "allToAllPrecision",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.gshell",
+      "kind": "structured_params_field",
+      "name": "gshell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.localPotential",
+      "kind": "structured_params_field",
+      "name": "localPotential",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

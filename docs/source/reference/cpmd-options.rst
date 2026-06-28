@@ -1041,6 +1041,24 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
 | ``catalog.cpmd.GLOC_WFNOUT_PAYLOAD``            | ``params.inputSections.cpmd.glocWfnOutPayload``            | ``glocWfnOutPayload``            | ``GLOC WFNOUT payload``            |
 +-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.NO_GEO_CHECK``                   | ``params.inputSections.cpmd.noGeoCheck``                   | ``noGeoCheck``                   | ``NO_GEO_CHECK``                   |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.BROKEN``                         | ``params.inputSections.cpmd.brokenSymmetry``               | ``brokenSymmetry``               | ``BROKEN``                         |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.DISTRIBUTED_LINALG``             | ``params.inputSections.cpmd.distributedLinalg``            | ``distributedLinalg``            | ``DISTRIBUTED LINALG``             |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.LINALG_NEWORTHO``                | ``params.inputSections.cpmd.linalgNewOrtho``               | ``linalgNewOrtho``               | ``LINALG NEWORTHO``                |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.DISORTHO_BSIZE``                 | ``params.inputSections.cpmd.disorthoBlockSize``            | ``disorthoBlockSize``            | ``DISORTHO_BSIZE``                 |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.BLOCKSIZE_STATES``               | ``params.inputSections.cpmd.statesBlockSize``              | ``statesBlockSize``              | ``BLOCKSIZE STATES``               |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.ALLTOALL``                       | ``params.inputSections.cpmd.allToAllPrecision``            | ``allToAllPrecision``            | ``ALLTOALL``                       |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.GSHELL``                         | ``params.inputSections.cpmd.gshell``                       | ``gshell``                       | ``GSHELL``                         |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
+| ``catalog.cpmd.LOCAL_POTENTIAL``                | ``params.inputSections.cpmd.localPotential``               | ``localPotential``               | ``LOCAL POTENTIAL``                |
++-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
 | ``catalog.cpmd.CENTER_MOLECULE_OFF``            | ``params.inputSections.cpmd.centerMoleculeOff``            | ``centerMoleculeOff``            | ``CENTER MOLECULE OFF``            |
 +-------------------------------------------------+------------------------------------------------------------+----------------------------------+------------------------------------+
 | ``catalog.cpmd.CENTER_MOLECULE_ON``             | ``params.inputSections.cpmd.centerMoleculeOn``             | ``centerMoleculeOn``             | ``CENTER MOLECULE ON``             |
