@@ -490,6 +490,8 @@ struct CPMDCpmdSection {
   noseIonsLocalThermostats @332 :Text; # NOSE IONS LOCAL thermostat payload lines.
   noseIonsLocalRangeCount @333 :Int32 = 0; # NOSE IONS LOCAL range count.
   noseIonsLocalRanges     @334 :Text; # NOSE IONS LOCAL range payload lines.
+  noseIonsCafesGroupCount @335 :Int32 = 0; # NOSE IONS CAFES group count.
+  noseIonsCafesGroups     @336 :Text; # NOSE IONS CAFES group payload lines.
 }
 
 struct CPMDDftSection {

@@ -2415,6 +2415,26 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  int has_nose_ions_cafes =
+      sec->noseIonsCafesGroupCount > 0 ||
+      (sec->noseIonsCafesGroups.str && sec->noseIonsCafesGroups.len > 0);
+  if (has_nose_ions_cafes) {
+    if (append_text(dst, dst_size, used, " NOSE IONS CAFES\n") != 0)
+      return -1;
+    if (sec->noseIonsCafesGroupCount > 0) {
+      if (append_fmt(dst, dst_size, used, "  %d\n",
+                     sec->noseIonsCafesGroupCount) != 0)
+        return -1;
+    }
+    if (sec->noseIonsCafesGroups.str && sec->noseIonsCafesGroups.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->noseIonsCafesGroups) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (has_nose_electrons) {
     if (append_text(dst, dst_size, used, " NOSE ELECTRONS\n  ") != 0)
       return -1;

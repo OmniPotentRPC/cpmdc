@@ -58,6 +58,8 @@
         noseIonsLocalThermostats = "301 1201 251\n302 1202 252",
         noseIonsLocalRangeCount = 2,
         noseIonsLocalRanges = "1 1 4\n2 5 8",
+        noseIonsCafesGroupCount = 2,
+        noseIonsCafesGroups = "1 4 300 1200\n5 8 302 1202",
         noseElectronsThermostat = "0.5 900",
         noseCellThermostat = "1.5 800",
         noseParameters = "3 4 5 6.0 7 8",

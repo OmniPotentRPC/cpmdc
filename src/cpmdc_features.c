@@ -362,6 +362,9 @@ static const CPMDCFeatureEntry g_features[] = {
      CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.NOSE_IONS_LOCAL_RANGES",
      CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_CAFES", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_CAFES_GROUPS",
+     CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_CELL", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_ADAPT", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_ENERGY", CPMDC_FEATURE_KEYWORD, 1, 1},
@@ -699,6 +702,9 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE(
         "params.inputSections.cpmd.noseIonsLocalRangeCount"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsLocalRanges"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.cpmd.noseIonsCafesGroupCount"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsCafesGroups"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseElectronsThermostat"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseCellThermostat"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseParameters"),

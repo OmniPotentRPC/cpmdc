@@ -434,6 +434,8 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.NOSE_IONS_LOCAL_THERMOSTATS~ | ~params.inputSections.cpmd.noseIonsLocalThermostats~ | ~noseIonsLocalThermostats~ | ~NOSE IONS LOCAL thermostat payload~ |
 | ~catalog.cpmd.NOSE_IONS_LOCAL_RANGES~ | ~params.inputSections.cpmd.noseIonsLocalRangeCount~ | ~noseIonsLocalRangeCount~ | ~NOSE IONS LOCAL range count~ |
 | ~catalog.cpmd.NOSE_IONS_LOCAL_RANGES~ | ~params.inputSections.cpmd.noseIonsLocalRanges~ | ~noseIonsLocalRanges~ | ~NOSE IONS LOCAL range payload~ |
+| ~catalog.cpmd.NOSE_IONS_CAFES~ | ~params.inputSections.cpmd.noseIonsCafesGroupCount~ | ~noseIonsCafesGroupCount~ | ~NOSE IONS CAFES~ |
+| ~catalog.cpmd.NOSE_IONS_CAFES_GROUPS~ | ~params.inputSections.cpmd.noseIonsCafesGroups~ | ~noseIonsCafesGroups~ | ~NOSE IONS CAFES group payload~ |
 | ~catalog.cpmd.NOSE_ELECTRONS_PAYLOAD~ | ~params.inputSections.cpmd.noseElectronsThermostat~ | ~noseElectronsThermostat~ | ~NOSE ELECTRONS~ |
 | ~catalog.cpmd.NOSE_CELL_PAYLOAD~ | ~params.inputSections.cpmd.noseCellThermostat~ | ~noseCellThermostat~ | ~NOSE CELL~ |
 | ~catalog.cpmd.NOSE_PARAMETERS~ | ~params.inputSections.cpmd.noseParameters~ | ~noseParameters~ | ~NOSE PARAMETERS~ |
