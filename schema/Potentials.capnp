@@ -54,6 +54,12 @@ struct CPMDKPointBand {
   end    @2 :List(Float64);  # Final KPOINTS BANDS vector.
 }
 
+struct CPMDCouplingSurface {
+  stateI      @0 :Int32 = 0;      # First coupled KS state index.
+  stateJ      @1 :Int32 = 0;      # Second coupled KS state index.
+  coefficient @2 :Float64 = 0.0;  # Coupling coefficient for NSURF.
+}
+
 struct CPMDSystemSection {
   symmetry        @0 :Int32 = 0;          # SYMMETRY code.
   angstrom        @1 :Bool = true;        # Emit ANGSTROM for CELL / ATOMS.
@@ -136,6 +142,8 @@ struct CPMDSystemSection {
   couplingsLinresSpecify @78 :Bool = false;    # COUPLINGS LINRES NVECT=... SPECIFY.
   couplingsLinresBruteForce @79 :Bool = false; # COUPLINGS LINRES BRUTE FORCE.
   couplingsLinresThresholds @80 :List(Float64); # COUPLINGS LINRES THRESHOLDS low/med/high pairs.
+  couplingsSurfaces @81 :List(CPMDCouplingSurface); # COUPLINGS NSURF surface triples.
+  couplingsFiniteDifferenceAtoms @82 :List(Int32); # COUPLINGS NAT atom indexes.
 }
 
 struct CPMDCpmdSection {

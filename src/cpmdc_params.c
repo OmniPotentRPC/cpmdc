@@ -742,6 +742,35 @@ static int render_system_section_with_cell(
       }
     }
   }
+  int n_coupling_surfaces = struct_list_len(&sys->couplingsSurfaces.p);
+  if (n_coupling_surfaces < 0)
+    return -1;
+  if (n_coupling_surfaces > 0) {
+    if (append_fmt(dst, dst_size, used, " COUPLINGS NSURF=%d\n",
+                   n_coupling_surfaces) != 0)
+      return -1;
+    for (int i = 0; i < n_coupling_surfaces; ++i) {
+      struct CPMDCouplingSurface surface;
+      get_CPMDCouplingSurface(&surface, sys->couplingsSurfaces, i);
+      if (surface.stateI <= 0 || surface.stateJ <= 0)
+        return -1;
+      if (append_fmt(dst, dst_size, used, "  %d %d %.10g\n", surface.stateI,
+                     surface.stateJ, surface.coefficient) != 0)
+        return -1;
+    }
+  }
+  int n_coupling_atoms = list32_len(&sys->couplingsFiniteDifferenceAtoms);
+  if (n_coupling_atoms < 0)
+    return -1;
+  if (n_coupling_atoms > 0) {
+    if (append_fmt(dst, dst_size, used, " COUPLINGS NAT=%d\n",
+                   n_coupling_atoms) != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used,
+                             &sys->couplingsFiniteDifferenceAtoms,
+                             n_coupling_atoms) != 0)
+      return -1;
+  }
   int n_cdft_donor_atoms = list32_len(&sys->cdftDonorAtoms);
   if (n_cdft_donor_atoms < 0)
     return -1;

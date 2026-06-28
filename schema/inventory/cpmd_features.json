@@ -2119,6 +2119,22 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.couplingsSurfaces",
+      "kind": "structured_params_field",
+      "name": "couplingsSurfaces",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsFiniteDifferenceAtoms",
+      "kind": "structured_params_field",
+      "name": "couplingsFiniteDifferenceAtoms",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.cdftDonorAtoms",
       "kind": "structured_params_field",
       "name": "cdftDonorAtoms",

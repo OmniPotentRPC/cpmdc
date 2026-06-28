@@ -536,6 +536,11 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 | ``params.inputSections.system.couplingsLinresBruteForce``             | ``system.couplingsLinresBruteForce``             | Add ``BRUTE FORCE`` to                    |
 |                                                                       |                                                  | ``COUPLINGS LINRES``                      |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsSurfaces``                     | ``system.couplingsSurfaces``                     | ``&SYSTEM COUPLINGS NSURF=`` surface      |
+|                                                                       |                                                  | triples                                   |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsFiniteDifferenceAtoms``        | ``system.couplingsFiniteDifferenceAtoms``        | ``&SYSTEM COUPLINGS NAT=`` atom list      |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.cdftDonorAtoms``                        | ``system.cdftDonorAtoms``                        | ``&SYSTEM DONOR`` atom list               |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.cdftDonorWeights``                      | ``system.cdftDonorWeights``                      | Add ``WMULT`` weights to ``DONOR``        |
