@@ -94,6 +94,9 @@ struct CPMDSystemSection {
   pointGroup       @47 :Text;                # POINT GROUP selector line, e.g. AUTO, NAME=C2v, or 26.
   pointGroupDelta  @48 :Float64 = 0.0;       # POINT GROUP DELTA accuracy; 0 => omit.
   pointGroupMolecule @49 :Bool = false;      # POINT GROUP MOLECULE.
+  scaleX         @50 :Float64 = 0.0;          # SCALE SX= value; 0 => omit.
+  scaleY         @51 :Float64 = 0.0;          # SCALE SY= value; 0 => omit.
+  scaleZ         @52 :Float64 = 0.0;          # SCALE SZ= value; 0 => omit.
 }
 
 struct CPMDCpmdSection {

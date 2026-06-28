@@ -573,7 +573,9 @@ static int render_system_section_with_cell(
                    sys->boxWalls) != 0)
       return -1;
   }
-  if (sys->scale != 0.0 || sys->scaleCartesian) {
+  int has_scale_axis =
+      sys->scaleX != 0.0 || sys->scaleY != 0.0 || sys->scaleZ != 0.0;
+  if (sys->scale != 0.0 || has_scale_axis || sys->scaleCartesian) {
     if (append_text(dst, dst_size, used, " SCALE") != 0)
       return -1;
     if (sys->scaleCartesian &&
@@ -581,6 +583,15 @@ static int render_system_section_with_cell(
       return -1;
     if (sys->scale != 0.0 &&
         append_fmt(dst, dst_size, used, " S=%.10g", sys->scale) != 0)
+      return -1;
+    if (sys->scaleX != 0.0 &&
+        append_fmt(dst, dst_size, used, " SX=%.10g", sys->scaleX) != 0)
+      return -1;
+    if (sys->scaleY != 0.0 &&
+        append_fmt(dst, dst_size, used, " SY=%.10g", sys->scaleY) != 0)
+      return -1;
+    if (sys->scaleZ != 0.0 &&
+        append_fmt(dst, dst_size, used, " SZ=%.10g", sys->scaleZ) != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;

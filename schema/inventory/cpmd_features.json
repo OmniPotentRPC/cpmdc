@@ -1943,6 +1943,30 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.scaleX",
+      "kind": "structured_params_field",
+      "name": "scaleX",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.scaleY",
+      "kind": "structured_params_field",
+      "name": "scaleY",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.scaleZ",
+      "kind": "structured_params_field",
+      "name": "scaleZ",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.scaleCartesian",
       "kind": "structured_params_field",
       "name": "scaleCartesian",
