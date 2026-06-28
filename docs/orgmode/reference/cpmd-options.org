@@ -461,6 +461,10 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ELF_PARAMETERS~ | ~params.inputSections.cpmd.elfParameters~ | ~elfParameters~ | ~ELF PARAMETER~ |
 | ~catalog.cpmd.WANNIER_PARAMETER~ | ~params.inputSections.cpmd.wannierParameters~ | ~wannierParameters~ | ~WANNIER PARAMETER~ |
 | ~catalog.cpmd.WANNIER_OPTIMIZATION~ | ~params.inputSections.cpmd.wannierOptimization~ | ~wannierOptimization~ | ~WANNIER OPTIMIZATION~ |
+| ~catalog.cpmd.WANNIER_NPROC~ | ~params.inputSections.cpmd.wannierNproc~ | ~wannierNproc~ | ~WANNIER NPROC~ |
+| ~catalog.cpmd.WANNIER_RELOCALIZE_IN_SCF~ | ~params.inputSections.cpmd.wannierRelocalizeInScf~ | ~wannierRelocalizeInScf~ | ~WANNIER RELOCALIZE_IN_SCF~ |
+| ~catalog.cpmd.WANNIER_RECOMPUTE_DIPOLE_MATRICES_EVERY~ | ~params.inputSections.cpmd.wannierRecomputeDipoleMatricesEvery~ | ~wannierRecomputeDipoleMatricesEvery~ | ~WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY~ |
+| ~catalog.cpmd.WANNIER_RELOCALIZE_EVERY~ | ~params.inputSections.cpmd.wannierRelocalizeEvery~ | ~wannierRelocalizeEvery~ | ~WANNIER RELOCALIZE_EVERY~ |
 | ~catalog.cpmd.WANNIER_TYPE~ | ~params.inputSections.cpmd.wannierType~ | ~wannierType~ | ~WANNIER TYPE~ |
 | ~catalog.cpmd.WANNIER_REFERENCE~ | ~params.inputSections.cpmd.wannierReference~ | ~wannierReference~ | ~WANNIER REFERENCE~ |
 | ~catalog.cpmd.WANNIER_SERIAL~ | ~params.inputSections.cpmd.wannierSerial~ | ~wannierSerial~ | ~WANNIER SERIAL~ |
@@ -468,6 +472,9 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.WANNIER_MOLECULAR~ | ~params.inputSections.cpmd.wannierMolecular~ | ~wannierMolecular~ | ~WANNIER MOLECULAR~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_OPTIONS~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.wannierWfnOutPayload~ | ~wannierWfnOutPayload~ | ~WANNIER WFNOUT payload~ |
+| ~catalog.cpmd.PARA_USE_MPI_IN_PLACE~ | ~params.inputSections.cpmd.paraUseMpiInPlace~ | ~paraUseMpiInPlace~ | ~PARA_USE_MPI_IN_PLACE~ |
+| ~catalog.cpmd.PARA_BUFF_SIZE~ | ~params.inputSections.cpmd.paraBuffSize~ | ~paraBuffSize~ | ~PARA_BUFF_SIZE~ |
+| ~catalog.cpmd.PARA_STACK_BUFF_SIZE~ | ~params.inputSections.cpmd.paraStackBuffSize~ | ~paraStackBuffSize~ | ~PARA_STACK_BUFF_SIZE~ |
 | ~catalog.cpmd.COMPRESS~ | ~params.inputSections.cpmd.compress~ | ~compress~ | ~COMPRESS~ |
 | ~catalog.cpmd.MEMORY~ | ~params.inputSections.cpmd.memory~ | ~memory~ | ~MEMORY~ |
 | ~catalog.cpmd.REAL_SPACE_WFN_KEEP~ | ~params.inputSections.cpmd.realSpaceWfnKeep~ | ~realSpaceWfnKeep~ | ~REAL SPACE WFN KEEP~ |

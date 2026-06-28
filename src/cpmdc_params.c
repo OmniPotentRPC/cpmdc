@@ -2684,6 +2684,28 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
   if (append_text_keyword_arg(dst, dst_size, used, "WANNIER OPTIMIZATION",
                               sec->wannierOptimization) != 0)
     return -1;
+  if (sec->wannierNproc > 0) {
+    if (append_fmt(dst, dst_size, used, " WANNIER NPROC\n  %d\n",
+                   sec->wannierNproc) != 0)
+      return -1;
+  }
+  if (sec->wannierRelocalizeInScf) {
+    if (append_text(dst, dst_size, used,
+                    " WANNIER RELOCALIZE_IN_SCF\n") != 0)
+      return -1;
+  }
+  if (sec->wannierRecomputeDipoleMatricesEvery > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY\n  %d\n",
+                   sec->wannierRecomputeDipoleMatricesEvery) != 0)
+      return -1;
+  }
+  if (sec->wannierRelocalizeEvery > 0) {
+    if (append_fmt(dst, dst_size, used,
+                   " WANNIER RELOCALIZE_EVERY\n  %d\n",
+                   sec->wannierRelocalizeEvery) != 0)
+      return -1;
+  }
   if (append_text_keyword_arg(dst, dst_size, used, "WANNIER TYPE",
                               sec->wannierType) != 0)
     return -1;
@@ -2722,6 +2744,20 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
     }
+  }
+  if (sec->paraUseMpiInPlace) {
+    if (append_text(dst, dst_size, used, " PARA_USE_MPI_IN_PLACE\n") != 0)
+      return -1;
+  }
+  if (sec->paraBuffSize > 0) {
+    if (append_fmt(dst, dst_size, used, " PARA_BUFF_SIZE\n  %d\n",
+                   sec->paraBuffSize) != 0)
+      return -1;
+  }
+  if (sec->paraStackBuffSize > 0) {
+    if (append_fmt(dst, dst_size, used, " PARA_STACK_BUFF_SIZE\n  %d\n",
+                   sec->paraStackBuffSize) != 0)
+      return -1;
   }
   if (append_text_keyword_arg(dst, dst_size, used, "COMPRESS", sec->compress) !=
       0)

@@ -408,6 +408,22 @@
     "TRACE_PROCEDURE",
     "TRACE_MAX_DEPTH",
     "TRACE_MAX_CALLS",
+    "WANNIER PARAMETER",
+    "WANNIER OPTIMIZATION",
+    "WANNIER NPROC",
+    "WANNIER RELOCALIZE_IN_SCF",
+    "WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY",
+    "WANNIER RELOCALIZE_EVERY",
+    "WANNIER TYPE",
+    "WANNIER REFERENCE",
+    "WANNIER SERIAL",
+    "WANNIER DOS",
+    "WANNIER MOLECULAR",
+    "WANNIER WFNOUT",
+    "WANNIER WFNOUT PAYLOAD",
+    "PARA_USE_MPI_IN_PLACE",
+    "PARA_BUFF_SIZE",
+    "PARA_STACK_BUFF_SIZE",
     "PROPERTIES",
     "VDW CORRECTION",
     "VDW WANNIER",
@@ -2721,6 +2737,150 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.WANNIER_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER PARAMETER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_OPTIMIZATION",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER OPTIMIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_NPROC",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER NPROC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_RELOCALIZE_IN_SCF",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER RELOCALIZE_IN_SCF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_RECOMPUTE_DIPOLE_MATRICES_EVERY",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_RELOCALIZE_EVERY",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER RELOCALIZE_EVERY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_TYPE",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER TYPE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_REFERENCE",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER REFERENCE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_SERIAL",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER SERIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_DOS",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER DOS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_MOLECULAR",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER MOLECULAR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_WFNOUT_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER WFNOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_WFNOUT_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER WFNOUT payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARA_USE_MPI_IN_PLACE",
+      "kind": "cpmd_keyword",
+      "name": "PARA_USE_MPI_IN_PLACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARA_BUFF_SIZE",
+      "kind": "cpmd_keyword",
+      "name": "PARA_BUFF_SIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARA_STACK_BUFF_SIZE",
+      "kind": "cpmd_keyword",
+      "name": "PARA_STACK_BUFF_SIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -4926,6 +5086,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.wannierNproc",
+      "kind": "structured_params_field",
+      "name": "wannierNproc",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierRelocalizeInScf",
+      "kind": "structured_params_field",
+      "name": "wannierRelocalizeInScf",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierRecomputeDipoleMatricesEvery",
+      "kind": "structured_params_field",
+      "name": "wannierRecomputeDipoleMatricesEvery",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierRelocalizeEvery",
+      "kind": "structured_params_field",
+      "name": "wannierRelocalizeEvery",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.wannierType",
       "kind": "structured_params_field",
       "name": "wannierType",
@@ -4977,6 +5169,30 @@
       "feature_id": "params.inputSections.cpmd.wannierWfnOutPayload",
       "kind": "structured_params_field",
       "name": "wannierWfnOutPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.paraUseMpiInPlace",
+      "kind": "structured_params_field",
+      "name": "paraUseMpiInPlace",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.paraBuffSize",
+      "kind": "structured_params_field",
+      "name": "paraBuffSize",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.paraStackBuffSize",
+      "kind": "structured_params_field",
+      "name": "paraStackBuffSize",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

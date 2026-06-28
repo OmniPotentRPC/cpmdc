@@ -452,6 +452,13 @@ struct CPMDCpmdSection {
   traceMaxCalls           @294 :Int32 = 0; # TRACE_MAX_CALLS payload.
   structureOptions        @295 :Text; # STRUCTURE inline options.
   structureSelection      @296 :Text; # STRUCTURE SELECT payload lines.
+  wannierNproc            @297 :Int32 = 0; # WANNIER NPROC payload.
+  wannierRelocalizeInScf  @298 :Bool = false; # WANNIER RELOCALIZE_IN_SCF.
+  wannierRecomputeDipoleMatricesEvery @299 :Int32 = 0; # WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY payload.
+  wannierRelocalizeEvery  @300 :Int32 = 0; # WANNIER RELOCALIZE_EVERY payload.
+  paraUseMpiInPlace       @301 :Bool = false; # PARA_USE_MPI_IN_PLACE.
+  paraBuffSize            @302 :Int32 = 0; # PARA_BUFF_SIZE payload.
+  paraStackBuffSize       @303 :Int32 = 0; # PARA_STACK_BUFF_SIZE payload.
 }
 
 struct CPMDDftSection {
