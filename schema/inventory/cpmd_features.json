@@ -1361,9 +1361,63 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.PRINT_FORCES",
+      "kind": "cpmd_keyword",
+      "name": "PRINT FORCES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRINT_ON",
+      "kind": "cpmd_keyword",
+      "name": "PRINT ON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.STRUCTURE",
       "kind": "cpmd_keyword",
       "name": "STRUCTURE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE_BONDS",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE BONDS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE_ANGLES",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE ANGLES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE_DIHEDRALS",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE DIHEDRALS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRUCTURE_SELECT",
+      "kind": "cpmd_keyword",
+      "name": "STRUCTURE SELECT",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -1382,6 +1436,15 @@
       "feature_id": "catalog.cpmd.STORE",
       "kind": "cpmd_keyword",
       "name": "STORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_WAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "STORE WAVEFUNCTION",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4664,6 +4727,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.STORE_SELECTION_WAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "STORE SELECTION WAVEFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_SELECTION_DENSITY",
+      "kind": "cpmd_keyword",
+      "name": "STORE SELECTION DENSITY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.STORE_INTERVAL",
       "kind": "cpmd_keyword",
       "name": "STORE interval",
@@ -4691,6 +4772,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.STORE_OFF_POTENTIAL",
+      "kind": "cpmd_keyword",
+      "name": "STORE OFF POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.RESTFILE",
       "kind": "cpmd_keyword",
       "name": "RESTFILE",
@@ -4712,6 +4802,51 @@
       "feature_id": "catalog.cpmd.TRAJECTORY_OPTIONS",
       "kind": "cpmd_keyword",
       "name": "TRAJECTORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_XYZ",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY XYZ",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_BINARY",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY BINARY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_FORCES",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY FORCES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_RANGE_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY RANGE option",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_SAMPLE_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY SAMPLE option",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
