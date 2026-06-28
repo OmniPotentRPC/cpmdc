@@ -58,6 +58,105 @@ static void test_cp_keywords_not_sections(void **state) {
   assert_non_null(cpmdc_feature_find("catalog.dft.FUNCTIONAL_BLYP"));
 }
 
+static void test_documented_cpmd_catalog_keywords(void **state) {
+  (void)state;
+  static const char *const cpmd_features[] = {
+      "catalog.cpmd.MAXRUNTIME",
+      "catalog.cpmd.TIMESTEP_ELECTRONS",
+      "catalog.cpmd.TIMESTEP_IONS",
+      "catalog.cpmd.CMASS",
+      "catalog.cpmd.TEMPERATURE_ELECTRON",
+      "catalog.cpmd.TEMPERATURE",
+      "catalog.cpmd.TEMPERATURE_RAMP",
+      "catalog.cpmd.TEMPERATURE_RAMP_TIME",
+      "catalog.cpmd.TEMPERATURE_RAMP_RATE",
+      "catalog.cpmd.RESCALE_OLD_VELOCITIES",
+      "catalog.cpmd.REVERSE_VELOCITIES",
+      "catalog.cpmd.SUBTRACT_COMVEL",
+      "catalog.cpmd.SUBTRACT_ROTVEL",
+      "catalog.cpmd.PRNGSEED",
+      "catalog.cpmd.TEMPCONTROL_IONS",
+      "catalog.cpmd.TEMPCONTROL_ELECTRONS",
+      "catalog.cpmd.TEMPCONTROL_CELL",
+      "catalog.cpmd.BERENDSEN_IONS",
+      "catalog.cpmd.BERENDSEN_ELECTRONS",
+      "catalog.cpmd.BERENDSEN_CELL",
+      "catalog.cpmd.CONVERGENCE_CELL",
+      "catalog.cpmd.CONVERGENCE_ADAPT",
+      "catalog.cpmd.CONVERGENCE_ENERGY",
+      "catalog.cpmd.CONVERGENCE_CALFOR",
+      "catalog.cpmd.CONVERGENCE_RELAX",
+      "catalog.cpmd.CONVERGENCE_RHOFIX",
+      "catalog.cpmd.CONVERGENCE_INITIAL",
+      "catalog.cpmd.CONVERGENCE_CONSTRAINT",
+      "catalog.cpmd.NOSE_IONS_PAYLOAD",
+      "catalog.cpmd.NOSE_ELECTRONS_PAYLOAD",
+      "catalog.cpmd.NOSE_CELL_PAYLOAD",
+      "catalog.cpmd.NOSE_PARAMETERS",
+      "catalog.cpmd.ANNEALING_IONS",
+      "catalog.cpmd.ANNEALING_ELECTRONS",
+      "catalog.cpmd.ANNEALING_CELL",
+      "catalog.cpmd.DAMPING_IONS",
+      "catalog.cpmd.DAMPING_ELECTRONS",
+      "catalog.cpmd.DAMPING_CELL",
+      "catalog.cpmd.HESSIAN",
+      "catalog.cpmd.PROJECT",
+      "catalog.cpmd.STRESS_TENSOR_SAMPLE",
+      "catalog.cpmd.STRESS_TENSOR_VIRIAL",
+      "catalog.cpmd.CLASSTRESS",
+      "catalog.cpmd.STORE_SELECTION",
+      "catalog.cpmd.STORE_INTERVAL",
+      "catalog.cpmd.STORE_SC_INTERVAL",
+      "catalog.cpmd.STORE_OFF",
+      "catalog.cpmd.RESTFILE",
+      "catalog.cpmd.RESTFILE_SAMPLE",
+      "catalog.cpmd.TRAJECTORY_OPTIONS",
+      "catalog.cpmd.TRAJECTORY_SAMPLE",
+      "catalog.cpmd.TRAJECTORY_RANGE",
+      "catalog.cpmd.MOVIE_SAMPLE",
+      "catalog.cpmd.MOVIE_OFF",
+      "catalog.cpmd.ENERGYBANDS",
+      "catalog.cpmd.EXTERNAL_POTENTIAL",
+      "catalog.cpmd.EXTERNAL_POTENTIAL_ADD",
+      "catalog.cpmd.ELECTROSTATIC_POTENTIAL",
+      "catalog.cpmd.ELECTROSTATIC_POTENTIAL_SAMPLE",
+      "catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE",
+      "catalog.cpmd.DIPOLE_DYNAMICS_WANNIER",
+      "catalog.cpmd.RHOOUT",
+      "catalog.cpmd.RHOOUT_SAMPLE",
+      "catalog.cpmd.RHOOUT_BANDS_COUNT",
+      "catalog.cpmd.RHOOUT_BANDS",
+      "catalog.cpmd.ELF",
+      "catalog.cpmd.ELF_PARAMETERS",
+      "catalog.cpmd.COMPRESS",
+      "catalog.cpmd.MEMORY",
+      "catalog.cpmd.REAL_SPACE_WFN_KEEP",
+      "catalog.cpmd.REAL_SPACE_WFN_SIZE",
+      "catalog.cpmd.SPLINE_OPTIONS",
+      "catalog.cpmd.SPLINE_POINTS",
+      "catalog.cpmd.SPLINE_RANGE",
+      "catalog.cpmd.FINITE_DIFFERENCES",
+      "catalog.cpmd.TASKGROUPS",
+      "catalog.cpmd.TASKGROUPS_COUNT",
+      "catalog.cpmd.DISTRIBUTE_FNL",
+      "catalog.cpmd.FILEPATH",
+      "catalog.cpmd.BENCHMARK",
+      "catalog.cpmd.MIRROR",
+      "catalog.cpmd.SHIFT_POTENTIAL",
+      "catalog.cpmd.GLOC_WFNOUT_PAYLOAD",
+  };
+
+  for (size_t i = 0; i < sizeof(cpmd_features) / sizeof(cpmd_features[0]);
+       i++) {
+    const CPMDCFeatureEntry *entry = cpmdc_feature_find(cpmd_features[i]);
+    assert_non_null(entry);
+    assert_string_equal(entry->feature_id, cpmd_features[i]);
+    assert_int_equal(entry->kind, CPMDC_FEATURE_KEYWORD);
+    assert_int_equal(entry->stub_applicable, 1);
+    assert_int_equal(entry->embed_applicable, 1);
+  }
+}
+
 static void test_abi(void **state) {
   (void)state;
   static const char *const abi_features[] = {
@@ -607,6 +706,7 @@ int main(void) {
       cmocka_unit_test(test_feature_table_nonempty),
       cmocka_unit_test(test_inscan_sections),
       cmocka_unit_test(test_cp_keywords_not_sections),
+      cmocka_unit_test(test_documented_cpmd_catalog_keywords),
       cmocka_unit_test(test_abi),
       cmocka_unit_test(test_param_applicability),
       cmocka_unit_test(test_structured_param_features),
