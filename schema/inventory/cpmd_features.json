@@ -1100,6 +1100,33 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_XYZ",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS FILE XYZ",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSKIP",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS FILE NSKIP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "MOLECULAR DYNAMICS FILE NSAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.MOLECULAR_DYNAMICS_BD",
       "kind": "cpmd_keyword",
       "name": "MOLECULAR DYNAMICS BD",
@@ -1112,6 +1139,33 @@
       "feature_id": "catalog.cpmd.PARRINELLO_RAHMAN",
       "kind": "cpmd_keyword",
       "name": "PARRINELLO-RAHMAN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARRINELLO_RAHMAN_NPT",
+      "kind": "cpmd_keyword",
+      "name": "PARRINELLO-RAHMAN NPT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARRINELLO_RAHMAN_SHOCK",
+      "kind": "cpmd_keyword",
+      "name": "PARRINELLO-RAHMAN SHOCK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PARRINELLO_RAHMAN_TOLKINC",
+      "kind": "cpmd_keyword",
+      "name": "PARRINELLO-RAHMAN TOLKINC",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

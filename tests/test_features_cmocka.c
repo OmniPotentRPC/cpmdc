@@ -62,6 +62,12 @@ static void test_cp_keywords_not_sections(void **state) {
 static void test_documented_cpmd_catalog_keywords(void **state) {
   (void)state;
   static const char *const cpmd_features[] = {
+      "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_XYZ",
+      "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSKIP",
+      "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSAMPLE",
+      "catalog.cpmd.PARRINELLO_RAHMAN_NPT",
+      "catalog.cpmd.PARRINELLO_RAHMAN_SHOCK",
+      "catalog.cpmd.PARRINELLO_RAHMAN_TOLKINC",
       "catalog.cpmd.MAXRUNTIME",
       "catalog.cpmd.TIMESTEP_ELECTRONS",
       "catalog.cpmd.TIMESTEP_IONS",

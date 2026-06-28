@@ -406,8 +406,14 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_CLASSICAL~ | ~params.inputSections.cpmd.molecularDynamicsClassical~ | ~molecularDynamicsClassical~ | ~MOLECULAR DYNAMICS CLASSICAL~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE~ | ~params.inputSections.cpmd.molecularDynamicsFile~ | ~molecularDynamicsFile~ | ~MOLECULAR DYNAMICS FILE~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE_OPTIONS~ | ~params.inputSections.cpmd.molecularDynamicsFileOptions~ | ~molecularDynamicsFileOptions~ | ~MOLECULAR DYNAMICS FILE options~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE_XYZ~ | ~params.inputSections.cpmd.molecularDynamicsFileOptions~ | ~molecularDynamicsFileOptions~ | ~MOLECULAR DYNAMICS FILE XYZ~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSKIP~ | ~params.inputSections.cpmd.molecularDynamicsFileOptions~ | ~molecularDynamicsFileOptions~ | ~MOLECULAR DYNAMICS FILE NSKIP~ |
+| ~catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSAMPLE~ | ~params.inputSections.cpmd.molecularDynamicsFileOptions~ | ~molecularDynamicsFileOptions~ | ~MOLECULAR DYNAMICS FILE NSAMPLE~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_BD~ | ~params.inputSections.cpmd.molecularDynamicsBdTrajectories~ | ~molecularDynamicsBdTrajectories~ | ~MOLECULAR DYNAMICS BD~ |
 | ~catalog.cpmd.PARRINELLO_RAHMAN~ | ~params.inputSections.cpmd.parrinelloRahmanOptions~ | ~parrinelloRahmanOptions~ | ~PARRINELLO-RAHMAN~ |
+| ~catalog.cpmd.PARRINELLO_RAHMAN_NPT~ | ~params.inputSections.cpmd.parrinelloRahmanOptions~ | ~parrinelloRahmanOptions~ | ~PARRINELLO-RAHMAN NPT~ |
+| ~catalog.cpmd.PARRINELLO_RAHMAN_SHOCK~ | ~params.inputSections.cpmd.parrinelloRahmanOptions~ | ~parrinelloRahmanOptions~ | ~PARRINELLO-RAHMAN SHOCK~ |
+| ~catalog.cpmd.PARRINELLO_RAHMAN_TOLKINC~ | ~params.inputSections.cpmd.parrinelloRahmanOptions~ | ~parrinelloRahmanOptions~ | ~PARRINELLO-RAHMAN TOLKINC~ |
 | ~catalog.cpmd.CHEBY~ | ~params.inputSections.cpmd.cheby~ | ~cheby~ | ~CHEBY~ |
 | ~catalog.cpmd.CAYLEY~ | ~params.inputSections.cpmd.cayley~ | ~cayley~ | ~CAYLEY~ |
 | ~catalog.cpmd.RUNGE_KUTTA~ | ~params.inputSections.cpmd.rungeKutta~ | ~rungeKutta~ | ~RUNGE-KUTTA~ |
