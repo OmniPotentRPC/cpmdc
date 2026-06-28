@@ -438,7 +438,9 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.NOSE_IONS_CAFES~ | ~params.inputSections.cpmd.noseIonsCafesGroupCount~ | ~noseIonsCafesGroupCount~ | ~NOSE IONS CAFES~ |
 | ~catalog.cpmd.NOSE_IONS_CAFES_GROUPS~ | ~params.inputSections.cpmd.noseIonsCafesGroups~ | ~noseIonsCafesGroups~ | ~NOSE IONS CAFES group payload~ |
 | ~catalog.cpmd.NOSE_ELECTRONS_PAYLOAD~ | ~params.inputSections.cpmd.noseElectronsThermostat~ | ~noseElectronsThermostat~ | ~NOSE ELECTRONS~ |
+| ~catalog.cpmd.NOSE_CELL~ | ~params.inputSections.cpmd.noseCellThermostat~ | ~noseCellThermostat~ | ~NOSE CELL~ |
 | ~catalog.cpmd.NOSE_CELL_PAYLOAD~ | ~params.inputSections.cpmd.noseCellThermostat~ | ~noseCellThermostat~ | ~NOSE CELL~ |
+| ~catalog.cpmd.NOSE_PARAMETER~ | ~params.inputSections.cpmd.noseParameters~ | ~noseParameters~ | ~NOSE PARAMETER~ |
 | ~catalog.cpmd.NOSE_PARAMETERS~ | ~params.inputSections.cpmd.noseParameters~ | ~noseParameters~ | ~NOSE PARAMETERS~ |
 | ~catalog.cpmd.USE_IN_STREAM~ | ~params.inputSections.cpmd.useInStream~ | ~useInStream~ | ~USE_IN_STREAM~ |
 | ~catalog.cpmd.USE_OUT_STREAM~ | ~params.inputSections.cpmd.useOutStream~ | ~useOutStream~ | ~USE_OUT_STREAM~ |
