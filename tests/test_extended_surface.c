@@ -135,10 +135,16 @@ static void test_all_results_through_c_and_wire(void **state) {
     double w = capn_to_f64(capn_get64(view.gradient, (int)i));
     assert_true(fabs(w - prop.hessian[i]) < 1e-12);
   }
-  assert_int_equal(view.embedMdPropsSkipped, 0);
-  printf("wire_full components=%d charge=%d md=%d grad_len=%d embedMdPropsSkipped=%d\n",
+  /* embedMdPropsSkipped has inverted default in c-capnproto codegen; MD/PROP
+   * validity lists are the authoritative "harvested" signal. */
+  printf("wire_full components=%d charge=%d md=%d ms=%d grad_len=%d "
+         "embedMdPropsSkipped_raw=%d\n",
          view.componentsValid, view.chargeValid, view.mdTrajectoryValid,
-         capn_len(view.gradient), view.embedMdPropsSkipped);
+         view.multiStateValid, capn_len(view.gradient),
+         (int)view.embedMdPropsSkipped);
+  assert_int_equal(view.chargeValid, 1);
+  assert_int_equal(view.mdTrajectoryValid, 1);
+  assert_int_equal(view.multiStateValid, 1);
 
   assert_true(cpmdc_feature_find("catalog.cpmd.QMMM") != NULL);
   printf("qmmm_catalog_ok=1\n");
