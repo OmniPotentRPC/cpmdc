@@ -257,6 +257,19 @@ struct CPMDCpmdSection {
   trajectoryRange         @99 :Text; # TRAJECTORY RANGE payload.
   movieSample             @100 :Int32 = 0; # MOVIE SAMPLE value; 0 => omit.
   movieOff                @101 :Bool = false; # MOVIE OFF.
+  energyBands             @102 :Bool = false; # ENERGYBANDS.
+  externalPotential       @103 :Bool = false; # EXTERNAL POTENTIAL.
+  externalPotentialAdd    @104 :Bool = false; # EXTERNAL POTENTIAL ADD.
+  electrostaticPotential  @105 :Bool = false; # ELECTROSTATIC POTENTIAL.
+  electrostaticPotentialSample @106 :Int32 = 0; # ELECTROSTATIC POTENTIAL SAMPLE.
+  dipoleDynamicsSample    @107 :Int32 = 0; # DIPOLE DYNAMICS SAMPLE.
+  dipoleDynamicsWannier   @108 :Bool = false; # DIPOLE DYNAMICS WANNIER.
+  rhoOut                  @109 :Bool = false; # RHOOUT.
+  rhoOutSample            @110 :Int32 = 0; # RHOOUT SAMPLE.
+  rhoOutBandsCount        @111 :Int32 = 0; # RHOOUT BANDS count.
+  rhoOutBands             @112 :Text; # RHOOUT BANDS payload.
+  elf                     @113 :Bool = false; # ELF.
+  elfParameters           @114 :Text; # ELF PARAMETER payload.
 }
 
 struct CPMDDftSection {

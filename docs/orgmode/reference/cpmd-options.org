@@ -419,6 +419,19 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TRAJECTORY_RANGE~ | ~params.inputSections.cpmd.trajectoryRange~ | ~trajectoryRange~ | ~TRAJECTORY RANGE~ |
 | ~catalog.cpmd.MOVIE_SAMPLE~ | ~params.inputSections.cpmd.movieSample~ | ~movieSample~ | ~MOVIE SAMPLE~ |
 | ~catalog.cpmd.MOVIE_OFF~ | ~params.inputSections.cpmd.movieOff~ | ~movieOff~ | ~MOVIE OFF~ |
+| ~catalog.cpmd.ENERGYBANDS~ | ~params.inputSections.cpmd.energyBands~ | ~energyBands~ | ~ENERGYBANDS~ |
+| ~catalog.cpmd.EXTERNAL_POTENTIAL~ | ~params.inputSections.cpmd.externalPotential~ | ~externalPotential~ | ~EXTERNAL POTENTIAL~ |
+| ~catalog.cpmd.EXTERNAL_POTENTIAL_ADD~ | ~params.inputSections.cpmd.externalPotentialAdd~ | ~externalPotentialAdd~ | ~EXTERNAL POTENTIAL ADD~ |
+| ~catalog.cpmd.ELECTROSTATIC_POTENTIAL~ | ~params.inputSections.cpmd.electrostaticPotential~ | ~electrostaticPotential~ | ~ELECTROSTATIC POTENTIAL~ |
+| ~catalog.cpmd.ELECTROSTATIC_POTENTIAL_SAMPLE~ | ~params.inputSections.cpmd.electrostaticPotentialSample~ | ~electrostaticPotentialSample~ | ~ELECTROSTATIC POTENTIAL SAMPLE~ |
+| ~catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE~ | ~params.inputSections.cpmd.dipoleDynamicsSample~ | ~dipoleDynamicsSample~ | ~DIPOLE DYNAMICS SAMPLE~ |
+| ~catalog.cpmd.DIPOLE_DYNAMICS_WANNIER~ | ~params.inputSections.cpmd.dipoleDynamicsWannier~ | ~dipoleDynamicsWannier~ | ~DIPOLE DYNAMICS WANNIER~ |
+| ~catalog.cpmd.RHOOUT~ | ~params.inputSections.cpmd.rhoOut~ | ~rhoOut~ | ~RHOOUT~ |
+| ~catalog.cpmd.RHOOUT_SAMPLE~ | ~params.inputSections.cpmd.rhoOutSample~ | ~rhoOutSample~ | ~RHOOUT SAMPLE~ |
+| ~catalog.cpmd.RHOOUT_BANDS_COUNT~ | ~params.inputSections.cpmd.rhoOutBandsCount~ | ~rhoOutBandsCount~ | ~RHOOUT BANDS count~ |
+| ~catalog.cpmd.RHOOUT_BANDS~ | ~params.inputSections.cpmd.rhoOutBands~ | ~rhoOutBands~ | ~RHOOUT BANDS~ |
+| ~catalog.cpmd.ELF~ | ~params.inputSections.cpmd.elf~ | ~elf~ | ~ELF~ |
+| ~catalog.cpmd.ELF_PARAMETERS~ | ~params.inputSections.cpmd.elfParameters~ | ~elfParameters~ | ~ELF PARAMETER~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |

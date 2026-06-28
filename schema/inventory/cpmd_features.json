@@ -3255,6 +3255,110 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.energyBands",
+      "kind": "structured_params_field",
+      "name": "energyBands",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.externalPotential",
+      "kind": "structured_params_field",
+      "name": "externalPotential",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.externalPotentialAdd",
+      "kind": "structured_params_field",
+      "name": "externalPotentialAdd",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.electrostaticPotential",
+      "kind": "structured_params_field",
+      "name": "electrostaticPotential",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.electrostaticPotentialSample",
+      "kind": "structured_params_field",
+      "name": "electrostaticPotentialSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dipoleDynamicsSample",
+      "kind": "structured_params_field",
+      "name": "dipoleDynamicsSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dipoleDynamicsWannier",
+      "kind": "structured_params_field",
+      "name": "dipoleDynamicsWannier",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rhoOut",
+      "kind": "structured_params_field",
+      "name": "rhoOut",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rhoOutSample",
+      "kind": "structured_params_field",
+      "name": "rhoOutSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rhoOutBandsCount",
+      "kind": "structured_params_field",
+      "name": "rhoOutBandsCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rhoOutBands",
+      "kind": "structured_params_field",
+      "name": "rhoOutBands",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.elf",
+      "kind": "structured_params_field",
+      "name": "elf",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.elfParameters",
+      "kind": "structured_params_field",
+      "name": "elfParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
       "kind": "structured_params_field",
       "name": "centerMoleculeOff",

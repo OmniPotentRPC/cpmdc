@@ -1686,6 +1686,83 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " MOVIE OFF\n") != 0)
       return -1;
   }
+  if (sec->energyBands) {
+    if (append_text(dst, dst_size, used, " ENERGYBANDS\n") != 0)
+      return -1;
+  }
+  if (sec->externalPotential || sec->externalPotentialAdd) {
+    if (append_text(dst, dst_size, used, " EXTERNAL POTENTIAL") != 0)
+      return -1;
+    if (sec->externalPotentialAdd &&
+        append_text(dst, dst_size, used, " ADD") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->electrostaticPotential || sec->electrostaticPotentialSample > 0) {
+    if (append_text(dst, dst_size, used, " ELECTROSTATIC POTENTIAL") != 0)
+      return -1;
+    if (sec->electrostaticPotentialSample > 0 &&
+        append_fmt(dst, dst_size, used, " SAMPLE=%d",
+                   sec->electrostaticPotentialSample) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->dipoleDynamicsSample > 0 || sec->dipoleDynamicsWannier) {
+    if (append_text(dst, dst_size, used, " DIPOLE DYNAMICS") != 0)
+      return -1;
+    if (sec->dipoleDynamicsSample > 0 &&
+        append_text(dst, dst_size, used, " SAMPLE") != 0)
+      return -1;
+    if (sec->dipoleDynamicsWannier &&
+        append_text(dst, dst_size, used, " WANNIER") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->dipoleDynamicsSample > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->dipoleDynamicsSample) != 0)
+      return -1;
+  }
+  if (sec->rhoOut || sec->rhoOutSample > 0 || sec->rhoOutBandsCount > 0) {
+    if (append_text(dst, dst_size, used, " RHOOUT") != 0)
+      return -1;
+    if (sec->rhoOutBandsCount > 0 &&
+        append_text(dst, dst_size, used, " BANDS") != 0)
+      return -1;
+    if (sec->rhoOutSample > 0 &&
+        append_fmt(dst, dst_size, used, " SAMPLE=%d", sec->rhoOutSample) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->rhoOutBandsCount > 0) {
+      if (append_fmt(dst, dst_size, used, "  %d\n",
+                     sec->rhoOutBandsCount) != 0)
+        return -1;
+      if (sec->rhoOutBands.str && sec->rhoOutBands.len > 0) {
+        if (append_text(dst, dst_size, used, "  ") != 0)
+          return -1;
+        if (append_capn_text(dst, dst_size, used, sec->rhoOutBands) != 0)
+          return -1;
+        if (append_text(dst, dst_size, used, "\n") != 0)
+          return -1;
+      }
+    }
+  }
+  if (sec->elf || (sec->elfParameters.str && sec->elfParameters.len > 0)) {
+    if (append_text(dst, dst_size, used,
+                    (sec->elfParameters.str && sec->elfParameters.len > 0)
+                        ? " ELF PARAMETER\n  "
+                        : " ELF\n") != 0)
+      return -1;
+    if (sec->elfParameters.str && sec->elfParameters.len > 0) {
+      if (append_capn_text(dst, dst_size, used, sec->elfParameters) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;
