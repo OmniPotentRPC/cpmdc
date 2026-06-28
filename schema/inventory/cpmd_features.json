@@ -1489,6 +1489,132 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CDFT_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "CDFT options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "CDFT payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CDFT_HDA_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "CDFT HDA payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VGFACTOR",
+      "kind": "cpmd_keyword",
+      "name": "VGFACTOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VMIRROR",
+      "kind": "cpmd_keyword",
+      "name": "VMIRROR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMBINE_SYSTEMS_SAB_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "COMBINE SYSTEMS SAB payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KSHAM",
+      "kind": "cpmd_keyword",
+      "name": "KSHAM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KSHAM_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "KSHAM payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CZONES",
+      "kind": "cpmd_keyword",
+      "name": "CZONES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WOUT",
+      "kind": "cpmd_keyword",
+      "name": "WOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WOUT_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "WOUT payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.XFMQC",
+      "kind": "cpmd_keyword",
+      "name": "XFMQC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -4033,6 +4159,118 @@
       "feature_id": "params.inputSections.cpmd.cdft",
       "kind": "structured_params_field",
       "name": "cdft",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cdftOptions",
+      "kind": "structured_params_field",
+      "name": "cdftOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cdftPayload",
+      "kind": "structured_params_field",
+      "name": "cdftPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.cdftHdaPayload",
+      "kind": "structured_params_field",
+      "name": "cdftHdaPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vgfactor",
+      "kind": "structured_params_field",
+      "name": "vgfactor",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.vMirror",
+      "kind": "structured_params_field",
+      "name": "vMirror",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.combineSystemsOptions",
+      "kind": "structured_params_field",
+      "name": "combineSystemsOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.combineSystemsPayload",
+      "kind": "structured_params_field",
+      "name": "combineSystemsPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.combineSystemsSabPayload",
+      "kind": "structured_params_field",
+      "name": "combineSystemsSabPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.kshamOptions",
+      "kind": "structured_params_field",
+      "name": "kshamOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.kshamPayload",
+      "kind": "structured_params_field",
+      "name": "kshamPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.czonesSet",
+      "kind": "structured_params_field",
+      "name": "czonesSet",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.woutOptions",
+      "kind": "structured_params_field",
+      "name": "woutOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.woutPayload",
+      "kind": "structured_params_field",
+      "name": "woutPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.xfmqcTrajectories",
+      "kind": "structured_params_field",
+      "name": "xfmqcTrajectories",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

@@ -2057,8 +2057,140 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " BICANONICAL ENSEMBLE\n") != 0)
       return -1;
   }
-  if (sec->cdft) {
-    if (append_text(dst, dst_size, used, " CDFT\n") != 0)
+  if (sec->cdft || (sec->cdftOptions.str && sec->cdftOptions.len > 0) ||
+      (sec->cdftPayload.str && sec->cdftPayload.len > 0) ||
+      (sec->cdftHdaPayload.str && sec->cdftHdaPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " CDFT") != 0)
+      return -1;
+    if (sec->cdftOptions.str && sec->cdftOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->cdftOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->cdftPayload.str && sec->cdftPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->cdftPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (sec->cdftHdaPayload.str && sec->cdftHdaPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->cdftHdaPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->vgfactor.str && sec->vgfactor.len > 0) {
+    if (append_text(dst, dst_size, used, " VGFACTOR\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->vgfactor) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->vMirror) {
+    if (append_text(dst, dst_size, used, " VMIRROR\n") != 0)
+      return -1;
+  }
+  if ((sec->combineSystemsOptions.str &&
+       sec->combineSystemsOptions.len > 0) ||
+      (sec->combineSystemsPayload.str &&
+       sec->combineSystemsPayload.len > 0) ||
+      (sec->combineSystemsSabPayload.str &&
+       sec->combineSystemsSabPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " COMBINE SYSTEMS") != 0)
+      return -1;
+    if (sec->combineSystemsOptions.str &&
+        sec->combineSystemsOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->combineSystemsOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->combineSystemsPayload.str &&
+        sec->combineSystemsPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->combineSystemsPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (sec->combineSystemsSabPayload.str &&
+        sec->combineSystemsSabPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->combineSystemsSabPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if ((sec->kshamOptions.str && sec->kshamOptions.len > 0) ||
+      (sec->kshamPayload.str && sec->kshamPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " KSHAM") != 0)
+      return -1;
+    if (sec->kshamOptions.str && sec->kshamOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->kshamOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->kshamPayload.str && sec->kshamPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->kshamPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->czonesSet.str && sec->czonesSet.len > 0) {
+    if (append_text(dst, dst_size, used, " CZONES SET\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->czonesSet) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->woutOptions.str && sec->woutOptions.len > 0) ||
+      (sec->woutPayload.str && sec->woutPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " WOUT") != 0)
+      return -1;
+    if (sec->woutOptions.str && sec->woutOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->woutOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->woutPayload.str && sec->woutPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->woutPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->xfmqcTrajectories > 0) {
+    if (append_fmt(dst, dst_size, used, " XFMQC\n  %d\n",
+                   sec->xfmqcTrajectories) != 0)
       return -1;
   }
   if (sec->properties) {

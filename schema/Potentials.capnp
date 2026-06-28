@@ -318,6 +318,20 @@ struct CPMDCpmdSection {
   allToAllPrecision       @160 :Text; # ALLTOALL precision option.
   gshell                  @161 :Bool = false; # GSHELL.
   localPotential          @162 :Bool = false; # LOCAL POTENTIAL.
+  cdftOptions             @163 :Text; # CDFT inline options.
+  cdftPayload             @164 :Text; # CDFT payload line.
+  cdftHdaPayload          @165 :Text; # CDFT HDA payload line.
+  vgfactor                @166 :Text; # VGFACTOR payload line.
+  vMirror                 @167 :Bool = false; # VMIRROR.
+  combineSystemsOptions   @168 :Text; # COMBINE SYSTEMS inline options.
+  combineSystemsPayload   @169 :Text; # COMBINE SYSTEMS payload line.
+  combineSystemsSabPayload @170 :Text; # COMBINE SYSTEMS SAB payload line.
+  kshamOptions            @171 :Text; # KSHAM inline options.
+  kshamPayload            @172 :Text; # KSHAM payload line.
+  czonesSet               @173 :Text; # CZONES SET payload lines.
+  woutOptions             @174 :Text; # WOUT inline options.
+  woutPayload             @175 :Text; # WOUT payload line.
+  xfmqcTrajectories       @176 :Int32 = 0; # XFMQC trajectory count; 0 => omit.
 }
 
 struct CPMDDftSection {

@@ -491,6 +491,20 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.QMMM~ | ~params.inputSections.cpmd.qmmm~ | ~qmmm~ | ~QMMM~ |
 | ~catalog.cpmd.BICANONICAL_ENSEMBLE~ | ~params.inputSections.cpmd.bicanonicalEnsemble~ | ~bicanonicalEnsemble~ | ~BICANONICAL ENSEMBLE~ |
 | ~catalog.cpmd.CDFT~ | ~params.inputSections.cpmd.cdft~ | ~cdft~ | ~CDFT~ |
+| ~catalog.cpmd.CDFT_OPTIONS~ | ~params.inputSections.cpmd.cdftOptions~ | ~cdftOptions~ | ~CDFT options~ |
+| ~catalog.cpmd.CDFT_PAYLOAD~ | ~params.inputSections.cpmd.cdftPayload~ | ~cdftPayload~ | ~CDFT payload~ |
+| ~catalog.cpmd.CDFT_HDA_PAYLOAD~ | ~params.inputSections.cpmd.cdftHdaPayload~ | ~cdftHdaPayload~ | ~CDFT HDA payload~ |
+| ~catalog.cpmd.VGFACTOR~ | ~params.inputSections.cpmd.vgfactor~ | ~vgfactor~ | ~VGFACTOR~ |
+| ~catalog.cpmd.VMIRROR~ | ~params.inputSections.cpmd.vMirror~ | ~vMirror~ | ~VMIRROR~ |
+| ~catalog.cpmd.COMBINE_SYSTEMS~ | ~params.inputSections.cpmd.combineSystemsOptions~ | ~combineSystemsOptions~ | ~COMBINE SYSTEMS~ |
+| ~catalog.cpmd.COMBINE_SYSTEMS_PAYLOAD~ | ~params.inputSections.cpmd.combineSystemsPayload~ | ~combineSystemsPayload~ | ~COMBINE SYSTEMS payload~ |
+| ~catalog.cpmd.COMBINE_SYSTEMS_SAB_PAYLOAD~ | ~params.inputSections.cpmd.combineSystemsSabPayload~ | ~combineSystemsSabPayload~ | ~COMBINE SYSTEMS SAB payload~ |
+| ~catalog.cpmd.KSHAM~ | ~params.inputSections.cpmd.kshamOptions~ | ~kshamOptions~ | ~KSHAM~ |
+| ~catalog.cpmd.KSHAM_PAYLOAD~ | ~params.inputSections.cpmd.kshamPayload~ | ~kshamPayload~ | ~KSHAM payload~ |
+| ~catalog.cpmd.CZONES~ | ~params.inputSections.cpmd.czonesSet~ | ~czonesSet~ | ~CZONES SET~ |
+| ~catalog.cpmd.WOUT~ | ~params.inputSections.cpmd.woutOptions~ | ~woutOptions~ | ~WOUT~ |
+| ~catalog.cpmd.WOUT_PAYLOAD~ | ~params.inputSections.cpmd.woutPayload~ | ~woutPayload~ | ~WOUT payload~ |
+| ~catalog.cpmd.XFMQC~ | ~params.inputSections.cpmd.xfmqcTrajectories~ | ~xfmqcTrajectories~ | ~XFMQC~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |
