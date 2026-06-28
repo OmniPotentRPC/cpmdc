@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 REMOVED_FEATURE = "params.functional"
+DUPLICATED_FEATURE = "params.functional"
 
 
 def load_checker(repo: Path):
@@ -33,6 +34,26 @@ def write_inventory_without_feature(repo: Path, tmpdir: Path, feature_id: str) -
         raise RuntimeError(f"fixture feature not found: {feature_id}")
     data["features"] = kept
     path = tmpdir / "cpmd_features.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def write_inventory_with_duplicate_feature(
+    repo: Path, tmpdir: Path, feature_id: str
+) -> Path:
+    data = json.loads((repo / "schema/inventory/cpmd_features.json").read_text())
+    duplicate = next(
+        (
+            feature.copy()
+            for feature in data["features"]
+            if feature["feature_id"] == feature_id
+        ),
+        None,
+    )
+    if duplicate is None:
+        raise RuntimeError(f"fixture feature not found: {feature_id}")
+    data["features"].append(duplicate)
+    path = tmpdir / "cpmd_features_duplicate.json"
     path.write_text(json.dumps(data), encoding="utf-8")
     return path
 
@@ -59,13 +80,30 @@ def main() -> int:
     repo = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
     checker = load_checker(repo)
     with tempfile.TemporaryDirectory(prefix="cpmd-params-field-inventory-") as raw:
-        inventory = write_inventory_without_feature(repo, Path(raw), REMOVED_FEATURE)
-        code, output = run_checker_with_inventory(checker, inventory)
+        tmpdir = Path(raw)
+        missing_inventory = write_inventory_without_feature(
+            repo, tmpdir, REMOVED_FEATURE
+        )
+        missing_code, missing_output = run_checker_with_inventory(
+            checker, missing_inventory
+        )
+        duplicate_inventory = write_inventory_with_duplicate_feature(
+            repo, tmpdir, DUPLICATED_FEATURE
+        )
+        duplicate_code, duplicate_output = run_checker_with_inventory(
+            checker, duplicate_inventory
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
-    if code == 0 or expected not in output:
+    if missing_code == 0 or expected not in missing_output:
         print("expected top-level params feature inventory failure")
-        print(output)
+        print(missing_output)
+        return 1
+
+    expected_duplicate = "inventory feature_id duplicated: params.functional"
+    if duplicate_code == 0 or expected_duplicate not in duplicate_output:
+        print("expected duplicate feature_id inventory failure")
+        print(duplicate_output)
         return 1
     return 0
 

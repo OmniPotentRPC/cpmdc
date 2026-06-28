@@ -90,6 +90,13 @@ def main() -> int:
     readme = README.read_text(encoding="utf-8")
     errors: list[str] = []
 
+    seen_feature_ids: set[str] = set()
+    for feature in inv["features"]:
+        fid = feature["feature_id"]
+        if fid in seen_feature_ids:
+            errors.append(f"inventory feature_id duplicated: {fid}")
+        seen_feature_ids.add(fid)
+
     reference = str(inv.get("opencpmd_reference") or "")
     if reference.startswith(("/", "~")):
         errors.append("opencpmd_reference must describe the reference source, not a host-local path")
