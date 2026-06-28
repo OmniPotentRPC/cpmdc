@@ -397,6 +397,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.ELECTROSTATIC_POTENTIAL", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.ELECTROSTATIC_POTENTIAL_SAMPLE",
      CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.DIPOLE_DYNAMICS", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.DIPOLE_DYNAMICS_WANNIER", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.RHOOUT", CPMDC_FEATURE_KEYWORD, 1, 1},
@@ -755,6 +756,7 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.electrostaticPotential"),
     CPMDC_PARAM_FEATURE(
         "params.inputSections.cpmd.electrostaticPotentialSample"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.dipoleDynamics"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.dipoleDynamicsSample"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.dipoleDynamicsWannier"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.rhoOut"),

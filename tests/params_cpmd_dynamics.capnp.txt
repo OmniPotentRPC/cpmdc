@@ -66,6 +66,7 @@
         dampingIons = 0.11,
         dampingElectrons = 0.12,
         dampingCell = 0.13,
+        dipoleDynamics = true,
         hessian = "SCHLEGEL PARTIAL",
         project = "FULL",
         stressTensorSample = 15,

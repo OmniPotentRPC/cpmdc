@@ -490,6 +490,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.EXTERNAL_POTENTIAL_ADD~ | ~params.inputSections.cpmd.externalPotentialAdd~ | ~externalPotentialAdd~ | ~EXTERNAL POTENTIAL ADD~ |
 | ~catalog.cpmd.ELECTROSTATIC_POTENTIAL~ | ~params.inputSections.cpmd.electrostaticPotential~ | ~electrostaticPotential~ | ~ELECTROSTATIC POTENTIAL~ |
 | ~catalog.cpmd.ELECTROSTATIC_POTENTIAL_SAMPLE~ | ~params.inputSections.cpmd.electrostaticPotentialSample~ | ~electrostaticPotentialSample~ | ~ELECTROSTATIC POTENTIAL SAMPLE~ |
+| ~catalog.cpmd.DIPOLE_DYNAMICS~ | ~params.inputSections.cpmd.dipoleDynamics~ | ~dipoleDynamics~ | ~DIPOLE DYNAMICS~ |
 | ~catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE~ | ~params.inputSections.cpmd.dipoleDynamicsSample~ | ~dipoleDynamicsSample~ | ~DIPOLE DYNAMICS SAMPLE~ |
 | ~catalog.cpmd.DIPOLE_DYNAMICS_WANNIER~ | ~params.inputSections.cpmd.dipoleDynamicsWannier~ | ~dipoleDynamicsWannier~ | ~DIPOLE DYNAMICS WANNIER~ |
 | ~catalog.cpmd.RHOOUT~ | ~params.inputSections.cpmd.rhoOut~ | ~rhoOut~ | ~RHOOUT~ |

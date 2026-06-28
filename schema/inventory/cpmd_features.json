@@ -3845,6 +3845,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.DIPOLE_DYNAMICS",
+      "kind": "cpmd_keyword",
+      "name": "DIPOLE DYNAMICS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE",
       "kind": "cpmd_keyword",
       "name": "DIPOLE DYNAMICS SAMPLE",
@@ -6648,6 +6657,14 @@
       "feature_id": "params.inputSections.cpmd.electrostaticPotentialSample",
       "kind": "structured_params_field",
       "name": "electrostaticPotentialSample",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dipoleDynamics",
+      "kind": "structured_params_field",
+      "name": "dipoleDynamics",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

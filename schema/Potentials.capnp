@@ -483,6 +483,7 @@ struct CPMDCpmdSection {
   checkMemory             @325 :Bool = false; # CHECK MEMORY.
   trotterFactorizationOff @326 :Bool = false; # TROTTER FACTORIZATION OFF.
   damping                 @327 :Text; # DAMPING payload for ions/electrons/cell.
+  dipoleDynamics          @328 :Bool = false; # DIPOLE DYNAMICS.
 }
 
 struct CPMDDftSection {

@@ -2717,7 +2717,8 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
-  if (sec->dipoleDynamicsSample > 0 || sec->dipoleDynamicsWannier) {
+  if (sec->dipoleDynamics || sec->dipoleDynamicsSample > 0 ||
+      sec->dipoleDynamicsWannier) {
     if (append_text(dst, dst_size, used, " DIPOLE DYNAMICS") != 0)
       return -1;
     if (sec->dipoleDynamicsSample > 0 &&
