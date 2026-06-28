@@ -1658,6 +1658,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.GLOC_WFNOUT_PARTIAL",
+      "kind": "cpmd_keyword",
+      "name": "GLOC WFNOUT PARTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.GLOC_WFNOUT",
       "kind": "cpmd_keyword",
       "name": "GLOC WFNOUT",
@@ -3989,6 +3998,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.WANNIER_OPTIMIZATION_JACOBI",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER OPTIMIZATION JACOBI",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.WANNIER_NPROC",
       "kind": "cpmd_keyword",
       "name": "WANNIER NPROC",
@@ -4028,6 +4046,15 @@
       "feature_id": "catalog.cpmd.WANNIER_TYPE",
       "kind": "cpmd_keyword",
       "name": "WANNIER TYPE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_TYPE_RESTA",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER TYPE RESTA",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4082,6 +4109,24 @@
       "feature_id": "catalog.cpmd.WANNIER_WFNOUT",
       "kind": "cpmd_keyword",
       "name": "WANNIER WFNOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_WFNOUT_PARTIAL",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER WFNOUT PARTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.WANNIER_WFNOUT_DENSITY",
+      "kind": "cpmd_keyword",
+      "name": "WANNIER WFNOUT DENSITY",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -5288,6 +5333,15 @@
       "feature_id": "catalog.cpmd.DISTRIBUTE_FNL",
       "kind": "cpmd_keyword",
       "name": "DISTRIBUTE FNL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DISTRIBUTE_FNL_ON",
+      "kind": "cpmd_keyword",
+      "name": "DISTRIBUTE FNL ON",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

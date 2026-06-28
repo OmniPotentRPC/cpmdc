@@ -557,17 +557,21 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ELF_PARAMETERS~ | ~params.inputSections.cpmd.elfParameters~ | ~elfParameters~ | ~ELF PARAMETER~ |
 | ~catalog.cpmd.WANNIER_PARAMETER~ | ~params.inputSections.cpmd.wannierParameters~ | ~wannierParameters~ | ~WANNIER PARAMETER~ |
 | ~catalog.cpmd.WANNIER_OPTIMIZATION~ | ~params.inputSections.cpmd.wannierOptimization~ | ~wannierOptimization~ | ~WANNIER OPTIMIZATION~ |
+| ~catalog.cpmd.WANNIER_OPTIMIZATION_JACOBI~ | ~params.inputSections.cpmd.wannierOptimization~ | ~wannierOptimization~ | ~WANNIER OPTIMIZATION JACOBI~ |
 | ~catalog.cpmd.WANNIER_NPROC~ | ~params.inputSections.cpmd.wannierNproc~ | ~wannierNproc~ | ~WANNIER NPROC~ |
 | ~catalog.cpmd.WANNIER_RELOCALIZE_IN_SCF~ | ~params.inputSections.cpmd.wannierRelocalizeInScf~ | ~wannierRelocalizeInScf~ | ~WANNIER RELOCALIZE_IN_SCF~ |
 | ~catalog.cpmd.WANNIER_RECOMPUTE_DIPOLE_MATRICES_EVERY~ | ~params.inputSections.cpmd.wannierRecomputeDipoleMatricesEvery~ | ~wannierRecomputeDipoleMatricesEvery~ | ~WANNIER RECOMPUTE_DIPOLE_MATRICES_EVERY~ |
 | ~catalog.cpmd.WANNIER_RELOCALIZE_EVERY~ | ~params.inputSections.cpmd.wannierRelocalizeEvery~ | ~wannierRelocalizeEvery~ | ~WANNIER RELOCALIZE_EVERY~ |
 | ~catalog.cpmd.WANNIER_TYPE~ | ~params.inputSections.cpmd.wannierType~ | ~wannierType~ | ~WANNIER TYPE~ |
+| ~catalog.cpmd.WANNIER_TYPE_RESTA~ | ~params.inputSections.cpmd.wannierType~ | ~wannierType~ | ~WANNIER TYPE RESTA~ |
 | ~catalog.cpmd.WANNIER_REFERENCE~ | ~params.inputSections.cpmd.wannierReference~ | ~wannierReference~ | ~WANNIER REFERENCE~ |
 | ~catalog.cpmd.WANNIER_SERIAL~ | ~params.inputSections.cpmd.wannierSerial~ | ~wannierSerial~ | ~WANNIER SERIAL~ |
 | ~catalog.cpmd.WANNIER_DOS~ | ~params.inputSections.cpmd.wannierDos~ | ~wannierDos~ | ~WANNIER DOS~ |
 | ~catalog.cpmd.WANNIER_MOLECULAR~ | ~params.inputSections.cpmd.wannierMolecular~ | ~wannierMolecular~ | ~WANNIER MOLECULAR~ |
 | ~catalog.cpmd.WANNIER_WFNOUT~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_OPTIONS~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
+| ~catalog.cpmd.WANNIER_WFNOUT_PARTIAL~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT PARTIAL~ |
+| ~catalog.cpmd.WANNIER_WFNOUT_DENSITY~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT DENSITY~ |
 | ~catalog.cpmd.WANNIER_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.wannierWfnOutPayload~ | ~wannierWfnOutPayload~ | ~WANNIER WFNOUT payload~ |
 | ~catalog.cpmd.PARA_USE_MPI_IN_PLACE~ | ~params.inputSections.cpmd.paraUseMpiInPlace~ | ~paraUseMpiInPlace~ | ~PARA_USE_MPI_IN_PLACE~ |
 | ~catalog.cpmd.PARA_BUFF_SIZE~ | ~params.inputSections.cpmd.paraBuffSize~ | ~paraBuffSize~ | ~PARA_BUFF_SIZE~ |
@@ -599,6 +603,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TASKGROUPS_CARTESIAN~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS CARTESIAN~ |
 | ~catalog.cpmd.TASKGROUPS_MINI~ | ~params.inputSections.cpmd.taskGroups~ | ~taskGroups~ | ~TASKGROUPS MINI~ |
 | ~catalog.cpmd.DISTRIBUTE_FNL~ | ~params.inputSections.cpmd.distributeFnl~ | ~distributeFnl~ | ~DISTRIBUTE FNL~ |
+| ~catalog.cpmd.DISTRIBUTE_FNL_ON~ | ~params.inputSections.cpmd.distributeFnl~ | ~distributeFnl~ | ~DISTRIBUTE FNL ON~ |
 | ~catalog.cpmd.CP_GROUPS~ | ~params.inputSections.cpmd.cpGroups~ | ~cpGroups~ | ~CP_GROUPS~ |
 | ~catalog.cpmd.FILE_FUSION~ | ~params.inputSections.cpmd.fileFusionPayload~ | ~fileFusionPayload~ | ~FILE FUSION~ |
 | ~catalog.cpmd.FILE_MERGE~ | ~params.inputSections.cpmd.fileMergePayload~ | ~fileMergePayload~ | ~FILE MERGE~ |
@@ -631,6 +636,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.G_STEP~ | ~params.inputSections.cpmd.gStepTune~ | ~gStepTune~ | ~G_STEP~ |
 | ~catalog.cpmd.G_STEP_TUNE~ | ~params.inputSections.cpmd.gStepTune~ | ~gStepTune~ | ~G_STEP TUNE~ |
 | ~catalog.cpmd.GLOC_WFNOUT_REAL~ | ~params.inputSections.cpmd.glocWfnOutOptions~ | ~glocWfnOutOptions~ | ~GLOC WFNOUT REAL~ |
+| ~catalog.cpmd.GLOC_WFNOUT_PARTIAL~ | ~params.inputSections.cpmd.glocWfnOutOptions~ | ~glocWfnOutOptions~ | ~GLOC WFNOUT PARTIAL~ |
 | ~catalog.cpmd.GLOC_WFNOUT~ | ~params.inputSections.cpmd.glocWfnOutOptions~ | ~glocWfnOutOptions~ | ~GLOC WFNOUT~ |
 | ~catalog.cpmd.GLOC_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.glocWfnOutPayload~ | ~glocWfnOutPayload~ | ~GLOC WFNOUT payload~ |
 | ~catalog.cpmd.NO_GEO_CHECK~ | ~params.inputSections.cpmd.noGeoCheck~ | ~noGeoCheck~ | ~NO_GEO_CHECK~ |
