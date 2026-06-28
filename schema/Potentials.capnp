@@ -130,6 +130,11 @@ struct CPMDSystemSection {
   couplingsFiniteDifference @72 :Bool = false; # COUPLINGS FD.
   couplingsFiniteDifferenceDisplacement @73 :Float64 = 0.0; # COUPLINGS FD=eps; 0 => omit value.
   couplingsProductDisplacement @74 :Float64 = 0.0; # COUPLINGS PROD=eps; 0 => omit.
+  couplingsLinres @75 :Bool = false;           # COUPLINGS LINRES.
+  couplingsLinresTolerance @76 :Float64 = 0.0; # COUPLINGS LINRES TOL=; 0 => omit.
+  couplingsLinresNvects @77 :Int32 = 0;        # COUPLINGS LINRES NVECT=; 0 => omit.
+  couplingsLinresSpecify @78 :Bool = false;    # COUPLINGS LINRES NVECT=... SPECIFY.
+  couplingsLinresBruteForce @79 :Bool = false; # COUPLINGS LINRES BRUTE FORCE.
 }
 
 struct CPMDCpmdSection {

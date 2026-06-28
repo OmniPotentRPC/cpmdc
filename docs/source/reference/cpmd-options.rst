@@ -522,6 +522,17 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.couplingsProductDisplacement``          | ``system.couplingsProductDisplacement``          | ``&SYSTEM COUPLINGS PROD=`` displacement  |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinres``                       | ``system.couplingsLinres``                       | Add ``LINRES`` to ``&SYSTEM COUPLINGS``   |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinresTolerance``              | ``system.couplingsLinresTolerance``              | Add ``TOL=`` to ``COUPLINGS LINRES``      |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinresNvects``                 | ``system.couplingsLinresNvects``                 | Add ``NVECT=`` to ``COUPLINGS LINRES``    |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinresSpecify``                | ``system.couplingsLinresSpecify``                | Add ``SPECIFY`` to ``COUPLINGS LINRES``   |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.couplingsLinresBruteForce``             | ``system.couplingsLinresBruteForce``             | Add ``BRUTE FORCE`` to                    |
+|                                                                       |                                                  | ``COUPLINGS LINRES``                      |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.cdftDonorAtoms``                        | ``system.cdftDonorAtoms``                        | ``&SYSTEM DONOR`` atom list               |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.cdftDonorWeights``                      | ``system.cdftDonorWeights``                      | Add ``WMULT`` weights to ``DONOR``        |

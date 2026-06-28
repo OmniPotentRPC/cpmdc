@@ -677,7 +677,12 @@ static int render_system_section_with_cell(
   int has_couplings_fd = sys->couplingsFiniteDifference ||
                          sys->couplingsFiniteDifferenceDisplacement != 0.0;
   int has_couplings_prod = sys->couplingsProductDisplacement != 0.0;
-  if (has_couplings_fd && has_couplings_prod)
+  int has_couplings_linres = sys->couplingsLinres ||
+                             sys->couplingsLinresTolerance != 0.0 ||
+                             sys->couplingsLinresNvects != 0 ||
+                             sys->couplingsLinresSpecify ||
+                             sys->couplingsLinresBruteForce;
+  if (has_couplings_fd + has_couplings_prod + has_couplings_linres > 1)
     return -1;
   if (has_couplings_fd) {
     if (append_text(dst, dst_size, used, " COUPLINGS FD") != 0)
@@ -691,6 +696,29 @@ static int render_system_section_with_cell(
   } else if (has_couplings_prod) {
     if (append_fmt(dst, dst_size, used, " COUPLINGS PROD=%.10g\n",
                    sys->couplingsProductDisplacement) != 0)
+      return -1;
+  } else if (has_couplings_linres) {
+    if (sys->couplingsLinresNvects < 0)
+      return -1;
+    if (sys->couplingsLinresSpecify && sys->couplingsLinresNvects <= 0)
+      return -1;
+    if (append_text(dst, dst_size, used, " COUPLINGS LINRES") != 0)
+      return -1;
+    if (sys->couplingsLinresTolerance != 0.0 &&
+        append_fmt(dst, dst_size, used, " TOL=%.10g",
+                   sys->couplingsLinresTolerance) != 0)
+      return -1;
+    if (sys->couplingsLinresNvects > 0 &&
+        append_fmt(dst, dst_size, used, " NVECT=%d",
+                   sys->couplingsLinresNvects) != 0)
+      return -1;
+    if (sys->couplingsLinresSpecify &&
+        append_text(dst, dst_size, used, " SPECIFY") != 0)
+      return -1;
+    if (sys->couplingsLinresBruteForce &&
+        append_text(dst, dst_size, used, " BRUTE FORCE") != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
   int n_cdft_donor_atoms = list32_len(&sys->cdftDonorAtoms);

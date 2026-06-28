@@ -2071,6 +2071,46 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.couplingsLinres",
+      "kind": "structured_params_field",
+      "name": "couplingsLinres",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsLinresTolerance",
+      "kind": "structured_params_field",
+      "name": "couplingsLinresTolerance",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsLinresNvects",
+      "kind": "structured_params_field",
+      "name": "couplingsLinresNvects",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsLinresSpecify",
+      "kind": "structured_params_field",
+      "name": "couplingsLinresSpecify",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.system.couplingsLinresBruteForce",
+      "kind": "structured_params_field",
+      "name": "couplingsLinresBruteForce",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.cdftDonorAtoms",
       "kind": "structured_params_field",
       "name": "cdftDonorAtoms",

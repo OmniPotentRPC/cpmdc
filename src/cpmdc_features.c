@@ -198,6 +198,13 @@ static const CPMDCFeatureEntry g_features[] = {
         "params.inputSections.system.couplingsFiniteDifferenceDisplacement"),
     CPMDC_PARAM_FEATURE(
         "params.inputSections.system.couplingsProductDisplacement"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.couplingsLinres"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsLinresTolerance"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.couplingsLinresNvects"),
+    CPMDC_PARAM_FEATURE("params.inputSections.system.couplingsLinresSpecify"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.couplingsLinresBruteForce"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorAtoms"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftDonorWeights"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.cdftAcceptorAtoms"),
