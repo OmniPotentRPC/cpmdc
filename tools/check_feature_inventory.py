@@ -80,6 +80,18 @@ def cpmd_base_keywords() -> list[str]:
         if line.strip()
     ]
 
+def public_header_functions(*headers: str) -> set[str]:
+    symbols: set[str] = set()
+    for header in headers:
+        text = re.sub(r"/\*.*?\*/", " ", header, flags=re.S)
+        text = re.sub(r"//.*", " ", text)
+        for statement in text.split(";"):
+            normalized = " ".join(statement.split())
+            match = re.search(r"\b(cpmdc_[A-Za-z0-9_]+)\s*\(", normalized)
+            if match:
+                symbols.add(match.group(1))
+    return symbols
+
 def add_duplicate_errors(values: list[str], label: str, errors: list[str]) -> None:
     seen: set[str] = set()
     for value in values:
@@ -272,6 +284,13 @@ def main() -> int:
             errors.append(f"C table missing abi.{sym}")
         if sym not in readme:
             errors.append(f"README missing ABI symbol {sym}")
+
+    abi_symbols = set(inv.get("abi_symbols", []))
+    for sym in sorted(public_header_functions(header, features_h)):
+        if sym not in abi_symbols:
+            errors.append(
+                f"inventory abi_symbols missing public header function: {sym}"
+            )
 
     if "inputBlocks" not in schema or "raw" not in schema:
         errors.append("schema missing escape hatches")

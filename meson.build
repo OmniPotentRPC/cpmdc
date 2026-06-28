@@ -533,6 +533,15 @@ if get_option('with_tests')
     suite: ['inventory'],
   )
   test(
+    'cpmd-public-abi-inventory',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_public_abi_inventory.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['abi', 'inventory'],
+  )
+  test(
     'cpmd-typed-render-field-coverage',
     python,
     args: [
