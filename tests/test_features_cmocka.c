@@ -3,10 +3,46 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <cmocka.h>
+#include <string.h>
 
 static void test_feature_table_nonempty(void **state) {
   (void)state;
   assert_true(cpmdc_feature_count() > 50);
+}
+
+static void test_feature_table_find_roundtrip(void **state) {
+  (void)state;
+  const CPMDCFeatureEntry *table = cpmdc_feature_table();
+  size_t count = cpmdc_feature_count();
+  assert_non_null(table);
+  assert_true(count > 50);
+
+  for (size_t i = 0; i < count; ++i) {
+    assert_non_null(table[i].feature_id);
+    assert_true(table[i].feature_id[0] != '\0');
+    assert_true(table[i].stub_applicable == 0 || table[i].stub_applicable == 1);
+    assert_true(table[i].embed_applicable == 0 ||
+                table[i].embed_applicable == 1);
+    switch (table[i].kind) {
+    case CPMDC_FEATURE_SECTION:
+    case CPMDC_FEATURE_PARAMS:
+    case CPMDC_FEATURE_ABI:
+    case CPMDC_FEATURE_KEYWORD:
+      break;
+    default:
+      fail_msg("invalid feature kind for %s", table[i].feature_id);
+    }
+
+    const CPMDCFeatureEntry *found = cpmdc_feature_find(table[i].feature_id);
+    assert_ptr_equal(found, &table[i]);
+    assert_string_equal(found->feature_id, table[i].feature_id);
+    assert_int_equal(found->kind, table[i].kind);
+    assert_int_equal(found->stub_applicable, table[i].stub_applicable);
+    assert_int_equal(found->embed_applicable, table[i].embed_applicable);
+
+    for (size_t j = 0; j < i; ++j)
+      assert_int_not_equal(strcmp(table[i].feature_id, table[j].feature_id), 0);
+  }
 }
 
 static void test_inscan_sections(void **state) {
@@ -981,6 +1017,7 @@ static void test_structured_param_features(void **state) {
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_feature_table_nonempty),
+      cmocka_unit_test(test_feature_table_find_roundtrip),
       cmocka_unit_test(test_inscan_sections),
       cmocka_unit_test(test_cp_keywords_not_sections),
       cmocka_unit_test(test_documented_cpmd_catalog_keywords),
