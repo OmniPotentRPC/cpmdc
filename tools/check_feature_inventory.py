@@ -130,6 +130,13 @@ def main() -> int:
         print("WARN: no OpenCPMD tree to probe (set CPMD_ROOT); skipping live completeness")
 
     fids = {f["feature_id"] for f in inv["features"]}
+    for field in sorted(fields):
+        fid = f"params.{field}"
+        if fid not in fids:
+            errors.append(
+                f"inventory missing top-level params feature from CPMDParams: {field}"
+            )
+
     for keyword in cpmd_base_keywords():
         fid = cpmd_keyword_feature_id(keyword)
         if fid not in fids:
