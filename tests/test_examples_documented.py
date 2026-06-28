@@ -30,6 +30,8 @@ def main() -> int:
                 "cpmdc_session_calculate_result",
                 "energy_h=",
                 "potential_result_size_bytes=",
+                "cpmdc_last_energy_components",
+                "ener_com_etot=",
             ],
         )
     )

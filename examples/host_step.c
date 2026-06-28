@@ -100,6 +100,16 @@ int main(int argc, char **argv) {
   printf("potential_result_size_bytes=%zu\n", potential_result_size);
   printf("message=%s\n", result.message[0] ? result.message : "ok");
 
+  CPMDCEnergyComponents components;
+  if (cpmdc_last_energy_components(&components) == 0 && components.valid) {
+    printf("ener_com_etot=%.12f\n", components.etot);
+    printf("ener_com_ekin=%.12f\n", components.ekin);
+    printf("ener_com_exc=%.12f\n", components.exc);
+    printf("ener_com_eht=%.12f\n", components.eht);
+  } else {
+    printf("ener_com_valid=0\n");
+  }
+
   free(potential_result);
   cpmdc_session_destroy(session);
   free(params);

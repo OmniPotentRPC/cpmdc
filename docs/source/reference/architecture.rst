@@ -68,7 +68,7 @@ Parameter flow
    Ry, charge, multiplicity).
 #. Each ``cpmdc_session_calculate_result`` parses ``ForceInput``,
    updates ionic positions in ``coor%tau0`` (Angstrom → a.u.), runs
-   library ``wfopts`` / forces, reads ``ener_com%etot`` and
+   library ``wfopts`` / forces, reads ``ener_com%etot`` (plus full ``ener_com`` via ``cpmdc_last_energy_components``) and
    ``coor%fion``, writes ``PotentialResult``.
 
 Runtime ownership

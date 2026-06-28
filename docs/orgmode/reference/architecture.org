@@ -44,7 +44,9 @@ fragments.
    extracted scalars (functional, cutoff Ry, charge, multiplicity).
 3. Each ~cpmdc_session_calculate_result~ parses ~ForceInput~, updates ionic
    positions in ~coor%tau0~ (Angstrom → a.u.), runs library ~wfopts~ / forces,
-   reads ~ener_com%etot~ and ~coor%fion~, writes ~PotentialResult~.
+   reads ~ener_com%etot~ and ~coor%fion~, writes ~PotentialResult~ energy/forces,
+   and snapshots the full ~ener_com~ block for ~cpmdc_last_energy_components~
+   (in-process POD; not CLI ~ENERGY~ scrape or network sockets).
 
 * Runtime ownership
 ~CPMDParams~ is method state. ~ForceInput~ is step state. The session owns a
