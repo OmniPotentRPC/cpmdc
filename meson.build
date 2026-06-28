@@ -542,6 +542,15 @@ if get_option('with_tests')
     suite: ['abi', 'inventory'],
   )
   test(
+    'shared-dlopen-symbol-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_shared_dlopen_symbol_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['abi', 'inventory'],
+  )
+  test(
     'cpmd-typed-render-field-coverage',
     python,
     args: [

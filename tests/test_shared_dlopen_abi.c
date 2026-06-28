@@ -25,6 +25,29 @@ static void *required_symbol(void *handle, const char *name) {
 #define LOAD_REQUIRED_FUNCTION(handle, name, type)                             \
   ((type)required_symbol((handle), (name)))
 
+static const char *const required_abi_symbols[] = {
+    "cpmdc_set_params",
+    "cpmdc_energy_gradient",
+    "cpmdc_energy",
+    "cpmdc_energy_forces",
+    "cpmdc_session_create",
+    "cpmdc_session_set_params",
+    "cpmdc_session_destroy",
+    "cpmdc_session_energy_gradient",
+    "cpmdc_session_energy",
+    "cpmdc_session_energy_forces",
+    "cpmdc_session_calculate_forces",
+    "cpmdc_session_calculate_result",
+    "cpmdc_calculate_result",
+    "cpmdc_potential_result_size_for_force_input",
+    "cpmdc_version",
+    "cpmdc_available",
+    "cpmdc_finalize",
+    "cpmdc_feature_count",
+    "cpmdc_feature_table",
+    "cpmdc_feature_find",
+};
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "usage: %s /path/to/libcpmdc.so\n", argv[0]);
@@ -35,6 +58,15 @@ int main(int argc, char **argv) {
   if (handle == NULL) {
     fprintf(stderr, "dlopen failed for %s: %s\n", argv[1], dlerror());
     return 1;
+  }
+
+  for (size_t i = 0;
+       i < sizeof(required_abi_symbols) / sizeof(required_abi_symbols[0]);
+       ++i) {
+    if (required_symbol(handle, required_abi_symbols[i]) == NULL) {
+      dlclose(handle);
+      return 1;
+    }
   }
 
 #if defined(__GNUC__)
