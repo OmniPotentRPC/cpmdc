@@ -1,0 +1,21 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  title = "Si3N4 cluster BLYP CPMD (sige_neb redo)",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5,
+        maxStep = 80, directives = [ ( keyword = "CENTER MOLECULE OFF", args = [] ) ] ) ),
+    ( dft = ( functional = "BLYP", lsd = false,
+        directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
+        cell = [16.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        directives = [ ( keyword = "POISSON SOLVER HOCKNEY", args = [] ) ] ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "Si", path = "Si_MT_BLYP.psp", lmax = 1 ),
+        ( element = "N", path = "N_MT_BLYP.psp", lmax = 1 )
+      ] ) )
+  ]
+)
