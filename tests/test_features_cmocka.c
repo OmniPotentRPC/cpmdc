@@ -158,6 +158,7 @@ static void test_documented_cpmd_catalog_keywords(void **state) {
       "catalog.cpmd.DEBUG_FILEOPEN",
       "catalog.cpmd.DEBUG_FORCES",
       "catalog.cpmd.DEBUG_NOACC",
+      "catalog.cpmd.SOC",
       "catalog.cpmd.HARMONIC_REFERENCE_SYSTEM",
       "catalog.cpmd.LOCAL_SPIN_DENSITY",
       "catalog.cpmd.LANCZOS_PARAMETER",

@@ -237,6 +237,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
      " ELECTRONIC SPECTRA\n"},
     {"catalog.cpmd.SPIN_ORBIT_COUPLING", "spinOrbitCouplingStates",
      " SPIN-ORBIT COUPLING\n"},
+    {"catalog.cpmd.SOC", "spinOrbitCouplingStates",
+     " SPIN-ORBIT COUPLING\n"},
     {"catalog.cpmd.PROPAGATION_SPECTRA", "propagationSpectra",
      " PROPAGATION SPECTRA\n"},
     {"catalog.cpmd.PROPAGATION_DISTRUB", "propagationDistrub",
