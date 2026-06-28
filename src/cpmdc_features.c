@@ -356,6 +356,12 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.BERENDSEN_IONS", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.BERENDSEN_ELECTRONS", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.BERENDSEN_CELL", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_LOCAL", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_LOCAL_T0", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_LOCAL_THERMOSTATS",
+     CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.NOSE_IONS_LOCAL_RANGES",
+     CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_CELL", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_ADAPT", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.CONVERGENCE_ENERGY", CPMDC_FEATURE_KEYWORD, 1, 1},
@@ -685,6 +691,14 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.berendsenCell"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsOptions"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsThermostat"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsLocalT0"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.cpmd.noseIonsLocalThermostatCount"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.cpmd.noseIonsLocalThermostats"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.cpmd.noseIonsLocalRangeCount"),
+    CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseIonsLocalRanges"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseElectronsThermostat"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseCellThermostat"),
     CPMDC_PARAM_FEATURE("params.inputSections.cpmd.noseParameters"),

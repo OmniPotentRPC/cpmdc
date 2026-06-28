@@ -3557,6 +3557,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.NOSE_IONS_LOCAL",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS LOCAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_LOCAL_T0",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS LOCAL T0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_LOCAL_THERMOSTATS",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS LOCAL thermostat payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_LOCAL_RANGES",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS LOCAL range payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.NOSE_ELECTRONS_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "NOSE ELECTRONS",
@@ -6134,6 +6170,46 @@
       "feature_id": "params.inputSections.cpmd.noseIonsThermostat",
       "kind": "structured_params_field",
       "name": "noseIonsThermostat",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsLocalT0",
+      "kind": "structured_params_field",
+      "name": "noseIonsLocalT0",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsLocalThermostatCount",
+      "kind": "structured_params_field",
+      "name": "noseIonsLocalThermostatCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsLocalThermostats",
+      "kind": "structured_params_field",
+      "name": "noseIonsLocalThermostats",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsLocalRangeCount",
+      "kind": "structured_params_field",
+      "name": "noseIonsLocalRangeCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseIonsLocalRanges",
+      "kind": "structured_params_field",
+      "name": "noseIonsLocalRanges",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

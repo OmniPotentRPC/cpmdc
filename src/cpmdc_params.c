@@ -2371,6 +2371,50 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " NOSE IONS\n") != 0)
       return -1;
   }
+  int has_nose_ions_local =
+      sec->noseIonsLocalThermostatCount > 0 ||
+      (sec->noseIonsLocalThermostats.str &&
+       sec->noseIonsLocalThermostats.len > 0) ||
+      sec->noseIonsLocalRangeCount > 0 ||
+      (sec->noseIonsLocalRanges.str && sec->noseIonsLocalRanges.len > 0);
+  if (has_nose_ions_local) {
+    if (append_text(dst, dst_size, used, " NOSE IONS LOCAL") != 0)
+      return -1;
+    if (sec->noseIonsLocalT0) {
+      if (append_text(dst, dst_size, used, " T0") != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->noseIonsLocalThermostatCount > 0) {
+      if (append_fmt(dst, dst_size, used, "  %d\n",
+                     sec->noseIonsLocalThermostatCount) != 0)
+        return -1;
+    }
+    if (sec->noseIonsLocalThermostats.str &&
+        sec->noseIonsLocalThermostats.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->noseIonsLocalThermostats) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (sec->noseIonsLocalRangeCount > 0) {
+      if (append_fmt(dst, dst_size, used, "  %d\n",
+                     sec->noseIonsLocalRangeCount) != 0)
+        return -1;
+    }
+    if (sec->noseIonsLocalRanges.str && sec->noseIonsLocalRanges.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->noseIonsLocalRanges) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (has_nose_electrons) {
     if (append_text(dst, dst_size, used, " NOSE ELECTRONS\n  ") != 0)
       return -1;

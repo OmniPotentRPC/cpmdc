@@ -485,6 +485,11 @@ struct CPMDCpmdSection {
   damping                 @327 :Text; # DAMPING payload for ions/electrons/cell.
   dipoleDynamics          @328 :Bool = false; # DIPOLE DYNAMICS.
   realSpaceWfn            @329 :Bool = false; # REAL SPACE WFN.
+  noseIonsLocalT0         @330 :Bool = false; # NOSE IONS LOCAL T0.
+  noseIonsLocalThermostatCount @331 :Int32 = 0; # NOSE IONS LOCAL thermostat count.
+  noseIonsLocalThermostats @332 :Text; # NOSE IONS LOCAL thermostat payload lines.
+  noseIonsLocalRangeCount @333 :Int32 = 0; # NOSE IONS LOCAL range count.
+  noseIonsLocalRanges     @334 :Text; # NOSE IONS LOCAL range payload lines.
 }
 
 struct CPMDDftSection {
