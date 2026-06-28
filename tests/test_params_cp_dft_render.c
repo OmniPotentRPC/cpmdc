@@ -710,6 +710,8 @@ static const struct CatalogCoverage cpmd_coverage[] = {
      " NOSE IONS LOCAL T0"},
     {"catalog.cpmd.NOSE_IONS_LOCAL_THERMOSTATS",
      "noseIonsLocalThermostats", "301 1201 251"},
+    {"catalog.cpmd.NOSE_IONS_LOCAL_RANGES", "noseIonsLocalRangeCount",
+     "  2\n  1 1 4"},
     {"catalog.cpmd.NOSE_IONS_LOCAL_RANGES", "noseIonsLocalRanges", "1 1 4"},
     {"catalog.cpmd.NOSE_IONS_CAFES", "noseIonsCafesGroupCount",
      " NOSE IONS CAFES"},
