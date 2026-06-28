@@ -144,6 +144,11 @@ def main() -> int:
         "cpmd_sections",
         errors,
     )
+    add_duplicate_errors(
+        list(inv.get("opencpmd_inscan_sections", [])),
+        "opencpmd_inscan_sections",
+        errors,
+    )
     add_duplicate_errors(list(inv.get("abi_symbols", [])), "abi_symbols", errors)
 
     reference = str(inv.get("opencpmd_reference") or "")
@@ -161,6 +166,12 @@ def main() -> int:
         errors.append(f"params_fields mismatch")
 
     inv_secs = set(inv.get("cpmd_sections", []))
+    inscan_secs = set(inv.get("opencpmd_inscan_sections", []))
+    if inscan_secs != inv_secs:
+        errors.append(
+            "opencpmd_inscan_sections != cpmd_sections: "
+            f"{sorted(inscan_secs ^ inv_secs)}"
+        )
     allow = {l.strip() for l in SEC_ALLOW.read_text().splitlines() if l.strip()} if SEC_ALLOW.exists() else set()
     if allow and allow != inv_secs:
         errors.append(f"opencpmd_sections.txt != inventory cpmd_sections: {sorted(allow ^ inv_secs)}")

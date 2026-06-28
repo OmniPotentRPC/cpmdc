@@ -71,6 +71,16 @@ def write_inventory_with_duplicate_list_entry(
     return path
 
 
+def write_inventory_with_removed_list_entry(
+    repo: Path, tmpdir: Path, key: str
+) -> Path:
+    data = json.loads((repo / "schema/inventory/cpmd_features.json").read_text())
+    data[key] = data[key][1:]
+    path = tmpdir / f"cpmd_features_removed_{key}.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
 def run_checker_with_inventory(checker, inventory: Path) -> tuple[int, str]:
     old_inventory = checker.INVENTORY
     old_cpmd_root = os.environ.pop("CPMD_ROOT", None)
@@ -125,6 +135,12 @@ def main() -> int:
                     repo, tmpdir, "cpmd_sections"
                 ),
             ),
+            "opencpmd_inscan_sections": run_checker_with_inventory(
+                checker,
+                write_inventory_with_duplicate_list_entry(
+                    repo, tmpdir, "opencpmd_inscan_sections"
+                ),
+            ),
             "abi_symbols": run_checker_with_inventory(
                 checker,
                 write_inventory_with_duplicate_list_entry(
@@ -132,6 +148,12 @@ def main() -> int:
                 ),
             ),
         }
+        mismatched_inscan_code, mismatched_inscan_output = run_checker_with_inventory(
+            checker,
+            write_inventory_with_removed_list_entry(
+                repo, tmpdir, "opencpmd_inscan_sections"
+            ),
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
     if missing_code == 0 or expected not in missing_output:
@@ -149,6 +171,9 @@ def main() -> int:
         "section_kinds": "inventory section_kinds duplicated: generic",
         "params_fields": "inventory params_fields duplicated: functional",
         "cpmd_sections": "inventory cpmd_sections duplicated: ATOM",
+        "opencpmd_inscan_sections": (
+            "inventory opencpmd_inscan_sections duplicated: ATOM"
+        ),
         "abi_symbols": "inventory abi_symbols duplicated: cpmdc_set_params",
     }
     for key, expected_message in expected_list_failures.items():
@@ -157,6 +182,14 @@ def main() -> int:
             print(f"expected duplicate {key} inventory failure")
             print(output)
             return 1
+    expected_mismatch = "opencpmd_inscan_sections != cpmd_sections"
+    if (
+        mismatched_inscan_code == 0
+        or expected_mismatch not in mismatched_inscan_output
+    ):
+        print("expected opencpmd_inscan_sections mismatch failure")
+        print(mismatched_inscan_output)
+        return 1
     return 0
 
 
