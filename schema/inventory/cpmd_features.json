@@ -1244,6 +1244,42 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.NOSE_IONS_ULTRA",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS ULTRA",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_MASSIVE",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS MASSIVE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_CENTROIDOFF",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS CENTROIDOFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_T0",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS T0",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.NOSE_ELECTRONS",
       "kind": "cpmd_keyword",
       "name": "NOSE ELECTRONS",
