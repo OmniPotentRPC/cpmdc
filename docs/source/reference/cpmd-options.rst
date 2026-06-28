@@ -759,8 +759,9 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 Typed ``&CPMD`` controls
 ========================
 
-``CPMDCpmdSection`` exposes these driver controls directly. The feature
-IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
+``CPMDCpmdSection`` exposes these driver controls directly;
+parser-accepted escape-hatch rows use ``directives``. The feature IDs
+are the stable discovery keys returned by ``cpmdc_feature_table()``.
 
 +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
 | Catalog feature ID                                       | Parameter feature ID                                              | Field                                   | Deck keyword                                |
@@ -1256,6 +1257,8 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 | ``catalog.cpmd.SCALED_MASSES``                           | ``params.inputSections.cpmd.scaledMasses``                        | ``scaledMasses``                        | ``SCALED MASSES``                           |
 +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
 | ``catalog.cpmd.TDDFT``                                   | ``params.inputSections.cpmd.tddft``                               | ``tddft``                               | ``TDDFT``                                   |
++----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
+| ``catalog.cpmd.LSD``                                     | ``params.inputSections.cpmd.directives``                          | ``directives``                          | ``LSD``                                     |
 +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
 | ``catalog.cpmd.SSIC``                                    | ``params.inputSections.cpmd.ssic``                                | ``ssic``                                | ``SSIC``                                    |
 +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+

@@ -299,6 +299,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"catalog.cpmd.VDW_WANNIER", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.DCACP", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.ISOLATED_MOLECULE", CPMDC_FEATURE_KEYWORD, 1, 1},
+    {"catalog.cpmd.LSD", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.MAXRUNTIME", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TIMESTEP_ELECTRONS", CPMDC_FEATURE_KEYWORD, 1, 1},
     {"catalog.cpmd.TIMESTEP_IONS", CPMDC_FEATURE_KEYWORD, 1, 1},
