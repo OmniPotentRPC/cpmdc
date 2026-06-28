@@ -417,6 +417,25 @@ struct CPMDCpmdSection {
   rfoOrder                @259 :Int32 = 0; # RFO ORDER= value; 0 => omit.
   inrParametersCount      @260 :Int32 = 0; # INR PARAMETERS N= count.
   inrParametersPayload    @261 :Text; # INR PARAMETERS payload lines.
+  implicitNewtonOptions   @262 :Text; # IMPLICIT NEWTON inline options.
+  implicitNewtonMaxIter   @263 :Int32 = 0; # IMPLICIT NEWTON payload; 0 => omit.
+  mixsd                   @264 :Float64 = 0.0; # MIXSD payload; 0 => omit.
+  mixdiis                 @265 :Float64 = 0.0; # MIXDIIS payload; 0 => omit.
+  restartOptions          @266 :Text; # RESTART inline options.
+  intFileOptions          @267 :Text; # INTFILE inline options.
+  intFileName             @268 :Text; # INTFILE filename payload.
+  initializeWavefunctionOptions @269 :Text; # INITIALIZE WAVEFUNCTION inline options.
+  rattleParameters        @270 :Text; # RATTLE payload line.
+  orthogonalizationOptions @271 :Text; # ORTHOGONALIZATION inline options.
+  quenchOptions           @272 :Text; # QUENCH inline options.
+  randomizeOptions        @273 :Text; # RANDOMIZE inline options.
+  randomizeAmplitude      @274 :Float64 = 0.0; # RANDOMIZE payload; 0 => omit.
+  useMts                  @275 :Bool = false; # USE_MTS.
+  nabdyZmax               @276 :Int32 = 0; # NABDY_ZMAX payload; 0 => omit.
+  nabdySoft               @277 :Float64 = 0.0; # NABDY_SOFT payload; 0 => omit.
+  nabdyRedistributeAmplitude @278 :Bool = false; # NABDY_REDISTR_AMPLI.
+  nabdyScaleP             @279 :Bool = false; # NABDY_SCALEP.
+  nabdyThermo             @280 :Text; # NABDY_THERMO payload line.
 }
 
 struct CPMDDftSection {

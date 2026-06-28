@@ -373,6 +373,25 @@
     "QMMM",
     "BICANONICAL ENSEMBLE",
     "CDFT",
+    "IMPLICIT NEWTON",
+    "IMPLICIT NEWTON MAXITER",
+    "MIXSD",
+    "MIXDIIS",
+    "RESTART OPTIONS",
+    "INTFILE",
+    "INTFILE NAME",
+    "INITIALIZE WAVEFUNCTION",
+    "RATTLE PARAMETERS",
+    "ORTHOGONALIZATION",
+    "QUENCH OPTIONS",
+    "RANDOMIZE",
+    "RANDOMIZE AMPLITUDE",
+    "USE_MTS",
+    "NABDY_ZMAX",
+    "NABDY_SOFT",
+    "NABDY_REDISTR_AMPLI",
+    "NABDY_SCALEP",
+    "NABDY_THERMO",
     "PROPERTIES",
     "VDW CORRECTION",
     "VDW WANNIER",
@@ -2365,6 +2384,177 @@
       "feature_id": "catalog.cpmd.INR_PARAMETERS_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "INR PARAMETERS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.IMPLICIT_NEWTON_MAXITER",
+      "kind": "cpmd_keyword",
+      "name": "IMPLICIT NEWTON maxiter",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MIXSD",
+      "kind": "cpmd_keyword",
+      "name": "MIXSD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MIXDIIS",
+      "kind": "cpmd_keyword",
+      "name": "MIXDIIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTART_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "RESTART options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTFILE",
+      "kind": "cpmd_keyword",
+      "name": "INTFILE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTFILE_NAME",
+      "kind": "cpmd_keyword",
+      "name": "INTFILE filename",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INITIALIZE_WAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "INITIALIZE WAVEFUNCTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RATTLE_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "RATTLE parameters",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ORTHOGONALIZATION",
+      "kind": "cpmd_keyword",
+      "name": "ORTHOGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QUENCH_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RANDOMIZE",
+      "kind": "cpmd_keyword",
+      "name": "RANDOMIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RANDOMIZE_AMPLITUDE",
+      "kind": "cpmd_keyword",
+      "name": "RANDOMIZE amplitude",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.USE_MTS",
+      "kind": "cpmd_keyword",
+      "name": "USE_MTS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NABDY_ZMAX",
+      "kind": "cpmd_keyword",
+      "name": "NABDY_ZMAX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NABDY_SOFT",
+      "kind": "cpmd_keyword",
+      "name": "NABDY_SOFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NABDY_REDISTR_AMPLI",
+      "kind": "cpmd_keyword",
+      "name": "NABDY_REDISTR_AMPLI",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NABDY_SCALEP",
+      "kind": "cpmd_keyword",
+      "name": "NABDY_SCALEP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NABDY_THERMO",
+      "kind": "cpmd_keyword",
+      "name": "NABDY_THERMO",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -5707,6 +5897,158 @@
       "feature_id": "params.inputSections.cpmd.inrParametersPayload",
       "kind": "structured_params_field",
       "name": "inrParametersPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.implicitNewtonOptions",
+      "kind": "structured_params_field",
+      "name": "implicitNewtonOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.implicitNewtonMaxIter",
+      "kind": "structured_params_field",
+      "name": "implicitNewtonMaxIter",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.mixsd",
+      "kind": "structured_params_field",
+      "name": "mixsd",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.mixdiis",
+      "kind": "structured_params_field",
+      "name": "mixdiis",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.restartOptions",
+      "kind": "structured_params_field",
+      "name": "restartOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.intFileOptions",
+      "kind": "structured_params_field",
+      "name": "intFileOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.intFileName",
+      "kind": "structured_params_field",
+      "name": "intFileName",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.initializeWavefunctionOptions",
+      "kind": "structured_params_field",
+      "name": "initializeWavefunctionOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rattleParameters",
+      "kind": "structured_params_field",
+      "name": "rattleParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.orthogonalizationOptions",
+      "kind": "structured_params_field",
+      "name": "orthogonalizationOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.quenchOptions",
+      "kind": "structured_params_field",
+      "name": "quenchOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.randomizeOptions",
+      "kind": "structured_params_field",
+      "name": "randomizeOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.randomizeAmplitude",
+      "kind": "structured_params_field",
+      "name": "randomizeAmplitude",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.useMts",
+      "kind": "structured_params_field",
+      "name": "useMts",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nabdyZmax",
+      "kind": "structured_params_field",
+      "name": "nabdyZmax",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nabdySoft",
+      "kind": "structured_params_field",
+      "name": "nabdySoft",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nabdyRedistributeAmplitude",
+      "kind": "structured_params_field",
+      "name": "nabdyRedistributeAmplitude",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nabdyScaleP",
+      "kind": "structured_params_field",
+      "name": "nabdyScaleP",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nabdyThermo",
+      "kind": "structured_params_field",
+      "name": "nabdyThermo",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

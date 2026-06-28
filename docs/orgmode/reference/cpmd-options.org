@@ -590,6 +590,25 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.RFO~ | ~params.inputSections.cpmd.rfoOrder~ | ~rfoOrder~ | ~RFO ORDER=~ |
 | ~catalog.cpmd.INR_PARAMETERS~ | ~params.inputSections.cpmd.inrParametersCount~ | ~inrParametersCount~ | ~INR PARAMETERS N=~ |
 | ~catalog.cpmd.INR_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.inrParametersPayload~ | ~inrParametersPayload~ | ~INR PARAMETERS payload~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON~ |
+| ~catalog.cpmd.IMPLICIT_NEWTON_MAXITER~ | ~params.inputSections.cpmd.implicitNewtonMaxIter~ | ~implicitNewtonMaxIter~ | ~IMPLICIT NEWTON payload~ |
+| ~catalog.cpmd.MIXSD~ | ~params.inputSections.cpmd.mixsd~ | ~mixsd~ | ~MIXSD~ |
+| ~catalog.cpmd.MIXDIIS~ | ~params.inputSections.cpmd.mixdiis~ | ~mixdiis~ | ~MIXDIIS~ |
+| ~catalog.cpmd.RESTART_OPTIONS~ | ~params.inputSections.cpmd.restartOptions~ | ~restartOptions~ | ~RESTART~ |
+| ~catalog.cpmd.INTFILE~ | ~params.inputSections.cpmd.intFileOptions~ | ~intFileOptions~ | ~INTFILE~ |
+| ~catalog.cpmd.INTFILE_NAME~ | ~params.inputSections.cpmd.intFileName~ | ~intFileName~ | ~INTFILE filename~ |
+| ~catalog.cpmd.INITIALIZE_WAVEFUNCTION~ | ~params.inputSections.cpmd.initializeWavefunctionOptions~ | ~initializeWavefunctionOptions~ | ~INITIALIZE WAVEFUNCTION~ |
+| ~catalog.cpmd.RATTLE_PARAMETERS~ | ~params.inputSections.cpmd.rattleParameters~ | ~rattleParameters~ | ~RATTLE payload~ |
+| ~catalog.cpmd.ORTHOGONALIZATION~ | ~params.inputSections.cpmd.orthogonalizationOptions~ | ~orthogonalizationOptions~ | ~ORTHOGONALIZATION~ |
+| ~catalog.cpmd.QUENCH_OPTIONS~ | ~params.inputSections.cpmd.quenchOptions~ | ~quenchOptions~ | ~QUENCH~ |
+| ~catalog.cpmd.RANDOMIZE~ | ~params.inputSections.cpmd.randomizeOptions~ | ~randomizeOptions~ | ~RANDOMIZE~ |
+| ~catalog.cpmd.RANDOMIZE_AMPLITUDE~ | ~params.inputSections.cpmd.randomizeAmplitude~ | ~randomizeAmplitude~ | ~RANDOMIZE payload~ |
+| ~catalog.cpmd.USE_MTS~ | ~params.inputSections.cpmd.useMts~ | ~useMts~ | ~USE_MTS~ |
+| ~catalog.cpmd.NABDY_ZMAX~ | ~params.inputSections.cpmd.nabdyZmax~ | ~nabdyZmax~ | ~NABDY_ZMAX~ |
+| ~catalog.cpmd.NABDY_SOFT~ | ~params.inputSections.cpmd.nabdySoft~ | ~nabdySoft~ | ~NABDY_SOFT~ |
+| ~catalog.cpmd.NABDY_REDISTR_AMPLI~ | ~params.inputSections.cpmd.nabdyRedistributeAmplitude~ | ~nabdyRedistributeAmplitude~ | ~NABDY_REDISTR_AMPLI~ |
+| ~catalog.cpmd.NABDY_SCALEP~ | ~params.inputSections.cpmd.nabdyScaleP~ | ~nabdyScaleP~ | ~NABDY_SCALEP~ |
+| ~catalog.cpmd.NABDY_THERMO~ | ~params.inputSections.cpmd.nabdyThermo~ | ~nabdyThermo~ | ~NABDY_THERMO~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |

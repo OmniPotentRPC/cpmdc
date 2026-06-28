@@ -1925,6 +1925,149 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if ((sec->implicitNewtonOptions.str &&
+       sec->implicitNewtonOptions.len > 0) ||
+      sec->implicitNewtonMaxIter > 0) {
+    if (append_text(dst, dst_size, used, " IMPLICIT NEWTON") != 0)
+      return -1;
+    if (sec->implicitNewtonOptions.str &&
+        sec->implicitNewtonOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->implicitNewtonOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->implicitNewtonMaxIter > 0 &&
+        append_fmt(dst, dst_size, used, "  %d\n",
+                   sec->implicitNewtonMaxIter) != 0)
+      return -1;
+  }
+  if (sec->mixsd > 0.0) {
+    if (append_fmt(dst, dst_size, used, " MIXSD\n  %.10g\n",
+                   sec->mixsd) != 0)
+      return -1;
+  }
+  if (sec->mixdiis > 0.0) {
+    if (append_fmt(dst, dst_size, used, " MIXDIIS\n  %.10g\n",
+                   sec->mixdiis) != 0)
+      return -1;
+  }
+  if (sec->restartOptions.str && sec->restartOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " RESTART ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->restartOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->intFileOptions.str && sec->intFileOptions.len > 0) ||
+      (sec->intFileName.str && sec->intFileName.len > 0)) {
+    if (append_text(dst, dst_size, used, " INTFILE") != 0)
+      return -1;
+    if (sec->intFileOptions.str && sec->intFileOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->intFileOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->intFileName.str && sec->intFileName.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->intFileName) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->initializeWavefunctionOptions.str &&
+      sec->initializeWavefunctionOptions.len > 0) {
+    if (append_text(dst, dst_size, used,
+                    " INITIALIZE WAVEFUNCTION ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->initializeWavefunctionOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->rattleParameters.str && sec->rattleParameters.len > 0) {
+    if (append_text(dst, dst_size, used, " RATTLE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->rattleParameters) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->orthogonalizationOptions.str &&
+      sec->orthogonalizationOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " ORTHOGONALIZATION ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->orthogonalizationOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->quenchOptions.str && sec->quenchOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " QUENCH ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->quenchOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->randomizeOptions.str && sec->randomizeOptions.len > 0) ||
+      sec->randomizeAmplitude > 0.0) {
+    if (append_text(dst, dst_size, used, " RANDOMIZE") != 0)
+      return -1;
+    if (sec->randomizeOptions.str && sec->randomizeOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->randomizeOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->randomizeAmplitude > 0.0 &&
+        append_fmt(dst, dst_size, used, "  %.10g\n",
+                   sec->randomizeAmplitude) != 0)
+      return -1;
+  }
+  if (sec->useMts) {
+    if (append_text(dst, dst_size, used, " USE_MTS\n") != 0)
+      return -1;
+  }
+  if (sec->nabdyZmax > 0) {
+    if (append_fmt(dst, dst_size, used, " NABDY_ZMAX\n  %d\n",
+                   sec->nabdyZmax) != 0)
+      return -1;
+  }
+  if (sec->nabdySoft > 0.0) {
+    if (append_fmt(dst, dst_size, used, " NABDY_SOFT\n  %.10g\n",
+                   sec->nabdySoft) != 0)
+      return -1;
+  }
+  if (sec->nabdyRedistributeAmplitude) {
+    if (append_text(dst, dst_size, used, " NABDY_REDISTR_AMPLI\n") != 0)
+      return -1;
+  }
+  if (sec->nabdyScaleP) {
+    if (append_text(dst, dst_size, used, " NABDY_SCALEP\n") != 0)
+      return -1;
+  }
+  if (sec->nabdyThermo.str && sec->nabdyThermo.len > 0) {
+    if (append_text(dst, dst_size, used, " NABDY_THERMO\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->nabdyThermo) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)
