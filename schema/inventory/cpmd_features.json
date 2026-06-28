@@ -2971,6 +2971,753 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.MAXRUNTIME",
+      "kind": "cpmd_keyword",
+      "name": "MAXRUNTIME",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TIMESTEP_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "TIMESTEP ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TIMESTEP_IONS",
+      "kind": "cpmd_keyword",
+      "name": "TIMESTEP IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CMASS",
+      "kind": "cpmd_keyword",
+      "name": "CMASS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPERATURE_ELECTRON",
+      "kind": "cpmd_keyword",
+      "name": "TEMPERATURE ELECTRON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPERATURE",
+      "kind": "cpmd_keyword",
+      "name": "TEMPERATURE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPERATURE_RAMP",
+      "kind": "cpmd_keyword",
+      "name": "TEMPERATURE RAMP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPERATURE_RAMP_TIME",
+      "kind": "cpmd_keyword",
+      "name": "TEMPERATURE RAMP payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPERATURE_RAMP_RATE",
+      "kind": "cpmd_keyword",
+      "name": "TEMPERATURE RAMP payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESCALE_OLD_VELOCITIES",
+      "kind": "cpmd_keyword",
+      "name": "RESCALE OLD VELOCITIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.REVERSE_VELOCITIES",
+      "kind": "cpmd_keyword",
+      "name": "REVERSE VELOCITIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SUBTRACT_COMVEL",
+      "kind": "cpmd_keyword",
+      "name": "SUBTRACT COMVEL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SUBTRACT_ROTVEL",
+      "kind": "cpmd_keyword",
+      "name": "SUBTRACT ROTVEL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRNGSEED",
+      "kind": "cpmd_keyword",
+      "name": "PRNGSEED",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPCONTROL_IONS",
+      "kind": "cpmd_keyword",
+      "name": "TEMPCONTROL IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPCONTROL_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "TEMPCONTROL ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPCONTROL_CELL",
+      "kind": "cpmd_keyword",
+      "name": "TEMPCONTROL CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BERENDSEN_IONS",
+      "kind": "cpmd_keyword",
+      "name": "BERENDSEN IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BERENDSEN_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "BERENDSEN ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BERENDSEN_CELL",
+      "kind": "cpmd_keyword",
+      "name": "BERENDSEN CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_CELL",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_ADAPT",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE ADAPT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_ENERGY",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE ENERGY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_CALFOR",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE CALFOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_RELAX",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE RELAX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_RHOFIX",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE RHOFIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_INITIAL",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE INITIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONVERGENCE_CONSTRAINT",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE CONSTRAINT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_IONS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "NOSE IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_ELECTRONS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "NOSE ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_CELL_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "NOSE CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NOSE_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "NOSE PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANNEALING_IONS",
+      "kind": "cpmd_keyword",
+      "name": "ANNEALING IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANNEALING_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "ANNEALING ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ANNEALING_CELL",
+      "kind": "cpmd_keyword",
+      "name": "ANNEALING CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAMPING_IONS",
+      "kind": "cpmd_keyword",
+      "name": "DAMPING IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAMPING_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "DAMPING ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAMPING_CELL",
+      "kind": "cpmd_keyword",
+      "name": "DAMPING CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.HESSIAN",
+      "kind": "cpmd_keyword",
+      "name": "HESSIAN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PROJECT",
+      "kind": "cpmd_keyword",
+      "name": "PROJECT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRESS_TENSOR_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "STRESS TENSOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STRESS_TENSOR_VIRIAL",
+      "kind": "cpmd_keyword",
+      "name": "STRESS TENSOR VIRIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CLASSTRESS",
+      "kind": "cpmd_keyword",
+      "name": "CLASSTRESS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_SELECTION",
+      "kind": "cpmd_keyword",
+      "name": "STORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_INTERVAL",
+      "kind": "cpmd_keyword",
+      "name": "STORE interval",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_SC_INTERVAL",
+      "kind": "cpmd_keyword",
+      "name": "STORE SC= interval",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.STORE_OFF",
+      "kind": "cpmd_keyword",
+      "name": "STORE OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTFILE",
+      "kind": "cpmd_keyword",
+      "name": "RESTFILE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTFILE_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "RESTFILE SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRAJECTORY_RANGE",
+      "kind": "cpmd_keyword",
+      "name": "TRAJECTORY RANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOVIE_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "MOVIE SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOVIE_OFF",
+      "kind": "cpmd_keyword",
+      "name": "MOVIE OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ENERGYBANDS",
+      "kind": "cpmd_keyword",
+      "name": "ENERGYBANDS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTERNAL_POTENTIAL",
+      "kind": "cpmd_keyword",
+      "name": "EXTERNAL POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.EXTERNAL_POTENTIAL_ADD",
+      "kind": "cpmd_keyword",
+      "name": "EXTERNAL POTENTIAL ADD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ELECTROSTATIC_POTENTIAL",
+      "kind": "cpmd_keyword",
+      "name": "ELECTROSTATIC POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ELECTROSTATIC_POTENTIAL_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "ELECTROSTATIC POTENTIAL SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIPOLE_DYNAMICS_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "DIPOLE DYNAMICS SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DIPOLE_DYNAMICS_WANNIER",
+      "kind": "cpmd_keyword",
+      "name": "DIPOLE DYNAMICS WANNIER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RHOOUT",
+      "kind": "cpmd_keyword",
+      "name": "RHOOUT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RHOOUT_SAMPLE",
+      "kind": "cpmd_keyword",
+      "name": "RHOOUT SAMPLE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RHOOUT_BANDS_COUNT",
+      "kind": "cpmd_keyword",
+      "name": "RHOOUT BANDS count",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RHOOUT_BANDS",
+      "kind": "cpmd_keyword",
+      "name": "RHOOUT BANDS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ELF",
+      "kind": "cpmd_keyword",
+      "name": "ELF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ELF_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "ELF PARAMETER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.COMPRESS",
+      "kind": "cpmd_keyword",
+      "name": "COMPRESS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MEMORY",
+      "kind": "cpmd_keyword",
+      "name": "MEMORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.REAL_SPACE_WFN_KEEP",
+      "kind": "cpmd_keyword",
+      "name": "REAL SPACE WFN KEEP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.REAL_SPACE_WFN_SIZE",
+      "kind": "cpmd_keyword",
+      "name": "REAL SPACE WFN SIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_POINTS",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE POINTS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SPLINE_RANGE",
+      "kind": "cpmd_keyword",
+      "name": "SPLINE RANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FINITE_DIFFERENCES",
+      "kind": "cpmd_keyword",
+      "name": "FINITE DIFFERENCES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TASKGROUPS",
+      "kind": "cpmd_keyword",
+      "name": "TASKGROUPS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TASKGROUPS_COUNT",
+      "kind": "cpmd_keyword",
+      "name": "TASKGROUPS count",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DISTRIBUTE_FNL",
+      "kind": "cpmd_keyword",
+      "name": "DISTRIBUTE FNL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FILEPATH",
+      "kind": "cpmd_keyword",
+      "name": "FILEPATH",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BENCHMARK",
+      "kind": "cpmd_keyword",
+      "name": "BENCHMARK",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MIRROR",
+      "kind": "cpmd_keyword",
+      "name": "MIRROR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SHIFT_POTENTIAL",
+      "kind": "cpmd_keyword",
+      "name": "SHIFT POTENTIAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.GLOC_WFNOUT_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "GLOC WFNOUT payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.dft.FUNCTIONAL_LDA",
       "kind": "dft_functional",
       "name": "LDA",
