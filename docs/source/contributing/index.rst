@@ -46,6 +46,9 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | Typed render field coverage      | ``meson test -C build cpmd-typed-render-field-coverage --print-errorlogs``                |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Long-tail directive section      | ``meson test -C build cpmd-long-tail-section-coverage --print-errorlogs``                 |
+| coverage                         |                                                                                           |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | Public host example docs         | ``meson test -C build examples-documented --print-errorlogs``                             |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | README and quickstart navigation | ``meson test -C build readme-navigation --print-errorlogs``                               |
@@ -78,10 +81,13 @@ test to load every ``abi_symbols`` entry from ``libcpmdc.so``.
 typed ``CPMDCpmdSection`` fields and fixture inline tokens tied to
 render coverage. ``cpmd-typed-render-field-coverage`` requires typed
 ``cpmd``, ``system``, ``dft``, and ``atoms`` fields to appear in render
-fixtures or render assertions. ``examples-documented`` requires public
-docs to point at the runnable ``examples/host_step.c`` host program.
-``readme-navigation`` keeps the README and quickstart docs focused on
-entry paths, work-loop labels, and current wording.
+fixtures or render assertions. ``cpmd-long-tail-section-coverage``
+requires every ``CPMDDirectiveSection`` union arm to appear in the
+long-tail fixture, render assertions, and option reference.
+``examples-documented`` requires public docs to point at the runnable
+``examples/host_step.c`` host program. ``readme-navigation`` keeps the
+README and quickstart docs focused on entry paths, work-loop labels, and
+current wording.
 
 Add a typed CPMD keyword
 ========================
@@ -119,6 +125,7 @@ Run the focused failure before adding production code:
      stub-abi-symbol-coverage \
      shared-dlopen-symbol-coverage \
      cpmd-option-token-coverage cpmd-typed-render-field-coverage \
+     cpmd-long-tail-section-coverage \
      --print-errorlogs
 
 Then update the production and docs surface in one change:

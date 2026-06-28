@@ -569,6 +569,15 @@ if get_option('with_tests')
     suite: ['params', 'inventory'],
   )
   test(
+    'cpmd-long-tail-section-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_long_tail_section_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['params', 'inventory'],
+  )
+  test(
     'examples-documented',
     python,
     args: [

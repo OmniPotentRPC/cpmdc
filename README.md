@@ -203,6 +203,7 @@ table, renderer, README, and reference docs aligned:
 | `cpmd-schema-render-coverage` | every typed `CPMDCpmdSection` field, except `directives`, has a catalog render mapping in `tests/test_params_cp_dft_render.c` |
 | `cpmd-option-token-coverage` | inline option tokens in Cap'n Proto fixtures have catalog render coverage |
 | `cpmd-typed-render-field-coverage` | typed `cpmd`, `system`, `dft`, and `atoms` fields are mentioned by render fixtures or render assertions |
+| `cpmd-long-tail-section-coverage` | every `CPMDDirectiveSection` union arm is present in the long-tail fixture, render assertions, and option reference |
 | `examples-documented` | public docs point to the runnable `examples/host_step.c` host program |
 | `readme-navigation` | README and quickstart docs keep clear entry paths, work-loop labels, and current wording |
 
@@ -215,7 +216,7 @@ meson test -C build \
   stub-abi-symbol-coverage \
   shared-dlopen-symbol-coverage \
   cpmd-schema-render-coverage cpmd-option-token-coverage \
-  cpmd-typed-render-field-coverage \
+  cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
   examples-documented readme-navigation \
   --print-errorlogs
 ```

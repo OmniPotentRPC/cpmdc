@@ -190,7 +190,7 @@ Run the focused inventory guards with:
      stub-abi-symbol-coverage \
      shared-dlopen-symbol-coverage \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
-     cpmd-typed-render-field-coverage \
+     cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
      --print-errorlogs
 
 ``feature-inventory`` cross-checks the JSON inventory against the
@@ -216,7 +216,9 @@ fields to appear in the catalog render fixtures, and
 Proto fixtures to have render coverage.
 ``cpmd-typed-render-field-coverage`` requires typed ``cpmd``,
 ``system``, ``dft``, and ``atoms`` fields to appear in render fixtures
-or render assertions.
+or render assertions. ``cpmd-long-tail-section-coverage`` requires every
+``CPMDDirectiveSection`` union arm to appear in the long-tail fixture,
+render assertions, and this reference page.
 
 ``CPMDInputSection`` kinds
 ==========================
