@@ -121,7 +121,7 @@
         woutPayload = "0.25 10",
         xfmqcTrajectories = 11,
         properties = true,
-        debugOptions = "FORCES FILE IO NOACC HUBBARD",
+        debugOptions = "CODE MEMORY FILEOPEN FORCES NOACC HUBBARD",
         kohnShamEnergiesOptions = "NOWAVEFUNCTION",
         kohnShamEnergiesCount = 6,
         surfaceHoppingOptions = "NEW RESTART SHIFT=0.25",
