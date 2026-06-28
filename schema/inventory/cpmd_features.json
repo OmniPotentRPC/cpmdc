@@ -3015,6 +3015,54 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.annealingIons",
+      "kind": "structured_params_field",
+      "name": "annealingIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.annealingElectrons",
+      "kind": "structured_params_field",
+      "name": "annealingElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.annealingCell",
+      "kind": "structured_params_field",
+      "name": "annealingCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dampingIons",
+      "kind": "structured_params_field",
+      "name": "dampingIons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dampingElectrons",
+      "kind": "structured_params_field",
+      "name": "dampingElectrons",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.dampingCell",
+      "kind": "structured_params_field",
+      "name": "dampingCell",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.quench",
       "kind": "structured_params_field",
       "name": "quench",

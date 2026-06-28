@@ -386,6 +386,12 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.BERENDSEN~ | ~params.inputSections.cpmd.berendsen~ | ~berendsen~ | ~BERENDSEN~ |
 | ~catalog.cpmd.LANGEVIN~ | ~params.inputSections.cpmd.langevin~ | ~langevin~ | ~LANGEVIN~ |
 | ~catalog.cpmd.ANNEALING~ | ~params.inputSections.cpmd.annealing~ | ~annealing~ | ~ANNEALING~ |
+| ~catalog.cpmd.ANNEALING_IONS~ | ~params.inputSections.cpmd.annealingIons~ | ~annealingIons~ | ~ANNEALING IONS~ |
+| ~catalog.cpmd.ANNEALING_ELECTRONS~ | ~params.inputSections.cpmd.annealingElectrons~ | ~annealingElectrons~ | ~ANNEALING ELECTRONS~ |
+| ~catalog.cpmd.ANNEALING_CELL~ | ~params.inputSections.cpmd.annealingCell~ | ~annealingCell~ | ~ANNEALING CELL~ |
+| ~catalog.cpmd.DAMPING_IONS~ | ~params.inputSections.cpmd.dampingIons~ | ~dampingIons~ | ~DAMPING IONS~ |
+| ~catalog.cpmd.DAMPING_ELECTRONS~ | ~params.inputSections.cpmd.dampingElectrons~ | ~dampingElectrons~ | ~DAMPING ELECTRONS~ |
+| ~catalog.cpmd.DAMPING_CELL~ | ~params.inputSections.cpmd.dampingCell~ | ~dampingCell~ | ~DAMPING CELL~ |
 | ~catalog.cpmd.QUENCH~ | ~params.inputSections.cpmd.quench~ | ~quench~ | ~QUENCH~ |
 | ~catalog.cpmd.RATTLE~ | ~params.inputSections.cpmd.rattle~ | ~rattle~ | ~RATTLE~ |
 | ~catalog.cpmd.SHAKE~ | ~params.inputSections.cpmd.shake~ | ~shake~ | ~SHAKE~ |

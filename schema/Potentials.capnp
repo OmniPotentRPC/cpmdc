@@ -235,6 +235,12 @@ struct CPMDCpmdSection {
   convergenceRhofix       @77 :Float64 = 0.0; # CONVERGENCE RHOFIX; 0 => omit.
   convergenceInitial      @78 :Float64 = 0.0; # CONVERGENCE INITIAL; 0 => omit.
   convergenceConstraint   @79 :Text; # CONVERGENCE CONSTRAINT payload.
+  annealingIons           @80 :Float64 = 0.0; # ANNEALING IONS; 0 => omit.
+  annealingElectrons      @81 :Float64 = 0.0; # ANNEALING ELECTRONS; 0 => omit.
+  annealingCell           @82 :Float64 = 0.0; # ANNEALING CELL; 0 => omit.
+  dampingIons             @83 :Float64 = 0.0; # DAMPING IONS; 0 => omit.
+  dampingElectrons        @84 :Float64 = 0.0; # DAMPING ELECTRONS; 0 => omit.
+  dampingCell             @85 :Float64 = 0.0; # DAMPING CELL; 0 => omit.
 }
 
 struct CPMDDftSection {

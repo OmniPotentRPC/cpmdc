@@ -1511,6 +1511,36 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
+  if (sec->annealingIons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " ANNEALING IONS\n  %.10g\n",
+                   sec->annealingIons) != 0)
+      return -1;
+  }
+  if (sec->annealingElectrons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " ANNEALING ELECTRONS\n  %.10g\n",
+                   sec->annealingElectrons) != 0)
+      return -1;
+  }
+  if (sec->annealingCell > 0.0) {
+    if (append_fmt(dst, dst_size, used, " ANNEALING CELL\n  %.10g\n",
+                   sec->annealingCell) != 0)
+      return -1;
+  }
+  if (sec->dampingIons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " DAMPING IONS\n  %.10g\n",
+                   sec->dampingIons) != 0)
+      return -1;
+  }
+  if (sec->dampingElectrons > 0.0) {
+    if (append_fmt(dst, dst_size, used, " DAMPING ELECTRONS\n  %.10g\n",
+                   sec->dampingElectrons) != 0)
+      return -1;
+  }
+  if (sec->dampingCell > 0.0) {
+    if (append_fmt(dst, dst_size, used, " DAMPING CELL\n  %.10g\n",
+                   sec->dampingCell) != 0)
+      return -1;
+  }
   if (sec->quench) {
     if (append_text(dst, dst_size, used, " QUENCH\n") != 0)
       return -1;
