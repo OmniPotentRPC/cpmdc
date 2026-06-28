@@ -708,16 +708,22 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.SURFACE_HOPPING_SHIFT~ | ~params.inputSections.cpmd.surfaceHoppingOptions~ | ~surfaceHoppingOptions~ | ~SURFACE HOPPING SHIFT=~ |
 | ~catalog.cpmd.ROKS~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS~ |
 | ~catalog.cpmd.ROKS_LOCALIZED~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS LOCALIZED~ |
+| ~catalog.cpmd.ROKS_TRIPLET~ | ~params.inputSections.cpmd.roksOptions~ | ~roksOptions~ | ~ROKS TRIPLET~ |
 | ~catalog.cpmd.ROKS_EXPERT~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT~ |
 | ~catalog.cpmd.ROKS_EXPERT_PAYLOAD~ | ~params.inputSections.cpmd.roksExpertPayload~ | ~roksExpertPayload~ | ~ROKS EXPERT payload~ |
 | ~catalog.cpmd.PATH_SAMPLING~ | ~params.inputSections.cpmd.pathSampling~ | ~pathSampling~ | ~PATH SAMPLING~ |
 | ~catalog.cpmd.FIXRHO_UPWFN~ | ~params.inputSections.cpmd.fixrhoUpwfnOptions~ | ~fixrhoUpwfnOptions~ | ~FIXRHO UPWFN~ |
+| ~catalog.cpmd.FIXRHO_UPWFN_PCG~ | ~params.inputSections.cpmd.fixrhoUpwfnOptions~ | ~fixrhoUpwfnOptions~ | ~FIXRHO UPWFN PCG~ |
 | ~catalog.cpmd.FIXRHO_VECT~ | ~params.inputSections.cpmd.fixrhoVectors~ | ~fixrhoVectors~ | ~FIXRHO VECT~ |
 | ~catalog.cpmd.FIXRHO_LOOP~ | ~params.inputSections.cpmd.fixrhoLoop~ | ~fixrhoLoop~ | ~FIXRHO LOOP~ |
 | ~catalog.cpmd.FIXRHO_WFTOL~ | ~params.inputSections.cpmd.fixrhoWftol~ | ~fixrhoWftol~ | ~FIXRHO WFTOL~ |
 | ~catalog.cpmd.BOGOLIUBOV_CORRECTION~ | ~params.inputSections.cpmd.bogoliubovCorrection~ | ~bogoliubovCorrection~ | ~BOGOLIUBOV CORRECTION~ |
 | ~catalog.cpmd.BOGOLIUBOV_CORRECTION_OFF~ | ~params.inputSections.cpmd.bogoliubovCorrection~ | ~bogoliubovCorrection~ | ~BOGOLIUBOV CORRECTION OFF~ |
 | ~catalog.cpmd.VIBRATIONAL_ANALYSIS~ | ~params.inputSections.cpmd.vibrationalAnalysisOptions~ | ~vibrationalAnalysisOptions~ | ~VIBRATIONAL ANALYSIS~ |
+| ~catalog.cpmd.VIBRATIONAL_ANALYSIS_LR~ | ~params.inputSections.cpmd.vibrationalAnalysisOptions~ | ~vibrationalAnalysisOptions~ | ~VIBRATIONAL ANALYSIS LR~ |
+| ~catalog.cpmd.VIBRATIONAL_ANALYSIS_IN~ | ~params.inputSections.cpmd.vibrationalAnalysisOptions~ | ~vibrationalAnalysisOptions~ | ~VIBRATIONAL ANALYSIS IN~ |
+| ~catalog.cpmd.VIBRATIONAL_ANALYSIS_ACLIMAX~ | ~params.inputSections.cpmd.vibrationalAnalysisOptions~ | ~vibrationalAnalysisOptions~ | ~VIBRATIONAL ANALYSIS ACLIMAX~ |
+| ~catalog.cpmd.VIBRATIONAL_ANALYSIS_GAUSS~ | ~params.inputSections.cpmd.vibrationalAnalysisOptions~ | ~vibrationalAnalysisOptions~ | ~VIBRATIONAL ANALYSIS GAUSS~ |
 | ~catalog.cpmd.VIBRATIONAL_ANALYSIS_SAMPLE~ | ~params.inputSections.cpmd.vibrationalAnalysisSample~ | ~vibrationalAnalysisSample~ | ~VIBRATIONAL ANALYSIS SAMPLE~ |
 | ~catalog.cpmd.VIBRATIONAL_ANALYSIS_MODE~ | ~params.inputSections.cpmd.vibrationalAnalysisMode~ | ~vibrationalAnalysisMode~ | ~VIBRATIONAL ANALYSIS MODE=~ |
 | ~catalog.cpmd.ELECTRONIC_SPECTRA~ | ~params.inputSections.cpmd.electronicSpectra~ | ~electronicSpectra~ | ~ELECTRONIC SPECTRA~ |
@@ -729,6 +735,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.GAUGEFIELD~ | ~params.inputSections.cpmd.gaugeFieldFrequency~ | ~gaugeFieldFrequency~ | ~GAUGEFIELD~ |
 | ~catalog.cpmd.NACV~ | ~params.inputSections.cpmd.nacv~ | ~nacv~ | ~NACV~ |
 | ~catalog.cpmd.ORBITAL_HARDNESS~ | ~params.inputSections.cpmd.orbitalHardnessOptions~ | ~orbitalHardnessOptions~ | ~ORBITAL HARDNESS~ |
+| ~catalog.cpmd.ORBITAL_HARDNESS_LR~ | ~params.inputSections.cpmd.orbitalHardnessOptions~ | ~orbitalHardnessOptions~ | ~ORBITAL HARDNESS LR~ |
 | ~catalog.cpmd.PATH_INTEGRAL~ | ~params.inputSections.cpmd.pathIntegral~ | ~pathIntegral~ | ~PATH INTEGRAL~ |
 | ~catalog.cpmd.PATH_MINIMIZATION~ | ~params.inputSections.cpmd.pathMinimization~ | ~pathMinimization~ | ~PATH MINIMIZATION~ |
 | ~catalog.cpmd.LANGEVIN_OPTIONS~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN~ |
@@ -778,6 +785,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingCount~ | ~andersonMixingCount~ | ~ANDERSON MIXING N=~ |
 | ~catalog.cpmd.ANDERSON_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.andersonMixingPayload~ | ~andersonMixingPayload~ | ~ANDERSON MIXING payload~ |
 | ~catalog.cpmd.BROYDEN_MIXING~ | ~params.inputSections.cpmd.broydenMixingOptions~ | ~broydenMixingOptions~ | ~BROYDEN MIXING~ |
+| ~catalog.cpmd.BROYDEN_MIXING_ADAPT~ | ~params.inputSections.cpmd.broydenMixingOptions~ | ~broydenMixingOptions~ | ~BROYDEN MIXING ADAPT~ |
 | ~catalog.cpmd.BROYDEN_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING payload~ |
 | ~catalog.cpmd.DIIS_MIXING~ | ~params.inputSections.cpmd.diisMixingCount~ | ~diisMixingCount~ | ~DIIS MIXING N=~ |
 | ~catalog.cpmd.DIIS_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.diisMixingPayload~ | ~diisMixingPayload~ | ~DIIS MIXING payload~ |

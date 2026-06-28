@@ -2297,6 +2297,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ROKS_TRIPLET",
+      "kind": "cpmd_keyword",
+      "name": "ROKS TRIPLET",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.ROKS_EXPERT_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "ROKS EXPERT payload",
@@ -2327,6 +2336,15 @@
       "feature_id": "catalog.cpmd.FIXRHO_UPWFN",
       "kind": "cpmd_keyword",
       "name": "FIXRHO UPWFN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FIXRHO_UPWFN_PCG",
+      "kind": "cpmd_keyword",
+      "name": "FIXRHO UPWFN PCG",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2381,6 +2399,42 @@
       "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS",
       "kind": "cpmd_keyword",
       "name": "VIBRATIONAL ANALYSIS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_LR",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS LR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_IN",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS IN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_ACLIMAX",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS ACLIMAX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.VIBRATIONAL_ANALYSIS_GAUSS",
+      "kind": "cpmd_keyword",
+      "name": "VIBRATIONAL ANALYSIS GAUSS",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2480,6 +2534,15 @@
       "feature_id": "catalog.cpmd.ORBITAL_HARDNESS",
       "kind": "cpmd_keyword",
       "name": "ORBITAL HARDNESS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ORBITAL_HARDNESS_LR",
+      "kind": "cpmd_keyword",
+      "name": "ORBITAL HARDNESS LR",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2912,6 +2975,15 @@
       "feature_id": "catalog.cpmd.BROYDEN_MIXING",
       "kind": "cpmd_keyword",
       "name": "BROYDEN MIXING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_ADAPT",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING ADAPT",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
