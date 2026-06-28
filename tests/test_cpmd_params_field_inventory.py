@@ -114,6 +114,16 @@ def write_features_c_with_extra_section(repo: Path, tmpdir: Path) -> Path:
     return path
 
 
+def write_allowlist_with_duplicate(repo: Path, tmpdir: Path) -> Path:
+    text = (repo / "schema/inventory/opencpmd_sections.txt").read_text(
+        encoding="utf-8"
+    )
+    first = next(line for line in text.splitlines() if line.strip())
+    path = tmpdir / "opencpmd_sections_duplicate.txt"
+    path.write_text(f"{text.rstrip()}\n{first}\n", encoding="utf-8")
+    return path
+
+
 def run_checker_with_inventory(checker, inventory: Path) -> tuple[int, str]:
     return run_checker_with_paths(checker, INVENTORY=inventory)
 
@@ -198,6 +208,10 @@ def main() -> int:
             INVENTORY=write_inventory_with_extra_section_feature(repo, tmpdir),
             FEATURES_C=write_features_c_with_extra_section(repo, tmpdir),
         )
+        duplicate_allow_code, duplicate_allow_output = run_checker_with_paths(
+            checker,
+            SEC_ALLOW=write_allowlist_with_duplicate(repo, tmpdir),
+        )
 
     expected = "inventory missing top-level params feature from CPMDParams: functional"
     if missing_code == 0 or expected not in missing_output:
@@ -243,6 +257,14 @@ def main() -> int:
     ):
         print("expected extra cpmd section feature failure")
         print(extra_section_output)
+        return 1
+    expected_allow_duplicate = "inventory opencpmd_sections.txt duplicated: ATOM"
+    if (
+        duplicate_allow_code == 0
+        or expected_allow_duplicate not in duplicate_allow_output
+    ):
+        print("expected duplicate opencpmd_sections.txt failure")
+        print(duplicate_allow_output)
         return 1
     return 0
 

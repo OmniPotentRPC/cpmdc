@@ -172,7 +172,17 @@ def main() -> int:
             "opencpmd_inscan_sections != cpmd_sections: "
             f"{sorted(inscan_secs ^ inv_secs)}"
         )
-    allow = {l.strip() for l in SEC_ALLOW.read_text().splitlines() if l.strip()} if SEC_ALLOW.exists() else set()
+    allow_lines = (
+        [
+            line.strip()
+            for line in SEC_ALLOW.read_text().splitlines()
+            if line.strip()
+        ]
+        if SEC_ALLOW.exists()
+        else []
+    )
+    add_duplicate_errors(allow_lines, "opencpmd_sections.txt", errors)
+    allow = set(allow_lines)
     if allow and allow != inv_secs:
         errors.append(f"opencpmd_sections.txt != inventory cpmd_sections: {sorted(allow ^ inv_secs)}")
 
