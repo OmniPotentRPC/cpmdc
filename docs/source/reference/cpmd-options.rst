@@ -128,6 +128,45 @@ source comments out that keyword and the parser tree used for inventory
 probing has no matching branch. Use ``inputSections.raw`` or
 ``inputBlocks`` only for a downstream tree that still accepts it.
 
+Mapping a CPMD manual line
+==========================
+
+Use this order when turning a CPMD manual line into an ABI input:
+
+#. Search this page for the literal keyword spelling.
+#. Prefer a ``params.inputSections.<section>.<field>`` row when one
+   exists; that is the writable schema field.
+#. Use a ``catalog.cpmd.*`` row for recognized ``&CPMD`` keyword and
+   inline option spellings. These rows are capability/discovery IDs;
+   many render through an existing text field such as ``roksOptions``,
+   ``langevinOptions``, or ``interfaceOptions``.
+#. Use a ``catalog.section.*`` row only to detect support for a whole
+   OpenCPMD section such as ``&PIMD`` or ``&VDW``.
+#. Use ``set``, ``generic``, ``raw``, or top-level ``inputBlocks`` when
+   no structured field or catalog row represents the required deck text.
+
+Examples:
+
++---------------------------------------+-----------------------+------------------------------------------+
+| Manual line                           | Writable carrier      | Discovery row                            |
++=======================================+=======================+==========================================+
+| ``ROKS TRIPLET LOCALIZED EXPERT``     | ``roksOptions`` plus  | ``catalog.cpmd.ROKS``,                   |
+|                                       | ``roksExpertPayload`` | ``catalog.cpmd.ROKS_LOCALIZED``,         |
+|                                       |                       | ``catalog.cpmd.ROKS_EXPERT``             |
++---------------------------------------+-----------------------+------------------------------------------+
+| ``LANGEVIN SMART MOVECM CENTROIDOFF`` | ``langevinOptions``   | ``catalog.cpmd.LANGEVIN_SMART``,         |
+|                                       | plus                  | ``catalog.cpmd.LANGEVIN_MOVECM``,        |
+|                                       | ``langevinParameter`` | ``catalog.cpmd.LANGEVIN_CENTROIDOFF``    |
++---------------------------------------+-----------------------+------------------------------------------+
+| ``INTERFACE GMX ESP PCGFIRST``        | ``interfaceOptions``  | ``catalog.cpmd.INTERFACE_GMX``,          |
+|                                       |                       | ``catalog.cpmd.INTERFACE_ESP``,          |
+|                                       |                       | ``catalog.cpmd.INTERFACE_PCGFIRST``      |
++---------------------------------------+-----------------------+------------------------------------------+
+| ``CENTER MOLECULE ON``                | ``centerMoleculeOn``  | ``catalog.cpmd.CENTER_MOLECULE_ON``      |
++---------------------------------------+-----------------------+------------------------------------------+
+| ``BOX WALLS`` in ``&SYSTEM``          | ``system.boxWalls``   | ``params.inputSections.system.boxWalls`` |
++---------------------------------------+-----------------------+------------------------------------------+
+
 ``CPMDInputSection`` kinds
 ==========================
 

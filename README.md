@@ -144,6 +144,14 @@ keywords, and section arms. Examples:
 - `catalog.cpmd.OPTIMIZE_WAVEFUNCTION`
 - `catalog.section.PIMD`
 
+To map a CPMD manual line, first look for a typed
+`params.inputSections.<section>.<field>` row. Use the matching
+`catalog.cpmd.*` row when the line is an `&CPMD` keyword or an inline option
+spelling that the renderer emits through an existing text field. Fall back to
+`inputSections.set`, `inputSections.generic`, `inputSections.raw`, or
+`inputBlocks` only when the typed schema and catalog rows do not represent the
+deck form.
+
 ## Feature ID namespaces
 
 Feature IDs separate writable schema fields from parser/catalog capability
