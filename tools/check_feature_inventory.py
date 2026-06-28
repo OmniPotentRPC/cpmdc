@@ -220,6 +220,17 @@ def main() -> int:
     if "inputBlocks" not in schema or "raw" not in schema:
         errors.append("schema missing escape hatches")
 
+    readme_namespace_terms = (
+        "Feature ID namespaces",
+        "params.inputSections.system.*",
+        "catalog.cpmd.*",
+        "catalog.dft.*",
+        "catalog.section.SYSTEM",
+    )
+    for term in readme_namespace_terms:
+        if term not in readme:
+            errors.append(f"README missing feature namespace guidance term: {term}")
+
     if errors:
         print("FAIL")
         for e in errors[:60]:
