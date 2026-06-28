@@ -1525,6 +1525,109 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " PATH MINIMIZATION\n") != 0)
       return -1;
   }
+  if ((sec->langevinOptions.str && sec->langevinOptions.len > 0) ||
+      (sec->langevinParameter.str && sec->langevinParameter.len > 0)) {
+    if (append_text(dst, dst_size, used, " LANGEVIN") != 0)
+      return -1;
+    if (sec->langevinOptions.str && sec->langevinOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->langevinOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->langevinParameter.str && sec->langevinParameter.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->langevinParameter) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->qmmmEasy) {
+    if (append_text(dst, dst_size, used, " QMMMEASY\n") != 0)
+      return -1;
+  }
+  if (sec->interfaceOptions.str && sec->interfaceOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " INTERFACE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->interfaceOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->trotterFactorPayload.str &&
+       sec->trotterFactorPayload.len > 0) ||
+      sec->trotterFactorCount > 0) {
+    if (append_text(dst, dst_size, used, " TROTTER FACTOR") != 0)
+      return -1;
+    if (sec->trotterFactorCount > 0 &&
+        append_fmt(dst, dst_size, used, "=%d",
+                   sec->trotterFactorCount) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->trotterFactorPayload.str &&
+        sec->trotterFactorPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->trotterFactorPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->linearResponse) {
+    if (append_text(dst, dst_size, used, " LINEAR RESPONSE\n") != 0)
+      return -1;
+  }
+  if (sec->harmonicReference.str && sec->harmonicReference.len > 0) {
+    if (append_text(dst, dst_size, used, " HARMONIC REFERENCE ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->harmonicReference) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->scaledMasses.str && sec->scaledMasses.len > 0) {
+    if (append_text(dst, dst_size, used, " SCALED MASSES ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->scaledMasses) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->tddft) {
+    if (append_text(dst, dst_size, used, " TDDFT\n") != 0)
+      return -1;
+  }
+  if (sec->ssic > 0.0) {
+    if (append_fmt(dst, dst_size, used, " SSIC\n  %.10g\n", sec->ssic) != 0)
+      return -1;
+  }
+  if ((sec->nonorthogonalOrbitalsOptions.str &&
+       sec->nonorthogonalOrbitalsOptions.len > 0) ||
+      sec->nonorthogonalOrbitalsLimit > 0.0) {
+    if (append_text(dst, dst_size, used, " NONORTHOGONAL ORBITALS") != 0)
+      return -1;
+    if (sec->nonorthogonalOrbitalsOptions.str &&
+        sec->nonorthogonalOrbitalsOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->nonorthogonalOrbitalsOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->nonorthogonalOrbitalsLimit > 0.0 &&
+        append_fmt(dst, dst_size, used, "  %.10g\n",
+                   sec->nonorthogonalOrbitalsLimit) != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)

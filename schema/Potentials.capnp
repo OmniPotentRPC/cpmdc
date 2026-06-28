@@ -368,6 +368,19 @@ struct CPMDCpmdSection {
   orbitalHardnessOptions  @210 :Text; # ORBITAL HARDNESS inline options.
   pathIntegral            @211 :Bool = false; # PATH INTEGRAL.
   pathMinimization        @212 :Bool = false; # PATH MINIMIZATION.
+  langevinOptions         @213 :Text; # LANGEVIN inline options.
+  langevinParameter       @214 :Text; # LANGEVIN payload line.
+  qmmmEasy                @215 :Bool = false; # QMMMEASY.
+  interfaceOptions        @216 :Text; # INTERFACE inline options.
+  trotterFactorCount      @217 :Int32 = 0; # TROTTER FACTOR= count; 0 => omit.
+  trotterFactorPayload    @218 :Text; # TROTTER FACTOR payload lines.
+  linearResponse          @219 :Bool = false; # LINEAR RESPONSE.
+  harmonicReference       @220 :Text; # HARMONIC REFERENCE option.
+  scaledMasses            @221 :Text; # SCALED MASSES option.
+  tddft                   @222 :Bool = false; # TDDFT.
+  ssic                    @223 :Float64 = 0.0; # SSIC payload; 0 => omit.
+  nonorthogonalOrbitalsOptions @224 :Text; # NONORTHOGONAL ORBITALS option.
+  nonorthogonalOrbitalsLimit @225 :Float64 = 0.0; # NONORTHOGONAL ORBITALS payload.
 }
 
 struct CPMDDftSection {

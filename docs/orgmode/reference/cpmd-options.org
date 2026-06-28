@@ -541,6 +541,19 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ORBITAL_HARDNESS~ | ~params.inputSections.cpmd.orbitalHardnessOptions~ | ~orbitalHardnessOptions~ | ~ORBITAL HARDNESS~ |
 | ~catalog.cpmd.PATH_INTEGRAL~ | ~params.inputSections.cpmd.pathIntegral~ | ~pathIntegral~ | ~PATH INTEGRAL~ |
 | ~catalog.cpmd.PATH_MINIMIZATION~ | ~params.inputSections.cpmd.pathMinimization~ | ~pathMinimization~ | ~PATH MINIMIZATION~ |
+| ~catalog.cpmd.LANGEVIN_OPTIONS~ | ~params.inputSections.cpmd.langevinOptions~ | ~langevinOptions~ | ~LANGEVIN~ |
+| ~catalog.cpmd.LANGEVIN_PARAMETER~ | ~params.inputSections.cpmd.langevinParameter~ | ~langevinParameter~ | ~LANGEVIN payload~ |
+| ~catalog.cpmd.QMMMEASY~ | ~params.inputSections.cpmd.qmmmEasy~ | ~qmmmEasy~ | ~QMMMEASY~ |
+| ~catalog.cpmd.INTERFACE_OPTIONS~ | ~params.inputSections.cpmd.interfaceOptions~ | ~interfaceOptions~ | ~INTERFACE~ |
+| ~catalog.cpmd.TROTTER_FACTOR~ | ~params.inputSections.cpmd.trotterFactorCount~ | ~trotterFactorCount~ | ~TROTTER FACTOR=~ |
+| ~catalog.cpmd.TROTTER_FACTOR_PAYLOAD~ | ~params.inputSections.cpmd.trotterFactorPayload~ | ~trotterFactorPayload~ | ~TROTTER FACTOR payload~ |
+| ~catalog.cpmd.LINEAR_RESPONSE~ | ~params.inputSections.cpmd.linearResponse~ | ~linearResponse~ | ~LINEAR RESPONSE~ |
+| ~catalog.cpmd.HARMONIC_REFERENCE~ | ~params.inputSections.cpmd.harmonicReference~ | ~harmonicReference~ | ~HARMONIC REFERENCE~ |
+| ~catalog.cpmd.SCALED_MASSES~ | ~params.inputSections.cpmd.scaledMasses~ | ~scaledMasses~ | ~SCALED MASSES~ |
+| ~catalog.cpmd.TDDFT~ | ~params.inputSections.cpmd.tddft~ | ~tddft~ | ~TDDFT~ |
+| ~catalog.cpmd.SSIC~ | ~params.inputSections.cpmd.ssic~ | ~ssic~ | ~SSIC~ |
+| ~catalog.cpmd.NONORTHOGONAL_ORBITALS~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsOptions~ | ~nonorthogonalOrbitalsOptions~ | ~NONORTHOGONAL ORBITALS~ |
+| ~catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsLimit~ | ~nonorthogonalOrbitalsLimit~ | ~NONORTHOGONAL ORBITALS payload~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |

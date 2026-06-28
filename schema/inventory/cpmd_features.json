@@ -1939,6 +1939,123 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LANGEVIN_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QMMMEASY",
+      "kind": "cpmd_keyword",
+      "name": "QMMMEASY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE_OPTIONS",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE options",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TROTTER_FACTOR",
+      "kind": "cpmd_keyword",
+      "name": "TROTTER FACTOR",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TROTTER_FACTOR_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "TROTTER FACTOR payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LINEAR_RESPONSE",
+      "kind": "cpmd_keyword",
+      "name": "LINEAR RESPONSE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.HARMONIC_REFERENCE",
+      "kind": "cpmd_keyword",
+      "name": "HARMONIC REFERENCE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SCALED_MASSES",
+      "kind": "cpmd_keyword",
+      "name": "SCALED MASSES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TDDFT",
+      "kind": "cpmd_keyword",
+      "name": "TDDFT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SSIC",
+      "kind": "cpmd_keyword",
+      "name": "SSIC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NONORTHOGONAL_ORBITALS",
+      "kind": "cpmd_keyword",
+      "name": "NONORTHOGONAL ORBITALS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT",
+      "kind": "cpmd_keyword",
+      "name": "NONORTHOGONAL ORBITALS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -4883,6 +5000,110 @@
       "feature_id": "params.inputSections.cpmd.pathMinimization",
       "kind": "structured_params_field",
       "name": "pathMinimization",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.langevinOptions",
+      "kind": "structured_params_field",
+      "name": "langevinOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.langevinParameter",
+      "kind": "structured_params_field",
+      "name": "langevinParameter",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.qmmmEasy",
+      "kind": "structured_params_field",
+      "name": "qmmmEasy",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.interfaceOptions",
+      "kind": "structured_params_field",
+      "name": "interfaceOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trotterFactorCount",
+      "kind": "structured_params_field",
+      "name": "trotterFactorCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.trotterFactorPayload",
+      "kind": "structured_params_field",
+      "name": "trotterFactorPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.linearResponse",
+      "kind": "structured_params_field",
+      "name": "linearResponse",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.harmonicReference",
+      "kind": "structured_params_field",
+      "name": "harmonicReference",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.scaledMasses",
+      "kind": "structured_params_field",
+      "name": "scaledMasses",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.tddft",
+      "kind": "structured_params_field",
+      "name": "tddft",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.ssic",
+      "kind": "structured_params_field",
+      "name": "ssic",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nonorthogonalOrbitalsOptions",
+      "kind": "structured_params_field",
+      "name": "nonorthogonalOrbitalsOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.nonorthogonalOrbitalsLimit",
+      "kind": "structured_params_field",
+      "name": "nonorthogonalOrbitalsLimit",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true
