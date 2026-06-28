@@ -2087,6 +2087,14 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.system.lowSpinExcitationPenalty",
+      "kind": "structured_params_field",
+      "name": "lowSpinExcitationPenalty",
+      "section": "system",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.system.lseParameters",
       "kind": "structured_params_field",
       "name": "lseParameters",

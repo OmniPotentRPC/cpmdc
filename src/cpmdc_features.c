@@ -197,6 +197,8 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.system.pointGroupDelta"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitation"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lowSpinExcitationLsets"),
+    CPMDC_PARAM_FEATURE(
+        "params.inputSections.system.lowSpinExcitationPenalty"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.lseParameters"),
     CPMDC_PARAM_FEATURE("params.inputSections.system.modifiedGoedecker"),
     CPMDC_PARAM_FEATURE(

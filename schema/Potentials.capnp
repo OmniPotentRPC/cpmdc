@@ -121,6 +121,7 @@ struct CPMDSystemSection {
   kpointsBlockAll @63 :Bool = false;          # KPOINTS BLOCK ALL.
   kpointsBlockCalculated @64 :Bool = false;   # KPOINTS BLOCK CALCULATED.
   kpointsBlockNoSwap @65 :Bool = false;       # KPOINTS BLOCK NOSWAP.
+  lowSpinExcitationPenalty @66 :Float64 = 0.0; # LOW SPIN EXCITATION PENALTY; 0 => omit.
 }
 
 struct CPMDCpmdSection {

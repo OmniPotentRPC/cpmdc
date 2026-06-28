@@ -696,7 +696,8 @@ static int render_system_section_with_cell(
   }
   int has_low_spin =
       sys->lowSpinExcitation.str && sys->lowSpinExcitation.len > 0;
-  if (has_low_spin || sys->lowSpinExcitationLsets) {
+  if (has_low_spin || sys->lowSpinExcitationLsets ||
+      sys->lowSpinExcitationPenalty != 0.0) {
     if (append_text(dst, dst_size, used, " LOW SPIN EXCITATION") != 0)
       return -1;
     if (has_low_spin) {
@@ -705,10 +706,17 @@ static int render_system_section_with_cell(
       if (append_capn_text(dst, dst_size, used, sys->lowSpinExcitation) != 0)
         return -1;
     }
+    if (sys->lowSpinExcitationPenalty != 0.0 &&
+        append_text(dst, dst_size, used, " PENALTY") != 0)
+      return -1;
     if (sys->lowSpinExcitationLsets &&
         append_text(dst, dst_size, used, " LSETS") != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sys->lowSpinExcitationPenalty != 0.0 &&
+        append_fmt(dst, dst_size, used, "  %.10g\n",
+                   sys->lowSpinExcitationPenalty) != 0)
       return -1;
   }
   int n_lse_parameters = list64_len(&sys->lseParameters);

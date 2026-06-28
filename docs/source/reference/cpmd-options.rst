@@ -526,6 +526,9 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.lowSpinExcitationLsets``      | ``system.lowSpinExcitationLsets``      | Add ``LSETS`` to ``LOW SPIN EXCITATION``  |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
+| ``params.inputSections.system.lowSpinExcitationPenalty``    | ``system.lowSpinExcitationPenalty``    | ``&SYSTEM LOW SPIN EXCITATION PENALTY``   |
+|                                                             |                                        | value                                     |
++-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.lseParameters``               | ``system.lseParameters``               | ``&SYSTEM LSE PARAMETERS`` lsea/lseb      |
 +-------------------------------------------------------------+----------------------------------------+-------------------------------------------+
 | ``params.inputSections.system.modifiedGoedecker``           | ``system.modifiedGoedecker``           | ``&SYSTEM MODIFIED GOEDECKER``            |
