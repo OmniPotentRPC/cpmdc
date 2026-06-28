@@ -3287,9 +3287,54 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.RESTART_COORDINATES",
+      "kind": "cpmd_keyword",
+      "name": "RESTART COORDINATES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTART_ALL",
+      "kind": "cpmd_keyword",
+      "name": "RESTART ALL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.INTFILE",
       "kind": "cpmd_keyword",
       "name": "INTFILE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTFILE_READ",
+      "kind": "cpmd_keyword",
+      "name": "INTFILE READ",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTFILE_WRITE",
+      "kind": "cpmd_keyword",
+      "name": "INTFILE WRITE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTFILE_FILENAME",
+      "kind": "cpmd_keyword",
+      "name": "INTFILE FILENAME",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3314,6 +3359,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.INITIALIZE_WAVEFUNCTION_ATOMIC",
+      "kind": "cpmd_keyword",
+      "name": "INITIALIZE WAVEFUNCTION ATOMIC",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INITIALIZE_WAVEFUNCTION_PRIMITIVE",
+      "kind": "cpmd_keyword",
+      "name": "INITIALIZE WAVEFUNCTION PRIMITIVE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.RATTLE_PARAMETERS",
       "kind": "cpmd_keyword",
       "name": "RATTLE parameters",
@@ -3332,6 +3395,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ORTHOGONALIZATION_LOWDIN",
+      "kind": "cpmd_keyword",
+      "name": "ORTHOGONALIZATION LOWDIN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.ORTHOGONALIZATION_MATRIX",
+      "kind": "cpmd_keyword",
+      "name": "ORTHOGONALIZATION MATRIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.QUENCH_OPTIONS",
       "kind": "cpmd_keyword",
       "name": "QUENCH options",
@@ -3341,9 +3422,54 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.QUENCH_IONS",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH IONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QUENCH_ELECTRONS",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH ELECTRONS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QUENCH_BO",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH BO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.QUENCH_CELL",
+      "kind": "cpmd_keyword",
+      "name": "QUENCH CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.RANDOMIZE",
       "kind": "cpmd_keyword",
       "name": "RANDOMIZE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RANDOMIZE_DENSITY",
+      "kind": "cpmd_keyword",
+      "name": "RANDOMIZE DENSITY",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
