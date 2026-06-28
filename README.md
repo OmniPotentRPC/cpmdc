@@ -168,6 +168,21 @@ Use `params.inputSections.atoms.*` for pseudopotential entries and fixed
 non-coordinate `&ATOMS` keywords; geometry coordinates remain in each
 `ForceInput` step.
 
+Manual keyword names do not always map to a `catalog.cpmd.*` feature ID. Use
+the field namespace when the renderer owns a typed section field:
+
+| Manual name | Feature or field ID | Rendered deck form |
+| --- | --- | --- |
+| `BOX WALLS` | `params.inputSections.system.boxWalls` | `&SYSTEM` / `BOX WALLS` |
+| `MODIFIED GOEDECKER` | `params.inputSections.system.modifiedGoedecker` | `&SYSTEM` / `MODIFIED GOEDECKER` |
+| `MODIFIED GOEDECKER PARAMETERS` | `params.inputSections.system.modifiedGoedeckerParameters` | `&SYSTEM` / `MODIFIED GOEDECKER PARAMETERS` |
+| `SOC` | `catalog.cpmd.SOC` and `params.inputSections.cpmd.spinOrbitCouplingStates` | `&CPMD` / `SPIN-ORBIT COUPLING` |
+
+`FFTW WISDOM` is not a typed feature row because the OpenCPMD manual source
+comments out that keyword and the parser tree used for inventory probing has no
+matching branch. Use `inputSections.raw` or `inputBlocks` only for a downstream
+tree that still accepts it.
+
 ## OpenCPMD Archive Build
 
 The default build uses a reference evaluator. To link the same C ABI against a
