@@ -29,6 +29,7 @@ public change:
 | Inline option token coverage | ~meson test -C build cpmd-option-token-coverage --print-errorlogs~ |
 | Typed render field coverage | ~meson test -C build cpmd-typed-render-field-coverage --print-errorlogs~ |
 | Long-tail directive section coverage | ~meson test -C build cpmd-long-tail-section-coverage --print-errorlogs~ |
+| Escape-hatch carrier coverage | ~meson test -C build cpmd-escape-hatch-coverage --print-errorlogs~ |
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
 | README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
@@ -59,6 +60,9 @@ load every ~abi_symbols~ entry from ~libcpmdc.so~.
 ~atoms~ fields to appear in render fixtures or render assertions.
 ~cpmd-long-tail-section-coverage~ requires every ~CPMDDirectiveSection~ union
 arm to appear in the long-tail fixture, render assertions, and option reference.
+~cpmd-escape-hatch-coverage~ requires ~inputBlocks~, ~generic~, ~set~, and
+~raw~ carriers to stay covered by schema, fixtures, render tests, and option
+docs.
 ~examples-documented~ requires public docs to point at the runnable
 ~examples/host_step.c~ host program. ~readme-navigation~ keeps the README and
 quickstart docs focused on entry paths, work-loop labels, and current wording.
@@ -88,6 +92,7 @@ CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
   shared-dlopen-symbol-coverage \
   cpmd-option-token-coverage cpmd-typed-render-field-coverage \
   cpmd-long-tail-section-coverage \
+  cpmd-escape-hatch-coverage \
   --print-errorlogs
 #+end_src
 

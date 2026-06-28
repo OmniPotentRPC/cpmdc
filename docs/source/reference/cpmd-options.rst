@@ -191,6 +191,7 @@ Run the focused inventory guards with:
      shared-dlopen-symbol-coverage \
      cpmd-schema-render-coverage cpmd-option-token-coverage \
      cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
+     cpmd-escape-hatch-coverage \
      --print-errorlogs
 
 ``feature-inventory`` cross-checks the JSON inventory against the
@@ -219,6 +220,9 @@ Proto fixtures to have render coverage.
 or render assertions. ``cpmd-long-tail-section-coverage`` requires every
 ``CPMDDirectiveSection`` union arm to appear in the long-tail fixture,
 render assertions, and this reference page.
+``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``,
+``set``, and ``raw`` carriers to stay covered by schema, fixtures,
+render tests, and this reference page.
 
 ``CPMDInputSection`` kinds
 ==========================

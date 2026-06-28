@@ -35,6 +35,7 @@ def main() -> int:
         "cpmd-option-token-coverage",
         "cpmd-typed-render-field-coverage",
         "cpmd-long-tail-section-coverage",
+        "cpmd-escape-hatch-coverage",
     ]
     docs_guards = [
         "examples-documented",
@@ -89,6 +90,7 @@ def main() -> int:
                 "cpmd-option-token-coverage",
                 "cpmd-typed-render-field-coverage",
                 "cpmd-long-tail-section-coverage",
+                "cpmd-escape-hatch-coverage",
                 "src/cpmdc.c",
                 "src/cpmdc_stub.c",
                 "src/cpmdc_features.c",

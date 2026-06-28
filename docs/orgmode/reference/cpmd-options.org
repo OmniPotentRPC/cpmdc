@@ -110,6 +110,7 @@ meson test -C build \
   shared-dlopen-symbol-coverage \
   cpmd-schema-render-coverage cpmd-option-token-coverage \
   cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
+  cpmd-escape-hatch-coverage \
   --print-errorlogs
 #+end_src
 
@@ -137,7 +138,9 @@ fixtures to have render coverage. ~cpmd-typed-render-field-coverage~ requires
 typed ~cpmd~, ~system~, ~dft~, and ~atoms~ fields to appear in render fixtures
 or render assertions. ~cpmd-long-tail-section-coverage~ requires every
 ~CPMDDirectiveSection~ union arm to appear in the long-tail fixture, render
-assertions, and this reference page.
+assertions, and this reference page. ~cpmd-escape-hatch-coverage~ requires
+~inputBlocks~, ~generic~, ~set~, and ~raw~ carriers to stay covered by schema,
+fixtures, render tests, and this reference page.
 
 * ~CPMDInputSection~ kinds
 

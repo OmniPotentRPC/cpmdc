@@ -49,6 +49,8 @@ pushing a public change:
 | Long-tail directive section      | ``meson test -C build cpmd-long-tail-section-coverage --print-errorlogs``                 |
 | coverage                         |                                                                                           |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Escape-hatch carrier coverage    | ``meson test -C build cpmd-escape-hatch-coverage --print-errorlogs``                      |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | Public host example docs         | ``meson test -C build examples-documented --print-errorlogs``                             |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | README and quickstart navigation | ``meson test -C build readme-navigation --print-errorlogs``                               |
@@ -84,10 +86,12 @@ render coverage. ``cpmd-typed-render-field-coverage`` requires typed
 fixtures or render assertions. ``cpmd-long-tail-section-coverage``
 requires every ``CPMDDirectiveSection`` union arm to appear in the
 long-tail fixture, render assertions, and option reference.
-``examples-documented`` requires public docs to point at the runnable
-``examples/host_step.c`` host program. ``readme-navigation`` keeps the
-README and quickstart docs focused on entry paths, work-loop labels, and
-current wording.
+``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``,
+``set``, and ``raw`` carriers to stay covered by schema, fixtures,
+render tests, and option docs. ``examples-documented`` requires public
+docs to point at the runnable ``examples/host_step.c`` host program.
+``readme-navigation`` keeps the README and quickstart docs focused on
+entry paths, work-loop labels, and current wording.
 
 Add a typed CPMD keyword
 ========================
@@ -126,6 +130,7 @@ Run the focused failure before adding production code:
      shared-dlopen-symbol-coverage \
      cpmd-option-token-coverage cpmd-typed-render-field-coverage \
      cpmd-long-tail-section-coverage \
+     cpmd-escape-hatch-coverage \
      --print-errorlogs
 
 Then update the production and docs surface in one change:

@@ -578,6 +578,15 @@ if get_option('with_tests')
     suite: ['params', 'inventory'],
   )
   test(
+    'cpmd-escape-hatch-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_escape_hatch_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['params', 'inventory'],
+  )
+  test(
     'examples-documented',
     python,
     args: [
