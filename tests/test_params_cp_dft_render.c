@@ -244,9 +244,9 @@ static int check_catalog_coverage(char **decks, int ndecks) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 15) {
+  if (argc < 16) {
     fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin system_couplings_prod.bin bad_occupation.bin\n",
+            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin system_couplings_prod.bin system_couplings_linres.bin bad_occupation.bin\n",
             argv[0]);
     return 2;
   }
@@ -360,6 +360,9 @@ int main(int argc, char **argv) {
   const char *system_couplings_prod_need[] = {
       "&SYSTEM", "COUPLINGS PROD=0.02",
   };
+  const char *system_couplings_linres_need[] = {
+      "&SYSTEM", "COUPLINGS LINRES TOL=1e-05 NVECT=8 SPECIFY BRUTE FORCE",
+  };
   const char *long_tail_sections_need[] = {
       "&ATOM", "ATOM SYMBOL", "H", "&BASIS", "BASIS SET", "DZVP",
       "&CLAS", "CLASSICAL FORCEFIELD", "demo.ff", "&EAM", "EAM POTENTIAL",
@@ -421,10 +424,14 @@ int main(int argc, char **argv) {
                  (int)(sizeof(system_couplings_prod_need) /
                        sizeof(system_couplings_prod_need[0]))) != 0)
     return 1;
-  if (check_render_fails(argv[14]) != 0)
+  if (check_deck(argv[14], system_couplings_linres_need,
+                 (int)(sizeof(system_couplings_linres_need) /
+                       sizeof(system_couplings_linres_need[0]))) != 0)
     return 1;
-  char *decks[13] = {0};
-  for (int i = 0; i < 13; ++i) {
+  if (check_render_fails(argv[15]) != 0)
+    return 1;
+  char *decks[14] = {0};
+  for (int i = 0; i < 14; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
@@ -434,10 +441,10 @@ int main(int argc, char **argv) {
     }
   }
   int coverage_rc = check_catalog_coverage(decks, 11);
-  for (int i = 0; i < 13; ++i)
+  for (int i = 0; i < 14; ++i)
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, and system_couplings_prod render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, system_couplings_prod, and system_couplings_linres render + inventory finds\n");
   return 0;
 }

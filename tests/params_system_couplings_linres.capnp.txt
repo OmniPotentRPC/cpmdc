@@ -1,0 +1,12 @@
+(
+  inputSections = [
+    ( system = (
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        couplingsLinres = true,
+        couplingsLinresTolerance = 1.0e-5,
+        couplingsLinresNvects = 8,
+        couplingsLinresSpecify = true,
+        couplingsLinresBruteForce = true
+      ) )
+  ]
+)
