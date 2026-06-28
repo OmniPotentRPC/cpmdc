@@ -387,10 +387,12 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.REVERSE_VELOCITIES~ | ~params.inputSections.cpmd.reverseVelocities~ | ~reverseVelocities~ | ~REVERSE VELOCITIES~ |
 | ~catalog.cpmd.SUBTRACT_COMVEL~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~SUBTRACT COMVEL~ |
 | ~catalog.cpmd.SUBTRACT_ROTVEL~ | ~params.inputSections.cpmd.subtractRotVelocity~ | ~subtractRotVelocity~ | ~SUBTRACT ROTVEL~ |
+| ~catalog.cpmd.SUBTRACT~ | ~params.inputSections.cpmd.subtractComVelocity~ | ~subtractComVelocity~ | ~SUBTRACT~ |
 | ~catalog.cpmd.PRNGSEED~ | ~params.inputSections.cpmd.prngSeed~ | ~prngSeed~ | ~PRNGSEED~ |
 | ~catalog.cpmd.TEMPCONTROL_IONS~ | ~params.inputSections.cpmd.tempControlIons~ | ~tempControlIons~ | ~TEMPCONTROL IONS~ |
 | ~catalog.cpmd.TEMPCONTROL_ELECTRONS~ | ~params.inputSections.cpmd.tempControlElectrons~ | ~tempControlElectrons~ | ~TEMPCONTROL ELECTRONS~ |
 | ~catalog.cpmd.TEMPCONTROL_CELL~ | ~params.inputSections.cpmd.tempControlCell~ | ~tempControlCell~ | ~TEMPCONTROL CELL~ |
+| ~catalog.cpmd.TEMPCONTROL~ | ~params.inputSections.cpmd.tempControlIons~ | ~tempControlIons~ | ~TEMPCONTROL~ |
 | ~catalog.cpmd.BERENDSEN_IONS~ | ~params.inputSections.cpmd.berendsenIons~ | ~berendsenIons~ | ~BERENDSEN IONS~ |
 | ~catalog.cpmd.BERENDSEN_ELECTRONS~ | ~params.inputSections.cpmd.berendsenElectrons~ | ~berendsenElectrons~ | ~BERENDSEN ELECTRONS~ |
 | ~catalog.cpmd.BERENDSEN_CELL~ | ~params.inputSections.cpmd.berendsenCell~ | ~berendsenCell~ | ~BERENDSEN CELL~ |
@@ -398,6 +400,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.MAXITER~ | ~params.inputSections.cpmd.maxIter~ | ~maxIter~ | ~MAXITER~ |
 | ~catalog.cpmd.CONVERGENCE_ORBITALS~ | ~params.inputSections.cpmd.convergenceOrbitals~ | ~convergenceOrbitals~ | ~CONVERGENCE ORBITALS~ |
 | ~catalog.cpmd.CONVERGENCE_GEOMETRY~ | ~params.inputSections.cpmd.convergenceGeometry~ | ~convergenceGeometry~ | ~CONVERGENCE GEOMETRY~ |
+| ~catalog.cpmd.CONVERGENCE~ | ~params.inputSections.cpmd.convergenceOrbitals~ | ~convergenceOrbitals~ | ~CONVERGENCE~ |
 | ~catalog.cpmd.CONVERGENCE_CELL~ | ~params.inputSections.cpmd.convergenceCell~ | ~convergenceCell~ | ~CONVERGENCE CELL~ |
 | ~catalog.cpmd.CONVERGENCE_ADAPT~ | ~params.inputSections.cpmd.convergenceAdapt~ | ~convergenceAdapt~ | ~CONVERGENCE ADAPT~ |
 | ~catalog.cpmd.CONVERGENCE_ENERGY~ | ~params.inputSections.cpmd.convergenceEnergy~ | ~convergenceEnergy~ | ~CONVERGENCE ENERGY~ |
@@ -465,6 +468,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TRAJECTORY_RANGE~ | ~params.inputSections.cpmd.trajectoryRange~ | ~trajectoryRange~ | ~TRAJECTORY RANGE~ |
 | ~catalog.cpmd.MOVIE_SAMPLE~ | ~params.inputSections.cpmd.movieSample~ | ~movieSample~ | ~MOVIE SAMPLE~ |
 | ~catalog.cpmd.MOVIE_OFF~ | ~params.inputSections.cpmd.movieOff~ | ~movieOff~ | ~MOVIE OFF~ |
+| ~catalog.cpmd.MOVIE~ | ~params.inputSections.cpmd.movieSample~ | ~movieSample~ | ~MOVIE~ |
 | ~catalog.cpmd.ENERGYBANDS~ | ~params.inputSections.cpmd.energyBands~ | ~energyBands~ | ~ENERGYBANDS~ |
 | ~catalog.cpmd.EXTERNAL_POTENTIAL~ | ~params.inputSections.cpmd.externalPotential~ | ~externalPotential~ | ~EXTERNAL POTENTIAL~ |
 | ~catalog.cpmd.EXTERNAL_POTENTIAL_ADD~ | ~params.inputSections.cpmd.externalPotentialAdd~ | ~externalPotentialAdd~ | ~EXTERNAL POTENTIAL ADD~ |
@@ -541,11 +545,13 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.LOCAL_POTENTIAL~ | ~params.inputSections.cpmd.localPotential~ | ~localPotential~ | ~LOCAL POTENTIAL~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
+| ~catalog.cpmd.CENTER_MOLECULE~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |
 | ~catalog.cpmd.ODIIS~ | ~params.inputSections.cpmd.odiis~ | ~odiis~ | ~ODIIS~ |
 | ~catalog.cpmd.PCG~ | ~params.inputSections.cpmd.pcg~ | ~pcg~ | ~PCG~ |
 | ~catalog.cpmd.DIAGONALIZATION~ | ~params.inputSections.cpmd.diagonalization~ | ~diagonalization~ | ~DIAGONALIZATION~ |
 | ~catalog.cpmd.FREE_ENERGY~ | ~params.inputSections.cpmd.freeEnergy~ | ~freeEnergy~ | ~FREE-ENERGY~ |
+| ~catalog.cpmd.FREE_ENERGY_FUNCTIONAL~ | ~params.inputSections.cpmd.freeEnergy~ | ~freeEnergy~ | ~FREE ENERGY FUNCTIONAL~ |
 | ~catalog.cpmd.INTERFACE~ | ~params.inputSections.cpmd.interface~ | ~interface~ | ~INTERFACE~ |
 | ~catalog.cpmd.QMMM~ | ~params.inputSections.cpmd.qmmm~ | ~qmmm~ | ~QMMM~ |
 | ~catalog.cpmd.BICANONICAL_ENSEMBLE~ | ~params.inputSections.cpmd.bicanonicalEnsemble~ | ~bicanonicalEnsemble~ | ~BICANONICAL ENSEMBLE~ |
@@ -565,6 +571,11 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.WOUT_PAYLOAD~ | ~params.inputSections.cpmd.woutPayload~ | ~woutPayload~ | ~WOUT payload~ |
 | ~catalog.cpmd.XFMQC~ | ~params.inputSections.cpmd.xfmqcTrajectories~ | ~xfmqcTrajectories~ | ~XFMQC~ |
 | ~catalog.cpmd.DEBUG~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG~ |
+| ~catalog.cpmd.DEBUG_CODE~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG CODE~ |
+| ~catalog.cpmd.DEBUG_MEMORY~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG MEMORY~ |
+| ~catalog.cpmd.DEBUG_FILEOPEN~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG FILEOPEN~ |
+| ~catalog.cpmd.DEBUG_FORCES~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG FORCES~ |
+| ~catalog.cpmd.DEBUG_NOACC~ | ~params.inputSections.cpmd.debugOptions~ | ~debugOptions~ | ~DEBUG NOACC~ |
 | ~catalog.cpmd.KOHN_SHAM_ENERGIES~ | ~params.inputSections.cpmd.kohnShamEnergiesOptions~ | ~kohnShamEnergiesOptions~ | ~KOHN-SHAM ENERGIES~ |
 | ~catalog.cpmd.KOHN_SHAM_ENERGIES_COUNT~ | ~params.inputSections.cpmd.kohnShamEnergiesCount~ | ~kohnShamEnergiesCount~ | ~KOHN-SHAM ENERGIES payload~ |
 | ~catalog.cpmd.SURFACE_HOPPING~ | ~params.inputSections.cpmd.surfaceHoppingOptions~ | ~surfaceHoppingOptions~ | ~SURFACE HOPPING~ |
@@ -598,17 +609,21 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TROTTER_FACTORIZATION_OFF~ | ~params.inputSections.cpmd.trotterFactorizationOff~ | ~trotterFactorizationOff~ | ~TROTTER FACTORIZATION OFF~ |
 | ~catalog.cpmd.LINEAR_RESPONSE~ | ~params.inputSections.cpmd.linearResponse~ | ~linearResponse~ | ~LINEAR RESPONSE~ |
 | ~catalog.cpmd.HARMONIC_REFERENCE~ | ~params.inputSections.cpmd.harmonicReference~ | ~harmonicReference~ | ~HARMONIC REFERENCE~ |
+| ~catalog.cpmd.HARMONIC_REFERENCE_SYSTEM~ | ~params.inputSections.cpmd.harmonicReference~ | ~harmonicReference~ | ~HARMONIC REFERENCE SYSTEM~ |
 | ~catalog.cpmd.SCALED_MASSES~ | ~params.inputSections.cpmd.scaledMasses~ | ~scaledMasses~ | ~SCALED MASSES~ |
 | ~catalog.cpmd.TDDFT~ | ~params.inputSections.cpmd.tddft~ | ~tddft~ | ~TDDFT~ |
 | ~catalog.cpmd.LSD~ | ~params.inputSections.cpmd.lsd~ | ~lsd~ | ~LSD~ |
+| ~catalog.cpmd.LOCAL_SPIN_DENSITY~ | ~params.inputSections.cpmd.lsd~ | ~lsd~ | ~LOCAL SPIN DENSITY~ |
 | ~catalog.cpmd.SSIC~ | ~params.inputSections.cpmd.ssic~ | ~ssic~ | ~SSIC~ |
 | ~catalog.cpmd.NONORTHOGONAL_ORBITALS~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsOptions~ | ~nonorthogonalOrbitalsOptions~ | ~NONORTHOGONAL ORBITALS~ |
 | ~catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT~ | ~params.inputSections.cpmd.nonorthogonalOrbitalsLimit~ | ~nonorthogonalOrbitalsLimit~ | ~NONORTHOGONAL ORBITALS payload~ |
 | ~catalog.cpmd.LANCZOS_DIAGONALIZATION~ | ~params.inputSections.cpmd.lanczosDiagonalizationOptions~ | ~lanczosDiagonalizationOptions~ | ~LANCZOS DIAGONALIZATION~ |
 | ~catalog.cpmd.LANCZOS_PARAMETERS~ | ~params.inputSections.cpmd.lanczosParametersCount~ | ~lanczosParametersCount~ | ~LANCZOS PARAMETERS N=~ |
+| ~catalog.cpmd.LANCZOS_PARAMETER~ | ~params.inputSections.cpmd.lanczosParametersCount~ | ~lanczosParametersCount~ | ~LANCZOS PARAMETER~ |
 | ~catalog.cpmd.LANCZOS_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.lanczosParametersPayload~ | ~lanczosParametersPayload~ | ~LANCZOS PARAMETERS payload~ |
 | ~catalog.cpmd.DAVIDSON_DIAGONALIZATION~ | ~params.inputSections.cpmd.davidsonDiagonalization~ | ~davidsonDiagonalization~ | ~DAVIDSON DIAGONALIZATION~ |
 | ~catalog.cpmd.DAVIDSON_PARAMETERS~ | ~params.inputSections.cpmd.davidsonParameters~ | ~davidsonParameters~ | ~DAVIDSON PARAMETERS~ |
+| ~catalog.cpmd.DAVIDSON_PARAMETER~ | ~params.inputSections.cpmd.davidsonParameters~ | ~davidsonParameters~ | ~DAVIDSON PARAMETER~ |
 | ~catalog.cpmd.ALEXANDER_MIXING~ | ~params.inputSections.cpmd.alexanderMixing~ | ~alexanderMixing~ | ~ALEXANDER MIXING~ |
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingGspace~ | ~andersonMixingGspace~ | ~ANDERSON MIXING G-SPACE~ |
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingCount~ | ~andersonMixingCount~ | ~ANDERSON MIXING N=~ |
@@ -627,6 +642,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.TSDC~ | ~params.inputSections.cpmd.tsdc~ | ~tsdc~ | ~TSDC~ |
 | ~catalog.cpmd.STEEPEST_DESCENT~ | ~params.inputSections.cpmd.steepestDescentOptions~ | ~steepestDescentOptions~ | ~STEEPEST DESCENT~ |
 | ~catalog.cpmd.CONJUGATE_GRADIENT~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENT~ |
+| ~catalog.cpmd.CONJUGATE_GRADIENTS~ | ~params.inputSections.cpmd.conjugateGradientOptions~ | ~conjugateGradientOptions~ | ~CONJUGATE GRADIENTS~ |
 | ~catalog.cpmd.ODIIS_OPTIONS~ | ~params.inputSections.cpmd.odiisOptions~ | ~odiisOptions~ | ~ODIIS~ |
 | ~catalog.cpmd.ODIIS_VECTORS~ | ~params.inputSections.cpmd.odiisVectors~ | ~odiisVectors~ | ~ODIIS payload~ |
 | ~catalog.cpmd.HAMILTONIAN_CUTOFF~ | ~params.inputSections.cpmd.hamiltonianCutoff~ | ~hamiltonianCutoff~ | ~HAMILTONIAN CUTOFF~ |
@@ -653,6 +669,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.HESSCORE~ | ~params.inputSections.cpmd.hesscore~ | ~hesscore~ | ~HESSCORE~ |
 | ~catalog.cpmd.BFGS~ | ~params.inputSections.cpmd.bfgs~ | ~bfgs~ | ~BFGS~ |
 | ~catalog.cpmd.RFO~ | ~params.inputSections.cpmd.rfoOrder~ | ~rfoOrder~ | ~RFO ORDER=~ |
+| ~catalog.cpmd.RFO_ORDER~ | ~params.inputSections.cpmd.rfoOrder~ | ~rfoOrder~ | ~RFO ORDER=nsorder~ |
 | ~catalog.cpmd.INR_PARAMETERS~ | ~params.inputSections.cpmd.inrParametersCount~ | ~inrParametersCount~ | ~INR PARAMETERS N=~ |
 | ~catalog.cpmd.INR_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.inrParametersPayload~ | ~inrParametersPayload~ | ~INR PARAMETERS payload~ |
 | ~catalog.cpmd.IMPLICIT_NEWTON~ | ~params.inputSections.cpmd.implicitNewtonOptions~ | ~implicitNewtonOptions~ | ~IMPLICIT NEWTON~ |

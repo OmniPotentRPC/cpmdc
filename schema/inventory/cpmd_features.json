@@ -346,6 +346,7 @@
     "MAXITER",
     "CONVERGENCE ORBITALS",
     "CONVERGENCE GEOMETRY",
+    "CONVERGENCE",
     "NOSE",
     "NOSE IONS",
     "NOSE IONS OPTIONS",
@@ -367,11 +368,13 @@
     "STORE",
     "CENTER MOLECULE OFF",
     "CENTER MOLECULE ON",
+    "CENTER MOLECULE",
     "DIIS",
     "ODIIS",
     "PCG",
     "DIAGONALIZATION",
     "FREE-ENERGY",
+    "FREE ENERGY FUNCTIONAL",
     "INTERFACE",
     "QMMM",
     "BICANONICAL ENSEMBLE",
@@ -428,7 +431,21 @@
     "VDW CORRECTION",
     "VDW WANNIER",
     "DCACP",
-    "ISOLATED MOLECULE"
+    "ISOLATED MOLECULE",
+    "DEBUG CODE",
+    "DEBUG MEMORY",
+    "DEBUG FILEOPEN",
+    "DEBUG FORCES",
+    "DEBUG NOACC",
+    "HARMONIC REFERENCE SYSTEM",
+    "LOCAL SPIN DENSITY",
+    "LANCZOS PARAMETER",
+    "DAVIDSON PARAMETER",
+    "CONJUGATE GRADIENTS",
+    "RFO ORDER=NSORDER",
+    "SUBTRACT",
+    "TEMPCONTROL",
+    "MOVIE"
   ],
   "dft_functionals": [
     "LDA",
@@ -1189,6 +1206,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CONVERGENCE",
+      "kind": "cpmd_keyword",
+      "name": "CONVERGENCE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.NOSE",
       "kind": "cpmd_keyword",
       "name": "NOSE",
@@ -1585,6 +1611,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.CENTER_MOLECULE",
+      "kind": "cpmd_keyword",
+      "name": "CENTER MOLECULE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.DIIS",
       "kind": "cpmd_keyword",
       "name": "DIIS",
@@ -1624,6 +1659,15 @@
       "feature_id": "catalog.cpmd.FREE_ENERGY",
       "kind": "cpmd_keyword",
       "name": "FREE-ENERGY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.FREE_ENERGY_FUNCTIONAL",
+      "kind": "cpmd_keyword",
+      "name": "FREE ENERGY FUNCTIONAL",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -1795,6 +1839,51 @@
       "feature_id": "catalog.cpmd.DEBUG",
       "kind": "cpmd_keyword",
       "name": "DEBUG",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DEBUG_CODE",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG CODE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DEBUG_MEMORY",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG MEMORY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DEBUG_FILEOPEN",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG FILEOPEN",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DEBUG_FORCES",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG FORCES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DEBUG_NOACC",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG NOACC",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2098,6 +2187,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.HARMONIC_REFERENCE_SYSTEM",
+      "kind": "cpmd_keyword",
+      "name": "HARMONIC REFERENCE SYSTEM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.SCALED_MASSES",
       "kind": "cpmd_keyword",
       "name": "SCALED MASSES",
@@ -2119,6 +2217,15 @@
       "feature_id": "catalog.cpmd.LSD",
       "kind": "cpmd_keyword",
       "name": "LSD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword rendered through directives",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LOCAL_SPIN_DENSITY",
+      "kind": "cpmd_keyword",
+      "name": "LOCAL SPIN DENSITY",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword rendered through directives",
@@ -2170,6 +2277,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LANCZOS_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS PARAMETER",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.LANCZOS_PARAMETERS_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "LANCZOS PARAMETERS payload",
@@ -2191,6 +2307,15 @@
       "feature_id": "catalog.cpmd.DAVIDSON_PARAMETERS",
       "kind": "cpmd_keyword",
       "name": "DAVIDSON PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAVIDSON_PARAMETER",
+      "kind": "cpmd_keyword",
+      "name": "DAVIDSON PARAMETER",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2344,6 +2469,15 @@
       "feature_id": "catalog.cpmd.CONJUGATE_GRADIENT",
       "kind": "cpmd_keyword",
       "name": "CONJUGATE GRADIENT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.CONJUGATE_GRADIENTS",
+      "kind": "cpmd_keyword",
+      "name": "CONJUGATE GRADIENTS",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2578,6 +2712,15 @@
       "feature_id": "catalog.cpmd.RFO",
       "kind": "cpmd_keyword",
       "name": "RFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RFO_ORDER",
+      "kind": "cpmd_keyword",
+      "name": "RFO ORDER=NSORDER",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3241,6 +3384,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.SUBTRACT",
+      "kind": "cpmd_keyword",
+      "name": "SUBTRACT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PRNGSEED",
       "kind": "cpmd_keyword",
       "name": "PRNGSEED",
@@ -3271,6 +3423,15 @@
       "feature_id": "catalog.cpmd.TEMPCONTROL_CELL",
       "kind": "cpmd_keyword",
       "name": "TEMPCONTROL CELL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TEMPCONTROL",
+      "kind": "cpmd_keyword",
+      "name": "TEMPCONTROL",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3604,6 +3765,15 @@
       "feature_id": "catalog.cpmd.MOVIE_OFF",
       "kind": "cpmd_keyword",
       "name": "MOVIE OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.MOVIE",
+      "kind": "cpmd_keyword",
+      "name": "MOVIE",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
