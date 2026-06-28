@@ -95,6 +95,17 @@ discoverable with ~params.inputSections.<section>.<field>~ IDs, for example
 ~params.inputSections.cpmd.maxIter~, ~params.inputSections.dft.hfxScreening~,
 and ~params.inputSections.atoms.pseudopotentials~.
 
+The public C entry points are feature rows too. Use those rows when a host needs
+to negotiate the serialized result path before allocating Cap'n Proto buffers:
+
+| Host action | ABI feature ID | Carrier |
+|-------------+----------------+---------|
+| Accept a process-wide method buffer | ~abi.cpmdc_set_params~ | ~CPMDParams~ bytes |
+| Create a reusable method session | ~abi.cpmdc_session_create~ | ~CPMDParams~ bytes |
+| Replace method setup before topology is accepted | ~abi.cpmdc_session_set_params~ | ~CPMDParams~ bytes |
+| Evaluate one session step into a result message | ~abi.cpmdc_session_calculate_result~ | ~ForceInput~ to ~PotentialResult~ |
+| Evaluate one one-shot serialized calculation | ~abi.cpmdc_calculate_result~ | ~CPMDParams~ plus ~ForceInput~ to ~PotentialResult~ |
+
 * Session Step Calls (direct-call socket)
 Callers that drive multiple geometry steps keep method state in a session and
 pass a serialized ~ForceInput~ for each step. The result-carrier entry point
@@ -196,13 +207,18 @@ Without an explicit ~atoms~ section, built-in BLYP defaults cover H and O only.
 
 Choose the least lossy structured carrier:
 
-| Need | Carrier |
-|------+---------|
-| A field exists in ~CPMDCpmdSection~, ~CPMDDftSection~, ~CPMDSystemSection~, or ~CPMDAtomsSection~ | typed section arm |
-| A catalog section contains keyword/value lines or nested blocks | matching typed section arm with ~directives~ and ~subsections~ |
-| One merge-only keyword belongs inside a typed section | ~set~ with ~SECTION.KEYWORD~ |
-| A non-catalog alias can be expressed as keyword/argument lines | ~generic~ |
-| A complete deck fragment must be preserved as text | ~raw~ or top-level ~inputBlocks~ |
+| Need | Carrier | Feature ID to discover |
+|------+---------+------------------------|
+| A field exists in ~CPMDCpmdSection~ | typed ~cpmd~ arm | ~params.inputSections.cpmd.maxIter~ |
+| A field exists in ~CPMDSystemSection~ | typed ~system~ arm | ~params.inputSections.system.cell~ |
+| A field exists in ~CPMDDftSection~ | typed ~dft~ arm | ~params.inputSections.dft.hfxScreening~ |
+| Pseudopotentials and fixed non-coordinate ~&ATOMS~ controls | typed ~atoms~ arm | ~params.inputSections.atoms.pseudopotentials~ |
+| A catalog section contains keyword/value lines | matching typed long-tail arm | ~catalog.section.PIMD~ plus ~params.inputSections.pimd.directives~ |
+| A catalog section contains nested blocks | matching typed long-tail arm | ~catalog.section.VDW~ plus ~params.inputSections.vdw.subsections~ |
+| One merge-only keyword belongs inside a typed section | ~set~ with ~SECTION.KEYWORD~ | ~params.inputSections.set.key~ |
+| A non-catalog alias can be expressed as keyword/argument lines | ~generic~ | ~params.inputSections.generic.directives~ |
+| A complete section fragment must be preserved as text | ~raw~ | ~params.inputSections.raw~ |
+| A complete deck fragment must be prepended before structured sections | top-level ~inputBlocks~ | ~params.inputBlocks~ |
 
 * Units
 Native evaluation units on ~CPMDCResult.energy_h~ and force buffers are Hartree

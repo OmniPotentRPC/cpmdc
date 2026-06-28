@@ -205,6 +205,7 @@ table, renderer, README, and reference docs aligned:
 | `cpmd-typed-render-field-coverage` | typed `cpmd`, `system`, `dft`, and `atoms` fields are mentioned by render fixtures or render assertions |
 | `cpmd-long-tail-section-coverage` | every `CPMDDirectiveSection` union arm is present in the long-tail fixture, render assertions, and option reference |
 | `cpmd-escape-hatch-coverage` | `inputBlocks`, `generic`, `set`, and `raw` stay covered by schema, fixtures, render tests, and option docs |
+| `cpmd-embedding-docs-coverage` | embedding docs name the public ABI feature IDs plus typed, long-tail, and escape-hatch `CPMDParams` carriers |
 | `examples-documented` | public docs point to the runnable `examples/host_step.c` host program |
 | `readme-navigation` | README and quickstart docs keep clear entry paths, work-loop labels, and current wording |
 
@@ -218,7 +219,8 @@ meson test -C build \
   shared-dlopen-symbol-coverage \
   cpmd-schema-render-coverage cpmd-option-token-coverage \
   cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
-  cpmd-escape-hatch-coverage examples-documented readme-navigation \
+  cpmd-escape-hatch-coverage cpmd-embedding-docs-coverage \
+  examples-documented readme-navigation \
   --print-errorlogs
 ```
 

@@ -51,6 +51,8 @@ pushing a public change:
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | Escape-hatch carrier coverage    | ``meson test -C build cpmd-escape-hatch-coverage --print-errorlogs``                      |
 +----------------------------------+-------------------------------------------------------------------------------------------+
+| Embedding docs coverage          | ``meson test -C build cpmd-embedding-docs-coverage --print-errorlogs``                    |
++----------------------------------+-------------------------------------------------------------------------------------------+
 | Public host example docs         | ``meson test -C build examples-documented --print-errorlogs``                             |
 +----------------------------------+-------------------------------------------------------------------------------------------+
 | README and quickstart navigation | ``meson test -C build readme-navigation --print-errorlogs``                               |
@@ -88,10 +90,13 @@ requires every ``CPMDDirectiveSection`` union arm to appear in the
 long-tail fixture, render assertions, and option reference.
 ``cpmd-escape-hatch-coverage`` requires ``inputBlocks``, ``generic``,
 ``set``, and ``raw`` carriers to stay covered by schema, fixtures,
-render tests, and option docs. ``examples-documented`` requires public
-docs to point at the runnable ``examples/host_step.c`` host program.
-``readme-navigation`` keeps the README and quickstart docs focused on
-entry paths, work-loop labels, and current wording.
+render tests, and option docs. ``cpmd-embedding-docs-coverage`` requires
+the embedding how-to to name the public ABI feature IDs plus the typed,
+long-tail, and escape-hatch ``CPMDParams`` carrier IDs used by host
+authors. ``examples-documented`` requires public docs to point at the
+runnable ``examples/host_step.c`` host program. ``readme-navigation``
+keeps the README and quickstart docs focused on entry paths, work-loop
+labels, and current wording.
 
 Add a typed CPMD keyword
 ========================

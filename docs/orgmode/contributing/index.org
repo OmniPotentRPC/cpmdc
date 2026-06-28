@@ -30,6 +30,7 @@ public change:
 | Typed render field coverage | ~meson test -C build cpmd-typed-render-field-coverage --print-errorlogs~ |
 | Long-tail directive section coverage | ~meson test -C build cpmd-long-tail-section-coverage --print-errorlogs~ |
 | Escape-hatch carrier coverage | ~meson test -C build cpmd-escape-hatch-coverage --print-errorlogs~ |
+| Embedding docs coverage | ~meson test -C build cpmd-embedding-docs-coverage --print-errorlogs~ |
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
 | README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
@@ -63,6 +64,9 @@ arm to appear in the long-tail fixture, render assertions, and option reference.
 ~cpmd-escape-hatch-coverage~ requires ~inputBlocks~, ~generic~, ~set~, and
 ~raw~ carriers to stay covered by schema, fixtures, render tests, and option
 docs.
+~cpmd-embedding-docs-coverage~ requires the embedding how-to to name the public
+ABI feature IDs plus the typed, long-tail, and escape-hatch ~CPMDParams~
+carrier IDs used by host authors.
 ~examples-documented~ requires public docs to point at the runnable
 ~examples/host_step.c~ host program. ~readme-navigation~ keeps the README and
 quickstart docs focused on entry paths, work-loop labels, and current wording.

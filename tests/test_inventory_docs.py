@@ -38,6 +38,7 @@ def main() -> int:
         "cpmd-escape-hatch-coverage",
     ]
     docs_guards = [
+        "cpmd-embedding-docs-coverage",
         "examples-documented",
         "readme-navigation",
     ]

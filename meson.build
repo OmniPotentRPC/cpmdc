@@ -605,6 +605,15 @@ if get_option('with_tests')
     suite: ['docs', 'inventory'],
   )
   test(
+    'cpmd-embedding-docs-coverage',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_embedding_docs_coverage.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'abi', 'params'],
+  )
+  test(
     'readme-navigation',
     python,
     args: [

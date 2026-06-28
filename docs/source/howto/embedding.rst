@@ -129,6 +129,33 @@ builds, or both. Structured field controls are discoverable with
 ``params.inputSections.dft.hfxScreening``, and
 ``params.inputSections.atoms.pseudopotentials``.
 
+The public C entry points are feature rows too. Use those rows when a
+host needs to negotiate the serialized result path before allocating
+Cap'n Proto buffers:
+
++----------------------+----------------------------------------+----------------------+
+| Host action          | ABI feature ID                         | Carrier              |
++======================+========================================+======================+
+| Accept a             | ``abi.cpmdc_set_params``               | ``CPMDParams`` bytes |
+| process-wide method  |                                        |                      |
+| buffer               |                                        |                      |
++----------------------+----------------------------------------+----------------------+
+| Create a reusable    | ``abi.cpmdc_session_create``           | ``CPMDParams`` bytes |
+| method session       |                                        |                      |
++----------------------+----------------------------------------+----------------------+
+| Replace method setup | ``abi.cpmdc_session_set_params``       | ``CPMDParams`` bytes |
+| before topology is   |                                        |                      |
+| accepted             |                                        |                      |
++----------------------+----------------------------------------+----------------------+
+| Evaluate one session | ``abi.cpmdc_session_calculate_result`` | ``ForceInput`` to    |
+| step into a result   |                                        | ``PotentialResult``  |
+| message              |                                        |                      |
++----------------------+----------------------------------------+----------------------+
+| Evaluate one         | ``abi.cpmdc_calculate_result``         | ``CPMDParams`` plus  |
+| one-shot serialized  |                                        | ``ForceInput`` to    |
+| calculation          |                                        | ``PotentialResult``  |
++----------------------+----------------------------------------+----------------------+
+
 Session Step Calls (direct-call socket)
 =======================================
 
@@ -242,29 +269,49 @@ every element present in the step geometry. Without an explicit
 
 Choose the least lossy structured carrier:
 
-+----------------------------------+----------------------------------+
-| Need                             | Carrier                          |
-+==================================+==================================+
-| A field exists in                | typed section arm                |
-| ``CPMDCpmdSection``,             |                                  |
-| ``CPMDDftSection``,              |                                  |
-| ``CPMDSystemSection``, or        |                                  |
-| ``CPMDAtomsSection``             |                                  |
-+----------------------------------+----------------------------------+
-| A catalog section contains       | matching typed section arm with  |
-| keyword/value lines or nested    | ``directives`` and               |
-| blocks                           | ``subsections``                  |
-+----------------------------------+----------------------------------+
-| One merge-only keyword belongs   | ``set`` with ``SECTION.KEYWORD`` |
-| inside a typed section           |                                  |
-+----------------------------------+----------------------------------+
-| A non-catalog alias can be       | ``generic``                      |
-| expressed as keyword/argument    |                                  |
-| lines                            |                                  |
-+----------------------------------+----------------------------------+
-| A complete deck fragment must be | ``raw`` or top-level             |
-| preserved as text                | ``inputBlocks``                  |
-+----------------------------------+----------------------------------+
++-----------------------+----------------------+-------------------------------------------------+
+| Need                  | Carrier              | Feature ID to discover                          |
++=======================+======================+=================================================+
+| A field exists in     | typed ``cpmd`` arm   | ``params.inputSections.cpmd.maxIter``           |
+| ``CPMDCpmdSection``   |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A field exists in     | typed ``system`` arm | ``params.inputSections.system.cell``            |
+| ``CPMDSystemSection`` |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A field exists in     | typed ``dft`` arm    | ``params.inputSections.dft.hfxScreening``       |
+| ``CPMDDftSection``    |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| Pseudopotentials and  | typed ``atoms`` arm  | ``params.inputSections.atoms.pseudopotentials`` |
+| fixed non-coordinate  |                      |                                                 |
+| ``&ATOMS`` controls   |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A catalog section     | matching typed       | ``catalog.section.PIMD`` plus                   |
+| contains              | long-tail arm        | ``params.inputSections.pimd.directives``        |
+| keyword/value lines   |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A catalog section     | matching typed       | ``catalog.section.VDW`` plus                    |
+| contains nested       | long-tail arm        | ``params.inputSections.vdw.subsections``        |
+| blocks                |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| One merge-only        | ``set`` with         | ``params.inputSections.set.key``                |
+| keyword belongs       | ``SECTION.KEYWORD``  |                                                 |
+| inside a typed        |                      |                                                 |
+| section               |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A non-catalog alias   | ``generic``          | ``params.inputSections.generic.directives``     |
+| can be expressed as   |                      |                                                 |
+| keyword/argument      |                      |                                                 |
+| lines                 |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A complete section    | ``raw``              | ``params.inputSections.raw``                    |
+| fragment must be      |                      |                                                 |
+| preserved as text     |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
+| A complete deck       | top-level            | ``params.inputBlocks``                          |
+| fragment must be      | ``inputBlocks``      |                                                 |
+| prepended before      |                      |                                                 |
+| structured sections   |                      |                                                 |
++-----------------------+----------------------+-------------------------------------------------+
 
 Units
 =====
