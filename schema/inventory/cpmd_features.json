@@ -2056,6 +2056,51 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LANCZOS_DIAGONALIZATION",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS DIAGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_PARAMETERS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS PARAMETERS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAVIDSON_DIAGONALIZATION",
+      "kind": "cpmd_keyword",
+      "name": "DAVIDSON DIAGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.DAVIDSON_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "DAVIDSON PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -5104,6 +5149,46 @@
       "feature_id": "params.inputSections.cpmd.nonorthogonalOrbitalsLimit",
       "kind": "structured_params_field",
       "name": "nonorthogonalOrbitalsLimit",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lanczosDiagonalizationOptions",
+      "kind": "structured_params_field",
+      "name": "lanczosDiagonalizationOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lanczosParametersCount",
+      "kind": "structured_params_field",
+      "name": "lanczosParametersCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lanczosParametersPayload",
+      "kind": "structured_params_field",
+      "name": "lanczosParametersPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.davidsonDiagonalization",
+      "kind": "structured_params_field",
+      "name": "davidsonDiagonalization",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.davidsonParameters",
+      "kind": "structured_params_field",
+      "name": "davidsonParameters",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

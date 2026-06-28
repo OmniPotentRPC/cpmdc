@@ -1628,6 +1628,50 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->nonorthogonalOrbitalsLimit) != 0)
       return -1;
   }
+  if (sec->lanczosDiagonalizationOptions.str &&
+      sec->lanczosDiagonalizationOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " LANCZOS DIAGONALIZATION ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used,
+                         sec->lanczosDiagonalizationOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if ((sec->lanczosParametersPayload.str &&
+       sec->lanczosParametersPayload.len > 0) ||
+      sec->lanczosParametersCount > 0) {
+    if (append_text(dst, dst_size, used, " LANCZOS PARAMETERS") != 0)
+      return -1;
+    if (sec->lanczosParametersCount > 0 &&
+        append_fmt(dst, dst_size, used, " N=%d",
+                   sec->lanczosParametersCount) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->lanczosParametersPayload.str &&
+        sec->lanczosParametersPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->lanczosParametersPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->davidsonDiagonalization) {
+    if (append_text(dst, dst_size, used, " DAVIDSON DIAGONALIZATION\n") != 0)
+      return -1;
+  }
+  if (sec->davidsonParameters.str && sec->davidsonParameters.len > 0) {
+    if (append_text(dst, dst_size, used, " DAVIDSON PARAMETERS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->davidsonParameters) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)

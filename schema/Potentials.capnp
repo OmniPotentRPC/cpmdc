@@ -381,6 +381,11 @@ struct CPMDCpmdSection {
   ssic                    @223 :Float64 = 0.0; # SSIC payload; 0 => omit.
   nonorthogonalOrbitalsOptions @224 :Text; # NONORTHOGONAL ORBITALS option.
   nonorthogonalOrbitalsLimit @225 :Float64 = 0.0; # NONORTHOGONAL ORBITALS payload.
+  lanczosDiagonalizationOptions @226 :Text; # LANCZOS DIAGONALIZATION inline options.
+  lanczosParametersCount  @227 :Int32 = 0; # LANCZOS PARAMETERS N= count.
+  lanczosParametersPayload @228 :Text; # LANCZOS PARAMETERS payload lines.
+  davidsonDiagonalization @229 :Bool = false; # DAVIDSON DIAGONALIZATION.
+  davidsonParameters      @230 :Text; # DAVIDSON PARAMETERS payload line.
 }
 
 struct CPMDDftSection {

@@ -1207,6 +1207,16 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT``    | ``params.inputSections.cpmd.nonorthogonalOrbitalsLimit``      | ``nonorthogonalOrbitalsLimit``      | ``NONORTHOGONAL ORBITALS payload``  |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.LANCZOS_DIAGONALIZATION``         | ``params.inputSections.cpmd.lanczosDiagonalizationOptions``   | ``lanczosDiagonalizationOptions``   | ``LANCZOS DIAGONALIZATION``         |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.LANCZOS_PARAMETERS``              | ``params.inputSections.cpmd.lanczosParametersCount``          | ``lanczosParametersCount``          | ``LANCZOS PARAMETERS N=``           |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.LANCZOS_PARAMETERS_PAYLOAD``      | ``params.inputSections.cpmd.lanczosParametersPayload``        | ``lanczosParametersPayload``        | ``LANCZOS PARAMETERS payload``      |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.DAVIDSON_DIAGONALIZATION``        | ``params.inputSections.cpmd.davidsonDiagonalization``         | ``davidsonDiagonalization``         | ``DAVIDSON DIAGONALIZATION``        |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
+| ``catalog.cpmd.DAVIDSON_PARAMETERS``             | ``params.inputSections.cpmd.davidsonParameters``              | ``davidsonParameters``              | ``DAVIDSON PARAMETERS``             |
++--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.PROPERTIES``                      | ``params.inputSections.cpmd.properties``                      | ``properties``                      | ``PROPERTIES``                      |
 +--------------------------------------------------+---------------------------------------------------------------+-------------------------------------+-------------------------------------+
 | ``catalog.cpmd.VDW_CORRECTION``                  | ``params.inputSections.cpmd.vdwCorrection``                   | ``vdwCorrection``                   | ``VDW CORRECTION``                  |
