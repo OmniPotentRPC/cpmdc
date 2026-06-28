@@ -395,8 +395,13 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.OPTIMIZE_WAVEFUNCTION~ | ~params.inputSections.cpmd.optimizeWavefunction~ | ~optimizeWavefunction~ | ~OPTIMIZE WAVEFUNCTION~ |
 | ~catalog.cpmd.OPTIMIZE_GEOMETRY~ | ~params.inputSections.cpmd.optimizeGeometry~ | ~optimizeGeometry~ | ~OPTIMIZE GEOMETRY~ |
 | ~catalog.cpmd.OPTIMIZE_GEOMETRY_OPTIONS~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ | ~optimizeGeometryOptions~ | ~OPTIMIZE GEOMETRY~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ | ~optimizeGeometryOptions~ | ~OPTIMIZE GEOMETRY CLASSICAL~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ | ~optimizeGeometryOptions~ | ~OPTIMIZE GEOMETRY XYZ~ |
+| ~catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ | ~optimizeGeometryOptions~ | ~OPTIMIZE GEOMETRY SAMPLE option~ |
 | ~catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE~ | ~params.inputSections.cpmd.optimizeGeometrySample~ | ~optimizeGeometrySample~ | ~OPTIMIZE GEOMETRY SAMPLE~ |
 | ~catalog.cpmd.OPTIMIZE_COMBINED~ | ~params.inputSections.cpmd.optimizeCombinedOptions~ | ~optimizeCombinedOptions~ | ~OPTIMIZE COMBINED~ |
+| ~catalog.cpmd.OPTIMIZE_COMBINED_XYZ~ | ~params.inputSections.cpmd.optimizeCombinedOptions~ | ~optimizeCombinedOptions~ | ~OPTIMIZE COMBINED XYZ~ |
+| ~catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE_OPTION~ | ~params.inputSections.cpmd.optimizeCombinedOptions~ | ~optimizeCombinedOptions~ | ~OPTIMIZE COMBINED SAMPLE option~ |
 | ~catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE~ | ~params.inputSections.cpmd.optimizeCombinedSample~ | ~optimizeCombinedSample~ | ~OPTIMIZE COMBINED SAMPLE~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS~ | ~params.inputSections.cpmd.molecularDynamics~ | ~molecularDynamics~ | ~MOLECULAR DYNAMICS~ |
 | ~catalog.cpmd.MOLECULAR_DYNAMICS_CP~ | ~params.inputSections.cpmd.molecularDynamicsCp~ | ~molecularDynamicsCp~ | ~MOLECULAR DYNAMICS CP~ |
@@ -879,6 +884,7 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.MIXDIIS~ | ~params.inputSections.cpmd.mixdiis~ | ~mixdiis~ | ~MIXDIIS~ |
 | ~catalog.cpmd.RESTART_OPTIONS~ | ~params.inputSections.cpmd.restartOptions~ | ~restartOptions~ | ~RESTART~ |
 | ~catalog.cpmd.RESTART_COORDINATES~ | ~params.inputSections.cpmd.restartOptions~ | ~restartOptions~ | ~RESTART COORDINATES~ |
+| ~catalog.cpmd.RESTART_WAVEFUNCTION_OPTION~ | ~params.inputSections.cpmd.restartOptions~ | ~restartOptions~ | ~RESTART WAVEFUNCTION option~ |
 | ~catalog.cpmd.RESTART_ALL~ | ~params.inputSections.cpmd.restartOptions~ | ~restartOptions~ | ~RESTART ALL~ |
 | ~catalog.cpmd.INTFILE~ | ~params.inputSections.cpmd.intFileOptions~ | ~intFileOptions~ | ~INTFILE~ |
 | ~catalog.cpmd.INTFILE_READ~ | ~params.inputSections.cpmd.intFileOptions~ | ~intFileOptions~ | ~INTFILE READ~ |

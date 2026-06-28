@@ -1001,6 +1001,33 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY CLASSICAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY XYZ",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE GEOMETRY SAMPLE option",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE",
       "kind": "cpmd_keyword",
       "name": "OPTIMIZE GEOMETRY SAMPLE",
@@ -1013,6 +1040,24 @@
       "feature_id": "catalog.cpmd.OPTIMIZE_COMBINED",
       "kind": "cpmd_keyword",
       "name": "OPTIMIZE COMBINED",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_COMBINED_XYZ",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE COMBINED XYZ",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "OPTIMIZE COMBINED SAMPLE option",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3821,6 +3866,15 @@
       "feature_id": "catalog.cpmd.RESTART_COORDINATES",
       "kind": "cpmd_keyword",
       "name": "RESTART COORDINATES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RESTART_WAVEFUNCTION_OPTION",
+      "kind": "cpmd_keyword",
+      "name": "RESTART WAVEFUNCTION option",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

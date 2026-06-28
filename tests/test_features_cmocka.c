@@ -62,6 +62,11 @@ static void test_cp_keywords_not_sections(void **state) {
 static void test_documented_cpmd_catalog_keywords(void **state) {
   (void)state;
   static const char *const cpmd_features[] = {
+      "catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL",
+      "catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ",
+      "catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION",
+      "catalog.cpmd.OPTIMIZE_COMBINED_XYZ",
+      "catalog.cpmd.OPTIMIZE_COMBINED_SAMPLE_OPTION",
       "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_XYZ",
       "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSKIP",
       "catalog.cpmd.MOLECULAR_DYNAMICS_FILE_NSAMPLE",
@@ -311,6 +316,7 @@ static void test_documented_cpmd_catalog_keywords(void **state) {
       "catalog.cpmd.SCALED_MASSES_OFF",
       "catalog.cpmd.NONORTHOGONAL_ORBITALS_ON",
       "catalog.cpmd.RESTART_COORDINATES",
+      "catalog.cpmd.RESTART_WAVEFUNCTION_OPTION",
       "catalog.cpmd.RESTART_ALL",
       "catalog.cpmd.INTFILE_READ",
       "catalog.cpmd.INTFILE_WRITE",
