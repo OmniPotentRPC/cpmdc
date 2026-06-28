@@ -581,6 +581,15 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ODIIS_VECTORS~ | ~params.inputSections.cpmd.odiisVectors~ | ~odiisVectors~ | ~ODIIS payload~ |
 | ~catalog.cpmd.HAMILTONIAN_CUTOFF~ | ~params.inputSections.cpmd.hamiltonianCutoff~ | ~hamiltonianCutoff~ | ~HAMILTONIAN CUTOFF~ |
 | ~catalog.cpmd.GDIIS~ | ~params.inputSections.cpmd.gdiisVectors~ | ~gdiisVectors~ | ~GDIIS~ |
+| ~catalog.cpmd.LBFGS~ | ~params.inputSections.cpmd.lbfgsOptions~ | ~lbfgsOptions~ | ~LBFGS~ |
+| ~catalog.cpmd.LBFGS_PAYLOAD~ | ~params.inputSections.cpmd.lbfgsPayload~ | ~lbfgsPayload~ | ~LBFGS payload~ |
+| ~catalog.cpmd.PRFO~ | ~params.inputSections.cpmd.prfoOptions~ | ~prfoOptions~ | ~PRFO~ |
+| ~catalog.cpmd.PRFO_PAYLOAD~ | ~params.inputSections.cpmd.prfoPayload~ | ~prfoPayload~ | ~PRFO payload~ |
+| ~catalog.cpmd.HESSCORE~ | ~params.inputSections.cpmd.hesscore~ | ~hesscore~ | ~HESSCORE~ |
+| ~catalog.cpmd.BFGS~ | ~params.inputSections.cpmd.bfgs~ | ~bfgs~ | ~BFGS~ |
+| ~catalog.cpmd.RFO~ | ~params.inputSections.cpmd.rfoOrder~ | ~rfoOrder~ | ~RFO ORDER=~ |
+| ~catalog.cpmd.INR_PARAMETERS~ | ~params.inputSections.cpmd.inrParametersCount~ | ~inrParametersCount~ | ~INR PARAMETERS N=~ |
+| ~catalog.cpmd.INR_PARAMETERS_PAYLOAD~ | ~params.inputSections.cpmd.inrParametersPayload~ | ~inrParametersPayload~ | ~INR PARAMETERS payload~ |
 | ~catalog.cpmd.PROPERTIES~ | ~params.inputSections.cpmd.properties~ | ~properties~ | ~PROPERTIES~ |
 | ~catalog.cpmd.VDW_CORRECTION~ | ~params.inputSections.cpmd.vdwCorrection~ | ~vdwCorrection~ | ~VDW CORRECTION~ |
 | ~catalog.cpmd.VDW_WANNIER~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER~ |

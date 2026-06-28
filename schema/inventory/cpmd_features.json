@@ -2290,6 +2290,87 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LBFGS",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LBFGS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "LBFGS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO",
+      "kind": "cpmd_keyword",
+      "name": "PRFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.PRFO_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "PRFO payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.HESSCORE",
+      "kind": "cpmd_keyword",
+      "name": "HESSCORE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BFGS",
+      "kind": "cpmd_keyword",
+      "name": "BFGS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.RFO",
+      "kind": "cpmd_keyword",
+      "name": "RFO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INR_PARAMETERS",
+      "kind": "cpmd_keyword",
+      "name": "INR PARAMETERS",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INR_PARAMETERS_PAYLOAD",
+      "kind": "cpmd_keyword",
+      "name": "INR PARAMETERS payload",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PROPERTIES",
       "kind": "cpmd_keyword",
       "name": "PROPERTIES",
@@ -5554,6 +5635,78 @@
       "feature_id": "params.inputSections.cpmd.gdiisVectors",
       "kind": "structured_params_field",
       "name": "gdiisVectors",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lbfgsOptions",
+      "kind": "structured_params_field",
+      "name": "lbfgsOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.lbfgsPayload",
+      "kind": "structured_params_field",
+      "name": "lbfgsPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoOptions",
+      "kind": "structured_params_field",
+      "name": "prfoOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.prfoPayload",
+      "kind": "structured_params_field",
+      "name": "prfoPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.hesscore",
+      "kind": "structured_params_field",
+      "name": "hesscore",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.bfgs",
+      "kind": "structured_params_field",
+      "name": "bfgs",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.rfoOrder",
+      "kind": "structured_params_field",
+      "name": "rfoOrder",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.inrParametersCount",
+      "kind": "structured_params_field",
+      "name": "inrParametersCount",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.inrParametersPayload",
+      "kind": "structured_params_field",
+      "name": "inrParametersPayload",
       "section": "cpmd",
       "stub_applicable": true,
       "embed_applicable": true

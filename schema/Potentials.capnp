@@ -408,6 +408,15 @@ struct CPMDCpmdSection {
   odiisVectors            @250 :Int32 = 0; # ODIIS payload; 0 => omit.
   hamiltonianCutoff       @251 :Float64 = 0.0; # HAMILTONIAN CUTOFF payload.
   gdiisVectors            @252 :Int32 = 0; # GDIIS payload; 0 => omit.
+  lbfgsOptions            @253 :Text; # LBFGS inline options.
+  lbfgsPayload            @254 :Text; # LBFGS payload line.
+  prfoOptions             @255 :Text; # PRFO inline options.
+  prfoPayload             @256 :Text; # PRFO payload line.
+  hesscore                @257 :Bool = false; # HESSCORE.
+  bfgs                    @258 :Bool = false; # BFGS.
+  rfoOrder                @259 :Int32 = 0; # RFO ORDER= value; 0 => omit.
+  inrParametersCount      @260 :Int32 = 0; # INR PARAMETERS N= count.
+  inrParametersPayload    @261 :Text; # INR PARAMETERS payload lines.
 }
 
 struct CPMDDftSection {

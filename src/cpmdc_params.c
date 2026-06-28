@@ -1848,6 +1848,83 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->gdiisVectors) != 0)
       return -1;
   }
+  if ((sec->lbfgsOptions.str && sec->lbfgsOptions.len > 0) ||
+      (sec->lbfgsPayload.str && sec->lbfgsPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " LBFGS") != 0)
+      return -1;
+    if (sec->lbfgsOptions.str && sec->lbfgsOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->lbfgsOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->lbfgsPayload.str && sec->lbfgsPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->lbfgsPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if ((sec->prfoOptions.str && sec->prfoOptions.len > 0) ||
+      (sec->prfoPayload.str && sec->prfoPayload.len > 0)) {
+    if (append_text(dst, dst_size, used, " PRFO") != 0)
+      return -1;
+    if (sec->prfoOptions.str && sec->prfoOptions.len > 0) {
+      if (append_text(dst, dst_size, used, " ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->prfoOptions) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->prfoPayload.str && sec->prfoPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->prfoPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (sec->hesscore) {
+    if (append_text(dst, dst_size, used, " HESSCORE\n") != 0)
+      return -1;
+  }
+  if (sec->bfgs) {
+    if (append_text(dst, dst_size, used, " BFGS\n") != 0)
+      return -1;
+  }
+  if (sec->rfoOrder > 0) {
+    if (append_fmt(dst, dst_size, used, " RFO ORDER=%d\n",
+                   sec->rfoOrder) != 0)
+      return -1;
+  }
+  if ((sec->inrParametersPayload.str &&
+       sec->inrParametersPayload.len > 0) ||
+      sec->inrParametersCount > 0) {
+    if (append_text(dst, dst_size, used, " INR PARAMETERS") != 0)
+      return -1;
+    if (sec->inrParametersCount > 0 &&
+        append_fmt(dst, dst_size, used, " N=%d",
+                   sec->inrParametersCount) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->inrParametersPayload.str &&
+        sec->inrParametersPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used,
+                           sec->inrParametersPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->convergenceOrbitals > 0.0) {
     if (append_fmt(dst, dst_size, used, " CONVERGENCE ORBITALS\n  %.10g\n",
                    sec->convergenceOrbitals) != 0)
