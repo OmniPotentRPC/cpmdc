@@ -27,6 +27,51 @@ generated Cap'n Proto types (~read_CPMDParams~, deck substrings) only.
 Session tests use encoded ~CPMDParams~ and ~ForceInput~ fixtures from
 ~tests/*.capnp.txt~.
 
+* Add a typed CPMD keyword
+Use a typed field when a CPMD control has stable structure, affects ordinary
+host inputs, or should be discoverable through ~cpmdc_feature_find()~. Use
+~directives~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ for rare literal deck
+fragments that should stay text.
+
+Start from the test surface:
+
+| File | Required change |
+|------+-----------------|
+| ~tests/test_params_cp_dft_render.c~ | Add catalog coverage and rendered-token checks |
+| ~tests/test_features_cmocka.c~ | Add ~catalog.cpmd.*~ and ~params.inputSections.cpmd.*~ expectations |
+| ~tests/params_*.capnp.txt~ | Add a fixture value that exercises the new field |
+
+Run the focused failure before adding production code:
+
+#+begin_src bash
+CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
+  params-cp-dft-render features-cmocka feature-inventory \
+  --print-errorlogs
+#+end_src
+
+Then update the production and docs surface in one change:
+
+| File | Required change |
+|------+-----------------|
+| ~schema/Potentials.capnp~ | Add the ~CPMDCpmdSection~ field with the next field number |
+| ~src/cpmdc_params.c~ | Render the exact ~&CPMD~ deck spelling accepted by OpenCPMD |
+| ~src/cpmdc_features.c~ | Add catalog and parameter feature table rows |
+| ~schema/inventory/cpmd_features.json~ | Add matching inventory metadata |
+| ~docs/orgmode/reference/cpmd-options.org~ | Document every writable field ID |
+
+Re-run the focused command, then run:
+
+#+begin_src bash
+meson test -C build --print-errorlogs
+pixi run -e docs sphinxbld
+#+end_src
+
+For parser coverage audits, compare OpenCPMD ~control_utils.mod.F90~
+~keyword_contains(line, ...)~ branches against ~catalog.cpmd.*~ rows. Treat
+context-specific branch tokens as covered by their structured parent when the
+schema field renders the accepted deck form, such as ~LBFGS_NTRUST~ for
+~LBFGS NTRUST~ or ~NOSE_IONS_LOCAL~ for ~NOSE IONS LOCAL~.
+
 * Source Layout
 
 | Path | Ownership |
