@@ -48,6 +48,12 @@
         poissonSolver = "HOCKNEY",
         poissonParameter = 1.2,
         mesh = [24, 24, 32],
+        kpointsScaled = true,
+        kpointsOnlyDiagonal = true,
+        kpoints = [
+          ( coordinates = [0.0, 0.0, 0.0], weight = 0.5 ),
+          ( coordinates = [0.5, 0.0, 0.0], weight = 0.5 )
+        ],
         scaleX = 2.0,
         scaleY = 3.0,
         scaleZ = 4.0,
