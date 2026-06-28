@@ -1451,6 +1451,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.PIPPO_LAGRANGE",
+      "kind": "cpmd_keyword",
+      "name": "PIPPO LAGRANGE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.PIPPO_ORTHO",
       "kind": "cpmd_keyword",
       "name": "PIPPO ORTHO",
@@ -1550,6 +1559,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.GLOC_WFNOUT_REAL",
+      "kind": "cpmd_keyword",
+      "name": "GLOC WFNOUT REAL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.GLOC_WFNOUT",
       "kind": "cpmd_keyword",
       "name": "GLOC WFNOUT",
@@ -1586,9 +1604,27 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.DISTRIBUTED_LINALG_ON",
+      "kind": "cpmd_keyword",
+      "name": "DISTRIBUTED LINALG ON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.LINALG_NEWORTHO",
       "kind": "cpmd_keyword",
       "name": "LINALG NEWORTHO",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LINALG_NEWORTHO_OFF",
+      "kind": "cpmd_keyword",
+      "name": "LINALG NEWORTHO OFF",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -1946,9 +1982,27 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.DEBUG_HUBBARD",
+      "kind": "cpmd_keyword",
+      "name": "DEBUG HUBBARD",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.KOHN_SHAM_ENERGIES",
       "kind": "cpmd_keyword",
       "name": "KOHN-SHAM ENERGIES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.KOHN_SHAM_ENERGIES_NOWAVEFUNCTION",
+      "kind": "cpmd_keyword",
+      "name": "KOHN-SHAM ENERGIES NOWAVEFUNCTION",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -1967,6 +2021,33 @@
       "feature_id": "catalog.cpmd.SURFACE_HOPPING",
       "kind": "cpmd_keyword",
       "name": "SURFACE HOPPING",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SURFACE_HOPPING_NEW",
+      "kind": "cpmd_keyword",
+      "name": "SURFACE HOPPING NEW",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SURFACE_HOPPING_RESTART",
+      "kind": "cpmd_keyword",
+      "name": "SURFACE HOPPING RESTART",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SURFACE_HOPPING_SHIFT",
+      "kind": "cpmd_keyword",
+      "name": "SURFACE HOPPING SHIFT",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2057,6 +2138,15 @@
       "feature_id": "catalog.cpmd.BOGOLIUBOV_CORRECTION",
       "kind": "cpmd_keyword",
       "name": "BOGOLIUBOV CORRECTION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BOGOLIUBOV_CORRECTION_OFF",
+      "kind": "cpmd_keyword",
+      "name": "BOGOLIUBOV CORRECTION OFF",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2234,6 +2324,24 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.LANGEVIN_MOVECM",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN MOVECM",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANGEVIN_CENTROIDOFF",
+      "kind": "cpmd_keyword",
+      "name": "LANGEVIN CENTROIDOFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.LANGEVIN_PARAMETER",
       "kind": "cpmd_keyword",
       "name": "LANGEVIN payload",
@@ -2273,6 +2381,24 @@
       "feature_id": "catalog.cpmd.INTERFACE_IPHIGENIE",
       "kind": "cpmd_keyword",
       "name": "INTERFACE IPHIGENIE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE_ESP",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE ESP",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.INTERFACE_PCGFIRST",
+      "kind": "cpmd_keyword",
+      "name": "INTERFACE PCGFIRST",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2342,9 +2468,27 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.HARMONIC_REFERENCE_OFF",
+      "kind": "cpmd_keyword",
+      "name": "HARMONIC REFERENCE OFF",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.SCALED_MASSES",
       "kind": "cpmd_keyword",
       "name": "SCALED MASSES",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.SCALED_MASSES_OFF",
+      "kind": "cpmd_keyword",
+      "name": "SCALED MASSES OFF",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -2396,6 +2540,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.NONORTHOGONAL_ORBITALS_ON",
+      "kind": "cpmd_keyword",
+      "name": "NONORTHOGONAL ORBITALS ON",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.NONORTHOGONAL_ORBITALS_LIMIT",
       "kind": "cpmd_keyword",
       "name": "NONORTHOGONAL ORBITALS payload",
@@ -2408,6 +2561,24 @@
       "feature_id": "catalog.cpmd.LANCZOS_DIAGONALIZATION",
       "kind": "cpmd_keyword",
       "name": "LANCZOS DIAGONALIZATION",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_ALL",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS ALL",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.LANCZOS_NEW",
+      "kind": "cpmd_keyword",
+      "name": "LANCZOS NEW",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -3200,6 +3371,15 @@
       "feature_id": "catalog.cpmd.TRACE",
       "kind": "cpmd_keyword",
       "name": "TRACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TRACE_ALL",
+      "kind": "cpmd_keyword",
+      "name": "TRACE ALL",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
@@ -4379,6 +4559,15 @@
       "feature_id": "catalog.cpmd.TASKGROUPS_COUNT",
       "kind": "cpmd_keyword",
       "name": "TASKGROUPS count",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.TASKGROUPS_CARTESIAN",
+      "kind": "cpmd_keyword",
+      "name": "TASKGROUPS CARTESIAN",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",
