@@ -34,6 +34,17 @@ def main() -> int:
             "Regenerate generated docs",
         ],
     )
+    failures.extend(
+        require_text(
+            root / "docs/orgmode/tutorials/quickstart.org",
+            [
+                "Work Loop",
+                "Build once, then iterate with focused tests",
+                "Reconfigure only when build definitions change",
+                "Run the full suite before publishing",
+            ],
+        )
+    )
     if failures:
         print("\n".join(failures), file=sys.stderr)
         return 1

@@ -36,6 +36,22 @@ tests.
 | session E2E focus | ~meson test -C build --suite e2e --print-errorlogs~ | one-shot calls, session calls, topology rejection, unit conversion |
 | docs | ~pixi run -e docs docbld~ | Org export, generated C API pages, Sphinx HTML |
 
+* Work Loop
+Build once, then iterate with focused tests.
+Use the table above to pick the smallest command that exercises the layer you
+changed, then run the default suite when the focused command passes.
+
+| Step | Command | Use it when |
+|------+---------+-------------|
+| Configure or reconfigure | ~meson setup build -Dwith_tests=true~ or ~meson setup --reconfigure build~ | Reconfigure only when build definitions change, dependencies change, or the build directory does not exist |
+| Compile after C, Fortran, or schema edits | ~meson compile -C build~ | The changed code affects compiled targets or generated Cap'n Proto readers |
+| Run a focused guard | ~meson test -C build <test-name> --print-errorlogs~ | One inventory, ABI, parser, session, or docs contract names the changed behavior |
+| Run the default suite | ~meson test -C build --print-errorlogs~ | Run the full suite before publishing a change |
+| Build docs | ~pixi run -e docs sphinxbld~ | Public prose, org sources, API headers, or generated RST changed |
+
+~meson test~ rebuilds stale targets before running tests, so most source edits
+do not need a separate configure step.
+
 This configuration compiles the vendored ~capnp-c~ runtime, generates C readers
 for ~schema/Potentials.capnp~, and runs cmocka suites:
 

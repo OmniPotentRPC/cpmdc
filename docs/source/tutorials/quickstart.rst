@@ -51,6 +51,48 @@ Common Paths
 |                     |                                                          | HTML                  |
 +---------------------+----------------------------------------------------------+-----------------------+
 
+Work Loop
+=========
+
+Build once, then iterate with focused tests. Use the table above to pick
+the smallest command that exercises the layer you changed, then run the
+default suite when the focused command passes.
+
++----------------------+-------------------------------------------------------+----------------------+
+| Step                 | Command                                               | Use it when          |
++======================+=======================================================+======================+
+| Configure or         | ``meson setup build -Dwith_tests=true`` or            | Reconfigure only     |
+| reconfigure          | ``meson setup --reconfigure build``                   | when build           |
+|                      |                                                       | definitions change,  |
+|                      |                                                       | dependencies change, |
+|                      |                                                       | or the build         |
+|                      |                                                       | directory does not   |
+|                      |                                                       | exist                |
++----------------------+-------------------------------------------------------+----------------------+
+| Compile after C,     | ``meson compile -C build``                            | The changed code     |
+| Fortran, or schema   |                                                       | affects compiled     |
+| edits                |                                                       | targets or generated |
+|                      |                                                       | Cap'n Proto readers  |
++----------------------+-------------------------------------------------------+----------------------+
+| Run a focused guard  | ``meson test -C build <test-name> --print-errorlogs`` | One inventory, ABI,  |
+|                      |                                                       | parser, session, or  |
+|                      |                                                       | docs contract names  |
+|                      |                                                       | the changed behavior |
++----------------------+-------------------------------------------------------+----------------------+
+| Run the default      | ``meson test -C build --print-errorlogs``             | Run the full suite   |
+| suite                |                                                       | before publishing a  |
+|                      |                                                       | change               |
++----------------------+-------------------------------------------------------+----------------------+
+| Build docs           | ``pixi run -e docs sphinxbld``                        | Public prose, org    |
+|                      |                                                       | sources, API         |
+|                      |                                                       | headers, or          |
+|                      |                                                       | generated RST        |
+|                      |                                                       | changed              |
++----------------------+-------------------------------------------------------+----------------------+
+
+``meson test`` rebuilds stale targets before running tests, so most
+source edits do not need a separate configure step.
+
 This configuration compiles the vendored ``capnp-c`` runtime, generates
 C readers for ``schema/Potentials.capnp``, and runs cmocka suites:
 
