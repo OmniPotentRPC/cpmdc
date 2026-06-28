@@ -270,6 +270,15 @@ struct CPMDCpmdSection {
   rhoOutBands             @112 :Text; # RHOOUT BANDS payload.
   elf                     @113 :Bool = false; # ELF.
   elfParameters           @114 :Text; # ELF PARAMETER payload.
+  wannierParameters       @115 :Text; # WANNIER PARAMETER payload.
+  wannierOptimization     @116 :Text; # WANNIER OPTIMIZATION option.
+  wannierType             @117 :Text; # WANNIER TYPE option.
+  wannierReference        @118 :Text; # WANNIER REFERENCE payload.
+  wannierSerial           @119 :Bool = false; # WANNIER SERIAL.
+  wannierDos              @120 :Bool = false; # WANNIER DOS.
+  wannierMolecular        @121 :Bool = false; # WANNIER MOLECULAR.
+  wannierWfnOutOptions    @122 :Text; # WANNIER WFNOUT inline options.
+  wannierWfnOutPayload    @123 :Text; # WANNIER WFNOUT payload.
 }
 
 struct CPMDDftSection {

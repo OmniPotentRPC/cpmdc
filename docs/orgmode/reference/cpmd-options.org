@@ -432,6 +432,15 @@ the stable discovery keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.RHOOUT_BANDS~ | ~params.inputSections.cpmd.rhoOutBands~ | ~rhoOutBands~ | ~RHOOUT BANDS~ |
 | ~catalog.cpmd.ELF~ | ~params.inputSections.cpmd.elf~ | ~elf~ | ~ELF~ |
 | ~catalog.cpmd.ELF_PARAMETERS~ | ~params.inputSections.cpmd.elfParameters~ | ~elfParameters~ | ~ELF PARAMETER~ |
+| ~catalog.cpmd.WANNIER_PARAMETER~ | ~params.inputSections.cpmd.wannierParameters~ | ~wannierParameters~ | ~WANNIER PARAMETER~ |
+| ~catalog.cpmd.WANNIER_OPTIMIZATION~ | ~params.inputSections.cpmd.wannierOptimization~ | ~wannierOptimization~ | ~WANNIER OPTIMIZATION~ |
+| ~catalog.cpmd.WANNIER_TYPE~ | ~params.inputSections.cpmd.wannierType~ | ~wannierType~ | ~WANNIER TYPE~ |
+| ~catalog.cpmd.WANNIER_REFERENCE~ | ~params.inputSections.cpmd.wannierReference~ | ~wannierReference~ | ~WANNIER REFERENCE~ |
+| ~catalog.cpmd.WANNIER_SERIAL~ | ~params.inputSections.cpmd.wannierSerial~ | ~wannierSerial~ | ~WANNIER SERIAL~ |
+| ~catalog.cpmd.WANNIER_DOS~ | ~params.inputSections.cpmd.wannierDos~ | ~wannierDos~ | ~WANNIER DOS~ |
+| ~catalog.cpmd.WANNIER_MOLECULAR~ | ~params.inputSections.cpmd.wannierMolecular~ | ~wannierMolecular~ | ~WANNIER MOLECULAR~ |
+| ~catalog.cpmd.WANNIER_WFNOUT_OPTIONS~ | ~params.inputSections.cpmd.wannierWfnOutOptions~ | ~wannierWfnOutOptions~ | ~WANNIER WFNOUT~ |
+| ~catalog.cpmd.WANNIER_WFNOUT_PAYLOAD~ | ~params.inputSections.cpmd.wannierWfnOutPayload~ | ~wannierWfnOutPayload~ | ~WANNIER WFNOUT payload~ |
 | ~catalog.cpmd.CENTER_MOLECULE_OFF~ | ~params.inputSections.cpmd.centerMoleculeOff~ | ~centerMoleculeOff~ | ~CENTER MOLECULE OFF~ |
 | ~catalog.cpmd.CENTER_MOLECULE_ON~ | ~params.inputSections.cpmd.centerMoleculeOn~ | ~centerMoleculeOn~ | ~CENTER MOLECULE ON~ |
 | ~catalog.cpmd.DIIS~ | ~params.inputSections.cpmd.diis~ | ~diis~ | ~DIIS~ |

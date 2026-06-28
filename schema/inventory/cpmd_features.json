@@ -3359,6 +3359,78 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.wannierParameters",
+      "kind": "structured_params_field",
+      "name": "wannierParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierOptimization",
+      "kind": "structured_params_field",
+      "name": "wannierOptimization",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierType",
+      "kind": "structured_params_field",
+      "name": "wannierType",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierReference",
+      "kind": "structured_params_field",
+      "name": "wannierReference",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierSerial",
+      "kind": "structured_params_field",
+      "name": "wannierSerial",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierDos",
+      "kind": "structured_params_field",
+      "name": "wannierDos",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierMolecular",
+      "kind": "structured_params_field",
+      "name": "wannierMolecular",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierWfnOutOptions",
+      "kind": "structured_params_field",
+      "name": "wannierWfnOutOptions",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.wannierWfnOutPayload",
+      "kind": "structured_params_field",
+      "name": "wannierWfnOutPayload",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.centerMoleculeOff",
       "kind": "structured_params_field",
       "name": "centerMoleculeOff",

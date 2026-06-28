@@ -1763,6 +1763,56 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
         return -1;
     }
   }
+  if (sec->wannierParameters.str && sec->wannierParameters.len > 0) {
+    if (append_text(dst, dst_size, used, " WANNIER PARAMETER\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->wannierParameters) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (append_text_keyword_arg(dst, dst_size, used, "WANNIER OPTIMIZATION",
+                              sec->wannierOptimization) != 0)
+    return -1;
+  if (append_text_keyword_arg(dst, dst_size, used, "WANNIER TYPE",
+                              sec->wannierType) != 0)
+    return -1;
+  if (sec->wannierReference.str && sec->wannierReference.len > 0) {
+    if (append_text(dst, dst_size, used, " WANNIER REFERENCE\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->wannierReference) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->wannierSerial) {
+    if (append_text(dst, dst_size, used, " WANNIER SERIAL\n") != 0)
+      return -1;
+  }
+  if (sec->wannierDos) {
+    if (append_text(dst, dst_size, used, " WANNIER DOS\n") != 0)
+      return -1;
+  }
+  if (sec->wannierMolecular) {
+    if (append_text(dst, dst_size, used, " WANNIER MOLECULAR\n") != 0)
+      return -1;
+  }
+  if (sec->wannierWfnOutOptions.str && sec->wannierWfnOutOptions.len > 0) {
+    if (append_text(dst, dst_size, used, " WANNIER WFNOUT ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->wannierWfnOutOptions) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+    if (sec->wannierWfnOutPayload.str && sec->wannierWfnOutPayload.len > 0) {
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, sec->wannierWfnOutPayload) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
   if (sec->centerMoleculeOff) {
     if (append_text(dst, dst_size, used, " CENTER MOLECULE OFF\n") != 0)
       return -1;
