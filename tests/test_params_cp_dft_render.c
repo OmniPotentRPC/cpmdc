@@ -302,8 +302,11 @@ int main(int argc, char **argv) {
       "1.5 75", "NOSE", "NOSE IONS", "300 1200", "NOSE ELECTRONS",
       "0.5 900", "NOSE CELL", "1.5 800", "NOSE PARAMETERS",
       "3 4 5 6.0 7 8", "BERENDSEN", "LANGEVIN", "ANNEALING",
-      "IONS 300 50", "QUENCH", "RATTLE", "SHAKE", "CONSTRAINT",
-      "FIX COM", "TROTTER", "8", "RESTART",
+      "ANNEALING IONS", "0.98", "ANNEALING ELECTRONS", "0.97",
+      "ANNEALING CELL", "0.96", "IONS 300 50", "DAMPING IONS", "0.11",
+      "DAMPING ELECTRONS", "0.12", "DAMPING CELL", "0.13", "QUENCH",
+      "RATTLE", "SHAKE", "CONSTRAINT", "FIX COM", "TROTTER", "8",
+      "RESTART",
   };
   const char *cpmd_misc_need[] = {
       "&CPMD", "PRINT", "FORCES ON", "STORE", "WAVEFUNCTION",
