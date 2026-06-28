@@ -241,9 +241,7 @@
         traceProcedure = "cp_wavefunction",
         traceMaxDepth = 5,
         traceMaxCalls = 50,
-        directives = [
-          ( keyword = "LSD", args = [] )
-        ]
+        lsd = true
       ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
         cell = [12.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),

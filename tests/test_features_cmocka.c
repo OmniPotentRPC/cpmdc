@@ -404,6 +404,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.cpmd.restartWavefunction",
       "params.inputSections.cpmd.trajectory",
       "params.inputSections.cpmd.directives",
+      "params.inputSections.cpmd.lsd",
       "params.inputSections.cpmd.optimizeGeometry",
       "params.inputSections.cpmd.optimizeGeometryOptions",
       "params.inputSections.cpmd.optimizeGeometrySample",

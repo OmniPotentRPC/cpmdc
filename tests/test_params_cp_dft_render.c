@@ -534,7 +534,7 @@ static const struct CatalogCoverage cpmd_coverage[] = {
     {"catalog.cpmd.SHIFT_POTENTIAL", "shiftPotential",
      " SHIFT POTENTIAL\n"},
     {"catalog.cpmd.GLOC_WFNOUT_PAYLOAD", "glocWfnOutPayload", "2 5"},
-    {"catalog.cpmd.LSD", "directives", " LSD\n&END\n\n&SYSTEM"},
+    {"catalog.cpmd.LSD", "lsd", " LSD\n&END\n\n&SYSTEM"},
 };
 
 static const struct CatalogCoverage dft_scalar_coverage[] = {
