@@ -841,6 +841,14 @@ IDs are the stable discovery keys returned by ``cpmdc_feature_table()``.
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.NOSE_ELECTRONS``               | ``params.inputSections.cpmd.noseElectrons``              | ``noseElectrons``              | ``NOSE ELECTRONS``               |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_IONS_PAYLOAD``            | ``params.inputSections.cpmd.noseIonsThermostat``         | ``noseIonsThermostat``         | ``NOSE IONS``                    |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_ELECTRONS_PAYLOAD``       | ``params.inputSections.cpmd.noseElectronsThermostat``    | ``noseElectronsThermostat``    | ``NOSE ELECTRONS``               |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_CELL_PAYLOAD``            | ``params.inputSections.cpmd.noseCellThermostat``         | ``noseCellThermostat``         | ``NOSE CELL``                    |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
+| ``catalog.cpmd.NOSE_PARAMETERS``              | ``params.inputSections.cpmd.noseParameters``             | ``noseParameters``             | ``NOSE PARAMETERS``              |
++-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.BERENDSEN``                    | ``params.inputSections.cpmd.berendsen``                  | ``berendsen``                  | ``BERENDSEN``                    |
 +-----------------------------------------------+----------------------------------------------------------+--------------------------------+----------------------------------+
 | ``catalog.cpmd.LANGEVIN``                     | ``params.inputSections.cpmd.langevin``                   | ``langevin``                   | ``LANGEVIN``                     |

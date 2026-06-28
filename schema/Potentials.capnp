@@ -223,6 +223,10 @@ struct CPMDCpmdSection {
   berendsenIons        @65 :Text; # BERENDSEN IONS payload.
   berendsenElectrons   @66 :Text; # BERENDSEN ELECTRONS payload.
   berendsenCell        @67 :Text; # BERENDSEN CELL payload.
+  noseIonsThermostat      @68 :Text; # NOSE IONS payload.
+  noseElectronsThermostat @69 :Text; # NOSE ELECTRONS payload.
+  noseCellThermostat      @70 :Text; # NOSE CELL payload.
+  noseParameters          @71 :Text; # NOSE PARAMETERS payload.
 }
 
 struct CPMDDftSection {

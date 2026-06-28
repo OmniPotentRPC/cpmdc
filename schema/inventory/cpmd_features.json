@@ -2767,6 +2767,38 @@
       "embed_applicable": true
     },
     {
+      "feature_id": "params.inputSections.cpmd.noseIonsThermostat",
+      "kind": "structured_params_field",
+      "name": "noseIonsThermostat",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseElectronsThermostat",
+      "kind": "structured_params_field",
+      "name": "noseElectronsThermostat",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseCellThermostat",
+      "kind": "structured_params_field",
+      "name": "noseCellThermostat",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "params.inputSections.cpmd.noseParameters",
+      "kind": "structured_params_field",
+      "name": "noseParameters",
+      "section": "cpmd",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
       "feature_id": "params.inputSections.cpmd.restartWavefunction",
       "kind": "structured_params_field",
       "name": "restartWavefunction",

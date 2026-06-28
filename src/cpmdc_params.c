@@ -1405,12 +1405,47 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " NOSE\n") != 0)
       return -1;
   }
-  if (sec->noseIons) {
+  int has_nose_ions = sec->noseIonsThermostat.str &&
+                      sec->noseIonsThermostat.len > 0;
+  int has_nose_electrons = sec->noseElectronsThermostat.str &&
+                           sec->noseElectronsThermostat.len > 0;
+  if (has_nose_ions) {
+    if (append_text(dst, dst_size, used, " NOSE IONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->noseIonsThermostat) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  } else if (sec->noseIons) {
     if (append_text(dst, dst_size, used, " NOSE IONS\n") != 0)
       return -1;
   }
-  if (sec->noseElectrons) {
+  if (has_nose_electrons) {
+    if (append_text(dst, dst_size, used, " NOSE ELECTRONS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->noseElectronsThermostat) !=
+        0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  } else if (sec->noseElectrons) {
     if (append_text(dst, dst_size, used, " NOSE ELECTRONS\n") != 0)
+      return -1;
+  }
+  if (sec->noseCellThermostat.str && sec->noseCellThermostat.len > 0) {
+    if (append_text(dst, dst_size, used, " NOSE CELL\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->noseCellThermostat) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (sec->noseParameters.str && sec->noseParameters.len > 0) {
+    if (append_text(dst, dst_size, used, " NOSE PARAMETERS\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, sec->noseParameters) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
   if (sec->berendsen.str && sec->berendsen.len > 0) {
