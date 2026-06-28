@@ -2963,6 +2963,15 @@
       "section": "CPMD"
     },
     {
+      "feature_id": "catalog.cpmd.ANDERSON_MIXING_GSPACE",
+      "kind": "cpmd_keyword",
+      "name": "ANDERSON MIXING G-SPACE",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
       "feature_id": "catalog.cpmd.ANDERSON_MIXING_PAYLOAD",
       "kind": "cpmd_keyword",
       "name": "ANDERSON MIXING payload",
@@ -2984,6 +2993,60 @@
       "feature_id": "catalog.cpmd.BROYDEN_MIXING_ADAPT",
       "kind": "cpmd_keyword",
       "name": "BROYDEN MIXING ADAPT",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_MIX",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING MIX",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_CUTBROY",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING CUTBROY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_W02",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING W02",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_NFRBROY",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING NFRBROY",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_RESET",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING RESET",
+      "stub_applicable": true,
+      "embed_applicable": true,
+      "role": "&CPMD keyword (not a deck section unless also inscan)",
+      "section": "CPMD"
+    },
+    {
+      "feature_id": "catalog.cpmd.BROYDEN_MIXING_KERMIX",
+      "kind": "cpmd_keyword",
+      "name": "BROYDEN MIXING KERMIX",
       "stub_applicable": true,
       "embed_applicable": true,
       "role": "&CPMD keyword (not a deck section unless also inscan)",

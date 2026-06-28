@@ -783,9 +783,16 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.ALEXANDER_MIXING~ | ~params.inputSections.cpmd.alexanderMixing~ | ~alexanderMixing~ | ~ALEXANDER MIXING~ |
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingGspace~ | ~andersonMixingGspace~ | ~ANDERSON MIXING G-SPACE~ |
 | ~catalog.cpmd.ANDERSON_MIXING~ | ~params.inputSections.cpmd.andersonMixingCount~ | ~andersonMixingCount~ | ~ANDERSON MIXING N=~ |
+| ~catalog.cpmd.ANDERSON_MIXING_GSPACE~ | ~params.inputSections.cpmd.andersonMixingGspace~ | ~andersonMixingGspace~ | ~ANDERSON MIXING G-SPACE~ |
 | ~catalog.cpmd.ANDERSON_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.andersonMixingPayload~ | ~andersonMixingPayload~ | ~ANDERSON MIXING payload~ |
 | ~catalog.cpmd.BROYDEN_MIXING~ | ~params.inputSections.cpmd.broydenMixingOptions~ | ~broydenMixingOptions~ | ~BROYDEN MIXING~ |
 | ~catalog.cpmd.BROYDEN_MIXING_ADAPT~ | ~params.inputSections.cpmd.broydenMixingOptions~ | ~broydenMixingOptions~ | ~BROYDEN MIXING ADAPT~ |
+| ~catalog.cpmd.BROYDEN_MIXING_MIX~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING MIX~ |
+| ~catalog.cpmd.BROYDEN_MIXING_CUTBROY~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING CUTBROY~ |
+| ~catalog.cpmd.BROYDEN_MIXING_W02~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING W02~ |
+| ~catalog.cpmd.BROYDEN_MIXING_NFRBROY~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING NFRBROY~ |
+| ~catalog.cpmd.BROYDEN_MIXING_RESET~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING RESET~ |
+| ~catalog.cpmd.BROYDEN_MIXING_KERMIX~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING KERMIX~ |
 | ~catalog.cpmd.BROYDEN_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.broydenMixingPayload~ | ~broydenMixingPayload~ | ~BROYDEN MIXING payload~ |
 | ~catalog.cpmd.DIIS_MIXING~ | ~params.inputSections.cpmd.diisMixingCount~ | ~diisMixingCount~ | ~DIIS MIXING N=~ |
 | ~catalog.cpmd.DIIS_MIXING_PAYLOAD~ | ~params.inputSections.cpmd.diisMixingPayload~ | ~diisMixingPayload~ | ~DIIS MIXING payload~ |
