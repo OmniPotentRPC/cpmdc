@@ -10,6 +10,8 @@ INVENTORY = ROOT / "schema" / "inventory" / "cpmd_features.json"
 HEADER = ROOT / "include" / "cpmdc.h"
 FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
+CPMDC_C = ROOT / "src" / "cpmdc.c"
+STUB_C = ROOT / "src" / "cpmdc_stub.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
 CPMD_CP_KEYWORDS = ROOT / "schema" / "inventory" / "cpmd_cp_keywords.txt"
 CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
@@ -92,6 +94,17 @@ def public_header_functions(*headers: str) -> set[str]:
                 symbols.add(match.group(1))
     return symbols
 
+def public_function_definitions(source: str) -> set[str]:
+    text = re.sub(r"/\*.*?\*/", " ", source, flags=re.S)
+    text = re.sub(r"//.*", " ", text)
+    return set(
+        re.findall(
+            r"(?m)^[A-Za-z_][A-Za-z0-9_\s\*]*\b(cpmdc_[A-Za-z0-9_]+)"
+            r"\s*\([^;{}]*\)\s*\{",
+            text,
+        )
+    )
+
 def add_duplicate_errors(values: list[str], label: str, errors: list[str]) -> None:
     seen: set[str] = set()
     for value in values:
@@ -105,6 +118,8 @@ def main() -> int:
     header = HEADER.read_text(encoding="utf-8")
     features_c = FEATURES_C.read_text(encoding="utf-8")
     features_h = FEATURES_H.read_text(encoding="utf-8")
+    cpmdc_c = CPMDC_C.read_text(encoding="utf-8")
+    stub_c = STUB_C.read_text(encoding="utf-8")
     cpmd_options_doc = CPMD_OPTIONS_DOC.read_text(encoding="utf-8")
     readme = README.read_text(encoding="utf-8")
     errors: list[str] = []
@@ -290,6 +305,20 @@ def main() -> int:
         if sym not in abi_symbols:
             errors.append(
                 f"inventory abi_symbols missing public header function: {sym}"
+            )
+
+    native_impl = public_function_definitions(cpmdc_c)
+    stub_impl = public_function_definitions(stub_c)
+    feature_impl = public_function_definitions(features_c)
+    for sym in sorted(public_header_functions(header)):
+        if sym not in native_impl:
+            errors.append(f"src/cpmdc.c missing public ABI implementation: {sym}")
+        if sym not in stub_impl:
+            errors.append(f"src/cpmdc_stub.c missing public ABI implementation: {sym}")
+    for sym in sorted(public_header_functions(features_h)):
+        if sym not in feature_impl:
+            errors.append(
+                f"src/cpmdc_features.c missing public ABI implementation: {sym}"
             )
 
     if "inputBlocks" not in schema or "raw" not in schema:
