@@ -74,6 +74,8 @@ MODULE cpmd_embed_c_api
 #if defined(CPMDC_HAS_CPMD)
   CHARACTER(LEN=512), SAVE :: cfg_workdir = ' '
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
+  ! Successful SCF steps in this workdir; keep RESTART for warm multi-force.
+  INTEGER, SAVE :: cfg_warm_steps = 0
 #endif
 
 CONTAINS
@@ -499,34 +501,17 @@ CONTAINS
     INTEGER, INTENT(OUT) :: ierr
     INTEGER :: u, i, j, count, zz
     LOGICAL :: used(0:120)
-    CHARACTER(LEN=64) :: pp
+    CHARACTER(LEN=1024) :: pp
     CHARACTER(LEN=8) :: lmax
     REAL(real64) :: cell_a
-    CHARACTER(LEN=1024) :: dst
+    CHARACTER(LEN=1024) :: dst, pp_dir
     CHARACTER(LEN=128) :: line
     LOGICAL :: found
     ierr = 0
     CALL ensure_workdir()
-    ! Prefer Cap'n Proto rendered deck (full method + geometry ATOMS).
-    IF (LEN_TRIM(cfg_input_deck) > 0) THEN
-      OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='REPLACE', &
-           ACTION='WRITE', IOSTAT=ierr)
-      IF (ierr /= 0) RETURN
-      WRITE(u, '(A)') TRIM(cfg_input_deck)
-      CLOSE(u)
-      ! Copy any *file.psp tokens from deck
-      OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='OLD', ACTION='READ')
-      DO
-        READ(u, '(A)', IOSTAT=j) line
-        IF (j /= 0) EXIT
-        IF (line(1:1) == '*') THEN
-          pp = ADJUSTL(line(2:))
-          CALL copy_pseudo_to_workdir(pp)
-        END IF
-      END DO
-      CLOSE(u)
-      RETURN
-    END IF
+    ! Always build method deck from ForceInput arrays + cfg_* knobs (geometry
+    ! is reapplied from C arrays at eval). Do not use cfg_input_deck text that
+    ! may omit CELL / use relative PP names.
     cell_a = 10.0_real64
     IF (has_cell /= 0) THEN
       IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
@@ -563,25 +548,30 @@ CONTAINS
       IF (zz < 0 .OR. zz > 120) CYCLE
       IF (used(zz)) CYCLE
       used(zz) = .TRUE.
-      IF (zz == 8) THEN
-        pp = 'O_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE IF (zz == 1) THEN
+      IF (zz == 1) THEN
         pp = 'H_CVB_BLYP.psp'
         lmax = 'S'
+      ELSE IF (zz == 6) THEN
+        pp = 'C_MT_BLYP.psp'
+        lmax = 'P'
+      ELSE IF (zz == 7) THEN
+        pp = 'N_MT_BLYP.psp'
+        lmax = 'P'
+      ELSE IF (zz == 8) THEN
+        pp = 'O_MT_BLYP.psp'
+        lmax = 'P'
+      ELSE IF (zz == 14) THEN
+        pp = 'Si_MT_BLYP.psp'
+        lmax = 'P'
+      ELSE IF (zz == 32) THEN
+        pp = 'Ge_MT_BLYP.psp'
+        lmax = 'P'
       ELSE
         CLOSE(u)
         ierr = 1
         RETURN
       END IF
-      CALL copy_pseudo_to_workdir(pp)
-      dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
-      INQUIRE(FILE=TRIM(dst), EXIST=found)
-      IF (.NOT. found) THEN
-        CLOSE(u)
-        ierr = 2
-        RETURN
-      END IF
+      ! Relative PP basename; ratom/recpnew resolve via CWD=CPMDC_PSEUDO_DIR.
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -649,6 +639,207 @@ CONTAINS
     last_hess_count = MIN(idx, 4096)
   END SUBROUTINE
 
+  ! Ensure &CPMD has STORE WAVEFUNCTION and optionally RESTART WAVEFUNCTION for
+  ! multi-force warm starts (same workdir session / topology).
+  SUBROUTINE ensure_cpmd_store_restart_keywords(use_restart)
+    LOGICAL, INTENT(IN) :: use_restart
+    INTEGER :: u_in, u_out, ios
+    CHARACTER(LEN=512) :: line, low
+    LOGICAL :: in_cpmd, has_store, has_restart
+    CHARACTER(LEN=1024) :: tmp
+    in_cpmd = .FALSE.
+    has_store = .FALSE.
+    has_restart = .FALSE.
+    tmp = TRIM(cfg_workdir)//'/INPUT.warmtmp'
+    OPEN(NEWUNIT=u_in, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='OLD', &
+         ACTION='READ', IOSTAT=ios)
+    IF (ios /= 0) RETURN
+    OPEN(NEWUNIT=u_out, FILE=TRIM(tmp), STATUS='REPLACE', ACTION='WRITE', IOSTAT=ios)
+    IF (ios /= 0) THEN
+      CLOSE(u_in)
+      RETURN
+    END IF
+    DO
+      READ(u_in, '(A)', IOSTAT=ios) line
+      IF (ios /= 0) EXIT
+      low = line
+      CALL to_upper_inplace(low)
+      IF (INDEX(low, '&CPMD') == 1) THEN
+        in_cpmd = .TRUE.
+        WRITE(u_out, '(A)') TRIM(line)
+        CYCLE
+      END IF
+      IF (in_cpmd .AND. INDEX(low, '&END') == 1) THEN
+        ! STORE WAVEFUNCTION requires the next line to be an integer (istore).
+        IF (.NOT. has_store) THEN
+          WRITE(u_out, '(A)') ' STORE WAVEFUNCTION'
+          WRITE(u_out, '(A)') '  1'
+        END IF
+        IF (use_restart .AND. .NOT. has_restart) &
+            WRITE(u_out, '(A)') ' RESTART WAVEFUNCTION'
+        in_cpmd = .FALSE.
+        WRITE(u_out, '(A)') TRIM(line)
+        CYCLE
+      END IF
+      IF (in_cpmd) THEN
+        IF (INDEX(low, 'STORE WAVEFUNCTION') > 0 .OR. INDEX(low, 'STORE WAVEFUNC') > 0) &
+            has_store = .TRUE.
+        IF (INDEX(low, 'RESTART WAVEFUNCTION') > 0) has_restart = .TRUE.
+      END IF
+      WRITE(u_out, '(A)') TRIM(line)
+    END DO
+    CLOSE(u_in)
+    CLOSE(u_out)
+    CALL delete_if_exists('INPUT')
+    OPEN(NEWUNIT=u_in, FILE=TRIM(tmp), STATUS='OLD', ACTION='READ', IOSTAT=ios)
+    IF (ios /= 0) RETURN
+    OPEN(NEWUNIT=u_out, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='REPLACE', &
+         ACTION='WRITE', IOSTAT=ios)
+    IF (ios /= 0) THEN
+      CLOSE(u_in)
+      RETURN
+    END IF
+    DO
+      READ(u_in, '(A)', IOSTAT=ios) line
+      IF (ios /= 0) EXIT
+      WRITE(u_out, '(A)') TRIM(line)
+    END DO
+    CLOSE(u_in)
+    CLOSE(u_out)
+    OPEN(NEWUNIT=u_in, FILE=TRIM(tmp), STATUS='OLD', IOSTAT=ios)
+    IF (ios == 0) CLOSE(u_in, STATUS='DELETE')
+  END SUBROUTINE
+
+  SUBROUTINE to_upper_inplace(s)
+    CHARACTER(LEN=*), INTENT(INOUT) :: s
+    INTEGER :: i, c
+    DO i = 1, LEN_TRIM(s)
+      c = IACHAR(s(i:i))
+      IF (c >= IACHAR('a') .AND. c <= IACHAR('z')) &
+          s(i:i) = ACHAR(c - 32)
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE delete_if_exists(name)
+    CHARACTER(LEN=*), INTENT(IN) :: name
+    INTEGER :: u, ios
+    LOGICAL :: exists
+    INQUIRE(FILE=TRIM(cfg_workdir)//'/'//TRIM(name), EXIST=exists)
+    IF (.NOT. exists) RETURN
+    OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/'//TRIM(name), STATUS='OLD', IOSTAT=ios)
+    IF (ios == 0) CLOSE(u, STATUS='DELETE')
+  END SUBROUTINE
+
+  ! Geometry source of truth: C ForceInput positions (Angstrom) → TAU0 (Bohr).
+  ! Species-major order matches ions0 (same as ratom / Cap'n Proto deck).
+  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
+    USE coor, ONLY: tau0
+    USE ions, ONLY: ions0, ions1
+    USE cnst, ONLY: fbohr
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: is, ia, k, j, zz, taken, expect
+    ierr = 1
+    IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp <= 0) RETURN
+    expect = 0
+    DO is = 1, ions1%nsp
+      expect = expect + ions0%na(is)
+    END DO
+    IF (expect /= n_atoms) RETURN
+    j = 0
+    DO is = 1, ions1%nsp
+      zz = ions0%iatyp(is)
+      taken = 0
+      DO WHILE (taken < ions0%na(is))
+        j = j + 1
+        IF (j > n_atoms) RETURN
+        IF (INT(z(j)) /= zz) RETURN
+        taken = taken + 1
+        DO k = 1, 3
+          tau0(k, taken, is) = REAL(pos(3*(j-1)+k), KIND=real64) * fbohr
+        END DO
+      END DO
+    END DO
+    ierr = 0
+  END SUBROUTINE
+
+  ! Evaluate energy/grad on live modules: geometry from C arrays only (no files).
+  SUBROUTINE embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
+    USE wfopts_utils, ONLY: wfopts
+    USE phfac_utils, ONLY: phfac
+    USE ener, ONLY: ener_com, chrg, ener_c, ener_d
+    USE coor, ONLY: tau0, fion, taup
+    USE ions, ONLY: ions0, ions1
+    USE store_types, ONLY: cprint, iprint_force
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    INTEGER :: ierr, is, ia, k, idx, nmax
+    ok = 0_c_int
+    energy_h = 0.0_c_double
+    nmax = n_atoms * 3
+    DO idx = 1, nmax
+      grad(idx) = 0.0_c_double
+    END DO
+    CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
+    IF (ierr /= 0) RETURN
+    ! Phase factors for new nuclear positions (same as multi-step CPMD in one process).
+    CALL phfac(tau0)
+    ! rwfopt always ALLOCATE(taup/fion). OpenCPMD keep_fion patch leaves fion
+    ! allocated after wfopts so forces can be copied; free both before re-entry
+    ! so multi-SCF in one process does not hit stopgm('allocation problem').
+    IF (ALLOCATED(fion)) DEALLOCATE(fion)
+    IF (ALLOCATED(taup)) DEALLOCATE(taup)
+    cprint%tprint = .TRUE.
+    cprint%iprint(iprint_force) = 1
+    CALL wfopts
+    energy_h = REAL(ener_com%etot, KIND=c_double)
+    last_etot = energy_h
+    last_ekin = REAL(ener_com%ekin, KIND=c_double)
+    last_epseu = REAL(ener_com%epseu, KIND=c_double)
+    last_enl = REAL(ener_com%enl, KIND=c_double)
+    last_eht = REAL(ener_com%eht, KIND=c_double)
+    last_exc = REAL(ener_com%exc, KIND=c_double)
+    last_ener_valid = 1_c_int
+    last_csumg = REAL(chrg%csumg, KIND=c_double)
+    last_csumr = REAL(chrg%csumr, KIND=c_double)
+    last_csums = REAL(chrg%csums, KIND=c_double)
+    last_csumsabs = REAL(chrg%csumsabs, KIND=c_double)
+    last_chrg_valid = 1_c_int
+    last_ms_vals(1) = REAL(ener_c%etot_a, KIND=c_double)
+    last_ms_vals(2) = REAL(ener_c%etot_2, KIND=c_double)
+    last_ms_vals(3) = REAL(ener_c%etot_ab, KIND=c_double)
+    last_ms_vals(4) = REAL(ener_d%etot_b, KIND=c_double)
+    last_ms_vals(5) = REAL(ener_d%ecas, KIND=c_double)
+    last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
+    last_ms_count = 6_c_int
+    last_ms_valid = 1_c_int
+    ! fion may be deallocated/reallocated by wfopts; only copy when bounds are sane.
+    IF (ALLOCATED(fion)) THEN
+      IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
+        idx = 0
+        DO is = 1, ions1%nsp
+          DO ia = 1, ions0%na(is)
+            IF (ia > SIZE(fion, 2)) EXIT
+            DO k = 1, 3
+              idx = idx + 1
+              IF (idx > nmax) EXIT
+              grad(idx) = REAL(-fion(k, ia, is), KIND=c_double)
+            END DO
+          END DO
+        END DO
+      END IF
+    END IF
+    CALL snapshot_prop_from_modules(n_atoms)
+    ! Energy is the primary success signal (forces may be zero if fion absent).
+    IF (ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
+  END SUBROUTINE
+
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -680,14 +871,9 @@ CONTAINS
     USE prng_utils, ONLY: prnginit
     USE gle_utils, ONLY: gle_alloc
     USE vdw_wf_alloc_utils, ONLY: vdw_wf_alloc
-    USE wfopts_utils, ONLY: wfopts
-    USE ener, ONLY: ener_com, chrg, ener_c, ener_d
-    USE coor, ONLY: fion
-    USE ions, ONLY: ions0, ions1
     USE parac, ONLY: paral
     USE system, ONLY: cnts
     USE ropt, ONLY: init_pinf_pointers
-    USE store_types, ONLY: cprint, iprint_force
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
     INTEGER, INTENT(IN) :: n_atoms, has_cell
@@ -696,21 +882,35 @@ CONTAINS
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad(*)
     INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: ierr, is, ia, k, idx, nmax
+    INTEGER :: ierr, idx, nmax
     LOGICAL :: tinfo
+    CHARACTER(LEN=1024) :: pp_dir
     ok = 0_c_int
     energy_h = 0.0_c_double
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
+    ! Subsequent forces: geometry only from C arrays into TAU0 + library wfopts.
+    ! No INPUT rewrite, no RESTART files, no workdir PP copies (nwchemc pattern).
+    IF (cfg_warm_steps > 0) THEN
+      CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
+      IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
+      RETURN
+    END IF
+    ! First call only: OpenCPMD control/ratom still require a readable method deck
+    ! (library PP paths, absolute). Geometry for evaluation is always overridden
+    ! from ForceInput arrays in embed_eval_energy_grad — never from the deck.
     CALL stage_input_and_pps(n_atoms, pos, z, cell, has_cell, ierr)
     IF (ierr /= 0) RETURN
-    CALL CHDIR(TRIM(cfg_workdir))
-    ! Fresh SCF — no CLI RESTART contamination
-    CALL EXECUTE_COMMAND_LINE('rm -f RESTART RESTART.1 LATEST GEOMETRY GEOMETRY.xyz 2>/dev/null')
+    ! INPUT in workdir; PP basenames resolved from CWD=CPMDC_PSEUDO_DIR (recpnew
+    ! rejects absolute *PP paths). Point cnts%inputfile at absolute INPUT path.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
+    IF (LEN_TRIM(pp_dir) == 0) RETURN
+    ! recpnew/ratom need CWD on the PP library (relative *PP names).
+    CALL CHDIR(TRIM(pp_dir))
     paral%io_parent = .TRUE.
-    cnts%inputfile = 'INPUT'
+    cnts%inputfile = TRIM(cfg_workdir) // '/INPUT'
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
@@ -746,85 +946,17 @@ CONTAINS
     CALL gle_alloc
     CALL vdw_wf_alloc
     CALL apply_method_knobs()
-    ! rwfopt: tfor = (iprint_force == 1); must be set immediately before wfopts.
-    cprint%tprint = .TRUE.
-    cprint%iprint(iprint_force) = 1
-    CALL wfopts
-    energy_h = REAL(ener_com%etot, KIND=c_double)
-    ! In-process ener_com snapshot (Hartree) — hosts use cpmdc_last_energy_components.
-    last_etot = REAL(ener_com%etot, KIND=c_double)
-    last_ekin = REAL(ener_com%ekin, KIND=c_double)
-    last_epseu = REAL(ener_com%epseu, KIND=c_double)
-    last_enl = REAL(ener_com%enl, KIND=c_double)
-    last_eht = REAL(ener_com%eht, KIND=c_double)
-    last_ehep = REAL(ener_com%ehep, KIND=c_double)
-    last_ehee = REAL(ener_com%ehee, KIND=c_double)
-    last_ehii = REAL(ener_com%ehii, KIND=c_double)
-    last_exc = REAL(ener_com%exc, KIND=c_double)
-    last_vxc = REAL(ener_com%vxc, KIND=c_double)
-    last_egc = REAL(ener_com%egc, KIND=c_double)
-    last_esr = REAL(ener_com%esr, KIND=c_double)
-    last_eeig = REAL(ener_com%eeig, KIND=c_double)
-    last_eband = REAL(ener_com%eband, KIND=c_double)
-    last_entropy = REAL(ener_com%entropy, KIND=c_double)
-    last_eself = REAL(ener_com%eself, KIND=c_double)
-    last_ecnstr = REAL(ener_com%ecnstr, KIND=c_double)
-    last_amu = REAL(ener_com%amu, KIND=c_double)
-    last_ebogo = REAL(ener_com%ebogo, KIND=c_double)
-    last_eext = REAL(ener_com%eext, KIND=c_double)
-    last_etddft = REAL(ener_com%etddft, KIND=c_double)
-    last_ehsic = REAL(ener_com%ehsic, KIND=c_double)
-    last_erestr = REAL(ener_com%erestr, KIND=c_double)
-    last_eefield = REAL(ener_com%eefield, KIND=c_double)
-    last_ener_valid = 1_c_int
-    ! Charge integrals + multi-state catalog (may be zero if CAS22 not active).
-    last_csumg = REAL(chrg%csumg, KIND=c_double)
-    last_csumr = REAL(chrg%csumr, KIND=c_double)
-    last_csums = REAL(chrg%csums, KIND=c_double)
-    last_csumsabs = REAL(chrg%csumsabs, KIND=c_double)
-    last_chrg_valid = 1_c_int
-    last_ms_vals(1) = REAL(ener_c%etot_a, KIND=c_double)
-    last_ms_vals(2) = REAL(ener_c%etot_2, KIND=c_double)
-    last_ms_vals(3) = REAL(ener_c%etot_ab, KIND=c_double)
-    last_ms_vals(4) = REAL(ener_d%etot_b, KIND=c_double)
-    last_ms_vals(5) = REAL(ener_d%ecas, KIND=c_double)
-    last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
-    last_ms_count = 6_c_int
-    last_ms_valid = 1_c_int
-    ! ENERGY-file-equivalent row from ener_com + EKINC (0 for BO/SCF wfopt).
-    last_md_vals(1) = REAL(ener_com%etot, KIND=c_double)
-    last_md_vals(2) = REAL(ener_com%ekin, KIND=c_double)
-    last_md_vals(3) = REAL(ener_com%epseu, KIND=c_double)
-    last_md_vals(4) = REAL(ener_com%enl, KIND=c_double)
-    last_md_vals(5) = REAL(ener_com%eht, KIND=c_double)
-    last_md_vals(6) = REAL(ener_com%exc, KIND=c_double)
-    last_md_vals(7) = REAL(ener_com%ehep, KIND=c_double)
-    last_md_vals(8) = REAL(ener_com%ehee, KIND=c_double)
-    last_md_vals(9) = REAL(ener_com%ehii, KIND=c_double)
-    last_md_vals(10) = REAL(ener_com%esr, KIND=c_double)
-    last_md_vals(11) = REAL(ener_com%eself, KIND=c_double)
-    last_md_vals(12) = 0.0_c_double  ! EKINC: fictitious electronic KE (MD only)
-    last_md_count = 12_c_int
-    last_md_valid = 1_c_int
-    ! PROP-class payload: dipole (ddip), nuclear gradient packed in hessian slot,
-    ! polarizability tensor (zeros until aoresponse/PROP polarizability run).
-    CALL snapshot_prop_from_modules(n_atoms)
-    ! Gradients in species order (same as atoms in INPUT / Cap'n Proto O then H).
-    ! Return -fion so C API gradient is dE/dR (force = -grad in energy_forces).
-    IF (ALLOCATED(fion)) THEN
-      idx = 0
-      DO is = 1, ions1%nsp
-        DO ia = 1, ions0%na(is)
-          DO k = 1, 3
-            idx = idx + 1
-            IF (idx > nmax) EXIT
-            grad(idx) = REAL(-fion(k, ia, is), KIND=c_double)
-          END DO
-        END DO
-      END DO
+    ! Return to workdir so later warm wfopts write RESTART/scratch next to INPUT,
+    ! not into the PP library directory. PP resolution uses CPMD_PP_LIBRARY_PATH.
+    CALL CHDIR(TRIM(cfg_workdir))
+    CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
+    IF (ok /= 0_c_int) THEN
+      cfg_warm_steps = 1
+    ELSE
+      CALL clear_last_energy_components()
+      ! Stay cold-gated only if bootstrap never succeeded.
     END IF
-    IF (ABS(energy_h) > 1.0_c_double) ok = 1_c_int
-    IF (ok == 0_c_int) CALL clear_last_energy_components()
   END SUBROUTINE
 #endif
 END MODULE cpmd_embed_c_api
+

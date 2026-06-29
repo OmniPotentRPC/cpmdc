@@ -224,12 +224,11 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
   double energy = 0.0;
-  if (push_geometry_deck_from_params(params_bytes, params_size, n_atoms,
-                                     positions_ang, atomic_numbers, cell,
-                                     has_cell ? 1 : 0) != 0) {
-    snprintf(r.message, sizeof(r.message), "Cap'n Proto deck render failed");
-    return r;
-  }
+  /* Geometry and forces travel only as C arrays into the embed (nwchemc
+   * pattern). Method knobs live in embed module state from set_config /
+   * session configure — do not materialize an INPUT deck per force. */
+  (void)params_bytes;
+  (void)params_size;
   cpmdc_stop_arm();
   int ok;
   if (setjmp(*cpmdc_stop_jmp()) != 0) {

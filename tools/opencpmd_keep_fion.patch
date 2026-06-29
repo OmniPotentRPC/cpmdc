@@ -1,11 +1,13 @@
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
-@@ -920,7 +920,8 @@
+@@ -920,7 +920,9 @@
         DEALLOCATE(taup,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
              __LINE__,__FILE__)
 -       DEALLOCATE(fion,STAT=ierr)
-+       ! CPMDC embed: keep coor%fion allocated for force export after wfopts
++       ! CPMDC embed: keep coor%fion allocated for force export after wfopts.
++       ! embed_eval_energy_grad DEALLOCATEs fion/taup before the next wfopts
++       ! so multi-SCF re-entry in one process does not hit ALLOCATE(fion) stopgm.
 +       ! DEALLOCATE(fion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
              __LINE__,__FILE__)
