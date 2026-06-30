@@ -576,16 +576,15 @@ CONTAINS
     IF (ALLOCATED(taup)) DEALLOCATE(taup)
     cprint%tprint = .TRUE.
     cprint%iprint(iprint_force) = 1
+    ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
+    ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
+    ! physical SCF for the new geometry).
     IF (cfg_warm_steps > 0) THEN
-      ! Tiny multi-force geometry steps: one force eval with retained orbitals
-      ! (no SCF iters). CLI baseline relaunches a full job every step.
-      cnti%nomore_iter = 0
       CALL cpmdc_set_warm_orbitals(.TRUE.)
     ELSE
       CALL cpmdc_set_warm_orbitals(.FALSE.)
     END IF
     CALL wfopts
-    IF (cfg_warm_steps > 0) cnti%nomore_iter = 10000
     energy_h = REAL(ener_com%etot, KIND=c_double)
     last_etot = energy_h
     last_ekin = REAL(ener_com%ekin, KIND=c_double)
