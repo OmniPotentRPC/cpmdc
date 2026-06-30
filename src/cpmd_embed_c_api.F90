@@ -626,6 +626,7 @@ CONTAINS
          mgcc_is_lyp, mhfx_is_skipped, func2
     USE tbxc, ONLY: toldcode
     USE vdwcmod, ONLY: empvdwc
+    USE ener, ONLY: tenergy_ok
     REAL(c_double), INTENT(IN) :: cell_ang(*)
     INTEGER, INTENT(IN) :: has_cell
     REAL(real64) :: cell_a
@@ -638,6 +639,7 @@ CONTAINS
     cntr%hthrs = 0.5_real64
     isos1%tcent = .FALSE.
     toldcode = .TRUE.
+    tenergy_ok = .TRUE.
     cntl%tgc = .TRUE.
     cntl%tgcx = .TRUE.
     cntl%tgcc = .TRUE.
@@ -964,6 +966,8 @@ CONTAINS
     CALL propin(tinfo)
     CALL setsys
     CALL New(bicanonicalCpmdConfig, bicanonicalCpmdInputConfig)
+    ! XC identity before genxc (nwchemc sets theory before task_*).
+    CALL apply_method_knobs()
     CALL genxc
     CALL numpw
     CALL rinit
@@ -979,7 +983,6 @@ CONTAINS
     CALL prnginit
     CALL gle_alloc
     CALL vdw_wf_alloc
-    CALL apply_method_knobs()
     CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN
       cfg_warm_steps = 1
