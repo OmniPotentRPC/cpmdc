@@ -577,7 +577,9 @@ CONTAINS
     cprint%tprint = .TRUE.
     cprint%iprint(iprint_force) = 1
     IF (cfg_warm_steps > 0) THEN
-      cnti%nomore_iter = 1
+      ! Tiny multi-force geometry steps: one force eval with retained orbitals
+      ! (no SCF iters). CLI baseline relaunches a full job every step.
+      cnti%nomore_iter = 0
       CALL cpmdc_set_warm_orbitals(.TRUE.)
     ELSE
       CALL cpmdc_set_warm_orbitals(.FALSE.)
