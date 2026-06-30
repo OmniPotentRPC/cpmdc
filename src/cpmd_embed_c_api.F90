@@ -72,9 +72,8 @@ MODULE cpmd_embed_c_api
   INTEGER(c_int), SAVE :: last_pol_count = 0_c_int
   REAL(c_double), SAVE :: last_pol(9) = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
-  CHARACTER(LEN=512), SAVE :: cfg_workdir = ' '
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
-  ! Successful SCF steps in this workdir; keep RESTART for warm multi-force.
+  ! Successful in-process SCF steps; warm path reuses orbitals in memory.
   INTEGER, SAVE :: cfg_warm_steps = 0
 #endif
 
@@ -431,189 +430,32 @@ CONTAINS
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE ensure_workdir()
-    CHARACTER(LEN=512) :: tmpl
-    INTEGER :: stat
-    IF (LEN_TRIM(cfg_workdir) > 0) RETURN
-    tmpl = '/tmp/cpmdc_embed_XXXXXX'
-    ! Prefer pre-seeded demo dir with PPs; else mkdtemp via C helper not available
-    ! Use fixed unique path from PID
-    WRITE(cfg_workdir, '(A,I0)') '/tmp/cpmdc_embed_', GETPID()
-    CALL EXECUTE_COMMAND_LINE('mkdir -p ' // TRIM(cfg_workdir), EXITSTAT=stat)
-  END SUBROUTINE
-
-  INTEGER FUNCTION GETPID()
-    ! glibc getpid via C binding
-    INTERFACE
-      FUNCTION c_getpid() BIND(C, NAME='getpid')
-        IMPORT :: c_int
-        INTEGER(c_int) :: c_getpid
-      END FUNCTION
-    END INTERFACE
-    GETPID = INT(c_getpid())
-  END FUNCTION
-
-  SUBROUTINE copy_pseudo_from_dir(pp_dir, pp, copied)
-    CHARACTER(LEN=*), INTENT(IN) :: pp_dir, pp
-    LOGICAL, INTENT(OUT) :: copied
-    CHARACTER(LEN=1024) :: src, dst
-    INTEGER :: stat
-    copied = .FALSE.
-    IF (LEN_TRIM(pp_dir) == 0 .OR. LEN_TRIM(pp) == 0) RETURN
-    src = TRIM(pp_dir) // '/' // TRIM(pp)
-    dst = TRIM(cfg_workdir) // '/' // TRIM(pp)
-    CALL EXECUTE_COMMAND_LINE('cp -f "' // TRIM(src) // '" "' // TRIM(dst) // &
-         '" 2>/dev/null', EXITSTAT=stat)
-    INQUIRE(FILE=TRIM(dst), EXIST=copied)
-  END SUBROUTINE
-
-  SUBROUTINE copy_pseudo_to_workdir(pp_line)
-    CHARACTER(LEN=*), INTENT(IN) :: pp_line
-    CHARACTER(LEN=1024) :: pp, pp_dir
-    INTEGER :: sep
-    LOGICAL :: copied, exists
-    pp = ADJUSTL(pp_line)
-    sep = SCAN(pp, ' ' // CHAR(9))
-    IF (sep > 0) pp = pp(:sep-1)
-    IF (LEN_TRIM(pp) == 0) RETURN
-    IF (pp(1:1) == '/') THEN
-      INQUIRE(FILE=TRIM(pp), EXIST=exists)
-      IF (exists) RETURN
-    END IF
-    INQUIRE(FILE=TRIM(cfg_workdir)//'/'//TRIM(pp), EXIST=exists)
-    IF (exists) RETURN
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
-    CALL copy_pseudo_from_dir(pp_dir, pp, copied)
-    IF (copied) RETURN
-    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/tests/PP_LIBRARY', pp, copied)
-    IF (copied) RETURN
-    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/PP_LIBRARY', pp, copied)
-    IF (copied) RETURN
-    CALL copy_pseudo_from_dir(TRIM(cfg_cpmd_root)//'/pseudo', pp, copied)
-    IF (copied) RETURN
-    CALL copy_pseudo_from_dir('/tmp/cpmdc_lib_scf_test', pp, copied)
-  END SUBROUTINE
-
-  SUBROUTINE stage_input_and_pps(n_atoms, pos, z, cell, has_cell, ierr)
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    INTEGER, INTENT(OUT) :: ierr
-    INTEGER :: u, i, j, count, zz
-    LOGICAL :: used(0:120)
-    CHARACTER(LEN=1024) :: pp
-    CHARACTER(LEN=8) :: lmax
-    REAL(real64) :: cell_a
-    CHARACTER(LEN=1024) :: dst, pp_dir
-    CHARACTER(LEN=128) :: line
-    LOGICAL :: found
-    ierr = 0
-    CALL ensure_workdir()
-    ! Always build method deck from ForceInput arrays + cfg_* knobs (geometry
-    ! is reapplied from C arrays at eval). Do not use cfg_input_deck text that
-    ! may omit CELL / use relative PP names.
-    cell_a = 10.0_real64
-    IF (has_cell /= 0) THEN
-      IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
-    END IF
-    OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='REPLACE', &
-         ACTION='WRITE', IOSTAT=ierr)
-    IF (ierr /= 0) RETURN
-    WRITE(u, '(A)') '&CPMD'
-    WRITE(u, '(A)') ' OPTIMIZE WAVEFUNCTION'
-    WRITE(u, '(A)') ' CONVERGENCE ORBITALS'
-    WRITE(u, '(A)') '  1.0d-5'
-    WRITE(u, '(A)') ' MAXITER'
-    WRITE(u, '(A)') '  40'
-    WRITE(u, '(A)') ' CENTER MOLECULE OFF'
-    WRITE(u, '(A)') '&END'
-    WRITE(u, '(A)') '&SYSTEM'
-    WRITE(u, '(A)') ' SYMMETRY'
-    WRITE(u, '(A)') '  0'
-    WRITE(u, '(A)') ' ANGSTROM'
-    WRITE(u, '(A)') ' CELL'
-    WRITE(u, '(A,F12.6,A)') '  ', cell_a, ' 1.0 1.0 0.0 0.0 0.0'
-    WRITE(u, '(A)') ' CUTOFF'
-    WRITE(u, '(A,F12.6)') '  ', cfg_cutoff_ry
-    WRITE(u, '(A)') ' POISSON SOLVER HOCKNEY'
-    WRITE(u, '(A)') '&END'
-    WRITE(u, '(A)') '&DFT'
-    WRITE(u, '(A)') ' OLDCODE'
-    WRITE(u, '(A)') ' FUNCTIONAL BLYP'
-    WRITE(u, '(A)') '&END'
-    WRITE(u, '(A)') '&ATOMS'
-    used = .FALSE.
-    DO i = 1, n_atoms
-      zz = INT(z(i))
-      IF (zz < 0 .OR. zz > 120) CYCLE
-      IF (used(zz)) CYCLE
-      used(zz) = .TRUE.
-      IF (zz == 1) THEN
-        pp = 'H_CVB_BLYP.psp'
-        lmax = 'S'
-      ELSE IF (zz == 6) THEN
-        pp = 'C_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE IF (zz == 7) THEN
-        pp = 'N_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE IF (zz == 8) THEN
-        pp = 'O_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE IF (zz == 14) THEN
-        pp = 'Si_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE IF (zz == 32) THEN
-        pp = 'Ge_MT_BLYP.psp'
-        lmax = 'P'
-      ELSE
-        CLOSE(u)
-        ierr = 1
-        RETURN
-      END IF
-      ! Relative PP basename; ratom/recpnew resolve via CWD=CPMDC_PSEUDO_DIR.
-      count = 0
-      DO j = 1, n_atoms
-        IF (INT(z(j)) == zz) count = count + 1
-      END DO
-      WRITE(u, '(A,A)') '*', TRIM(pp)
-      WRITE(u, '(A,A)') ' LMAX=', TRIM(lmax)
-      WRITE(u, '(A,I4)') '   ', count
-      DO j = 1, n_atoms
-        IF (INT(z(j)) /= zz) CYCLE
-        WRITE(u, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
-      END DO
-    END DO
-    WRITE(u, '(A)') '&END'
-    CLOSE(u)
-  END SUBROUTINE
-
-  ! Do not override SCF optimizer: INPUT (OPTIMIZE WAVEFUNCTION) drives DIIS like CLI.
-  ! Only reinforce method flags that Cap'n Proto owns (functional identity).
   SUBROUTINE apply_method_knobs()
     USE system, ONLY: cntr, cntl
     USE spin, ONLY: clsd
     USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, mgcc_is_lyp
+    USE tbxc, ONLY: toldcode
     IF (cfg_cutoff_ry > 0.0_real64) cntr%ecut = cfg_cutoff_ry
     clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
+    toldcode = .TRUE.
     func1%mfxcx = mfxcx_is_slaterx
     func1%mfxcc = mfxcc_is_lyp
     func1%mgcx = mgcx_is_becke88
     func1%mgcc = mgcc_is_lyp
     cntl%wfopt = .TRUE.
-    cntl%use_xc_driver = .FALSE.
-    cntl%tgcc = .TRUE.
+    cntl%diis = .TRUE.
+    cntl%tgc = .TRUE.
     cntl%tgcx = .TRUE.
+    cntl%tgcc = .TRUE.
+    cntl%use_xc_driver = .FALSE.
   END SUBROUTINE
-
 
   SUBROUTINE snapshot_prop_from_modules(n_atoms)
     USE ddip, ONLY: pdipole
     USE coor, ONLY: fion
     USE ions, ONLY: ions0, ions1
     INTEGER, INTENT(IN) :: n_atoms
-    INTEGER :: is, ia, k, idx, n3, i
-    n3 = MAX(0, n_atoms * 3)
+    INTEGER :: is, ia, k, idx, i
     last_prop_valid = 1_c_int
     last_dip_count = 3_c_int
     DO i = 1, 3
@@ -623,7 +465,6 @@ CONTAINS
     DO i = 1, 9
       last_pol(i) = 0.0_c_double
     END DO
-    ! Pack nuclear gradient (-force would be force; store dE/dR = -fion) for PROP consumers.
     idx = 0
     IF (ALLOCATED(fion)) THEN
       DO is = 1, ions1%nsp
@@ -639,99 +480,28 @@ CONTAINS
     last_hess_count = MIN(idx, 4096)
   END SUBROUTINE
 
-  ! Ensure &CPMD has STORE WAVEFUNCTION and optionally RESTART WAVEFUNCTION for
-  ! multi-force warm starts (same workdir session / topology).
-  SUBROUTINE ensure_cpmd_store_restart_keywords(use_restart)
-    LOGICAL, INTENT(IN) :: use_restart
-    INTEGER :: u_in, u_out, ios
-    CHARACTER(LEN=512) :: line, low
-    LOGICAL :: in_cpmd, has_store, has_restart
-    CHARACTER(LEN=1024) :: tmp
-    in_cpmd = .FALSE.
-    has_store = .FALSE.
-    has_restart = .FALSE.
-    tmp = TRIM(cfg_workdir)//'/INPUT.warmtmp'
-    OPEN(NEWUNIT=u_in, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='OLD', &
-         ACTION='READ', IOSTAT=ios)
-    IF (ios /= 0) RETURN
-    OPEN(NEWUNIT=u_out, FILE=TRIM(tmp), STATUS='REPLACE', ACTION='WRITE', IOSTAT=ios)
-    IF (ios /= 0) THEN
-      CLOSE(u_in)
-      RETURN
+  SUBROUTINE embed_pp_for_z(zz, pp, lmax_val, ok)
+    INTEGER, INTENT(IN) :: zz
+    CHARACTER(LEN=*), INTENT(OUT) :: pp
+    INTEGER, INTENT(OUT) :: lmax_val, ok
+    ok = 0
+    pp = ' '
+    lmax_val = -1
+    IF (zz == 1) THEN
+      pp = 'H_CVB_BLYP.psp'; lmax_val = 0; ok = 1
+    ELSE IF (zz == 6) THEN
+      pp = 'C_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 7) THEN
+      pp = 'N_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 8) THEN
+      pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 14) THEN
+      pp = 'Si_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 32) THEN
+      pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
     END IF
-    DO
-      READ(u_in, '(A)', IOSTAT=ios) line
-      IF (ios /= 0) EXIT
-      low = line
-      CALL to_upper_inplace(low)
-      IF (INDEX(low, '&CPMD') == 1) THEN
-        in_cpmd = .TRUE.
-        WRITE(u_out, '(A)') TRIM(line)
-        CYCLE
-      END IF
-      IF (in_cpmd .AND. INDEX(low, '&END') == 1) THEN
-        ! STORE WAVEFUNCTION requires the next line to be an integer (istore).
-        IF (.NOT. has_store) THEN
-          WRITE(u_out, '(A)') ' STORE WAVEFUNCTION'
-          WRITE(u_out, '(A)') '  1'
-        END IF
-        IF (use_restart .AND. .NOT. has_restart) &
-            WRITE(u_out, '(A)') ' RESTART WAVEFUNCTION'
-        in_cpmd = .FALSE.
-        WRITE(u_out, '(A)') TRIM(line)
-        CYCLE
-      END IF
-      IF (in_cpmd) THEN
-        IF (INDEX(low, 'STORE WAVEFUNCTION') > 0 .OR. INDEX(low, 'STORE WAVEFUNC') > 0) &
-            has_store = .TRUE.
-        IF (INDEX(low, 'RESTART WAVEFUNCTION') > 0) has_restart = .TRUE.
-      END IF
-      WRITE(u_out, '(A)') TRIM(line)
-    END DO
-    CLOSE(u_in)
-    CLOSE(u_out)
-    CALL delete_if_exists('INPUT')
-    OPEN(NEWUNIT=u_in, FILE=TRIM(tmp), STATUS='OLD', ACTION='READ', IOSTAT=ios)
-    IF (ios /= 0) RETURN
-    OPEN(NEWUNIT=u_out, FILE=TRIM(cfg_workdir)//'/INPUT', STATUS='REPLACE', &
-         ACTION='WRITE', IOSTAT=ios)
-    IF (ios /= 0) THEN
-      CLOSE(u_in)
-      RETURN
-    END IF
-    DO
-      READ(u_in, '(A)', IOSTAT=ios) line
-      IF (ios /= 0) EXIT
-      WRITE(u_out, '(A)') TRIM(line)
-    END DO
-    CLOSE(u_in)
-    CLOSE(u_out)
-    OPEN(NEWUNIT=u_in, FILE=TRIM(tmp), STATUS='OLD', IOSTAT=ios)
-    IF (ios == 0) CLOSE(u_in, STATUS='DELETE')
   END SUBROUTINE
 
-  SUBROUTINE to_upper_inplace(s)
-    CHARACTER(LEN=*), INTENT(INOUT) :: s
-    INTEGER :: i, c
-    DO i = 1, LEN_TRIM(s)
-      c = IACHAR(s(i:i))
-      IF (c >= IACHAR('a') .AND. c <= IACHAR('z')) &
-          s(i:i) = ACHAR(c - 32)
-    END DO
-  END SUBROUTINE
-
-  SUBROUTINE delete_if_exists(name)
-    CHARACTER(LEN=*), INTENT(IN) :: name
-    INTEGER :: u, ios
-    LOGICAL :: exists
-    INQUIRE(FILE=TRIM(cfg_workdir)//'/'//TRIM(name), EXIST=exists)
-    IF (.NOT. exists) RETURN
-    OPEN(NEWUNIT=u, FILE=TRIM(cfg_workdir)//'/'//TRIM(name), STATUS='OLD', IOSTAT=ios)
-    IF (ios == 0) CLOSE(u, STATUS='DELETE')
-  END SUBROUTINE
-
-  ! Geometry source of truth: C ForceInput positions (Angstrom) → TAU0 (Bohr).
-  ! Species-major order matches ions0 (same as ratom / Cap'n Proto deck).
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
     USE coor, ONLY: tau0
     USE ions, ONLY: ions0, ions1
@@ -740,9 +510,9 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     INTEGER, INTENT(OUT) :: ierr
-    INTEGER :: is, ia, k, j, zz, taken, expect
+    INTEGER :: is, j, k, taken, zz, expect
     ierr = 1
-    IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp <= 0) RETURN
+    IF (.NOT. ALLOCATED(tau0)) RETURN
     expect = 0
     DO is = 1, ions1%nsp
       expect = expect + ions0%na(is)
@@ -765,14 +535,15 @@ CONTAINS
     ierr = 0
   END SUBROUTINE
 
-  ! Evaluate energy/grad on live modules: geometry from C arrays only (no files).
   SUBROUTINE embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     USE wfopts_utils, ONLY: wfopts
+    USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
     USE store_types, ONLY: cprint, iprint_force
+    USE system, ONLY: cnti
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -788,16 +559,19 @@ CONTAINS
     END DO
     CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
     IF (ierr /= 0) RETURN
-    ! Phase factors for new nuclear positions (same as multi-step CPMD in one process).
     CALL phfac(tau0)
-    ! rwfopt always ALLOCATE(taup/fion). OpenCPMD keep_fion patch leaves fion
-    ! allocated after wfopts so forces can be copied; free both before re-entry
-    ! so multi-SCF in one process does not hit stopgm('allocation problem').
     IF (ALLOCATED(fion)) DEALLOCATE(fion)
     IF (ALLOCATED(taup)) DEALLOCATE(taup)
     cprint%tprint = .TRUE.
     cprint%iprint(iprint_force) = 1
+    IF (cfg_warm_steps > 0) THEN
+      cnti%nomore_iter = 1
+      CALL cpmdc_set_warm_orbitals(.TRUE.)
+    ELSE
+      CALL cpmdc_set_warm_orbitals(.FALSE.)
+    END IF
     CALL wfopts
+    IF (cfg_warm_steps > 0) cnti%nomore_iter = 10000
     energy_h = REAL(ener_com%etot, KIND=c_double)
     last_etot = energy_h
     last_ekin = REAL(ener_com%ekin, KIND=c_double)
@@ -819,7 +593,6 @@ CONTAINS
     last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
     last_ms_count = 6_c_int
     last_ms_valid = 1_c_int
-    ! fion may be deallocated/reallocated by wfopts; only copy when bounds are sane.
     IF (ALLOCATED(fion)) THEN
       IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
         idx = 0
@@ -836,23 +609,295 @@ CONTAINS
       END IF
     END IF
     CALL snapshot_prop_from_modules(n_atoms)
-    ! Energy is the primary success signal (forces may be zero if fion absent).
     IF (ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
   END SUBROUTINE
 
+  ! control/dftin/sysin without reading INPUT (nwchemc rtdb_put analogue).
+  SUBROUTINE embed_set_control_dft_sys(cell_ang, has_cell)
+    USE control_def_utils, ONLY: control_def
+    USE control_test_utils, ONLY: control_test
+    USE control_bcast_utils, ONLY: control_bcast
+    USE system, ONLY: cntl, cnti, cntr, parm, maxsys, dual00
+    USE cell, ONLY: cell_com
+    USE isos, ONLY: isos1, isos3
+    USE elct, ONLY: crge
+    USE spin, ONLY: clsd
+    USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, &
+         mgcc_is_lyp, mhfx_is_skipped, func2
+    USE tbxc, ONLY: toldcode
+    USE vdwcmod, ONLY: empvdwc
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER, INTENT(IN) :: has_cell
+    REAL(real64) :: cell_a
+    CALL control_def()
+    cntl%wfopt = .TRUE.
+    cntl%diis = .TRUE.
+    cntl%prec = .TRUE.
+    cnti%nomore_iter = 40
+    cntr%tolog = 1.0e-5_real64
+    cntr%hthrs = 0.5_real64
+    isos1%tcent = .FALSE.
+    toldcode = .TRUE.
+    cntl%tgc = .TRUE.
+    cntl%tgcx = .TRUE.
+    cntl%tgcc = .TRUE.
+    cntl%use_xc_driver = .FALSE.
+    func1%mfxcx = mfxcx_is_slaterx
+    func1%mfxcc = mfxcc_is_lyp
+    func1%mgcx = mgcx_is_becke88
+    func1%mgcc = mgcc_is_lyp
+    func1%mhfx = mhfx_is_skipped
+    func2%salpha = 2.0_real64 / 3.0_real64
+    empvdwc%dft_func = 'BLYP'
+    cntl%bohr = .FALSE.
+    ! sysin defaults (module fields otherwise HUGE/undefined without file parse)
+    dual00%cdual = 4.0_real64
+    dual00%dual = .FALSE.
+    parm%nr1 = 0
+    parm%nr2 = 0
+    parm%nr3 = 0
+    parm%ibrav = -1
+    cell_a = 12.0_real64
+    IF (has_cell /= 0) THEN
+      IF (cell_ang(1) > 0.0_c_double) cell_a = REAL(cell_ang(1), KIND=real64)
+    END IF
+    cell_com%celldm(1) = cell_a
+    cell_com%celldm(2) = 1.0_real64
+    cell_com%celldm(3) = 1.0_real64
+    cell_com%celldm(4:6) = 0.0_real64
+    parm%ibrav = 0
+    cntr%ecut = cfg_cutoff_ry
+    isos3%ps_type = 1
+    isos1%tclust = .TRUE.
+    isos1%tisos = .TRUE.
+    parm%ibrav = 1
+    crge%charge = REAL(cfg_charge, KIND=real64)
+    clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
+    maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
+    CALL control_test(.FALSE.)
+    maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
+    CALL control_bcast()
+  END SUBROUTINE
+
+  SUBROUTINE embed_detsp_from_z(n_atoms, z, ierr)
+    USE coor, ONLY: tau0, velp, lvelini
+    USE ions, ONLY: ions0, al, bl, rcl, maxgau
+    USE cotr, ONLY: duat
+    USE clas, ONLY: clas3, tclas
+    USE system, ONLY: maxsys, maxsp, lmaxx, nhx
+    USE nlps, ONLY: wsg, rgh, wgh, nghtol, nghcom
+    USE nlcc, ONLY: corecg, corei, corer, rcgrid
+    USE atom, ONLY: gnl, rps, rv, rw, vr
+    USE sgpp, ONLY: mpro
+    USE zeroing_utils, ONLY: zeroing
+    USE error_handling, ONLY: stopgm
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: i, is, zz, nsp, nax, nasp, ia, aerr
+    LOGICAL :: used(0:120)
+    INTEGER :: order_z(32)
+    CHARACTER(*), PARAMETER :: procedureN = 'embed_detsp_from_z'
+    ierr = 1
+    used = .FALSE.
+    nsp = 0
+    nax = 0
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (.NOT. used(zz)) THEN
+        used(zz) = .TRUE.
+        nsp = nsp + 1
+        IF (nsp > maxsp .OR. nsp > 32) RETURN
+        order_z(nsp) = zz
+      END IF
+    END DO
+    IF (nsp < 1) RETURN
+    DO is = 1, nsp
+      nasp = 0
+      DO i = 1, n_atoms
+        IF (INT(z(i)) == order_z(is)) nasp = nasp + 1
+      END DO
+      ions0%na(is) = nasp
+      nax = MAX(nax, nasp)
+    END DO
+    maxsys%nsx = nsp
+    maxsys%nax = nax
+    maxsys%ncorx = (nsp * (nsp + 1)) / 2
+    clas3%nclatom = 0
+    clas3%ncltyp = 0
+    duat%ndat = 0
+    tclas = .FALSE.
+    ALLOCATE(tau0(3, maxsys%nax, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    CALL zeroing(tau0)
+    ALLOCATE(velp(3, maxsys%nax, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    CALL zeroing(velp)
+    ALLOCATE(lvelini(0:maxsys%nax+1, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    DO is = 1, maxsys%nsx
+      DO ia = 0, maxsys%nax + 1
+        lvelini(ia, is) = .FALSE.
+      END DO
+    END DO
+    ALLOCATE(al(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(bl(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rcl(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(wsg(maxsys%nsx, nhx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rgh(nhx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(wgh(nhx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(nghtol(nhx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(nghcom(nhx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(gnl(maxsys%mmaxx, maxsys%nsx, lmaxx*mpro), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rps(maxsys%mmaxx, maxsys%nsx, lmaxx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rw(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rv(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(vr(maxsys%mmaxx, maxsys%nsx, lmaxx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(rcgrid(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(corecg(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    CALL zeroing(rcgrid)
+    CALL zeroing(corecg)
+    DO is = 1, maxsp
+      corer%anlcc(is) = 0.0_real64
+      corer%bnlcc(is) = 0.0_real64
+      corer%enlcc(is) = 0.0_real64
+      corer%clogcc(is) = 0.0_real64
+      corei%nlcct(is) = 0
+      corei%meshcc(is) = 0
+    END DO
+    ierr = 0
+  END SUBROUTINE
+
+  SUBROUTINE embed_ratom_from_arrays(n_atoms, pos, z, ierr)
+    USE coor, ONLY: tau0, velp
+    USE ions, ONLY: ions0, ions1
+    USE elct, ONLY: crge
+    USE cotr, ONLY: lskcor, lskptr, cotc0, duat, cotr007
+    USE dpot, ONLY: dpot_mod
+    USE pslo, ONLY: pslo_com
+    USE nlcc, ONLY: corel
+    USE nlps, ONLY: nlps_com
+    USE movi, ONLY: imtyp
+    USE atwf, ONLY: atchg
+    USE atom, ONLY: gnl, rps, rv, rw, vr, patom1
+    USE system, ONLY: maxsys, maxsp
+    USE recpnew_utils, ONLY: recpnew
+    USE zeroing_utils, ONLY: zeroing
+    USE error_handling, ONLY: stopgm
+    USE cnst, ONLY: fbohr
+    USE mm_dimmod, ONLY: mmdim
+    USE mm_input, ONLY: g96_vel
+    USE symm, ONLY: symmt
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: is, i, j, k, zz, taken, aerr, lmax_val, pok, NSX_q
+    LOGICAL :: seen(0:120)
+    CHARACTER(LEN=40) :: ecpnam
+    CHARACTER(LEN=64) :: pp
+    CHARACTER(*), PARAMETER :: procedureN = 'embed_ratom_from_arrays'
+    ierr = 1
+    NSX_q = maxsys%nsx
+    mmdim%nspm = maxsys%nsx
+    patom1%pconf = .FALSE.
+    seen = .FALSE.
+    ALLOCATE(lskcor(3, maxsys%nax*maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(lskptr(3, maxsys%nax*maxsys%nsx), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    ALLOCATE(atchg(NSX_q), STAT=aerr)
+    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    CALL zeroing(atchg)
+    CALL zeroing(lskptr)
+    DO i = 1, maxsys%nax * maxsys%nsx
+      DO j = 1, 3
+        lskcor(j, i) = 1
+      END DO
+    END DO
+    IF (g96_vel%ntx_vel /= 1) CALL zeroing(velp)
+    CALL zeroing(gnl)
+    CALL zeroing(rps)
+    CALL zeroing(vr)
+    CALL zeroing(rw)
+    CALL zeroing(rv)
+    DO i = 1, maxsp
+      imtyp(i) = 0
+      dpot_mod%team(i) = .FALSE.
+      dpot_mod%tkb(i) = .FALSE.
+    END DO
+    cotc0%lfcom = .FALSE.
+    symmt%tgenc = .FALSE.
+    ions1%nsp = 0
+    crge%nel = 0.0_real64
+    duat%ndat = 0
+    duat%ndat1 = 0
+    duat%ndat2 = 0
+    duat%ndat3 = 0
+    duat%ndat4 = 0
+    cotc0%mcnstr = 0
+    cotr007%mrestr = 0
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (seen(zz)) CYCLE
+      seen(zz) = .TRUE.
+      CALL embed_pp_for_z(zz, pp, lmax_val, pok)
+      IF (pok == 0) RETURN
+      ions1%nsp = ions1%nsp + 1
+      is = ions1%nsp
+      ecpnam = TRIM(pp)
+      pslo_com%tvan(is) = .FALSE.
+      pslo_com%tbin(is) = .FALSE.
+      corel%tnlcc(is) = .FALSE.
+      dpot_mod%tkb(is) = .FALSE.
+      dpot_mod%lmax(is) = lmax_val
+      dpot_mod%lloc(is) = lmax_val + 1
+      dpot_mod%lskip(is) = lmax_val + 2
+      nlps_com%ngh(is) = 0
+      CALL recpnew(is, ecpnam)
+      dpot_mod%lmax(is) = dpot_mod%lmax(is) + 1
+      crge%nel = crge%nel + REAL(ions0%na(is) * NINT(ions0%zv(is)), KIND=real64)
+      ! Store Angstrom (cntl%bohr=.FALSE.); setsys multiplies by fbohr once.
+      taken = 0
+      DO j = 1, n_atoms
+        IF (INT(z(j)) /= zz) CYCLE
+        taken = taken + 1
+        DO k = 1, 3
+          tau0(k, taken, is) = REAL(pos(3*(j-1)+k), KIND=real64)
+        END DO
+      END DO
+    END DO
+    IF (ions1%nsp /= maxsys%nsx) RETURN
+    ierr = 0
+  END SUBROUTINE
+
+  ! Cold bootstrap + multi-force: C arrays only (nwchemc pattern). Never writes
+  ! INPUT/RESTART/workdir/PP copies. PP library files are read-only.
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
     USE envir_utils, ONLY: envir
     USE setcnst_utils, ONLY: setcnst
-    USE control_utils, ONLY: control
-    USE dftin_utils, ONLY: dftin
-    USE sysin_utils, ONLY: sysin
     USE setsc_utils, ONLY: setsc
-    USE detsp_utils, ONLY: detsp
     USE mm_init_utils, ONLY: mm_init
-    USE ratom_utils, ONLY: ratom
     USE vdwin_utils, ONLY: vdwin
     USE propin_utils, ONLY: propin
     USE setsys_utils, ONLY: setsys
@@ -884,33 +929,20 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, idx, nmax
     LOGICAL :: tinfo
-    CHARACTER(LEN=1024) :: pp_dir
     ok = 0_c_int
     energy_h = 0.0_c_double
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
-    ! Subsequent forces: geometry only from C arrays into TAU0 + library wfopts.
-    ! No INPUT rewrite, no RESTART files, no workdir PP copies (nwchemc pattern).
     IF (cfg_warm_steps > 0) THEN
       CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
       IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
       RETURN
     END IF
-    ! First call only: OpenCPMD control/ratom still require a readable method deck
-    ! (library PP paths, absolute). Geometry for evaluation is always overridden
-    ! from ForceInput arrays in embed_eval_energy_grad — never from the deck.
-    CALL stage_input_and_pps(n_atoms, pos, z, cell, has_cell, ierr)
-    IF (ierr /= 0) RETURN
-    ! INPUT in workdir; PP basenames resolved from CWD=CPMDC_PSEUDO_DIR (recpnew
-    ! rejects absolute *PP paths). Point cnts%inputfile at absolute INPUT path.
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
-    IF (LEN_TRIM(pp_dir) == 0) RETURN
-    ! recpnew/ratom need CWD on the PP library (relative *PP names).
-    CALL CHDIR(TRIM(pp_dir))
     paral%io_parent = .TRUE.
-    cnts%inputfile = TRIM(cfg_workdir) // '/INPUT'
+    ! startpa opens cnts%inputfile (read-only). Use /dev/null — no deck on disk.
+    cnts%inputfile = '/dev/null'
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
@@ -919,13 +951,15 @@ CONTAINS
     CALL init_pinf_pointers()
     CALL envir
     CALL setcnst
-    CALL control
-    CALL dftin
-    CALL sysin
+    CALL embed_set_control_dft_sys(cell, has_cell)
     CALL setsc
-    CALL detsp
+    CALL embed_detsp_from_z(n_atoms, z, ierr)
+    IF (ierr /= 0) RETURN
     CALL mm_init
-    CALL ratom
+    CALL embed_ratom_from_arrays(n_atoms, pos, z, ierr)
+    IF (ierr /= 0) RETURN
+    ! Optional scanners read unit 5; detach from host stdin (no file writes).
+    OPEN(UNIT=5, FILE='/dev/null', STATUS='OLD', ACTION='READ', IOSTAT=ierr)
     CALL vdwin
     CALL propin(tinfo)
     CALL setsys
@@ -946,15 +980,11 @@ CONTAINS
     CALL gle_alloc
     CALL vdw_wf_alloc
     CALL apply_method_knobs()
-    ! Return to workdir so later warm wfopts write RESTART/scratch next to INPUT,
-    ! not into the PP library directory. PP resolution uses CPMD_PP_LIBRARY_PATH.
-    CALL CHDIR(TRIM(cfg_workdir))
     CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN
       cfg_warm_steps = 1
     ELSE
       CALL clear_last_energy_components()
-      ! Stay cold-gated only if bootstrap never succeeded.
     END IF
   END SUBROUTINE
 #endif
