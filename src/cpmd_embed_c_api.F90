@@ -433,17 +433,29 @@ CONTAINS
   SUBROUTINE apply_method_knobs()
     USE system, ONLY: cntr, cntl
     USE spin, ONLY: clsd
-    USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, mgcc_is_lyp
+    USE func, ONLY: func1, func2, func3, mfxcx_is_slaterx, mfxcc_is_lyp, &
+         mgcx_is_becke88, mgcc_is_lyp, mhfx_is_skipped
     USE tbxc, ONLY: toldcode
+    USE ener, ONLY: tenergy_ok
     IF (cfg_cutoff_ry > 0.0_real64) cntr%ecut = cfg_cutoff_ry
     clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
     toldcode = .TRUE.
+    tenergy_ok = .TRUE.
     func1%mfxcx = mfxcx_is_slaterx
     func1%mfxcc = mfxcc_is_lyp
     func1%mgcx = mgcx_is_becke88
     func1%mgcc = mgcc_is_lyp
+    func1%mhfx = mhfx_is_skipped
+    func2%salpha = 2.0_real64 / 3.0_real64
+    func2%bbeta = 0.0042_real64
+    func3%pxlda = 1.0_real64
+    func3%pxgc = 1.0_real64
+    func3%pclda = 1.0_real64
+    func3%pcgc = 1.0_real64
+    func3%phfx = 0.0_real64
     cntl%wfopt = .TRUE.
     cntl%diis = .TRUE.
+    cntl%prec = .TRUE.
     cntl%tgc = .TRUE.
     cntl%tgcx = .TRUE.
     cntl%tgcc = .TRUE.
@@ -622,8 +634,9 @@ CONTAINS
     USE isos, ONLY: isos1, isos3
     USE elct, ONLY: crge
     USE spin, ONLY: clsd
-    USE func, ONLY: func1, mfxcx_is_slaterx, mfxcc_is_lyp, mgcx_is_becke88, &
-         mgcc_is_lyp, mhfx_is_skipped, func2
+    USE func, ONLY: func1, func2, func3, mfxcx_is_slaterx, mfxcc_is_lyp, &
+         mgcx_is_becke88, mgcc_is_lyp, mhfx_is_skipped, mtau_is_skipped, &
+         msrx_is_skipped, mgcsrx_is_skipped
     USE tbxc, ONLY: toldcode
     USE vdwcmod, ONLY: empvdwc
     USE ener, ONLY: tenergy_ok
@@ -637,19 +650,33 @@ CONTAINS
     cnti%nomore_iter = 40
     cntr%tolog = 1.0e-5_real64
     cntr%hthrs = 0.5_real64
+    cntr%gceps = 1.0e-8_real64
     isos1%tcent = .FALSE.
+    ! &DFT OLDCODE + FUNCTIONAL BLYP (same fields dftin sets; no INPUT parse)
     toldcode = .TRUE.
     tenergy_ok = .TRUE.
     cntl%tgc = .TRUE.
     cntl%tgcx = .TRUE.
     cntl%tgcc = .TRUE.
     cntl%use_xc_driver = .FALSE.
+    cntl%thybrid = .FALSE.
+    cntl%ttau = .FALSE.
     func1%mfxcx = mfxcx_is_slaterx
     func1%mfxcc = mfxcc_is_lyp
     func1%mgcx = mgcx_is_becke88
     func1%mgcc = mgcc_is_lyp
     func1%mhfx = mhfx_is_skipped
+    func1%mtau = mtau_is_skipped
+    func1%msrx = msrx_is_skipped
+    func1%mgcsrx = mgcsrx_is_skipped
     func2%salpha = 2.0_real64 / 3.0_real64
+    func2%bbeta = 0.0042_real64
+    ! Uninitialized func3 weights yield zero XC (module has no default =).
+    func3%pxlda = 1.0_real64
+    func3%pxgc = 1.0_real64
+    func3%pclda = 1.0_real64
+    func3%pcgc = 1.0_real64
+    func3%phfx = 0.0_real64
     empvdwc%dft_func = 'BLYP'
     cntl%bohr = .FALSE.
     ! sysin defaults (module fields otherwise HUGE/undefined without file parse)
@@ -890,16 +917,108 @@ CONTAINS
     ierr = 0
   END SUBROUTINE
 
-  ! Cold bootstrap + multi-force: C arrays only (nwchemc pattern). Never writes
-  ! INPUT/RESTART/workdir/PP copies. PP library files are read-only.
+  ! Cold: OpenCPMD parsers via anonymous memfd deck (no disk write). Warm: C arrays only.
+  SUBROUTINE embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    INTEGER :: i, j, zz, count, pok, lmax_val
+    LOGICAL :: seen(0:120)
+    CHARACTER(LEN=64) :: pp
+    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=128) :: line
+    REAL(real64) :: cell_a
+    ierr = 1
+    deck = ' '
+    nlen = 0
+    cell_a = 12.0_real64
+    IF (has_cell /= 0) THEN
+      IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
+    END IF
+    CALL append(deck, nlen, '&CPMD'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' OPTIMIZE WAVEFUNCTION'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' CONVERGENCE ORBITALS'//NEW_LINE('A'))
+    CALL append(deck, nlen, '  1.0d-5'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' MAXITER'//NEW_LINE('A'))
+    CALL append(deck, nlen, '  40'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' CENTER MOLECULE OFF'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&SYSTEM'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' SYMMETRY'//NEW_LINE('A'))
+    CALL append(deck, nlen, '  0'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' ANGSTROM'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' CELL'//NEW_LINE('A'))
+    WRITE(line, '(A,F12.6,A)') '  ', cell_a, ' 1.0 1.0 0.0 0.0 0.0'
+    CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
+    WRITE(line, '(A,F12.6)') '  ', cfg_cutoff_ry
+    CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    CALL append(deck, nlen, ' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&DFT'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' OLDCODE'//NEW_LINE('A'))
+    CALL append(deck, nlen, ' FUNCTIONAL BLYP'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    seen = .FALSE.
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (seen(zz)) CYCLE
+      seen(zz) = .TRUE.
+      CALL embed_pp_for_z(zz, pp, lmax_val, pok)
+      IF (pok == 0) RETURN
+      IF (lmax_val == 0) THEN
+        lmax_c = 'S'
+      ELSE IF (lmax_val == 1) THEN
+        lmax_c = 'P'
+      ELSE
+        lmax_c = 'D'
+      END IF
+      CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      count = 0
+      DO j = 1, n_atoms
+        IF (INT(z(j)) == zz) count = count + 1
+      END DO
+      WRITE(line, '(A,I4)') '   ', count
+      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      DO j = 1, n_atoms
+        IF (INT(z(j)) /= zz) CYCLE
+        WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
+        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      END DO
+    END DO
+    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    ierr = 0
+  CONTAINS
+    SUBROUTINE append(buf, n, s)
+      CHARACTER(LEN=*), INTENT(INOUT) :: buf
+      INTEGER, INTENT(INOUT) :: n
+      CHARACTER(LEN=*), INTENT(IN) :: s
+      INTEGER :: m
+      m = LEN(s)
+      IF (n + m > LEN(buf)) RETURN
+      buf(n+1:n+m) = s
+      n = n + m
+    END SUBROUTINE
+  END SUBROUTINE
+
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
     USE envir_utils, ONLY: envir
     USE setcnst_utils, ONLY: setcnst
+    USE control_utils, ONLY: control
+    USE dftin_utils, ONLY: dftin
+    USE sysin_utils, ONLY: sysin
     USE setsc_utils, ONLY: setsc
+    USE detsp_utils, ONLY: detsp
     USE mm_init_utils, ONLY: mm_init
+    USE ratom_utils, ONLY: ratom
     USE vdwin_utils, ONLY: vdwin
     USE propin_utils, ONLY: propin
     USE setsys_utils, ONLY: setsys
@@ -929,8 +1048,20 @@ CONTAINS
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad(*)
     INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: ierr, idx, nmax
+    INTEGER :: ierr, idx, nmax, nlen, mfd
     LOGICAL :: tinfo
+    CHARACTER(LEN=16384) :: deck
+    CHARACTER(LEN=64) :: mempath
+    INTERFACE
+      FUNCTION cpmdc_memfd_write(bytes, nbytes, path_out, path_cap) BIND(C, NAME='cpmdc_memfd_write')
+        IMPORT :: c_char, c_int
+        CHARACTER(KIND=c_char), INTENT(IN) :: bytes(*)
+        INTEGER(c_int), VALUE :: nbytes
+        CHARACTER(KIND=c_char), INTENT(OUT) :: path_out(*)
+        INTEGER(c_int), VALUE :: path_cap
+        INTEGER(c_int) :: cpmdc_memfd_write
+      END FUNCTION
+    END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
     nmax = n_atoms * 3
@@ -942,9 +1073,21 @@ CONTAINS
       IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
       RETURN
     END IF
+    ! Cold: method+topology via memfd-backed deck for OpenCPMD parsers (no disk
+    ! path). Geometry for every force (incl. first eval) from C arrays into TAU0.
+    CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr)
+    IF (ierr /= 0 .OR. nlen < 1) RETURN
+    mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
+         INT(LEN(mempath), KIND=c_int)))
+    IF (mfd < 0) RETURN
     paral%io_parent = .TRUE.
-    ! startpa opens cnts%inputfile (read-only). Use /dev/null — no deck on disk.
-    cnts%inputfile = '/dev/null'
+    ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
+    DO idx = 1, LEN(mempath)
+      IF (IACHAR(mempath(idx:idx)) == 0) THEN
+        cnts%inputfile = mempath(1:idx-1)
+        EXIT
+      END IF
+    END DO
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
@@ -953,21 +1096,17 @@ CONTAINS
     CALL init_pinf_pointers()
     CALL envir
     CALL setcnst
-    CALL embed_set_control_dft_sys(cell, has_cell)
+    CALL control
+    CALL dftin
+    CALL sysin
     CALL setsc
-    CALL embed_detsp_from_z(n_atoms, z, ierr)
-    IF (ierr /= 0) RETURN
+    CALL detsp
     CALL mm_init
-    CALL embed_ratom_from_arrays(n_atoms, pos, z, ierr)
-    IF (ierr /= 0) RETURN
-    ! Optional scanners read unit 5; detach from host stdin (no file writes).
-    OPEN(UNIT=5, FILE='/dev/null', STATUS='OLD', ACTION='READ', IOSTAT=ierr)
+    CALL ratom
     CALL vdwin
     CALL propin(tinfo)
     CALL setsys
     CALL New(bicanonicalCpmdConfig, bicanonicalCpmdInputConfig)
-    ! XC identity before genxc (nwchemc sets theory before task_*).
-    CALL apply_method_knobs()
     CALL genxc
     CALL numpw
     CALL rinit
@@ -983,6 +1122,7 @@ CONTAINS
     CALL prnginit
     CALL gle_alloc
     CALL vdw_wf_alloc
+    ! First and later forces: positions only from C arrays (nwchemc geom pattern).
     CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN
       cfg_warm_steps = 1
