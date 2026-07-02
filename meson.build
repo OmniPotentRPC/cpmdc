@@ -38,6 +38,10 @@ if need_capnp_c
   capnp_c_project = subproject('c-capnproto')
   capnp_c_dep = capnp_c_project.get_variable('capnp_c_dep')
   capnpc_c = capnp_c_project.get_variable('capnpc_c')
+  # Canonical contract pinned via subprojects/potentials-schema.wrap; the
+  # vendored schema/Potentials.capnp must stay byte-identical (schema-sync test).
+  potentials_schema_proj = subproject('potentials-schema')
+  potentials_schema_canonical = potentials_schema_proj.get_variable('potentials_capnp_file')
   subdir('schema')
   potentials_capnp_c_dep = declare_dependency(sources: potentials_capnp_c)
   cpmdc_params_sources = ['src/cpmdc_params.c', potentials_capnp_c_src]
