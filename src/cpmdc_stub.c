@@ -1,6 +1,10 @@
 #include "cpmdc.h"
 
 #include <stdio.h>
+
+#ifndef CPMDC_VERSION_STRING
+#define CPMDC_VERSION_STRING "unknown"
+#endif
 #include <string.h>
 
 static CPMDCResult stub_fail(void) {
@@ -57,7 +61,7 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
   return stub_fail();
 }
 
-const char *cpmdc_version(void) { return "cpmdc-stub/0.1.0"; }
+const char *cpmdc_version(void) { return "cpmdc-stub/" CPMDC_VERSION_STRING; }
 
 int cpmdc_available(void) { return 0; }
 

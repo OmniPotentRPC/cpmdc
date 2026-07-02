@@ -4669,8 +4669,6 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   view.dipole = dip_list;
   view.polarizability = pol_list;
   view.gradient = grad_list;
-  /* Also expose packed gradient in hessian list for hosts that read PROP POD slot. */
-  view.hessian = grad_list;
   view.embedMdPropsSkipped = 0;
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {

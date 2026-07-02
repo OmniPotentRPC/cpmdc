@@ -6,6 +6,10 @@ project(
 )
 
 cc = meson.get_compiler('c')
+add_project_arguments(
+  '-DCPMDC_VERSION_STRING="' + meson.project_version() + '"',
+  language: 'c',
+)
 fc = meson.get_compiler('fortran')
 python = find_program('python3')
 pkgconfig = import('pkgconfig')

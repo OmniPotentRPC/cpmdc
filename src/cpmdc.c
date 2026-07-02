@@ -3,6 +3,10 @@
 #include "cpmdc.h"
 #include "cpmdc_params.h"
 
+#ifndef CPMDC_VERSION_STRING
+#define CPMDC_VERSION_STRING "unknown"
+#endif
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -744,7 +748,7 @@ size_t cpmdc_potential_result_size_for_force_input(
   return result_size;
 }
 
-const char *cpmdc_version(void) { return "cpmdc/0.1.0"; }
+const char *cpmdc_version(void) { return "cpmdc/" CPMDC_VERSION_STRING; }
 
 int cpmdc_available(void) {
   if (!ensure_embed_init())
