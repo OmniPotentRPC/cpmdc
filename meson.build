@@ -8,6 +8,7 @@ project(
 cc = meson.get_compiler('c')
 fc = meson.get_compiler('fortran')
 python = find_program('python3')
+pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
 dl_dep = dependency('dl', required: false)
 if not dl_dep.found()
@@ -153,6 +154,7 @@ cpmdc_shared = shared_library(
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
+  soversion: meson.project_version().split('.')[0],
   install: true,
 )
 
@@ -162,7 +164,15 @@ cpmdc_shared_dep = declare_dependency(
   dependencies: cpmdc_params_deps,
 )
 
-install_headers('include/cpmdc.h', 'include/cpmdc_features.h')
+install_headers('include/cpmdc.h', 'include/cpmdc_features.h', subdir: 'cpmdc')
+pkgconfig.generate(
+  name: 'cpmdc',
+  filebase: 'cpmdc',
+  libraries: cpmdc_shared,
+  subdirs: 'cpmdc',
+  version: meson.project_version(),
+  description: 'Stable C ABI for embedding CPMD',
+)
 
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
