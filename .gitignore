@@ -11,3 +11,13 @@
 *.gcno
 compile_commands.json
 .cache/
+
+# CPMD runtime output dropped by embed runs
+/RESTART.*
+/GEOMETRY
+/GEOMETRY.xyz
+/LATEST
+/ENERGIES
+/DENSITY
+/CHOCKL
+LocalError-*.log
