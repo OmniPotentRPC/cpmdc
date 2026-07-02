@@ -4470,11 +4470,13 @@ int cpmdc_force_input_result_factors(ForceInput_ptr force_input,
 }
 
 size_t cpmdc_potential_result_flat_size(size_t force_count) {
-  /* Budget for optional property/component lists beyond energy+forces. */
+  /* The writer emits two natoms*3 Float64 lists (forces, gradient) plus the
+   * fixed-size component/charge/multistate/MD/dipole/polarizability lists;
+   * the constant budget covers those fixed lists and capnp framing. */
   const size_t overhead = 2048u;
-  if (force_count > (SIZE_MAX - overhead) / 8u)
+  if (force_count > (SIZE_MAX - overhead) / 16u)
     return 0;
-  return overhead + force_count * 8u;
+  return overhead + force_count * 16u;
 }
 
 int cpmdc_potential_result_write(double energy, const double *forces,

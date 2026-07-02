@@ -1,4 +1,5 @@
 #include "cpmdc.h"
+#include "cpmdc_params.h"
 
 #include <errno.h>
 #include <setjmp.h>
@@ -61,6 +62,28 @@ static void test_sizes_match_atom_count(void **state) {
   free(ev);
 }
 
+static void test_flat_size_fits_large_system(void **state) {
+  (void)state;
+  /* 100 atoms: the writer emits forces AND gradient (both natoms*3), so the
+   * advertised size must cover both plus the fixed property lists. */
+  const size_t force_count = 300;
+  size_t need = cpmdc_potential_result_flat_size(force_count);
+  assert_true(need > 0);
+  double *forces = (double *)calloc(force_count, sizeof(double));
+  assert_non_null(forces);
+  unsigned char *out = (unsigned char *)malloc(need);
+  assert_non_null(out);
+  size_t wrote = 0;
+  assert_int_equal(
+      cpmdc_potential_result_write(-1.25, forces, force_count, out, need,
+                                   &wrote),
+      0);
+  assert_true(wrote > 0);
+  assert_true(wrote <= need);
+  free(out);
+  free(forces);
+}
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: %s step_a.bin step_ev.bin\n", argv[0]);
@@ -70,6 +93,7 @@ int main(int argc, char **argv) {
   g_step_ev = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_sizes_match_atom_count),
+      cmocka_unit_test(test_flat_size_fits_large_system),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
