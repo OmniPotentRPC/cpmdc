@@ -4,7 +4,7 @@ channels = ["conda-forge"]
 description = "C ABI for embedding OpenCPMD with Cap'n Proto parameters."
 name = "cpmdc"
 platforms = ["linux-64", "osx-64", "osx-arm64"]
-version = "0.1.0"
+version = "0.2.0"
 
 [environments]
 docs = { features = ["docs"] }
