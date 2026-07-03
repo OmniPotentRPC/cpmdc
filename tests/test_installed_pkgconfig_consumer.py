@@ -115,12 +115,28 @@ def main() -> int:
         env=env,
     ).stdout.split()
 
+    # libcpmdc.so carries the Fortran embed shell; point the linker and the
+    # runtime at the toolchain's libgfortran when cc lives in a conda-style env.
+    toolchain_lib = Path(args.cc).resolve().parents[1] / "lib"
+    extra_link = []
+    extra_run_dirs = []
+    if toolchain_lib.is_dir():
+        extra_link = [f"-L{toolchain_lib}", f"-Wl,-rpath-link,{toolchain_lib}"]
+        extra_run_dirs = [str(toolchain_lib)]
+
     consumer_bin = consumer_dir / "consumer"
-    run([args.cc, consumer_dir / "main.c", "-o", consumer_bin] + cflags + libs)
+    run(
+        [args.cc, consumer_dir / "main.c", "-o", consumer_bin]
+        + cflags
+        + libs
+        + extra_link
+    )
 
     run_env = dict(os.environ)
     run_env["LD_LIBRARY_PATH"] = os.pathsep.join(
-        [str(d) for d in lib_dirs(prefix)] + [run_env.get("LD_LIBRARY_PATH", "")]
+        [str(d) for d in lib_dirs(prefix)]
+        + extra_run_dirs
+        + [run_env.get("LD_LIBRARY_PATH", "")]
     )
     run([consumer_bin], env=run_env)
 
@@ -142,6 +158,8 @@ def main() -> int:
             cmake_build,
             f"-DCMAKE_PREFIX_PATH={prefix}",
             f"-DCMAKE_C_COMPILER={args.cc}",
+            "-DCMAKE_EXE_LINKER_FLAGS="
+            + " ".join(extra_link),
         ]
     )
     run([cmake, "--build", cmake_build])
