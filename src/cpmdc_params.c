@@ -3577,6 +3577,43 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " BECKE88\n") != 0)
       return -1;
   }
+  int nhub = struct_list_len(&dft->hubbardU.p);
+  if (nhub < 0)
+    return -1;
+  if (nhub > 0) {
+    if (append_text(dst, dst_size, used, " HUBBARD U\n") != 0)
+      return -1;
+    for (int i = 0; i < nhub; ++i) {
+      struct CPMDHubbardU hub;
+      get_CPMDHubbardU(&hub, dft->hubbardU, i);
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, hub.element) != 0)
+        return -1;
+      if (append_fmt(dst, dst_size, used, " L=%d U=%.6f\n", hub.l, hub.u) != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, " END HUBBARD\n") != 0)
+      return -1;
+  }
+  if (dft->hfxWfcCutoff > 0.0) {
+    if (append_fmt(dst, dst_size, used, " HFX WFC CUTOFF\n  %.6f\n",
+                   dft->hfxWfcCutoff) != 0)
+      return -1;
+  }
+  if (dft->hfxBlock > 0) {
+    if (append_fmt(dst, dst_size, used, " HFX BLOCK\n  %d\n",
+                   dft->hfxBlock) != 0)
+      return -1;
+  }
+  if (dft->hfxDistribution.str && dft->hfxDistribution.len > 0) {
+    if (append_text(dst, dst_size, used, " HFX DISTRIBUTION\n  ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, dft->hfxDistribution) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
   if (append_directives(dst, dst_size, used, dft->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, "DFT") != 0)
