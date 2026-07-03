@@ -151,6 +151,360 @@ static int configure_embed_from_session(CPMDCSession *session) {
   return ok != 0 ? 0 : -1;
 }
 
+/* Diagnostic channel for the int-returning configuration entry points. */
+static _Thread_local char g_last_error[512];
+
+static void cpmdc_store_error(const char *msg) {
+  snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
+}
+
+const char *cpmdc_last_error(void) { return g_last_error; }
+
+/* Map CommonMethodSpec.xcFunctionals to a CPMD functional token. Matched on
+ * the sorted '+'-joined uppercase list. */
+static const struct {
+  const char *key;
+  const char *token;
+} k_cpmd_common_xc_map[] = {
+    {"PBE", "PBE"},
+    {"GGA_C_PBE+GGA_X_PBE", "PBE"},
+    {"PBE0", "PBE0"},
+    {"HYB_GGA_XC_PBEH", "PBE0"},
+    {"BLYP", "BLYP"},
+    {"GGA_C_LYP+GGA_X_B88", "BLYP"},
+    {"B3LYP", "B3LYP"},
+    {"HYB_GGA_XC_B3LYP", "B3LYP"},
+    {"LDA", "LDA"},
+    {"LDA_C_VWN+LDA_X", "LDA"},
+};
+
+static const capn_text k_empty_text = {0, "", 0};
+
+static int common_text_list_len(capn_ptr ptr) {
+  capn_resolve(&ptr);
+  if (ptr.type == CAPN_NULL)
+    return 0;
+  if (ptr.type != CAPN_PTR_LIST)
+    return -1;
+  return ptr.len;
+}
+
+static int common_list32_len(capn_list32 list) {
+  capn_resolve(&list.p);
+  if (list.p.type == CAPN_NULL)
+    return 0;
+  if (list.p.type != CAPN_LIST || list.p.datasz != 4)
+    return -1;
+  return list.p.len;
+}
+
+static int cpmd_common_xc_token(capn_ptr list, char *out, size_t out_size) {
+  int n = common_text_list_len(list);
+  if (n <= 0 || n > 4)
+    return -1;
+  char names[4][64];
+  for (int i = 0; i < n; ++i) {
+    capn_text entry = capn_get_text(list, i, k_empty_text);
+    if (!entry.str || entry.len <= 0 || (size_t)entry.len >= sizeof(names[0]))
+      return -1;
+    for (int j = 0; j < entry.len; ++j) {
+      char ch = entry.str[j];
+      names[i][j] = (char)((ch >= 'a' && ch <= 'z') ? ch - ('a' - 'A') : ch);
+    }
+    names[i][entry.len] = '\0';
+  }
+  for (int i = 0; i < n; ++i) {
+    for (int j = i + 1; j < n; ++j) {
+      if (strcmp(names[i], names[j]) > 0) {
+        char tmp[64];
+        memcpy(tmp, names[i], sizeof(tmp));
+        memcpy(names[i], names[j], sizeof(names[j]));
+        memcpy(names[j], tmp, sizeof(tmp));
+      }
+    }
+  }
+  char key[280] = "";
+  size_t used = 0;
+  for (int i = 0; i < n; ++i) {
+    int wrote = snprintf(key + used, sizeof(key) - used, "%s%s",
+                         i > 0 ? "+" : "", names[i]);
+    if (wrote < 0 || (size_t)wrote >= sizeof(key) - used)
+      return -1;
+    used += (size_t)wrote;
+  }
+  for (size_t i = 0;
+       i < sizeof(k_cpmd_common_xc_map) / sizeof(k_cpmd_common_xc_map[0]);
+       ++i) {
+    if (strcmp(k_cpmd_common_xc_map[i].key, key) == 0) {
+      snprintf(out, out_size, "%s", k_cpmd_common_xc_map[i].token);
+      return 0;
+    }
+  }
+  return -1;
+}
+
+#define CPMDC_RYDBERG_EV 13.605693122994
+
+/* Lower the normalized overlay into a synthesized CPMDParams message.
+ * Slice: functional, plane-wave cutoff, charge, multiplicity; every other
+ * set field is rejected loudly. Returns malloc'd flat bytes. */
+static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
+                                 unsigned char **out, size_t *out_size) {
+  *out = NULL;
+  *out_size = 0;
+  struct CommonMethodSpec c;
+  memset(&c, 0, sizeof(c));
+  read_CommonMethodSpec(&c, common_root);
+
+  if (common_list32_len(c.kMesh) != 0) {
+    cpmdc_store_error("common overlay: kMesh has no CPMD lowering yet");
+    return -1;
+  }
+  if (c.vanDerWaalsMethod.len > 0) {
+    cpmdc_store_error(
+        "common overlay: vanDerWaalsMethod has no CPMD lowering yet");
+    return -1;
+  }
+  if (c.relativityMethod.len > 0) {
+    cpmdc_store_error(
+        "common overlay: relativityMethod has no CPMD lowering yet");
+    return -1;
+  }
+  if (c.scfMaxIterations > 0 || c.scfEnergyToleranceEv > 0.0) {
+    cpmdc_store_error(
+        "common overlay: SCF controls have no CPMD lowering yet");
+    return -1;
+  }
+  capn_resolve(&c.smearing.p);
+  if (c.smearing.p.type == CAPN_STRUCT) {
+    struct CommonMethodSpec_Smearing smear;
+    read_CommonMethodSpec_Smearing(&smear, c.smearing);
+    if (smear.kind != CommonMethodSpec_Smearing_Kind_none) {
+      cpmdc_store_error("common overlay: smearing has no CPMD lowering yet");
+      return -1;
+    }
+  }
+  if (c.basisSet.len > 0) {
+    const char *pw = "planewave";
+    int is_pw = c.basisSet.len == (int)strlen(pw);
+    for (int i = 0; is_pw && i < c.basisSet.len; ++i) {
+      char ch = c.basisSet.str[i];
+      if ((char)((ch >= 'A' && ch <= 'Z') ? ch + ('a' - 'A') : ch) != pw[i])
+        is_pw = 0;
+    }
+    if (!is_pw) {
+      cpmdc_store_error(
+          "common overlay: CPMD is plane-wave only; basisSet must be "
+          "\"planewave\" or unset");
+      return -1;
+    }
+  }
+
+  char functional[64] = "";
+  if (common_text_list_len(c.xcFunctionals) > 0) {
+    if (cpmd_common_xc_token(c.xcFunctionals, functional,
+                             sizeof(functional)) != 0) {
+      cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
+      return -1;
+    }
+  }
+
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  CPMDParams_ptr params = new_CPMDParams(root.seg);
+  struct CPMDParams view;
+  memset(&view, 0, sizeof(view));
+  if (functional[0] != '\0') {
+    view.functional.str = functional;
+    view.functional.len = (int)strlen(functional);
+  }
+  view.cutOffRy = c.planewaveCutoffEv > 0.0
+                      ? c.planewaveCutoffEv / CPMDC_RYDBERG_EV
+                      : 70.0;
+  view.charge = c.charge;
+  view.multiplicity = c.spinMultiplicity > 0 ? c.spinMultiplicity : 1;
+  view.task.str = "gradient";
+  view.task.len = 8;
+  write_CPMDParams(&view, params);
+  if (capn_setp(root, 0, params.p) != 0) {
+    capn_free(&arena);
+    cpmdc_store_error("common overlay: params synthesis failed");
+    return -1;
+  }
+  size_t capacity = 4096u;
+  unsigned char *buffer = NULL;
+  int written = -1;
+  for (int attempt = 0; attempt < 8 && written < 0; ++attempt) {
+    unsigned char *next = (unsigned char *)realloc(buffer, capacity);
+    if (!next) {
+      free(buffer);
+      capn_free(&arena);
+      return -1;
+    }
+    buffer = next;
+    written = capn_write_mem(&arena, (uint8_t *)buffer, capacity, 0);
+    if (written < 0)
+      capacity *= 2u;
+  }
+  capn_free(&arena);
+  if (written < 0) {
+    free(buffer);
+    cpmdc_store_error("common overlay: params serialization failed");
+    return -1;
+  }
+  *out = buffer;
+  *out_size = (size_t)written;
+  return 0;
+}
+
+/* Flatten an in-arena struct pointer into a fresh malloc'd message. */
+static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
+                               size_t *out_size) {
+  *out = NULL;
+  *out_size = 0;
+  if (struct_ptr.type == CAPN_NULL)
+    return -1;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  if (root.type == CAPN_NULL || capn_setp(root, 0, struct_ptr) != 0) {
+    capn_free(&arena);
+    return -1;
+  }
+  size_t capacity = 4096u;
+  unsigned char *buffer = NULL;
+  int written = -1;
+  for (int attempt = 0; attempt < 16 && written < 0; ++attempt) {
+    unsigned char *next = (unsigned char *)realloc(buffer, capacity);
+    if (!next) {
+      free(buffer);
+      capn_free(&arena);
+      return -1;
+    }
+    buffer = next;
+    written = capn_write_mem(&arena, (uint8_t *)buffer, capacity, 0);
+    if (written < 0)
+      capacity *= 2u;
+  }
+  capn_free(&arena);
+  if (written < 0) {
+    free(buffer);
+    return -1;
+  }
+  *out = buffer;
+  *out_size = (size_t)written;
+  return 0;
+}
+
+/* Resolve a PotentialConfig into effective CPMDParams bytes: the cpmd arm
+ * wins wholesale when present; otherwise a set common overlay synthesizes
+ * params. *out NULL with rc 0 means nothing to apply. */
+static int cpmd_config_to_params_bytes(const void *config_capnp,
+                                       size_t config_capnp_size_bytes,
+                                       unsigned char **out, size_t *out_size) {
+  *out = NULL;
+  *out_size = 0;
+  if (!config_capnp || config_capnp_size_bytes == 0) {
+    cpmdc_store_error("PotentialConfig buffer is empty");
+    return -1;
+  }
+  struct capn arena;
+  if (capn_init_mem(&arena, (const uint8_t *)config_capnp,
+                    config_capnp_size_bytes, 0) != 0) {
+    cpmdc_store_error("PotentialConfig parse failed");
+    return -1;
+  }
+  PotentialConfig_ptr config_root;
+  config_root.p = capn_getp(capn_root(&arena), 0, 1);
+  if (config_root.p.type != CAPN_STRUCT) {
+    capn_free(&arena);
+    cpmdc_store_error("PotentialConfig parse failed");
+    return -1;
+  }
+  struct PotentialConfig config;
+  memset(&config, 0, sizeof(config));
+  read_PotentialConfig(&config, config_root);
+
+  int rc = 0;
+  if (config.which == PotentialConfig_cpmd) {
+    capn_resolve(&config.cpmd.p);
+    if (config.cpmd.p.type != CAPN_STRUCT) {
+      cpmdc_store_error("PotentialConfig cpmd arm is empty");
+      rc = -1;
+    } else {
+      rc = cpmd_write_ptr_flat(config.cpmd.p, out, out_size);
+      if (rc != 0)
+        cpmdc_store_error("PotentialConfig cpmd arm serialization failed");
+    }
+  } else if (config.which == PotentialConfig_none) {
+    capn_resolve(&config.common.p);
+    if (config.common.p.type == CAPN_STRUCT)
+      rc = cpmd_common_to_params(config.common, out, out_size);
+  } else {
+    cpmdc_store_error(
+        "PotentialConfig arm does not match the CPMD backend");
+    rc = -1;
+  }
+  capn_free(&arena);
+  return rc;
+}
+
+int cpmdc_configure(const void *config_capnp,
+                    size_t config_capnp_size_bytes) {
+  cpmdc_store_error("");
+  unsigned char *params = NULL;
+  size_t params_size = 0;
+  if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
+                                  &params, &params_size) != 0)
+    return -1;
+  if (!params)
+    return 0;
+  int rc = cpmdc_set_params(params, params_size);
+  if (rc != 0 && g_last_error[0] == '\0')
+    cpmdc_store_error("applying resolved CPMD params failed");
+  free(params);
+  return rc;
+}
+
+CPMDCSession *cpmdc_session_create_from_config(
+    const void *config_capnp, size_t config_capnp_size_bytes) {
+  cpmdc_store_error("");
+  unsigned char *params = NULL;
+  size_t params_size = 0;
+  if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
+                                  &params, &params_size) != 0)
+    return NULL;
+  if (!params) {
+    cpmdc_store_error("PotentialConfig carries no CPMD-applicable settings");
+    return NULL;
+  }
+  CPMDCSession *session = cpmdc_session_create(params, params_size);
+  free(params);
+  return session;
+}
+
+int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
+                            size_t config_capnp_size_bytes) {
+  cpmdc_store_error("");
+  if (!session) {
+    cpmdc_store_error("invalid session");
+    return -1;
+  }
+  unsigned char *params = NULL;
+  size_t params_size = 0;
+  if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
+                                  &params, &params_size) != 0)
+    return -1;
+  if (!params)
+    return 0;
+  int rc = cpmdc_session_set_params(session, params, params_size);
+  if (rc != 0 && g_last_error[0] == '\0')
+    cpmdc_store_error("installing resolved CPMD params failed");
+  free(params);
+  return rc;
+}
+
 int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   char functional[64];
   double cutoff_ry = 70.0;

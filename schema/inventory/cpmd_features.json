@@ -298,6 +298,10 @@
   "cpmdc_potential_result_size_for_force_input",
   "cpmdc_version",
   "cpmdc_abi_version",
+  "cpmdc_configure",
+  "cpmdc_session_create_from_config",
+  "cpmdc_session_configure",
+  "cpmdc_last_error",
   "cpmdc_available",
   "cpmdc_finalize",
   "cpmdc_last_energy_components",
@@ -10859,6 +10863,34 @@
    "feature_id": "abi.cpmdc_abi_version",
    "kind": "abi",
    "name": "cpmdc_abi_version",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_configure",
+   "kind": "abi",
+   "name": "cpmdc_configure",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_create_from_config",
+   "kind": "abi",
+   "name": "cpmdc_session_create_from_config",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_configure",
+   "kind": "abi",
+   "name": "cpmdc_session_configure",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_last_error",
+   "kind": "abi",
+   "name": "cpmdc_last_error",
    "stub_applicable": true,
    "embed_applicable": true
   },

@@ -29,6 +29,10 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_potential_result_size_for_force_input",
     "abi.cpmdc_version",
     "abi.cpmdc_abi_version",
+    "abi.cpmdc_configure",
+    "abi.cpmdc_session_create_from_config",
+    "abi.cpmdc_session_configure",
+    "abi.cpmdc_last_error",
     "abi.cpmdc_available",
     "abi.cpmdc_finalize",
     "abi.cpmdc_feature_count",
@@ -43,6 +47,11 @@ static void test_stub_reports_unavailable(void **state) {
   assert_non_null(version);
   assert_non_null(strstr(version, "stub"));
   assert_int_equal(cpmdc_abi_version(), CPMDC_ABI_VERSION);
+  assert_int_not_equal(cpmdc_configure(NULL, 0), 0);
+  assert_non_null(cpmdc_last_error());
+  assert_non_null(strstr(cpmdc_last_error(), "stub"));
+  assert_null(cpmdc_session_create_from_config(NULL, 0));
+  assert_int_not_equal(cpmdc_session_configure(NULL, NULL, 0), 0);
   assert_int_not_equal(cpmdc_set_params(NULL, 0), 0);
   CPMDCResult energy_result = cpmdc_energy(0, NULL, NULL, NULL, 0);
   assert_int_equal(energy_result.ok, 0);

@@ -160,6 +160,32 @@ static int append_i32_list_line(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "\n");
 }
 
+static int append_i32_list_inline(char *dst, size_t dst_size, size_t *used,
+                                  capn_list32 *list) {
+  int n = list32_len(list);
+  if (n < 0)
+    return -1;
+  for (int i = 0; i < n; ++i) {
+    if (append_fmt(dst, dst_size, used, "%s%d", i == 0 ? "" : " ",
+                   (int)capn_get32(*list, i)) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+static int append_f64_list_inline(char *dst, size_t dst_size, size_t *used,
+                                  capn_list64 *list) {
+  int n = list64_len(list);
+  if (n < 0)
+    return -1;
+  for (int i = 0; i < n; ++i) {
+    if (append_fmt(dst, dst_size, used, "%s%.6f", i == 0 ? "" : " ",
+                   capn_to_f64(capn_get64(*list, i))) != 0)
+      return -1;
+  }
+  return 0;
+}
+
 static int append_slice(char *dst, size_t dst_size, size_t *used,
                         const char *s, size_t len) {
   if (!s || len == 0)
@@ -3589,7 +3615,7 @@ static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
         return -1;
       if (append_text(dst, dst_size, used, "\n  ") != 0)
         return -1;
-      if (append_i32_list_line(dst, dst_size, used, con.atoms) != 0)
+      if (append_i32_list_inline(dst, dst_size, used, &con.atoms) != 0)
         return -1;
       if (con.target != 0.0) {
         if (append_fmt(dst, dst_size, used, " %.6f", con.target) != 0)
@@ -3629,7 +3655,7 @@ static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
       get_CPMDAtomVelocity(&vel, atoms->velocities, i);
       if (append_fmt(dst, dst_size, used, "  %d", vel.atom) != 0)
         return -1;
-      if (append_f64_list_line(dst, dst_size, used, vel.velocity) != 0)
+      if (append_f64_list_inline(dst, dst_size, used, &vel.velocity) != 0)
         return -1;
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
@@ -3648,9 +3674,9 @@ static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
       get_CPMDDummyAtom(&dummy, atoms->dummyAtoms, i);
       if (append_fmt(dst, dst_size, used, "  TYPE%d", dummy.type) != 0)
         return -1;
-      if (append_i32_list_line(dst, dst_size, used, dummy.atoms) != 0)
+      if (append_i32_list_inline(dst, dst_size, used, &dummy.atoms) != 0)
         return -1;
-      if (append_f64_list_line(dst, dst_size, used, dummy.weights) != 0)
+      if (append_f64_list_inline(dst, dst_size, used, &dummy.weights) != 0)
         return -1;
       if (append_text(dst, dst_size, used, "\n") != 0)
         return -1;
@@ -3749,13 +3775,13 @@ static int render_vdw_section(char *dst, size_t dst_size, size_t *used,
                    vdw->vdwCutoff) != 0)
       return -1;
   }
-  int ncell = list32_len(vdw->vdwCell);
+  int ncell = list32_len(&vdw->vdwCell);
   if (ncell < 0)
     return -1;
   if (ncell > 0) {
     if (append_text(dst, dst_size, used, " VDW-CELL\n ") != 0)
       return -1;
-    if (append_i32_list_line(dst, dst_size, used, vdw->vdwCell) != 0)
+    if (append_i32_list_inline(dst, dst_size, used, &vdw->vdwCell) != 0)
       return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;

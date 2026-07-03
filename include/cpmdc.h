@@ -158,6 +158,19 @@ typedef struct CPMDCSession CPMDCSession;
 int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
 
 /**
+ * @brief Apply configuration from a `PotentialConfig` message.
+ *
+ * The `cpmd` union arm carries `CPMDParams` and wins wholesale when present.
+ * With the arm unset, a set `common` overlay (`CommonMethodSpec`) lowers to
+ * synthesized `CPMDParams` (functional, plane-wave cutoff, charge,
+ * multiplicity); overlay fields without a CPMD lowering are rejected and
+ * reported through `cpmdc_last_error()`.
+ *
+ * @return 0 on success, -1 on parse, lowering, or apply failure.
+ */
+int cpmdc_configure(const void *config_capnp, size_t config_capnp_size_bytes);
+
+/**
  * @brief Compute energy and nuclear gradient for an atomic configuration.
  *
  * Positions are Angstrom; gradient is Hartree/Bohr (CPMD ionic forces are
@@ -199,6 +212,24 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
  */
 int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
                              size_t params_capnp_size_bytes);
+
+/**
+ * @brief Create a persistent session from a `PotentialConfig` message.
+ *
+ * Resolves the config exactly like `cpmdc_configure()` and installs the
+ * effective `CPMDParams` on a new session.
+ */
+CPMDCSession *cpmdc_session_create_from_config(const void *config_capnp,
+                                               size_t config_capnp_size_bytes);
+
+/**
+ * @brief Configure an existing session from a `PotentialConfig` message.
+ *
+ * Accepted only before the session evaluates; resolution matches
+ * `cpmdc_configure()`.
+ */
+int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
+                            size_t config_capnp_size_bytes);
 
 /** @brief Release a persistent evaluation session. */
 void cpmdc_session_destroy(CPMDCSession *session);
@@ -287,6 +318,15 @@ size_t cpmdc_potential_result_size_for_force_input(
 
 /** @brief Compiled library version string. */
 const char *cpmdc_version(void);
+
+/**
+ * @brief Diagnostic message for the most recent int-returning configuration
+ *        call on this thread.
+ *
+ * Covers `cpmdc_set_params()`, `cpmdc_configure()`, and the session setup
+ * entry points. Returns an empty string when the last such call succeeded.
+ */
+const char *cpmdc_last_error(void);
 
 /**
  * @brief Numeric ABI generation of the compiled library.

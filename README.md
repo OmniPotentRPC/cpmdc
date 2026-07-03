@@ -102,7 +102,8 @@ For a complete mapping table, see
 
 | Group | Symbols |
 | --- | --- |
-| Library status | `cpmdc_version`, `cpmdc_abi_version`, `cpmdc_available`, `cpmdc_finalize` |
+| Library status | `cpmdc_version`, `cpmdc_abi_version`, `cpmdc_available`, `cpmdc_finalize`, `cpmdc_last_error` |
+| PotentialConfig setup | `cpmdc_configure`, `cpmdc_session_create_from_config`, `cpmdc_session_configure` |
 | Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
 | Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |

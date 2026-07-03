@@ -42,6 +42,10 @@ table entry.
 | symbol | role | header | abi_sym | real | stub | feat_row |
 |---+------+--------+---------+------+------+----------|
 | =cpmdc_abi_version= | lifecycle | Y | Y | Y | Y | Y |
+| =cpmdc_configure= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_session_create_from_config= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_session_configure= | setup | Y | Y | Y | Y | Y |
+| =cpmdc_last_error= | lifecycle | Y | Y | Y | Y | Y |
 | =cpmdc_available= | lifecycle | Y | Y | Y | Y | Y |
 | =cpmdc_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
 | =cpmdc_energy= | step-native | Y | Y | Y | Y | Y |
@@ -64,8 +68,8 @@ table entry.
 | =cpmdc_set_params= | setup | Y | Y | Y | Y | Y |
 | =cpmdc_version= | lifecycle | Y | Y | Y | Y | Y |
 
-Header symbols: 22
-abi_symbols: 22
+Header symbols: 26
+abi_symbols: 26
 Missing parity: NONE
 
 * Inscan sections (OpenCPMD =inscan('&SECTION')= set, 25)

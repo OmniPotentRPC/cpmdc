@@ -5,6 +5,15 @@
 #ifndef CPMDC_VERSION_STRING
 #define CPMDC_VERSION_STRING "unknown"
 #endif
+
+static _Thread_local char g_last_error[512];
+
+const char *cpmdc_last_error(void) { return g_last_error; }
+
+static void stub_store_error(void) {
+  snprintf(g_last_error, sizeof(g_last_error),
+           "OpenCPMD embed not available in cpmdc stub");
+}
 #include <string.h>
 
 static CPMDCResult stub_fail(void) {
@@ -19,6 +28,32 @@ static CPMDCResult stub_fail(void) {
 int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   (void)params_capnp;
   (void)params_capnp_size_bytes;
+  stub_store_error();
+  return -1;
+}
+
+int cpmdc_configure(const void *config_capnp,
+                    size_t config_capnp_size_bytes) {
+  (void)config_capnp;
+  (void)config_capnp_size_bytes;
+  stub_store_error();
+  return -1;
+}
+
+CPMDCSession *cpmdc_session_create_from_config(
+    const void *config_capnp, size_t config_capnp_size_bytes) {
+  (void)config_capnp;
+  (void)config_capnp_size_bytes;
+  stub_store_error();
+  return NULL;
+}
+
+int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
+                            size_t config_capnp_size_bytes) {
+  (void)session;
+  (void)config_capnp;
+  (void)config_capnp_size_bytes;
+  stub_store_error();
   return -1;
 }
 
