@@ -935,4 +935,31 @@ if get_option('with_tests')
     suite: ['params', 'inventory'],
   )
 
+  meson_prog = find_program('meson', required: false)
+  pkg_config_prog = find_program('pkg-config', 'pkgconf', required: false)
+  if meson_prog.found() and pkg_config_prog.found()
+    test(
+      'cpmdc-installed-package-consumer',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_installed_pkgconfig_consumer.py',
+        '--source-dir',
+        meson.current_source_dir(),
+        '--build-root',
+        meson.current_build_dir() / 'installed-package-consumer',
+        '--install-prefix',
+        meson.current_build_dir() / 'installed-package-prefix',
+        '--meson',
+        meson_prog.full_path(),
+        '--cc',
+        cc.cmd_array().length() > 1 ? cc.cmd_array()[1] : cc.cmd_array()[0],
+        '--pkg-config',
+        pkg_config_prog.full_path(),
+      ],
+      is_parallel: false,
+      timeout: 300,
+      suite: 'packaging',
+    )
+  endif
+
 endif
