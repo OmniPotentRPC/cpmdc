@@ -1,0 +1,25 @@
+@PACKAGE_INIT@
+
+set_and_check(CPMDC_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/@INCLUDEDIR@")
+set_and_check(CPMDC_LIBDIR "${PACKAGE_PREFIX_DIR}/@LIBDIR@")
+
+find_library(CPMDC_LIBRARY
+  NAMES cpmdc
+  PATHS "${CPMDC_LIBDIR}"
+  NO_DEFAULT_PATH
+)
+if(NOT CPMDC_LIBRARY)
+  set(cpmdc_FOUND FALSE)
+  set(cpmdc_NOT_FOUND_MESSAGE "libcpmdc not found under ${CPMDC_LIBDIR}")
+  return()
+endif()
+
+if(NOT TARGET cpmdc::cpmdc)
+  add_library(cpmdc::cpmdc SHARED IMPORTED)
+  set_target_properties(cpmdc::cpmdc PROPERTIES
+    IMPORTED_LOCATION "${CPMDC_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CPMDC_INCLUDE_DIR};${CPMDC_INCLUDE_DIR}/cpmdc"
+  )
+endif()
+
+check_required_components(cpmdc)

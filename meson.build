@@ -181,6 +181,20 @@ pkgconfig.generate(
   version: meson.project_version(),
   description: 'Stable C ABI for embedding CPMD',
 )
+cmake = import('cmake')
+cmake.configure_package_config_file(
+  name: 'cpmdc',
+  input: 'cmake/cpmdcConfig.cmake.in',
+  configuration: {
+    'INCLUDEDIR': get_option('includedir'),
+    'LIBDIR': get_option('libdir'),
+  },
+)
+cmake.write_basic_package_version_file(
+  name: 'cpmdc',
+  version: meson.project_version(),
+  compatibility: 'SameMajorVersion',
+)
 
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
