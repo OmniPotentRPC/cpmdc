@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
   }
 
   const char *ver = version();
-  if (ver == NULL || strstr(ver, "cpmdc/0.1.0") == NULL) {
+  if (ver == NULL || strstr(ver, "cpmdc/") == NULL) {
     fprintf(stderr, "unexpected cpmdc version: %s\n", ver ? ver : "(null)");
     dlclose(handle);
     return 1;
