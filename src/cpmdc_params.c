@@ -3569,6 +3569,116 @@ static const char *lmax_letter(int lmax) {
   return "F";
 }
 
+/* Typed &ATOMS blocks beyond pseudopotentials: constraints, isotopes,
+ * velocities, dummy atoms, change-bonds, generate. Shared by the plain and
+ * geometry-merged renderers. */
+static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDAtomsSection *atoms) {
+  int ncon = struct_list_len(&atoms->constraints.p);
+  if (ncon < 0)
+    return -1;
+  if (ncon > 0) {
+    if (append_text(dst, dst_size, used, " CONSTRAINTS\n") != 0)
+      return -1;
+    for (int i = 0; i < ncon; ++i) {
+      struct CPMDAtomConstraint con;
+      get_CPMDAtomConstraint(&con, atoms->constraints, i);
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, con.kind) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n  ") != 0)
+        return -1;
+      if (append_i32_list_line(dst, dst_size, used, con.atoms) != 0)
+        return -1;
+      if (con.target != 0.0) {
+        if (append_fmt(dst, dst_size, used, " %.6f", con.target) != 0)
+          return -1;
+      }
+      if (con.growth != 0.0) {
+        if (append_fmt(dst, dst_size, used, " GROWTH %.6f", con.growth) != 0)
+          return -1;
+      }
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, " END CONSTRAINTS\n") != 0)
+      return -1;
+  }
+  int niso = struct_list_len(&atoms->isotopes.p);
+  if (niso < 0)
+    return -1;
+  if (niso > 0) {
+    if (append_text(dst, dst_size, used, " ISOTOPE\n") != 0)
+      return -1;
+    for (int i = 0; i < niso; ++i) {
+      struct CPMDIsotope iso;
+      get_CPMDIsotope(&iso, atoms->isotopes, i);
+      if (append_fmt(dst, dst_size, used, "  %.6f\n", iso.mass) != 0)
+        return -1;
+    }
+  }
+  int nvel = struct_list_len(&atoms->velocities.p);
+  if (nvel < 0)
+    return -1;
+  if (nvel > 0) {
+    if (append_fmt(dst, dst_size, used, " VELOCITIES\n  %d\n", nvel) != 0)
+      return -1;
+    for (int i = 0; i < nvel; ++i) {
+      struct CPMDAtomVelocity vel;
+      get_CPMDAtomVelocity(&vel, atoms->velocities, i);
+      if (append_fmt(dst, dst_size, used, "  %d", vel.atom) != 0)
+        return -1;
+      if (append_f64_list_line(dst, dst_size, used, vel.velocity) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+    if (append_text(dst, dst_size, used, " END VELOCITIES\n") != 0)
+      return -1;
+  }
+  int ndum = struct_list_len(&atoms->dummyAtoms.p);
+  if (ndum < 0)
+    return -1;
+  if (ndum > 0) {
+    if (append_fmt(dst, dst_size, used, " DUMMY ATOMS\n  %d\n", ndum) != 0)
+      return -1;
+    for (int i = 0; i < ndum; ++i) {
+      struct CPMDDummyAtom dummy;
+      get_CPMDDummyAtom(&dummy, atoms->dummyAtoms, i);
+      if (append_fmt(dst, dst_size, used, "  TYPE%d", dummy.type) != 0)
+        return -1;
+      if (append_i32_list_line(dst, dst_size, used, dummy.atoms) != 0)
+        return -1;
+      if (append_f64_list_line(dst, dst_size, used, dummy.weights) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  int nbond = pointer_list_len(&atoms->changeBonds);
+  if (nbond < 0)
+    return -1;
+  if (nbond > 0) {
+    if (append_fmt(dst, dst_size, used, " CHANGE BONDS\n  %d\n", nbond) != 0)
+      return -1;
+    for (int i = 0; i < nbond; ++i) {
+      capn_text line = capn_get_text(atoms->changeBonds, i, empty_text);
+      if (append_text(dst, dst_size, used, "  ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, line) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
+  }
+  if (atoms->generate) {
+    if (append_text(dst, dst_size, used, " GENERATE COORDINATES\n") != 0)
+      return -1;
+  }
+  return 0;
+}
+
 static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
                                 struct CPMDAtomsSection *atoms,
                                 struct RenderSetList *sets) {
@@ -3603,9 +3713,61 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "   0\n") != 0)
       return -1;
   }
+  if (append_atoms_extras(dst, dst_size, used, atoms) != 0)
+    return -1;
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+/* Typed &VDW: empirical Grimme dispersion controls. */
+static int render_vdw_section(char *dst, size_t dst_size, size_t *used,
+                              struct CPMDVdwSection *vdw,
+                              struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&VDW\n") != 0)
+    return -1;
+  if (vdw->empiricalCorrection) {
+    if (append_text(dst, dst_size, used, " EMPIRICAL CORRECTION\n") != 0)
+      return -1;
+  }
+  if (vdw->grimme.str && vdw->grimme.len > 0) {
+    if (append_text(dst, dst_size, used, " GRIMME ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, vdw->grimme) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (vdw->s6 > 0.0) {
+    if (append_fmt(dst, dst_size, used, " S6\n  %.6f\n", vdw->s6) != 0)
+      return -1;
+  }
+  if (vdw->vdwCutoff > 0.0) {
+    if (append_fmt(dst, dst_size, used, " VDW-CUTOFF\n  %.6f\n",
+                   vdw->vdwCutoff) != 0)
+      return -1;
+  }
+  int ncell = list32_len(vdw->vdwCell);
+  if (ncell < 0)
+    return -1;
+  if (ncell > 0) {
+    if (append_text(dst, dst_size, used, " VDW-CELL\n ") != 0)
+      return -1;
+    if (append_i32_list_line(dst, dst_size, used, vdw->vdwCell) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (vdw->radius > 0.0) {
+    if (append_fmt(dst, dst_size, used, " RADIUS\n  %.6f\n",
+                   vdw->radius) != 0)
+      return -1;
+  }
+  if (append_directives(dst, dst_size, used, vdw->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "VDW") != 0)
     return -1;
   return append_text(dst, dst_size, used, "&END\n\n");
 }
@@ -3947,6 +4109,13 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
         return -1;
       break;
     }
+    case CPMDInputSection_vdwParams: {
+      struct CPMDVdwSection vdw_body;
+      read_CPMDVdwSection(&vdw_body, sec.vdwParams);
+      if (render_vdw_section(dst, dst_size, &used, &vdw_body, &sets) != 0)
+        return -1;
+      break;
+    }
     case CPMDInputSection_set: {
       break;
     }
@@ -4101,6 +4270,8 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
     if (covered != n_atoms)
       return -1;
+    if (append_atoms_extras(dst, dst_size, used, atoms) != 0)
+      return -1;
     if (append_directives(dst, dst_size, used, atoms->directives) != 0)
       return -1;
     if (append_set_directives_for_section(dst, dst_size, used, sets, "ATOMS") !=
@@ -4145,6 +4316,8 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
   }
   if (covered != n_atoms)
+    return -1;
+  if (append_atoms_extras(dst, dst_size, used, atoms) != 0)
     return -1;
   if (append_directives(dst, dst_size, used, atoms->directives) != 0)
     return -1;
@@ -4247,6 +4420,13 @@ int cpmdc_params_render_deck_with_geometry(
       has_atoms = 1;
       if (render_atoms_with_geometry(dst, dst_size, &used, &atoms_body, n_atoms,
                                      positions_ang, atomic_numbers, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_vdwParams: {
+      struct CPMDVdwSection vdw_body;
+      read_CPMDVdwSection(&vdw_body, sec.vdwParams);
+      if (render_vdw_section(dst, dst_size, &used, &vdw_body, &sets) != 0)
         return -1;
       break;
     }

@@ -2161,3 +2161,6 @@ Feature ID                              ``functional`` value
 For rgpot / multi-backend configure RPCs, ``PotentialConfig`` is a
 tagged union with ``cpmd @2 :CPMDParams`` (ordinal aligned with the
 shared schema; ``nwchem @1`` is reserved void in this package).
+
+
+Typed &ATOMS/&DFT extensions (v1.3.0 schema): ``params.inputSections.atoms.constraints``, ``params.inputSections.atoms.isotopes``, ``params.inputSections.atoms.velocities``, ``params.inputSections.atoms.dummyAtoms``, ``params.inputSections.atoms.changeBonds``, ``params.inputSections.atoms.generate``, ``params.inputSections.dft.hubbardU``, ``params.inputSections.dft.hfxWfcCutoff``, ``params.inputSections.dft.hfxBlock``, ``params.inputSections.dft.hfxDistribution``.

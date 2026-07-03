@@ -433,6 +433,16 @@ single CPMD/DFT catalog keyword rows in the typed tables below.
 | ~params.inputSections.wavefunction.directives~ | ~wavefunction.directives~ | Keyword/value lines inside ~&WAVEFUNCTION~ |
 | ~params.inputSections.wavefunction.subsections~ | ~wavefunction.subsections~ | Nested blocks inside ~&WAVEFUNCTION~ |
 | ~params.inputSections.atoms.pseudopotentials~ | ~atoms.pseudopotentials~ | Pseudopotential entries grouped with ~ForceInput~ coordinates |
+| ~params.inputSections.atoms.constraints~ | ~atoms.constraints~ | CONSTRAINTS block entries (FIX/DIST/BEND/TORSION) |
+| ~params.inputSections.atoms.isotopes~ | ~atoms.isotopes~ | ISOTOPE per-species mass overrides |
+| ~params.inputSections.atoms.velocities~ | ~atoms.velocities~ | VELOCITIES block initial velocities |
+| ~params.inputSections.atoms.dummyAtoms~ | ~atoms.dummyAtoms~ | DUMMY ATOMS entries (types 1-4) |
+| ~params.inputSections.atoms.changeBonds~ | ~atoms.changeBonds~ | CHANGE BONDS lines |
+| ~params.inputSections.atoms.generate~ | ~atoms.generate~ | GENERATE COORDINATES flag |
+| ~params.inputSections.dft.hubbardU~ | ~dft.hubbardU~ | Structured HUBBARD U per-species entries |
+| ~params.inputSections.dft.hfxWfcCutoff~ | ~dft.hfxWfcCutoff~ | HFX WFC CUTOFF value |
+| ~params.inputSections.dft.hfxBlock~ | ~dft.hfxBlock~ | HFX BLOCK size |
+| ~params.inputSections.dft.hfxDistribution~ | ~dft.hfxDistribution~ | HFX DISTRIBUTION scheme |
 | ~params.inputSections.atoms.directives~ | ~atoms.directives~ | Additional non-coordinate ~&ATOMS~ keyword/value lines |
 | ~params.inputSections.set.key~ | ~set.key~ | Dotted ~SECTION.KEYWORD~ merge target |
 | ~params.inputSections.set.value~ | ~set.value~ | Optional value emitted under the dotted key |

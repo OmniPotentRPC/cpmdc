@@ -994,12 +994,47 @@ static int check_catalog_coverage(char **decks, int ndecks) {
   return 0;
 }
 
+static const char *k_fixture_files[] = {
+    "params_cp_md.bin",
+    "params_dft_functionals.bin",
+    "params_cpmd_geometry.bin",
+    "params_dft_scalars.bin",
+    "params_cpmd_dynamics.bin",
+    "params_cpmd_misc.bin",
+    "params_long_tail_sections.bin",
+    "params_vdw_controls.bin",
+    "params_system_controls.bin",
+    "params_system_kpoints_monkhorst.bin",
+    "params_system_kpoints_bands.bin",
+    "params_system_cdft_acceptor_wmult.bin",
+    "params_system_couplings_prod.bin",
+    "params_system_couplings_linres.bin",
+    "params_system_couplings_lists.bin",
+    "params_system_cell_qualifiers.bin",
+    "params_system_cell_vectors.bin",
+    "params_system_bad_occupation.bin",
+    "params_atoms_extras.bin",
+};
+
+static char *fixture_path(const char *dir, const char *name) {
+  size_t need = strlen(dir) + 1 + strlen(name) + 1;
+  char *path = malloc(need);
+  if (path)
+    snprintf(path, need, "%s/%s", dir, name);
+  return path;
+}
+
 int main(int argc, char **argv) {
-  if (argc < 19) {
-    fprintf(stderr,
-            "usage: %s cp_md.bin dft_func.bin cpmd_geometry.bin dft_scalars.bin cpmd_dynamics.bin cpmd_misc.bin long_tail_sections.bin vdw_controls.bin system_controls.bin system_kpoints_monkhorst.bin system_kpoints_bands.bin system_cdft_acceptor_wmult.bin system_couplings_prod.bin system_couplings_linres.bin system_couplings_lists.bin system_cell_qualifiers.bin system_cell_vectors.bin bad_occupation.bin\n",
-            argv[0]);
+  if (argc != 2) {
+    fprintf(stderr, "usage: %s FIXTURE_DIR\n", argv[0]);
     return 2;
+  }
+  enum { NFIXTURES = sizeof(k_fixture_files) / sizeof(k_fixture_files[0]) };
+  char *fixture[NFIXTURES + 1] = {0};
+  for (int i = 0; i < NFIXTURES; ++i) {
+    fixture[i + 1] = fixture_path(fixture[1], k_fixture_files[i]);
+    if (!fixture[i + 1])
+      return 1;
   }
   /* inventory must resolve CP and DFT catalog ids */
   if (!cpmdc_feature_find("catalog.section.PIMD") ||
@@ -1268,70 +1303,84 @@ int main(int argc, char **argv) {
       "VDW PARAMETERS", "GRIMME", "&VECTORS", "VECTOR FILE", "wf.vec",
       "&WAVEFUNCTION", "WAVEFUNCTION FILE", "RESTART.1",
   };
-  if (check_deck(argv[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
+  if (check_deck(fixture[1], cp_need, (int)(sizeof(cp_need) / sizeof(cp_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
+  if (check_deck(fixture[2], dft_need, (int)(sizeof(dft_need) / sizeof(dft_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[3], geometry_need,
+  if (check_deck(fixture[3], geometry_need,
                  (int)(sizeof(geometry_need) / sizeof(geometry_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[4], dft_scalars_need,
+  if (check_deck(fixture[4], dft_scalars_need,
                  (int)(sizeof(dft_scalars_need) /
                        sizeof(dft_scalars_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[5], cpmd_dynamics_need,
+  if (check_deck(fixture[5], cpmd_dynamics_need,
                  (int)(sizeof(cpmd_dynamics_need) /
                        sizeof(cpmd_dynamics_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[6], cpmd_misc_need,
+  if (check_deck(fixture[6], cpmd_misc_need,
                  (int)(sizeof(cpmd_misc_need) /
                        sizeof(cpmd_misc_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[7], long_tail_sections_need,
+  if (check_deck(fixture[7], long_tail_sections_need,
                  (int)(sizeof(long_tail_sections_need) /
                        sizeof(long_tail_sections_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[8], vdw_controls_need,
+  if (check_deck(fixture[8], vdw_controls_need,
                  (int)(sizeof(vdw_controls_need) /
                        sizeof(vdw_controls_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[9], system_controls_need,
+  if (check_deck(fixture[9], system_controls_need,
                  (int)(sizeof(system_controls_need) /
                        sizeof(system_controls_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[10], system_monkhorst_need,
+  if (check_deck(fixture[10], system_monkhorst_need,
                  (int)(sizeof(system_monkhorst_need) /
                        sizeof(system_monkhorst_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[11], system_kpoint_bands_need,
+  if (check_deck(fixture[11], system_kpoint_bands_need,
                  (int)(sizeof(system_kpoint_bands_need) /
                        sizeof(system_kpoint_bands_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[12], system_cdft_acceptor_wmult_need,
+  if (check_deck(fixture[12], system_cdft_acceptor_wmult_need,
                  (int)(sizeof(system_cdft_acceptor_wmult_need) /
                        sizeof(system_cdft_acceptor_wmult_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[13], system_couplings_prod_need,
+  if (check_deck(fixture[13], system_couplings_prod_need,
                  (int)(sizeof(system_couplings_prod_need) /
                        sizeof(system_couplings_prod_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[14], system_couplings_linres_need,
+  if (check_deck(fixture[14], system_couplings_linres_need,
                  (int)(sizeof(system_couplings_linres_need) /
                        sizeof(system_couplings_linres_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[15], system_couplings_lists_need,
+  if (check_deck(fixture[15], system_couplings_lists_need,
                  (int)(sizeof(system_couplings_lists_need) /
                        sizeof(system_couplings_lists_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[16], system_cell_qualifiers_need,
+  if (check_deck(fixture[16], system_cell_qualifiers_need,
                  (int)(sizeof(system_cell_qualifiers_need) /
                        sizeof(system_cell_qualifiers_need[0]))) != 0)
     return 1;
-  if (check_deck(argv[17], system_cell_vectors_need,
+  if (check_deck(fixture[17], system_cell_vectors_need,
                  (int)(sizeof(system_cell_vectors_need) /
                        sizeof(system_cell_vectors_need[0]))) != 0)
     return 1;
-  if (check_render_fails(argv[18]) != 0)
+  const char *atoms_extras_need[] = {
+      "CONSTRAINTS", "END CONSTRAINTS", "DIST", "GROWTH",
+      "ISOTOPE", "VELOCITIES", "END VELOCITIES", "DUMMY ATOMS", "TYPE4",
+      "CHANGE BONDS", "GENERATE COORDINATES",
+      "LOC=S", "SKIP=P", "KLEINMAN-BYLANDER", "RAGGIO", "NLCC",
+      "HUBBARD U", "END HUBBARD", "L=2 U=4.50",
+      "HFX WFC CUTOFF", "HFX BLOCK", "HFX DISTRIBUTION", "BLOCK-CYCLIC",
+      "&VDW", "EMPIRICAL CORRECTION", "GRIMME D3", "S6", "VDW-CUTOFF",
+      "VDW-CELL", "RADIUS",
+  };
+  if (check_deck(fixture[19], atoms_extras_need,
+                 (int)(sizeof(atoms_extras_need) /
+                       sizeof(atoms_extras_need[0]))) != 0)
+    return 1;
+  if (check_render_fails(fixture[18]) != 0)
     return 1;
   char *decks[17] = {0};
   for (int i = 0; i < 17; ++i) {
