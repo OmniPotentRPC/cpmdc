@@ -10,6 +10,10 @@ static unsigned char *slurp(const char *p, size_t *n) {
   fseek(f, 0, SEEK_END);
   long L = ftell(f);
   rewind(f);
+  if (L <= 0 || L > (16 << 20)) {
+    fclose(f);
+    return NULL;
+  }
   unsigned char *b = malloc((size_t)L);
   *n = fread(b, 1, (size_t)L, f);
   fclose(f);
@@ -1387,7 +1391,7 @@ int main(int argc, char **argv) {
     decks[i] = malloc(CPMDC_BLOCKS);
     if (!decks[i])
       return 1;
-    if (render_deck_file(argv[i + 1], decks[i], CPMDC_BLOCKS) != 0) {
+    if (render_deck_file(fixture[i + 1], decks[i], CPMDC_BLOCKS) != 0) {
       free(decks[i]);
       return 1;
     }
