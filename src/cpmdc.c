@@ -52,6 +52,14 @@ static unsigned char *g_params_bytes = NULL;
 static CPMDCScalarOverrides g_overrides;
 static char g_overrides_functional[64];
 static int g_has_overrides = 0;
+
+static int cpmdc_set_params_ov(const void *params_capnp,
+                               size_t params_capnp_size_bytes,
+                               const CPMDCScalarOverrides *overrides);
+static int cpmdc_session_set_params_ov(CPMDCSession *session,
+                                       const void *params_capnp,
+                                       size_t params_capnp_size_bytes,
+                                       const CPMDCScalarOverrides *overrides);
 static size_t g_params_size = 0;
 
 /** Persistent method state plus topology guards for session evaluations. */
@@ -705,7 +713,9 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
 
 /* Merge ForceInput geometry into a Cap'n Proto-derived CPMD INPUT deck. */
 static int push_geometry_deck_from_params(const void *params_bytes,
-                                          size_t params_size, int n_atoms,
+                                          size_t params_size,
+                                          const CPMDCScalarOverrides *overrides,
+                                          int n_atoms,
                                           const double *positions_ang,
                                           const int *atomic_numbers,
                                           const double *cell_ang,
@@ -756,6 +766,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
    * session configure — do not materialize an INPUT deck per force. */
   (void)params_bytes;
   (void)params_size;
+  (void)overrides;
   cpmdc_stop_arm();
   int ok;
   if (setjmp(*cpmdc_stop_jmp()) != 0) {
