@@ -3584,6 +3584,11 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+/* Per-species PP options beyond LMAX: LOC/SKIP channels, projector form,
+ * Gaussian width, NLCC. Emitted on the LMAX line. */
+static int append_psp_options(char *dst, size_t dst_size, size_t *used,
+                              const struct CPMDAtomsPseudopotential *psp);
+
 /* CPMD &ATOMS: *filename.psp then LMAX=S|P|D and coordinates (Angstrom). */
 static const char *lmax_letter(int lmax) {
   if (lmax <= 0)
@@ -3593,6 +3598,32 @@ static const char *lmax_letter(int lmax) {
   if (lmax == 2)
     return "D";
   return "F";
+}
+
+static int append_psp_options(char *dst, size_t dst_size, size_t *used,
+                              const struct CPMDAtomsPseudopotential *psp) {
+  if (psp->loc >= 0) {
+    if (append_fmt(dst, dst_size, used, " LOC=%s", lmax_letter(psp->loc)) != 0)
+      return -1;
+  }
+  if (psp->skip >= 0) {
+    if (append_fmt(dst, dst_size, used, " SKIP=%s",
+                   lmax_letter(psp->skip)) != 0)
+      return -1;
+  }
+  if (psp->kleinmanBylander) {
+    if (append_text(dst, dst_size, used, " KLEINMAN-BYLANDER") != 0)
+      return -1;
+  }
+  if (psp->raggio > 0.0) {
+    if (append_fmt(dst, dst_size, used, " RAGGIO=%.6f", psp->raggio) != 0)
+      return -1;
+  }
+  if (psp->nonlinearCore) {
+    if (append_text(dst, dst_size, used, " NLCC") != 0)
+      return -1;
+  }
+  return 0;
 }
 
 /* Typed &ATOMS blocks beyond pseudopotentials: constraints, isotopes,
@@ -3732,8 +3763,12 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
     }
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-    if (append_fmt(dst, dst_size, used, " LMAX=%s\n",
+    if (append_fmt(dst, dst_size, used, " LMAX=%s",
                    lmax_letter(psp.lmax >= 0 ? psp.lmax : 0)) != 0)
+      return -1;
+    if (append_psp_options(dst, dst_size, used, &psp) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
     /* Coordinate counts filled by geometry merge (see render_deck_with_geometry). */
     if (append_text(dst, dst_size, used, "   0\n") != 0)
@@ -4329,9 +4364,13 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-    if (append_fmt(dst, dst_size, used, " LMAX=%s\n   %d\n",
-                   lmax_letter(psp.lmax >= 0 ? psp.lmax : (zz == 8 ? 1 : 0)),
-                   count) != 0)
+    if (append_fmt(dst, dst_size, used, " LMAX=%s",
+                   lmax_letter(psp.lmax >= 0 ? psp.lmax : (zz == 8 ? 1 : 0))) !=
+        0)
+      return -1;
+    if (append_psp_options(dst, dst_size, used, &psp) != 0)
+      return -1;
+    if (append_fmt(dst, dst_size, used, "\n   %d\n", count) != 0)
       return -1;
     for (int j = 0; j < n_atoms; ++j) {
       if (z[j] != zz)
