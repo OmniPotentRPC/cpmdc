@@ -21,3 +21,14 @@ jobs:
         run: pixi run test-e2e
       - name: Cmocka suite
         run: pixi run test-cmocka
+
+  sanitize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: Stub suite under ASan/UBSan
+        run: pixi run test-stub-sanitize

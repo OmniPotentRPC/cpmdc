@@ -37,6 +37,7 @@ shibuya = ">=2026.1.9,<2027"
 sphinx-sitemap = ">=2.9.0,<3"
 
 [tasks]
+test-stub-sanitize = { cmd = "meson setup build-sanitize -Dwith_tests=true -Db_sanitize=address,undefined -Db_lundef=false && meson compile -C build-sanitize && ASAN_OPTIONS=detect_leaks=0 meson test -C build-sanitize --print-errorlogs", description = "Stub suite under ASan/UBSan" }
 release-assert = { cmd = "python3 scripts/release_assert.py", description = "Verify release metadata versions agree" }
 towncrier-draft = { cmd = "uvx towncrier build --draft", description = "Preview changelog fragments" }
 release-cog-dry = { cmd = "cog bump --auto --dry-run", description = "Preview the release bump" }
