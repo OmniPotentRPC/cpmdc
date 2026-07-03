@@ -1,0 +1,3 @@
+( common = (
+    xcFunctionals = ["PBE"],
+    scfEnergyToleranceEv = 1.0e-4 ) )

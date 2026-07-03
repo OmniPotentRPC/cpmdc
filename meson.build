@@ -890,6 +890,18 @@ if get_option('with_tests')
     output: 'params_atoms_extras.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  potential_config_common_cpmd_bin = custom_target(
+    'potential_config_common_cpmd_bin',
+    input: 'tests/potential_config_common_cpmd.capnp.txt',
+    output: 'potential_config_common_cpmd.bin',
+    command: encode + ['PotentialConfig', '@INPUT@', '@OUTPUT@'],
+  )
+  potential_config_common_cpmd_reject_bin = custom_target(
+    'potential_config_common_cpmd_reject_bin',
+    input: 'tests/potential_config_common_cpmd_reject.capnp.txt',
+    output: 'potential_config_common_cpmd_reject.bin',
+    command: encode + ['PotentialConfig', '@INPUT@', '@OUTPUT@'],
+  )
   test(
     'params-cp-dft-render',
     executable(
@@ -923,6 +935,23 @@ if get_option('with_tests')
       params_atoms_extras_bin,
     ],
     suite: ['params', 'inventory'],
+  )
+
+  test(
+    'configure-overlay',
+    executable(
+      'test_configure_overlay',
+      'tests/test_configure_overlay.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      potential_config_common_cpmd_bin,
+      potential_config_common_cpmd_reject_bin,
+      force_input_step_a_bin,
+    ],
+    suite: ['params', 'capnp'],
   )
 
   meson_prog = find_program('meson', required: false)

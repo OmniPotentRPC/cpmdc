@@ -1,0 +1,8 @@
+( common = (
+    xcFunctionals = ["PBE"],
+    basisSet = "planewave",
+    planewaveCutoffEv = 952.39851860958,
+    charge = -1,
+    spinMultiplicity = 3,
+    scfMaxIterations = 50,
+    kMesh = [2, 2, 2] ) )
