@@ -312,12 +312,22 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
         "common overlay: relativityMethod has no CPMD lowering yet");
     return -1;
   }
+  double smear_temperature_k = 0.0;
   capn_resolve(&c.smearing.p);
   if (c.smearing.p.type == CAPN_STRUCT) {
     struct CommonMethodSpec_Smearing smear;
     read_CommonMethodSpec_Smearing(&smear, c.smearing);
-    if (smear.kind != CommonMethodSpec_Smearing_Kind_none) {
-      cpmdc_store_error("common overlay: smearing has no CPMD lowering yet");
+    if (smear.kind == CommonMethodSpec_Smearing_Kind_fermi) {
+      /* CPMD free-energy functional with electron temperature; kT = width. */
+      if (smear.widthEv <= 0.0) {
+        cpmdc_store_error("common overlay: fermi smearing needs widthEv > 0");
+        return -1;
+      }
+      smear_temperature_k = smear.widthEv / 8.617333262e-5;
+    } else if (smear.kind != CommonMethodSpec_Smearing_Kind_none) {
+      cpmdc_store_error(
+          "common overlay: only fermi smearing has a CPMD lowering "
+          "(free-energy functional)");
       return -1;
     }
   }
@@ -352,7 +362,8 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     return -1;
   }
   int want_cpmd_section = c.scfMaxIterations > 0 ||
-                          c.scfEnergyToleranceEv > 0.0;
+                          c.scfEnergyToleranceEv > 0.0 ||
+                          smear_temperature_k > 0.0;
   int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0) +
                   (grimme_token ? 1 : 0);
 
@@ -387,6 +398,10 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
               ? c.scfEnergyToleranceEv / CPMDC_HARTREE_EV
               : 1.0e-6;
       cpmd_sec.maxIter = c.scfMaxIterations;
+      if (smear_temperature_k > 0.0) {
+        cpmd_sec.freeEnergy = 1;
+        cpmd_sec.temperatureElectron = smear_temperature_k;
+      }
       CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
       write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
       struct CPMDInputSection sec;
