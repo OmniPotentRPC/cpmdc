@@ -149,6 +149,9 @@ def main() -> int:
     (cmake_dir / "main.c").write_text(CONSUMER_C, encoding="utf-8")
     (cmake_dir / "CMakeLists.txt").write_text(CONSUMER_CMAKE, encoding="utf-8")
     cmake_build = cmake_dir / "build"
+    config_files = list(prefix.rglob("cpmdcConfig.cmake"))
+    if not config_files:
+        raise SystemExit(f"cpmdcConfig.cmake not installed under {prefix}")
     run(
         [
             cmake,
@@ -157,6 +160,7 @@ def main() -> int:
             "-B",
             cmake_build,
             f"-DCMAKE_PREFIX_PATH={prefix}",
+            f"-Dcpmdc_DIR={config_files[0].parent}",
             f"-DCMAKE_C_COMPILER={args.cc}",
             "-DCMAKE_EXE_LINKER_FLAGS="
             + " ".join(extra_link),
