@@ -1379,6 +1379,11 @@ int main(int argc, char **argv) {
       "HFX WFC CUTOFF", "HFX BLOCK", "HFX DISTRIBUTION", "BLOCK-CYCLIC",
       "&VDW", "EMPIRICAL CORRECTION", "GRIMME D3", "S6", "VDW-CUTOFF",
       "VDW-CELL", "RADIUS",
+      "1 2 1.800000 GROWTH 0.050000",
+      "18.000000",
+      "1 0.100000 0.200000 0.300000",
+      "TYPE4 1 2 0.500000 0.500000",
+      "2 2 2",
   };
   if (check_deck(fixture[19], atoms_extras_need,
                  (int)(sizeof(atoms_extras_need) /
