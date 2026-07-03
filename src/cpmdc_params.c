@@ -3822,6 +3822,173 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+/* Typed long-tail sections (v1.5.0): PROP, LINRES, PIMD, PATH, TDDFT. */
+static int render_prop_section(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDPropSection *prop,
+                               struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&PROP\n") != 0)
+    return -1;
+  if (prop->dipoleMoment &&
+      append_text(dst, dst_size, used, " DIPOLE MOMENT\n") != 0)
+    return -1;
+  if (prop->localize && append_text(dst, dst_size, used, " LOCALIZE\n") != 0)
+    return -1;
+  if (prop->polarizability &&
+      append_text(dst, dst_size, used, " POLARIZABILITY\n") != 0)
+    return -1;
+  int ncenter = list64_len(&prop->cubecenter);
+  if (ncenter < 0)
+    return -1;
+  if (ncenter > 0) {
+    if (append_text(dst, dst_size, used, " CUBECENTER\n ") != 0)
+      return -1;
+    if (append_f64_list_inline(dst, dst_size, used, &prop->cubecenter) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (prop->cubefileDensity &&
+      append_text(dst, dst_size, used, " CUBEFILE DENSITY\n") != 0)
+    return -1;
+  int norb = list32_len(&prop->cubefileOrbitals);
+  if (norb < 0)
+    return -1;
+  if (norb > 0) {
+    if (append_fmt(dst, dst_size, used, " CUBEFILE ORBITALS\n  %d\n ",
+                   norb) != 0)
+      return -1;
+    if (append_i32_list_inline(dst, dst_size, used,
+                               &prop->cubefileOrbitals) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (prop->chargesGaussian &&
+      append_text(dst, dst_size, used, " CHARGES\n") != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, prop->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "PROP") !=
+      0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_linres_section(char *dst, size_t dst_size, size_t *used,
+                                 struct CPMDLinresSection *linres,
+                                 struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&LINRES\n") != 0)
+    return -1;
+  if (linres->convergence > 0.0 &&
+      append_fmt(dst, dst_size, used, " CONVERGENCE\n  %g\n",
+                 linres->convergence) != 0)
+    return -1;
+  if (linres->maxSteps > 0 &&
+      append_fmt(dst, dst_size, used, " MAXSTEP\n  %d\n",
+                 linres->maxSteps) != 0)
+    return -1;
+  if (linres->hthrs > 0.0 &&
+      append_fmt(dst, dst_size, used, " HTHRS\n  %g\n", linres->hthrs) != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, linres->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets,
+                                        "LINRES") != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_pimd_section(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDPimdSection *pimd,
+                               struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&PIMD\n") != 0)
+    return -1;
+  if (pimd->replicas > 0 &&
+      append_fmt(dst, dst_size, used, " TROTTER DIMENSION\n  %d\n",
+                 pimd->replicas) != 0)
+    return -1;
+  if (pimd->facmass > 0.0 &&
+      append_fmt(dst, dst_size, used, " FACMASS\n  %g\n",
+                 pimd->facmass) != 0)
+    return -1;
+  if (pimd->centroidDynamics &&
+      append_text(dst, dst_size, used, " CENTROID DYNAMICS\n") != 0)
+    return -1;
+  if (pimd->normalModes &&
+      append_text(dst, dst_size, used, " NORMAL MODES\n") != 0)
+    return -1;
+  if (pimd->staging && append_text(dst, dst_size, used, " STAGING\n") != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, pimd->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "PIMD") !=
+      0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_path_section(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDPathSection *path,
+                               struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&PATH\n") != 0)
+    return -1;
+  if (path->replicaNumber > 0 &&
+      append_fmt(dst, dst_size, used, " REPLICA NUMBER\n  %d\n",
+                 path->replicaNumber) != 0)
+    return -1;
+  if (path->nebSpring > 0.0 &&
+      append_fmt(dst, dst_size, used, " SPRING\n  %g\n",
+                 path->nebSpring) != 0)
+    return -1;
+  if (path->factor > 0.0 &&
+      append_fmt(dst, dst_size, used, " FACTOR\n  %g\n", path->factor) != 0)
+    return -1;
+  if (path->nloop > 0 &&
+      append_fmt(dst, dst_size, used, " NLOOP\n  %d\n", path->nloop) != 0)
+    return -1;
+  if (path->alpha > 0.0 &&
+      append_fmt(dst, dst_size, used, " ALPHA\n  %g\n", path->alpha) != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, path->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "PATH") !=
+      0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_tddft_section(char *dst, size_t dst_size, size_t *used,
+                                struct CPMDTddftSection *tddft,
+                                struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&TDDFT\n") != 0)
+    return -1;
+  if (tddft->states > 0 &&
+      append_fmt(dst, dst_size, used, " STATES\n  %d\n",
+                 tddft->states) != 0)
+    return -1;
+  if (tddft->tammDancoff &&
+      append_text(dst, dst_size, used, " TAMM-DANCOFF\n") != 0)
+    return -1;
+  if (tddft->diagonalizer.str && tddft->diagonalizer.len > 0) {
+    if (append_text(dst, dst_size, used, " DIAGONALIZER ") != 0)
+      return -1;
+    if (append_capn_text(dst, dst_size, used, tddft->diagonalizer) != 0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (tddft->convergence > 0.0 &&
+      append_fmt(dst, dst_size, used, " CONVERGENCE\n  %g\n",
+                 tddft->convergence) != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, tddft->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets,
+                                        "TDDFT") != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
 /* Typed &VDW: empirical Grimme dispersion controls. */
 static int render_vdw_section(char *dst, size_t dst_size, size_t *used,
                               struct CPMDVdwSection *vdw,
@@ -4253,6 +4420,41 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
         return -1;
       break;
     }
+    case CPMDInputSection_propParams: {
+      struct CPMDPropSection body;
+      read_CPMDPropSection(&body, sec.propParams);
+      if (render_prop_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_linresParams: {
+      struct CPMDLinresSection body;
+      read_CPMDLinresSection(&body, sec.linresParams);
+      if (render_linres_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_pimdParams: {
+      struct CPMDPimdSection body;
+      read_CPMDPimdSection(&body, sec.pimdParams);
+      if (render_pimd_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_pathParams: {
+      struct CPMDPathSection body;
+      read_CPMDPathSection(&body, sec.pathParams);
+      if (render_path_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_tddftParams: {
+      struct CPMDTddftSection body;
+      read_CPMDTddftSection(&body, sec.tddftParams);
+      if (render_tddft_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
     case CPMDInputSection_set: {
       break;
     }
@@ -4587,6 +4789,41 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDVdwSection vdw_body;
       read_CPMDVdwSection(&vdw_body, sec.vdwParams);
       if (render_vdw_section(dst, dst_size, &used, &vdw_body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_propParams: {
+      struct CPMDPropSection body;
+      read_CPMDPropSection(&body, sec.propParams);
+      if (render_prop_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_linresParams: {
+      struct CPMDLinresSection body;
+      read_CPMDLinresSection(&body, sec.linresParams);
+      if (render_linres_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_pimdParams: {
+      struct CPMDPimdSection body;
+      read_CPMDPimdSection(&body, sec.pimdParams);
+      if (render_pimd_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_pathParams: {
+      struct CPMDPathSection body;
+      read_CPMDPathSection(&body, sec.pathParams);
+      if (render_path_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_tddftParams: {
+      struct CPMDTddftSection body;
+      read_CPMDTddftSection(&body, sec.tddftParams);
+      if (render_tddft_section(dst, dst_size, &used, &body, &sets) != 0)
         return -1;
       break;
     }

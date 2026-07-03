@@ -1384,6 +1384,12 @@ int main(int argc, char **argv) {
       "1 0.100000 0.200000 0.300000",
       "TYPE4 1 2 0.500000 0.500000",
       "2 2 2",
+      "&PROP", "DIPOLE MOMENT", "LOCALIZE", "CUBECENTER",
+      "0.000000 0.000000 1.000000", "CUBEFILE ORBITALS", "5 6",
+      "&LINRES", "CONVERGENCE", "MAXSTEP", "HTHRS",
+      "&PIMD", "TROTTER DIMENSION", "FACMASS", "CENTROID DYNAMICS",
+      "&PATH", "REPLICA NUMBER", "NLOOP",
+      "&TDDFT", "STATES", "TAMM-DANCOFF", "DIAGONALIZER DAVIDSON",
   };
   if (check_deck(fixture[19], atoms_extras_need,
                  (int)(sizeof(atoms_extras_need) /
