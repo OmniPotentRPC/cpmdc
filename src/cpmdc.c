@@ -49,6 +49,9 @@ int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
 static unsigned char *g_params_bytes = NULL;
+static CPMDCScalarOverrides g_overrides;
+static char g_overrides_functional[64];
+static int g_has_overrides = 0;
 static size_t g_params_size = 0;
 
 /** Persistent method state plus topology guards for session evaluations. */
@@ -67,6 +70,10 @@ struct CPMDCSession {
   int multiplicity;
   /** Rendered CPMD input deck for the session parameters. */
   char input_deck[CPMDC_BLOCKS];
+  /** Common-overlay scalar overrides merged over the params (may be unset). */
+  CPMDCScalarOverrides overrides;
+  char overrides_functional[64];
+  int has_overrides;
   /** OpenCPMD source or build tree hint. */
   char cpmd_root[1024];
   /** Non-zero once the session has accepted one topology. */
@@ -106,6 +113,7 @@ static CPMDCResult fail_msg(const char *msg) {
 }
 
 static int apply_params_buffer(const void *params_capnp, size_t params_size,
+                               const CPMDCScalarOverrides *overrides,
                                char *functional, size_t functional_size,
                                double *cutoff_ry, int *charge, int *multiplicity,
                                char *input_deck, size_t input_deck_size,
@@ -116,14 +124,16 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     return -1;
   struct CPMDParams view;
   read_CPMDParams(&view, root);
-  if (cpmdc_params_effective_config(root, functional, functional_size,
-                                    cutoff_ry, charge, multiplicity) != 0) {
+  if (cpmdc_params_effective_config_ov(root, overrides, functional,
+                                       functional_size, cutoff_ry, charge,
+                                       multiplicity) != 0) {
     cpmdc_params_release(&arena);
     return -1;
   }
   snprintf(cpmd_root, cpmd_root_size, "%s",
            cpmdc_params_text_or(view.cpmdRoot, ""));
-  if (cpmdc_params_render_input_deck(root, input_deck, input_deck_size) != 0) {
+  if (cpmdc_params_render_input_deck_ov(root, overrides, input_deck,
+                                        input_deck_size) != 0) {
     cpmdc_params_release(&arena);
     return -1;
   }
@@ -306,15 +316,8 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     cpmdc_store_error("common overlay: kMesh must have 3 Monkhorst divisions");
     return -1;
   }
-  if (c.scfEnergyToleranceEv > 0.0) {
-    /* CPMD CONVERGENCE ORBITALS is an orbital-gradient criterion; lowering an
-     * energy-change tolerance onto it would silently change meaning. */
-    cpmdc_store_error(
-        "common overlay: scfEnergyToleranceEv has no faithful CPMD lowering; "
-        "set CONVERGENCE ORBITALS on the cpmd arm instead");
-    return -1;
-  }
-  int want_cpmd_section = c.scfMaxIterations > 0;
+  int want_cpmd_section = c.scfMaxIterations > 0 ||
+                          c.scfEnergyToleranceEv > 0.0;
   int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0);
 
   struct capn arena;
@@ -342,7 +345,11 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       struct CPMDCpmdSection cpmd_sec;
       memset(&cpmd_sec, 0, sizeof(cpmd_sec));
       cpmd_sec.optimizeWavefunction = 1;
-      cpmd_sec.convergenceOrbitals = 1.0e-6;
+      /* CPMD's primary SCF criterion is CONVERGENCE ORBITALS (a.u.). */
+      cpmd_sec.convergenceOrbitals =
+          c.scfEnergyToleranceEv > 0.0
+              ? c.scfEnergyToleranceEv / CPMDC_HARTREE_EV
+              : 1.0e-6;
       cpmd_sec.maxIter = c.scfMaxIterations;
       CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
       write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
@@ -440,14 +447,87 @@ static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
   return 0;
 }
 
+/* Merge a set common overlay over a native cpmd arm: the arm's bytes are the
+ * params; overlay scalars fill fields the arm carries at schema defaults
+ * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). Overlay fields
+ * that would require synthesizing sections next to an arm are not yet
+ * mergeable. */
+static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
+                                      CommonMethodSpec_ptr common_root,
+                                      unsigned char **out, size_t *out_size,
+                                      CPMDCScalarOverrides *ov,
+                                      char *ov_functional, size_t ov_len,
+                                      int *has_ov) {
+  struct CommonMethodSpec c;
+  memset(&c, 0, sizeof(c));
+  read_CommonMethodSpec(&c, common_root);
+
+  if (common_list32_len(c.kMesh) != 0 || c.scfMaxIterations > 0 ||
+      c.scfEnergyToleranceEv > 0.0) {
+    cpmdc_store_error(
+        "common overlay: kMesh/SCF controls next to a native cpmd arm are "
+        "not yet mergeable; set them on the arm's system/cpmd sections");
+    return -1;
+  }
+  if (c.vanDerWaalsMethod.len > 0 || c.relativityMethod.len > 0) {
+    cpmdc_store_error(
+        "common overlay: vanDerWaals/relativity have no CPMD lowering yet");
+    return -1;
+  }
+
+  char base_functional[64];
+  double base_cutoff = 70.0;
+  int base_charge = 0;
+  int base_mult = 1;
+  if (cpmdc_params_effective_config(arm, base_functional,
+                                    sizeof(base_functional), &base_cutoff,
+                                    &base_charge, &base_mult) != 0) {
+    cpmdc_store_error("PotentialConfig cpmd arm is not readable");
+    return -1;
+  }
+
+  memset(ov, 0, sizeof(*ov));
+  *has_ov = 0;
+  if (common_text_list_len(c.xcFunctionals) > 0 &&
+      strcmp(base_functional, "BLYP") == 0) {
+    if (cpmd_common_xc_token(c.xcFunctionals, ov_functional, ov_len) != 0) {
+      cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
+      return -1;
+    }
+    ov->functional = ov_functional;
+    *has_ov = 1;
+  }
+  if (c.planewaveCutoffEv > 0.0 && base_cutoff == 70.0) {
+    ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
+    *has_ov = 1;
+  }
+  if (c.charge != 0 && base_charge == 0) {
+    ov->has_charge = 1;
+    ov->charge = c.charge;
+    *has_ov = 1;
+  }
+  if (c.spinMultiplicity > 1 && base_mult == 1) {
+    ov->has_multiplicity = 1;
+    ov->multiplicity = c.spinMultiplicity;
+    *has_ov = 1;
+  }
+  return cpmd_write_ptr_flat(arm.p, out, out_size);
+}
+
 /* Resolve a PotentialConfig into effective CPMDParams bytes: the cpmd arm
- * wins wholesale when present; otherwise a set common overlay synthesizes
- * params. *out NULL with rc 0 means nothing to apply. */
+ * wins where it differs from schema defaults; a set common overlay fills the
+ * rest or synthesizes params when no arm is present. *out NULL with rc 0
+ * means nothing to apply. */
 static int cpmd_config_to_params_bytes(const void *config_capnp,
                                        size_t config_capnp_size_bytes,
-                                       unsigned char **out, size_t *out_size) {
+                                       unsigned char **out, size_t *out_size,
+                                       CPMDCScalarOverrides *ov,
+                                       char *ov_functional, size_t ov_len,
+                                       int *has_ov) {
   *out = NULL;
   *out_size = 0;
+  memset(ov, 0, sizeof(*ov));
+  *has_ov = 0;
   if (!config_capnp || config_capnp_size_bytes == 0) {
     cpmdc_store_error("PotentialConfig buffer is empty");
     return -1;
@@ -471,23 +551,21 @@ static int cpmd_config_to_params_bytes(const void *config_capnp,
 
   int rc = 0;
   if (config.which == PotentialConfig_cpmd) {
-    capn_resolve(&config.common.p);
-    if (config.common.p.type == CAPN_STRUCT) {
-      cpmdc_store_error(
-          "PotentialConfig sets both the cpmd arm and the common overlay; "
-          "capnp cannot distinguish unset arm fields from defaults, so the "
-          "combination is rejected - fold the overlay values into the arm");
-      capn_free(&arena);
-      return -1;
-    }
     capn_resolve(&config.cpmd.p);
     if (config.cpmd.p.type != CAPN_STRUCT) {
       cpmdc_store_error("PotentialConfig cpmd arm is empty");
       rc = -1;
     } else {
-      rc = cpmd_write_ptr_flat(config.cpmd.p, out, out_size);
-      if (rc != 0)
-        cpmdc_store_error("PotentialConfig cpmd arm serialization failed");
+      capn_resolve(&config.common.p);
+      if (config.common.p.type == CAPN_STRUCT) {
+        rc = cpmd_merge_common_into_arm(config.cpmd, config.common, out,
+                                        out_size, ov, ov_functional, ov_len,
+                                        has_ov);
+      } else {
+        rc = cpmd_write_ptr_flat(config.cpmd.p, out, out_size);
+        if (rc != 0)
+          cpmdc_store_error("PotentialConfig cpmd arm serialization failed");
+      }
     }
   } else if (config.which == PotentialConfig_none) {
     capn_resolve(&config.common.p);
@@ -507,12 +585,16 @@ int cpmdc_configure(const void *config_capnp,
   cpmdc_store_error("");
   unsigned char *params = NULL;
   size_t params_size = 0;
+  CPMDCScalarOverrides ov;
+  char ov_functional[64];
+  int has_ov = 0;
   if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
-                                  &params, &params_size) != 0)
+                                  &params, &params_size, &ov, ov_functional,
+                                  sizeof(ov_functional), &has_ov) != 0)
     return -1;
   if (!params)
     return 0;
-  int rc = cpmdc_set_params(params, params_size);
+  int rc = cpmdc_set_params_ov(params, params_size, has_ov ? &ov : NULL);
   if (rc != 0 && g_last_error[0] == '\0')
     cpmdc_store_error("applying resolved CPMD params failed");
   free(params);
@@ -524,14 +606,25 @@ CPMDCSession *cpmdc_session_create_from_config(
   cpmdc_store_error("");
   unsigned char *params = NULL;
   size_t params_size = 0;
+  CPMDCScalarOverrides ov;
+  char ov_functional[64];
+  int has_ov = 0;
   if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
-                                  &params, &params_size) != 0)
+                                  &params, &params_size, &ov, ov_functional,
+                                  sizeof(ov_functional), &has_ov) != 0)
     return NULL;
   if (!params) {
     cpmdc_store_error("PotentialConfig carries no CPMD-applicable settings");
     return NULL;
   }
   CPMDCSession *session = cpmdc_session_create(params, params_size);
+  if (session && has_ov) {
+    /* Re-install with the overlay overrides so scalars and decks merge. */
+    if (cpmdc_session_set_params_ov(session, params, params_size, &ov) != 0) {
+      cpmdc_session_destroy(session);
+      session = NULL;
+    }
+  }
   free(params);
   return session;
 }
@@ -545,30 +638,48 @@ int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
   }
   unsigned char *params = NULL;
   size_t params_size = 0;
+  CPMDCScalarOverrides ov;
+  char ov_functional[64];
+  int has_ov = 0;
   if (cpmd_config_to_params_bytes(config_capnp, config_capnp_size_bytes,
-                                  &params, &params_size) != 0)
+                                  &params, &params_size, &ov, ov_functional,
+                                  sizeof(ov_functional), &has_ov) != 0)
     return -1;
   if (!params)
     return 0;
-  int rc = cpmdc_session_set_params(session, params, params_size);
+  int rc = cpmdc_session_set_params_ov(session, params, params_size,
+                                       has_ov ? &ov : NULL);
   if (rc != 0 && g_last_error[0] == '\0')
     cpmdc_store_error("installing resolved CPMD params failed");
   free(params);
   return rc;
 }
 
-int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
+static int cpmdc_set_params_ov(const void *params_capnp,
+                               size_t params_capnp_size_bytes,
+                               const CPMDCScalarOverrides *overrides) {
   char functional[64];
   double cutoff_ry = 70.0;
   int charge = 0;
   int multiplicity = 1;
   char input_deck[CPMDC_BLOCKS];
   char cpmd_root[1024];
-  if (apply_params_buffer(params_capnp, params_capnp_size_bytes, functional,
-                          sizeof(functional), &cutoff_ry, &charge, &multiplicity,
-                          input_deck, sizeof(input_deck), cpmd_root,
-                          sizeof(cpmd_root)) != 0)
+  if (apply_params_buffer(params_capnp, params_capnp_size_bytes, overrides,
+                          functional, sizeof(functional), &cutoff_ry, &charge,
+                          &multiplicity, input_deck, sizeof(input_deck),
+                          cpmd_root, sizeof(cpmd_root)) != 0)
     return -1;
+  if (overrides) {
+    g_overrides = *overrides;
+    if (overrides->functional) {
+      snprintf(g_overrides_functional, sizeof(g_overrides_functional), "%s",
+               overrides->functional);
+      g_overrides.functional = g_overrides_functional;
+    }
+    g_has_overrides = 1;
+  } else {
+    g_has_overrides = 0;
+  }
   if (!ensure_embed_init() || !cpmdc_embed_available())
     return -1;
   free(g_params_bytes);
@@ -588,6 +699,10 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   return 0;
 }
 
+int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
+  return cpmdc_set_params_ov(params_capnp, params_capnp_size_bytes, NULL);
+}
+
 /* Merge ForceInput geometry into a Cap'n Proto-derived CPMD INPUT deck. */
 static int push_geometry_deck_from_params(const void *params_bytes,
                                           size_t params_size, int n_atoms,
@@ -602,9 +717,10 @@ static int push_geometry_deck_from_params(const void *params_bytes,
   if (cpmdc_params_root(params_bytes, params_size, &arena, &root) != 0)
     return -1;
   char deck[CPMDC_BLOCKS];
-  if (cpmdc_params_render_deck_with_geometry(root, n_atoms, positions_ang,
-                                             atomic_numbers, cell_ang, has_cell,
-                                             deck, sizeof(deck)) != 0) {
+  if (cpmdc_params_render_deck_with_geometry_ov(root, overrides, n_atoms,
+                                                positions_ang, atomic_numbers,
+                                                cell_ang, has_cell, deck,
+                                                sizeof(deck)) != 0) {
     cpmdc_params_release(&arena);
     return -1;
   }
@@ -614,6 +730,7 @@ static int push_geometry_deck_from_params(const void *params_bytes,
 
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
+                                 const CPMDCScalarOverrides *overrides,
                                  int n_atoms, const double *positions_ang,
                                  const int *atomic_numbers,
                                  const double *cell_ang, int has_cell,
@@ -662,7 +779,9 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
                                         double *grad_h_bohr) {
-  return energy_gradient_cell_with_params(g_params_bytes, g_params_size, n_atoms,
+  return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
+                                          g_has_overrides ? &g_overrides : NULL,
+                                          n_atoms,
                                           positions_ang, atomic_numbers,
                                           cell_ang, has_cell, grad_h_bohr);
 }
@@ -766,6 +885,7 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   memcpy(session->params_bytes, params_capnp, params_capnp_size_bytes);
   session->params_size = params_capnp_size_bytes;
   if (apply_params_buffer(session->params_bytes, session->params_size,
+                          session->has_overrides ? &session->overrides : NULL,
                           session->functional, sizeof(session->functional),
                           &session->cutoff_ry, &session->charge,
                           &session->multiplicity, session->input_deck,
@@ -779,8 +899,10 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   return session;
 }
 
-int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
-                             size_t params_capnp_size_bytes) {
+static int cpmdc_session_set_params_ov(CPMDCSession *session,
+                                       const void *params_capnp,
+                                       size_t params_capnp_size_bytes,
+                                       const CPMDCScalarOverrides *overrides) {
   if (!session || !params_capnp || params_capnp_size_bytes == 0)
     return -1;
   if (session->topology_fixed)
@@ -788,7 +910,20 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
   unsigned char *bytes = (unsigned char *)malloc(params_capnp_size_bytes);
   if (!bytes)
     return -1;
+  if (overrides) {
+    session->overrides = *overrides;
+    if (overrides->functional) {
+      snprintf(session->overrides_functional,
+               sizeof(session->overrides_functional), "%s",
+               overrides->functional);
+      session->overrides.functional = session->overrides_functional;
+    }
+    session->has_overrides = 1;
+  } else {
+    session->has_overrides = 0;
+  }
   if (apply_params_buffer(params_capnp, params_capnp_size_bytes,
+                          session->has_overrides ? &session->overrides : NULL,
                           session->functional, sizeof(session->functional),
                           &session->cutoff_ry, &session->charge,
                           &session->multiplicity, session->input_deck,
@@ -802,6 +937,12 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
   session->params_bytes = bytes;
   session->params_size = params_capnp_size_bytes;
   return configure_embed_from_session(session);
+}
+
+int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
+                             size_t params_capnp_size_bytes) {
+  return cpmdc_session_set_params_ov(session, params_capnp,
+                                     params_capnp_size_bytes, NULL);
 }
 
 void cpmdc_session_destroy(CPMDCSession *session) {
@@ -828,6 +969,9 @@ static CPMDCResult session_energy_gradient_cell(
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
   return energy_gradient_cell_with_params(session->params_bytes,
+                                          session->has_overrides
+                                              ? &session->overrides
+                                              : NULL,
                                           session->params_size, n_atoms,
                                           positions_ang, atomic_numbers,
                                           cell_ang, has_cell, grad_h_bohr);

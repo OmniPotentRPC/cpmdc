@@ -14,9 +14,35 @@ void cpmdc_params_release(struct capn *arena);
 
 const char *cpmdc_params_text_or(capn_text text, const char *fallback);
 
+/** Scalar overrides merged over params-derived values (common overlay). */
+typedef struct CPMDCScalarOverrides {
+  const char *functional; /* NULL or empty => keep params value. */
+  double cutoff_ry;       /* <= 0 => keep. */
+  int has_charge;
+  int charge;
+  int has_multiplicity;
+  int multiplicity;
+} CPMDCScalarOverrides;
+
 int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
                                   size_t functional_size, double *cutoff_ry,
                                   int *charge, int *multiplicity);
+
+int cpmdc_params_effective_config_ov(CPMDParams_ptr params,
+                                     const CPMDCScalarOverrides *overrides,
+                                     char *functional, size_t functional_size,
+                                     double *cutoff_ry, int *charge,
+                                     int *multiplicity);
+
+/** Render the deck with scalar overrides applied to derived values. */
+int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
+                                      const CPMDCScalarOverrides *overrides,
+                                      char *dst, size_t dst_size);
+
+int cpmdc_params_render_deck_with_geometry_ov(
+    CPMDParams_ptr params, const CPMDCScalarOverrides *overrides, int n_atoms,
+    const double *positions_ang, const int *atomic_numbers,
+    const double *cell_ang, int has_cell, char *dst, size_t dst_size);
 
 /** Render a full CPMD input deck (&SECTION ... &END) into dst. */
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,

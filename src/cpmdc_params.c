@@ -4118,8 +4118,35 @@ int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
   return 0;
 }
 
+int cpmdc_params_effective_config_ov(CPMDParams_ptr params,
+                                     const CPMDCScalarOverrides *overrides,
+                                     char *functional, size_t functional_size,
+                                     double *cutoff_ry, int *charge,
+                                     int *multiplicity) {
+  if (cpmdc_params_effective_config(params, functional, functional_size,
+                                    cutoff_ry, charge, multiplicity) != 0)
+    return -1;
+  if (!overrides)
+    return 0;
+  if (overrides->functional && overrides->functional[0] != '\0')
+    snprintf(functional, functional_size, "%s", overrides->functional);
+  if (overrides->cutoff_ry > 0.0)
+    *cutoff_ry = overrides->cutoff_ry;
+  if (overrides->has_charge)
+    *charge = overrides->charge;
+  if (overrides->has_multiplicity)
+    *multiplicity = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
+  return 0;
+}
+
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
                                    size_t dst_size) {
+  return cpmdc_params_render_input_deck_ov(params, NULL, dst, dst_size);
+}
+
+int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
+                                      const CPMDCScalarOverrides *overrides,
+                                      char *dst, size_t dst_size) {
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0)
     return -1;
   dst[0] = '\0';
@@ -4154,6 +4181,16 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
   double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
   int charge = view.charge;
   int mult = view.multiplicity > 0 ? view.multiplicity : 1;
+  if (overrides) {
+    if (overrides->functional && overrides->functional[0] != '\0')
+      functional = overrides->functional;
+    if (overrides->cutoff_ry > 0.0)
+      cutoff = overrides->cutoff_ry;
+    if (overrides->has_charge)
+      charge = overrides->charge;
+    if (overrides->has_multiplicity)
+      mult = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
+  }
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
   int nsec = struct_list_len(&view.inputSections.p);
@@ -4434,6 +4471,15 @@ int cpmdc_params_render_deck_with_geometry(
     CPMDParams_ptr params, int n_atoms, const double *positions_ang,
     const int *atomic_numbers, const double *cell_ang, int has_cell, char *dst,
     size_t dst_size) {
+  return cpmdc_params_render_deck_with_geometry_ov(
+      params, NULL, n_atoms, positions_ang, atomic_numbers, cell_ang, has_cell,
+      dst, dst_size);
+}
+
+int cpmdc_params_render_deck_with_geometry_ov(
+    CPMDParams_ptr params, const CPMDCScalarOverrides *overrides, int n_atoms,
+    const double *positions_ang, const int *atomic_numbers,
+    const double *cell_ang, int has_cell, char *dst, size_t dst_size) {
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0 || n_atoms <= 0 ||
       !positions_ang || !atomic_numbers)
     return -1;
@@ -4468,6 +4514,16 @@ int cpmdc_params_render_deck_with_geometry(
   double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
   int charge = view.charge;
   int mult = view.multiplicity > 0 ? view.multiplicity : 1;
+  if (overrides) {
+    if (overrides->functional && overrides->functional[0] != '\0')
+      functional = overrides->functional;
+    if (overrides->cutoff_ry > 0.0)
+      cutoff = overrides->cutoff_ry;
+    if (overrides->has_charge)
+      charge = overrides->charge;
+    if (overrides->has_multiplicity)
+      mult = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
+  }
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
   int nsec = struct_list_len(&view.inputSections.p);
