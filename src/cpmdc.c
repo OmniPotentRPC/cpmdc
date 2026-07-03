@@ -244,6 +244,7 @@ static int cpmd_common_xc_token(capn_ptr list, char *out, size_t out_size) {
 }
 
 #define CPMDC_RYDBERG_EV 13.605693122994
+#define CPMDC_HARTREE_EV 27.211386245988
 
 /* Lower the normalized overlay into a synthesized CPMDParams message.
  * Slice: functional, plane-wave cutoff, charge, multiplicity; every other
@@ -256,10 +257,6 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   memset(&c, 0, sizeof(c));
   read_CommonMethodSpec(&c, common_root);
 
-  if (common_list32_len(c.kMesh) != 0) {
-    cpmdc_store_error("common overlay: kMesh has no CPMD lowering yet");
-    return -1;
-  }
   if (c.vanDerWaalsMethod.len > 0) {
     cpmdc_store_error(
         "common overlay: vanDerWaalsMethod has no CPMD lowering yet");
@@ -268,11 +265,6 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   if (c.relativityMethod.len > 0) {
     cpmdc_store_error(
         "common overlay: relativityMethod has no CPMD lowering yet");
-    return -1;
-  }
-  if (c.scfMaxIterations > 0 || c.scfEnergyToleranceEv > 0.0) {
-    cpmdc_store_error(
-        "common overlay: SCF controls have no CPMD lowering yet");
     return -1;
   }
   capn_resolve(&c.smearing.p);
@@ -309,6 +301,15 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     }
   }
 
+  int kmesh_len = common_list32_len(c.kMesh);
+  if (kmesh_len != 0 && kmesh_len != 3) {
+    cpmdc_store_error("common overlay: kMesh must have 3 Monkhorst divisions");
+    return -1;
+  }
+  int want_cpmd_section = c.scfMaxIterations > 0 ||
+                          c.scfEnergyToleranceEv > 0.0;
+  int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0);
+
   struct capn arena;
   capn_init_malloc(&arena);
   capn_ptr root = capn_root(&arena);
@@ -326,6 +327,44 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   view.multiplicity = c.spinMultiplicity > 0 ? c.spinMultiplicity : 1;
   view.task.str = "gradient";
   view.task.len = 8;
+  if (nsections > 0) {
+    CPMDInputSection_list sections =
+        new_CPMDInputSection_list(root.seg, nsections);
+    int idx = 0;
+    if (want_cpmd_section) {
+      struct CPMDCpmdSection cpmd_sec;
+      memset(&cpmd_sec, 0, sizeof(cpmd_sec));
+      cpmd_sec.optimizeWavefunction = 1;
+      cpmd_sec.convergenceOrbitals =
+          c.scfEnergyToleranceEv > 0.0
+              ? c.scfEnergyToleranceEv / CPMDC_HARTREE_EV
+              : 1.0e-6;
+      cpmd_sec.maxIter = c.scfMaxIterations;
+      CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
+      write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+      struct CPMDInputSection sec;
+      memset(&sec, 0, sizeof(sec));
+      sec.which = CPMDInputSection_cpmd;
+      sec.cpmd = cpmd_ptr;
+      set_CPMDInputSection(&sec, sections, idx++);
+    }
+    if (kmesh_len == 3) {
+      struct CPMDSystemSection sys_sec;
+      memset(&sys_sec, 0, sizeof(sys_sec));
+      capn_list32 mesh = capn_new_list32(root.seg, 3);
+      for (int i = 0; i < 3; ++i)
+        capn_set32(mesh, i, (uint32_t)capn_get32(c.kMesh, i));
+      sys_sec.kpointsMonkhorstPack = mesh;
+      CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+      write_CPMDSystemSection(&sys_sec, sys_ptr);
+      struct CPMDInputSection sec;
+      memset(&sec, 0, sizeof(sec));
+      sec.which = CPMDInputSection_system;
+      sec.system = sys_ptr;
+      set_CPMDInputSection(&sec, sections, idx++);
+    }
+    view.inputSections = sections;
+  }
   write_CPMDParams(&view, params);
   if (capn_setp(root, 0, params.p) != 0) {
     capn_free(&arena);
