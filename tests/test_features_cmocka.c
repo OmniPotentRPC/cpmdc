@@ -460,6 +460,7 @@ static void test_abi(void **state) {
       "abi.cpmdc_calculate_result",
       "abi.cpmdc_potential_result_size_for_force_input",
       "abi.cpmdc_version",
+      "abi.cpmdc_abi_version",
       "abi.cpmdc_available",
       "abi.cpmdc_finalize",
       "abi.cpmdc_feature_count",

@@ -297,6 +297,7 @@
     "cpmdc_calculate_result",
     "cpmdc_potential_result_size_for_force_input",
     "cpmdc_version",
+    "cpmdc_abi_version",
     "cpmdc_available",
     "cpmdc_finalize",
     "cpmdc_last_energy_components",
@@ -10771,6 +10772,13 @@
       "feature_id": "abi.cpmdc_version",
       "kind": "abi",
       "name": "cpmdc_version",
+      "stub_applicable": true,
+      "embed_applicable": true
+    },
+    {
+      "feature_id": "abi.cpmdc_abi_version",
+      "kind": "abi",
+      "name": "cpmdc_abi_version",
       "stub_applicable": true,
       "embed_applicable": true
     },

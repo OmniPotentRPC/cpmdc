@@ -46,6 +46,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_calculate_result",
     "cpmdc_potential_result_size_for_force_input",
     "cpmdc_version",
+    "cpmdc_abi_version",
     "cpmdc_available",
     "cpmdc_finalize",
     "cpmdc_feature_count",

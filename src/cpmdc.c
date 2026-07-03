@@ -750,6 +750,8 @@ size_t cpmdc_potential_result_size_for_force_input(
 
 const char *cpmdc_version(void) { return "cpmdc/" CPMDC_VERSION_STRING; }
 
+int cpmdc_abi_version(void) { return CPMDC_ABI_VERSION; }
+
 int cpmdc_available(void) {
   if (!ensure_embed_init())
     return 0;

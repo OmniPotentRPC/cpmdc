@@ -1,5 +1,6 @@
 | symbol | role | header | abi_sym | real | stub | feat_row |
 |---+------+--------+---------+------+------+----------|
+| =cpmdc_abi_version= | lifecycle | Y | Y | Y | Y | Y |
 | =cpmdc_available= | lifecycle | Y | Y | Y | Y | Y |
 | =cpmdc_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
 | =cpmdc_energy= | step-native | Y | Y | Y | Y | Y |
@@ -22,6 +23,6 @@
 | =cpmdc_set_params= | setup | Y | Y | Y | Y | Y |
 | =cpmdc_version= | lifecycle | Y | Y | Y | Y | Y |
 
-Header symbols: 21
-abi_symbols: 21
+Header symbols: 22
+abi_symbols: 22
 Missing parity: NONE

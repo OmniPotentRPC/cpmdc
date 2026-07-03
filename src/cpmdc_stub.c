@@ -63,6 +63,8 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
 
 const char *cpmdc_version(void) { return "cpmdc-stub/" CPMDC_VERSION_STRING; }
 
+int cpmdc_abi_version(void) { return CPMDC_ABI_VERSION; }
+
 int cpmdc_available(void) { return 0; }
 
 void cpmdc_finalize(void) {}

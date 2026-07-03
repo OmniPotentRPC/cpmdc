@@ -4,6 +4,14 @@
 
 #include <stddef.h>
 
+/**
+ * @brief Numeric ABI generation of this header.
+ *
+ * Matches the shared-library soversion and cpmdc_abi_version(); bumps only on
+ * an incompatible ABI change.
+ */
+#define CPMDC_ABI_VERSION 0
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -279,6 +287,13 @@ size_t cpmdc_potential_result_size_for_force_input(
 
 /** @brief Compiled library version string. */
 const char *cpmdc_version(void);
+
+/**
+ * @brief Numeric ABI generation of the compiled library.
+ *
+ * Compare against the CPMDC_ABI_VERSION the consumer compiled with.
+ */
+int cpmdc_abi_version(void);
 
 /** @brief 1 when the embedded OpenCPMD runtime is available. */
 int cpmdc_available(void);
