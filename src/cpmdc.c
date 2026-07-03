@@ -980,10 +980,11 @@ static CPMDCResult session_energy_gradient_cell(
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
   return energy_gradient_cell_with_params(session->params_bytes,
+                                          session->params_size,
                                           session->has_overrides
                                               ? &session->overrides
                                               : NULL,
-                                          session->params_size, n_atoms,
+                                          n_atoms,
                                           positions_ang, atomic_numbers,
                                           cell_ang, has_cell, grad_h_bohr);
 }
