@@ -79,13 +79,13 @@ static void test_overlay_session_evaluates(void **state) {
   free(config);
 }
 
-static void test_overlay_rejects_energy_tolerance(void **state) {
+static void test_overlay_rejects_unlowerable_field(void **state) {
   (void)state;
   size_t config_size = 0;
   unsigned char *config = read_file(g_reject, &config_size);
   assert_non_null(config);
   assert_null(cpmdc_session_create_from_config(config, config_size));
-  assert_non_null(strstr(cpmdc_last_error(), "scfEnergyToleranceEv"));
+  assert_non_null(strstr(cpmdc_last_error(), "relativityMethod"));
   assert_int_not_equal(cpmdc_configure(config, config_size), 0);
   free(config);
 }
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   g_step = argv[3];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_overlay_session_evaluates),
-      cmocka_unit_test(test_overlay_rejects_energy_tolerance),
+      cmocka_unit_test(test_overlay_rejects_unlowerable_field),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

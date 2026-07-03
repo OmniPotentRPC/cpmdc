@@ -5,4 +5,5 @@
     charge = -1,
     spinMultiplicity = 3,
     scfMaxIterations = 50,
+    scfEnergyToleranceEv = 2.7211386245988e-4,
     kMesh = [2, 2, 2] ) )
