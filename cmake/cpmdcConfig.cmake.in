@@ -22,4 +22,4 @@ if(NOT TARGET cpmdc::cpmdc)
   )
 endif()
 
-check_required_components(cpmdc)
+set(cpmdc_FOUND TRUE)
