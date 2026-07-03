@@ -198,6 +198,23 @@ static const struct {
 
 static const capn_text k_empty_text = {0, "", 0};
 
+static int cpmd_text_equals_ci(capn_text text, const char *lit) {
+  int n = (int)strlen(lit);
+  if (text.len != n || !text.str)
+    return 0;
+  for (int i = 0; i < n; ++i) {
+    char a = text.str[i];
+    char b = lit[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (b >= 'a' && b <= 'z')
+      b = (char)(b - ('a' - 'A'));
+    if (a != b)
+      return 0;
+  }
+  return 1;
+}
+
 static int common_text_list_len(capn_ptr ptr) {
   capn_resolve(&ptr);
   if (ptr.type == CAPN_NULL)
@@ -275,10 +292,20 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   memset(&c, 0, sizeof(c));
   read_CommonMethodSpec(&c, common_root);
 
+  const char *grimme_token = NULL;
   if (c.vanDerWaalsMethod.len > 0) {
-    cpmdc_store_error(
-        "common overlay: vanDerWaalsMethod has no CPMD lowering yet");
-    return -1;
+    if (cpmd_text_equals_ci(c.vanDerWaalsMethod, "DFT-D2"))
+      grimme_token = "D2";
+    else if (cpmd_text_equals_ci(c.vanDerWaalsMethod, "DFT-D3"))
+      grimme_token = "D3";
+    else if (cpmd_text_equals_ci(c.vanDerWaalsMethod, "DFT-D3(BJ)"))
+      grimme_token = "D3BJ";
+    if (!grimme_token) {
+      cpmdc_store_error(
+          "common overlay: unmapped vanDerWaalsMethod (use DFT-D2, DFT-D3, "
+          "or DFT-D3(BJ))");
+      return -1;
+    }
   }
   if (c.relativityMethod.len > 0) {
     cpmdc_store_error(
@@ -326,7 +353,8 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   }
   int want_cpmd_section = c.scfMaxIterations > 0 ||
                           c.scfEnergyToleranceEv > 0.0;
-  int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0);
+  int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0) +
+                  (grimme_token ? 1 : 0);
 
   struct capn arena;
   capn_init_malloc(&arena);
@@ -365,6 +393,20 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       memset(&sec, 0, sizeof(sec));
       sec.which = CPMDInputSection_cpmd;
       sec.cpmd = cpmd_ptr;
+      set_CPMDInputSection(&sec, sections, idx++);
+    }
+    if (grimme_token) {
+      struct CPMDVdwSection vdw_sec;
+      memset(&vdw_sec, 0, sizeof(vdw_sec));
+      vdw_sec.empiricalCorrection = 1;
+      vdw_sec.grimme.str = grimme_token;
+      vdw_sec.grimme.len = (int)strlen(grimme_token);
+      CPMDVdwSection_ptr vdw_ptr = new_CPMDVdwSection(root.seg);
+      write_CPMDVdwSection(&vdw_sec, vdw_ptr);
+      struct CPMDInputSection sec;
+      memset(&sec, 0, sizeof(sec));
+      sec.which = CPMDInputSection_vdwParams;
+      sec.vdwParams = vdw_ptr;
       set_CPMDInputSection(&sec, sections, idx++);
     }
     if (kmesh_len == 3) {
