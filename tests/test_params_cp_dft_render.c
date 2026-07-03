@@ -1032,7 +1032,7 @@ int main(int argc, char **argv) {
   enum { NFIXTURES = sizeof(k_fixture_files) / sizeof(k_fixture_files[0]) };
   char *fixture[NFIXTURES + 1] = {0};
   for (int i = 0; i < NFIXTURES; ++i) {
-    fixture[i + 1] = fixture_path(fixture[1], k_fixture_files[i]);
+    fixture[i + 1] = fixture_path(argv[1], k_fixture_files[i]);
     if (!fixture[i + 1])
       return 1;
   }
