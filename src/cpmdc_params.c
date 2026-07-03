@@ -3822,6 +3822,75 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
   return append_text(dst, dst_size, used, "&END\n\n");
 }
 
+/* Typed long-tail sections (v1.6.0): RESP, EXTE, VECTORS. */
+static int render_resp_section(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDRespSection *resp,
+                               struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&RESP\n") != 0)
+    return -1;
+  if (resp->restraintStrength > 0.0 &&
+      append_fmt(dst, dst_size, used, " WEIGHT\n  %g\n",
+                 resp->restraintStrength) != 0)
+    return -1;
+  if (resp->hyperbolic &&
+      append_text(dst, dst_size, used, " HYPERBOLIC\n") != 0)
+    return -1;
+  if (resp->tightness > 0.0 &&
+      append_fmt(dst, dst_size, used, " BETA\n  %g\n",
+                 resp->tightness) != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, resp->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "RESP") !=
+      0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_exte_section(char *dst, size_t dst_size, size_t *used,
+                               struct CPMDExteSection *exte,
+                               struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&EXTE\n") != 0)
+    return -1;
+  int nfield = list64_len(&exte->externalField);
+  if (nfield < 0)
+    return -1;
+  if (nfield > 0) {
+    if (append_text(dst, dst_size, used, " EFIELD\n ") != 0)
+      return -1;
+    if (append_f64_list_inline(dst, dst_size, used, &exte->externalField) !=
+        0)
+      return -1;
+    if (append_text(dst, dst_size, used, "\n") != 0)
+      return -1;
+  }
+  if (append_directives(dst, dst_size, used, exte->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets, "EXTE") !=
+      0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
+static int render_vectors_section(char *dst, size_t dst_size, size_t *used,
+                                  struct CPMDVectorsSection *vectors,
+                                  struct RenderSetList *sets) {
+  if (append_text(dst, dst_size, used, "&VECTORS\n") != 0)
+    return -1;
+  if (vectors->newOrtho &&
+      append_text(dst, dst_size, used, " NEWORTHO\n") != 0)
+    return -1;
+  if (vectors->overlap &&
+      append_text(dst, dst_size, used, " OVERLAP\n") != 0)
+    return -1;
+  if (append_directives(dst, dst_size, used, vectors->directives) != 0)
+    return -1;
+  if (append_set_directives_for_section(dst, dst_size, used, sets,
+                                        "VECTORS") != 0)
+    return -1;
+  return append_text(dst, dst_size, used, "&END\n\n");
+}
+
 /* Typed long-tail sections (v1.5.0): PROP, LINRES, PIMD, PATH, TDDFT. */
 static int render_prop_section(char *dst, size_t dst_size, size_t *used,
                                struct CPMDPropSection *prop,
@@ -4455,6 +4524,27 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
         return -1;
       break;
     }
+    case CPMDInputSection_respParams: {
+      struct CPMDRespSection body;
+      read_CPMDRespSection(&body, sec.respParams);
+      if (render_resp_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_exteParams: {
+      struct CPMDExteSection body;
+      read_CPMDExteSection(&body, sec.exteParams);
+      if (render_exte_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_vectorsParams: {
+      struct CPMDVectorsSection body;
+      read_CPMDVectorsSection(&body, sec.vectorsParams);
+      if (render_vectors_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
     case CPMDInputSection_set: {
       break;
     }
@@ -4824,6 +4914,27 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDTddftSection body;
       read_CPMDTddftSection(&body, sec.tddftParams);
       if (render_tddft_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_respParams: {
+      struct CPMDRespSection body;
+      read_CPMDRespSection(&body, sec.respParams);
+      if (render_resp_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_exteParams: {
+      struct CPMDExteSection body;
+      read_CPMDExteSection(&body, sec.exteParams);
+      if (render_exte_section(dst, dst_size, &used, &body, &sets) != 0)
+        return -1;
+      break;
+    }
+    case CPMDInputSection_vectorsParams: {
+      struct CPMDVectorsSection body;
+      read_CPMDVectorsSection(&body, sec.vectorsParams);
+      if (render_vectors_section(dst, dst_size, &used, &body, &sets) != 0)
         return -1;
       break;
     }

@@ -36,6 +36,9 @@
         tammDancoff = true,
         diagonalizer = "DAVIDSON",
         convergence = 1.0e-5 ) ),
+    ( respParams = ( restraintStrength = 0.0005, hyperbolic = true ) ),
+    ( exteParams = ( externalField = [0.0, 0.0, 0.001] ) ),
+    ( vectorsParams = ( newOrtho = true, overlap = true ) ),
     ( vdwParams = (
         empiricalCorrection = true,
         grimme = "D3",

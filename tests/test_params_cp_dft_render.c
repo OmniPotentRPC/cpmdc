@@ -1390,6 +1390,9 @@ int main(int argc, char **argv) {
       "&PIMD", "TROTTER DIMENSION", "FACMASS", "CENTROID DYNAMICS",
       "&PATH", "REPLICA NUMBER", "NLOOP",
       "&TDDFT", "STATES", "TAMM-DANCOFF", "DIAGONALIZER DAVIDSON",
+      "&RESP", "WEIGHT", "HYPERBOLIC",
+      "&EXTE", "EFIELD", "0.000000 0.000000 0.001000",
+      "&VECTORS", "NEWORTHO", "OVERLAP",
   };
   if (check_deck(fixture[19], atoms_extras_need,
                  (int)(sizeof(atoms_extras_need) /
