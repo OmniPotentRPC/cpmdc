@@ -163,8 +163,9 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
  * The `cpmd` union arm carries `CPMDParams` and wins wholesale when present.
  * With the arm unset, a set `common` overlay (`CommonMethodSpec`) lowers to
  * synthesized `CPMDParams`: functional, plane-wave cutoff, charge,
- * multiplicity, SCF controls (CONVERGENCE ORBITALS / MAXITER), and the
- * Monkhorst-Pack kMesh. Overlay fields without a CPMD lowering are rejected
+ * multiplicity, MAXITER, and the Monkhorst-Pack kMesh. Setting both the
+ * cpmd arm and the overlay is rejected (capnp cannot distinguish unset arm
+ * fields from defaults). Overlay fields without a CPMD lowering are rejected
  * and reported through `cpmdc_last_error()`.
  *
  * @return 0 on success, -1 on parse, lowering, or apply failure.

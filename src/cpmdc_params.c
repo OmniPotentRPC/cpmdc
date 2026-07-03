@@ -3721,7 +3721,7 @@ static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
     for (int i = 0; i < nvel; ++i) {
       struct CPMDAtomVelocity vel;
       get_CPMDAtomVelocity(&vel, atoms->velocities, i);
-      if (append_fmt(dst, dst_size, used, "  %d", vel.atom) != 0)
+      if (append_fmt(dst, dst_size, used, "  %d ", vel.atom) != 0)
         return -1;
       if (append_f64_list_inline(dst, dst_size, used, &vel.velocity) != 0)
         return -1;
@@ -3740,9 +3740,11 @@ static int append_atoms_extras(char *dst, size_t dst_size, size_t *used,
     for (int i = 0; i < ndum; ++i) {
       struct CPMDDummyAtom dummy;
       get_CPMDDummyAtom(&dummy, atoms->dummyAtoms, i);
-      if (append_fmt(dst, dst_size, used, "  TYPE%d", dummy.type) != 0)
+      if (append_fmt(dst, dst_size, used, "  TYPE%d ", dummy.type) != 0)
         return -1;
       if (append_i32_list_inline(dst, dst_size, used, &dummy.atoms) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, " ") != 0)
         return -1;
       if (append_f64_list_inline(dst, dst_size, used, &dummy.weights) != 0)
         return -1;

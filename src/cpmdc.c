@@ -306,8 +306,15 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     cpmdc_store_error("common overlay: kMesh must have 3 Monkhorst divisions");
     return -1;
   }
-  int want_cpmd_section = c.scfMaxIterations > 0 ||
-                          c.scfEnergyToleranceEv > 0.0;
+  if (c.scfEnergyToleranceEv > 0.0) {
+    /* CPMD CONVERGENCE ORBITALS is an orbital-gradient criterion; lowering an
+     * energy-change tolerance onto it would silently change meaning. */
+    cpmdc_store_error(
+        "common overlay: scfEnergyToleranceEv has no faithful CPMD lowering; "
+        "set CONVERGENCE ORBITALS on the cpmd arm instead");
+    return -1;
+  }
+  int want_cpmd_section = c.scfMaxIterations > 0;
   int nsections = (want_cpmd_section ? 1 : 0) + (kmesh_len == 3 ? 1 : 0);
 
   struct capn arena;
@@ -335,10 +342,7 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       struct CPMDCpmdSection cpmd_sec;
       memset(&cpmd_sec, 0, sizeof(cpmd_sec));
       cpmd_sec.optimizeWavefunction = 1;
-      cpmd_sec.convergenceOrbitals =
-          c.scfEnergyToleranceEv > 0.0
-              ? c.scfEnergyToleranceEv / CPMDC_HARTREE_EV
-              : 1.0e-6;
+      cpmd_sec.convergenceOrbitals = 1.0e-6;
       cpmd_sec.maxIter = c.scfMaxIterations;
       CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
       write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
@@ -467,6 +471,15 @@ static int cpmd_config_to_params_bytes(const void *config_capnp,
 
   int rc = 0;
   if (config.which == PotentialConfig_cpmd) {
+    capn_resolve(&config.common.p);
+    if (config.common.p.type == CAPN_STRUCT) {
+      cpmdc_store_error(
+          "PotentialConfig sets both the cpmd arm and the common overlay; "
+          "capnp cannot distinguish unset arm fields from defaults, so the "
+          "combination is rejected - fold the overlay values into the arm");
+      capn_free(&arena);
+      return -1;
+    }
     capn_resolve(&config.cpmd.p);
     if (config.cpmd.p.type != CAPN_STRUCT) {
       cpmdc_store_error("PotentialConfig cpmd arm is empty");
