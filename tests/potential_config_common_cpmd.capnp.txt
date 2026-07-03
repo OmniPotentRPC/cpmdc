@@ -8,4 +8,5 @@
     scfEnergyToleranceEv = 2.7211386245988e-4,
     kMesh = [2, 2, 2],
     vanDerWaalsMethod = "DFT-D3",
+    vanDerWaalsS6 = 1.05,
     smearing = (kind = fermi, widthEv = 0.0258519976) ) )

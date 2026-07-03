@@ -416,6 +416,8 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       vdw_sec.empiricalCorrection = 1;
       vdw_sec.grimme.str = grimme_token;
       vdw_sec.grimme.len = (int)strlen(grimme_token);
+      if (c.vanDerWaalsS6 > 0.0)
+        vdw_sec.s6 = c.vanDerWaalsS6;
       CPMDVdwSection_ptr vdw_ptr = new_CPMDVdwSection(root.seg);
       write_CPMDVdwSection(&vdw_sec, vdw_ptr);
       struct CPMDInputSection sec;
