@@ -36,6 +36,9 @@ shibuya = ">=2026.1.9,<2027"
 sphinx-sitemap = ">=2.9.0,<3"
 
 [tasks]
+release-assert = { cmd = "python3 scripts/release_assert.py", description = "Verify release metadata versions agree" }
+towncrier-draft = { cmd = "uvx towncrier build --draft", description = "Preview changelog fragments" }
+release-cog-dry = { cmd = "cog bump --auto --dry-run", description = "Preview the release bump" }
 test-stub = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --print-errorlogs", description = "Configure, build, and test (stub + embed E2E)" }
 test-cmocka = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite cmocka --print-errorlogs", description = "Run cmocka suites (params + e2e)" }
 test-e2e = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite e2e --print-errorlogs", description = "Single-point and optimizer-session E2E" }

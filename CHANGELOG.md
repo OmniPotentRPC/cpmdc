@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.0
+<!-- towncrier release notes start -->
+
+## [0.1.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.1.0) - 2026-06-28
 
 - OpenCPMD driver in the ISO_C embed shell for working E2E single-point and
   multi-step session tests without OpenCPMD archives.
