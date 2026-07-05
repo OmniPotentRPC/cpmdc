@@ -44,6 +44,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_session_calculate_forces",
     "cpmdc_session_calculate_result",
     "cpmdc_calculate_result",
+    "cpmdc_calculate_result_from_config",
     "cpmdc_potential_result_size_for_force_input",
     "cpmdc_version",
     "cpmdc_abi_version",

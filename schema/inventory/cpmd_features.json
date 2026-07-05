@@ -295,6 +295,7 @@
   "cpmdc_session_calculate_forces",
   "cpmdc_session_calculate_result",
   "cpmdc_calculate_result",
+  "cpmdc_calculate_result_from_config",
   "cpmdc_potential_result_size_for_force_input",
   "cpmdc_version",
   "cpmdc_abi_version",
@@ -10842,6 +10843,13 @@
    "feature_id": "abi.cpmdc_calculate_result",
    "kind": "abi",
    "name": "cpmdc_calculate_result",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_calculate_result_from_config",
+   "kind": "abi",
+   "name": "cpmdc_calculate_result_from_config",
    "stub_applicable": true,
    "embed_applicable": true
   },

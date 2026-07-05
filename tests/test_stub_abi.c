@@ -26,6 +26,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_calculate_forces",
     "abi.cpmdc_session_calculate_result",
     "abi.cpmdc_calculate_result",
+    "abi.cpmdc_calculate_result_from_config",
     "abi.cpmdc_potential_result_size_for_force_input",
     "abi.cpmdc_version",
     "abi.cpmdc_abi_version",
@@ -79,6 +80,9 @@ static void test_stub_reports_unavailable(void **state) {
   CPMDCResult one_shot =
       cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
   assert_int_equal(one_shot.ok, 0);
+  CPMDCResult one_shot_config =
+      cpmdc_calculate_result_from_config(NULL, 0, NULL, 0, NULL, 0, NULL);
+  assert_int_equal(one_shot_config.ok, 0);
   assert_int_equal(cpmdc_potential_result_size_for_force_input(NULL, 0), 0);
   CPMDCEnergyComponents components;
   memset(&components, 0xab, sizeof(components));

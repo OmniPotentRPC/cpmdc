@@ -73,6 +73,12 @@ static void test_overlay_session_evaluates(void **state) {
   assert_int_equal(r.ok, 1);
   assert_true(wrote > 0);
 
+  size_t wrote_one_shot = 0;
+  CPMDCResult one_shot = cpmdc_calculate_result_from_config(
+      config, config_size, step, step_size, out, need, &wrote_one_shot);
+  assert_int_equal(one_shot.ok, 1);
+  assert_int_equal(wrote_one_shot, wrote);
+
   cpmdc_session_destroy(session);
   free(out);
   free(step);

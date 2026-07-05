@@ -310,6 +310,21 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                    size_t *potential_result_capnp_size_bytes);
 
 /**
+ * @brief One-shot Cap'n Proto entry point resolving a full `PotentialConfig`
+ * (native arm plus common overlay, exactly like `cpmdc_configure()`).
+ *
+ * Multi-step callers should create one session via
+ * `cpmdc_session_create_from_config()` and call
+ * `cpmdc_session_calculate_result()` per step.
+ */
+CPMDCResult cpmdc_calculate_result_from_config(
+    const void *config_capnp, size_t config_capnp_size_bytes,
+    const void *force_input_capnp, size_t force_input_capnp_size_bytes,
+    void *potential_result_capnp,
+    size_t potential_result_capnp_capacity_bytes,
+    size_t *potential_result_capnp_size_bytes);
+
+/**
  * @brief Byte count needed for a `PotentialResult` for the given `ForceInput`.
  *
  * Parses geometry only; does not initialize or evaluate CPMD. Returns 0 when

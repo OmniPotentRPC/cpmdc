@@ -111,7 +111,7 @@ For a complete mapping table, see
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |
 | Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
 | Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
-| One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_potential_result_size_for_force_input` |
+| One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_calculate_result_from_config`, `cpmdc_potential_result_size_for_force_input` |
 
 New RPC-style callers should use the session result path:
 

@@ -1267,6 +1267,50 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
   return r;
 }
 
+CPMDCResult cpmdc_calculate_result_from_config(
+    const void *config_capnp, size_t config_capnp_size_bytes,
+    const void *force_input_capnp, size_t force_input_capnp_size_bytes,
+    void *potential_result_capnp,
+    size_t potential_result_capnp_capacity_bytes,
+    size_t *potential_result_capnp_size_bytes) {
+  CPMDCResult r;
+  r.ok = 0;
+  r.energy_h = 0.0;
+  r.message[0] = '\0';
+  if (!config_capnp || config_capnp_size_bytes == 0 || !force_input_capnp ||
+      force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes) {
+    snprintf(r.message, sizeof(r.message), "invalid arguments");
+    return r;
+  }
+  *potential_result_capnp_size_bytes = 0;
+
+  size_t required_size = cpmdc_potential_result_size_for_force_input(
+      force_input_capnp, force_input_capnp_size_bytes);
+  *potential_result_capnp_size_bytes = required_size;
+  if (required_size == 0) {
+    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
+    return r;
+  }
+  if (!potential_result_capnp ||
+      potential_result_capnp_capacity_bytes < required_size) {
+    snprintf(r.message, sizeof(r.message), "PotentialResult buffer too small");
+    return r;
+  }
+
+  CPMDCSession *session =
+      cpmdc_session_create_from_config(config_capnp, config_capnp_size_bytes);
+  if (!session) {
+    snprintf(r.message, sizeof(r.message), "embed config failed");
+    return r;
+  }
+  r = cpmdc_session_calculate_result(
+      session, force_input_capnp, force_input_capnp_size_bytes,
+      potential_result_capnp, potential_result_capnp_capacity_bytes,
+      potential_result_capnp_size_bytes);
+  cpmdc_session_destroy(session);
+  return r;
+}
+
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
   if (!out)
