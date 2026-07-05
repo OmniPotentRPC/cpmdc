@@ -12,6 +12,9 @@ FEATURES_H = ROOT / "include" / "cpmdc_features.h"
 FEATURES_C = ROOT / "src" / "cpmdc_features.c"
 CPMDC_C = ROOT / "src" / "cpmdc.c"
 STUB_C = ROOT / "src" / "cpmdc_stub.c"
+# Backend-independent ABI implementations linked beside both cpmdc.c and
+# cpmdc_stub.c (capabilities discovery builds its message from the getters).
+SHARED_ABI_C = ROOT / "src" / "cpmdc_capabilities.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
 CPMD_CP_KEYWORDS = ROOT / "schema" / "inventory" / "cpmd_cp_keywords.txt"
 CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
@@ -385,7 +388,12 @@ def main() -> int:
     native_impl = public_function_definitions(cpmdc_c)
     stub_impl = public_function_definitions(stub_c)
     feature_impl = public_function_definitions(features_c)
+    shared_impl = public_function_definitions(
+        SHARED_ABI_C.read_text(encoding="utf-8")
+    )
     for sym in sorted(public_header_functions(header)):
+        if sym in shared_impl:
+            continue
         if sym not in native_impl:
             errors.append(f"src/cpmdc.c missing public ABI implementation: {sym}")
         if sym not in stub_impl:

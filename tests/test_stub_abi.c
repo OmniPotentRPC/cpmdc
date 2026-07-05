@@ -28,6 +28,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_calculate_result",
     "abi.cpmdc_calculate_result_from_config",
     "abi.cpmdc_potential_result_size_for_force_input",
+    "abi.cpmdc_capabilities_result",
     "abi.cpmdc_version",
     "abi.cpmdc_abi_version",
     "abi.cpmdc_configure",

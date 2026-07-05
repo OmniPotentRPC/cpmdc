@@ -1304,6 +1304,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_calculate_result", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_calculate_result_from_config", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_potential_result_size_for_force_input", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_capabilities_result", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_version", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_abi_version", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_configure", CPMDC_FEATURE_ABI, 1, 1},

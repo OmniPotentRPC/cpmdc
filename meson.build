@@ -12,6 +12,19 @@ add_project_arguments(
 )
 fc = meson.get_compiler('fortran')
 python = find_program('python3')
+schema_wrap_version = run_command(
+  python,
+  [
+    '-c',
+    'import re, sys; print(re.search(r"directory = potentials-schema-([0-9.]*[0-9])", open(sys.argv[1]).read()).group(1))',
+    meson.current_source_dir() / 'subprojects/potentials-schema.wrap',
+  ],
+  check: true,
+).stdout().strip()
+add_project_arguments(
+  '-DCPMDC_SCHEMA_VERSION="' + schema_wrap_version + '"',
+  language: 'c',
+)
 pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
 dl_dep = dependency('dl', required: false)
@@ -132,7 +145,8 @@ if has_cpmd
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_features.c'] + cpmdc_params_sources
+                      'src/cpmdc_memfd.c', 'src/cpmdc_features.c',
+                      'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
@@ -297,6 +311,18 @@ if get_option('with_tests')
       c_args: common_c_args + capnp_generated_c_args,
     ),
     suite: ['stub'],
+  )
+  test(
+    'capabilities-cmocka',
+    executable(
+      'test_capabilities_cmocka',
+      ['tests/test_capabilities_cmocka.c', 'src/cpmdc_capabilities.c'] +
+      cpmdc_params_sources,
+      dependencies: [cpmdc_stub_dep, cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    suite: ['stub', 'abi'],
   )
   test(
     'stub-abi-symbol-coverage',

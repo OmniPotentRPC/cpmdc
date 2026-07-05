@@ -297,6 +297,7 @@
   "cpmdc_calculate_result",
   "cpmdc_calculate_result_from_config",
   "cpmdc_potential_result_size_for_force_input",
+  "cpmdc_capabilities_result",
   "cpmdc_version",
   "cpmdc_abi_version",
   "cpmdc_configure",
@@ -10857,6 +10858,13 @@
    "feature_id": "abi.cpmdc_potential_result_size_for_force_input",
    "kind": "abi",
    "name": "cpmdc_potential_result_size_for_force_input",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_capabilities_result",
+   "kind": "abi",
+   "name": "cpmdc_capabilities_result",
    "stub_applicable": true,
    "embed_applicable": true
   },

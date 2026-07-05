@@ -333,6 +333,23 @@ CPMDCResult cpmdc_calculate_result_from_config(
 size_t cpmdc_potential_result_size_for_force_input(
     const void *force_input_capnp, size_t force_input_capnp_size_bytes);
 
+/**
+ * @brief Write a Cap'n Proto `Capabilities` message describing this backend.
+ *
+ * Loaders negotiate against the message before dispatch: backend name and
+ * version, ABI generation, availability, the calculate operations the ABI
+ * serves, the `CommonMethodSpec` fields the overlay lowers, and the
+ * `PotentialConfig` arms accepted. A stub build reports the same operation
+ * surface with `available = false`.
+ *
+ * Returns 0 on success. On a too-small buffer (including the pure size query
+ * `capabilities_capnp == NULL`, `capabilities_capnp_capacity_bytes == 0`)
+ * returns -1 with `*capabilities_capnp_size_bytes` set to the required size.
+ */
+int cpmdc_capabilities_result(void *capabilities_capnp,
+                              size_t capabilities_capnp_capacity_bytes,
+                              size_t *capabilities_capnp_size_bytes);
+
 /** @brief Compiled library version string. */
 const char *cpmdc_version(void);
 
