@@ -325,6 +325,21 @@ converted to ``ForceInput.energyUnit`` and ``energyUnit / lengthUnit``
 The native array calls take positions in Angstrom regardless of the
 schema defaults.
 
+Multi-force PEF / BOMD-style nuclear forces
+===========================================
+
+Live OpenCPMD links evaluate each geometry with fixed nuclei (OPTIMIZE
+WAVEFUNCTION) and export nuclear forces from ``coor%fion`` (PEF/BOMD
+definition). The embed bridge calls ``cpmdc_set_need_forces(.TRUE.)``
+before each ``wfopts``. Apply ``tools/opencpmd_keep_fion.patch`` and
+``tools/opencpmd_warm_orbitals.patch`` to the OpenCPMD tree used as
+``-Dcpmd_root`` so ``tfor`` includes ``cpmdc_need_forces`` and warm
+multi-force can retain orbitals. Cold path resolves relative ``*PP``
+names from ``CPMDC_PSEUDO_DIR`` (and optionally ``CPMD_PP_LIBRARY_PATH``).
+Prefer off-equilibrium water-style systems when checking force norms;
+some cluster geometries report zero nuclear gradient even under native
+``cpmd.x``.
+
 OpenCPMD Runtime Inputs
 =======================
 
@@ -335,5 +350,7 @@ executable build.
 
 Pseudopotential names in ``atoms.pseudopotentials`` can be absolute
 paths or library-style names. For library-style names, set
-``CPMDC_PSEUDO_DIR`` to the directory containing the files. The embed
-layer also checks common pseudopotential directories under ``cpmdRoot``.
+``CPMDC_PSEUDO_DIR`` to the directory containing the files (the cold
+memfd path changes into that directory before ``ratom``/``recpnew``).
+The embed layer also checks common pseudopotential directories under
+``cpmdRoot``.
