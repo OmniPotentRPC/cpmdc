@@ -549,7 +549,7 @@ CONTAINS
 
   SUBROUTINE embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     USE wfopts_utils, ONLY: wfopts
-    USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals
+    USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals, cpmdc_set_need_forces
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
@@ -576,6 +576,9 @@ CONTAINS
     IF (ALLOCATED(taup)) DEALLOCATE(taup)
     cprint%tprint = .TRUE.
     cprint%iprint(iprint_force) = 1
+    ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
+    ! tfor; iprint_force alone was not enough on the memfd embed path.
+    CALL cpmdc_set_need_forces(.TRUE.)
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).

@@ -1,11 +1,13 @@
 --- /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90.bak-pre-cpmdc-warm	2026-07-06 15:27:27.030350641 -0500
-+++ /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90	2026-07-06 15:27:27.049532554 -0500
-@@ -106,10 +106,46 @@
++++ /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90	2026-07-06 17:47:21.773668052 -0500
+@@ -106,10 +106,53 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
 +  PUBLIC :: cpmdc_set_warm_orbitals
++  PUBLIC :: cpmdc_set_need_forces
 +  LOGICAL, SAVE :: cpmdc_warm_orbitals = .FALSE.
++  LOGICAL, SAVE :: cpmdc_need_forces = .FALSE.
 +  LOGICAL, SAVE :: cpmdc_have_orbitals = .FALSE.
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: cpmdc_c0_store(:,:,:)
 +  INTEGER, SAVE :: cpmdc_store_s1 = 0, cpmdc_store_s2 = 0, cpmdc_store_s3 = 0
@@ -17,6 +19,11 @@
 +    LOGICAL, INTENT(IN) :: flag
 +    cpmdc_warm_orbitals = flag
 +  END SUBROUTINE cpmdc_set_warm_orbitals
++
++  SUBROUTINE cpmdc_set_need_forces(flag)
++    LOGICAL, INTENT(IN) :: flag
++    cpmdc_need_forces = flag
++  END SUBROUTINE cpmdc_set_need_forces
 +
 +  SUBROUTINE cpmdc_save_orbitals(c0)
 +    COMPLEX(real_8), INTENT(IN) :: c0(:,:,:)
@@ -47,7 +54,16 @@
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
-@@ -305,7 +341,11 @@
+@@ -180,7 +223,7 @@
+     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+          __LINE__,__FILE__)
+     ! ==--------------------------------------------------------------==
+-    tfor = (cprint%iprint(iprint_force).EQ.1)
++    tfor = (cprint%iprint(iprint_force).EQ.1) .OR. cpmdc_need_forces
+     IF (lqmmm%qmmm) THEN
+        IF (textfld) THEN
+           ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
+@@ -305,7 +348,11 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
@@ -60,7 +76,7 @@
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -914,6 +954,7 @@
+@@ -914,6 +961,7 @@
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
         CALL geofile(tau0,fion,'WRITE')
