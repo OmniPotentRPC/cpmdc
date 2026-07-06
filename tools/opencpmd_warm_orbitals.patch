@@ -1,6 +1,7 @@
---- a/src/rwfopt_utils.mod.F90
-+++ b/src/rwfopt_utils.mod.F90
+--- /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90.bak-pre-cpmdc-warm	2026-07-06 15:27:27.030350641 -0500
++++ /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90	2026-07-06 15:27:27.049532554 -0500
 @@ -106,10 +106,46 @@
+ 
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
 +  PUBLIC :: cpmdc_set_warm_orbitals
@@ -9,9 +10,61 @@
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: cpmdc_c0_store(:,:,:)
 +  INTEGER, SAVE :: cpmdc_store_s1 = 0, cpmdc_store_s2 = 0, cpmdc_store_s3 = 0
    !public :: lseprof
+ 
  CONTAINS
+ 
 +  SUBROUTINE cpmdc_set_warm_orbitals(flag)
 +    LOGICAL, INTENT(IN) :: flag
 +    cpmdc_warm_orbitals = flag
 +  END SUBROUTINE cpmdc_set_warm_orbitals
-+  ! (+ cpmdc_save_orbitals / cpmdc_restore_orbitals; skip initrun when warm)
++
++  SUBROUTINE cpmdc_save_orbitals(c0)
++    COMPLEX(real_8), INTENT(IN) :: c0(:,:,:)
++    INTEGER :: ierr, s1, s2, s3
++    s1 = SIZE(c0, 1); s2 = SIZE(c0, 2); s3 = SIZE(c0, 3)
++    IF (ALLOCATED(cpmdc_c0_store)) THEN
++      IF (cpmdc_store_s1 /= s1 .OR. cpmdc_store_s2 /= s2 .OR. cpmdc_store_s3 /= s3) &
++          DEALLOCATE(cpmdc_c0_store)
++    END IF
++    IF (.NOT. ALLOCATED(cpmdc_c0_store)) THEN
++      ALLOCATE(cpmdc_c0_store(s1, s2, s3), STAT=ierr)
++      IF (ierr /= 0) RETURN
++      cpmdc_store_s1 = s1; cpmdc_store_s2 = s2; cpmdc_store_s3 = s3
++    END IF
++    cpmdc_c0_store = c0
++    cpmdc_have_orbitals = .TRUE.
++  END SUBROUTINE cpmdc_save_orbitals
++
++  SUBROUTINE cpmdc_restore_orbitals(c0)
++    COMPLEX(real_8), INTENT(INOUT) :: c0(:,:,:)
++    IF (.NOT. cpmdc_have_orbitals .OR. .NOT. ALLOCATED(cpmdc_c0_store)) RETURN
++    IF (SIZE(c0, 1) /= cpmdc_store_s1 .OR. SIZE(c0, 2) /= cpmdc_store_s2 .OR. &
++        SIZE(c0, 3) /= cpmdc_store_s3) RETURN
++    c0 = cpmdc_c0_store
++  END SUBROUTINE cpmdc_restore_orbitals
++
++
+   ! ==================================================================
+   SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
+     ! ==--------------------------------------------------------------==
+@@ -305,7 +341,11 @@
+        CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
+        GOTO 150
+     ENDIF
+-    CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
++    IF (cpmdc_warm_orbitals .AND. cpmdc_have_orbitals) THEN
++       CALL cpmdc_restore_orbitals(c0)
++    ELSE
++       CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
++    END IF
+     IF (cntl%tksham)THEN
+        CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
+        GOTO 150
+@@ -914,6 +954,7 @@
+        CALL prmem('    RWFOPT')
+        IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
+        CALL geofile(tau0,fion,'WRITE')
++       CALL cpmdc_save_orbitals(c0)
+     ENDIF
+     ! CB: TAUP,FION handled by BS_WFO
+     IF (.NOT.cntl%bsymm) THEN
