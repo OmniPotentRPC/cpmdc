@@ -1053,6 +1053,7 @@ CONTAINS
     LOGICAL :: tinfo
     CHARACTER(LEN=16384) :: deck
     CHARACTER(LEN=64) :: mempath
+    CHARACTER(LEN=1024) :: pp_dir
     INTERFACE
       FUNCTION cpmdc_memfd_write(bytes, nbytes, path_out, path_cap) BIND(C, NAME='cpmdc_memfd_write')
         IMPORT :: c_char, c_int
@@ -1089,6 +1090,13 @@ CONTAINS
         EXIT
       END IF
     END DO
+    ! recpnew resolves relative *PP basenames via CWD and/or CPMD_PP_LIBRARY_PATH.
+    ! Point CWD at the PP library so cold memfd decks with relative paths work.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
+    IF (LEN_TRIM(pp_dir) == 0) &
+        CALL GET_ENVIRONMENT_VARIABLE('CPMD_PP_LIBRARY_PATH', pp_dir)
+    IF (LEN_TRIM(pp_dir) == 0) RETURN
+    CALL CHDIR(TRIM(pp_dir))
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa

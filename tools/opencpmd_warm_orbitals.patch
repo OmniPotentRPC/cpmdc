@@ -1,0 +1,17 @@
+--- a/src/rwfopt_utils.mod.F90
++++ b/src/rwfopt_utils.mod.F90
+@@ -106,10 +106,46 @@
+   PUBLIC :: rwfopt
+   PUBLIC :: give_scr_rwfopt
++  PUBLIC :: cpmdc_set_warm_orbitals
++  LOGICAL, SAVE :: cpmdc_warm_orbitals = .FALSE.
++  LOGICAL, SAVE :: cpmdc_have_orbitals = .FALSE.
++  COMPLEX(real_8), ALLOCATABLE, SAVE :: cpmdc_c0_store(:,:,:)
++  INTEGER, SAVE :: cpmdc_store_s1 = 0, cpmdc_store_s2 = 0, cpmdc_store_s3 = 0
+   !public :: lseprof
+ CONTAINS
++  SUBROUTINE cpmdc_set_warm_orbitals(flag)
++    LOGICAL, INTENT(IN) :: flag
++    cpmdc_warm_orbitals = flag
++  END SUBROUTINE cpmdc_set_warm_orbitals
++  ! (+ cpmdc_save_orbitals / cpmdc_restore_orbitals; skip initrun when warm)
