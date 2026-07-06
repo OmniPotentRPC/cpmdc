@@ -603,6 +603,24 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+
+  test(
+    'embed-warm-no-nomore-clamp',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_warm_no_nomore_clamp.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
+  test(
+    'embed-bomd-force-export',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_bomd_force_export.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
+
   test(
     'feature-inventory',
     python,

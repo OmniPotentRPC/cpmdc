@@ -242,5 +242,47 @@ from a completed executable build.
 
 Pseudopotential names in ~atoms.pseudopotentials~ can be absolute paths or
 library-style names. For library-style names, set ~CPMDC_PSEUDO_DIR~ to the
-directory containing the files. The embed layer also checks common
-pseudopotential directories under ~cpmdRoot~.
+directory containing the files (the cold memfd path ~CHDIR~s there before
+~ratom~/~recpnew~). You can also set ~CPMD_PP_LIBRARY_PATH~ (trailing slash is
+fine). The embed layer also checks common pseudopotential directories under
+~cpmdRoot~.
+
+* Multi-force PEF / BOMD-style nuclear forces
+A live OpenCPMD link evaluates each geometry with fixed nuclei (OPTIMIZE
+WAVEFUNCTION) and then exports nuclear forces from ~coor%fion~ — the same
+PEF/BOMD force definition as a single-point force evaluation after SCF.
+
+On the embed path the Fortran bridge always calls ~cpmdc_set_need_forces(.TRUE.)~
+before ~wfopts~. OpenCPMD must be patched so ~rwfopt~ sets
+~tfor = (iprint_force == 1) .OR. cpmdc_need_forces~. Without that, OpenCPMD
+zeros ~fion~ after ~forcedr~ when ~tfor~ is false and the C force buffer stays
+all zeros even though the energy is finite.
+
+Apply the vendored patches under ~tools/~ before building ~libcpmd.a~ (see
+~tools/README.md~):
+
+- ~tools/opencpmd_keep_fion.patch~ — keep ~fion~ allocated after ~wfopts~ for export
+- ~tools/opencpmd_warm_orbitals.patch~ — warm multi-force orbital store/restore plus
+  ~cpmdc_set_need_forces~ / ~tfor~
+
+Warm multi-force (same process, same topology, new ~ForceInput~ positions):
+
+1. First force call: cold bootstrap once (memfd method deck + ~tistart~ once).
+2. Later calls: update ~TAU0~ from C arrays, ~phfac~, full SCF with retained
+   orbitals (~cpmdc_set_warm_orbitals~), no second ~tistart~.
+3. Always re-request forces via ~cpmdc_set_need_forces~; do not clamp
+   ~nomore_iter~ to 0/1 on the warm path (see ~tests/test_embed_warm_no_nomore_clamp.py~
+   and ~tests/test_embed_bomd_force_export.py~).
+
+Prefer an off-equilibrium water or similar PEF system when checking forces.
+Some tightly packed cluster geometries can report a zero nuclear gradient even
+under native ~cpmd.x~; energy multi-SCF alone is not a force proof.
+
+Example environment for a live multi-force driver:
+
+#+begin_src bash
+export CPMDC_LIBRARY=/path/to/libcpmdc.so
+export CPMDC_PSEUDO_DIR=/path/to/OpenCPMD/pseudo
+export CPMD_PP_LIBRARY_PATH=$CPMDC_PSEUDO_DIR/
+# one session, many ForceInput steps via cpmdc_session_calculate_forces
+#+end_src
