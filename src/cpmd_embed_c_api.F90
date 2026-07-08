@@ -21,6 +21,8 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_last_multi_state
   PUBLIC :: cpmdc_embed_last_md_row
   PUBLIC :: cpmdc_embed_last_properties
+  ! cpmdc_embed_compose_cold_deck: BIND(C) in HAS_CPMD / stub branches (not listed
+  ! in PUBLIC — gfortran rejects forward PUBLIC when the body is ifdef-gated).
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -426,6 +428,215 @@ CONTAINS
     last_hess_count = MIN(n_atoms * 3, 4096)
     last_prop_valid = 1_c_int
   END SUBROUTINE
+
+  ! Cold-deck helpers available without linking OpenCPMD (cmocka stub path).
+  SUBROUTINE embed_pp_for_z_local(zz, pp, lmax_val, ok)
+    INTEGER, INTENT(IN) :: zz
+    CHARACTER(LEN=*), INTENT(OUT) :: pp
+    INTEGER, INTENT(OUT) :: lmax_val, ok
+    ok = 0
+    pp = ' '
+    lmax_val = -1
+    IF (zz == 1) THEN
+      pp = 'H_CVB_BLYP.psp'; lmax_val = 0; ok = 1
+    ELSE IF (zz == 6) THEN
+      pp = 'C_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 7) THEN
+      pp = 'N_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 8) THEN
+      pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 14) THEN
+      pp = 'Si_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    ELSE IF (zz == 32) THEN
+      pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
+    END IF
+  END SUBROUTINE
+
+  LOGICAL FUNCTION deck_has_real_atoms_local(d)
+    CHARACTER(LEN=*), INTENT(IN) :: d
+    INTEGER :: ia, star
+    deck_has_real_atoms_local = .FALSE.
+    ia = INDEX(d, '&ATOMS')
+    IF (ia <= 0) ia = INDEX(d, '&atoms')
+    IF (ia <= 0) RETURN
+    star = INDEX(d(ia:), '*')
+    deck_has_real_atoms_local = (star > 0)
+  END FUNCTION
+
+  LOGICAL FUNCTION deck_has_method_sections_local(d)
+    CHARACTER(LEN=*), INTENT(IN) :: d
+    deck_has_method_sections_local = &
+        INDEX(d, '&DFT') > 0 .OR. INDEX(d, '&dft') > 0 .OR. &
+        INDEX(d, '&SYSTEM') > 0 .OR. INDEX(d, '&system') > 0 .OR. &
+        INDEX(d, '&CPMD') > 0 .OR. INDEX(d, '&cpmd') > 0
+  END FUNCTION
+
+  SUBROUTINE strip_atoms_sections_local(src, dst, nlen)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(LEN=*), INTENT(OUT) :: dst
+    INTEGER, INTENT(OUT) :: nlen
+    INTEGER :: i, n, end_at, j
+    CHARACTER(LEN=16) :: tag
+    dst = ' '
+    nlen = 0
+    n = LEN_TRIM(src)
+    IF (n < 1) RETURN
+    i = 1
+    DO WHILE (i <= n)
+      IF (i + 5 <= n) THEN
+        tag = src(i:MIN(i + 5, n))
+        IF (tag == '&ATOMS' .OR. tag == '&atoms') THEN
+          end_at = 0
+          j = i + 6
+          DO WHILE (j + 3 <= n)
+            IF (src(j:j+3) == '&END' .OR. src(j:j+3) == '&end') THEN
+              end_at = j + 3
+              EXIT
+            END IF
+            j = j + 1
+          END DO
+          IF (end_at > 0) THEN
+            i = end_at + 1
+            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
+              i = i + 1
+            END DO
+            CYCLE
+          END IF
+        END IF
+      END IF
+      IF (nlen < LEN(dst)) THEN
+        nlen = nlen + 1
+        dst(nlen:nlen) = src(i:i)
+      END IF
+      i = i + 1
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
+      deck, nlen, ierr)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    INTEGER :: i, j, zz, count, pok, lmax_val, base, mlen
+    LOGICAL :: seen(0:120)
+    CHARACTER(LEN=64) :: pp
+    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=128) :: line
+    CHARACTER(LEN=4096) :: method
+    ierr = 1
+    deck = ' '
+    nlen = 0
+    CALL strip_atoms_sections_local(applied_input_deck, method, mlen)
+    base = MIN(mlen, LEN(deck) - 64)
+    IF (base < 1) RETURN
+    deck(1:base) = method(1:base)
+    nlen = base
+    IF (deck(nlen:nlen) /= NEW_LINE('A')) THEN
+      IF (nlen < LEN(deck)) THEN
+        nlen = nlen + 1
+        deck(nlen:nlen) = NEW_LINE('A')
+      END IF
+    END IF
+    CALL append_local(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    seen = .FALSE.
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (seen(zz)) CYCLE
+      seen(zz) = .TRUE.
+      CALL embed_pp_for_z_local(zz, pp, lmax_val, pok)
+      IF (pok == 0) RETURN
+      IF (lmax_val == 0) THEN
+        lmax_c = 'S'
+      ELSE IF (lmax_val == 1) THEN
+        lmax_c = 'P'
+      ELSE
+        lmax_c = 'D'
+      END IF
+      CALL append_local(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      count = 0
+      DO j = 1, n_atoms
+        IF (INT(z(j)) == zz) count = count + 1
+      END DO
+      WRITE(line, '(A,I4)') '   ', count
+      CALL append_local(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      DO j = 1, n_atoms
+        IF (INT(z(j)) /= zz) CYCLE
+        WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
+        CALL append_local(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      END DO
+    END DO
+    CALL append_local(deck, nlen, '&END'//NEW_LINE('A'))
+    IF (has_cell < 0) RETURN
+    IF (cell(1) < -1.0e300_c_double) RETURN
+    ierr = 0
+  CONTAINS
+    SUBROUTINE append_local(buf, n, s)
+      CHARACTER(LEN=*), INTENT(INOUT) :: buf
+      INTEGER, INTENT(INOUT) :: n
+      CHARACTER(LEN=*), INTENT(IN) :: s
+      INTEGER :: m
+      m = LEN(s)
+      IF (n + m > LEN(buf)) RETURN
+      buf(n+1:n+m) = s
+      n = n + m
+    END SUBROUTINE
+  END SUBROUTINE
+
+  SUBROUTINE embed_compose_cold_deck_local(n_atoms, pos, z, cell, has_cell, &
+      deck, nlen, ierr)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    nlen = 0
+    ierr = 1
+    deck = ' '
+    IF (LEN_TRIM(applied_input_deck) > 0) THEN
+      IF (deck_has_real_atoms_local(applied_input_deck)) THEN
+        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
+        deck(1:nlen) = applied_input_deck(1:nlen)
+        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
+        ierr = 0
+      ELSE IF (deck_has_method_sections_local(applied_input_deck)) THEN
+        CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
+             deck, nlen, ierr)
+      END IF
+    END IF
+  END SUBROUTINE
+
+  FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
+      cell_ang, has_cell, deck_out, deck_cap, deck_len) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_compose_cold_deck')
+    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+    REAL(c_double), INTENT(IN) :: positions_ang(*)
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
+    CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
+    INTEGER(c_int), INTENT(OUT) :: deck_len
+    INTEGER(c_int) :: ok
+    CHARACTER(LEN=16384) :: deck
+    INTEGER :: nlen, ierr, i, ncopy
+    ok = 0_c_int
+    deck_len = 0_c_int
+    IF (deck_cap < 2) RETURN
+    CALL embed_compose_cold_deck_local(INT(n_atoms), positions_ang, &
+         atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr)
+    IF (ierr /= 0 .OR. nlen < 1) RETURN
+    ncopy = MIN(nlen, INT(deck_cap) - 1)
+    DO i = 1, ncopy
+      deck_out(i) = deck(i:i)
+    END DO
+    deck_out(ncopy + 1) = c_null_char
+    deck_len = INT(ncopy, KIND=c_int)
+    ok = 1_c_int
+  END FUNCTION
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
@@ -1021,6 +1232,177 @@ CONTAINS
     END SUBROUTINE
   END SUBROUTINE
 
+  ! True when Cap'n-rendered deck already has real PP lines (*...) under &ATOMS.
+  ! C render emits an empty &ATOMS/&END placeholder when no atoms section was in
+  ! Cap'n wire; that empty block must NOT block method+geometry merge.
+  LOGICAL FUNCTION deck_has_real_atoms(d)
+    CHARACTER(LEN=*), INTENT(IN) :: d
+    INTEGER :: ia, star
+    deck_has_real_atoms = .FALSE.
+    ia = INDEX(d, '&ATOMS')
+    IF (ia <= 0) ia = INDEX(d, '&atoms')
+    IF (ia <= 0) RETURN
+    star = INDEX(d(ia:), '*')
+    deck_has_real_atoms = (star > 0)
+  END FUNCTION
+
+  LOGICAL FUNCTION deck_has_method_sections(d)
+    CHARACTER(LEN=*), INTENT(IN) :: d
+    deck_has_method_sections = &
+        INDEX(d, '&DFT') > 0 .OR. INDEX(d, '&dft') > 0 .OR. &
+        INDEX(d, '&SYSTEM') > 0 .OR. INDEX(d, '&system') > 0 .OR. &
+        INDEX(d, '&CPMD') > 0 .OR. INDEX(d, '&cpmd') > 0
+  END FUNCTION
+
+  ! Drop &ATOMS ... &END blocks so geometry can be re-appended from C arrays.
+  SUBROUTINE strip_atoms_sections(src, dst, nlen)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(LEN=*), INTENT(OUT) :: dst
+    INTEGER, INTENT(OUT) :: nlen
+    INTEGER :: i, n, start_at, end_at, j
+    CHARACTER(LEN=16) :: tag
+    dst = ' '
+    nlen = 0
+    n = LEN_TRIM(src)
+    IF (n < 1) RETURN
+    i = 1
+    DO WHILE (i <= n)
+      IF (i + 5 <= n) THEN
+        tag = src(i:MIN(i + 5, n))
+        IF (tag == '&ATOMS' .OR. tag == '&atoms') THEN
+          start_at = i
+          end_at = 0
+          j = i + 6
+          DO WHILE (j + 3 <= n)
+            IF (src(j:j+3) == '&END' .OR. src(j:j+3) == '&end') THEN
+              end_at = j + 3
+              EXIT
+            END IF
+            j = j + 1
+          END DO
+          IF (end_at > 0) THEN
+            i = end_at + 1
+            ! skip trailing newlines after &END
+            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
+              i = i + 1
+            END DO
+            CYCLE
+          END IF
+        END IF
+      END IF
+      IF (nlen < LEN(dst)) THEN
+        nlen = nlen + 1
+        dst(nlen:nlen) = src(i:i)
+      END IF
+      i = i + 1
+    END DO
+  END SUBROUTINE
+
+  ! Cap'n method deck (empty/missing &ATOMS) + geometry atoms from C arrays.
+  SUBROUTINE embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
+      deck, nlen, ierr)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    INTEGER :: i, j, zz, count, pok, lmax_val, base
+    LOGICAL :: seen(0:120)
+    CHARACTER(LEN=64) :: pp
+    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=128) :: line
+    CHARACTER(LEN=4096) :: method
+    INTEGER :: mlen
+    ierr = 1
+    deck = ' '
+    nlen = 0
+    CALL strip_atoms_sections(applied_input_deck, method, mlen)
+    base = MIN(mlen, LEN(deck) - 64)
+    IF (base < 1) RETURN
+    deck(1:base) = method(1:base)
+    nlen = base
+    IF (deck(nlen:nlen) /= NEW_LINE('A')) THEN
+      IF (nlen < LEN(deck)) THEN
+        nlen = nlen + 1
+        deck(nlen:nlen) = NEW_LINE('A')
+      END IF
+    END IF
+    CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    seen = .FALSE.
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (seen(zz)) CYCLE
+      seen(zz) = .TRUE.
+      CALL embed_pp_for_z(zz, pp, lmax_val, pok)
+      IF (pok == 0) RETURN
+      IF (lmax_val == 0) THEN
+        lmax_c = 'S'
+      ELSE IF (lmax_val == 1) THEN
+        lmax_c = 'P'
+      ELSE
+        lmax_c = 'D'
+      END IF
+      CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      count = 0
+      DO j = 1, n_atoms
+        IF (INT(z(j)) == zz) count = count + 1
+      END DO
+      WRITE(line, '(A,I4)') '   ', count
+      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      DO j = 1, n_atoms
+        IF (INT(z(j)) /= zz) CYCLE
+        WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
+        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      END DO
+    END DO
+    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    ! cell/has_cell reserved for future lattice merge into method SYSTEM.
+    IF (has_cell < 0) RETURN
+    IF (cell(1) < -1.0e300_c_double) RETURN
+    ierr = 0
+  CONTAINS
+    SUBROUTINE append(buf, n, s)
+      CHARACTER(LEN=*), INTENT(INOUT) :: buf
+      INTEGER, INTENT(INOUT) :: n
+      CHARACTER(LEN=*), INTENT(IN) :: s
+      INTEGER :: m
+      m = LEN(s)
+      IF (n + m > LEN(buf)) RETURN
+      buf(n+1:n+m) = s
+      n = n + m
+    END SUBROUTINE
+  END SUBROUTINE
+
+  ! Shared cold-deck assembly used by SCF and by compose preview for tests.
+  SUBROUTINE embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, &
+      nlen, ierr)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    nlen = 0
+    ierr = 1
+    deck = ' '
+    IF (LEN_TRIM(applied_input_deck) > 0) THEN
+      IF (deck_has_real_atoms(applied_input_deck)) THEN
+        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
+        deck(1:nlen) = applied_input_deck(1:nlen)
+        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
+        ierr = 0
+      ELSE IF (deck_has_method_sections(applied_input_deck)) THEN
+        CALL embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
+             deck, nlen, ierr)
+      END IF
+    END IF
+    IF (ierr /= 0) THEN
+      CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
+           ierr)
+    END IF
+  END SUBROUTINE
+
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -1089,31 +1471,20 @@ CONTAINS
       IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
       RETURN
     END IF
-    ! Cold: prefer Cap'n-rendered method deck (applied_input_deck) when it
-    ! already carries &ATOMS — honors typed sections (CONSTRAINTS/VDW/...) from
-    ! CPMDParams. Else build a minimal deck that still honors applied
-    ! functional/cutoff/charge/mult. Geometry for forces always from C arrays
-    ! into TAU0 after parse.
-    nlen = 0
-    ierr = 1
-    IF (LEN_TRIM(applied_input_deck) > 0) THEN
-      IF (INDEX(applied_input_deck, '&ATOMS') > 0 .OR. &
-          INDEX(applied_input_deck, '&atoms') > 0) THEN
-        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
-        deck(1:nlen) = applied_input_deck(1:nlen)
-        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
-        ierr = 0
-      END IF
-    END IF
-    IF (ierr /= 0) THEN
-      CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
-           ierr)
-    END IF
+    ! Cold: honor Cap'n-rendered applied_input_deck for method sections.
+    ! 1) Deck with real &ATOMS PP lines (*...) → use as-is.
+    ! 2) Method sections with empty/missing &ATOMS (C render placeholder) →
+    !    keep method text and append geometry &ATOMS from C arrays.
+    ! 3) Else minimal deck with applied functional/cutoff/charge/mult.
+    ! Geometry for forces always from C arrays into TAU0 after parse.
+    CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
+         ierr)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
     mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
          INT(LEN(mempath), KIND=c_int)))
     IF (mfd < 0) RETURN
     paral%io_parent = .TRUE.
+    ! (compose path above honors method-only Cap'n decks.)
     ! C wrote a NUL-terminated /proc/self/fd/N path into mempath.
     DO idx = 1, LEN(mempath)
       IF (IACHAR(mempath(idx:idx)) == 0) THEN
@@ -1170,6 +1541,35 @@ CONTAINS
       CALL clear_last_energy_components()
     END IF
   END SUBROUTINE
+
+  FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
+      cell_ang, has_cell, deck_out, deck_cap, deck_len) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_compose_cold_deck')
+    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+    REAL(c_double), INTENT(IN) :: positions_ang(*)
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
+    CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
+    INTEGER(c_int), INTENT(OUT) :: deck_len
+    INTEGER(c_int) :: ok
+    CHARACTER(LEN=16384) :: deck
+    INTEGER :: nlen, ierr, i, ncopy
+    ok = 0_c_int
+    deck_len = 0_c_int
+    IF (deck_cap < 2) RETURN
+    CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
+         cell_ang, INT(has_cell), deck, nlen, ierr)
+    IF (ierr /= 0 .OR. nlen < 1) RETURN
+    ncopy = MIN(nlen, INT(deck_cap) - 1)
+    DO i = 1, ncopy
+      deck_out(i) = deck(i:i)
+    END DO
+    deck_out(ncopy + 1) = c_null_char
+    deck_len = INT(ncopy, KIND=c_int)
+    ok = 1_c_int
+  END FUNCTION
 #endif
 END MODULE cpmd_embed_c_api
 

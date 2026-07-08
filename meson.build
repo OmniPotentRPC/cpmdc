@@ -976,6 +976,13 @@ test(
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
 
+  params_method_only_bin = custom_target(
+    'params_method_only_bin',
+    input: 'tests/params_method_only.capnp.txt',
+    output: 'params_method_only.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+
   test(
     'capnp-fortran-apply',
     executable(
@@ -990,12 +997,14 @@ test(
       effective_section_params_bin.full_path(),
       cpmd_parser_params_bin.full_path(),
       params_atoms_extras_bin.full_path(),
+      params_method_only_bin.full_path(),
     ],
     depends: [
       effective_top_params_bin,
       effective_section_params_bin,
       cpmd_parser_params_bin,
       params_atoms_extras_bin,
+      params_method_only_bin,
     ],
     suite: ['cmocka', 'params', 'capnp-fortran'],
   )

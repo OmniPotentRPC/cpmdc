@@ -31,6 +31,16 @@ REQUIRED_TOKENS = [
     "HFX_BLOCK_SIZE",
     "HFX_DISTRIBUTION",
     "HFX",  # screening / hybrid path
+    # Typed long-tail sections (3ba9 next slice)
+    "EMPIRICAL CORRECTION",
+    "GRIMME",
+    "DIPOLE MOMENT",
+    "LOCALIZE",
+    "TROTTER DIMENSION",
+    "REPLICA NUMBER",
+    "TAMM-DANCOFF",
+    "MAXSTEP",  # linres / general
+    "HTHRS",
 ]
 
 

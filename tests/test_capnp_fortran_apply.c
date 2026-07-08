@@ -20,11 +20,17 @@ int cpmdc_embed_get_config(char *functional, int functional_len,
                            double *cutoff_ry, int *charge, int *mult,
                            char *input_deck, int input_deck_len, char *cpmd_root,
                            int cpmd_root_len);
+/* Cold-deck compose (method merge / real atoms / minimal) without SCF. */
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len);
 
 static const char *g_top = NULL;
 static const char *g_sections = NULL;
 static const char *g_parser = NULL;
 static const char *g_atoms_extras = NULL;
+static const char *g_method_only = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -165,20 +171,72 @@ static void test_set_params_stores_typed_section_deck(void **state) {
   free(msg);
 }
 
+
+/* wdwj: method-only Cap'n deck (no real PP under &ATOMS) keeps typed method
+ * text; cold compose strips empty &ATOMS placeholder and merges geometry. */
+static void test_set_params_method_only_keeps_dft_section(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), 1);
+  assert_non_null(g_method_only);
+  size_t n = 0;
+  unsigned char *msg = read_file(g_method_only, &n);
+  assert_non_null(msg);
+  assert_int_equal(cpmdc_set_params(msg, n), 0);
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  assert_string_equal(functional, "PBE");
+  assert_true(strstr(deck, "&DFT") != NULL || strstr(deck, "&dft") != NULL);
+  assert_non_null(strstr(deck, "FUNCTIONAL"));
+  assert_non_null(strstr(deck, "PBE"));
+  /* C render may emit empty &ATOMS/&END; no real PP (*) until geometry merge. */
+  assert_null(strstr(deck, "*H_"));
+  assert_null(strstr(deck, "*.psp"));
+  assert_null(strstr(deck, ".psp"));
+
+  /* Shipped cold compose: keep method FUNCTIONAL PBE, append geometry atoms. */
+  {
+    double pos[6] = {0.0, 0.0, 0.0, 0.74, 0.0, 0.0};
+    int z[2] = {1, 1};
+    double cell[9] = {0};
+    char cold[16384];
+    int cold_len = 0;
+    memset(cold, 0, sizeof(cold));
+    assert_int_equal(cpmdc_embed_compose_cold_deck(2, pos, z, cell, 0, cold,
+                                                   (int)sizeof(cold), &cold_len),
+                     1);
+    assert_true(cold_len > 0);
+    assert_non_null(strstr(cold, "FUNCTIONAL"));
+    assert_non_null(strstr(cold, "PBE"));
+    /* Method merge keeps Cap'n FUNCTIONAL PBE (not rebuilt minimal BLYP).
+     * PP filenames may still contain BLYP (H_CVB_BLYP.psp library names). */
+    assert_null(strstr(cold, "FUNCTIONAL BLYP"));
+    assert_null(strstr(cold, "FUNCTIONAL\n  BLYP"));
+    assert_true(strstr(cold, "&ATOMS") != NULL || strstr(cold, "&atoms") != NULL);
+    assert_non_null(strstr(cold, "H_CVB_BLYP.psp") || strstr(cold, "*H_"));
+    assert_non_null(strstr(cold, "0.740000") || strstr(cold, "0.74"));
+  }
+  free(msg);
+}
+
 int main(int argc, char **argv) {
-  if (argc != 5) {
-    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin atoms_extras.bin\n", argv[0]);
+  if (argc != 6) {
+    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin atoms_extras.bin method_only.bin\n", argv[0]);
     return 2;
   }
   g_top = argv[1];
   g_sections = argv[2];
   g_parser = argv[3];
   g_atoms_extras = argv[4];
+  g_method_only = argv[5];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_set_params_applies_top_level_via_fortran),
       cmocka_unit_test(test_set_params_applies_section_overrides_via_fortran),
       cmocka_unit_test(test_session_create_applies_parser_fixture),
       cmocka_unit_test(test_set_params_stores_typed_section_deck),
+      cmocka_unit_test(test_set_params_method_only_keeps_dft_section),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
