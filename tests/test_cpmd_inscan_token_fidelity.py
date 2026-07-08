@@ -41,6 +41,11 @@ REQUIRED_TOKENS = [
     "TAMM-DANCOFF",
     "MAXSTEP",  # linres / general
     "HTHRS",
+    # RESP / EXTE / VECTORS (3ba9 next slice)
+    "HYPERBOLIC",
+    "NEWORTHO",
+    "EFIELD",  # &EXTE external field
+    "WEIGHT",  # &RESP restraint weight (also generic; must exist in OpenCPMD)
 ]
 
 

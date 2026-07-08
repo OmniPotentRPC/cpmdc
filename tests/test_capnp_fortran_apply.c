@@ -181,6 +181,15 @@ static void test_set_params_stores_typed_section_deck(void **state) {
   assert_true(strstr(deck, "TROTTER DIMENSION") != NULL ||
               strstr(deck, "REPLICA NUMBER") != NULL);
   assert_non_null(strstr(deck, "TAMM-DANCOFF"));
+  /* 3ba9 RESP/EXTE/VECTORS (atoms_extras fixture, shipped render). */
+  assert_non_null(strstr(deck, "&RESP") || strstr(deck, "&resp"));
+  assert_non_null(strstr(deck, "HYPERBOLIC"));
+  assert_non_null(strstr(deck, "WEIGHT"));
+  assert_non_null(strstr(deck, "&EXTE") || strstr(deck, "&exte"));
+  assert_non_null(strstr(deck, "EFIELD"));
+  assert_non_null(strstr(deck, "&VECTORS") || strstr(deck, "&vectors"));
+  assert_non_null(strstr(deck, "NEWORTHO"));
+  assert_non_null(strstr(deck, "OVERLAP"));
 
   /* wdwj: real-PP applied deck survives compose (geometry merge must not run). */
   {
@@ -220,6 +229,8 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
   read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
                sizeof(deck), root, sizeof(root));
   assert_string_equal(functional, "PBE");
+  assert_int_equal(charge, 2);
+  assert_int_equal(mult, 3);
   assert_true(strstr(deck, "&DFT") != NULL || strstr(deck, "&dft") != NULL);
   assert_non_null(strstr(deck, "FUNCTIONAL"));
   assert_non_null(strstr(deck, "PBE"));
@@ -227,6 +238,10 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
   assert_null(strstr(deck, "*H_"));
   assert_null(strstr(deck, "*.psp"));
   assert_null(strstr(deck, ".psp"));
+  /* CPMD method knobs in applied deck before compose. */
+  assert_non_null(strstr(deck, "CONVERGENCE ORBITALS"));
+  assert_non_null(strstr(deck, "MAXSTEP"));
+  assert_non_null(strstr(deck, "CHARGE"));
 
   /* Shipped cold compose: keep method FUNCTIONAL PBE, append geometry atoms. */
   {
@@ -255,8 +270,12 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
     assert_non_null(strstr(cold, "12"));
     assert_non_null(strstr(cold, "CUTOFF"));
     assert_non_null(strstr(cold, "70"));
-    assert_non_null(strstr(cold, "MAXSTEP") || strstr(cold, "MAX STEP") ||
-                    strstr(cold, "50"));
+    /* CPMD maxStep + convergence + SYSTEM CHARGE survive merge (wdwj). */
+    assert_non_null(strstr(cold, "MAXSTEP"));
+    assert_non_null(strstr(cold, "50"));
+    assert_non_null(strstr(cold, "CONVERGENCE ORBITALS"));
+    assert_non_null(strstr(cold, "CHARGE"));
+    assert_non_null(strstr(cold, "2"));
   }
   free(msg);
 }
