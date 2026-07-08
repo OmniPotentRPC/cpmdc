@@ -1089,9 +1089,26 @@ CONTAINS
       IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
       RETURN
     END IF
-    ! Cold: method+topology via memfd-backed deck for OpenCPMD parsers (no disk
-    ! path). Geometry for every force (incl. first eval) from C arrays into TAU0.
-    CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr)
+    ! Cold: prefer Cap'n-rendered method deck (applied_input_deck) when it
+    ! already carries &ATOMS — honors typed sections (CONSTRAINTS/VDW/...) from
+    ! CPMDParams. Else build a minimal deck that still honors applied
+    ! functional/cutoff/charge/mult. Geometry for forces always from C arrays
+    ! into TAU0 after parse.
+    nlen = 0
+    ierr = 1
+    IF (LEN_TRIM(applied_input_deck) > 0) THEN
+      IF (INDEX(applied_input_deck, '&ATOMS') > 0 .OR. &
+          INDEX(applied_input_deck, '&atoms') > 0) THEN
+        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
+        deck(1:nlen) = applied_input_deck(1:nlen)
+        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
+        ierr = 0
+      END IF
+    END IF
+    IF (ierr /= 0) THEN
+      CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
+           ierr)
+    END IF
     IF (ierr /= 0 .OR. nlen < 1) RETURN
     mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
          INT(LEN(mempath), KIND=c_int)))

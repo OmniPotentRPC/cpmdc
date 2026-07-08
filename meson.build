@@ -425,28 +425,6 @@ if get_option('with_tests')
   )
 
   test(
-    'capnp-fortran-apply',
-    executable(
-      'test_capnp_fortran_apply',
-      'tests/test_capnp_fortran_apply.c',
-      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
-      include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args,
-    ),
-    args: [
-      effective_top_params_bin.full_path(),
-      effective_section_params_bin.full_path(),
-      cpmd_parser_params_bin.full_path(),
-    ],
-    depends: [
-      effective_top_params_bin,
-      effective_section_params_bin,
-      cpmd_parser_params_bin,
-    ],
-    suite: ['cmocka', 'params', 'capnp-fortran'],
-  )
-
-  test(
     'effective-config',
     executable(
       'test_effective_config',
@@ -753,6 +731,16 @@ if get_option('with_tests')
     suite: ['params', 'inventory'],
   )
   test(
+    'cpmd-inscan-token-fidelity',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_cpmd_inscan_token_fidelity.py',
+      '--cpmdc-root', meson.current_source_dir(),
+    ],
+    suite: ['params', 'inventory', 'embed'],
+  )
+
+test(
     'cpmd-escape-hatch-coverage',
     python,
     args: [
@@ -987,6 +975,31 @@ if get_option('with_tests')
     output: 'params_atoms_extras.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+
+  test(
+    'capnp-fortran-apply',
+    executable(
+      'test_capnp_fortran_apply',
+      'tests/test_capnp_fortran_apply.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      effective_top_params_bin.full_path(),
+      effective_section_params_bin.full_path(),
+      cpmd_parser_params_bin.full_path(),
+      params_atoms_extras_bin.full_path(),
+    ],
+    depends: [
+      effective_top_params_bin,
+      effective_section_params_bin,
+      cpmd_parser_params_bin,
+      params_atoms_extras_bin,
+    ],
+    suite: ['cmocka', 'params', 'capnp-fortran'],
+  )
+
   potential_config_common_cpmd_bin = custom_target(
     'potential_config_common_cpmd_bin',
     input: 'tests/potential_config_common_cpmd.capnp.txt',

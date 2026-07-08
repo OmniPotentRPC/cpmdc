@@ -24,6 +24,7 @@ int cpmdc_embed_get_config(char *functional, int functional_len,
 static const char *g_top = NULL;
 static const char *g_sections = NULL;
 static const char *g_parser = NULL;
+static const char *g_atoms_extras = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -135,18 +136,49 @@ static void test_session_create_applies_parser_fixture(void **state) {
   free(msg);
 }
 
+
+/* wdwj: configure path stores Cap'n-rendered deck with typed atoms/DFT extras
+ * so cold OpenCPMD path can consume applied_input_deck (&ATOMS present). */
+static void test_set_params_stores_typed_section_deck(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), 1);
+  assert_non_null(g_atoms_extras);
+  size_t n = 0;
+  unsigned char *msg = read_file(g_atoms_extras, &n);
+  assert_non_null(msg);
+  assert_int_equal(cpmdc_set_params(msg, n), 0);
+
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  assert_string_equal(functional, "PBE");
+  /* Typed section tokens from shipped render (params_atoms_extras fixture). */
+  assert_non_null(strstr(deck, "CONSTRAINTS"));
+  assert_non_null(strstr(deck, "ISOTOPE"));
+  assert_non_null(strstr(deck, "VELOCITIES"));
+  assert_non_null(strstr(deck, "DUMMY ATOMS"));
+  assert_non_null(strstr(deck, "HUBBARD U") || strstr(deck, "HUBBARD"));
+  assert_non_null(strstr(deck, "&ATOMS") || strstr(deck, "&atoms"));
+  assert_non_null(strstr(deck, "FUNCTIONAL"));
+  free(msg);
+}
+
 int main(int argc, char **argv) {
-  if (argc != 4) {
-    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin\n", argv[0]);
+  if (argc != 5) {
+    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin atoms_extras.bin\n", argv[0]);
     return 2;
   }
   g_top = argv[1];
   g_sections = argv[2];
   g_parser = argv[3];
+  g_atoms_extras = argv[4];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_set_params_applies_top_level_via_fortran),
       cmocka_unit_test(test_set_params_applies_section_overrides_via_fortran),
       cmocka_unit_test(test_session_create_applies_parser_fixture),
+      cmocka_unit_test(test_set_params_stores_typed_section_deck),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
