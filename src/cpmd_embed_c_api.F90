@@ -680,7 +680,8 @@ CONTAINS
     func3%pclda = 1.0_real64
     func3%pcgc = 1.0_real64
     func3%phfx = 0.0_real64
-    empvdwc%dft_func = 'BLYP'
+    empvdwc%dft_func = applied_functional
+    IF (LEN_TRIM(empvdwc%dft_func) == 0) empvdwc%dft_func = 'BLYP'
     cntl%bohr = .FALSE.
     ! sysin defaults (module fields otherwise HUGE/undefined without file parse)
     dual00%cdual = 4.0_real64
@@ -958,11 +959,22 @@ CONTAINS
     CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
     WRITE(line, '(A,F12.6)') '  ', applied_cutoff_ry
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    IF (applied_charge /= 0) THEN
+      CALL append(deck, nlen, ' CHARGE'//NEW_LINE('A'))
+      WRITE(line, '(A,I6)') '  ', applied_charge
+      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    END IF
+    IF (applied_mult > 1) THEN
+      CALL append(deck, nlen, ' MULTIPLICITY'//NEW_LINE('A'))
+      WRITE(line, '(A,I6)') '  ', applied_mult
+      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    END IF
     CALL append(deck, nlen, ' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
     CALL append(deck, nlen, '&END'//NEW_LINE('A'))
     CALL append(deck, nlen, '&DFT'//NEW_LINE('A'))
     CALL append(deck, nlen, ' OLDCODE'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' FUNCTIONAL BLYP'//NEW_LINE('A'))
+    ! Honor wire/applied functional (capnp-fortran apply path); default BLYP.
+    CALL append(deck, nlen, ' FUNCTIONAL '//TRIM(applied_functional)//NEW_LINE('A'))
     CALL append(deck, nlen, '&END'//NEW_LINE('A'))
     CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
     seen = .FALSE.
