@@ -144,7 +144,9 @@ static void test_session_create_applies_parser_fixture(void **state) {
 
 
 /* wdwj: configure path stores Cap'n-rendered deck with typed atoms/DFT extras
- * so cold OpenCPMD path can consume applied_input_deck (&ATOMS present). */
+ * so cold OpenCPMD path can consume applied_input_deck (&ATOMS present).
+ * 3ba9: long-tail typed sections (&VDW/&PROP/&LINRES/&PIMD/&PATH/&TDDFT) land
+ * in applied deck via shipped render. */
 static void test_set_params_stores_typed_section_deck(void **state) {
   (void)state;
   assert_int_equal(cpmdc_available(), 1);
@@ -168,6 +170,36 @@ static void test_set_params_stores_typed_section_deck(void **state) {
   assert_non_null(strstr(deck, "HUBBARD U") || strstr(deck, "HUBBARD"));
   assert_non_null(strstr(deck, "&ATOMS") || strstr(deck, "&atoms"));
   assert_non_null(strstr(deck, "FUNCTIONAL"));
+  /* Real PP line present → cold compose uses deck as-is (not method merge). */
+  assert_non_null(strstr(deck, "O_MT_BLYP.psp") || strstr(deck, "*O"));
+  /* 3ba9 long-tail tokens from shipped cpmdc_params.c render. */
+  assert_non_null(strstr(deck, "EMPIRICAL CORRECTION"));
+  assert_non_null(strstr(deck, "GRIMME"));
+  assert_non_null(strstr(deck, "DIPOLE MOMENT"));
+  assert_non_null(strstr(deck, "LOCALIZE"));
+  assert_non_null(strstr(deck, "HTHRS"));
+  assert_true(strstr(deck, "TROTTER DIMENSION") != NULL ||
+              strstr(deck, "REPLICA NUMBER") != NULL);
+  assert_non_null(strstr(deck, "TAMM-DANCOFF"));
+
+  /* wdwj: real-PP applied deck survives compose (geometry merge must not run). */
+  {
+    double pos[6] = {0.0, 0.0, 0.0, 0.74, 0.0, 0.0};
+    int z[2] = {1, 1};
+    double cell[9] = {0};
+    char cold[16384];
+    int cold_len = 0;
+    memset(cold, 0, sizeof(cold));
+    assert_int_equal(cpmdc_embed_compose_cold_deck(2, pos, z, cell, 0, cold,
+                                                   (int)sizeof(cold), &cold_len),
+                     1);
+    assert_true(cold_len > 0);
+    assert_non_null(strstr(cold, "O_MT_BLYP.psp") || strstr(cold, "*O"));
+    assert_non_null(strstr(cold, "EMPIRICAL CORRECTION"));
+    assert_non_null(strstr(cold, "DIPOLE MOMENT"));
+    /* Must not replace real PP deck with H-only geometry merge. */
+    assert_null(strstr(cold, "H_CVB_BLYP.psp"));
+  }
   free(msg);
 }
 
@@ -217,6 +249,14 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
     assert_true(strstr(cold, "&ATOMS") != NULL || strstr(cold, "&atoms") != NULL);
     assert_non_null(strstr(cold, "H_CVB_BLYP.psp") || strstr(cold, "*H_"));
     assert_non_null(strstr(cold, "0.740000") || strstr(cold, "0.74"));
+    /* SYSTEM cell/cutoff from Cap'n method sections survive geometry merge. */
+    assert_true(strstr(cold, "&SYSTEM") != NULL || strstr(cold, "&system") != NULL);
+    assert_non_null(strstr(cold, "CELL"));
+    assert_non_null(strstr(cold, "12"));
+    assert_non_null(strstr(cold, "CUTOFF"));
+    assert_non_null(strstr(cold, "70"));
+    assert_non_null(strstr(cold, "MAXSTEP") || strstr(cold, "MAX STEP") ||
+                    strstr(cold, "50"));
   }
   free(msg);
 }
