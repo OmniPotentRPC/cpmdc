@@ -1,0 +1,152 @@
+/**
+ * Drive the shipped set_params / session_create path and observe embed knobs
+ * via cpmdc_embed_get_config (capnp-fortran apply-from-bytes).
+ */
+#include "cpmdc.h"
+#include "cpmdc_params.h"
+
+#include <math.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <cmocka.h>
+
+/* Real bind(C) getter from cpmdc_embed_apply_params.f90 */
+int cpmdc_embed_get_config(char *functional, int functional_len,
+                           double *cutoff_ry, int *charge, int *mult,
+                           char *input_deck, int input_deck_len, char *cpmd_root,
+                           int cpmd_root_len);
+
+static const char *g_top = NULL;
+static const char *g_sections = NULL;
+static const char *g_parser = NULL;
+
+static unsigned char *read_file(const char *path, size_t *size) {
+  FILE *fp = fopen(path, "rb");
+  if (!fp)
+    return NULL;
+  if (fseek(fp, 0, SEEK_END) != 0) {
+    fclose(fp);
+    return NULL;
+  }
+  long n = ftell(fp);
+  if (n <= 0) {
+    fclose(fp);
+    return NULL;
+  }
+  rewind(fp);
+  unsigned char *buf = (unsigned char *)malloc((size_t)n);
+  if (!buf) {
+    fclose(fp);
+    return NULL;
+  }
+  if (fread(buf, 1, (size_t)n, fp) != (size_t)n) {
+    free(buf);
+    fclose(fp);
+    return NULL;
+  }
+  fclose(fp);
+  *size = (size_t)n;
+  return buf;
+}
+
+static void read_applied(char *functional, size_t fsz, double *cutoff,
+                         int *charge, int *mult, char *deck, size_t dsz,
+                         char *root, size_t rsz) {
+  memset(functional, 0, fsz);
+  memset(deck, 0, dsz);
+  memset(root, 0, rsz);
+  *cutoff = 0.0;
+  *charge = 0;
+  *mult = 0;
+  assert_int_equal(cpmdc_embed_get_config(functional, (int)fsz, cutoff, charge,
+                                          mult, deck, (int)dsz, root, (int)rsz),
+                   0);
+}
+
+static void test_set_params_applies_top_level_via_fortran(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), 1);
+  size_t n = 0;
+  unsigned char *msg = read_file(g_top, &n);
+  assert_non_null(msg);
+  assert_int_equal(cpmdc_set_params(msg, n), 0);
+
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  assert_string_equal(functional, "PBE0");
+  assert_true(fabs(cutoff - 80.0) < 1e-12);
+  assert_int_equal(charge, 2);
+  assert_int_equal(mult, 3);
+  assert_non_null(strstr(deck, "CUTOFF"));
+  assert_non_null(strstr(deck, "80"));
+  free(msg);
+}
+
+static void test_set_params_applies_section_overrides_via_fortran(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), 1);
+  size_t n = 0;
+  unsigned char *msg = read_file(g_sections, &n);
+  assert_non_null(msg);
+  /* Top-level is LDA/10/-1/1; system+dft sections override to PBE0/80/2/3. */
+  assert_int_equal(cpmdc_set_params(msg, n), 0);
+
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  assert_string_equal(functional, "PBE0");
+  assert_true(fabs(cutoff - 80.0) < 1e-12);
+  assert_int_equal(charge, 2);
+  assert_int_equal(mult, 3);
+  free(msg);
+}
+
+static void test_session_create_applies_parser_fixture(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), 1);
+  size_t n = 0;
+  unsigned char *msg = read_file(g_parser, &n);
+  assert_non_null(msg);
+  CPMDCSession *session = cpmdc_session_create(msg, n);
+  assert_non_null(session);
+
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  assert_string_equal(functional, "PBE");
+  assert_true(fabs(cutoff - 90.0) < 1e-12);
+  assert_string_equal(root, "/opt/cpmd");
+  assert_non_null(strstr(deck, "FUNCTIONAL"));
+  assert_non_null(strstr(deck, "PBE"));
+
+  cpmdc_session_destroy(session);
+  free(msg);
+}
+
+int main(int argc, char **argv) {
+  if (argc != 4) {
+    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin\n", argv[0]);
+    return 2;
+  }
+  g_top = argv[1];
+  g_sections = argv[2];
+  g_parser = argv[3];
+  const struct CMUnitTest tests[] = {
+      cmocka_unit_test(test_set_params_applies_top_level_via_fortran),
+      cmocka_unit_test(test_set_params_applies_section_overrides_via_fortran),
+      cmocka_unit_test(test_session_create_applies_parser_fixture),
+  };
+  return cmocka_run_group_tests(tests, NULL, NULL);
+}

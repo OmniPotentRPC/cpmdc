@@ -50,6 +50,7 @@ endif
 cpmdc_params_sources = []
 cpmdc_params_deps = []
 cpmdc_params_includes = []
+cpmdc_apply_f_dep = []
 if need_capnp_c
   capnp = find_program('capnp')
   # b_sanitize=none: sanitizer lanes cover first-party code; the vendored
@@ -66,6 +67,36 @@ if need_capnp_c
   cpmdc_params_sources = ['src/cpmdc_params.c', potentials_capnp_c_src]
   cpmdc_params_deps = [capnp_c_dep, potentials_capnp_c_dep]
   cpmdc_params_includes = [include_directories('schema')]
+
+  # Public capnp-fortran: decode CPMDParams in Fortran (retire exploded setters).
+  capnp_fortran_proj = subproject('capnp-fortran')
+  capnp_fortran_dep = capnp_fortran_proj.get_variable('capnp_fortran_dep')
+  capnpc_fortran = capnp_fortran_proj.get_variable('capnpc_fortran')
+  potentials_capnp_f = custom_target(
+    'potentials-capnp-f',
+    input: meson.current_source_dir() / 'schema' / 'Potentials.capnp',
+    output: 'potentials_capnp.f90',
+    command: [
+      python,
+      meson.current_source_dir() / 'tools' / 'capnpc_fortran_compile.py',
+      capnp,
+      capnpc_fortran,
+      meson.current_source_dir() / 'schema',
+      '@OUTDIR@',
+      '@INPUT@',
+      '@OUTPUT@',
+    ],
+  )
+  cpmdc_apply_f = static_library(
+    'cpmdc_apply_f',
+    [potentials_capnp_f, 'src/cpmdc_embed_apply_params.f90'],
+    dependencies: capnp_fortran_dep,
+    install: false,
+  )
+  cpmdc_apply_f_dep = declare_dependency(
+    link_with: cpmdc_apply_f,
+    dependencies: capnp_fortran_dep,
+  )
 endif
 
 cpmdc_stub = static_library(
@@ -162,7 +193,7 @@ cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep],
+  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep],
   c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
@@ -173,7 +204,7 @@ cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep],
+  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep],
   c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
@@ -185,7 +216,7 @@ cpmdc_shared = shared_library(
 cpmdc_shared_dep = declare_dependency(
   link_with: cpmdc_shared,
   include_directories: inc,
-  dependencies: cpmdc_params_deps,
+  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
 )
 
 install_headers('include/cpmdc.h', 'include/cpmdc_features.h', subdir: 'cpmdc')
@@ -215,7 +246,7 @@ cmake.write_basic_package_version_file(
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
-  dependencies: cpmdc_params_deps,
+  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
   link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] + cpmd_archive_math_libs) : [],
 )
 
@@ -391,6 +422,28 @@ if get_option('with_tests')
     ],
     depends: [force_input_step_a_bin, force_input_step_ev_bin],
     suite: ['capnp', 'socket'],
+  )
+
+  test(
+    'capnp-fortran-apply',
+    executable(
+      'test_capnp_fortran_apply',
+      'tests/test_capnp_fortran_apply.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      effective_top_params_bin.full_path(),
+      effective_section_params_bin.full_path(),
+      cpmd_parser_params_bin.full_path(),
+    ],
+    depends: [
+      effective_top_params_bin,
+      effective_section_params_bin,
+      cpmd_parser_params_bin,
+    ],
+    suite: ['cmocka', 'params', 'capnp-fortran'],
   )
 
   test(

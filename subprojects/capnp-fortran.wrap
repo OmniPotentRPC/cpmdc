@@ -1,0 +1,6 @@
+[wrap-git]
+directory = capnp-fortran-0.1.0
+url = https://github.com/HaoZeke/capnp-fortran.git
+revision = 3497d88abb5daf92e649a0cd7066237169bf4758
+depth = 1
+patch_directory = capnp-fortran

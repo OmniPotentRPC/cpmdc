@@ -7,6 +7,10 @@
 MODULE cpmd_embed_c_api
   USE, INTRINSIC :: iso_c_binding
   USE, INTRINSIC :: iso_fortran_env, ONLY: real64
+  ! Config knobs live in cpmdc_embed_apply_params (capnp-fortran decode path).
+  USE cpmdc_embed_apply_params_mod, ONLY: &
+      applied_functional, applied_cutoff_ry, applied_charge, applied_mult, &
+      applied_input_deck, applied_cpmd_root
   IMPLICIT NONE
   PRIVATE
 
@@ -20,12 +24,7 @@ MODULE cpmd_embed_c_api
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
-  CHARACTER(LEN=64), SAVE :: cfg_functional = 'BLYP'
-  REAL(real64), SAVE :: cfg_cutoff_ry = 70.0_real64
-  INTEGER, SAVE :: cfg_charge = 0
-  INTEGER, SAVE :: cfg_mult = 1
-  CHARACTER(LEN=4096), SAVE :: cfg_input_deck = ' '
-  CHARACTER(LEN=1024), SAVE :: cfg_cpmd_root = ' '
+  ! Config state is applied_* from cpmdc_embed_apply_params_mod.
   ! Last successful evaluation ener_com snapshot (Hartree); valid==0 until first ok SCF/PEF.
   INTEGER(c_int), SAVE :: last_ener_valid = 0_c_int
   REAL(c_double), SAVE :: last_etot = 0.0_c_double
@@ -249,14 +248,14 @@ CONTAINS
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
     IF (cutoff_ry < 0.0_c_double) RETURN
-    CALL cstr_to_f(functional, functional_len, cfg_functional)
-    IF (LEN_TRIM(cfg_functional) == 0) cfg_functional = 'BLYP'
-    cfg_cutoff_ry = REAL(cutoff_ry, KIND=real64)
-    IF (cfg_cutoff_ry <= 0.0_real64) cfg_cutoff_ry = 70.0_real64
-    cfg_charge = INT(charge)
-    cfg_mult = MAX(1, INT(multiplicity))
-    CALL cstr_to_f(input_deck, input_deck_len, cfg_input_deck)
-    CALL cstr_to_f(cpmd_root, cpmd_root_len, cfg_cpmd_root)
+    CALL cstr_to_f(functional, functional_len, applied_functional)
+    IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
+    applied_cutoff_ry = REAL(cutoff_ry, KIND=real64)
+    IF (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
+    applied_charge = INT(charge)
+    applied_mult = MAX(1, INT(multiplicity))
+    CALL cstr_to_f(input_deck, input_deck_len, applied_input_deck)
+    CALL cstr_to_f(cpmd_root, cpmd_root_len, applied_cpmd_root)
     ok = 1_c_int
   END FUNCTION
 
@@ -267,7 +266,7 @@ CONTAINS
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. deck_len < 0) RETURN
-    CALL cstr_to_f(deck, deck_len, cfg_input_deck)
+    CALL cstr_to_f(deck, deck_len, applied_input_deck)
     ok = 1_c_int
   END FUNCTION
 
@@ -395,11 +394,11 @@ CONTAINS
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0) RETURN
-    k = 1.0e-3_real64 * MAX(0.1_real64, cfg_cutoff_ry / 70.0_real64)
-    deck_scale = REAL(MAX(1, LEN_TRIM(cfg_functional) + LEN_TRIM(cfg_input_deck) + &
-         LEN_TRIM(cfg_cpmd_root)), KIND=real64)
+    k = 1.0e-3_real64 * MAX(0.1_real64, applied_cutoff_ry / 70.0_real64)
+    deck_scale = REAL(MAX(1, LEN_TRIM(applied_functional) + LEN_TRIM(applied_input_deck) + &
+         LEN_TRIM(applied_cpmd_root)), KIND=real64)
     energy_h = REAL(1.0e-8_real64 * deck_scale + &
-         1.0e-6_real64 * REAL(cfg_charge + cfg_mult, KIND=real64), KIND=c_double)
+         1.0e-6_real64 * REAL(applied_charge + applied_mult, KIND=real64), KIND=c_double)
     DO i = 1, n_atoms
       z_scale = REAL(MAX(1, INT(z(i))), KIND=real64)
       r_bohr = 0.0_real64
@@ -437,8 +436,8 @@ CONTAINS
          mgcx_is_becke88, mgcc_is_lyp, mhfx_is_skipped
     USE tbxc, ONLY: toldcode
     USE ener, ONLY: tenergy_ok
-    IF (cfg_cutoff_ry > 0.0_real64) cntr%ecut = cfg_cutoff_ry
-    clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
+    IF (applied_cutoff_ry > 0.0_real64) cntr%ecut = applied_cutoff_ry
+    clsd%nlsd = MERGE(2, 1, applied_mult > 1)
     toldcode = .TRUE.
     tenergy_ok = .TRUE.
     func1%mfxcx = mfxcx_is_slaterx
@@ -699,13 +698,13 @@ CONTAINS
     cell_com%celldm(3) = 1.0_real64
     cell_com%celldm(4:6) = 0.0_real64
     parm%ibrav = 0
-    cntr%ecut = cfg_cutoff_ry
+    cntr%ecut = applied_cutoff_ry
     isos3%ps_type = 1
     isos1%tclust = .TRUE.
     isos1%tisos = .TRUE.
     parm%ibrav = 1
-    crge%charge = REAL(cfg_charge, KIND=real64)
-    clsd%nlsd = MERGE(2, 1, cfg_mult > 1)
+    crge%charge = REAL(applied_charge, KIND=real64)
+    clsd%nlsd = MERGE(2, 1, applied_mult > 1)
     maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
     CALL control_test(.FALSE.)
     maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
@@ -957,7 +956,7 @@ CONTAINS
     WRITE(line, '(A,F12.6,A)') '  ', cell_a, ' 1.0 1.0 0.0 0.0 0.0'
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
     CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
-    WRITE(line, '(A,F12.6)') '  ', cfg_cutoff_ry
+    WRITE(line, '(A,F12.6)') '  ', applied_cutoff_ry
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
     CALL append(deck, nlen, ' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
     CALL append(deck, nlen, '&END'//NEW_LINE('A'))

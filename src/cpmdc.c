@@ -25,6 +25,17 @@ int cpmdc_embed_set_config(const char *functional, int functional_len,
                            const char *input_deck, int input_deck_len,
                            const char *cpmd_root, int cpmd_root_len);
 int cpmdc_embed_set_deck(const char *deck, int deck_len);
+/* Fortran capnp-fortran decode of CPMDParams into embed knobs. */
+int cpmdc_embed_apply_params(const void *params_capnp,
+                             size_t params_capnp_size_bytes,
+                             const char *input_deck, int input_deck_len,
+                             const char *functional_ov, int functional_ov_len,
+                             double cutoff_ov, int has_charge_ov, int charge_ov,
+                             int has_mult_ov, int mult_ov);
+int cpmdc_embed_get_config(char *functional, int functional_len,
+                           double *cutoff_ry, int *charge, int *mult,
+                           char *input_deck, int input_deck_len, char *cpmd_root,
+                           int cpmd_root_len);
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
@@ -153,20 +164,48 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
   return 0;
 }
 
+static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
+                                 const char *input_deck,
+                                 const CPMDCScalarOverrides *overrides) {
+  const char *fov = "";
+  int fov_len = 0;
+  double cutoff_ov = 0.0;
+  int has_charge_ov = 0, charge_ov = 0;
+  int has_mult_ov = 0, mult_ov = 1;
+  if (overrides) {
+    if (overrides->functional && overrides->functional[0] != '\0') {
+      fov = overrides->functional;
+      fov_len = (int)strlen(overrides->functional);
+    }
+    if (overrides->cutoff_ry > 0.0)
+      cutoff_ov = overrides->cutoff_ry;
+    if (overrides->has_charge) {
+      has_charge_ov = 1;
+      charge_ov = overrides->charge;
+    }
+    if (overrides->has_multiplicity) {
+      has_mult_ov = 1;
+      mult_ov = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
+    }
+  }
+  return cpmdc_embed_apply_params(
+      params_capnp, params_size, input_deck, (int)strlen(input_deck), fov,
+      fov_len, cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov);
+}
+
 static int configure_embed_from_session(CPMDCSession *session) {
   if (!session)
     return -1;
   if (!ensure_embed_init() || !cpmdc_embed_available())
     return -1;
-  int ok = cpmdc_embed_set_config(
-      session->functional, (int)strlen(session->functional), session->cutoff_ry,
-      session->charge, session->multiplicity, session->input_deck,
-      (int)strlen(session->input_deck), session->cpmd_root,
-      (int)strlen(session->cpmd_root));
-  session->embed_configured = ok != 0;
-  if (ok)
-    g_active_session = session;
-  return ok != 0 ? 0 : -1;
+  /* Serialized params: Fortran capnp-fortran decode; C still rendered deck. */
+  if (embed_apply_from_wire(
+          session->params_bytes, session->params_size, session->input_deck,
+          session->has_overrides ? &session->overrides : NULL) != 0)
+    return -1;
+  session->embed_configured = 1;
+  g_active_session = session;
+  return 0;
 }
 
 /* Diagnostic channel for the int-returning configuration entry points. */
@@ -755,14 +794,16 @@ static int cpmdc_set_params_ov(const void *params_capnp,
     return -1;
   memcpy(g_params_bytes, params_capnp, params_capnp_size_bytes);
   g_params_size = params_capnp_size_bytes;
-  if (cpmdc_embed_set_config(functional, (int)strlen(functional), cutoff_ry,
-                             charge, multiplicity, input_deck,
-                             (int)strlen(input_deck), cpmd_root,
-                             (int)strlen(cpmd_root)) == 0)
+  /* Fortran decode of functional/cutoff/charge/mult/root + store C deck. */
+  if (embed_apply_from_wire(params_capnp, params_capnp_size_bytes, input_deck,
+                            overrides) != 0)
     return -1;
+  (void)functional;
+  (void)cutoff_ry;
+  (void)charge;
+  (void)multiplicity;
+  (void)cpmd_root;
   g_active_session = NULL;
-  /* Full rendered deck (method sections); geometry merged at energy_grad. */
-  (void)cpmdc_embed_set_deck(input_deck, (int)strlen(input_deck));
   return 0;
 }
 
