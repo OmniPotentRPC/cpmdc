@@ -1556,6 +1556,10 @@ CONTAINS
         CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
         INTEGER(c_int) :: cpmdc_prepare_pp_cwd
       END FUNCTION
+      FUNCTION cpmdc_restore_host_cwd() BIND(C, NAME='cpmdc_restore_host_cwd')
+        IMPORT :: c_int
+        INTEGER(c_int) :: cpmdc_restore_host_cwd
+      END FUNCTION
     END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -1639,6 +1643,10 @@ CONTAINS
       cfg_warm_steps = 1
     ELSE
       CALL clear_last_energy_components()
+    END IF
+    ! Hand CWD back to the host (eOn workdir); PP loads already finished.
+    IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
+      ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
   END SUBROUTINE
 

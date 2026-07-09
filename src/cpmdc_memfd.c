@@ -30,6 +30,10 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
   return fd;
 }
 
+/* Host CWD saved by prepare_pp_cwd; restored after cold init (see restore). */
+static char g_host_cwd[1024];
+static int g_host_cwd_saved = 0;
+
 /*
  * Point process CWD at the pseudopotential library for cold memfd decks.
  *
@@ -39,7 +43,8 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
  * CWD lookup (basename alone). chdir to the library directory first.
  *
  * Also exports CPMD_PP_LIBRARY_PATH with a trailing slash for hosts that do
- * honor the env (argc==1 CLI runs).
+ * honor the env (argc==1 CLI runs). Saves the prior CWD for
+ * cpmdc_restore_host_cwd after cold ratom/setbasis.
  *
  * Returns 0 on success, -1 on failure (missing dir / chdir failed).
  */
@@ -60,6 +65,9 @@ int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
     dir[--n] = '\0';
   if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode))
     return -1;
+  g_host_cwd_saved = 0;
+  if (getcwd(g_host_cwd, sizeof(g_host_cwd)) != NULL)
+    g_host_cwd_saved = 1;
   if (chdir(dir) != 0)
     return -1;
   /* Trailing slash required when CPMD_PP_LIBRARY_PATH is set (OpenCPMD get_pplib). */
@@ -70,5 +78,15 @@ int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
     (void)setenv("CPMD_PP_LIBRARY_PATH", libpath, 1);
     (void)setenv("PP_LIBRARY_PATH", libpath, 1);
   }
+  return 0;
+}
+
+/* Restore CWD saved by cpmdc_prepare_pp_cwd. Idempotent; 0 on success. */
+int cpmdc_restore_host_cwd(void) {
+  if (!g_host_cwd_saved)
+    return 0;
+  if (chdir(g_host_cwd) != 0)
+    return -1;
+  g_host_cwd_saved = 0;
   return 0;
 }
