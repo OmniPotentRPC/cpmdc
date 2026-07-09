@@ -850,6 +850,7 @@ CONTAINS
     USE store_types, ONLY: cprint, iprint_force
     USE system, ONLY: cnti, cntl, parm
     USE strs, ONLY: paiu
+    USE isos, ONLY: isos1
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -876,9 +877,10 @@ CONTAINS
     ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
     ! tfor; iprint_force alone was not enough on the memfd embed path.
     CALL cpmdc_set_need_forces(.TRUE.)
-    ! PEF stress: totstr fills paiu when cntl%tpres; rwfopt runs stress after
-    ! forces when tfor.OR.tpres (same branch as need_forces).
-    cntl%tpres = .TRUE.
+    ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
+    ! (tclust): rinitwf does tpres→newcell→gf_periodic but scg is only
+    ! allocated for periodic cells in initclust — SEGV on cluster decks.
+    IF (.NOT. isos1%tclust) cntl%tpres = .TRUE.
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
@@ -1658,6 +1660,7 @@ CONTAINS
     USE vdw_wf_alloc_utils, ONLY: vdw_wf_alloc
     USE parac, ONLY: paral
     USE system, ONLY: cnts, cntl
+    USE isos, ONLY: isos1
     USE ropt, ONLY: init_pinf_pointers
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
@@ -1742,11 +1745,12 @@ CONTAINS
     CALL envir
     CALL setcnst
     CALL control
-    ! PEF stress needs cntl%tpres before dqgalloc (and later stress work
-    ! arrays). Setting only at wfopts time leaves dqg undersized and stopgm.
-    cntl%tpres = .TRUE.
     CALL dftin
     CALL sysin
+    ! PEF stress needs cntl%tpres before dqgalloc. Isolated/Hockney (tclust)
+    ! must not set tpres: rinitwf→newcell→gf_periodic needs scg, which
+    ! initclust only allocates for periodic cells.
+    IF (.NOT. isos1%tclust) cntl%tpres = .TRUE.
     CALL setsc
     CALL detsp
     CALL mm_init

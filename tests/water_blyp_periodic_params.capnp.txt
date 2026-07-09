@@ -1,0 +1,21 @@
+(
+  functional = "BLYP",
+  cutOffRy = 40.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  title = "water BLYP periodic PEF stress smoke",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5,
+        maxStep = 40, maxIter = 40,
+        directives = [ ( keyword = "CENTER MOLECULE OFF", args = [] ) ] ) ),
+    ( dft = ( functional = "BLYP", lsd = false,
+        directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),
+    ( system = ( symmetry = 1, angstrom = true, cutOffRy = 40.0,
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)
