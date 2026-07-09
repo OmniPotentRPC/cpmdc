@@ -20,9 +20,15 @@ Cold embed path also requires at runtime:
 
 ```bash
 export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials   # relative *PP basenames
-# optional synonym used by OpenCPMD recpnew:
+# optional synonym used by OpenCPMD recpnew (trailing slash required):
 export CPMD_PP_LIBRARY_PATH=$CPMDC_PSEUDO_DIR/
 ```
+
+`libcpmdc` cold start calls `cpmdc_prepare_pp_cwd` (chdir into the library)
+before OpenCPMD `ratom`/`recpnew`. That is required when the host process has
+`argc>1` (Catch2 filters, eOn CLI args): stock OpenCPMD `get_pplib` then treats
+`argv[2]` as the PP library path and ignores `CPMD_PP_LIBRARY_PATH`, so relative
+`*PP` basenames only resolve via the CWD fallback after the chdir.
 
 Without the patches, multi-force may still return energies but nuclear force
 buffers can be all zeros, and warm re-entry may fail to link or skip orbital reuse.

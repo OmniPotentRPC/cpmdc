@@ -1358,7 +1358,7 @@ CONTAINS
       END DO
     END DO
     CALL append(deck, nlen, '&END'//NEW_LINE('A'))
-    ! cell/has_cell reserved for future lattice merge into method SYSTEM.
+    ! Lattice is injected in embed_compose_cold_deck via inject_cell_if_missing.
     IF (has_cell < 0) RETURN
     IF (cell(1) < -1.0e300_c_double) RETURN
     ierr = 0
@@ -1373,6 +1373,94 @@ CONTAINS
       buf(n+1:n+m) = s
       n = n + m
     END SUBROUTINE
+  END SUBROUTINE
+
+  ! Cap'n C render of bare scalars often omits MAXITER; OpenCPMD then uses
+  ! 10000 SC steps (~minutes per force). Clamp cold force decks to a finite
+  ! bound unless the wire already set one.
+  SUBROUTINE inject_maxiter_if_missing(deck, nlen)
+    CHARACTER(LEN=*), INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    CHARACTER(LEN=48) :: insert
+    CHARACTER(LEN=16384) :: tmp
+    INTEGER :: icpmd, ins_at, m, k
+    IF (nlen < 1) RETURN
+    IF (INDEX(deck(1:nlen), 'MAXITER') > 0 .OR. &
+        INDEX(deck(1:nlen), 'maxiter') > 0) RETURN
+    insert = ' MAXITER'//NEW_LINE('A')//'  40'//NEW_LINE('A')
+    m = LEN_TRIM(insert)
+    IF (nlen + m > LEN(deck)) RETURN
+    icpmd = INDEX(deck(1:nlen), '&CPMD')
+    IF (icpmd == 0) icpmd = INDEX(deck(1:nlen), '&cpmd')
+    IF (icpmd <= 0) RETURN
+    ins_at = icpmd
+    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+      ins_at = ins_at + 1
+    END DO
+    IF (ins_at <= nlen) ins_at = ins_at + 1
+    tmp = deck(1:nlen)
+    deck = ' '
+    IF (ins_at > 1) deck(1:ins_at-1) = tmp(1:ins_at-1)
+    deck(ins_at:ins_at+m-1) = insert(1:m)
+    IF (ins_at <= nlen) THEN
+      k = nlen - ins_at + 1
+      deck(ins_at+m:ins_at+m+k-1) = tmp(ins_at:nlen)
+    END IF
+    nlen = nlen + m
+  END SUBROUTINE
+
+  ! Cap'n C render often emits &SYSTEM without CELL (lattice comes from the
+  ! ForceInput box). OpenCPMD sysin stopgms if the lattice constant is zero.
+  SUBROUTINE inject_cell_if_missing(deck, nlen, cell, has_cell)
+    CHARACTER(LEN=*), INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    REAL(real64) :: cell_a, b_over_a, c_over_a
+    CHARACTER(LEN=160) :: insert
+    CHARACTER(LEN=16384) :: tmp
+    INTEGER :: isys, iang, ins_at, m, k
+    IF (nlen < 1) RETURN
+    ! Already has a CELL keyword (do not second-guess explicit decks).
+    IF (INDEX(deck(1:nlen), 'CELL') > 0 .OR. INDEX(deck(1:nlen), 'cell') > 0) &
+        RETURN
+    cell_a = 12.0_real64
+    b_over_a = 1.0_real64
+    c_over_a = 1.0_real64
+    IF (has_cell /= 0) THEN
+      IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
+      IF (cell(5) > 0.0_c_double .AND. cell_a > 0.0_real64) &
+          b_over_a = REAL(cell(5), KIND=real64) / cell_a
+      IF (cell(9) > 0.0_c_double .AND. cell_a > 0.0_real64) &
+          c_over_a = REAL(cell(9), KIND=real64) / cell_a
+    END IF
+    WRITE(insert, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
+         cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
+    m = LEN_TRIM(insert)
+    IF (nlen + m > LEN(deck)) RETURN
+    isys = INDEX(deck(1:nlen), '&SYSTEM')
+    IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
+    IF (isys <= 0) RETURN
+    iang = INDEX(deck(isys:nlen), 'ANGSTROM')
+    IF (iang == 0) iang = INDEX(deck(isys:nlen), 'angstrom')
+    IF (iang > 0) THEN
+      ins_at = isys + iang - 1
+    ELSE
+      ins_at = isys
+    END IF
+    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+      ins_at = ins_at + 1
+    END DO
+    IF (ins_at <= nlen) ins_at = ins_at + 1
+    tmp = deck(1:nlen)
+    deck = ' '
+    IF (ins_at > 1) deck(1:ins_at-1) = tmp(1:ins_at-1)
+    deck(ins_at:ins_at+m-1) = insert(1:m)
+    IF (ins_at <= nlen) THEN
+      k = nlen - ins_at + 1
+      deck(ins_at+m:ins_at+m+k-1) = tmp(ins_at:nlen)
+    END IF
+    nlen = nlen + m
   END SUBROUTINE
 
   ! Shared cold-deck assembly used by SCF and by compose preview for tests.
@@ -1400,6 +1488,10 @@ CONTAINS
     IF (ierr /= 0) THEN
       CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
            ierr)
+    END IF
+    IF (ierr == 0 .AND. nlen > 0) THEN
+      CALL inject_cell_if_missing(deck, nlen, cell, has_cell)
+      CALL inject_maxiter_if_missing(deck, nlen)
     END IF
   END SUBROUTINE
 
@@ -1459,6 +1551,11 @@ CONTAINS
         INTEGER(c_int), VALUE :: path_cap
         INTEGER(c_int) :: cpmdc_memfd_write
       END FUNCTION
+      FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
+        IMPORT :: c_char, c_int
+        CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
+        INTEGER(c_int) :: cpmdc_prepare_pp_cwd
+      END FUNCTION
     END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -1492,13 +1589,16 @@ CONTAINS
         EXIT
       END IF
     END DO
-    ! recpnew resolves relative *PP basenames via CWD and/or CPMD_PP_LIBRARY_PATH.
-    ! Point CWD at the PP library so cold memfd decks with relative paths work.
+    ! OpenCPMD get_pplib uses argv[2] as the PP library whenever argc>1,
+    ! ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn always pass filters
+    ! so argc>1; relative *PP basenames then only resolve via recpnew's
+    ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
+    ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
     CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
     IF (LEN_TRIM(pp_dir) == 0) &
         CALL GET_ENVIRONMENT_VARIABLE('CPMD_PP_LIBRARY_PATH', pp_dir)
     IF (LEN_TRIM(pp_dir) == 0) RETURN
-    CALL CHDIR(TRIM(pp_dir))
+    IF (cpmdc_prepare_pp_cwd(TRIM(pp_dir)//c_null_char) /= 0_c_int) RETURN
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
