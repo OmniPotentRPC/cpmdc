@@ -74,10 +74,19 @@ int cpmdc_force_input_result_factors(ForceInput_ptr force_input,
                                      double *energy_factor,
                                      double *force_factor);
 
+/** Convert Ha/Bohr^3 stress to ForceInput energyUnit / lengthUnit^3. */
+int cpmdc_force_input_stress_result_factors(ForceInput_ptr force_input,
+                                            double *energy_factor,
+                                            double *stress_factor);
+
 size_t cpmdc_potential_result_flat_size(size_t force_count);
 
+/**
+ * @param stress_factor Multiplier applied to native Ha/Bohr^3 stress from the
+ *        embed snapshot (1.0 leaves atomic units).
+ */
 int cpmdc_potential_result_write(double energy, const double *forces,
-                                 size_t force_count,
+                                 size_t force_count, double stress_factor,
                                  void *potential_result_capnp,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes);

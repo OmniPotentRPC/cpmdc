@@ -5162,10 +5162,30 @@ int cpmdc_force_input_result_factors(ForceInput_ptr force_input,
   return 0;
 }
 
+int cpmdc_force_input_stress_result_factors(ForceInput_ptr force_input,
+                                            double *energy_factor,
+                                            double *stress_factor) {
+  if (force_input.p.type == CAPN_NULL || !energy_factor || !stress_factor)
+    return -1;
+  struct ForceInput view;
+  read_ForceInput(&view, force_input);
+  double length_factor = 1.0;
+  double energy = 1.0;
+  if (force_input_length_factor(view.lengthUnit, &length_factor) != 0 ||
+      force_input_energy_factor(view.energyUnit, &energy) != 0)
+    return -1;
+  /* Ha/Bohr^3 → energyUnit/lengthUnit^3; length_factor maps host length to
+   * Angstrom, so Bohr→host scale is length_factor / BOHR_TO_ANG. */
+  double length_scale = length_factor / CPMDC_BOHR_TO_ANGSTROM;
+  *energy_factor = energy;
+  *stress_factor = energy * length_scale * length_scale * length_scale;
+  return 0;
+}
+
 size_t cpmdc_potential_result_flat_size(size_t force_count) {
   /* The writer emits two natoms*3 Float64 lists (forces, gradient) plus the
-   * fixed-size component/charge/multistate/MD/dipole/polarizability lists;
-   * the constant budget covers those fixed lists and capnp framing. */
+   * fixed-size component/charge/multistate/MD/dipole/polarizability/stress
+   * lists; the constant budget covers those fixed lists and capnp framing. */
   const size_t overhead = 2048u;
   if (force_count > (SIZE_MAX - overhead) / 16u)
     return 0;
@@ -5173,7 +5193,7 @@ size_t cpmdc_potential_result_flat_size(size_t force_count) {
 }
 
 int cpmdc_potential_result_write(double energy, const double *forces,
-                                 size_t force_count,
+                                 size_t force_count, double stress_factor,
                                  void *potential_result_capnp,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes) {
@@ -5219,6 +5239,7 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   extern int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
                                          int hess_cap, int *dip_count, double *dip,
                                          int *pol_count, double *pol);
+  extern int cpmdc_embed_last_stress(int *valid, double *stress);
 
   int cvalid = 0;
   double comps[24];
@@ -5349,6 +5370,24 @@ int cpmdc_potential_result_write(double energy, const double *forces,
         capn_set64(grad_list, i, capn_from_f64(hess[i]));
   }
 
+  int stress_valid = 0;
+  double stress_native[9];
+  memset(stress_native, 0, sizeof(stress_native));
+  (void)cpmdc_embed_last_stress(&stress_valid, stress_native);
+  capn_list64 stress_list = {CAPN_NULL};
+  if (stress_valid) {
+    stress_list = capn_new_list64(root.seg, 9);
+    if (stress_list.p.type != CAPN_NULL) {
+      double sf = stress_factor;
+      if (sf == 0.0)
+        sf = 1.0;
+      for (int i = 0; i < 9; ++i)
+        capn_set64(stress_list, i, capn_from_f64(stress_native[i] * sf));
+    } else {
+      stress_valid = 0;
+    }
+  }
+
   struct PotentialResult view;
   memset(&view, 0, sizeof(view));
   view.energy = energy;
@@ -5364,6 +5403,8 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   view.dipole = dip_list;
   view.polarizability = pol_list;
   view.gradient = grad_list;
+  if (stress_valid)
+    view.stress = stress_list;
   view.embedMdPropsSkipped = 0;
   write_PotentialResult(&view, result);
   if (capn_setp(capn_root(&arena), 0, result.p) != 0) {
@@ -5433,6 +5474,17 @@ int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
                                 int *pol_count, double *pol) {
   (void)hess_count; (void)hess; (void)hess_cap; (void)dip_count; (void)dip;
   (void)pol_count; (void)pol;
+  if (valid) *valid = 0;
+  return -1;
+}
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((weak))
+#endif
+int cpmdc_embed_last_stress(int *valid, double *stress) {
+  if (stress) {
+    for (int i = 0; i < 9; ++i)
+      stress[i] = 0.0;
+  }
   if (valid) *valid = 0;
   return -1;
 }

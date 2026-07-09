@@ -21,6 +21,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_last_multi_state
   PUBLIC :: cpmdc_embed_last_md_row
   PUBLIC :: cpmdc_embed_last_properties
+  PUBLIC :: cpmdc_embed_last_stress
   ! cpmdc_embed_compose_cold_deck: BIND(C) in HAS_CPMD / stub branches (not listed
   ! in PUBLIC — gfortran rejects forward PUBLIC when the body is ifdef-gated).
 
@@ -72,6 +73,10 @@ MODULE cpmd_embed_c_api
   REAL(c_double), SAVE :: last_dip(3) = 0.0_c_double
   INTEGER(c_int), SAVE :: last_pol_count = 0_c_int
   REAL(c_double), SAVE :: last_pol(9) = 0.0_c_double
+  ! Cartesian stress [9] row-major xx,xy,xz,yx,yy,yz,zx,zy,zz in Ha/Bohr^3
+  ! (paiu/omega after totstr when cntl%tpres).
+  INTEGER(c_int), SAVE :: last_stress_valid = 0_c_int
+  REAL(c_double), SAVE :: last_stress(9) = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
   ! Successful in-process SCF steps; warm path reuses orbitals in memory.
@@ -125,6 +130,8 @@ CONTAINS
     last_dip = 0.0_c_double
     last_pol_count = 0_c_int
     last_pol = 0.0_c_double
+    last_stress_valid = 0_c_int
+    last_stress = 0.0_c_double
   END SUBROUTINE
 
   SUBROUTINE snapshot_total_only(energy_h)
@@ -165,6 +172,8 @@ CONTAINS
       last_pol(i) = 0.0_c_double
     END DO
     last_hess_count = 0_c_int
+    last_stress_valid = 0_c_int
+    last_stress = 0.0_c_double
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_last_energy_components(valid, etot, ekin, epseu, enl, eht, &
@@ -368,6 +377,18 @@ CONTAINS
     ok = MERGE(0_c_int, -1_c_int, last_prop_valid /= 0_c_int)
   END FUNCTION
 
+  FUNCTION cpmdc_embed_last_stress(valid, stress) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_last_stress')
+    INTEGER(c_int), INTENT(OUT) :: valid
+    REAL(c_double), INTENT(OUT) :: stress(*)
+    INTEGER(c_int) :: ok, i
+    valid = last_stress_valid
+    DO i = 1, 9
+      stress(i) = last_stress(i)
+    END DO
+    ok = MERGE(0_c_int, -1_c_int, last_stress_valid /= 0_c_int)
+  END FUNCTION
+
 
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
     CHARACTER(KIND=c_char), INTENT(IN) :: cbuf(*)
@@ -427,6 +448,36 @@ CONTAINS
     END DO
     last_hess_count = MIN(n_atoms * 3, 4096)
     last_prop_valid = 1_c_int
+    ! Toy isotropic stress (Ha/Bohr^3) so PotentialResult.stress is exercised
+    ! without OpenCPMD: sigma_ii ~ energy / (cell volume in Bohr^3) when cell
+    ! present, else zeros with valid set.
+    last_stress = 0.0_c_double
+    IF (has_cell /= 0) THEN
+      CALL reference_pef_fill_stress(cell, energy_h)
+    END IF
+    last_stress_valid = 1_c_int
+  END SUBROUTINE
+
+  SUBROUTINE reference_pef_fill_stress(cell, energy_h)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    REAL(c_double), INTENT(IN) :: energy_h
+    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
+    REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
+    INTEGER :: i
+    inv_b = 1.0_real64 / bohr_to_ang
+    DO i = 1, 3
+      a(i) = REAL(cell(i), KIND=real64) * inv_b
+      b(i) = REAL(cell(3 + i), KIND=real64) * inv_b
+      c(i) = REAL(cell(6 + i), KIND=real64) * inv_b
+    END DO
+    vol = ABS(a(1) * (b(2) * c(3) - b(3) * c(2)) + &
+         a(2) * (b(3) * c(1) - b(1) * c(3)) + &
+         a(3) * (b(1) * c(2) - b(2) * c(1)))
+    IF (vol <= 1.0e-12_real64) RETURN
+    sig = REAL(energy_h, KIND=real64) / vol
+    last_stress(1) = REAL(sig, KIND=c_double)
+    last_stress(5) = REAL(sig, KIND=c_double)
+    last_stress(9) = REAL(sig, KIND=c_double)
   END SUBROUTINE
 
   ! Cold-deck helpers available without linking OpenCPMD (cmocka stub path).
@@ -452,15 +503,47 @@ CONTAINS
     END IF
   END SUBROUTINE
 
+  ! True only when &ATOMS has PP stars AND at least one coordinate triple
+  ! before its &END. Params often render *PP.psp stubs without coords; those
+  ! must take the method+geometry merge path so ForceInput positions inject.
   LOGICAL FUNCTION deck_has_real_atoms_local(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
-    INTEGER :: ia, star
+    INTEGER :: ia, star, i, n, nf, iend
+    CHARACTER(LEN=1) :: c
+    LOGICAL :: in_num
     deck_has_real_atoms_local = .FALSE.
     ia = INDEX(d, '&ATOMS')
     IF (ia <= 0) ia = INDEX(d, '&atoms')
     IF (ia <= 0) RETURN
     star = INDEX(d(ia:), '*')
-    deck_has_real_atoms_local = (star > 0)
+    IF (star <= 0) RETURN
+    iend = INDEX(d(ia:), '&END')
+    IF (iend <= 0) iend = INDEX(d(ia:), '&end')
+    IF (iend > 0) THEN
+      n = ia + iend - 2
+    ELSE
+      n = LEN_TRIM(d)
+    END IF
+    nf = 0
+    in_num = .FALSE.
+    DO i = ia, n
+      c = d(i:i)
+      IF ((c >= '0' .AND. c <= '9') .OR. c == '.' .OR. c == '+' .OR. c == '-' &
+          .OR. c == 'e' .OR. c == 'E' .OR. c == 'd' .OR. c == 'D') THEN
+        IF (.NOT. in_num) THEN
+          in_num = .TRUE.
+          nf = nf + 1
+        END IF
+      ELSE
+        in_num = .FALSE.
+        IF (c == NEW_LINE('A') .AND. nf >= 3) THEN
+          deck_has_real_atoms_local = .TRUE.
+          RETURN
+        END IF
+        IF (c == NEW_LINE('A')) nf = 0
+      END IF
+    END DO
+    IF (nf >= 3) deck_has_real_atoms_local = .TRUE.
   END FUNCTION
 
   LOGICAL FUNCTION deck_has_method_sections_local(d)
@@ -765,20 +848,24 @@ CONTAINS
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
     USE store_types, ONLY: cprint, iprint_force
-    USE system, ONLY: cnti
+    USE system, ONLY: cnti, cntl, parm
+    USE strs, ONLY: paiu
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad(*)
     INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: ierr, is, ia, k, idx, nmax
+    INTEGER :: ierr, is, ia, k, idx, nmax, i, j
+    REAL(real64) :: omega
     ok = 0_c_int
     energy_h = 0.0_c_double
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
+    last_stress_valid = 0_c_int
+    last_stress = 0.0_c_double
     CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
     IF (ierr /= 0) RETURN
     CALL phfac(tau0)
@@ -789,6 +876,9 @@ CONTAINS
     ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
     ! tfor; iprint_force alone was not enough on the memfd embed path.
     CALL cpmdc_set_need_forces(.TRUE.)
+    ! PEF stress: totstr fills paiu when cntl%tpres; rwfopt runs stress after
+    ! forces when tfor.OR.tpres (same branch as need_forces).
+    cntl%tpres = .TRUE.
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
@@ -833,6 +923,17 @@ CONTAINS
           END DO
         END DO
       END IF
+    END IF
+    ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
+    ! true stress is paiu/omega (see totstr/wrstress). Row-major for Cap'n Proto.
+    omega = parm%omega
+    IF (omega > 1.0e-30_real64) THEN
+      DO i = 1, 3
+        DO j = 1, 3
+          last_stress(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
+        END DO
+      END DO
+      last_stress_valid = 1_c_int
     END IF
     CALL snapshot_prop_from_modules(n_atoms)
     IF (ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
@@ -1232,18 +1333,47 @@ CONTAINS
     END SUBROUTINE
   END SUBROUTINE
 
-  ! True when Cap'n-rendered deck already has real PP lines (*...) under &ATOMS.
-  ! C render emits an empty &ATOMS/&END placeholder when no atoms section was in
-  ! Cap'n wire; that empty block must NOT block method+geometry merge.
+  ! True only when &ATOMS has PP stars AND at least one coordinate triple
+  ! before its &END. C render *PP.psp stubs without coords must NOT block
+  ! method+geometry merge from ForceInput positions.
   LOGICAL FUNCTION deck_has_real_atoms(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
-    INTEGER :: ia, star
+    INTEGER :: ia, star, i, n, nf, iend
+    CHARACTER(LEN=1) :: c
+    LOGICAL :: in_num
     deck_has_real_atoms = .FALSE.
     ia = INDEX(d, '&ATOMS')
     IF (ia <= 0) ia = INDEX(d, '&atoms')
     IF (ia <= 0) RETURN
     star = INDEX(d(ia:), '*')
-    deck_has_real_atoms = (star > 0)
+    IF (star <= 0) RETURN
+    iend = INDEX(d(ia:), '&END')
+    IF (iend <= 0) iend = INDEX(d(ia:), '&end')
+    IF (iend > 0) THEN
+      n = ia + iend - 2
+    ELSE
+      n = LEN_TRIM(d)
+    END IF
+    nf = 0
+    in_num = .FALSE.
+    DO i = ia, n
+      c = d(i:i)
+      IF ((c >= '0' .AND. c <= '9') .OR. c == '.' .OR. c == '+' .OR. c == '-' &
+          .OR. c == 'e' .OR. c == 'E' .OR. c == 'd' .OR. c == 'D') THEN
+        IF (.NOT. in_num) THEN
+          in_num = .TRUE.
+          nf = nf + 1
+        END IF
+      ELSE
+        in_num = .FALSE.
+        IF (c == NEW_LINE('A') .AND. nf >= 3) THEN
+          deck_has_real_atoms = .TRUE.
+          RETURN
+        END IF
+        IF (c == NEW_LINE('A')) nf = 0
+      END IF
+    END DO
+    IF (nf >= 3) deck_has_real_atoms = .TRUE.
   END FUNCTION
 
   LOGICAL FUNCTION deck_has_method_sections(d)
@@ -1527,7 +1657,7 @@ CONTAINS
     USE gle_utils, ONLY: gle_alloc
     USE vdw_wf_alloc_utils, ONLY: vdw_wf_alloc
     USE parac, ONLY: paral
-    USE system, ONLY: cnts
+    USE system, ONLY: cnts, cntl
     USE ropt, ONLY: init_pinf_pointers
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
@@ -1612,6 +1742,9 @@ CONTAINS
     CALL envir
     CALL setcnst
     CALL control
+    ! PEF stress needs cntl%tpres before dqgalloc (and later stress work
+    ! arrays). Setting only at wfopts time leaves dqg undersized and stopgm.
+    cntl%tpres = .TRUE.
     CALL dftin
     CALL sysin
     CALL setsc

@@ -56,6 +56,7 @@ int cpmdc_embed_last_md_row(int *valid, int *count, double *values, int capacity
 int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
                                 int hess_cap, int *dip_count, double *dip,
                                 int *pol_count, double *pol);
+int cpmdc_embed_last_stress(int *valid, double *stress);
 
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
@@ -1211,10 +1212,17 @@ CPMDCResult cpmdc_session_calculate_result(
 
   double energy_factor = 1.0;
   double force_factor = 1.0;
+  double stress_factor = 1.0;
   if (cpmdc_force_input_result_factors(force_input, &energy_factor,
                                        &force_factor) != 0) {
     cpmdc_params_release(&arena);
     snprintf(r.message, sizeof(r.message), "invalid ForceInput result units");
+    return r;
+  }
+  if (cpmdc_force_input_stress_result_factors(force_input, &energy_factor,
+                                              &stress_factor) != 0) {
+    cpmdc_params_release(&arena);
+    snprintf(r.message, sizeof(r.message), "invalid ForceInput stress units");
     return r;
   }
   if (!potential_result_capnp ||
@@ -1252,7 +1260,8 @@ CPMDCResult cpmdc_session_calculate_result(
     for (size_t i = 0; i < force_count; ++i)
       forces[i] = -forces[i] * force_factor;
     if (cpmdc_potential_result_write(r.energy_h * energy_factor, forces,
-                                     force_count, potential_result_capnp,
+                                     force_count, stress_factor,
+                                     potential_result_capnp,
                                      potential_result_capnp_capacity_bytes,
                                      potential_result_capnp_size_bytes) != 0) {
       r.ok = 0;
@@ -1409,6 +1418,18 @@ int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out) {
   out->hessian_count = hc > 0 ? (size_t)hc : 0;
   out->dipole_count = dc > 0 ? (size_t)dc : 0;
   out->polarizability_count = pc > 0 ? (size_t)pc : 0;
+  return rc;
+}
+
+int cpmdc_last_stress(CPMDCStressTensor *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!ensure_embed_init())
+    return -1;
+  int valid = 0;
+  int rc = cpmdc_embed_last_stress(&valid, out->values);
+  out->valid = valid;
   return rc;
 }
 

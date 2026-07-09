@@ -75,7 +75,7 @@ static void test_flat_size_fits_large_system(void **state) {
   assert_non_null(out);
   size_t wrote = 0;
   assert_int_equal(
-      cpmdc_potential_result_write(-1.25, forces, force_count, out, need,
+      cpmdc_potential_result_write(-1.25, forces, force_count, 1.0, out, need,
                                    &wrote),
       0);
   assert_true(wrote > 0);

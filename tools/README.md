@@ -8,6 +8,7 @@ Build OpenCPMD’s `libcpmd.a` as usual, then apply these patches to the
 | --- | --- |
 | `opencpmd_keep_fion.patch` | Do not `DEALLOCATE(fion)` at end of `rwfopt` so the embed can copy nuclear forces |
 | `opencpmd_warm_orbitals.patch` | `cpmdc_set_warm_orbitals` (store/restore `c0`, skip `initrun` on warm multi-force), `cpmdc_set_need_forces` (OR into `tfor` so PEF/BOMD ionic forces are not zeroed after `forcedr`) |
+| PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into `cpmdc_last_stress` / `PotentialResult.stress` |
 
 ```bash
 # from the OpenCPMD/CPMD tree used as -Dcpmd_root=

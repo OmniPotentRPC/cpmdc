@@ -20,6 +20,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_energy_forces",
     "abi.cpmdc_last_energy_components",
     "abi.cpmdc_last_property_snapshot",
+    "abi.cpmdc_last_stress",
     "abi.cpmdc_last_md_trajectory_row",
     "abi.cpmdc_last_multi_state_energies",
     "abi.cpmdc_last_charge_integrals",

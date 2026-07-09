@@ -30,6 +30,7 @@ int cpmdc_capabilities_result(void *capabilities_capnp,
       Capabilities_Operation_energy,
       Capabilities_Operation_forces,
       Capabilities_Operation_gradient,
+      Capabilities_Operation_stress,
   };
   static const char *const config_kinds[] = {"cpmd"};
 

@@ -243,6 +243,12 @@ int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out) {
   return -1;
 }
 
+int cpmdc_last_stress(CPMDCStressTensor *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
   if (out)
     memset(out, 0, sizeof(*out));

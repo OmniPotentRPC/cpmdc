@@ -132,6 +132,18 @@ typedef struct CPMDCPropertySnapshot {
   double polarizability[9];
 } CPMDCPropertySnapshot;
 
+/**
+ * @brief Cartesian stress tensor after a successful PEF evaluation.
+ *
+ * Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3
+ * (OpenCPMD `paiu/omega` after `totstr` when `cntl%tpres`). Returns 0 when
+ * `out->valid` is set; -1 when stress was not computed.
+ */
+typedef struct CPMDCStressTensor {
+  int valid;
+  double values[9];
+} CPMDCStressTensor;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
 
@@ -389,6 +401,7 @@ int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
 int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
 int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
 int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
+int cpmdc_last_stress(CPMDCStressTensor *out);
 
 #ifdef __cplusplus
 }

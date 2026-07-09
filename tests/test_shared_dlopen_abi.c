@@ -38,6 +38,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_session_energy_forces",
     "cpmdc_last_energy_components",
     "cpmdc_last_property_snapshot",
+    "cpmdc_last_stress",
     "cpmdc_last_md_trajectory_row",
     "cpmdc_last_multi_state_energies",
     "cpmdc_last_charge_integrals",
