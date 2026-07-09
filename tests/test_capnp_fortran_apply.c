@@ -276,6 +276,9 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
     assert_non_null(strstr(cold, "CONVERGENCE ORBITALS"));
     assert_non_null(strstr(cold, "CHARGE"));
     assert_non_null(strstr(cold, "2"));
+    /* CPMD OPTIMIZE WAVEFUNCTION + DFT LSD survive method merge (wdwj). */
+    assert_non_null(strstr(cold, "OPTIMIZE WAVEFUNCTION"));
+    assert_non_null(strstr(cold, "LSD"));
   }
   free(msg);
 }
