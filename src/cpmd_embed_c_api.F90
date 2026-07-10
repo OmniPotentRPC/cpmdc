@@ -598,14 +598,19 @@ CONTAINS
     deck = ' '
     IF (LEN_TRIM(applied_input_deck) > 0) THEN
       IF (deck_has_real_atoms_local(applied_input_deck)) THEN
+        WRITE(*,*) 'CPMDC_DBG branch=as_is len=', LEN_TRIM(applied_input_deck)
         nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
         deck(1:nlen) = applied_input_deck(1:nlen)
         IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
         ierr = 0
       ELSE IF (deck_has_method_sections_local(applied_input_deck)) THEN
+        WRITE(*,*) 'CPMDC_DBG branch=merge'
         CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
              deck, nlen, ierr)
+        WRITE(*,*) 'CPMDC_DBG merge ierr=', ierr, ' nlen=', nlen
       END IF
+    ELSE
+      WRITE(*,*) 'CPMDC_DBG applied deck EMPTY'
     END IF
   END SUBROUTINE
 
@@ -1476,14 +1481,19 @@ CONTAINS
     deck = ' '
     IF (LEN_TRIM(applied_input_deck) > 0) THEN
       IF (deck_has_real_atoms(applied_input_deck)) THEN
+        WRITE(*,*) 'CPMDC_DBG rt branch=as_is'
         nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
         deck(1:nlen) = applied_input_deck(1:nlen)
         IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
         ierr = 0
       ELSE IF (deck_has_method_sections(applied_input_deck)) THEN
+        WRITE(*,*) 'CPMDC_DBG rt branch=merge'
         CALL embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
              deck, nlen, ierr)
+        WRITE(*,*) 'CPMDC_DBG rt merge ierr=', ierr, ' nlen=', nlen
       END IF
+    ELSE
+      WRITE(*,*) 'CPMDC_DBG rt applied EMPTY'
     END IF
     IF (ierr /= 0) THEN
       CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
@@ -1555,6 +1565,10 @@ CONTAINS
         IMPORT :: c_char, c_int
         CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
         INTEGER(c_int) :: cpmdc_prepare_pp_cwd
+      END FUNCTION
+      FUNCTION cpmdc_restore_host_cwd() BIND(C, NAME='cpmdc_restore_host_cwd')
+        IMPORT :: c_int
+        INTEGER(c_int) :: cpmdc_restore_host_cwd
       END FUNCTION
     END INTERFACE
     ok = 0_c_int
@@ -1639,6 +1653,10 @@ CONTAINS
       cfg_warm_steps = 1
     ELSE
       CALL clear_last_energy_components()
+    END IF
+    ! Hand CWD back to the host (eOn workdir); PP loads already finished.
+    IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
+      ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF
   END SUBROUTINE
 
