@@ -1,6 +1,6 @@
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
-@@ -920,7 +920,9 @@
+@@ -920,6 +920,9 @@
         DEALLOCATE(taup,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
              __LINE__,__FILE__)
