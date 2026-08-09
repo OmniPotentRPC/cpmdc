@@ -48,13 +48,15 @@ static void test_capabilities_round_trip(void **state) {
   assert_true(view.schemaVersion.len > 0);
 
   capn_resolve(&view.operations.p);
-  assert_int_equal(view.operations.p.len, 3);
+  assert_int_equal(view.operations.p.len, 4);
   assert_int_equal(capn_get16(view.operations, 0),
                    Capabilities_Operation_energy);
   assert_int_equal(capn_get16(view.operations, 1),
                    Capabilities_Operation_forces);
   assert_int_equal(capn_get16(view.operations, 2),
                    Capabilities_Operation_gradient);
+  assert_int_equal(capn_get16(view.operations, 3),
+                   Capabilities_Operation_stress);
 
   capn_resolve(&view.loweredCommonFields);
   assert_int_equal(view.loweredCommonFields.len, 11);
