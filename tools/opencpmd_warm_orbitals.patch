@@ -1,5 +1,5 @@
---- /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90.bak-pre-cpmdc-warm	2026-07-06 15:27:27.030350641 -0500
-+++ /home/rgoswami/work/OpenCPMD/CPMD/src/rwfopt_utils.mod.F90	2026-07-06 17:47:21.773668052 -0500
+--- a/src/rwfopt_utils.mod.F90
++++ b/src/rwfopt_utils.mod.F90
 @@ -106,10 +106,53 @@
  
    PUBLIC :: rwfopt
