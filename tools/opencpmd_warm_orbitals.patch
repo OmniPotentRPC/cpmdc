@@ -63,20 +63,19 @@
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -305,7 +348,11 @@
+@@ -305,7 +348,10 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
 -    CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
-+    IF (cpmdc_warm_orbitals .AND. cpmdc_have_orbitals) THEN
-+       CALL cpmdc_restore_orbitals(c0)
-+    ELSE
-+       CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
-+    END IF
++    ! initrun initializes iteration state and scratch arrays for every SCF.
++    ! Warm mode replaces only the generated starting orbitals with saved c0.
++    CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
++    IF (cpmdc_warm_orbitals .AND. cpmdc_have_orbitals) CALL cpmdc_restore_orbitals(c0)
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -914,6 +961,7 @@
+@@ -914,6 +960,7 @@
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
         CALL geofile(tau0,fion,'WRITE')
