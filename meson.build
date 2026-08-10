@@ -665,6 +665,16 @@ if get_option('with_tests')
   )
 
   test(
+    'opencpmd-rebuild-helper',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_opencpmd_rebuild_helper.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['embed', 'inventory'],
+  )
+
+  test(
     'feature-inventory',
     python,
     args: [meson.current_source_dir() / 'tools/check_feature_inventory.py'],
