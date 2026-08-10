@@ -9,13 +9,17 @@ from pathlib import Path
 
 
 PATCHES = {
-    "opencpmd_keep_fion.patch": "src/rwfopt_utils.mod.F90",
-    "opencpmd_warm_orbitals.patch": "src/rwfopt_utils.mod.F90",
-    "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
+    "opencpmd_keep_fion.patch": {"src/rwfopt_utils.mod.F90"},
+    "opencpmd_warm_orbitals.patch": {"src/rwfopt_utils.mod.F90"},
+    "opencpmd_converged_state.patch": {"src/updwf_utils.mod.F90"},
+    "opencpmd_gfortran14_array_sections.patch": {
+        "src/rv30_utils.mod.F90",
+        "src/wv30_utils.mod.F90",
+    },
 }
 
 
-def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
+def patch_numstat(repo: Path, patch: Path) -> dict[str, tuple[int, int]]:
     result = subprocess.run(
         ["git", "apply", "--numstat", str(patch)],
         cwd=repo,
@@ -24,25 +28,25 @@ def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
         text=True,
     )
     rows = [line.split("\t", 2) for line in result.stdout.splitlines() if line]
-    if len(rows) != 1 or len(rows[0]) != 3:
-        raise AssertionError(f"{patch.name}: expected one numstat row, got {rows!r}")
-    added, removed, target = rows[0]
-    return int(added), int(removed), target
+    if any(len(row) != 3 for row in rows):
+        raise AssertionError(f"{patch.name}: malformed numstat rows {rows!r}")
+    return {target: (int(added), int(removed)) for added, removed, target in rows}
 
 
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
-    for name, expected_target in PATCHES.items():
+    for name, expected_targets in PATCHES.items():
         patch = repo / "tools" / name
-        added, removed, target = patch_numstat(repo, patch)
-        if added <= 0:
-            raise AssertionError(f"{name}: patch must add embed integration code")
-        if removed <= 0:
-            raise AssertionError(f"{name}: patch must replace upstream code")
-        if target != expected_target:
+        stats = patch_numstat(repo, patch)
+        if set(stats) != expected_targets:
             raise AssertionError(
-                f"{name}: target {target!r}, expected {expected_target!r}"
+                f"{name}: targets {set(stats)!r}, expected {expected_targets!r}"
             )
+        for target, (added, removed) in stats.items():
+            if added <= 0:
+                raise AssertionError(f"{name}: {target} must add integration code")
+            if removed <= 0:
+                raise AssertionError(f"{name}: {target} must replace upstream code")
     print(f"OK: {len(PATCHES)} portable OpenCPMD patches")
     return 0
 
