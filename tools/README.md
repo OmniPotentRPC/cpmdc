@@ -16,8 +16,13 @@ linking `libcpmdc`.
 patch -p1 < /path/to/cpmdc/tools/opencpmd_keep_fion.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_warm_orbitals.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch
-# rebuild rwfopt/updwf objects and update lib/libcpmd.a, then rebuild libcpmdc
+/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
+# rebuild libcpmdc against the updated archive
 ```
+
+The helper addresses the generated module objects and archive as explicit Make
+targets. OpenCPMD build trees contain a directory named `lib`, so `make lib`
+can consider that target satisfied without refreshing `lib/libcpmd.a`.
 
 Cold embed path also requires at runtime:
 
