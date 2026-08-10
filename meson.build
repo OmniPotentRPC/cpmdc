@@ -117,6 +117,7 @@ cpmd_embed_f_args = []
 cpmd_embed_link = []
 cpmd_embed_inc = [inc]
 cpmd_extra_objects = []
+cpmd_mpi_dep = []
 if has_cpmd
   cpmd_lib = cpmd_root / 'lib' / 'libcpmd.a'
   cpmd_obj = cpmd_root / 'obj'
@@ -153,6 +154,7 @@ if has_cpmd
     '-I' + cpmd_obj,
   ]
   cpmd_embed_link += [cpmd_lib]
+  cpmd_mpi_dep = [dependency('mpi', language: 'fortran', required: true)]
   # LAPACK/BLAS as used by typical CPMD serial builds
   openblas = cc.find_library('openblas', required: false)
   if openblas.found()
@@ -204,7 +206,7 @@ cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep],
+  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
@@ -246,7 +248,7 @@ cmake.write_basic_package_version_file(
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
-  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
+  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep] + cpmd_mpi_dep,
   link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] + cpmd_archive_math_libs) : [],
 )
 
