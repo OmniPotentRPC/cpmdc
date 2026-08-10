@@ -20,6 +20,7 @@ jmp_buf *cpmdc_stop_jmp(void);
 
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
+int cpmdc_embed_reset_state(void);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
                            const char *input_deck, int input_deck_len,
@@ -189,6 +190,8 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
       mult_ov = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
     }
   }
+  if (cpmdc_embed_reset_state() == 0)
+    return -1;
   return cpmdc_embed_apply_params(
       params_capnp, params_size, input_deck, (int)strlen(input_deck), fov,
       fov_len, cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov);

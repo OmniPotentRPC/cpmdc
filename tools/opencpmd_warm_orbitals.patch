@@ -1,11 +1,12 @@
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
-@@ -106,10 +106,53 @@
+@@ -106,10 +106,63 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
 +  PUBLIC :: cpmdc_set_warm_orbitals
 +  PUBLIC :: cpmdc_set_need_forces
++  PUBLIC :: cpmdc_reset_warm_orbitals
 +  LOGICAL, SAVE :: cpmdc_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: cpmdc_need_forces = .FALSE.
 +  LOGICAL, SAVE :: cpmdc_have_orbitals = .FALSE.
@@ -24,6 +25,15 @@
 +    LOGICAL, INTENT(IN) :: flag
 +    cpmdc_need_forces = flag
 +  END SUBROUTINE cpmdc_set_need_forces
++
++  SUBROUTINE cpmdc_reset_warm_orbitals()
++    cpmdc_warm_orbitals = .FALSE.
++    cpmdc_have_orbitals = .FALSE.
++    IF (ALLOCATED(cpmdc_c0_store)) DEALLOCATE(cpmdc_c0_store)
++    cpmdc_store_s1 = 0
++    cpmdc_store_s2 = 0
++    cpmdc_store_s3 = 0
++  END SUBROUTINE cpmdc_reset_warm_orbitals
 +
 +  SUBROUTINE cpmdc_save_orbitals(c0)
 +    COMPLEX(real_8), INTENT(IN) :: c0(:,:,:)
@@ -54,7 +64,7 @@
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
-@@ -180,7 +223,7 @@
+@@ -180,7 +233,7 @@
      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
           __LINE__,__FILE__)
      ! ==--------------------------------------------------------------==
@@ -63,7 +73,7 @@
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -305,7 +348,10 @@
+@@ -305,7 +358,10 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
@@ -75,7 +85,7 @@
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -914,6 +960,7 @@
+@@ -914,6 +970,7 @@
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
         CALL geofile(tau0,fion,'WRITE')

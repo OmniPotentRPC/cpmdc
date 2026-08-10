@@ -15,6 +15,7 @@ MODULE cpmd_embed_c_api
   PRIVATE
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
+  PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_last_energy_components
   PUBLIC :: cpmdc_embed_last_charge_integrals
@@ -216,16 +217,9 @@ CONTAINS
 
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok
-    CALL clear_last_energy_components()
-#if defined(CPMDC_HAS_CPMD)
     runtime_ready = .TRUE.
     runtime_finalized = .FALSE.
-    ok = 1_c_int
-#else
-    runtime_ready = .TRUE.
-    runtime_finalized = .FALSE.
-    ok = 1_c_int
-#endif
+    ok = cpmdc_embed_reset_state()
   END FUNCTION
 
   FUNCTION cpmdc_embed_available() RESULT(ok) BIND(C, NAME='cpmdc_embed_available')
@@ -235,6 +229,21 @@ CONTAINS
 #else
     ok = MERGE(1_c_int, 0_c_int, runtime_ready .AND. .NOT. runtime_finalized)
 #endif
+  END FUNCTION
+
+  FUNCTION cpmdc_embed_reset_state() RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
+#endif
+    INTEGER(c_int) :: ok
+    ok = 0_c_int
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
+    CALL clear_last_energy_components()
+#if defined(CPMDC_HAS_CPMD)
+    cfg_warm_steps = 0
+    CALL cpmdc_reset_warm_orbitals()
+#endif
+    ok = 1_c_int
   END FUNCTION
 
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
@@ -259,6 +268,7 @@ CONTAINS
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
     IF (cutoff_ry < 0.0_c_double) RETURN
+    IF (cpmdc_embed_reset_state() == 0_c_int) RETURN
     CALL cstr_to_f(functional, functional_len, applied_functional)
     IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
     applied_cutoff_ry = REAL(cutoff_ry, KIND=real64)
@@ -1817,4 +1827,3 @@ CONTAINS
   END FUNCTION
 #endif
 END MODULE cpmd_embed_c_api
-
