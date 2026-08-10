@@ -1260,6 +1260,7 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                                const struct CPMDCpmdSection *sec,
                                const char *task, capn_text file_path,
+                               int spin_polarized,
                                struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&CPMD\n") != 0)
     return -1;
@@ -1670,7 +1671,7 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " TDDFT\n") != 0)
       return -1;
   }
-  if (sec->lsd) {
+  if (sec->lsd || spin_polarized) {
     if (append_text(dst, dst_size, used, " LSD\n") != 0)
       return -1;
   }
@@ -3448,7 +3449,7 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
 
 static int render_dft_section(char *dst, size_t dst_size, size_t *used,
                               const struct CPMDDftSection *dft,
-                              const char *default_functional, int multiplicity,
+                              const char *default_functional,
                               struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&DFT\n") != 0)
     return -1;
@@ -3462,10 +3463,6 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
   } else {
     if (append_fmt(dst, dst_size, used, " FUNCTIONAL %s\n",
                    default_functional ? default_functional : "BLYP") != 0)
-      return -1;
-  }
-  if (dft->lsd || multiplicity > 1) {
-    if (append_text(dst, dst_size, used, " LSD\n") != 0)
       return -1;
   }
   if (dft->gcCutoff > 0.0) {
@@ -4437,6 +4434,16 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  int spin_polarized = mult > 1;
+  for (int i = 0; i < nsec && !spin_polarized; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      spin_polarized = body.lsd;
+    }
+  }
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -4466,7 +4473,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
       if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
-                              &sets) != 0)
+                              spin_polarized, &sets) != 0)
         return -1;
       break;
     }
@@ -4474,8 +4481,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDDftSection body;
       read_CPMDDftSection(&body, sec.dft);
       has_dft = 1;
-      if (render_dft_section(dst, dst_size, &used, &body, functional, mult,
-                             &sets) != 0)
+      if (render_dft_section(dst, dst_size, &used, &body, functional, &sets) !=
+          0)
         return -1;
       break;
     }
@@ -4594,7 +4601,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-6;
     if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
-                            &sets) != 0)
+                            spin_polarized, &sets) != 0)
       return -1;
   }
   if (!has_system) {
@@ -4612,9 +4619,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   if (!has_dft) {
     struct CPMDDftSection def;
     memset(&def, 0, sizeof(def));
-    def.lsd = mult > 1;
-    if (render_dft_section(dst, dst_size, &used, &def, functional, mult,
-                           &sets) != 0)
+    if (render_dft_section(dst, dst_size, &used, &def, functional, &sets) != 0)
       return -1;
   }
   if (!has_atoms) {
@@ -4826,6 +4831,16 @@ int cpmdc_params_render_deck_with_geometry_ov(
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  int spin_polarized = mult > 1;
+  for (int i = 0; i < nsec && !spin_polarized; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      spin_polarized = body.lsd;
+    }
+  }
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -4859,7 +4874,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
       if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
-                              &sets) != 0)
+                              spin_polarized, &sets) != 0)
         return -1;
       break;
     }
@@ -4867,8 +4882,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDDftSection body;
       read_CPMDDftSection(&body, sec.dft);
       has_dft = 1;
-      if (render_dft_section(dst, dst_size, &used, &body, functional, mult,
-                             &sets) != 0)
+      if (render_dft_section(dst, dst_size, &used, &body, functional, &sets) !=
+          0)
         return -1;
       break;
     }
@@ -4987,7 +5002,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-5;
     if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
-                            &sets) != 0)
+                            spin_polarized, &sets) != 0)
       return -1;
   }
   if (!has_system) {
@@ -5006,9 +5021,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
   if (!has_dft) {
     struct CPMDDftSection def;
     memset(&def, 0, sizeof(def));
-    def.lsd = mult > 1;
-    if (render_dft_section(dst, dst_size, &used, &def, functional, mult,
-                           &sets) != 0)
+    if (render_dft_section(dst, dst_size, &used, &def, functional, &sets) != 0)
       return -1;
   }
   if (!has_atoms) {
