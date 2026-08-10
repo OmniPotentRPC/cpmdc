@@ -108,6 +108,18 @@ struct CPMDCSession {
   int *step_atomic_numbers;
   /** Allocated atom capacity for step scratch buffers. */
   size_t step_atom_capacity;
+  /** Exact input geometry for the last successful evaluation. */
+  double *cached_positions_ang;
+  /** Gradient in Hartree/Bohr for the last successful evaluation. */
+  double *cached_grad_h_bohr;
+  /** Periodic cell for the last successful evaluation. */
+  double cached_cell_ang[9];
+  /** Energy in Hartree for the last successful evaluation. */
+  double cached_energy_h;
+  /** Non-zero when the cached geometry includes a periodic cell. */
+  int cached_has_cell;
+  /** Non-zero when the result cache contains a successful evaluation. */
+  int result_cached;
   /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
 };
@@ -965,10 +977,18 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
     return -1;
   if (!session->topology_fixed) {
     int *copy = (int *)malloc(n_atoms * sizeof(int));
-    if (!copy)
+    double *positions = (double *)malloc(n_atoms * 3u * sizeof(double));
+    double *gradient = (double *)malloc(n_atoms * 3u * sizeof(double));
+    if (!copy || !positions || !gradient) {
+      free(copy);
+      free(positions);
+      free(gradient);
       return -1;
+    }
     memcpy(copy, atomic_numbers, n_atoms * sizeof(int));
     session->fixed_atomic_numbers = copy;
+    session->cached_positions_ang = positions;
+    session->cached_grad_h_bohr = gradient;
     session->fixed_n_atoms = n_atoms;
     session->topology_fixed = 1;
     return 0;
@@ -1066,7 +1086,39 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   free(session->fixed_atomic_numbers);
   free(session->step_positions_ang);
   free(session->step_atomic_numbers);
+  free(session->cached_positions_ang);
+  free(session->cached_grad_h_bohr);
   free(session);
+}
+
+static int session_cached_geometry_matches(
+    const CPMDCSession *session, int n_atoms, const double *positions_ang,
+    const double *cell_ang, int has_cell) {
+  if (!session || !session->result_cached || g_active_session != session ||
+      n_atoms <= 0 || (size_t)n_atoms != session->fixed_n_atoms ||
+      has_cell != session->cached_has_cell)
+    return 0;
+  if (memcmp(session->cached_positions_ang, positions_ang,
+             (size_t)n_atoms * 3u * sizeof(double)) != 0)
+    return 0;
+  return !has_cell ||
+         (cell_ang && memcmp(session->cached_cell_ang, cell_ang,
+                             sizeof(session->cached_cell_ang)) == 0);
+}
+
+static void session_store_result(CPMDCSession *session, int n_atoms,
+                                 const double *positions_ang,
+                                 const double *cell_ang, int has_cell,
+                                 const CPMDCResult *result,
+                                 const double *grad_h_bohr) {
+  size_t vector_size = (size_t)n_atoms * 3u * sizeof(double);
+  memcpy(session->cached_positions_ang, positions_ang, vector_size);
+  memcpy(session->cached_grad_h_bohr, grad_h_bohr, vector_size);
+  if (has_cell)
+    memcpy(session->cached_cell_ang, cell_ang, sizeof(session->cached_cell_ang));
+  session->cached_energy_h = result->energy_h;
+  session->cached_has_cell = has_cell;
+  session->result_cached = 1;
 }
 
 static CPMDCResult session_energy_gradient_cell(
@@ -1077,17 +1129,29 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("null session");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
+  if (session_cached_geometry_matches(session, n_atoms, positions_ang, cell_ang,
+                                      has_cell)) {
+    CPMDCResult cached;
+    cached.ok = 1;
+    cached.energy_h = session->cached_energy_h;
+    snprintf(cached.message, sizeof(cached.message), "ok");
+    memcpy(grad_h_bohr, session->cached_grad_h_bohr,
+           (size_t)n_atoms * 3u * sizeof(double));
+    return cached;
+  }
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
-  return energy_gradient_cell_with_params(session->params_bytes,
-                                          session->params_size,
-                                          session->has_overrides
-                                              ? &session->overrides
-                                              : NULL,
-                                          n_atoms,
-                                          positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr);
+  CPMDCResult result = energy_gradient_cell_with_params(
+      session->params_bytes, session->params_size,
+      session->has_overrides ? &session->overrides : NULL, n_atoms,
+      positions_ang, atomic_numbers, cell_ang, has_cell, grad_h_bohr);
+  if (result.ok)
+    session_store_result(session, n_atoms, positions_ang, cell_ang, has_cell,
+                         &result, grad_h_bohr);
+  else
+    session->result_cached = 0;
+  return result;
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
