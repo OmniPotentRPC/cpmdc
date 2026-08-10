@@ -1,20 +1,22 @@
 # OpenCPMD patches required for live `libcpmdc` embed
 
-Build OpenCPMD’s `libcpmd.a` as usual, then apply these patches to the
-**same** `src/rwfopt_utils.mod.F90` tree before recompiling that object into
-`libcpmd.a` and linking `libcpmdc`.
+Build OpenCPMD’s `libcpmd.a` as usual, then apply these patches to the same
+source tree before recompiling the affected objects into `libcpmd.a` and
+linking `libcpmdc`.
 
 | Patch | Purpose |
 | --- | --- |
 | `opencpmd_keep_fion.patch` | Do not `DEALLOCATE(fion)` at end of `rwfopt` so the embed can copy nuclear forces |
-| `opencpmd_warm_orbitals.patch` | `cpmdc_set_warm_orbitals` (store/restore `c0`, skip `initrun` on warm multi-force), `cpmdc_set_need_forces` (OR into `tfor` so PEF/BOMD ionic forces are not zeroed after `forcedr`) |
+| `opencpmd_warm_orbitals.patch` | Store and restore `c0` after initializing each SCF call, reset the store with each applied configuration, and force PEF/BOMD ionic-force evaluation |
+| `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`; DIIS/PCG/steepest-descent updates only run while the pre-update gradient is unconverged |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into `cpmdc_last_stress` / `PotentialResult.stress` |
 
 ```bash
 # from the OpenCPMD/CPMD tree used as -Dcpmd_root=
 patch -p1 < /path/to/cpmdc/tools/opencpmd_keep_fion.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_warm_orbitals.patch
-# rebuild rwfopt object and update lib/libcpmd.a, then rebuild libcpmdc
+patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch
+# rebuild rwfopt/updwf objects and update lib/libcpmd.a, then rebuild libcpmdc
 ```
 
 Cold embed path also requires at runtime:
@@ -33,4 +35,5 @@ path and ignores `CPMD_PP_LIBRARY_PATH`, so relative `*PP` basenames only resolv
 via the CWD fallback after the chdir.
 
 Without the patches, multi-force may still return energies but nuclear force
-buffers can be all zeros, and warm re-entry may fail to link or skip orbital reuse.
+buffers can be all zeros, warm re-entry can lose its orbitals, and the saved
+orbitals can describe a DIIS update made after the reported result.

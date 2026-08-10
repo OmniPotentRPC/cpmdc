@@ -8,11 +8,11 @@ import sys
 from pathlib import Path
 
 
-EXPECTED_TARGET = "src/rwfopt_utils.mod.F90"
-PATCHES = (
-    "opencpmd_keep_fion.patch",
-    "opencpmd_warm_orbitals.patch",
-)
+PATCHES = {
+    "opencpmd_keep_fion.patch": "src/rwfopt_utils.mod.F90",
+    "opencpmd_warm_orbitals.patch": "src/rwfopt_utils.mod.F90",
+    "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
+}
 
 
 def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
@@ -32,16 +32,16 @@ def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
 
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
-    for name in PATCHES:
+    for name, expected_target in PATCHES.items():
         patch = repo / "tools" / name
         added, removed, target = patch_numstat(repo, patch)
         if added <= 0:
             raise AssertionError(f"{name}: patch must add embed integration code")
         if removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
-        if target != EXPECTED_TARGET:
+        if target != expected_target:
             raise AssertionError(
-                f"{name}: target {target!r}, expected {EXPECTED_TARGET!r}"
+                f"{name}: target {target!r}, expected {expected_target!r}"
             )
     print(f"OK: {len(PATCHES)} portable OpenCPMD patches")
     return 0
