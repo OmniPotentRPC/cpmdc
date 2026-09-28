@@ -1099,14 +1099,12 @@ CONTAINS
     USE atom, ONLY: gnl, rps, rv, rw, vr
     USE sgpp, ONLY: mpro
     USE zeroing_utils, ONLY: zeroing
-    USE error_handling, ONLY: stopgm
     INTEGER, INTENT(IN) :: n_atoms
     INTEGER(c_int), INTENT(IN) :: z(*)
     INTEGER, INTENT(OUT) :: ierr
     INTEGER :: i, is, zz, nsp, nax, nasp, ia, aerr
     LOGICAL :: used(0:120)
     INTEGER :: order_z(32)
-    CHARACTER(*), PARAMETER :: procedureN = 'embed_detsp_from_z'
     ierr = 1
     used = .FALSE.
     nsp = 0
@@ -1138,48 +1136,48 @@ CONTAINS
     duat%ndat = 0
     tclas = .FALSE.
     ALLOCATE(tau0(3, maxsys%nax, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     CALL zeroing(tau0)
     ALLOCATE(velp(3, maxsys%nax, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     CALL zeroing(velp)
     ALLOCATE(lvelini(0:maxsys%nax+1, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     DO is = 1, maxsys%nsx
       DO ia = 0, maxsys%nax + 1
         lvelini(ia, is) = .FALSE.
       END DO
     END DO
     ALLOCATE(al(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(bl(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rcl(maxgau, maxsys%nsx, lmaxx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(wsg(maxsys%nsx, nhx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rgh(nhx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(wgh(nhx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(nghtol(nhx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(nghcom(nhx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(gnl(maxsys%mmaxx, maxsys%nsx, lmaxx*mpro), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rps(maxsys%mmaxx, maxsys%nsx, lmaxx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rw(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rv(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(vr(maxsys%mmaxx, maxsys%nsx, lmaxx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(rcgrid(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(corecg(maxsys%mmaxx, maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     CALL zeroing(rcgrid)
     CALL zeroing(corecg)
     DO is = 1, maxsp
@@ -1208,7 +1206,6 @@ CONTAINS
     USE system, ONLY: maxsys, maxsp
     USE recpnew_utils, ONLY: recpnew
     USE zeroing_utils, ONLY: zeroing
-    USE error_handling, ONLY: stopgm
     USE cnst, ONLY: fbohr
     USE mm_dimmod, ONLY: mmdim
     USE mm_input, ONLY: g96_vel
@@ -1221,18 +1218,17 @@ CONTAINS
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=40) :: ecpnam
     CHARACTER(LEN=64) :: pp
-    CHARACTER(*), PARAMETER :: procedureN = 'embed_ratom_from_arrays'
     ierr = 1
     NSX_q = maxsys%nsx
     mmdim%nspm = maxsys%nsx
     patom1%pconf = .FALSE.
     seen = .FALSE.
     ALLOCATE(lskcor(3, maxsys%nax*maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(lskptr(3, maxsys%nax*maxsys%nsx), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     ALLOCATE(atchg(NSX_q), STAT=aerr)
-    IF (aerr /= 0) CALL stopgm(procedureN, 'allocation problem', __LINE__, __FILE__)
+    IF (aerr /= 0) RETURN
     CALL zeroing(atchg)
     CALL zeroing(lskptr)
     DO i = 1, maxsys%nax * maxsys%nsx
