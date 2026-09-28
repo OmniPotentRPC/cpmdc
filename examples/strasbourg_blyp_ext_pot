@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""One BLYP wavefunction optimization for an eOn ext_pot image.
+
+Reads from_eon_to_extpot: three box rows, then Z x y z in angstrom.
+Writes from_extpot_to_eon: energy in eV, then one force row per atom.
+
+Silicon is LMAX=D LOC=D. Nitrogen is LMAX=P LOC=P. The cutoff is 70 Ry.
+The functional is BLYP. The box is orthorhombic: each edge is the length
+of the corresponding box row.
+
+Energy is the last TOTAL ENERGY in hartree, times 27.211386245988.
+Forces are the printed fion block, times that constant over 0.529177210903.
+The sign is left as printed. CPMD lists atoms by species, and the rows are
+put back into the order eOn sent.
+
+CPMD_BIN, CPMD_PP, and CPMD_MPIRUN must be set. CPMD_RANKS defaults to 8.
+"""
+
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+HA_TO_EV = 27.211386245988
+BOHR = 0.529177210903
+HA_BOHR_TO_EV_ANG = HA_TO_EV / BOHR
+
+PSP = {
+    14: ("*Si_MT_BLYP.psp", "LMAX=D  LOC=D"),
+    7: ("*N_MT_BLYP.psp", "LMAX=P  LOC=P"),
+}
+
+
+def need(name):
+    value = os.environ.get(name, "").strip()
+    if not value:
+        sys.exit(f"{name} is not set")
+    return value
+
+
+def read_request(path):
+    lines = [ln for ln in Path(path).read_text().splitlines() if ln.strip()]
+    if len(lines) < 4:
+        sys.exit("from_eon_to_extpot needs a box and at least one atom")
+    box = []
+    for ln in lines[:3]:
+        row = [float(x) for x in ln.split()]
+        if len(row) != 3:
+            sys.exit("each box row needs three numbers")
+        box.append(row)
+    atoms = []
+    for ln in lines[3:]:
+        parts = ln.split()
+        if len(parts) < 4:
+            sys.exit(f"short atom line: {ln}")
+        atoms.append(
+            (int(float(parts[0])), float(parts[1]), float(parts[2]), float(parts[3]))
+        )
+    return box, atoms
+
+
+def deck(box, atoms):
+    edges = tuple(sum(v * v for v in row) ** 0.5 for row in box)
+    by_z = {}
+    for atom in atoms:
+        if atom[0] not in PSP:
+            sys.exit(f"no BLYP pseudopotential for Z={atom[0]}")
+        by_z.setdefault(atom[0], []).append(atom)
+    blocks = []
+    for z, rows in by_z.items():
+        name, lmax = PSP[z]
+        coords = "\n".join(
+            f"  {x:16.10f}  {y:16.10f}  {zc:16.10f}" for _, x, y, zc in rows
+        )
+        blocks.append(f"{name}  KLEINMAN-BYLANDER\n {lmax}\n {len(rows)}\n{coords}\n")
+    return f"""&INFO
+ eOn image, BLYP deck
+&END
+&CPMD
+ OPTIMIZE WAVEFUNCTION
+ PCG MINIMIZE
+ PRINT FORCES ON
+ MEMORY BIG ON
+ REAL SPACE WFN KEEP
+&END
+&DFT
+ NEWCODE
+ FUNCTIONAL BLYP
+ GC-CUTOFF
+  1.0E-07
+&END
+&SYSTEM
+ SYMMETRY
+  1
+ ANGSTROM
+ CELL ABSOLUTE DEGREE
+  {edges[0]:.6f}  {edges[1]:.6f}  {edges[2]:.6f}  90.0  90.0  90.0
+ CUTOFF
+  70.0
+&END
+&ATOMS
+{''.join(blocks)}&END
+"""
+
+
+def parse(text, natoms):
+    energies = re.findall(r"TOTAL ENERGY =\s+(-?\d+\.\d+)", text)
+    if not energies:
+        sys.exit("CPMD wrote no TOTAL ENERGY")
+    energy = float(energies[-1]) * HA_TO_EV
+    start = None
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if "GRADIENTS (-FORCES)" in line:
+            start = i + 1
+    if start is None:
+        sys.exit("CPMD wrote no forces")
+    printed = []
+    for line in lines[start:]:
+        parts = line.split()
+        if len(parts) < 8 or not parts[0].isdigit():
+            if printed:
+                break
+            continue
+        printed.append(tuple(float(parts[k]) * HA_BOHR_TO_EV_ANG for k in (5, 6, 7)))
+    if len(printed) != natoms:
+        sys.exit(f"got {len(printed)} forces for {natoms} atoms")
+    return energy, printed
+
+
+def species_order(atoms, printed):
+    slots = []
+    for z in dict.fromkeys(atom[0] for atom in atoms):
+        slots.extend(i for i, atom in enumerate(atoms) if atom[0] == z)
+    forces = [None] * len(atoms)
+    for src, dst in enumerate(slots):
+        forces[dst] = printed[src]
+    return forces
+
+
+def main():
+    here = Path.cwd()
+    box, atoms = read_request(here / "from_eon_to_extpot")
+    (here / "input").write_text(deck(box, atoms))
+    cmd = [
+        need("CPMD_MPIRUN"),
+        "-np",
+        os.environ.get("CPMD_RANKS", "8"),
+        need("CPMD_BIN"),
+        "input",
+        need("CPMD_PP"),
+    ]
+    env = os.environ.copy()
+    env.setdefault("OMP_NUM_THREADS", "2")
+    proc = subprocess.run(
+        cmd,
+        cwd=here,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    (here / "cpmd.out").write_text(proc.stdout)
+    if proc.returncode != 0:
+        sys.exit(f"cpmd exited {proc.returncode}")
+    energy, printed = parse(proc.stdout, len(atoms))
+    forces = species_order(atoms, printed)
+    lines = [f"{energy:.12f}"]
+    lines.extend(f"{fx:.12f} {fy:.12f} {fz:.12f}" for fx, fy, fz in forces)
+    (here / "from_extpot_to_eon").write_text("\n".join(lines) + "\n")
+
+
+if __name__ == "__main__":
+    main()
