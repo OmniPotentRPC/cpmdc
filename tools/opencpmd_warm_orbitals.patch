@@ -85,11 +85,12 @@
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -914,6 +970,7 @@
+@@ -914,6 +970,8 @@
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
         CALL geofile(tau0,fion,'WRITE')
-+       CALL cpmdc_save_orbitals(c0)
      ENDIF
++    ! Every rank keeps its own slice of c0 for the next warm start.
++    CALL cpmdc_save_orbitals(c0)
      ! CB: TAUP,FION handled by BS_WFO
      IF (.NOT.cntl%bsymm) THEN
