@@ -218,6 +218,15 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
  * The session owns a copy of the serialized message so callers may release the
  * input buffer after this call returns.
  */
+/*
+ * Collective on MPI_COMM_WORLD, once, before the first energy call.
+ * World size must divide into groups of ranks_per_calc. Each group is one
+ * CPMD calculator: its own communicator, its own wavefunction, the same deck.
+ * Returns the group index, or -1 when the split is refused.
+ * A second call returns the same index and does not split again.
+ */
+int cpmdc_bind_calculator(int ranks_per_calc);
+
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes);
 

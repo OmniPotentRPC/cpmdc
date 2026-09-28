@@ -15,6 +15,7 @@ MODULE cpmd_embed_c_api
   PRIVATE
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
+  PUBLIC :: cpmdc_bind_calculator
   PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_last_energy_components
@@ -214,6 +215,39 @@ CONTAINS
     eefield = last_eefield
     ok = MERGE(0_c_int, -1_c_int, last_ener_valid /= 0_c_int)
   END FUNCTION
+
+  FUNCTION cpmdc_bind_calculator(ranks_per_calc) RESULT(image) &
+      BIND(C, NAME='cpmdc_bind_calculator')
+    INTEGER(c_int), INTENT(IN), VALUE :: ranks_per_calc
+    INTEGER(c_int) :: image
+    image = -1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mpi
+      USE mp_interface, ONLY: mp_comm_set, mp_comm_world
+      INTEGER :: ierr, rank, npe, rpc, color, key, comm
+      LOGICAL :: inited
+      rpc = INT(ranks_per_calc)
+      CALL MPI_INITIALIZED(inited, ierr)
+      IF (.NOT. inited) CALL MPI_Init(ierr)
+      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+      CALL MPI_Comm_size(MPI_COMM_WORLD, npe, ierr)
+      IF (rpc <= 0) rpc = npe
+      IF (rpc > npe .OR. MOD(npe, rpc) /= 0) RETURN
+      image = INT(rank / rpc, c_int)
+      IF (mp_comm_set) RETURN
+      color = rank / rpc
+      key = MOD(rank, rpc)
+      CALL MPI_Comm_split(MPI_COMM_WORLD, color, key, comm, ierr)
+      IF (ierr /= 0) THEN
+        image = -1_c_int
+        RETURN
+      END IF
+      mp_comm_world = comm
+      mp_comm_set = .TRUE.
+    END BLOCK
+#endif
+  END FUNCTION cpmdc_bind_calculator
 
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok
