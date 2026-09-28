@@ -4742,9 +4742,17 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     }
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
-    if (append_fmt(dst, dst_size, used, " LMAX=%s",
-                   lmax_letter(psp.lmax >= 0 ? psp.lmax : (zz == 8 ? 1 : 0))) !=
-        0)
+    {
+      int lmax = psp.lmax;
+      if (lmax < 0)
+        lmax = zz == 14 ? 2 : (zz == 8 ? 1 : 0);
+      if (append_fmt(dst, dst_size, used, " LMAX=%s", lmax_letter(lmax)) != 0)
+        return -1;
+    }
+    /* Strasbourg Si pseudopotential is d-channel with the local projector
+     * on d. An omitted loc must not drop LOC and leave the default s. */
+    if (zz == 14 && psp.loc < 0 &&
+        append_text(dst, dst_size, used, " LOC=D") != 0)
       return -1;
     if (append_psp_options(dst, dst_size, used, &psp) != 0)
       return -1;

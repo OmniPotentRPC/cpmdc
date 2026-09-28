@@ -83,6 +83,9 @@ MODULE cpmd_embed_c_api
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
   ! Successful in-process SCF steps; warm path reuses orbitals in memory.
   INTEGER, SAVE :: cfg_warm_steps = 0
+  REAL(c_double), SAVE :: warm_cell(9) = 0.0_c_double
+  INTEGER, SAVE :: warm_cell_set = 0
+  INTEGER, SAVE :: warm_has_cell = 0
 #endif
 
 CONTAINS
@@ -275,6 +278,8 @@ CONTAINS
     CALL clear_last_energy_components()
 #if defined(CPMDC_HAS_CPMD)
     cfg_warm_steps = 0
+    warm_cell_set = 0
+    warm_has_cell = 0
     CALL cpmdc_reset_warm_orbitals()
 #endif
     ok = 1_c_int
@@ -541,7 +546,7 @@ CONTAINS
     ELSE IF (zz == 8) THEN
       pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
     ELSE IF (zz == 14) THEN
-      pp = 'Si_MT_BLYP.psp'; lmax_val = 1; ok = 1
+      pp = 'Si_MT_BLYP.psp'; lmax_val = 2; ok = 1
     ELSE IF (zz == 32) THEN
       pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
     END IF
@@ -683,7 +688,11 @@ CONTAINS
         lmax_c = 'D'
       END IF
       CALL append_local(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      IF (zz == 14) THEN
+        CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
+      ELSE
+        CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      END IF
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -845,7 +854,7 @@ CONTAINS
     ELSE IF (zz == 8) THEN
       pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
     ELSE IF (zz == 14) THEN
-      pp = 'Si_MT_BLYP.psp'; lmax_val = 1; ok = 1
+      pp = 'Si_MT_BLYP.psp'; lmax_val = 2; ok = 1
     ELSE IF (zz == 32) THEN
       pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
     END IF
@@ -1300,13 +1309,24 @@ CONTAINS
     CHARACTER(LEN=64) :: pp
     CHARACTER(LEN=8) :: lmax_c
     CHARACTER(LEN=128) :: line
-    REAL(real64) :: cell_a
+    REAL(real64) :: cell_a, b_over_a, c_over_a
+    LOGICAL :: diagonal
+    INTEGER :: k
     ierr = 1
     deck = ' '
     nlen = 0
     cell_a = 12.0_real64
+    b_over_a = 1.0_real64
+    c_over_a = 1.0_real64
+    diagonal = .TRUE.
     IF (has_cell /= 0) THEN
       IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
+      IF (cell(5) > 0.0_c_double .AND. cell_a > 0.0_real64) &
+          b_over_a = REAL(cell(5), KIND=real64) / cell_a
+      IF (cell(9) > 0.0_c_double .AND. cell_a > 0.0_real64) &
+          c_over_a = REAL(cell(9), KIND=real64) / cell_a
+      IF (ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
+          ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
     END IF
     CALL append(deck, nlen, '&CPMD'//NEW_LINE('A'))
     CALL append(deck, nlen, ' OPTIMIZE WAVEFUNCTION'//NEW_LINE('A'))
@@ -1320,9 +1340,18 @@ CONTAINS
     CALL append(deck, nlen, ' SYMMETRY'//NEW_LINE('A'))
     CALL append(deck, nlen, '  0'//NEW_LINE('A'))
     CALL append(deck, nlen, ' ANGSTROM'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' CELL'//NEW_LINE('A'))
-    WRITE(line, '(A,F12.6,A)') '  ', cell_a, ' 1.0 1.0 0.0 0.0 0.0'
-    CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    IF (.NOT. diagonal) THEN
+      CALL append(deck, nlen, ' CELL VECTORS'//NEW_LINE('A'))
+      DO k = 0, 2
+        WRITE(line, '(3F16.8)') cell(3*k+1), cell(3*k+2), cell(3*k+3)
+        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      END DO
+    ELSE
+      CALL append(deck, nlen, ' CELL'//NEW_LINE('A'))
+      WRITE(line, '(A,3F12.6,A)') '  ', cell_a, b_over_a, c_over_a, &
+           ' 0.0 0.0 0.0'
+      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    END IF
     CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
     WRITE(line, '(A,F12.6)') '  ', applied_cutoff_ry
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
@@ -1360,7 +1389,11 @@ CONTAINS
         lmax_c = 'D'
       END IF
       CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      IF (zz == 14) THEN
+        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
+      ELSE
+        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      END IF
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -1529,7 +1562,11 @@ CONTAINS
         lmax_c = 'D'
       END IF
       CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      IF (zz == 14) THEN
+        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
+      ELSE
+        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
+      END IF
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -1602,7 +1639,8 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
     REAL(real64) :: cell_a, b_over_a, c_over_a
-    CHARACTER(LEN=160) :: insert
+    LOGICAL :: diagonal
+    CHARACTER(LEN=400) :: insert
     CHARACTER(LEN=16384) :: tmp
     INTEGER :: isys, iang, ins_at, m, k
     IF (nlen < 1) RETURN
@@ -1612,15 +1650,24 @@ CONTAINS
     cell_a = 12.0_real64
     b_over_a = 1.0_real64
     c_over_a = 1.0_real64
+    diagonal = .TRUE.
     IF (has_cell /= 0) THEN
       IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
       IF (cell(5) > 0.0_c_double .AND. cell_a > 0.0_real64) &
           b_over_a = REAL(cell(5), KIND=real64) / cell_a
       IF (cell(9) > 0.0_c_double .AND. cell_a > 0.0_real64) &
           c_over_a = REAL(cell(9), KIND=real64) / cell_a
+      IF (ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
+          ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
     END IF
-    WRITE(insert, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
-         cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
+    IF (.NOT. diagonal) THEN
+      WRITE(insert, '(A,/,3F16.8,/,3F16.8,/,3F16.8,A)') ' CELL VECTORS', &
+           cell(1), cell(2), cell(3), cell(4), cell(5), cell(6), &
+           cell(7), cell(8), cell(9), NEW_LINE('A')
+    ELSE
+      WRITE(insert, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
+           cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
+    END IF
     m = LEN_TRIM(insert)
     IF (nlen + m > LEN(deck)) RETURN
     isys = INDEX(deck(1:nlen), '&SYSTEM')
@@ -1680,7 +1727,38 @@ CONTAINS
     END IF
   END SUBROUTINE
 
+  LOGICAL FUNCTION warm_cell_matches(cell, has_cell)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    INTEGER :: i
+    warm_cell_matches = .FALSE.
+    IF (warm_cell_set == 0) RETURN
+    IF (has_cell /= warm_has_cell) RETURN
+    IF (has_cell == 0) THEN
+      warm_cell_matches = .TRUE.
+      RETURN
+    END IF
+    warm_cell_matches = .TRUE.
+    DO i = 1, 9
+      IF (ABS(cell(i) - warm_cell(i)) > 1.0e-8_c_double) &
+          warm_cell_matches = .FALSE.
+    END DO
+  END FUNCTION
+
+  SUBROUTINE latch_warm_cell(cell, has_cell)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    INTEGER :: i
+    warm_has_cell = has_cell
+    warm_cell_set = 1
+    IF (has_cell == 0) RETURN
+    DO i = 1, 9
+      warm_cell(i) = cell(i)
+    END DO
+  END SUBROUTINE
+
   SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
@@ -1753,10 +1831,14 @@ CONTAINS
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
-    IF (cfg_warm_steps > 0) THEN
+    IF (cfg_warm_steps > 0 .AND. warm_cell_matches(cell, has_cell)) THEN
       CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
       IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
       RETURN
+    END IF
+    IF (cfg_warm_steps > 0) THEN
+      cfg_warm_steps = 0
+      CALL cpmdc_reset_warm_orbitals()
     END IF
     ! Cold: honor Cap'n-rendered applied_input_deck for method sections.
     ! 1) Deck with real &ATOMS PP lines (*...) → use as-is.
@@ -1831,6 +1913,7 @@ CONTAINS
     CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN
       cfg_warm_steps = 1
+      CALL latch_warm_cell(cell, has_cell)
     ELSE
       CALL clear_last_energy_components()
     END IF
