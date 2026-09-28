@@ -557,9 +557,7 @@ CONTAINS
   ! must take the method+geometry merge path so ForceInput positions inject.
   LOGICAL FUNCTION deck_has_real_atoms_local(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
-    INTEGER :: ia, star, i, n, nf, iend
-    CHARACTER(LEN=1) :: c
-    LOGICAL :: in_num
+    INTEGER :: ia, star, n, iend, ls, le
     deck_has_real_atoms_local = .FALSE.
     ia = INDEX(d, '&ATOMS')
     IF (ia <= 0) ia = INDEX(d, '&atoms')
@@ -573,26 +571,56 @@ CONTAINS
     ELSE
       n = LEN_TRIM(d)
     END IF
-    nf = 0
-    in_num = .FALSE.
-    DO i = ia, n
-      c = d(i:i)
-      IF ((c >= '0' .AND. c <= '9') .OR. c == '.' .OR. c == '+' .OR. c == '-' &
-          .OR. c == 'e' .OR. c == 'E' .OR. c == 'd' .OR. c == 'D') THEN
-        IF (.NOT. in_num) THEN
-          in_num = .TRUE.
-          nf = nf + 1
-        END IF
+    ! A coordinate line has three or more numeric tokens. '*file' lines
+    ! and option lines (LMAX=, LOC=, ...) never count.
+    ls = ia
+    DO WHILE (ls <= n)
+      le = INDEX(d(ls:n), NEW_LINE('A'))
+      IF (le == 0) THEN
+        le = n
       ELSE
-        in_num = .FALSE.
-        IF (c == NEW_LINE('A') .AND. nf >= 3) THEN
-          deck_has_real_atoms_local = .TRUE.
-          RETURN
-        END IF
-        IF (c == NEW_LINE('A')) nf = 0
+        le = ls + le - 2
       END IF
+      IF (coord_line(d(ls:le))) THEN
+        deck_has_real_atoms_local = .TRUE.
+        RETURN
+      END IF
+      ls = le + 2
     END DO
-    IF (nf >= 3) deck_has_real_atoms_local = .TRUE.
+  CONTAINS
+    LOGICAL FUNCTION coord_line(line)
+      CHARACTER(LEN=*), INTENT(IN) :: line
+      INTEGER :: j, ntok
+      LOGICAL :: in_tok, tok_ok, tok_digit
+      CHARACTER(LEN=1) :: ch
+      coord_line = .FALSE.
+      IF (INDEX(line, '*') > 0 .OR. INDEX(line, '=') > 0) RETURN
+      ntok = 0
+      in_tok = .FALSE.
+      tok_ok = .TRUE.
+      tok_digit = .FALSE.
+      DO j = 1, LEN(line) + 1
+        IF (j <= LEN(line)) THEN
+          ch = line(j:j)
+        ELSE
+          ch = ' '
+        END IF
+        IF (ch == ' ' .OR. ch == CHAR(9) .OR. ch == ',') THEN
+          IF (in_tok .AND. tok_ok .AND. tok_digit) ntok = ntok + 1
+          in_tok = .FALSE.
+          tok_ok = .TRUE.
+          tok_digit = .FALSE.
+        ELSE
+          in_tok = .TRUE.
+          IF (ch >= '0' .AND. ch <= '9') THEN
+            tok_digit = .TRUE.
+          ELSE IF (INDEX('.+-eEdD', ch) == 0) THEN
+            tok_ok = .FALSE.
+          END IF
+        END IF
+      END DO
+      coord_line = ntok >= 3
+    END FUNCTION
   END FUNCTION
 
   LOGICAL FUNCTION deck_has_method_sections_local(d)
@@ -1421,9 +1449,7 @@ CONTAINS
 
   LOGICAL FUNCTION deck_has_real_atoms(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
-    INTEGER :: ia, star, i, n, nf, iend
-    CHARACTER(LEN=1) :: c
-    LOGICAL :: in_num
+    INTEGER :: ia, star, n, iend, ls, le
     deck_has_real_atoms = .FALSE.
     ia = INDEX(d, '&ATOMS')
     IF (ia <= 0) ia = INDEX(d, '&atoms')
@@ -1437,26 +1463,56 @@ CONTAINS
     ELSE
       n = LEN_TRIM(d)
     END IF
-    nf = 0
-    in_num = .FALSE.
-    DO i = ia, n
-      c = d(i:i)
-      IF ((c >= '0' .AND. c <= '9') .OR. c == '.' .OR. c == '+' .OR. c == '-' &
-          .OR. c == 'e' .OR. c == 'E' .OR. c == 'd' .OR. c == 'D') THEN
-        IF (.NOT. in_num) THEN
-          in_num = .TRUE.
-          nf = nf + 1
-        END IF
+    ! A coordinate line has three or more numeric tokens. '*file' lines
+    ! and option lines (LMAX=, LOC=, ...) never count.
+    ls = ia
+    DO WHILE (ls <= n)
+      le = INDEX(d(ls:n), NEW_LINE('A'))
+      IF (le == 0) THEN
+        le = n
       ELSE
-        in_num = .FALSE.
-        IF (c == NEW_LINE('A') .AND. nf >= 3) THEN
-          deck_has_real_atoms = .TRUE.
-          RETURN
-        END IF
-        IF (c == NEW_LINE('A')) nf = 0
+        le = ls + le - 2
       END IF
+      IF (coord_line(d(ls:le))) THEN
+        deck_has_real_atoms = .TRUE.
+        RETURN
+      END IF
+      ls = le + 2
     END DO
-    IF (nf >= 3) deck_has_real_atoms = .TRUE.
+  CONTAINS
+    LOGICAL FUNCTION coord_line(line)
+      CHARACTER(LEN=*), INTENT(IN) :: line
+      INTEGER :: j, ntok
+      LOGICAL :: in_tok, tok_ok, tok_digit
+      CHARACTER(LEN=1) :: ch
+      coord_line = .FALSE.
+      IF (INDEX(line, '*') > 0 .OR. INDEX(line, '=') > 0) RETURN
+      ntok = 0
+      in_tok = .FALSE.
+      tok_ok = .TRUE.
+      tok_digit = .FALSE.
+      DO j = 1, LEN(line) + 1
+        IF (j <= LEN(line)) THEN
+          ch = line(j:j)
+        ELSE
+          ch = ' '
+        END IF
+        IF (ch == ' ' .OR. ch == CHAR(9) .OR. ch == ',') THEN
+          IF (in_tok .AND. tok_ok .AND. tok_digit) ntok = ntok + 1
+          in_tok = .FALSE.
+          tok_ok = .TRUE.
+          tok_digit = .FALSE.
+        ELSE
+          in_tok = .TRUE.
+          IF (ch >= '0' .AND. ch <= '9') THEN
+            tok_digit = .TRUE.
+          ELSE IF (INDEX('.+-eEdD', ch) == 0) THEN
+            tok_ok = .FALSE.
+          END IF
+        END IF
+      END DO
+      coord_line = ntok >= 3
+    END FUNCTION
   END FUNCTION
 
   LOGICAL FUNCTION deck_has_method_sections(d)
