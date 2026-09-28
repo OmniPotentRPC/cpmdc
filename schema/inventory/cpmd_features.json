@@ -286,6 +286,7 @@
   "cpmdc_energy_gradient",
   "cpmdc_energy",
   "cpmdc_energy_forces",
+  "cpmdc_bind_calculator",
   "cpmdc_session_create",
   "cpmdc_session_set_params",
   "cpmdc_session_destroy",
@@ -10782,6 +10783,13 @@
    "feature_id": "abi.cpmdc_energy_forces",
    "kind": "abi",
    "name": "cpmdc_energy_forces",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_bind_calculator",
+   "kind": "abi",
+   "name": "cpmdc_bind_calculator",
    "stub_applicable": true,
    "embed_applicable": true
   },

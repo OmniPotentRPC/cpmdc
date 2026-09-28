@@ -222,6 +222,11 @@ size_t cpmdc_potential_result_size_for_force_input(
 }
 
 
+int cpmdc_bind_calculator(int ranks_per_calc) {
+  (void)ranks_per_calc;
+  return -1;
+}
+
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
   if (out)
     memset(out, 0, sizeof(*out));

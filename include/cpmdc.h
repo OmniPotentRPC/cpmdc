@@ -218,11 +218,15 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
  * The session owns a copy of the serialized message so callers may release the
  * input buffer after this call returns.
  */
-/*
+/**
+ * @brief Bind this rank to one CPMD calculator of @p ranks_per_calc ranks.
+ *
  * Collective on MPI_COMM_WORLD, once, before the first energy call.
  * World size must divide into groups of ranks_per_calc. Each group is one
  * CPMD calculator: its own communicator, its own wavefunction, the same deck.
- * Returns the group index, or -1 when the split is refused.
+ * A value of zero or less takes the whole world as one group.
+ * Returns the group index, or -1 when the split is refused or the library
+ * carries no CPMD backend.
  * A second call returns the same index and does not split again.
  */
 int cpmdc_bind_calculator(int ranks_per_calc);

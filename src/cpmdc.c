@@ -49,6 +49,7 @@ int cpmdc_embed_last_energy_components(
     double *eext, double *etddft, double *ehsic, double *erestr,
     double *eefield);
 void cpmdc_embed_finalize(void);
+int cpmdc_embed_bind_calculator(int ranks_per_calc);
 int cpmdc_embed_last_charge_integrals(int *valid, double *csumg, double *csumr,
                                       double *csums, double *csumsabs);
 int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
@@ -1364,6 +1365,10 @@ CPMDCResult cpmdc_calculate_result_from_config(
   return r;
 }
 
+
+int cpmdc_bind_calculator(int ranks_per_calc) {
+  return cpmdc_embed_bind_calculator(ranks_per_calc);
+}
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
   if (!out)

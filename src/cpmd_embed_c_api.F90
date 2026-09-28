@@ -15,7 +15,7 @@ MODULE cpmd_embed_c_api
   PRIVATE
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
-  PUBLIC :: cpmdc_bind_calculator
+  PUBLIC :: cpmdc_embed_bind_calculator
   PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_last_energy_components
@@ -219,8 +219,8 @@ CONTAINS
     ok = MERGE(0_c_int, -1_c_int, last_ener_valid /= 0_c_int)
   END FUNCTION
 
-  FUNCTION cpmdc_bind_calculator(ranks_per_calc) RESULT(image) &
-      BIND(C, NAME='cpmdc_bind_calculator')
+  FUNCTION cpmdc_embed_bind_calculator(ranks_per_calc) RESULT(image) &
+      BIND(C, NAME='cpmdc_embed_bind_calculator')
     INTEGER(c_int), INTENT(IN), VALUE :: ranks_per_calc
     INTEGER(c_int) :: image
     image = -1_c_int
@@ -250,7 +250,7 @@ CONTAINS
       mp_comm_set = .TRUE.
     END BLOCK
 #endif
-  END FUNCTION cpmdc_bind_calculator
+  END FUNCTION cpmdc_embed_bind_calculator
 
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok
