@@ -9,6 +9,7 @@ linking `libcpmdc`.
 | `opencpmd_keep_fion.patch` | Do not `DEALLOCATE(fion)` at end of `rwfopt` so the embed can copy nuclear forces |
 | `opencpmd_warm_orbitals.patch` | Store and restore `c0` after initializing each SCF call, reset the store with each applied configuration, and force PEF/BOMD ionic-force evaluation |
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`; DIIS/PCG/steepest-descent updates only run while the pre-update gradient is unconverged |
+| `opencpmd_mp_comm_set.patch` | Publish `mp_comm_set` so an external driver can install `mp_comm_world` before `mp_start` |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into `cpmdc_last_stress` / `PotentialResult.stress` |
 
 ```bash
