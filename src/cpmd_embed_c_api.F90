@@ -857,7 +857,7 @@ CONTAINS
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
-    USE store_types, ONLY: cprint, iprint_force
+    USE store_types, ONLY: cprint, iprint_force, restart1
     USE system, ONLY: cnti, cntl, parm
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
@@ -879,6 +879,15 @@ CONTAINS
     last_stress = 0.0_c_double
     CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
     IF (ierr /= 0) RETURN
+    ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
+    ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
+    ! section 3 when RESTART COORDINATES or RESTART ALL is in the deck.
+    ! The wavefunction section stays under the deck: RESTART WAVEFUNCTION
+    ! still fills c0 on a cold entry. Plane-wave velocities stay unread
+    ! for a wavefunction optimisation, which is setirec's BOMD rule.
+    restart1%rco = .FALSE.
+    restart1%rvel = .FALSE.
+    restart1%rgeo = .FALSE.
     CALL phfac(tau0)
     IF (ALLOCATED(fion)) DEALLOCATE(fion)
     IF (ALLOCATED(taup)) DEALLOCATE(taup)
