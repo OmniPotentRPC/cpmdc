@@ -3624,7 +3624,8 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
 }
 
 /* Per-species PP options beyond LMAX: LOC/SKIP channels, projector form,
- * Gaussian width, NLCC. Emitted on the LMAX line. */
+ * Gaussian width, NLCC. Emitted on the LMAX line; KLEINMAN-BYLANDER
+ * belongs to the *file line instead. */
 static int append_psp_options(char *dst, size_t dst_size, size_t *used,
                               const struct CPMDAtomsPseudopotential *psp);
 
@@ -3648,10 +3649,6 @@ static int append_psp_options(char *dst, size_t dst_size, size_t *used,
   if (psp->skip >= 0) {
     if (append_fmt(dst, dst_size, used, " SKIP=%s",
                    lmax_letter(psp->skip)) != 0)
-      return -1;
-  }
-  if (psp->kleinmanBylander) {
-    if (append_text(dst, dst_size, used, " KLEINMAN-BYLANDER") != 0)
       return -1;
   }
   if (psp->raggio > 0.0) {
@@ -3802,6 +3799,11 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
     } else {
       return -1;
     }
+    /* KLEINMAN-BYLANDER is an option of the *file line. On the LMAX line
+     * CPMD ignores it and integrates the projectors by Gauss-Hermite. */
+    if (psp.kleinmanBylander &&
+        append_text(dst, dst_size, used, " KLEINMAN-BYLANDER") != 0)
+      return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
     if (append_fmt(dst, dst_size, used, " LMAX=%s",
@@ -4740,6 +4742,9 @@ static int render_atoms_with_geometry(char *dst, size_t dst_size, size_t *used,
     } else {
       return -1;
     }
+    if (psp.kleinmanBylander &&
+        append_text(dst, dst_size, used, " KLEINMAN-BYLANDER") != 0)
+      return -1;
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
     {

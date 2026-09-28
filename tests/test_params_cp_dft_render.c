@@ -52,6 +52,28 @@ static int check_deck(const char *bin, const char **need, int nneed) {
   return 0;
 }
 
+/* KLEINMAN-BYLANDER is an option of the *file line. CPMD ignores it on the
+ * LMAX line, so every occurrence must sit on a line that starts with '*'. */
+static int check_kb_on_star_line(const char *bin) {
+  char deck[CPMDC_BLOCKS];
+  if (render_deck_file(bin, deck, sizeof(deck)) != 0)
+    return -1;
+  int seen = 0;
+  for (const char *hit = strstr(deck, "KLEINMAN-BYLANDER"); hit;
+       hit = strstr(hit + 1, "KLEINMAN-BYLANDER")) {
+    const char *line = hit;
+    while (line > deck && line[-1] != '\n')
+      --line;
+    if (*line != '*') {
+      fprintf(stderr, "KLEINMAN-BYLANDER off the *file line in %s\n", bin);
+      fprintf(stderr, "--- deck ---\n%s\n", deck);
+      return -1;
+    }
+    ++seen;
+  }
+  return seen > 0 ? 0 : -1;
+}
+
 static int check_render_fails(const char *bin) {
   char deck[CPMDC_BLOCKS];
   if (render_deck_file(bin, deck, sizeof(deck)) == 0) {
@@ -1397,6 +1419,8 @@ int main(int argc, char **argv) {
   if (check_deck(fixture[19], atoms_extras_need,
                  (int)(sizeof(atoms_extras_need) /
                        sizeof(atoms_extras_need[0]))) != 0)
+    return 1;
+  if (check_kb_on_star_line(fixture[19]) != 0)
     return 1;
   if (check_render_fails(fixture[18]) != 0)
     return 1;

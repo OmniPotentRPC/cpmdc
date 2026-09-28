@@ -687,7 +687,12 @@ CONTAINS
       ELSE
         lmax_c = 'D'
       END IF
-      CALL append_local(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      IF (INDEX(applied_input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
+        CALL append_local(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'// &
+             NEW_LINE('A'))
+      ELSE
+        CALL append_local(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      END IF
       IF (zz == 14) THEN
         CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
       ELSE
@@ -943,7 +948,7 @@ CONTAINS
     ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
     ! (tclust): rinitwf does tpres→newcell→gf_periodic but scg is only
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
-    IF (.NOT. isos1%tclust) cntl%tpres = .TRUE.
+    IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
@@ -1404,6 +1409,16 @@ CONTAINS
   ! True only when &ATOMS has PP stars AND at least one coordinate triple
   ! before its &END. C render *PP.psp stubs without coords must NOT block
   ! method+geometry merge from ForceInput positions.
+  ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
+  ! takes only energy and forces does not need totstr.
+  LOGICAL FUNCTION embed_stress_wanted()
+    CHARACTER(LEN=16) :: v
+    INTEGER :: st
+    embed_stress_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') embed_stress_wanted = .FALSE.
+  END FUNCTION
+
   LOGICAL FUNCTION deck_has_real_atoms(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
     INTEGER :: ia, star, i, n, nf, iend
@@ -1541,7 +1556,11 @@ CONTAINS
       ELSE
         lmax_c = 'D'
       END IF
-      CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      IF (INDEX(applied_input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
+        CALL append(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'//NEW_LINE('A'))
+      ELSE
+        CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
+      END IF
       IF (zz == 14) THEN
         CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
       ELSE
@@ -1875,7 +1894,7 @@ CONTAINS
     ! PEF stress needs cntl%tpres before dqgalloc. Isolated/Hockney (tclust)
     ! must not set tpres: rinitwf→newcell→gf_periodic needs scg, which
     ! initclust only allocates for periodic cells.
-    IF (.NOT. isos1%tclust) cntl%tpres = .TRUE.
+    IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
     CALL setsc
     CALL detsp
     CALL mm_init
