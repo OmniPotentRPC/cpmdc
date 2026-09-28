@@ -882,7 +882,9 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                has_cell ? 1 : 0, &energy, grad_h_bohr);
   cpmdc_stop_disarm();
   if (!ok) {
-    snprintf(r.message, sizeof(r.message), "CPMD energy/gradient failed");
+    snprintf(r.message, sizeof(r.message),
+             "CPMD energy/gradient failed: orbitals not converged within "
+             "MAXITER, or no energy");
     return r;
   }
   r.ok = 1;

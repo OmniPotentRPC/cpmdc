@@ -904,6 +904,7 @@ CONTAINS
     USE system, ONLY: cnti, cntl, parm
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
+    USE ropt, ONLY: ropt_mod
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -1000,7 +1001,10 @@ CONTAINS
       last_stress_valid = 1_c_int
     END IF
     CALL snapshot_prop_from_modules(n_atoms)
-    IF (ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
+    ! rwfopt computes the ionic forces only for converged orbitals: an SCF
+    ! that ran out of MAXITER leaves fion zero, which a caller would read as
+    ! a stationary point. Report it as a failure instead.
+    IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
   END SUBROUTINE
 
   ! control/dftin/sysin without reading INPUT (nwchemc rtdb_put analogue).
