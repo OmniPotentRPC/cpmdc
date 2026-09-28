@@ -16,7 +16,7 @@ schema_wrap_version = run_command(
   python,
   [
     '-c',
-    'import re, sys; print(re.search(r"directory = potentials-schema-([0-9.]*[0-9])", open(sys.argv[1]).read()).group(1))',
+    'import re, sys; m = re.search(r"directory = potentials-schema-([0-9.]*[0-9])", open(sys.argv[1]).read()); print(m.group(1) if m else "compat")',
     meson.current_source_dir() / 'subprojects/potentials-schema.wrap',
   ],
   check: true,
@@ -221,7 +221,35 @@ cpmdc_shared_dep = declare_dependency(
   dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
 )
 
-install_headers('include/cpmdc.h', 'include/cpmdc_features.h', subdir: 'cpmdc')
+install_headers('include/cpmdc.h', 'include/cpmdc_features.h', 'include/cpmdc_restart.h', subdir: 'cpmdc')
+
+cpmdc_restart_lib = static_library(
+  'cpmdc_restart',
+  'src/cpmdc_restart.c',
+  include_directories: inc,
+  c_args: common_c_args,
+  install: true,
+)
+cpmdc_restart_dep = declare_dependency(
+  link_with: cpmdc_restart_lib,
+  include_directories: inc,
+)
+executable(
+  'cpmdc-restart',
+  'tools/cpmdc_restart.c',
+  dependencies: [cpmdc_restart_dep],
+  include_directories: inc,
+  c_args: common_c_args,
+  install: true,
+)
+pkgconfig.generate(
+  name: 'cpmdc-restart',
+  filebase: 'cpmdc-restart',
+  libraries: cpmdc_restart_lib,
+  subdirs: 'cpmdc',
+  version: meson.project_version(),
+  description: 'C reader and writer for CPMD RESTART files',
+)
 pkgconfig.generate(
   name: 'cpmdc',
   filebase: 'cpmdc',
@@ -253,6 +281,18 @@ cpmdc_embed_shell_dep = declare_dependency(
 )
 
 if get_option('with_tests')
+  test(
+    'restart-file',
+    executable(
+      'test_cpmd_restart',
+      'tests/test_cpmd_restart.c',
+      dependencies: [cpmdc_restart_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    suite: ['restart'],
+    args: [meson.current_source_dir() / 'tests/restart_geo1.bin'],
+  )
   encode = [
     python,
     meson.current_source_dir() / 'tests/encode_capnp.py',

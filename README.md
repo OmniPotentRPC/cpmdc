@@ -58,6 +58,8 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | Path | Purpose |
 | --- | --- |
 | `include/cpmdc.h` | public C ABI, sessions, one-shot calls, result sizing |
+| `include/cpmdc_restart.h` | C reader and writer for a CPMD `RESTART` file |
+| `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `include/cpmdc_features.h` | runtime feature discovery table |
 | `schema/Potentials.capnp` | `CPMDParams`, `ForceInput`, `PotentialResult`, `PotentialConfig` |
 | `src/cpmdc_params.c` | Cap'n Proto decode and CPMD `INPUT` rendering |
@@ -161,6 +163,23 @@ meson test -C build example-host-step --print-errorlogs
 
 The `example-host-step` test uses generated fixture binaries from the same
 Cap'n Proto text fixtures used by the E2E suites.
+
+## RESTART Files
+
+`cpmdc-restart` reads and writes the Fortran unformatted `RESTART.n` file that
+OpenCPMD stores through `wv30` / `rv30`. Coordinates in the file are Bohr, in
+species order. Replacing them rewrites those records and copies the
+wavefunction records unchanged, so a host such as eOn can keep converged
+orbitals and supply the next geometry.
+
+```bash
+cpmdc-restart info RESTART.1
+cpmdc-restart positions RESTART.1 --angstrom > pos.txt
+cpmdc-restart patch-positions RESTART.1 pos.txt RESTART.1.next --angstrom
+```
+
+Link `libcpmdc_restart` and include `cpmdc_restart.h` for the same operations
+from C or C++. The library does not link OpenCPMD.
 
 ## CPMD Input Model
 

@@ -194,6 +194,14 @@ exists:
   settings, isolated-shape controls, charge, and spin multiplicity
 - ~cpmd~ for wavefunction optimization, MD, convergence, restart, and
   trajectory controls
+
+The binary ~RESTART~ file is a separate object from the deck keyword. Read and
+rewrite it with ~cpmdc-restart~ or ~cpmdc_restart.h~ (~libcpmdc_restart~).
+Coordinates in that file are Bohr in species order. A coordinate patch copies
+the wavefunction records unchanged, which is how a host keeps orbitals while
+it owns the next geometry. Put ~RESTART WAVEFUNCTION~ in the deck when the
+host writes ~tau0~ itself. Add ~COORDINATES~ only when the patched file should
+supply the ions.
 - ~dft~ for functional and spin-polarized DFT controls
 - ~atoms~ for pseudopotential grouping and fixed non-coordinate ~&ATOMS~
   directives
