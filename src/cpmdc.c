@@ -167,6 +167,13 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
   return 0;
 }
 
+static int fit_c_int(size_t n, int *out) {
+  if (!out || n > (size_t)INT_MAX)
+    return -1;
+  *out = (int)n;
+  return 0;
+}
+
 static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
                                  const char *input_deck,
                                  const CPMDCScalarOverrides *overrides) {
@@ -178,7 +185,8 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
   if (overrides) {
     if (overrides->functional && overrides->functional[0] != '\0') {
       fov = overrides->functional;
-      fov_len = (int)strlen(overrides->functional);
+      if (fit_c_int(strlen(overrides->functional), &fov_len) != 0)
+        return -1;
     }
     if (overrides->cutoff_ry > 0.0)
       cutoff_ov = overrides->cutoff_ry;
@@ -193,9 +201,12 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
   }
   if (cpmdc_embed_reset_state() == 0)
     return -1;
+  int deck_len = 0;
+  if (!input_deck || fit_c_int(strlen(input_deck), &deck_len) != 0)
+    return -1;
   return cpmdc_embed_apply_params(
-      params_capnp, params_size, input_deck, (int)strlen(input_deck), fov,
-      fov_len, cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov);
+      params_capnp, params_size, input_deck, deck_len, fov, fov_len, cutoff_ov,
+      has_charge_ov, charge_ov, has_mult_ov, mult_ov);
 }
 
 static int configure_embed_from_session(CPMDCSession *session) {
@@ -840,7 +851,10 @@ static int push_geometry_deck_from_params(const void *params_bytes,
     return -1;
   }
   cpmdc_params_release(&arena);
-  return cpmdc_embed_set_deck(deck, (int)strlen(deck)) != 0 ? 0 : -1;
+  int deck_len = 0;
+  if (fit_c_int(strlen(deck), &deck_len) != 0)
+    return -1;
+  return cpmdc_embed_set_deck(deck, deck_len) != 0 ? 0 : -1;
 }
 
 static CPMDCResult
@@ -951,14 +965,24 @@ static int session_reserve_step_atoms(CPMDCSession *session, size_t n_atoms) {
     return -1;
   if (session->step_atom_capacity >= n_atoms)
     return 0;
-  double *pos = (double *)realloc(session->step_positions_ang,
-                                  n_atoms * 3u * sizeof(double));
-  int *z = (int *)realloc(session->step_atomic_numbers, n_atoms * sizeof(int));
+  if (n_atoms > SIZE_MAX / (3u * sizeof(double)))
+    return -1;
+  double *pos = (double *)malloc(n_atoms * 3u * sizeof(double));
+  int *z = (int *)malloc(n_atoms * sizeof(int));
   if (!pos || !z) {
     free(pos);
     free(z);
     return -1;
   }
+  if (session->step_atom_capacity > 0 && session->step_positions_ang &&
+      session->step_atomic_numbers) {
+    memcpy(pos, session->step_positions_ang,
+           session->step_atom_capacity * 3u * sizeof(double));
+    memcpy(z, session->step_atomic_numbers,
+           session->step_atom_capacity * sizeof(int));
+  }
+  free(session->step_positions_ang);
+  free(session->step_atomic_numbers);
   session->step_positions_ang = pos;
   session->step_atomic_numbers = z;
   session->step_atom_capacity = n_atoms;
