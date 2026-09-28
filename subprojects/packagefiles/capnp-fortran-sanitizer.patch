@@ -29,3 +29,19 @@ index 88f1778..d29750e 100644
        ! Manual hex (avoid internal write: not pure in F2003).
        hex = '0000000000000000'
        do i = 16, 1, -1
+diff --git a/app/main.f90 b/app/main.f90
+index 8a7ed72..7bd5a66 100644
+--- a/app/main.f90
++++ b/app/main.f90
+@@ -50,6 +50,11 @@ program capnpc_fortran
+       if (err /= CAPNP_OK) call die('emit failed for '//fname, err)
+    end do
+ 
++   ! Main-program allocatables are not freed at exit; release them so leak
++   ! checkers see a clean run.
++   if (allocated(fname)) deallocate (fname)
++   if (allocated(bytes)) deallocate (bytes)
++
+ contains
+ 
+    !> Drain stdin (a pipe: no queryable size) into a byte buffer.
