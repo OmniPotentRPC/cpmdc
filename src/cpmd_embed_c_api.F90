@@ -1309,25 +1309,11 @@ CONTAINS
     CHARACTER(LEN=64) :: pp
     CHARACTER(LEN=8) :: lmax_c
     CHARACTER(LEN=128) :: line
-    REAL(real64) :: cell_a, b_over_a, c_over_a
-    LOGICAL :: diagonal
-    INTEGER :: k
+    CHARACTER(LEN=400) :: celltxt
+    INTEGER :: celln
     ierr = 1
     deck = ' '
     nlen = 0
-    cell_a = 12.0_real64
-    b_over_a = 1.0_real64
-    c_over_a = 1.0_real64
-    diagonal = .TRUE.
-    IF (has_cell /= 0) THEN
-      IF (cell(1) > 0.0_c_double) cell_a = REAL(cell(1), KIND=real64)
-      IF (cell(5) > 0.0_c_double .AND. cell_a > 0.0_real64) &
-          b_over_a = REAL(cell(5), KIND=real64) / cell_a
-      IF (cell(9) > 0.0_c_double .AND. cell_a > 0.0_real64) &
-          c_over_a = REAL(cell(9), KIND=real64) / cell_a
-      IF (ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
-          ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
-    END IF
     CALL append(deck, nlen, '&CPMD'//NEW_LINE('A'))
     CALL append(deck, nlen, ' OPTIMIZE WAVEFUNCTION'//NEW_LINE('A'))
     CALL append(deck, nlen, ' CONVERGENCE ORBITALS'//NEW_LINE('A'))
@@ -1340,18 +1326,8 @@ CONTAINS
     CALL append(deck, nlen, ' SYMMETRY'//NEW_LINE('A'))
     CALL append(deck, nlen, '  0'//NEW_LINE('A'))
     CALL append(deck, nlen, ' ANGSTROM'//NEW_LINE('A'))
-    IF (.NOT. diagonal) THEN
-      CALL append(deck, nlen, ' CELL VECTORS'//NEW_LINE('A'))
-      DO k = 0, 2
-        WRITE(line, '(3F16.8)') cell(3*k+1), cell(3*k+2), cell(3*k+3)
-        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
-      END DO
-    ELSE
-      CALL append(deck, nlen, ' CELL'//NEW_LINE('A'))
-      WRITE(line, '(A,3F12.6,A)') '  ', cell_a, b_over_a, c_over_a, &
-           ' 0.0 0.0 0.0'
-      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
-    END IF
+    CALL format_cell_lines(cell, has_cell, celltxt, celln)
+    CALL append(deck, nlen, celltxt(1:celln))
     CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
     WRITE(line, '(A,F12.6)') '  ', applied_cutoff_ry
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
@@ -1631,22 +1607,15 @@ CONTAINS
     nlen = nlen + m
   END SUBROUTINE
 
-  ! Cap'n C render often emits &SYSTEM without CELL (lattice comes from the
-  ! ForceInput box). OpenCPMD sysin stopgms if the lattice constant is zero.
-  SUBROUTINE inject_cell_if_missing(deck, nlen, cell, has_cell)
-    CHARACTER(LEN=*), INTENT(INOUT) :: deck
-    INTEGER, INTENT(INOUT) :: nlen
+  SUBROUTINE format_cell_lines(cell, has_cell, text, ntext)
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
+    CHARACTER(LEN=*), INTENT(OUT) :: text
+    INTEGER, INTENT(OUT) :: ntext
     REAL(real64) :: cell_a, b_over_a, c_over_a
     LOGICAL :: diagonal
-    CHARACTER(LEN=400) :: insert
-    CHARACTER(LEN=16384) :: tmp
-    INTEGER :: isys, iang, ins_at, m, k
-    IF (nlen < 1) RETURN
-    ! Already has a CELL keyword (do not second-guess explicit decks).
-    IF (INDEX(deck(1:nlen), 'CELL') > 0 .OR. INDEX(deck(1:nlen), 'cell') > 0) &
-        RETURN
+    text = ' '
+    ntext = 0
     cell_a = 12.0_real64
     b_over_a = 1.0_real64
     c_over_a = 1.0_real64
@@ -1661,14 +1630,31 @@ CONTAINS
           ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
     END IF
     IF (.NOT. diagonal) THEN
-      WRITE(insert, '(A,/,3F16.8,/,3F16.8,/,3F16.8,A)') ' CELL VECTORS', &
+      WRITE(text, '(A,/,3F16.8,/,3F16.8,/,3F16.8,A)') ' CELL VECTORS', &
            cell(1), cell(2), cell(3), cell(4), cell(5), cell(6), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(insert, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
+      WRITE(text, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
            cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
     END IF
-    m = LEN_TRIM(insert)
+    ntext = LEN_TRIM(text)
+  END SUBROUTINE
+
+  ! Cap'n C render often emits &SYSTEM without CELL (lattice comes from the
+  ! ForceInput box). OpenCPMD sysin stopgms if the lattice constant is zero.
+  SUBROUTINE inject_cell_if_missing(deck, nlen, cell, has_cell)
+    CHARACTER(LEN=*), INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    CHARACTER(LEN=400) :: insert
+    CHARACTER(LEN=16384) :: tmp
+    INTEGER :: isys, iang, ins_at, m, k
+    IF (nlen < 1) RETURN
+    ! Already has a CELL keyword (do not second-guess explicit decks).
+    IF (INDEX(deck(1:nlen), 'CELL') > 0 .OR. INDEX(deck(1:nlen), 'cell') > 0) &
+        RETURN
+    CALL format_cell_lines(cell, has_cell, insert, m)
     IF (nlen + m > LEN(deck)) RETURN
     isys = INDEX(deck(1:nlen), '&SYSTEM')
     IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
