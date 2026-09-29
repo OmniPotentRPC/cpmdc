@@ -53,15 +53,22 @@ static void set_err(char *err, size_t cap, const char *msg) {
   snprintf(err, cap, "%s", msg);
 }
 
+/* INT30-C: off + width wraps when off is near SIZE_MAX, and the check then passes. */
+static int field_fits(const struct rec *r, size_t off, size_t width) {
+  if (!r || off > r->len || r->len - off < width)
+    return 0;
+  return 1;
+}
+
 static int read_i32(const struct rec *r, size_t off, int32_t *out) {
-  if (!r || off + 4 > r->len)
+  if (!field_fits(r, off, 4))
     return -1;
   memcpy(out, r->data + off, 4);
   return 0;
 }
 
 static int read_f64(const struct rec *r, size_t off, double *out) {
-  if (!r || off + 8 > r->len)
+  if (!field_fits(r, off, 8))
     return -1;
   memcpy(out, r->data + off, 8);
   return 0;
