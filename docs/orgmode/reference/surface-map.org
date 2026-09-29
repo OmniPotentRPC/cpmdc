@@ -1,108 +1,79 @@
-#+TITLE: cpmdc public C surface map
-#+DATE: 2026-06-28
+#+TITLE: Public C surface map
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-Mechanical audit of the *in-process stable C ABI* (not full OpenCPMD manual
-keyword parity). Source tree: =OmniPotentRPC/cpmdc= on =main= (commits through
-=ad11009= / =cd22046=).
+A cross-check of the in-process C ABI: every public function against the
+header, the inventory, both implementations, and the feature table.
+The [[file:c-abi.org][C ABI reference]] documents what each function does; this page
+records where each one lives.
+The ~cpmd-public-abi-inventory~, ~stub-abi-symbol-coverage~, and
+~shared-dlopen-symbol-coverage~ tests keep it true.
 
-* Scope
+* Sources checked
 
-- Public headers: =include/cpmdc.h=, =include/cpmdc_features.h=
-- Inventory: =schema/inventory/cpmd_features.json= (=abi_symbols= + feature rows)
-- Implementations: =src/cpmdc.c=, =src/cpmdc_stub.c=, =src/cpmdc_features.c=,
-  =src/cpmd_embed_c_api.F90=
-- Carriers: =schema/Potentials.capnp= (=CPMDParams=, =ForceInput=, =PotentialResult=,
-  =PotentialConfig=)
+| Source | Role |
+|--------+------|
+| ~include/cpmdc.h~, ~include/cpmdc_features.h~ | public declarations |
+| ~schema/inventory/cpmd_features.json~ | ~abi_symbols~ list and feature rows |
+| ~src/cpmdc.c~ | implementation in the default and OpenCPMD builds |
+| ~src/cpmdc_stub.c~ | implementation in the stub build |
+| ~src/cpmdc_features.c~, ~src/cpmdc_capabilities.c~ | discovery functions shared by all builds |
 
-* Cap'n Proto carriers
+* Symbols
+Columns: declared in a public header, implemented for the default and
+OpenCPMD builds, implemented for the stub, and present as an ~abi.*~ feature
+row.
 
-| Carrier | Role |
-|---+------|
-| =CPMDParams= | Method / backend setup (sections, catalog, escape hatches) |
-| =ForceInput= | Per-step geometry (pos, Z, optional cell, units) |
-| =PotentialResult= | Wire energy + forces only (shared with nwchemc/rgpot) |
-| =PotentialConfig= | Tagged multi-backend configure union |
+| Symbol | Role | Header | Build | Stub | Feature row |
+|--------+------+--------+-------+------+-------------|
+| ~cpmdc_set_params~ | setup | Y | Y | Y | Y |
+| ~cpmdc_energy_gradient~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_energy~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_energy_forces~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_bind_calculator~ | MPI | Y | Y | Y | Y |
+| ~cpmdc_session_create~ | setup | Y | Y | Y | Y |
+| ~cpmdc_session_set_params~ | setup | Y | Y | Y | Y |
+| ~cpmdc_session_destroy~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_session_energy_gradient~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_session_energy~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_session_energy_forces~ | step, arrays | Y | Y | Y | Y |
+| ~cpmdc_session_calculate_forces~ | step, message | Y | Y | Y | Y |
+| ~cpmdc_session_calculate_result~ | step, message | Y | Y | Y | Y |
+| ~cpmdc_calculate_result~ | step, message | Y | Y | Y | Y |
+| ~cpmdc_calculate_result_from_config~ | step, message | Y | Y | Y | Y |
+| ~cpmdc_potential_result_size_for_force_input~ | result size | Y | Y | Y | Y |
+| ~cpmdc_capabilities_result~ | discovery | Y | Y | Y | Y |
+| ~cpmdc_version~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_abi_version~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_configure~ | setup | Y | Y | Y | Y |
+| ~cpmdc_session_create_from_config~ | setup | Y | Y | Y | Y |
+| ~cpmdc_session_configure~ | setup | Y | Y | Y | Y |
+| ~cpmdc_last_error~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_available~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_finalize~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_last_energy_components~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_property_snapshot~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_stress~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_md_trajectory_row~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_multi_state_energies~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_charge_integrals~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_energy_components~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_charge_integrals~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_multi_state_energies~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_md_trajectory_row~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_property_snapshot~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_stress~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_feature_count~ | discovery | Y | Y | Y | Y |
+| ~cpmdc_feature_table~ | discovery | Y | Y | Y | Y |
+| ~cpmdc_feature_find~ | discovery | Y | Y | Y | Y |
 
-* Evaluation backends
+40 symbols in ~abi_symbols~, 40 with every column present.
 
-| Path | =cpmdc_available= | Energy components via =cpmdc_last_energy_components= |
-|---+-------------------+-----------------------------------------------------|
-| Stub (=libcpmdc_stub=) | 0 | Returns -1; zeros; no invent |
-| Reference PEF (default =libcpmdc.so=) | 1 | =valid=; =etot= only (=energy_h=) |
-| OpenCPMD archive (=libcpmd.a=, =-Dwith_cpmd=true=) | 1 | Full =ener_com_t= after =wfopts= |
-
-* Public symbol table (header × inventory × impl)
-
-Columns: *header* always Y for symbols declared in public headers; *abi_sym*
-membership in inventory =abi_symbols=; *real* body in =cpmdc.c= or
-=cpmdc_features.c=; *stub* body in =cpmdc_stub.c= (feature symbols live only in
-=cpmdc_features.c=, linked into both builds); *feat_row* =abi.cpmdc_*= feature
-table entry.
-
-| symbol | role | header | abi_sym | real | stub | feat_row |
-|---+------+--------+---------+------+------+----------|
-| =cpmdc_abi_version= | lifecycle | Y | Y | Y | Y | Y |
-| =cpmdc_configure= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_session_create_from_config= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_session_configure= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_last_error= | lifecycle | Y | Y | Y | Y | Y |
-| =cpmdc_available= | lifecycle | Y | Y | Y | Y | Y |
-| =cpmdc_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
-| =cpmdc_energy= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_energy_forces= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_energy_gradient= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_feature_count= | discovery | Y | Y | Y | Y | Y |
-| =cpmdc_feature_find= | discovery | Y | Y | Y | Y | Y |
-| =cpmdc_feature_table= | discovery | Y | Y | Y | Y | Y |
-| =cpmdc_finalize= | lifecycle | Y | Y | Y | Y | Y |
-| =cpmdc_last_energy_components= | result-components | Y | Y | Y | Y | Y |
-| =cpmdc_potential_result_size_for_force_input= | result-size | Y | Y | Y | Y | Y |
-| =cpmdc_session_calculate_forces= | step-capnp | Y | Y | Y | Y | Y |
-| =cpmdc_session_calculate_result= | step-capnp | Y | Y | Y | Y | Y |
-| =cpmdc_session_create= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_session_destroy= | lifecycle | Y | Y | Y | Y | Y |
-| =cpmdc_session_energy= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_session_energy_forces= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_session_energy_gradient= | step-native | Y | Y | Y | Y | Y |
-| =cpmdc_session_set_params= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_set_params= | setup | Y | Y | Y | Y | Y |
-| =cpmdc_version= | lifecycle | Y | Y | Y | Y | Y |
-
-Header symbols: 26
-abi_symbols: 26
-Missing parity: NONE
-
-* Inscan sections (OpenCPMD =inscan('&SECTION')= set, 25)
+* Parser sections
+The 25 sections OpenCPMD reads with ~inscan('&SECTION')~, recorded in
+~opencpmd_inscan_sections~ and ~schema/inventory/opencpmd_sections.txt~:
 
 ATOM, ATOMS, BASIS, CLAS, CPMD, DFT, EAM, EXTE, HARDNESS, INFO, LINRES,
 MOLSTATES, MTS, NLCC, PATH, PIMD, POTENTIAL, PROP, PTDDFT, RESP, SYSTEM,
-TDDFT, VDW, VECTORS, WAVEFUNCTION
+TDDFT, VDW, VECTORS, WAVEFUNCTION.
 
-* Result surfaces (post-eval)
-
-- =CPMDCResult.energy_h= — total Hartree (native)
-- =PotentialResult= Cap'n Proto — energy + forces (unit-converted on socket path)
-- =CPMDCEnergyComponents= / =cpmdc_last_energy_components= — full OpenCPMD
-  =ener_com= POD (=etot= … =eefield=); =etot= matches =energy_h= on success
-
-* Deferred (vault issues, not blocking host path)
-
-See =Software/cpmdc/issues.org=: PotentialResult wire =ener_com= fields, MD
-ENERGY/EKINC trajectory, CAS22 =ener_c=/=ener_d=, =chrg= snapshot, Hessian/dipole
-ABI, QMMM beyond catalog, parser N_STREAMS / PBEoriginal modeling.
-
-* Related commits
-
-- =cd22046= — =feat(abi): expose in-process ener_com energy components=
-- =ad11009= — docs/example alignment for components path
-- =866b1f4= — =fix(build): link FFTW3 when embedding OpenCPMD archive=
-
-
-* Extended result surfaces (this implementation)
-
-- =PotentialResult= append-only fields: hessian/dipole/quadrupole/optimizedPos
-  (nwchemc-aligned), =energyComponents= + =componentsValid=, charge/multi-state/MD/polarizability lists.
-- C getters: =cpmdc_last_charge_integrals=, =cpmdc_last_multi_state_energies=,
-  =cpmdc_last_md_trajectory_row=, =cpmdc_last_property_snapshot= (PEF+embed: ENERGY row (EKINC=0 off MD), PROP dipole+nuclear gradient; full ener_com on wire when componentsValid).
-- Unsupported host inputs rejected: lone =N_STREAMS=, =PBEoriginal= (=cpmdc_params_reject_unsupported_inputs=).
-- QMMM remains catalog =catalog.cpmd.QMMM= / =qmmm= / =qmmmEasy= render path (no PEF QMMM forces).
+QMMM, PROPERTIES, BICANONICAL, and CDFT are ~&CPMD~ keywords, not sections.
