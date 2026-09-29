@@ -477,7 +477,11 @@ static void write_ptr_tag(char *d, capn_ptr p, int off) {
 
 	case CAPN_LIST:
 		if (p.is_composite_list) {
-			val |= LIST_PTR | (U64(COMPOSITE_LIST) << 32) | (U64(p.len * (p.datasz/8 + p.ptrs)) << 35);
+			/* INT32-C: the word count is a signed length times words per element. */
+			uint64_t words = 0;
+			if (p.len > 0 && p.datasz >= 0 && p.ptrs >= 0)
+				words = (uint64_t)p.len * ((uint64_t)(p.datasz / 8) + (uint64_t)p.ptrs);
+			val |= LIST_PTR | (U64(COMPOSITE_LIST) << 32) | (words << 35);
 		} else {
 			val |= LIST_PTR | (U64(p.len) << 35);
 
@@ -1005,9 +1009,21 @@ capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs) {
 		/* empty lists may as well be a len=0 void list */
 	} else if (ptrs || datasz > 8) {
 		p.is_composite_list = 1;
+		/* INT32-C: align and the byte count must fit in a signed int. */
+		if (datasz > INT_MAX - 7 || sz < 0 || ptrs < 0) {
+			memset(&p, 0, sizeof(p));
+			return p;
+		}
 		p.datasz = (datasz + 7) & ~7;
 		p.ptrs = ptrs;
-		new_object(&p, p.len * (p.datasz + 8*p.ptrs) + 8);
+		{
+			uint64_t nbytes = (uint64_t)p.len * ((uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs) + 8ull;
+			if (nbytes > (uint64_t)INT_MAX) {
+				memset(&p, 0, sizeof(p));
+				return p;
+			}
+			new_object(&p, (int)nbytes);
+		}
 		if (p.data) {
 			uint64_t hdr = STRUCT_PTR | (U64(p.len) << 2) | (U64(p.datasz/8) << 32) | (U64(ptrs) << 48);
 			*(uint64_t*) p.data = capn_flip64(hdr);
