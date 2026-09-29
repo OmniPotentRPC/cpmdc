@@ -14,28 +14,8 @@ module cpmdc_embed_apply_params_mod
   private
 
   public :: cpmdc_embed_apply_params
-  public :: cpmdc_embed_get_config
-  public :: applied_functional, applied_cutoff_ry
-  public :: applied_charge, applied_mult
-  public :: applied_input_deck, applied_cpmd_root
-
-  character(len=64), save :: applied_functional = 'BLYP'
-  real(real64), save :: applied_cutoff_ry = 70.0_real64
-  integer, save :: applied_charge = 0
-  integer, save :: applied_mult = 1
-  character(len=4096), save :: applied_input_deck = ' '
-  character(len=1024), save :: applied_cpmd_root = ' '
 
 contains
-
-  subroutine reset_applied()
-    applied_functional = 'BLYP'
-    applied_cutoff_ry = 70.0_real64
-    applied_charge = 0
-    applied_mult = 1
-    applied_input_deck = ' '
-    applied_cpmd_root = ' '
-  end subroutine reset_applied
 
   subroutine copy_alloc_text(src, dst, maxlen)
     character(len=:), allocatable, intent(in) :: src
@@ -67,11 +47,11 @@ contains
     character(kind=c_char), intent(out) :: cbuf(*)
     integer(c_int), intent(in) :: clen
     integer :: i, n
-    n = min(len_trim(fstr), max(0, int(clen) - 1))
+    n = min(len_trim(fstr), max(0, int(clen)))
     do i = 1, n
       cbuf(i) = fstr(i:i)
     end do
-    if (clen > 0) cbuf(n + 1) = c_null_char
+    if (n < int(clen)) cbuf(n + 1) = c_null_char
   end subroutine f_to_c_chars
 
   !> Decode CPMDParams wire bytes into embed knobs; accept C-rendered deck.
@@ -79,7 +59,9 @@ contains
   !> leave the wire effective config unchanged for that field.
   function cpmdc_embed_apply_params(params_capnp, params_capnp_size, &
       input_deck, input_deck_len, functional_ov, functional_ov_len, &
-      cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov) result(rc) &
+      cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov, &
+      functional_out, functional_cap, cutoff_out, charge_out, mult_out, &
+      deck_out, deck_cap, root_out, root_cap) result(rc) &
       bind(C, name='cpmdc_embed_apply_params')
     type(c_ptr), intent(in), value :: params_capnp
     integer(c_size_t), intent(in), value :: params_capnp_size
@@ -90,6 +72,14 @@ contains
     real(c_double), intent(in), value :: cutoff_ov
     integer(c_int), intent(in), value :: has_charge_ov, charge_ov
     integer(c_int), intent(in), value :: has_mult_ov, mult_ov
+    character(kind=c_char), intent(out) :: functional_out(*)
+    integer(c_int), intent(in), value :: functional_cap
+    real(c_double), intent(out) :: cutoff_out
+    integer(c_int), intent(out) :: charge_out, mult_out
+    character(kind=c_char), intent(out) :: deck_out(*)
+    integer(c_int), intent(in), value :: deck_cap
+    character(kind=c_char), intent(out) :: root_out(*)
+    integer(c_int), intent(in), value :: root_cap
     integer(c_int) :: rc
     integer(int8), pointer :: raw(:)
     integer(int8), allocatable :: bytes(:)
@@ -104,17 +94,28 @@ contains
     integer :: err, i, n, tag, ib
     integer(int64) :: n64
     real(real64) :: cut
+    character(len=64) :: functional_l
+    real(real64) :: cutoff_l
+    integer :: charge_l, mult_l
+    character(len=4096) :: deck_l
+    character(len=1024) :: root_l
 
     rc = -1_c_int
-    call reset_applied()
+    functional_l = 'BLYP'
+    cutoff_l = 70.0_real64
+    charge_l = 0
+    mult_l = 1
+    deck_l = ' '
+    root_l = ' '
     if (input_deck_len > 0) then
-      n = min(int(input_deck_len), len(applied_input_deck))
+      n = min(int(input_deck_len), len(deck_l))
       do ib = 1, n
         if (input_deck(ib) == c_null_char) exit
-        applied_input_deck(ib:ib) = input_deck(ib)
+        deck_l(ib:ib) = input_deck(ib)
       end do
     end if
     if (.not. c_associated(params_capnp) .or. params_capnp_size <= 0) return
+    if (params_capnp_size > int(huge(n), kind=c_size_t)) return
     n = int(params_capnp_size)
     call c_f_pointer(params_capnp, raw, [n])
     allocate (bytes(0:n - 1))
@@ -133,20 +134,26 @@ contains
 
     ! Top-level effective config (matches C cpmdc_params_effective_config).
     call c_p_m_d_params_functional_get(params, s, err)
-    if (err == CAPNP_OK) call copy_alloc_text(s, applied_functional, 64)
-    if (len_trim(applied_functional) == 0) applied_functional = 'BLYP'
+    if (err == CAPNP_OK) call copy_alloc_text(s, functional_l, 64)
+    if (len_trim(functional_l) == 0) functional_l = 'BLYP'
     cut = c_p_m_d_params_cut_off_ry_get(params)
-    applied_cutoff_ry = cut
-    if (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
-    applied_charge = int(c_p_m_d_params_charge_get(params))
-    applied_mult = max(1, int(c_p_m_d_params_multiplicity_get(params)))
+    cutoff_l = cut
+    if (cutoff_l <= 0.0_real64) cutoff_l = 70.0_real64
+    charge_l = int(c_p_m_d_params_charge_get(params))
+    mult_l = max(1, int(c_p_m_d_params_multiplicity_get(params)))
     call c_p_m_d_params_cpmd_root_get(params, s, err)
-    if (err == CAPNP_OK) call copy_alloc_text(s, applied_cpmd_root, 1024)
+    if (err == CAPNP_OK) call copy_alloc_text(s, root_l, 1024)
 
     ! Section overrides: system (cutoff/charge/mult) and dft (functional).
     sections = c_p_m_d_params_input_sections_get(params, err)
     n64 = 0_int64
     if (err == CAPNP_OK) n64 = capnp_list_len(sections)
+    ! INT of a value that does not fit the default integer is undefined.
+    if (n64 < 0_int64 .or. n64 > int(huge(i), kind=int64)) then
+      call capnp_message_free(msg)
+      deallocate (bytes)
+      return
+    end if
     do i = 0, int(n64) - 1
       sec = c_p_m_d_params_input_sections_get_elem(params, i, err)
       if (err /= CAPNP_OK) cycle
@@ -155,16 +162,16 @@ contains
         sys = c_p_m_d_input_section_system_get(sec, err)
         if (err /= CAPNP_OK .or. sys%p%kind == CAPNP_PK_NULL) cycle
         cut = c_p_m_d_system_section_cut_off_ry_get(sys)
-        if (cut > 0.0_real64) applied_cutoff_ry = cut
-        applied_charge = int(c_p_m_d_system_section_charge_get(sys))
+        if (cut > 0.0_real64) cutoff_l = cut
+        charge_l = int(c_p_m_d_system_section_charge_get(sys))
         n = int(c_p_m_d_system_section_multiplicity_get(sys))
-        if (n > 0) applied_mult = n
+        if (n > 0) mult_l = n
       else if (tag == C_P_M_D_INPUT_SECTION_DFT_TAG) then
         dft = c_p_m_d_input_section_dft_get(sec, err)
         if (err /= CAPNP_OK .or. dft%p%kind == CAPNP_PK_NULL) cycle
         call c_p_m_d_dft_section_functional_get(dft, s, err)
         if (err == CAPNP_OK .and. allocated(s)) then
-          if (len_trim(s) > 0) call copy_alloc_text(s, applied_functional, 64)
+          if (len_trim(s) > 0) call copy_alloc_text(s, functional_l, 64)
         end if
       end if
     end do
@@ -172,36 +179,21 @@ contains
     ! CommonMethodSpec overlay scalars (after section walk).
     if (functional_ov_len > 0) then
       call cchars_to_f(functional_ov, functional_ov_len, fov)
-      if (len_trim(fov) > 0) applied_functional = fov
+      if (len_trim(fov) > 0) functional_l = fov
     end if
-    if (cutoff_ov > 0.0_c_double) applied_cutoff_ry = real(cutoff_ov, real64)
-    if (has_charge_ov /= 0) applied_charge = int(charge_ov)
-    if (has_mult_ov /= 0) applied_mult = max(1, int(mult_ov))
+    if (cutoff_ov > 0.0_c_double) cutoff_l = real(cutoff_ov, real64)
+    if (has_charge_ov /= 0) charge_l = int(charge_ov)
+    if (has_mult_ov /= 0) mult_l = max(1, int(mult_ov))
 
     call capnp_message_free(msg)
     deallocate (bytes)
+    call f_to_c_chars(functional_l, functional_out, functional_cap)
+    cutoff_out = real(cutoff_l, c_double)
+    charge_out = int(charge_l, c_int)
+    mult_out = int(mult_l, c_int)
+    call f_to_c_chars(deck_l, deck_out, deck_cap)
+    call f_to_c_chars(root_l, root_out, root_cap)
     rc = 0_c_int
   end function cpmdc_embed_apply_params
-
-  function cpmdc_embed_get_config(functional, functional_len, cutoff_ry, &
-      charge, mult, input_deck, input_deck_len, cpmd_root, cpmd_root_len) &
-      result(rc) bind(C, name='cpmdc_embed_get_config')
-    character(kind=c_char), intent(out) :: functional(*)
-    integer(c_int), intent(in), value :: functional_len
-    real(c_double), intent(out) :: cutoff_ry
-    integer(c_int), intent(out) :: charge, mult
-    character(kind=c_char), intent(out) :: input_deck(*)
-    integer(c_int), intent(in), value :: input_deck_len
-    character(kind=c_char), intent(out) :: cpmd_root(*)
-    integer(c_int), intent(in), value :: cpmd_root_len
-    integer(c_int) :: rc
-    call f_to_c_chars(applied_functional, functional, functional_len)
-    cutoff_ry = real(applied_cutoff_ry, c_double)
-    charge = int(applied_charge, c_int)
-    mult = int(applied_mult, c_int)
-    call f_to_c_chars(applied_input_deck, input_deck, input_deck_len)
-    call f_to_c_chars(applied_cpmd_root, cpmd_root, cpmd_root_len)
-    rc = 0_c_int
-  end function cpmdc_embed_get_config
 
 end module cpmdc_embed_apply_params_mod

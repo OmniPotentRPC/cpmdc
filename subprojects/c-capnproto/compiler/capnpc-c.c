@@ -528,7 +528,10 @@ static void get_member(struct str *func, struct field *f, const char *ptr, const
 
 	switch (f->v.t.which) {
 	case Type__bool:
-		str_addf(func, "%s = (capn_read8(%s, %d) & %d) != %d;\n",
+		/* The bit is set when the value differs from the default. A mask
+		 * other than 1 is never equal to 1, so compare the bit with zero
+		 * and then with the default. */
+		str_addf(func, "%s = ((capn_read8(%s, %d) & %d) != 0) != %d;\n",
 				var, ptr, f->f.slot.offset/8, 1 << (f->f.slot.offset%8), (int)f->v.intval);
 		return;
 	case Type_int8:

@@ -1,6 +1,8 @@
 #include "cpmdc_restart.h"
 
 #include <ctype.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,6 +41,9 @@ static int print_triples(const cpmdc_restart *file, int which, int angstrom) {
       return -1;
     n = count;
   }
+  /* INT32-C: n*3 is a signed length. A count that does not fit is a different buffer. */
+  if (n > INT_MAX / 3)
+    return -1;
   xyz = calloc((size_t)(n > 0 ? n : 1) * 3, sizeof(double));
   if (!xyz)
     return -1;
@@ -96,8 +101,27 @@ static int read_xyz(const char *path, double **out, int *n3, int angstrom, char 
       fclose(fp);
       return -1;
     }
+    if (n > SIZE_MAX - 3) {
+      snprintf(err, err_cap, "out of memory");
+      free(xyz);
+      fclose(fp);
+      return -1;
+    }
     if (n + 3 > cap) {
-      size_t ncap = cap ? cap * 2 : 48;
+      size_t ncap;
+      /* INT30-C: a wrapped cap * 2 is a short realloc. */
+      if (cap == 0)
+        ncap = 48;
+      else if (cap > SIZE_MAX / 2)
+        ncap = 0;
+      else
+        ncap = cap * 2;
+      if (ncap == 0 || ncap > SIZE_MAX / sizeof(double)) {
+        snprintf(err, err_cap, "out of memory");
+        free(xyz);
+        fclose(fp);
+        return -1;
+      }
       double *grown = realloc(xyz, ncap * sizeof(double));
       if (!grown) {
         free(xyz);
@@ -118,6 +142,11 @@ static int read_xyz(const char *path, double **out, int *n3, int angstrom, char 
     xyz[n++] = v[2];
   }
   fclose(fp);
+  if (n > (size_t)INT_MAX) {
+    snprintf(err, err_cap, "coordinate count does not fit in int");
+    free(xyz);
+    return -1;
+  }
   *out = xyz;
   *n3 = (int)n;
   return 0;

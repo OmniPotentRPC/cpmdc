@@ -1,6 +1,7 @@
 /* C ABI frontend: Cap'n Proto sessions + unit carriers (nwchemc pattern).
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
+#include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
 
 #ifndef CPMDC_VERSION_STRING
@@ -18,45 +19,42 @@ int cpmdc_stop_code(void);
 
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
-int cpmdc_embed_reset_state(void);
+int cpmdc_embed_reset_state(CPMDCEmbedImage *image);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
                            const char *input_deck, int input_deck_len,
-                           const char *cpmd_root, int cpmd_root_len);
-int cpmdc_embed_set_deck(const char *deck, int deck_len);
+                           const char *cpmd_root, int cpmd_root_len,
+                           CPMDCEmbedImage *image);
+int cpmdc_embed_set_deck(const char *deck, int deck_len, CPMDCEmbedImage *image);
 /* Fortran capnp-fortran decode of CPMDParams into embed knobs. */
 int cpmdc_embed_apply_params(const void *params_capnp,
                              size_t params_capnp_size_bytes,
                              const char *input_deck, int input_deck_len,
                              const char *functional_ov, int functional_ov_len,
                              double cutoff_ov, int has_charge_ov, int charge_ov,
-                             int has_mult_ov, int mult_ov);
+                             int has_mult_ov, int mult_ov, char *functional_out,
+                             int functional_cap, double *cutoff_out,
+                             int *charge_out, int *mult_out, char *deck_out,
+                             int deck_cap, char *root_out, int root_cap);
 int cpmdc_embed_get_config(char *functional, int functional_len,
                            double *cutoff_ry, int *charge, int *mult,
                            char *input_deck, int input_deck_len, char *cpmd_root,
                            int cpmd_root_len);
+int cpmdc_embed_compose_cold_deck_image(int n_atoms, const double *positions_ang,
+                                        const int *atomic_numbers,
+                                        const double *cell_ang, int has_cell,
+                                        char *deck_out, int deck_cap,
+                                        int *deck_len, CPMDCEmbedImage *image);
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len);
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
-                            double *grad_h_bohr);
-int cpmdc_embed_last_energy_components(
-    int *valid, double *etot, double *ekin, double *epseu, double *enl,
-    double *eht, double *ehep, double *ehee, double *ehii, double *exc,
-    double *vxc, double *egc, double *esr, double *eeig, double *eband,
-    double *entropy, double *eself, double *ecnstr, double *amu, double *ebogo,
-    double *eext, double *etddft, double *ehsic, double *erestr,
-    double *eefield);
+                            double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
-int cpmdc_embed_last_charge_integrals(int *valid, double *csumg, double *csumr,
-                                      double *csums, double *csumsabs);
-int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
-                                 int capacity);
-int cpmdc_embed_last_md_row(int *valid, int *count, double *values, int capacity);
-int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
-                                int hess_cap, int *dip_count, double *dip,
-                                int *pol_count, double *pol);
-int cpmdc_embed_last_stress(int *valid, double *stress);
 
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
@@ -110,9 +108,56 @@ struct CPMDCSession {
   size_t step_atom_capacity;
   /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
+  /** Result of the last evaluation of this session. */
+  CPMDCEmbedImage image;
 };
 
 static CPMDCSession *g_active_session = NULL;
+static CPMDCEmbedImage g_image;
+
+static CPMDCEmbedImage *active_image(void) {
+  return g_active_session ? &g_active_session->image : &g_image;
+}
+
+static void copy_knob_text(char *dst, int cap, const char *src, size_t src_cap) {
+  int i;
+  int n;
+  if (!dst || cap <= 0)
+    return;
+  n = cap - 1;
+  if ((size_t)n > src_cap)
+    n = (int)src_cap;
+  for (i = 0; i < n && src[i] != '\0'; i++)
+    dst[i] = src[i];
+  dst[i] = '\0';
+}
+
+int cpmdc_embed_get_config(char *functional, int functional_len, double *cutoff_ry,
+                           int *charge, int *mult, char *input_deck,
+                           int input_deck_len, char *cpmd_root, int cpmd_root_len) {
+  const CPMDCEmbedImage *image = active_image();
+  if (!image || !image->cfg_set || !cutoff_ry || !charge || !mult)
+    return -1;
+  copy_knob_text(functional, functional_len, image->functional,
+                 sizeof(image->functional));
+  *cutoff_ry = image->cutoff_ry;
+  *charge = image->cfg_charge;
+  *mult = image->multiplicity;
+  copy_knob_text(input_deck, input_deck_len, image->input_deck,
+                 sizeof(image->input_deck));
+  copy_knob_text(cpmd_root, cpmd_root_len, image->cpmd_root,
+                 sizeof(image->cpmd_root));
+  return 0;
+}
+
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len) {
+  return cpmdc_embed_compose_cold_deck_image(
+      n_atoms, positions_ang, atomic_numbers, cell_ang, has_cell, deck_out,
+      deck_cap, deck_len, active_image());
+}
 
 static int ensure_embed_init(void) {
   static int attempted = 0;
@@ -186,9 +231,19 @@ static int fit_c_int(size_t n, int *out) {
   return 0;
 }
 
+/* INT32-C: the gradient length is a signed atom count times three. */
+static int grad_len_from_atoms(int n_atoms, size_t *out) {
+  if (n_atoms <= 0 || n_atoms > INT_MAX / 3)
+    return -1;
+  if (out)
+    *out = (size_t)n_atoms * 3u;
+  return 0;
+}
+
 static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
                                  const char *input_deck,
-                                 const CPMDCScalarOverrides *overrides) {
+                                 const CPMDCScalarOverrides *overrides,
+                                 CPMDCEmbedImage *image) {
   const char *fov = "";
   int fov_len = 0;
   double cutoff_ov = 0.0;
@@ -211,14 +266,20 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
       mult_ov = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
     }
   }
-  if (cpmdc_embed_reset_state() == 0)
+  if (cpmdc_embed_reset_state(image) == 0)
     return -1;
   int deck_len = 0;
   if (!input_deck || fit_c_int(strlen(input_deck), &deck_len) != 0)
     return -1;
-  return cpmdc_embed_apply_params(
-      params_capnp, params_size, input_deck, deck_len, fov, fov_len, cutoff_ov,
-      has_charge_ov, charge_ov, has_mult_ov, mult_ov);
+  if (cpmdc_embed_apply_params(
+          params_capnp, params_size, input_deck, deck_len, fov, fov_len,
+          cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov,
+          image->functional, 64, &image->cutoff_ry, &image->cfg_charge,
+          &image->multiplicity, image->input_deck, 4096, image->cpmd_root,
+          1024) != 0)
+    return -1;
+  image->cfg_set = 1;
+  return 0;
 }
 
 static int configure_embed_from_session(CPMDCSession *session) {
@@ -229,7 +290,8 @@ static int configure_embed_from_session(CPMDCSession *session) {
   /* Serialized params: Fortran capnp-fortran decode; C still rendered deck. */
   if (embed_apply_from_wire(
           session->params_bytes, session->params_size, session->input_deck,
-          session->has_overrides ? &session->overrides : NULL) != 0)
+          session->has_overrides ? &session->overrides : NULL,
+          &session->image) != 0)
     return -1;
   session->embed_configured = 1;
   g_active_session = session;
@@ -826,7 +888,7 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   g_params_size = params_capnp_size_bytes;
   /* Fortran decode of functional/cutoff/charge/mult/root + store C deck. */
   if (embed_apply_from_wire(params_capnp, params_capnp_size_bytes, input_deck,
-                            overrides) != 0)
+                            overrides, &g_image) != 0)
     return -1;
   (void)functional;
   (void)cutoff_ry;
@@ -841,49 +903,19 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   return cpmdc_set_params_ov(params_capnp, params_capnp_size_bytes, NULL);
 }
 
-/* Merge ForceInput geometry into a Cap'n Proto-derived CPMD INPUT deck. */
-static int push_geometry_deck_from_params(const void *params_bytes,
-                                          size_t params_size,
-                                          const CPMDCScalarOverrides *overrides,
-                                          int n_atoms,
-                                          const double *positions_ang,
-                                          const int *atomic_numbers,
-                                          const double *cell_ang,
-                                          int has_cell) {
-  if (!params_bytes || params_size == 0)
-    return -1;
-  struct capn arena;
-  CPMDParams_ptr root;
-  if (cpmdc_params_root(params_bytes, params_size, &arena, &root) != 0)
-    return -1;
-  char deck[CPMDC_BLOCKS];
-  if (cpmdc_params_render_deck_with_geometry_ov(root, overrides, n_atoms,
-                                                positions_ang, atomic_numbers,
-                                                cell_ang, has_cell, deck,
-                                                sizeof(deck)) != 0) {
-    cpmdc_params_release(&arena);
-    return -1;
-  }
-  cpmdc_params_release(&arena);
-  write_deck_if_requested(deck);
-  int deck_len = 0;
-  if (fit_c_int(strlen(deck), &deck_len) != 0)
-    return -1;
-  return cpmdc_embed_set_deck(deck, deck_len) != 0 ? 0 : -1;
-}
-
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
                                  int n_atoms, const double *positions_ang,
                                  const int *atomic_numbers,
                                  const double *cell_ang, int has_cell,
-                                 double *grad_h_bohr) {
+                                 double *grad_h_bohr, CPMDCEmbedImage *image) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
   r.message[0] = '\0';
-  if (n_atoms <= 0 || !positions_ang || !atomic_numbers || !grad_h_bohr) {
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr) {
     snprintf(r.message, sizeof(r.message), "invalid arguments");
     return r;
   }
@@ -903,7 +935,8 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)overrides;
   cpmdc_stop_arm();
   int ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
-                                   has_cell ? 1 : 0, &energy, grad_h_bohr);
+                                   has_cell ? 1 : 0, &energy, grad_h_bohr,
+                                   image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (stop != 0) {
@@ -930,7 +963,8 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
                                           g_has_overrides ? &g_overrides : NULL,
                                           n_atoms,
                                           positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr);
+                                          cell_ang, has_cell, grad_h_bohr,
+                                          &g_image);
 }
 
 CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
@@ -947,12 +981,13 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
                          const int *atomic_numbers, const void *params_capnp,
                          size_t params_capnp_size_bytes) {
+  size_t n3 = 0;
   double *grad = NULL;
-  if (n_atoms > 0) {
-    grad = (double *)calloc((size_t)n_atoms * 3u, sizeof(double));
-    if (!grad)
-      return fail_msg("out of memory");
-  }
+  if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    return fail_msg("invalid arguments");
+  grad = (double *)calloc(n3, sizeof(double));
+  if (!grad)
+    return fail_msg("out of memory");
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,
                                         params_capnp, params_capnp_size_bytes,
                                         grad);
@@ -969,7 +1004,10 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
                                         params_capnp, params_capnp_size_bytes,
                                         forces_h_bohr);
   if (r.ok && forces_h_bohr) {
-    for (int i = 0; i < n_atoms * 3; ++i)
+    size_t n3 = 0;
+    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+      return fail_msg("invalid arguments");
+    for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
   return r;
@@ -1120,6 +1158,8 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
+  if (grad_len_from_atoms(n_atoms, NULL) != 0)
+    return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
   if ((!session->embed_configured || g_active_session != session) &&
@@ -1132,7 +1172,8 @@ static CPMDCResult session_energy_gradient_cell(
                                               : NULL,
                                           n_atoms,
                                           positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr);
+                                          cell_ang, has_cell, grad_h_bohr,
+                                          &session->image);
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
@@ -1146,12 +1187,13 @@ CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
 CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const double *positions_ang,
                                  const int *atomic_numbers) {
+  size_t n3 = 0;
   double *grad = NULL;
-  if (n_atoms > 0) {
-    grad = (double *)calloc((size_t)n_atoms * 3u, sizeof(double));
-    if (!grad)
-      return fail_msg("out of memory");
-  }
+  if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    return fail_msg("invalid arguments");
+  grad = (double *)calloc(n3, sizeof(double));
+  if (!grad)
+    return fail_msg("out of memory");
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
                                                 atomic_numbers, grad);
   free(grad);
@@ -1165,7 +1207,10 @@ CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
                                                 atomic_numbers, forces_h_bohr);
   if (r.ok && forces_h_bohr) {
-    for (int i = 0; i < n_atoms * 3; ++i)
+    size_t n3 = 0;
+    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+      return fail_msg("invalid arguments");
+    for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
   return r;
@@ -1187,7 +1232,8 @@ CPMDCResult cpmdc_session_calculate_forces(
   size_t n_atoms = 0;
   int has_cell = 0;
   if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
-      n_atoms == 0 || forces_len < n_atoms * 3u) {
+      n_atoms == 0 || n_atoms > (size_t)(INT_MAX / 3) ||
+      forces_len < n_atoms * 3u) {
     cpmdc_params_release(&arena);
     return fail_msg("invalid ForceInput geometry");
   }
@@ -1305,7 +1351,7 @@ CPMDCResult cpmdc_session_calculate_result(
     for (size_t i = 0; i < force_count; ++i)
       forces[i] = -forces[i] * force_factor;
     if (cpmdc_potential_result_write(r.energy_h * energy_factor, forces,
-                                     force_count, stress_factor,
+                                     force_count, stress_factor, &session->image,
                                      potential_result_capnp,
                                      potential_result_capnp_capacity_bytes,
                                      potential_result_capnp_size_bytes) != 0) {
@@ -1414,89 +1460,90 @@ int cpmdc_bind_calculator(int ranks_per_calc) {
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->charge;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_charge_integrals(const CPMDCSession *session,
+                                        CPMDCChargeIntegrals *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0;
-  int rc = cpmdc_embed_last_charge_integrals(&valid, &out->csumg, &out->csumr,
-                                             &out->csums, &out->csumsabs);
-  out->valid = valid;
-  return rc;
+  *out = session->image.charge;
+  return out->valid ? 0 : -1;
 }
 
 int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->multi;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
+                                            CPMDCMultiStateEnergies *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0, count = 0;
-  int rc = cpmdc_embed_last_multi_state(&valid, &count, out->values,
-                                        (int)(sizeof(out->values) / sizeof(out->values[0])));
-  out->valid = valid;
-  out->count = count > 0 ? (size_t)count : 0;
-  return rc;
+  *out = session->image.multi;
+  return out->valid ? 0 : -1;
 }
 
 int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->md;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session,
+                                         CPMDCMDTrajectoryRow *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0, count = 0;
-  int rc = cpmdc_embed_last_md_row(&valid, &count, out->values,
-                                   (int)(sizeof(out->values) / sizeof(out->values[0])));
-  out->valid = valid;
-  out->count = count > 0 ? (size_t)count : 0;
-  return rc;
+  *out = session->image.md;
+  return out->valid ? 0 : -1;
 }
 
 int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->prop;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
+                                         CPMDCPropertySnapshot *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0, hc = 0, dc = 0, pc = 0;
-  int rc = cpmdc_embed_last_properties(
-      &valid, &hc, out->hessian,
-      (int)(sizeof(out->hessian) / sizeof(out->hessian[0])), &dc, out->dipole,
-      &pc, out->polarizability);
-  out->valid = valid;
-  out->hessian_count = hc > 0 ? (size_t)hc : 0;
-  out->dipole_count = dc > 0 ? (size_t)dc : 0;
-  out->polarizability_count = pc > 0 ? (size_t)pc : 0;
-  return rc;
+  *out = session->image.prop;
+  return out->valid ? 0 : -1;
 }
 
 int cpmdc_last_stress(CPMDCStressTensor *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->stress;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0;
-  int rc = cpmdc_embed_last_stress(&valid, out->values);
-  out->valid = valid;
-  return rc;
+  *out = session->image.stress;
+  return out->valid ? 0 : -1;
 }
 
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
   if (!out)
     return -1;
-  memset(out, 0, sizeof(*out));
-  if (!ensure_embed_init())
+  *out = active_image()->energy;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_energy_components(const CPMDCSession *session,
+                                         CPMDCEnergyComponents *out) {
+  if (!session || !out)
     return -1;
-  int valid = 0;
-  int rc = cpmdc_embed_last_energy_components(
-      &valid, &out->etot, &out->ekin, &out->epseu, &out->enl, &out->eht,
-      &out->ehep, &out->ehee, &out->ehii, &out->exc, &out->vxc, &out->egc,
-      &out->esr, &out->eeig, &out->eband, &out->entropy, &out->eself,
-      &out->ecnstr, &out->amu, &out->ebogo, &out->eext, &out->etddft,
-      &out->ehsic, &out->erestr, &out->eefield);
-  out->valid = valid;
-  return rc;
+  *out = session->image.energy;
+  return out->valid ? 0 : -1;
 }
 
 size_t cpmdc_potential_result_size_for_force_input(

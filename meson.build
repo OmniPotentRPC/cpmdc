@@ -11,6 +11,7 @@ add_project_arguments(
   language: 'c',
 )
 fc = meson.get_compiler('fortran')
+quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
 schema_wrap_version = run_command(
   python,
@@ -188,7 +189,7 @@ cpmd_archive_math_libs = []
 if has_cpmd
   cpmd_archive_math_libs = (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
       + (fftw3.found() ? ['-lfftw3'] : []) \
-      + ['-lgfortran', '-lm']
+      + ['-lgfortran', '-lquadmath', '-lm']
   cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
       + cpmd_archive_math_libs
 endif
@@ -278,7 +279,7 @@ cmake.write_basic_package_version_file(
 cpmdc_embed_shell_dep = declare_dependency(
   link_with: cpmdc_embed_shell,
   include_directories: inc,
-  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep] + cpmd_mpi_dep,
+  dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep, quadmath_dep] + cpmd_mpi_dep,
   link_args: has_cpmd ? (cpmd_extra_objects + cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] + cpmd_archive_math_libs) : [],
 )
 
@@ -647,7 +648,7 @@ if get_option('with_tests')
     'test_energy_components',
     'tests/test_energy_components.c',
     dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
-    include_directories: inc,
+    include_directories: [inc, include_directories('src')],
     c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
   )
 

@@ -210,7 +210,11 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	for (seg = root.seg; seg; seg = seg->next) {
 		if (sz < seg->len)
 			return -1;
-		memcpy(p, seg->data, seg->len);
+		/* C11 7.24.1p2: a null segment is not a memcpy argument. */
+		if (seg->len > 0 && !seg->data)
+			return -1;
+		if (seg->len > 0)
+			memcpy(p, seg->data, seg->len);
 		p += seg->len;
 		sz -= seg->len;
 	}

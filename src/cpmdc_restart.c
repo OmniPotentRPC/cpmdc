@@ -2,6 +2,7 @@
 #include "cpmdc_restart.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,15 +53,22 @@ static void set_err(char *err, size_t cap, const char *msg) {
   snprintf(err, cap, "%s", msg);
 }
 
+/* INT30-C: off + width wraps when off is near SIZE_MAX, and the check then passes. */
+static int field_fits(const struct rec *r, size_t off, size_t width) {
+  if (!r || off > r->len || r->len - off < width)
+    return 0;
+  return 1;
+}
+
 static int read_i32(const struct rec *r, size_t off, int32_t *out) {
-  if (!r || off + 4 > r->len)
+  if (!field_fits(r, off, 4))
     return -1;
   memcpy(out, r->data + off, 4);
   return 0;
 }
 
 static int read_f64(const struct rec *r, size_t off, double *out) {
-  if (!r || off + 8 > r->len)
+  if (!field_fits(r, off, 8))
     return -1;
   memcpy(out, r->data + off, 8);
   return 0;
@@ -69,7 +77,18 @@ static int read_f64(const struct rec *r, size_t off, double *out) {
 static int push_rec(struct rec **recs, size_t *n, size_t *cap, unsigned char *data,
                     size_t len) {
   if (*n == *cap) {
-    size_t ncap = *cap ? *cap * 2 : 64;
+    size_t ncap;
+    /* INT30-C: a wrapped cap * 2 or cap * sizeof is a short realloc. */
+    if (*cap == 0)
+      ncap = 64;
+    else if (*cap > SIZE_MAX / 2)
+      ncap = 0;
+    else
+      ncap = *cap * 2;
+    if (ncap == 0 || ncap > SIZE_MAX / sizeof(*recs[0])) {
+      free(data);
+      return -1;
+    }
     struct rec *grown = realloc(*recs, ncap * sizeof(*recs[0]));
     if (!grown) {
       free(data);
@@ -245,6 +264,11 @@ static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
       set_err(err, err_cap, "section asks for records past the end of the file");
       return -1;
     }
+    /* INT31-C: sec_start and sec_nrec are int. A truncated index reads another record. */
+    if (i > (size_t)INT_MAX || nfollow > (int64_t)INT_MAX - 1) {
+      set_err(err, err_cap, "section index does not fit in int");
+      return -1;
+    }
     file->sec_start[s] = (int)i;
     file->sec_nrec[s] = (int)(1 + nfollow);
     i += (size_t)(1 + nfollow);
@@ -256,10 +280,27 @@ static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
   return 0;
 }
 
+/* INT32-C: sec_start + offset is formed in size_t. A signed sum near INT_MAX is a different record. */
+static struct rec *rec_at(cpmdc_restart *file, int section, int offset) {
+  size_t idx;
+  if (!file || section < 1 || section > CPMDC_RESTART_MAX_SECTIONS || offset < 0)
+    return NULL;
+  if (file->sec_start[section] < 0)
+    return NULL;
+  idx = (size_t)file->sec_start[section] + (size_t)offset;
+  if (idx < (size_t)offset || idx >= file->nrecs)
+    return NULL;
+  return &file->recs[idx];
+}
+
 static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
   if (file->sec_nrec[2] == 3) {
-    const struct rec *sym = &file->recs[file->sec_start[2] + 1];
-    const struct rec *cell = &file->recs[file->sec_start[2] + 2];
+    const struct rec *sym = rec_at(file, 2, 1);
+    const struct rec *cell = rec_at(file, 2, 2);
+    if (!sym || !cell) {
+      set_err(err, err_cap, "section 2 symmetry or cell record is missing");
+      return -1;
+    }
     int32_t ibrav, indpg;
     if (sym->len < 8 || cell->len < 48) {
       set_err(err, err_cap, "section 2 symmetry or cell record has the wrong length");
@@ -276,8 +317,12 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     file->has_cell = 1;
   }
   if (file->sec_nrec[3] == 3) {
-    const struct rec *nsp_r = &file->recs[file->sec_start[3] + 1];
-    const struct rec *na_r = &file->recs[file->sec_start[3] + 2];
+    const struct rec *nsp_r = rec_at(file, 3, 1);
+    const struct rec *na_r = rec_at(file, 3, 2);
+    if (!nsp_r || !na_r) {
+      set_err(err, err_cap, "section 3 species record is missing");
+      return -1;
+    }
     int32_t nsp;
     if (read_i32(nsp_r, 0, &nsp) != 0 || nsp < 0 || nsp > 100000) {
       set_err(err, err_cap, "section 3 species count is unusable");
@@ -303,7 +348,11 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     }
   }
   if (file->sec_nrec[7] == 2) {
-    const struct rec *r = &file->recs[file->sec_start[7] + 1];
+    const struct rec *r = rec_at(file, 7, 1);
+    if (!r) {
+      set_err(err, err_cap, "section 7 cutoff record is missing");
+      return -1;
+    }
     int32_t dual_flag, nel, nr1, nr2, nr3;
     /* ecut, cdual (real*8), dual (logical*4), nel, nr1s, nr2s, nr3s. */
     if (r->len < 36) {
@@ -325,7 +374,11 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     file->has_cut = 1;
   }
   if (file->sec_nrec[8] == 2) {
-    const struct rec *r = &file->recs[file->sec_start[8] + 1];
+    const struct rec *r = rec_at(file, 8, 1);
+    if (!r) {
+      set_err(err, err_cap, "section 8 state record is missing");
+      return -1;
+    }
     int32_t n, nk, ngw, ngwl, nhg, nhgl;
     if (r->len < 24) {
       set_err(err, err_cap, "section 8 state record is short");
@@ -479,17 +532,32 @@ int cpmdc_restart_ncoords(const cpmdc_restart *file) {
   return file->sec_nrec[4] - 1;
 }
 
+/* INT32-C: n*3 and sec_start+a are signed. A section that does not fit is another record. */
+static int triples_span(int sec_nrec, int sec_start, int *n_out, int *start_out) {
+  int n;
+  if (sec_nrec < 1)
+    return -1;
+  n = sec_nrec - 1;
+  if (n > INT_MAX / 3)
+    return -1;
+  if (n > 0 && (sec_start < 0 || sec_start > INT_MAX - n))
+    return -1;
+  if (n_out)
+    *n_out = n;
+  if (start_out)
+    *start_out = n > 0 ? sec_start + 1 : 0;
+  return 0;
+}
+
 static int copy_triples(const cpmdc_restart *file, int section, double *xyz, int n3) {
   int n;
   int start;
   if (!file || !xyz)
     return -1;
-  if (file->sec_nrec[section] < 1)
+  if (triples_span(file->sec_nrec[section], file->sec_start[section], &n, &start) != 0)
     return -1;
-  n = file->sec_nrec[section] - 1;
   if (n3 != n * 3)
     return -1;
-  start = file->sec_start[section] + 1;
   for (int a = 0; a < n; a++) {
     const struct rec *r = &file->recs[start + a];
     if (r->len != 24)
@@ -507,12 +575,10 @@ static int store_triples(cpmdc_restart *file, int section, const double *xyz, in
   int start;
   if (!file || !xyz)
     return -1;
-  if (file->sec_nrec[section] < 1)
+  if (triples_span(file->sec_nrec[section], file->sec_start[section], &n, &start) != 0)
     return -1;
-  n = file->sec_nrec[section] - 1;
   if (n3 != n * 3)
     return -1;
-  start = file->sec_start[section] + 1;
   for (int a = 0; a < n; a++) {
     struct rec *r = &file->recs[start + a];
     if (r->len != 24)
@@ -546,8 +612,8 @@ int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]) {
   struct rec *r;
   if (!file || !file->has_cell || !celldm || file->sec_nrec[2] != 3)
     return -1;
-  r = &file->recs[file->sec_start[2] + 2];
-  if (r->len < 48)
+  r = rec_at(file, 2, 2);
+  if (!r || r->len < 48)
     return -1;
   memcpy(r->data, celldm, 48);
   memcpy(file->celldm, celldm, sizeof(file->celldm));
@@ -611,7 +677,8 @@ static int emit_record(unsigned char **buf, size_t *len, size_t *cap,
     int last;
     if (chunk > CPMDC_RESTART_MAX_SUB)
       chunk = CPMDC_RESTART_MAX_SUB;
-    last = (off + chunk == dlen);
+    /* INT30-C: off + chunk wraps when off is near SIZE_MAX. */
+    last = (chunk == dlen - off);
     if (chunk > (size_t)INT32_MAX)
       return -1;
     marker = last ? (int32_t)chunk : -(int32_t)chunk;
