@@ -3586,7 +3586,9 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " BECKE88\n") != 0)
       return -1;
   }
-  int nhub = struct_list_len(&dft->hubbardU.p);
+  /* EXP05-C: resolve a copy. The section pointer stays const. */
+  capn_ptr hubbard = dft->hubbardU.p;
+  int nhub = struct_list_len(&hubbard);
   if (nhub < 0)
     return -1;
   if (nhub > 0) {
