@@ -675,6 +675,9 @@ static void write_ptr_tag(char *d, capn_ptr p, int off) {
 		break;
 	}
 
+	/* C11 6.5.3.2: a null destination is not a store. */
+	if (!d)
+		return;
 	*(uint64_t*) d = capn_flip64(val);
 }
 
