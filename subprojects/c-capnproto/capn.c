@@ -893,8 +893,12 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		struct copy *n;
 		struct capn_segment *cs = c->copylist;
 
+		/* INT31-C: a negative length is not a size_t room check. */
+		if (cs && (cs->len < 0 || cs->cap < 0))
+			return -1;
 		/* need to allocate a struct copy */
-		if (!cs || cs->len + sizeof(*n) > cs->cap) {
+		if (!cs || (uint64_t) cs->len > (uint64_t) INT_MAX - (uint64_t) sizeof(*n)
+		    || (uint64_t) cs->len + (uint64_t) sizeof(*n) > (uint64_t) cs->cap) {
 			cs = c->create_local ? c->create_local(c->user, sizeof(*n)) : NULL;
 			if (!cs) {
 				/* can't allocate a copy structure */
