@@ -305,6 +305,18 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 	return NULL;
 }
 
+/* INT32-C: a decoded span must fit in the bytes that remain. */
+static int list_end(const struct capn_segment *s, const char *d, uint64_t nbytes, char **end) {
+	uint64_t off;
+	if (!s->data || d < s->data || s->len < 0)
+		return -1;
+	off = (uint64_t)(d - s->data);
+	if (off > (uint64_t)s->len || nbytes > (uint64_t)s->len - off)
+		return -1;
+	*end = (char *)d + nbytes;
+	return 0;
+}
+
 static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 	capn_ptr ret = {CAPN_NULL};
 	uint64_t val;
@@ -336,7 +348,8 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 	struct_common:
 		ret.datasz = U32(U16(val >> 32)) * 8;
 		ret.ptrs = U32(U16(val >> 48));
-		e = d + ret.datasz + 8 * ret.ptrs;
+		if (list_end(s, d, (uint64_t)ret.datasz + 8ull * (uint64_t)ret.ptrs, &e))
+			goto err;
 		break;
 
 	case LIST_PTR:
@@ -345,52 +358,66 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 
 		switch ((val >> 32) & 7) {
 		case VOID_LIST:
-			e = d;
+			if (list_end(s, d, 0, &e))
+				goto err;
 			break;
 		case BIT_1_LIST:
 			ret.type = CAPN_BIT_LIST;
-			ret.datasz = (ret.len+7)/8;
-			e = d + ret.datasz;
+			if (ret.len < 0 || ret.len > INT_MAX - 7)
+				goto err;
+			ret.datasz = (ret.len + 7) / 8;
+			if (list_end(s, d, (uint64_t)ret.datasz, &e))
+				goto err;
 			break;
 		case BYTE_1_LIST:
 			ret.datasz = 1;
-			e = d + ret.len;
+			if (ret.len < 0 || list_end(s, d, (uint64_t)ret.len, &e))
+				goto err;
 			break;
 		case BYTE_2_LIST:
 			ret.datasz = 2;
-			e = d + ret.len * 2;
+			if (ret.len < 0 || list_end(s, d, (uint64_t)ret.len * 2ull, &e))
+				goto err;
 			break;
 		case BYTE_4_LIST:
 			ret.datasz = 4;
-			e = d + ret.len * 4;
+			if (ret.len < 0 || list_end(s, d, (uint64_t)ret.len * 4ull, &e))
+				goto err;
 			break;
 		case BYTE_8_LIST:
 			ret.datasz = 8;
-			e = d + ret.len * 8;
+			if (ret.len < 0 || list_end(s, d, (uint64_t)ret.len * 8ull, &e))
+				goto err;
 			break;
 		case PTR_LIST:
 			ret.type = CAPN_PTR_LIST;
-			e = d + ret.len * 8;
-			break;
-		case COMPOSITE_LIST:
-			if (d+8-s->data > s->len) {
+			if (ret.len < 0 || list_end(s, d, (uint64_t)ret.len * 8ull, &e))
 				goto err;
-			}
+			break;
+		case COMPOSITE_LIST: {
+			uint64_t declared, elem, nbytes;
+			if (ret.len < 0)
+				goto err;
+			declared = (uint64_t)ret.len * 8ull;
+			if (list_end(s, d, 8, &e))
+				goto err;
 
 			val = capn_flip64(*(uint64_t*) d);
 
 			d += 8;
-			e = d + ret.len * 8;
-
 			ret.datasz = U32(U16(val >> 32)) * 8;
 			ret.ptrs = U32(U16(val >> 48));
 			ret.len = U32(val) >> 2;
 			ret.is_composite_list = 1;
 
-			if ((ret.datasz + 8*ret.ptrs) * ret.len != e - d) {
+			elem = (uint64_t)ret.datasz + 8ull * (uint64_t)ret.ptrs;
+			if (ret.len < 0 || (ret.len > 0 && elem > UINT64_MAX / (uint64_t)ret.len))
 				goto err;
-			}
+			nbytes = elem * (uint64_t)ret.len;
+			if (nbytes != declared || list_end(s, d, nbytes, &e))
+				goto err;
 			break;
+		}
 		}
 		break;
 
