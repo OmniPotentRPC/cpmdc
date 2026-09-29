@@ -594,6 +594,9 @@ static int ptr_at(const capn_ptr *p, uint64_t bytes, char **out) {
 		return -1;
 	if (bytes > (uint64_t)p->seg->len - base)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!out)
+		return -1;
 	*out = p->seg->data + base + bytes;
 	return 0;
 }
