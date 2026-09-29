@@ -261,6 +261,9 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 
 	if (far_off(val, 16, *s, &off))
 		return 0;
+	/* C11 6.5.6: do not add to a null data pointer. */
+	if (!(*s)->data)
+		return 0;
 	p = (*s)->data + off;
 
 	far = capn_flip64(*(uint64_t*) p);
@@ -276,13 +279,17 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 		return 0;
 	}
 
-	/* -8 because far pointers reference from the start of
-	 * the segment, but offsets reference the end of the
-	 * pointer data. Here *d points to where an equivalent
-	 * ptr would be.
-	 */
-	*d = (*s)->data - 8;
-	return U64(U32(far) >> 3 << 2) | tag;
+	/* C11 6.5.6: a pointer before the segment is undefined.
+	   The caller adds eight bytes. One less word lands on
+	   the same byte from the segment start. */
+	if (!(*s)->data)
+		return 0;
+	*d = (*s)->data;
+	{
+		uint32_t words = U32(far) >> 3;
+		uint32_t field = (uint32_t)((int64_t)words - 1) << 2;
+		return U64(field) | tag;
+	}
 }
 
 static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
