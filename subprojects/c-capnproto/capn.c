@@ -246,7 +246,8 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 		s->capn = c;
 		s->next = c->seglist;
 		c->seglist = s;
-		s->hdr.parent = &y->hdr;
+		/* C11 6.5.3.2: a null node is not a parent. */
+		s->hdr.parent = y ? &y->hdr : NULL;
 		*x = &s->hdr;
 		c->segtree = capn_tree_insert(c->segtree, &s->hdr);
 	} else {
