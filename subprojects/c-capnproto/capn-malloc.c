@@ -10,7 +10,10 @@ struct check_segment_alignment {
 
 static struct capn_segment *create(void *u, uint32_t id, int sz) {
 	struct capn_segment *s;
-	sz += sizeof(*s);
+	/* CERT INT32-C: a size that does not fit in int is not a segment. */
+	if (sz < 0 || sz > INT_MAX - (int)sizeof(*s))
+		return NULL;
+	sz += (int)sizeof(*s);
 	if (sz < 4096) {
 		sz = 4096;
 	} else {
