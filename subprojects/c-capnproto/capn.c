@@ -175,6 +175,12 @@ static int seg_room(const struct capn_segment *s, int sz) {
 static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
 	struct capn_segment *s;
 
+	/* C11 6.5.3.2: a null message is not a segment list. */
+	if (!c) {
+		*ps = NULL;
+		return NULL;
+	}
+
 	/* find a segment with sufficient data */
 	for (s = c->seglist; s != NULL; s = s->next) {
 		if (seg_room(s, sz)) {
