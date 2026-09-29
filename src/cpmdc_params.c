@@ -128,7 +128,8 @@ static int append_capn_text(char *dst, size_t dst_size, size_t *used,
                             capn_text text) {
   if (!text.str || text.len <= 0)
     return 0;
-  if (*used + (size_t)text.len >= dst_size)
+  /* INT30-C: used + len wraps when used is near SIZE_MAX. One byte stays for NUL. */
+  if (*used >= dst_size || (size_t)text.len > dst_size - *used - 1)
     return -1;
   memcpy(dst + *used, text.str, (size_t)text.len);
   *used += (size_t)text.len;
@@ -200,7 +201,8 @@ static int append_slice(char *dst, size_t dst_size, size_t *used,
                         const char *s, size_t len) {
   if (!s || len == 0)
     return 0;
-  if (*used + len >= dst_size)
+  /* INT30-C: used + len wraps when used is near SIZE_MAX. One byte stays for NUL. */
+  if (*used >= dst_size || len > dst_size - *used - 1)
     return -1;
   memcpy(dst + *used, s, len);
   *used += len;
