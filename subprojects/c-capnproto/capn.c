@@ -152,6 +152,9 @@ void capn_append_segment(struct capn *c, struct capn_segment *s) {
 	/* C11 6.5.3.2: a null segment is not a list node. */
 	if (!s)
 		return;
+	/* CERT INT30-C: a segment count that does not fit is not a new id. */
+	if (c->segnum == (uint32_t)-1)
+		return;
 	s->id = c->segnum++;
 	s->capn = c;
 	s->next = NULL;
