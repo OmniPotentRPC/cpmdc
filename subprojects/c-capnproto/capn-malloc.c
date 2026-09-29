@@ -17,6 +17,9 @@ static struct capn_segment *create(void *u, uint32_t id, int sz) {
 		sz = (sz + 4095) & ~4095;
 	}
 	s = (struct capn_segment*) calloc(1, sz);
+	/* C11 6.5.3.2: a null allocation is not a segment. */
+	if (!s)
+		return NULL;
 	s->data = (char*) (s+1);
 	s->cap = sz - sizeof(*s);
 	s->user = s;
