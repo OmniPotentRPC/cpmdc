@@ -324,9 +324,21 @@ static int seg_data_off(const struct capn_segment *s, const char *p, uint64_t *o
 	return 0;
 }
 
+/* C11 6.5.3.2: a pointer word is eight bytes inside the segment. */
+static int load_word(const struct capn_segment *s, const char *d, uint64_t *val) {
+	uint64_t off;
+	if (seg_data_off(s, d, &off) || (uint64_t)s->len - off < 8ull)
+		return -1;
+	*val = capn_flip64(*(uint64_t *)d);
+	return 0;
+}
+
 static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
-	uint64_t val = capn_flip64(*(uint64_t*)d);
+	uint64_t val;
 	uint16_t datasz;
+
+	if (load_word(s, d, &val))
+		return NULL;
 
 	switch (val&7) {
 	case FAR_PTR:
@@ -382,7 +394,8 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 	uint64_t val;
 	char *e;
 
-	val = capn_flip64(*(uint64_t*) d);
+	if (load_word(s, d, &val))
+		goto err;
 
 	switch (val&7) {
 	case FAR_PTR:
