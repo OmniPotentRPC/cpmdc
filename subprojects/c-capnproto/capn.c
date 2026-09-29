@@ -303,6 +303,9 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 	   the same byte from the segment start. */
 	if (!(*s)->data)
 		return 0;
+	/* C11 6.5.3.2: a null out-cursor is not a store. */
+	if (!d)
+		return 0;
 	*d = (*s)->data;
 	{
 		uint32_t words = U32(far) >> 3;
@@ -328,6 +331,9 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	if (!(*s)->data)
 		return 0;
 
+	/* C11 6.5.3.2: a null out-cursor is not a store. */
+	if (!d)
+		return 0;
 	*d = (*s)->data + off;
 	return capn_flip64(*(uint64_t*)*d);
 }
