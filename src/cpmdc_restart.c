@@ -677,7 +677,8 @@ static int emit_record(unsigned char **buf, size_t *len, size_t *cap,
     int last;
     if (chunk > CPMDC_RESTART_MAX_SUB)
       chunk = CPMDC_RESTART_MAX_SUB;
-    last = (off + chunk == dlen);
+    /* INT30-C: off + chunk wraps when off is near SIZE_MAX. */
+    last = (chunk == dlen - off);
     if (chunk > (size_t)INT32_MAX)
       return -1;
     marker = last ? (int32_t)chunk : -(int32_t)chunk;
