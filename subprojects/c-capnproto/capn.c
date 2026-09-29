@@ -903,6 +903,9 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 			/* INT31-C: a negative length is not a memcpy count. */
 			if (t->len < 0 || t->len > INT_MAX / t->datasz)
 				return -1;
+			/* C11 7.24.1p2: a positive count needs both pointers. */
+			if (!t->data || !f->data)
+				return -1;
 			memcpy(t->data, f->data, (size_t)t->len * (size_t)t->datasz);
 		} else if (t->ptrs) {
 			/* INT32-C: the pointer-list length is a signed product. */
