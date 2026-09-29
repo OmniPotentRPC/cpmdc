@@ -7,6 +7,10 @@ static int min(int a, int b) { return (a < b) ? a : b; }
 #endif
 
 int capn_deflate(struct capn_stream* s) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!s)
+		return CAPN_MISALIGNED;
+
 	if (s->avail_in % 8) {
 		return CAPN_MISALIGNED;
 	}
