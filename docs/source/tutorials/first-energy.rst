@@ -269,12 +269,12 @@ What you built
 - the same host running against the default evaluator and against
   OpenCPMD.
 
-The first OpenCPMD call runs with its working directory in
-``CPMDC_PSEUDO_DIR``, so CPMD writes ``RESTART.1``, ``LATEST``,
-``GEOMETRY``, and ``GEOMETRY.xyz`` there; later calls write to the
-host's own directory. To evaluate many geometries, call
-``cpmdc_session_calculate_forces()`` again on the same session: every
-call after the first starts from the orbitals of the previous one. The
-:doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
+CPMD writes ``RESTART.1``, ``LATEST``, ``GEOMETRY``, and
+``GEOMETRY.xyz`` in ``permanentDir`` when that field is set, otherwise
+in ``scratchDir``, otherwise in the host's working directory. The
+pseudopotential directory is unchanged. To evaluate many geometries,
+call ``cpmdc_session_calculate_forces()`` again on the same session:
+every call after the first starts from the orbitals of the previous one.
+The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
 minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each
 SCF over several ranks.

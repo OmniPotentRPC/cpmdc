@@ -60,30 +60,30 @@ read as a stationary point; ``cpmdc`` reports the call as failed
 instead, with ``ok == 0``. Without ``maxIter`` in the message the
 OpenCPMD path inserts ``MAXITER 40``.
 
-The same message has three other causes, all visible before the SCF
-starts:
+The same message has one other cause visible before the SCF starts:
 
 +----------------------------------+----------------------------------+
 | Check                            | Cause                            |
 +==================================+==================================+
-| ``CPMDC_PSEUDO_DIR`` and         | the first call returns before    |
-| ``CPMD_PP_LIBRARY_PATH`` are     | CPMD's setup                     |
-| both unset or name a missing     |                                  |
-| directory                        |                                  |
-+----------------------------------+----------------------------------+
 | an element outside H, C, N, O,   | the built-in pseudopotential     |
 | Si, and Ge                       | table has no entry, so no deck   |
 |                                  | is composed                      |
 +----------------------------------+----------------------------------+
-| atoms of one element are not     | positions are copied species by  |
-| contiguous in ``ForceInput``, or | species into CPMD's ``tau0``,    |
-| the species order differs from   | and a mismatch stops the copy    |
-| the deck's ``&ATOMS`` block      |                                  |
-+----------------------------------+----------------------------------+
 
 **Fix:** raise ``maxIter``, or switch the optimiser (see
-:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise fix
-the item from the table.
+:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise use
+an element the built-in table knows.
+
+A missing pseudopotential directory is a different message. When neither
+``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names a directory,
+``CPMDCResult.message`` and ``cpmdc_last_error()`` say so.
+
+Atoms of one element need not be contiguous in ``ForceInput``. CPMD
+keeps one species block per element. ``cpmdc`` places the step's
+positions into those blocks and copies the forces back into
+``ForceInput`` order. A step whose atomic numbers do not match the
+species counts still fails, and the message names the species blocks
+rather than ``MAXITER``.
 
 ``CPMD stopgm during embed SCF``
 --------------------------------
@@ -93,13 +93,12 @@ call. With ``opencpmd_stopgm_return.patch`` in the archive, ``stopgm``
 records the stop and returns while an evaluation runs, and ``cpmdc``
 returns ``ok == 0`` instead of ending the host. CPMD writes its reason
 to a ``LocalError-*.log`` file in the working directory of that moment.
-During the first call that is the pseudopotential directory, because
-``cpmdc`` changes into it while CPMD reads the pseudopotentials.
+That is ``permanentDir``, or ``scratchDir`` when no permanent directory
+is set, or the host working directory.
 
-**Fix:** read the ``LocalError`` file in ``CPMDC_PSEUDO_DIR`` or in the
-host's working directory. ``cpmdc`` does not reset CPMD's module state
-after a stop, so restart the host process before trusting another result
-from it.
+**Fix:** read the ``LocalError`` file in that directory. ``cpmdc`` does
+not reset CPMD's module state after a stop, so restart the host process
+before trusting another result from it.
 
 ``topology change requires a new session``
 ------------------------------------------
@@ -195,21 +194,22 @@ CPMD cannot find ``O_MT_BLYP.psp``
 ``argv[2]`` as its pseudopotential library whenever the process has more
 than one argument, so a host with command-line arguments cannot rely on
 ``CPMD_PP_LIBRARY_PATH``. ``cpmdc`` works around that by changing into
-the directory for the first call.
+the directory while it reads the pseudopotential files.
 
 **Fix:** ``export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials``.
 
-CPMD files appear in the pseudopotential directory
---------------------------------------------------
+Where ``RESTART.1``, ``LATEST``, and ``GEOMETRY`` are written
+-------------------------------------------------------------
 
-**Cause:** the first call of a session runs with its working directory
-in ``CPMDC_PSEUDO_DIR``, so the ``RESTART.1``, ``LATEST``, ``GEOMETRY``,
-and ``GEOMETRY.xyz`` that CPMD writes at the end of that SCF land there.
-Later calls run in the host's working directory.
+**Cause:** ``LATEST`` and ``GEOMETRY`` follow the working directory.
+``RESTART.1`` follows ``FILEPATH`` when the deck sets one, and the
+working directory otherwise.
 
-**Fix:** give each run a writable copy of the pseudopotential directory,
-or link the needed files into a per-run directory and point
-``CPMDC_PSEUDO_DIR`` at it.
+**Fix:** set ``permanentDir``, or ``scratchDir`` when there is no
+permanent directory. The OpenCPMD path uses that directory as the
+working directory after it has read the pseudopotentials. With neither
+field set, the files are written in the host working directory. The
+pseudopotential directory is not used for these files.
 
 A long method deck loses its end
 --------------------------------

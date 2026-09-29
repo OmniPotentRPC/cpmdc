@@ -153,15 +153,16 @@ Library status
 |                                        | does not call ``MPI_Finalize``   |
 +----------------------------------------+----------------------------------+
 | ``const char *cpmdc_last_error(void)`` | per-thread text of the last      |
-|                                        | ``PotentialConfig``              |
-|                                        | configuration failure, empty     |
-|                                        | after a success                  |
+|                                        | configuration or evaluation      |
+|                                        | failure, empty after a success   |
 +----------------------------------------+----------------------------------+
 
 ``cpmdc_last_error()`` is written by ``cpmdc_configure()``,
 ``cpmdc_session_create_from_config()``, and
 ``cpmdc_session_configure()``. ``cpmdc_set_params()`` and
-``cpmdc_session_create()`` return their failure without a message.
+``cpmdc_session_create()`` return their failure without a message. An
+evaluation failure writes the same text as ``CPMDCResult.message``,
+including a missing pseudopotential directory.
 
 MPI
 ===

@@ -18,8 +18,8 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 | ~params.task~ | ~task~ | Frontend hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
 | ~params.title~ | ~title~ | Optional comment header in rendered decks |
 | ~params.memoryMb~ | ~memoryMb~ | Frontend memory hint |
-| ~params.scratchDir~ | ~scratchDir~ | ~&CPMD FILEPATH~ scratch placement |
-| ~params.permanentDir~ | ~permanentDir~ | ~&CPMD FILEPATH~ permanent placement; wins over ~scratchDir~ |
+| ~params.scratchDir~ | ~scratchDir~ | ~&CPMD FILEPATH~ and the working directory for CPMD output when ~permanentDir~ is empty |
+| ~params.permanentDir~ | ~permanentDir~ | ~&CPMD FILEPATH~ and the working directory for CPMD output; wins over ~scratchDir~ |
 | ~params.cpmdRoot~ | ~cpmdRoot~ | OpenCPMD source/build tree |
 | ~params.enginePath~ | ~enginePath~ | Frontend engine selection hint |
 | ~params.inputBlocks~ | ~inputBlocks~ | Raw ~&SECTION~ text blocks prepended to the deck |

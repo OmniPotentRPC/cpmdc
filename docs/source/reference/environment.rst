@@ -10,9 +10,9 @@ Read by libcpmdc at run time
 |                          |                               | deck; ``cpmdc``      |
 |                          |                               | changes into it      |
 |                          |                               | while CPMD reads     |
-|                          |                               | them, then returns   |
-|                          |                               | to the host's        |
-|                          |                               | working directory    |
+|                          |                               | them, then leaves it |
+|                          |                               | before CPMD writes   |
+|                          |                               | output files         |
 +--------------------------+-------------------------------+----------------------+
 | ``CPMD_PP_LIBRARY_PATH`` | same place, when              | fallback for the     |
 |                          | ``CPMDC_PSEUDO_DIR`` is unset | same directory       |
@@ -31,12 +31,20 @@ Read by libcpmdc at run time
 
 The first call of an OpenCPMD session fails when neither
 ``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names an existing
-directory. While ``cpmdc`` is in the pseudopotential directory it also
-sets ``CPMD_PP_LIBRARY_PATH`` and ``PP_LIBRARY_PATH`` to that directory
-with a trailing slash, for OpenCPMD's own lookup. The change of
-directory is needed because OpenCPMD's ``get_pplib`` takes ``argv[2]``
-as the library path whenever the process has more than one argument,
-which most hosts do.
+directory. The result message and ``cpmdc_last_error()`` name that
+directory; the call does not report an unconverged SCF. While ``cpmdc``
+is in the pseudopotential directory it also sets
+``CPMD_PP_LIBRARY_PATH`` and ``PP_LIBRARY_PATH`` to that directory with
+a trailing slash, for OpenCPMD's own lookup. The change of directory is
+needed because OpenCPMD's ``get_pplib`` takes ``argv[2]`` as the library
+path whenever the process has more than one argument, which most hosts
+do. Once the pseudopotential files are read, the working directory
+becomes ``permanentDir`` if that field is set, otherwise ``scratchDir``,
+otherwise the host directory from before the call. ``RESTART.1``,
+``LATEST``, ``GEOMETRY``, and ``GEOMETRY.xyz`` are written there.
+``LATEST`` and ``GEOMETRY`` do not follow ``FILEPATH``, so the working
+directory is what places them. The pseudopotential directory is left
+unchanged.
 
 ``CPMDC_STRESS=0`` saves the stress calculation for callers that use
 only energy and forces. Isolated cells never compute stress, whatever

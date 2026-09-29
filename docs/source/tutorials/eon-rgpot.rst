@@ -55,9 +55,9 @@ oxygen first:
    5.000000 5.757200 4.530800 0 2
    5.000000 4.242800 4.530800 0 3
 
-Keep each element's atoms together, as eOn's components do: ``cpmdc``
-copies positions into CPMD species by species and fails a step whose
-atoms of one element are split.
+eOn lists each element in one component. ``cpmdc`` also accepts a step
+whose atoms of one element are split: it places positions into CPMD's
+species blocks and returns forces in the order of the input.
 
 Save the eOn settings as ``config.ini``:
 

@@ -36,13 +36,16 @@ Top-level ``CPMDParams`` fields
 +--------------------------+-------------------+------------------------+
 | ``params.memoryMb``      | ``memoryMb``      | Frontend memory hint   |
 +--------------------------+-------------------+------------------------+
-| ``params.scratchDir``    | ``scratchDir``    | ``&CPMD FILEPATH``     |
-|                          |                   | scratch placement      |
+| ``params.scratchDir``    | ``scratchDir``    | ``&CPMD FILEPATH`` and |
+|                          |                   | the working directory  |
+|                          |                   | for CPMD output when   |
+|                          |                   | ``permanentDir`` is    |
+|                          |                   | empty                  |
 +--------------------------+-------------------+------------------------+
-| ``params.permanentDir``  | ``permanentDir``  | ``&CPMD FILEPATH``     |
-|                          |                   | permanent placement;   |
-|                          |                   | wins over              |
-|                          |                   | ``scratchDir``         |
+| ``params.permanentDir``  | ``permanentDir``  | ``&CPMD FILEPATH`` and |
+|                          |                   | the working directory  |
+|                          |                   | for CPMD output; wins  |
+|                          |                   | over ``scratchDir``    |
 +--------------------------+-------------------+------------------------+
 | ``params.cpmdRoot``      | ``cpmdRoot``      | OpenCPMD source/build  |
 |                          |                   | tree                   |

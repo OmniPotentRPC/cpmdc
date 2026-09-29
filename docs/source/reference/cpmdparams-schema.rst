@@ -39,7 +39,12 @@ lists every typed field with its feature ID and deck spelling.
 | ``memoryMb``         | ``UInt32``, 0              | host memory hint      |
 +----------------------+----------------------------+-----------------------+
 | ``scratchDir``,      | ``Text``                   | ``FILEPATH`` in       |
-| ``permanentDir``     |                            | ``&CPMD``;            |
+| ``permanentDir``     |                            | ``&CPMD``, and the    |
+|                      |                            | working directory for |
+|                      |                            | ``RESTART.1``,        |
+|                      |                            | ``LATEST``,           |
+|                      |                            | ``GEOMETRY``, and     |
+|                      |                            | ``GEOMETRY.xyz``;     |
 |                      |                            | ``permanentDir`` wins |
 +----------------------+----------------------------+-----------------------+
 | ``cpmdRoot``         | ``Text``                   | OpenCPMD tree hint    |

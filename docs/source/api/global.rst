@@ -527,9 +527,9 @@ Compiled library version string.
 
 	const char* cpmdc_last_error(void)
 
-Diagnostic message for the most recent int-returning configuration call on this thread.
+Diagnostic message for the most recent configuration or evaluation failure on this thread.
 
-Covers ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, and the session setup entry points. Returns an empty string when the last such call succeeded.
+Covers ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, and the session setup entry points. An evaluation failure writes the same text as ``CPMDCResult.message``, including a missing pseudopotential directory. Returns an empty string when the last such call succeeded.
 
 .. index:: pair: function; cpmdc_abi_version
 .. _doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44:

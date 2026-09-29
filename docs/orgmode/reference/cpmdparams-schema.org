@@ -18,7 +18,7 @@ and deck spelling.
 | ~task~ | ~Text~, ~"gradient"~ | host hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
 | ~title~ | ~Text~ | comment header of the rendered deck |
 | ~memoryMb~ | ~UInt32~, 0 | host memory hint |
-| ~scratchDir~, ~permanentDir~ | ~Text~ | ~FILEPATH~ in ~&CPMD~; ~permanentDir~ wins |
+| ~scratchDir~, ~permanentDir~ | ~Text~ | ~FILEPATH~ in ~&CPMD~, and the working directory for ~RESTART.1~, ~LATEST~, ~GEOMETRY~, and ~GEOMETRY.xyz~; ~permanentDir~ wins |
 | ~cpmdRoot~ | ~Text~ | OpenCPMD tree hint for hosts |
 | ~enginePath~ | ~Text~ | library path hint for hosts such as ~rgpot~ |
 | ~inputBlocks~ | ~List(Text)~ | literal ~&SECTION ... &END~ blocks placed before the rendered sections |

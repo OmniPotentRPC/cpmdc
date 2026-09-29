@@ -81,12 +81,14 @@ The RESTART file
 ================
 
 The warm path never reads or writes ``RESTART`` on the host's behalf.
-CPMD still writes ``RESTART.1`` at the end of each SCF, in the working
-directory of that moment, and reads one on a cold call when the deck
-asks for ``RESTART WAVEFUNCTION``. ``cpmdc`` turns off CPMD's restart of
-coordinates, velocities, and the stored geometry before every SCF: the
-host owns the geometry, and a ``RESTART COORDINATES`` in the deck would
-otherwise overwrite the step's positions.
+CPMD still writes ``RESTART.1`` at the end of each SCF, in
+``permanentDir`` if that field is set, otherwise in ``scratchDir``,
+otherwise in the host working directory, and reads one on a cold call
+when the deck asks for ``RESTART WAVEFUNCTION``. ``cpmdc`` turns off
+CPMD's restart of coordinates, velocities, and the stored geometry
+before every SCF: the host owns the geometry, and a
+``RESTART COORDINATES`` in the deck would otherwise overwrite the step's
+positions.
 
 To seed a cold start from an earlier run with a new geometry, patch the
 positions of a ``RESTART.1`` with ``cpmdc-restart patch-positions``. It

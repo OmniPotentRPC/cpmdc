@@ -55,8 +55,9 @@ count and the ordered atomic numbers belong to the session.
 
 * The RESTART file
 The warm path never reads or writes ~RESTART~ on the host's behalf.
-CPMD still writes ~RESTART.1~ at the end of each SCF, in the working
-directory of that moment, and reads one on a cold call when the deck asks for
+CPMD still writes ~RESTART.1~ at the end of each SCF, in ~permanentDir~ if
+that field is set, otherwise in ~scratchDir~, otherwise in the host working
+directory, and reads one on a cold call when the deck asks for
 ~RESTART WAVEFUNCTION~.
 ~cpmdc~ turns off CPMD's restart of coordinates, velocities, and the stored
 geometry before every SCF: the host owns the geometry, and a ~RESTART

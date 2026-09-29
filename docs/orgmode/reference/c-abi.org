@@ -85,12 +85,14 @@ optimisation.
 | ~int cpmdc_abi_version(void)~ | the ABI generation, equal to ~CPMDC_ABI_VERSION~ (0) and the shared-library soversion |
 | ~int cpmdc_available(void)~ | 1 when an evaluator is ready: the reference evaluator in the default build, OpenCPMD in an OpenCPMD build; 0 in the stub and after ~cpmdc_finalize()~ |
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
-| ~const char *cpmdc_last_error(void)~ | per-thread text of the last ~PotentialConfig~ configuration failure, empty after a success |
+| ~const char *cpmdc_last_error(void)~ | per-thread text of the last configuration or evaluation failure, empty after a success |
 
 ~cpmdc_last_error()~ is written by ~cpmdc_configure()~,
 ~cpmdc_session_create_from_config()~, and ~cpmdc_session_configure()~.
 ~cpmdc_set_params()~ and ~cpmdc_session_create()~ return their failure without
 a message.
+An evaluation failure writes the same text as ~CPMDCResult.message~, including
+a missing pseudopotential directory.
 
 * MPI
 
