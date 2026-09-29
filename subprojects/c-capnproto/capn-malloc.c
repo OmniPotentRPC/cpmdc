@@ -102,6 +102,9 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 }
 
 static int init_fp(struct capn *c, FILE *f, struct capn_stream *z, int packed) {
+	/* C11 6.5.3.2: a null message is not a stream. */
+	if (!c)
+		return -1;
 	struct capn_segment *s = NULL;
 	uint32_t i, segnum, total = 0;
 	uint32_t hdr[1024];
