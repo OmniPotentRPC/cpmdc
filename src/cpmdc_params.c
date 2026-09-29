@@ -2023,15 +2023,16 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
                    sec->prfoNsvib) != 0)
       return -1;
   }
-  int n_prfo_core = list32_len((capn_list32 *)&sec->prfoCoreAtoms);
+  /* EXP05-C: resolve a copy. The section pointer stays const. */
+  capn_list32 prfo_core = sec->prfoCoreAtoms;
+  int n_prfo_core = list32_len(&prfo_core);
   if (n_prfo_core < 0)
     return -1;
   if (n_prfo_core > 0) {
     if (append_fmt(dst, dst_size, used, " PRFO CORE=%d\n",
                    n_prfo_core) != 0)
       return -1;
-    if (append_i32_list_line(dst, dst_size, used,
-                             (capn_list32 *)&sec->prfoCoreAtoms,
+    if (append_i32_list_line(dst, dst_size, used, &prfo_core,
                              n_prfo_core) != 0)
       return -1;
   }
