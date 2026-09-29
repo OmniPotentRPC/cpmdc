@@ -410,8 +410,12 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 		}
 	}
 
-	if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz && s->data <= d && d < s->data + s->len) {
-		return d;
+	/* C11 6.5.8: a relational compare is defined only inside one array. */
+	{
+		uint64_t at;
+		if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz
+		    && !seg_data_off(s, d, &at) && at < (uint64_t)s->len)
+			return d;
 	}
 
 	return NULL;
