@@ -47,7 +47,11 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 	switch (p.type) {
 	case CAPN_LIST:
 		if (p.datasz == SZ/8 && !p.ptrs && (SZ == 8 || CAPN_LITTLE)) {
-			memcpy(to, p.data + off, sz * (SZ/8));
+			uint64_t nbytes = (uint64_t)sz * (uint64_t)(SZ/8);
+			/* INT32-C: the element count times the width must fit in a signed int. */
+			if (nbytes > (uint64_t)INT_MAX)
+				return -1;
+			memcpy(to, p.data + off, (size_t)nbytes);
 			return sz;
 		} else if (p.datasz < SZ/8) {
 			return -1;
@@ -118,7 +122,11 @@ int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 	switch (p.type) {
 	case CAPN_LIST:
 		if (p.datasz == SZ/8 && !p.ptrs && (SZ == 8 || CAPN_LITTLE)) {
-			memcpy(p.data + off, from, sz * (SZ/8));
+			uint64_t nbytes = (uint64_t)sz * (uint64_t)(SZ/8);
+			/* INT32-C: the element count times the width must fit in a signed int. */
+			if (nbytes > (uint64_t)INT_MAX)
+				return -1;
+			memcpy(p.data + off, from, (size_t)nbytes);
 			return sz;
 		} else if (p.datasz < SZ/8) {
 			return -1;
