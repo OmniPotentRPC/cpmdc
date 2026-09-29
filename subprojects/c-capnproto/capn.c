@@ -582,6 +582,9 @@ void capn_resolve(capn_ptr *p) {
 /* INT32-C: a member byte offset must fit in the bytes that remain. */
 static int ptr_at(const capn_ptr *p, uint64_t bytes, char **out) {
 	uint64_t base;
+	/* C11 6.5.3.2: a null pointer is not a member. */
+	if (!p)
+		return -1;
 	/* C11 6.5.8: relational compare is defined only inside one array. */
 	if (!p->seg || seg_data_off(p->seg, p->data, &base))
 		return -1;
