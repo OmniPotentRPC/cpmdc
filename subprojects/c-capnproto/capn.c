@@ -1215,6 +1215,9 @@ int capn_get1(capn_list1 l, int off) {
 	/* INT34-C: a negative index is not a shift count. */
 	if (l.p.type != CAPN_BIT_LIST || off < 0 || off >= l.p.len || !l.p.data)
 		return 0;
+	/* C11 6.5.6: the byte index must lie in the bit buffer. */
+	if ((uint64_t)(off / 8) >= (uint64_t)l.p.datasz)
+		return 0;
 	bit = off % 8;
 	return (l.p.data[off / 8] & (1 << bit)) != 0;
 }
@@ -1223,6 +1226,9 @@ int capn_set1(capn_list1 l, int off, int val) {
 	int bit;
 	/* INT34-C: a negative index is not a shift count. */
 	if (l.p.type != CAPN_BIT_LIST || off < 0 || off >= l.p.len || !l.p.data)
+		return -1;
+	/* C11 6.5.6: the byte index must lie in the bit buffer. */
+	if ((uint64_t)(off / 8) >= (uint64_t)l.p.datasz)
 		return -1;
 	bit = off % 8;
 	if (val)
