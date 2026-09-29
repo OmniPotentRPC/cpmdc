@@ -485,17 +485,32 @@ int cpmdc_restart_ncoords(const cpmdc_restart *file) {
   return file->sec_nrec[4] - 1;
 }
 
+/* INT32-C: n*3 and sec_start+a are signed. A section that does not fit is another record. */
+static int triples_span(int sec_nrec, int sec_start, int *n_out, int *start_out) {
+  int n;
+  if (sec_nrec < 1)
+    return -1;
+  n = sec_nrec - 1;
+  if (n > INT_MAX / 3)
+    return -1;
+  if (n > 0 && (sec_start < 0 || sec_start > INT_MAX - n))
+    return -1;
+  if (n_out)
+    *n_out = n;
+  if (start_out)
+    *start_out = n > 0 ? sec_start + 1 : 0;
+  return 0;
+}
+
 static int copy_triples(const cpmdc_restart *file, int section, double *xyz, int n3) {
   int n;
   int start;
   if (!file || !xyz)
     return -1;
-  if (file->sec_nrec[section] < 1)
+  if (triples_span(file->sec_nrec[section], file->sec_start[section], &n, &start) != 0)
     return -1;
-  n = file->sec_nrec[section] - 1;
   if (n3 != n * 3)
     return -1;
-  start = file->sec_start[section] + 1;
   for (int a = 0; a < n; a++) {
     const struct rec *r = &file->recs[start + a];
     if (r->len != 24)
@@ -513,12 +528,10 @@ static int store_triples(cpmdc_restart *file, int section, const double *xyz, in
   int start;
   if (!file || !xyz)
     return -1;
-  if (file->sec_nrec[section] < 1)
+  if (triples_span(file->sec_nrec[section], file->sec_start[section], &n, &start) != 0)
     return -1;
-  n = file->sec_nrec[section] - 1;
   if (n3 != n * 3)
     return -1;
-  start = file->sec_start[section] + 1;
   for (int a = 0; a < n; a++) {
     struct rec *r = &file->recs[start + a];
     if (r->len != 24)
