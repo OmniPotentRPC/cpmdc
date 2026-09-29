@@ -1439,12 +1439,14 @@ capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int sz) {
 	uint64_t n;
 	p.seg = seg;
 	p.datasz = 1;
+	/* C11 7.24.1p2: a null source is not a memcpy argument. */
+	if (!str) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	}
 	/* INT32-C: the length plus the trailing NUL must fit in a signed int. */
 	if (sz >= 0) {
 		n = (uint64_t)sz;
-	} else if (!str) {
-		memset(&p, 0, sizeof(p));
-		return p;
 	} else {
 		n = strlen(str);
 	}
