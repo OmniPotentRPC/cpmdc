@@ -978,19 +978,24 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 /* TODO: handle CAPN_LIST, CAPN_PTR_LIST for bit lists */
 
 int capn_get1(capn_list1 l, int off) {
-	return l.p.type == CAPN_BIT_LIST
-		&& off < l.p.len
-		&& (l.p.data[off/8] & (1 << (off%8))) != 0;
+	int bit;
+	/* INT34-C: a negative index is not a shift count. */
+	if (l.p.type != CAPN_BIT_LIST || off < 0 || off >= l.p.len || !l.p.data)
+		return 0;
+	bit = off % 8;
+	return (l.p.data[off / 8] & (1 << bit)) != 0;
 }
 
 int capn_set1(capn_list1 l, int off, int val) {
-	if (l.p.type != CAPN_BIT_LIST || off >= l.p.len)
+	int bit;
+	/* INT34-C: a negative index is not a shift count. */
+	if (l.p.type != CAPN_BIT_LIST || off < 0 || off >= l.p.len || !l.p.data)
 		return -1;
-	if (val) {
-		l.p.data[off/8] |= 1 << (off%8);
-	} else {
-		l.p.data[off/8] &= ~(1 << (off%8));
-	}
+	bit = off % 8;
+	if (val)
+		l.p.data[off / 8] |= 1 << bit;
+	else
+		l.p.data[off / 8] &= ~(1 << bit);
 	return 0;
 }
 
