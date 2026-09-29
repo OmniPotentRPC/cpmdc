@@ -1527,11 +1527,24 @@ capn_text capn_get_text(capn_ptr p, int off, capn_text def) {
 int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 	capn_ptr m = {CAPN_NULL};
 	if (tgt.seg) {
+		uintptr_t base, at;
+		uint64_t span;
 		/* INT32-C: the length plus the trailing NUL must fit in a signed int. */
 		if (tgt.len < 0 || tgt.len == INT_MAX)
 			return -1;
 		/* C11 6.5.3.2: a null string is not list data. */
 		if (!tgt.str)
+			return -1;
+		/* C11 6.5.6: the string bytes must lie in the named segment. */
+		if (!tgt.seg->data || tgt.seg->cap < 0)
+			return -1;
+		base = (uintptr_t) tgt.seg->data;
+		at = (uintptr_t) tgt.str;
+		if (at < base)
+			return -1;
+		span = (uint64_t) (at - base);
+		if (span > (uint64_t) tgt.seg->cap
+		    || (uint64_t) tgt.len + 1ull > (uint64_t) tgt.seg->cap - span)
 			return -1;
 		m.type = CAPN_LIST;
 		m.seg = tgt.seg;
