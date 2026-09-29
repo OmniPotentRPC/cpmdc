@@ -732,6 +732,9 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 				return -1;
 			memcpy(t->data, f->data, (size_t)t->len * (size_t)t->datasz);
 		} else if (t->ptrs) {
+			/* INT32-C: the pointer-list length is a signed product. */
+			if (t->ptrs < 0 || t->len < 0 || t->len > INT_MAX / t->ptrs)
+				return -1;
 			t->type = CAPN_PTR_LIST;
 			t->len *= t->ptrs;
 			(*dep)++;
