@@ -1032,7 +1032,8 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		n->fend = fend;
 
 		*xcp = &n->hdr;
-		n->hdr.parent = &cp->hdr;
+		/* C11 6.5.3.2: a null copy node is not a parent. */
+		n->hdr.parent = cp ? &cp->hdr : NULL;
 
 		c->copy = capn_tree_insert(c->copy, &n->hdr);
 	}
