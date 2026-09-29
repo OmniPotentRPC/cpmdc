@@ -11,7 +11,8 @@ linking `libcpmdc`.
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`; DIIS/PCG/steepest-descent updates only run while the pre-update gradient is unconverged |
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
 | `opencpmd_mp_comm_set.patch` | Publish `mp_comm_set` so an external driver can install `mp_comm_world` before `mp_start` |
-| PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into `cpmdc_last_stress` / `PotentialResult.stress` |
+| `opencpmd_stopgm_return.patch` | While an embed call is active, `stopgm` records the stop and returns instead of `my_stopall` |
+| PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 ```bash
 # from the OpenCPMD/CPMD tree used as -Dcpmd_root=
@@ -19,6 +20,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_keep_fion.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_warm_orbitals.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_kpoints_inputfile.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
