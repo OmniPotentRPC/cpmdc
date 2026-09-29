@@ -17,13 +17,21 @@ fi
 # scex_utils.mod before rwfopt_utils reads it. A parallel rebuild leaves
 # the two module files naming different vtable components, and the next
 # USE rwfopt_utils stops.
+objects=(
+  error_handling.mod.o
+  scex_utils.mod.o
+  mp_interface.mod.o
+  rwfopt_utils.mod.o
+  updwf_utils.mod.o
+)
 "$make_program" \
   -C "$cpmd_root/obj" \
   -f "$cpmd_root/Makefile" \
   -j1 \
-  error_handling.mod.o \
-  scex_utils.mod.o \
-  mp_interface.mod.o \
-  rwfopt_utils.mod.o \
-  updwf_utils.mod.o \
-  "$cpmd_root/lib/libcpmd.a"
+  "${objects[@]}"
+# The generated Makefile sets AR to the archiver with no operation
+# letter, so its libcpmd.a rule does not replace members.
+ar_program=${AR:-ar}
+"$ar_program" r "$cpmd_root/lib/libcpmd.a" \
+  "${objects[@]/#/$cpmd_root/obj/}"
+ranlib "$cpmd_root/lib/libcpmd.a"

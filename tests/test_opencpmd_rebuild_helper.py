@@ -30,6 +30,16 @@ def main() -> int:
         )
         fake_make.chmod(0o755)
 
+        members = [
+            "error_handling.mod.o",
+            "scex_utils.mod.o",
+            "mp_interface.mod.o",
+            "rwfopt_utils.mod.o",
+            "updwf_utils.mod.o",
+        ]
+        for name in members:
+            (root / "obj" / name).write_bytes(b"\0")
+
         env = os.environ.copy()
         env["MAKE"] = str(fake_make)
         env["MAKE_LOG"] = str(log)
@@ -47,15 +57,18 @@ def main() -> int:
             "-f",
             str(root / "Makefile"),
             "-j1",
-            "error_handling.mod.o",
-            "scex_utils.mod.o",
-            "mp_interface.mod.o",
-            "rwfopt_utils.mod.o",
-            "updwf_utils.mod.o",
-            str(root / "lib" / "libcpmd.a"),
+            *members,
         ]
         if actual != expected:
             raise AssertionError(f"make arguments {actual!r}, expected {expected!r}")
+        listed = subprocess.run(
+            ["ar", "t", str(root / "lib" / "libcpmd.a")],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.split()
+        if listed != members:
+            raise AssertionError(f"archive members {listed!r}, expected {members!r}")
 
     print("OK: OpenCPMD helper rebuilds patched objects and archive")
     return 0
