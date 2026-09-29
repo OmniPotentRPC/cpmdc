@@ -5,7 +5,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~.
 Installed headers live under ~include/cpmdc/~.
 Every function has C linkage, and the header compiles as C and as C++.
-The generated [[file:../api/index.rst][API pages]] carry the header comments; this page adds
+The generated [[file:../api/index.org][API pages]] carry the header comments; this page adds
 the units, the return conventions, and the behaviour that the implementation
 in ~src/cpmdc.c~ gives each call.
 
