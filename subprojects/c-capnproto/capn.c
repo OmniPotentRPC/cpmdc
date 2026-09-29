@@ -1032,15 +1032,37 @@ capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs) {
 			*(uint64_t*) p.data = capn_flip64(hdr);
 			p.data += 8;
 		}
+	} else if (sz < 0 || datasz < 0) {
+		memset(&p, 0, sizeof(p));
+		return p;
 	} else if (datasz > 4) {
+		int bytes;
 		p.datasz = 8;
-		new_object(&p, p.len * 8);
+		/* INT32-C: length times eight must fit in a signed int. */
+		if ((uint64_t)p.len * 8ull > (uint64_t)INT_MAX) {
+			memset(&p, 0, sizeof(p));
+			return p;
+		}
+		bytes = p.len * 8;
+		new_object(&p, bytes);
 	} else if (datasz > 2) {
+		int bytes;
 		p.datasz = 4;
-		new_object(&p, p.len * 4);
+		if ((uint64_t)p.len * 4ull > (uint64_t)INT_MAX) {
+			memset(&p, 0, sizeof(p));
+			return p;
+		}
+		bytes = p.len * 4;
+		new_object(&p, bytes);
 	} else {
+		int bytes;
 		p.datasz = datasz;
-		new_object(&p, p.len * datasz);
+		if (p.datasz > 0 && (uint64_t)p.len > (uint64_t)INT_MAX / (uint64_t)p.datasz) {
+			memset(&p, 0, sizeof(p));
+			return p;
+		}
+		bytes = p.len * p.datasz;
+		new_object(&p, bytes);
 	}
 
 	return p;
@@ -1049,8 +1071,13 @@ capn_ptr capn_new_list(struct capn_segment *seg, int sz, int datasz, int ptrs) {
 capn_list1 capn_new_list1(struct capn_segment *seg, int sz) {
 	capn_list1 l = {{CAPN_BIT_LIST}};
 	l.p.seg = seg;
-	l.p.datasz = (sz+7)/8;
 	l.p.len = sz;
+	/* INT32-C: the bit-list byte count adds seven before dividing by eight. */
+	if (sz < 0 || sz > INT_MAX - 7) {
+		memset(&l.p, 0, sizeof(l.p));
+		return l;
+	}
+	l.p.datasz = (sz + 7) / 8;
 	new_object(&l.p, l.p.datasz);
 	return l;
 }
