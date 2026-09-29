@@ -296,6 +296,21 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	return capn_flip64(*(uint64_t*)*d);
 }
 
+/* C11 6.5.6: a pointer difference is defined only inside one array.
+   len is the segment bound. An address inside it keeps the byte offset. */
+static int seg_data_off(const struct capn_segment *s, const char *p, uint64_t *off) {
+	uintptr_t base, at;
+
+	if (!s || !s->data || !p || s->len < 0)
+		return -1;
+	base = (uintptr_t) s->data;
+	at = (uintptr_t) p;
+	if (at < base || (uint64_t) (at - base) > (uint64_t) s->len)
+		return -1;
+	*off = (uint64_t) (at - base);
+	return 0;
+}
+
 static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 	uint64_t val = capn_flip64(*(uint64_t*)d);
 	uint16_t datasz;
@@ -318,9 +333,8 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 			: (int64_t)raw;
 		int64_t delta = words * 8 + 8;
 		uint64_t base;
-		if (!s->data || d < s->data || s->len < 0)
+		if (seg_data_off(s, d, &base))
 			return NULL;
-		base = (uint64_t)(d - s->data);
 		if (delta < 0) {
 			if ((uint64_t)(-delta) > base)
 				return NULL;
@@ -342,9 +356,8 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 /* INT32-C: a decoded span must fit in the bytes that remain. */
 static int list_end(const struct capn_segment *s, const char *d, uint64_t nbytes, char **end) {
 	uint64_t off;
-	if (!s->data || d < s->data || s->len < 0)
+	if (seg_data_off(s, d, &off))
 		return -1;
-	off = (uint64_t)(d - s->data);
 	if (off > (uint64_t)s->len || nbytes > (uint64_t)s->len - off)
 		return -1;
 	*end = (char *)d + nbytes;
@@ -376,9 +389,8 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 			: (int64_t)raw;
 		int64_t delta = words * 8 + 8;
 		uint64_t base;
-		if (!s->data || d < s->data || s->len < 0)
+		if (seg_data_off(s, d, &base))
 			goto err;
-		base = (uint64_t)(d - s->data);
 		if (delta < 0) {
 			if ((uint64_t)(-delta) > base)
 				goto err;
@@ -475,8 +487,11 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 		goto err;
 	}
 
-	if (e - s->data > s->len)
-		goto err;
+	{
+		uint64_t end_off;
+		if (seg_data_off(s, e, &end_off))
+			goto err;
+	}
 
 	ret.data = d;
 	ret.seg = s;
