@@ -18,212 +18,165 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_bind_calculator
   PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
-  PUBLIC :: cpmdc_embed_last_energy_components
-  PUBLIC :: cpmdc_embed_last_charge_integrals
-  PUBLIC :: cpmdc_embed_last_multi_state
-  PUBLIC :: cpmdc_embed_last_md_row
-  PUBLIC :: cpmdc_embed_last_properties
-  PUBLIC :: cpmdc_embed_last_stress
   ! cpmdc_embed_compose_cold_deck: BIND(C) in HAS_CPMD / stub branches (not listed
   ! in PUBLIC — gfortran rejects forward PUBLIC when the body is ifdef-gated).
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
   ! Config state is applied_* from cpmdc_embed_apply_params_mod.
-  ! Last successful evaluation ener_com snapshot (Hartree); valid==0 until first ok SCF/PEF.
-  INTEGER(c_int), SAVE :: last_ener_valid = 0_c_int
-  REAL(c_double), SAVE :: last_etot = 0.0_c_double
-  REAL(c_double), SAVE :: last_ekin = 0.0_c_double
-  REAL(c_double), SAVE :: last_epseu = 0.0_c_double
-  REAL(c_double), SAVE :: last_enl = 0.0_c_double
-  REAL(c_double), SAVE :: last_eht = 0.0_c_double
-  REAL(c_double), SAVE :: last_ehep = 0.0_c_double
-  REAL(c_double), SAVE :: last_ehee = 0.0_c_double
-  REAL(c_double), SAVE :: last_ehii = 0.0_c_double
-  REAL(c_double), SAVE :: last_exc = 0.0_c_double
-  REAL(c_double), SAVE :: last_vxc = 0.0_c_double
-  REAL(c_double), SAVE :: last_egc = 0.0_c_double
-  REAL(c_double), SAVE :: last_esr = 0.0_c_double
-  REAL(c_double), SAVE :: last_eeig = 0.0_c_double
-  REAL(c_double), SAVE :: last_eband = 0.0_c_double
-  REAL(c_double), SAVE :: last_entropy = 0.0_c_double
-  REAL(c_double), SAVE :: last_eself = 0.0_c_double
-  REAL(c_double), SAVE :: last_ecnstr = 0.0_c_double
-  REAL(c_double), SAVE :: last_amu = 0.0_c_double
-  REAL(c_double), SAVE :: last_ebogo = 0.0_c_double
-  REAL(c_double), SAVE :: last_eext = 0.0_c_double
-  REAL(c_double), SAVE :: last_etddft = 0.0_c_double
-  REAL(c_double), SAVE :: last_ehsic = 0.0_c_double
-  REAL(c_double), SAVE :: last_erestr = 0.0_c_double
-  REAL(c_double), SAVE :: last_eefield = 0.0_c_double
+  ! Results and the warm cell live in the caller image (CPMDCEmbedImage).
+  ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
-  INTEGER(c_int), SAVE :: last_chrg_valid = 0_c_int
-  REAL(c_double), SAVE :: last_csumg = 0.0_c_double
-  REAL(c_double), SAVE :: last_csumr = 0.0_c_double
-  REAL(c_double), SAVE :: last_csums = 0.0_c_double
-  REAL(c_double), SAVE :: last_csumsabs = 0.0_c_double
-  INTEGER(c_int), SAVE :: last_ms_valid = 0_c_int
-  INTEGER(c_int), SAVE :: last_ms_count = 0_c_int
-  REAL(c_double), SAVE :: last_ms_vals(64) = 0.0_c_double
-  INTEGER(c_int), SAVE :: last_md_valid = 0_c_int
-  INTEGER(c_int), SAVE :: last_md_count = 0_c_int
-  REAL(c_double), SAVE :: last_md_vals(32) = 0.0_c_double
-  INTEGER(c_int), SAVE :: last_prop_valid = 0_c_int
-  INTEGER(c_int), SAVE :: last_hess_count = 0_c_int
-  REAL(c_double), SAVE :: last_hess(4096) = 0.0_c_double
-  INTEGER(c_int), SAVE :: last_dip_count = 0_c_int
-  REAL(c_double), SAVE :: last_dip(3) = 0.0_c_double
-  INTEGER(c_int), SAVE :: last_pol_count = 0_c_int
-  REAL(c_double), SAVE :: last_pol(9) = 0.0_c_double
-  ! Cartesian stress [9] row-major xx,xy,xz,yx,yy,yz,zx,zy,zz in Ha/Bohr^3
-  ! (paiu/omega after totstr when cntl%tpres).
-  INTEGER(c_int), SAVE :: last_stress_valid = 0_c_int
-  REAL(c_double), SAVE :: last_stress(9) = 0.0_c_double
+  TYPE, BIND(C) :: cpmdc_energy_components
+    INTEGER(c_int) :: valid
+    REAL(c_double) :: etot, ekin, epseu, enl, eht, ehep, ehee, ehii
+    REAL(c_double) :: exc, vxc, egc, esr, eeig, eband, entropy, eself
+    REAL(c_double) :: ecnstr, amu, ebogo, eext, etddft, ehsic, erestr, eefield
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_charge_integrals
+    INTEGER(c_int) :: valid
+    REAL(c_double) :: csumg, csumr, csums, csumsabs
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_multi_state
+    INTEGER(c_int) :: valid
+    INTEGER(c_size_t) :: count
+    REAL(c_double) :: values(64)
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_md_row
+    INTEGER(c_int) :: valid
+    INTEGER(c_size_t) :: count
+    REAL(c_double) :: values(32)
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_property_snapshot
+    INTEGER(c_int) :: valid
+    INTEGER(c_size_t) :: hessian_count
+    REAL(c_double) :: hessian(4096)
+    INTEGER(c_size_t) :: dipole_count
+    REAL(c_double) :: dipole(3)
+    INTEGER(c_size_t) :: polarizability_count
+    REAL(c_double) :: polarizability(9)
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_stress_tensor
+    INTEGER(c_int) :: valid
+    REAL(c_double) :: values(9)
+  END TYPE
+  TYPE, BIND(C) :: cpmdc_embed_image
+    TYPE(cpmdc_energy_components) :: energy
+    TYPE(cpmdc_charge_integrals) :: charge
+    TYPE(cpmdc_multi_state) :: multi
+    TYPE(cpmdc_md_row) :: md
+    TYPE(cpmdc_property_snapshot) :: prop
+    TYPE(cpmdc_stress_tensor) :: stress
+    REAL(c_double) :: warm_cell(9)
+    INTEGER(c_int) :: warm_cell_set
+    INTEGER(c_int) :: warm_has_cell
+    INTEGER(c_int) :: cfg_warm_steps
+  END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
-  ! Successful in-process SCF steps; warm path reuses orbitals in memory.
-  INTEGER, SAVE :: cfg_warm_steps = 0
-  REAL(c_double), SAVE :: warm_cell(9) = 0.0_c_double
-  INTEGER, SAVE :: warm_cell_set = 0
-  INTEGER, SAVE :: warm_has_cell = 0
 #endif
 
 CONTAINS
 
-  SUBROUTINE clear_last_energy_components()
-    last_ener_valid = 0_c_int
-    last_etot = 0.0_c_double
-    last_ekin = 0.0_c_double
-    last_epseu = 0.0_c_double
-    last_enl = 0.0_c_double
-    last_eht = 0.0_c_double
-    last_ehep = 0.0_c_double
-    last_ehee = 0.0_c_double
-    last_ehii = 0.0_c_double
-    last_exc = 0.0_c_double
-    last_vxc = 0.0_c_double
-    last_egc = 0.0_c_double
-    last_esr = 0.0_c_double
-    last_eeig = 0.0_c_double
-    last_eband = 0.0_c_double
-    last_entropy = 0.0_c_double
-    last_eself = 0.0_c_double
-    last_ecnstr = 0.0_c_double
-    last_amu = 0.0_c_double
-    last_ebogo = 0.0_c_double
-    last_eext = 0.0_c_double
-    last_etddft = 0.0_c_double
-    last_ehsic = 0.0_c_double
-    last_erestr = 0.0_c_double
-    last_eefield = 0.0_c_double
+  SUBROUTINE clear_last_energy_components(image)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    image%energy%valid = 0_c_int
+    image%energy%etot = 0.0_c_double
+    image%energy%ekin = 0.0_c_double
+    image%energy%epseu = 0.0_c_double
+    image%energy%enl = 0.0_c_double
+    image%energy%eht = 0.0_c_double
+    image%energy%ehep = 0.0_c_double
+    image%energy%ehee = 0.0_c_double
+    image%energy%ehii = 0.0_c_double
+    image%energy%exc = 0.0_c_double
+    image%energy%vxc = 0.0_c_double
+    image%energy%egc = 0.0_c_double
+    image%energy%esr = 0.0_c_double
+    image%energy%eeig = 0.0_c_double
+    image%energy%eband = 0.0_c_double
+    image%energy%entropy = 0.0_c_double
+    image%energy%eself = 0.0_c_double
+    image%energy%ecnstr = 0.0_c_double
+    image%energy%amu = 0.0_c_double
+    image%energy%ebogo = 0.0_c_double
+    image%energy%eext = 0.0_c_double
+    image%energy%etddft = 0.0_c_double
+    image%energy%ehsic = 0.0_c_double
+    image%energy%erestr = 0.0_c_double
+    image%energy%eefield = 0.0_c_double
 
-    last_chrg_valid = 0_c_int
-    last_csumg = 0.0_c_double
-    last_csumr = 0.0_c_double
-    last_csums = 0.0_c_double
-    last_csumsabs = 0.0_c_double
-    last_ms_valid = 0_c_int
-    last_ms_count = 0_c_int
-    last_ms_vals = 0.0_c_double
-    last_md_valid = 0_c_int
-    last_md_count = 0_c_int
-    last_md_vals = 0.0_c_double
-    last_prop_valid = 0_c_int
-    last_hess_count = 0_c_int
-    last_hess = 0.0_c_double
-    last_dip_count = 0_c_int
-    last_dip = 0.0_c_double
-    last_pol_count = 0_c_int
-    last_pol = 0.0_c_double
-    last_stress_valid = 0_c_int
-    last_stress = 0.0_c_double
+    image%charge%valid = 0_c_int
+    image%charge%csumg = 0.0_c_double
+    image%charge%csumr = 0.0_c_double
+    image%charge%csums = 0.0_c_double
+    image%charge%csumsabs = 0.0_c_double
+    image%multi%valid = 0_c_int
+    image%multi%count = 0_c_size_t
+    image%multi%values = 0.0_c_double
+    image%md%valid = 0_c_int
+    image%md%count = 0_c_size_t
+    image%md%values = 0.0_c_double
+    image%prop%valid = 0_c_int
+    image%prop%hessian_count = 0_c_size_t
+    image%prop%hessian = 0.0_c_double
+    image%prop%dipole_count = 0_c_size_t
+    image%prop%dipole = 0.0_c_double
+    image%prop%polarizability_count = 0_c_size_t
+    image%prop%polarizability = 0.0_c_double
+    image%stress%valid = 0_c_int
+    image%stress%values = 0.0_c_double
   END SUBROUTINE
 
-  SUBROUTINE snapshot_total_only(energy_h)
+  SUBROUTINE snapshot_total_only(image, energy_h)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: energy_h
     INTEGER :: i
-    CALL clear_last_energy_components()
-    last_etot = energy_h
-    last_ener_valid = 1_c_int
+    CALL clear_last_energy_components(image)
+    image%energy%etot = energy_h
+    image%energy%valid = 1_c_int
     ! PEF ENERGY-style row (EKINC=0 for non-MD reference evaluator).
-    last_md_vals(1) = energy_h
-    last_md_vals(2) = 0.0_c_double
-    last_md_vals(3) = 0.0_c_double
-    last_md_vals(4) = 0.0_c_double
-    last_md_vals(5) = 0.0_c_double
-    last_md_vals(6) = 0.0_c_double
-    last_md_vals(7) = 0.0_c_double
-    last_md_vals(8) = 0.0_c_double
-    last_md_vals(9) = 0.0_c_double
-    last_md_vals(10) = 0.0_c_double
-    last_md_vals(11) = 0.0_c_double
-    last_md_vals(12) = 0.0_c_double  ! EKINC (fictitious e- KE); zero off MD
-    last_md_count = 12_c_int
-    last_md_valid = 1_c_int
-    last_chrg_valid = 1_c_int
-    last_csumg = 0.0_c_double
-    last_csumr = 0.0_c_double
-    last_csums = 0.0_c_double
-    last_csumsabs = 0.0_c_double
-    last_ms_count = 6_c_int
-    last_ms_vals = 0.0_c_double
-    last_ms_vals(1) = energy_h
-    last_ms_valid = 1_c_int
-    last_prop_valid = 1_c_int
-    last_dip_count = 3_c_int
-    last_dip = 0.0_c_double
-    last_pol_count = 9_c_int
+    image%md%values(1) = energy_h
+    image%md%values(2) = 0.0_c_double
+    image%md%values(3) = 0.0_c_double
+    image%md%values(4) = 0.0_c_double
+    image%md%values(5) = 0.0_c_double
+    image%md%values(6) = 0.0_c_double
+    image%md%values(7) = 0.0_c_double
+    image%md%values(8) = 0.0_c_double
+    image%md%values(9) = 0.0_c_double
+    image%md%values(10) = 0.0_c_double
+    image%md%values(11) = 0.0_c_double
+    image%md%values(12) = 0.0_c_double  ! EKINC (fictitious e- KE); zero off MD
+    image%md%count = 12_c_size_t
+    image%md%valid = 1_c_int
+    image%charge%valid = 1_c_int
+    image%charge%csumg = 0.0_c_double
+    image%charge%csumr = 0.0_c_double
+    image%charge%csums = 0.0_c_double
+    image%charge%csumsabs = 0.0_c_double
+    image%multi%count = 6_c_size_t
+    image%multi%values = 0.0_c_double
+    image%multi%values(1) = energy_h
+    image%multi%valid = 1_c_int
+    image%prop%valid = 1_c_int
+    image%prop%dipole_count = 3_c_size_t
+    image%prop%dipole = 0.0_c_double
+    image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
-      last_pol(i) = 0.0_c_double
+      image%prop%polarizability(i) = 0.0_c_double
     END DO
-    last_hess_count = 0_c_int
-    last_stress_valid = 0_c_int
-    last_stress = 0.0_c_double
+    image%prop%hessian_count = 0_c_size_t
+    image%stress%valid = 0_c_int
+    image%stress%values = 0.0_c_double
   END SUBROUTINE
 
-  FUNCTION cpmdc_embed_last_energy_components(valid, etot, ekin, epseu, enl, eht, &
-      ehep, ehee, ehii, exc, vxc, egc, esr, eeig, eband, entropy, eself, ecnstr, &
-      amu, ebogo, eext, etddft, ehsic, erestr, eefield) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_energy_components')
-    INTEGER(c_int), INTENT(OUT) :: valid
-    REAL(c_double), INTENT(OUT) :: etot, ekin, epseu, enl, eht, ehep, ehee, ehii
-    REAL(c_double), INTENT(OUT) :: exc, vxc, egc, esr, eeig, eband, entropy, eself
-    REAL(c_double), INTENT(OUT) :: ecnstr, amu, ebogo, eext, etddft, ehsic, erestr
-    REAL(c_double), INTENT(OUT) :: eefield
-    INTEGER(c_int) :: ok
-    valid = last_ener_valid
-    etot = last_etot
-    ekin = last_ekin
-    epseu = last_epseu
-    enl = last_enl
-    eht = last_eht
-    ehep = last_ehep
-    ehee = last_ehee
-    ehii = last_ehii
-    exc = last_exc
-    vxc = last_vxc
-    egc = last_egc
-    esr = last_esr
-    eeig = last_eeig
-    eband = last_eband
-    entropy = last_entropy
-    eself = last_eself
-    ecnstr = last_ecnstr
-    amu = last_amu
-    ebogo = last_ebogo
-    eext = last_eext
-    etddft = last_etddft
-    ehsic = last_ehsic
-    erestr = last_erestr
-    eefield = last_eefield
-    ok = MERGE(0_c_int, -1_c_int, last_ener_valid /= 0_c_int)
-  END FUNCTION
 
-  FUNCTION cpmdc_embed_bind_calculator(ranks_per_calc) RESULT(image) &
+  FUNCTION cpmdc_embed_bind_calculator(ranks_per_calc) RESULT(calc) &
       BIND(C, NAME='cpmdc_embed_bind_calculator')
     INTEGER(c_int), INTENT(IN), VALUE :: ranks_per_calc
-    INTEGER(c_int) :: image
-    image = -1_c_int
+    INTEGER(c_int) :: calc
+    calc = -1_c_int
 #if defined(CPMDC_HAS_CPMD)
     BLOCK
       USE mpi
@@ -237,13 +190,13 @@ CONTAINS
       CALL MPI_Comm_size(MPI_COMM_WORLD, npe, ierr)
       IF (rpc <= 0) rpc = npe
       IF (rpc > npe .OR. MOD(npe, rpc) /= 0) RETURN
-      image = INT(rank / rpc, c_int)
+      calc = INT(rank / rpc, c_int)
       IF (mp_comm_set) RETURN
       color = rank / rpc
       key = MOD(rank, rpc)
       CALL MPI_Comm_split(MPI_COMM_WORLD, color, key, comm, ierr)
       IF (ierr /= 0) THEN
-        image = -1_c_int
+        calc = -1_c_int
         RETURN
       END IF
       mp_comm_world = comm
@@ -256,7 +209,7 @@ CONTAINS
     INTEGER(c_int) :: ok
     runtime_ready = .TRUE.
     runtime_finalized = .FALSE.
-    ok = cpmdc_embed_reset_state()
+    ok = 1_c_int
   END FUNCTION
 
   FUNCTION cpmdc_embed_available() RESULT(ok) BIND(C, NAME='cpmdc_embed_available')
@@ -268,18 +221,23 @@ CONTAINS
 #endif
   END FUNCTION
 
-  FUNCTION cpmdc_embed_reset_state() RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
+  FUNCTION cpmdc_embed_reset_state(image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
 #if defined(CPMDC_HAS_CPMD)
     USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
 #endif
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
-    CALL clear_last_energy_components()
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    CALL clear_last_energy_components(image)
+    image%cfg_warm_steps = 0_c_int
+    image%warm_cell_set = 0_c_int
+    image%warm_has_cell = 0_c_int
+    image%warm_cell = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
-    cfg_warm_steps = 0
-    warm_cell_set = 0
-    warm_has_cell = 0
     CALL cpmdc_reset_warm_orbitals()
 #endif
     ok = 1_c_int
@@ -288,11 +246,10 @@ CONTAINS
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
     runtime_ready = .FALSE.
     runtime_finalized = .TRUE.
-    CALL clear_last_energy_components()
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_set_config(functional, functional_len, cutoff_ry, charge, &
-      multiplicity, input_deck, input_deck_len, cpmd_root, cpmd_root_len) &
+      multiplicity, input_deck, input_deck_len, cpmd_root, cpmd_root_len, image_c) &
       RESULT(ok) BIND(C, NAME='cpmdc_embed_set_config')
     CHARACTER(KIND=c_char), INTENT(IN) :: functional(*)
     INTEGER(c_int), INTENT(IN), VALUE :: functional_len
@@ -302,12 +259,13 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: input_deck_len
     CHARACTER(KIND=c_char), INTENT(IN) :: cpmd_root(*)
     INTEGER(c_int), INTENT(IN), VALUE :: cpmd_root_len
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
     IF (cutoff_ry < 0.0_c_double) RETURN
-    IF (cpmdc_embed_reset_state() == 0_c_int) RETURN
+    IF (cpmdc_embed_reset_state(image_c) == 0_c_int) RETURN
     CALL cstr_to_f(functional, functional_len, applied_functional)
     IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
     applied_cutoff_ry = REAL(cutoff_ry, KIND=real64)
@@ -331,7 +289,7 @@ CONTAINS
   END FUNCTION
 
   FUNCTION cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, energy_h, grad_h_bohr) RESULT(ok) &
+      cell_ang, has_cell, energy_h, grad_h_bohr, image_c) RESULT(ok) &
       BIND(C, NAME='cpmdc_embed_energy_grad')
     INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
     REAL(c_double), INTENT(IN) :: positions_ang(*)
@@ -340,6 +298,8 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: has_cell
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad_h_bohr(*)
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
     INTEGER :: i, n3
     ok = 0_c_int
@@ -349,94 +309,22 @@ CONTAINS
       grad_h_bohr(i) = 0.0_c_double
     END DO
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. n_atoms <= 0) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
-    CALL run_embed_scf(INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+    CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
 #else
     IF (has_cell < 0) RETURN
-    CALL run_reference_pef(INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+    CALL run_reference_pef(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
 #endif
   END FUNCTION
 
-  FUNCTION cpmdc_embed_last_charge_integrals(valid, csumg, csumr, csums, csumsabs) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_charge_integrals')
-    INTEGER(c_int), INTENT(OUT) :: valid
-    REAL(c_double), INTENT(OUT) :: csumg, csumr, csums, csumsabs
-    INTEGER(c_int) :: ok
-    valid = last_chrg_valid
-    csumg = last_csumg
-    csumr = last_csumr
-    csums = last_csums
-    csumsabs = last_csumsabs
-    ok = MERGE(0_c_int, -1_c_int, last_chrg_valid /= 0_c_int)
-  END FUNCTION
 
-  FUNCTION cpmdc_embed_last_multi_state(valid, count, values, capacity) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_multi_state')
-    INTEGER(c_int), INTENT(OUT) :: valid, count
-    REAL(c_double), INTENT(OUT) :: values(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: capacity
-    INTEGER(c_int) :: ok, i, n
-    valid = last_ms_valid
-    n = MIN(INT(capacity), INT(last_ms_count), 64)
-    count = n
-    DO i = 1, n
-      values(i) = last_ms_vals(i)
-    END DO
-    ok = MERGE(0_c_int, -1_c_int, last_ms_valid /= 0_c_int)
-  END FUNCTION
 
-  FUNCTION cpmdc_embed_last_md_row(valid, count, values, capacity) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_md_row')
-    INTEGER(c_int), INTENT(OUT) :: valid, count
-    REAL(c_double), INTENT(OUT) :: values(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: capacity
-    INTEGER(c_int) :: ok, i, n
-    valid = last_md_valid
-    n = MIN(INT(capacity), INT(last_md_count), 32)
-    count = n
-    DO i = 1, n
-      values(i) = last_md_vals(i)
-    END DO
-    ok = MERGE(0_c_int, -1_c_int, last_md_valid /= 0_c_int)
-  END FUNCTION
 
-  FUNCTION cpmdc_embed_last_properties(valid, hess_count, hess, hess_cap, &
-      dip_count, dip, pol_count, pol) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_properties')
-    INTEGER(c_int), INTENT(OUT) :: valid, hess_count, dip_count, pol_count
-    REAL(c_double), INTENT(OUT) :: hess(*), dip(*), pol(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: hess_cap
-    INTEGER(c_int) :: ok, i, n
-    valid = last_prop_valid
-    n = MIN(INT(hess_cap), INT(last_hess_count), 4096)
-    hess_count = n
-    DO i = 1, n
-      hess(i) = last_hess(i)
-    END DO
-    dip_count = MIN(3_c_int, last_dip_count)
-    DO i = 1, INT(dip_count)
-      dip(i) = last_dip(i)
-    END DO
-    pol_count = MIN(9_c_int, last_pol_count)
-    DO i = 1, INT(pol_count)
-      pol(i) = last_pol(i)
-    END DO
-    ok = MERGE(0_c_int, -1_c_int, last_prop_valid /= 0_c_int)
-  END FUNCTION
 
-  FUNCTION cpmdc_embed_last_stress(valid, stress) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_last_stress')
-    INTEGER(c_int), INTENT(OUT) :: valid
-    REAL(c_double), INTENT(OUT) :: stress(*)
-    INTEGER(c_int) :: ok, i
-    valid = last_stress_valid
-    DO i = 1, 9
-      stress(i) = last_stress(i)
-    END DO
-    ok = MERGE(0_c_int, -1_c_int, last_stress_valid /= 0_c_int)
-  END FUNCTION
 
 
   SUBROUTINE cstr_to_f(cbuf, n, fstr)
@@ -453,7 +341,8 @@ CONTAINS
   END SUBROUTINE
 
 #if !defined(CPMDC_HAS_CPMD)
-  SUBROUTINE run_reference_pef(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+  SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -490,24 +379,25 @@ CONTAINS
     END IF
     ok = 1_c_int
     ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
-    CALL snapshot_total_only(energy_h)
+    CALL snapshot_total_only(image, energy_h)
     DO i = 1, n_atoms * 3
       IF (i > 4096) EXIT
-      last_hess(i) = grad(i)
+      image%prop%hessian(i) = grad(i)
     END DO
-    last_hess_count = MIN(n_atoms * 3, 4096)
-    last_prop_valid = 1_c_int
+    image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
+    image%prop%valid = 1_c_int
     ! Toy isotropic stress (Ha/Bohr^3) so PotentialResult.stress is exercised
     ! without OpenCPMD: sigma_ii ~ energy / (cell volume in Bohr^3) when cell
     ! present, else zeros with valid set.
-    last_stress = 0.0_c_double
+    image%stress%values = 0.0_c_double
     IF (has_cell /= 0) THEN
-      CALL reference_pef_fill_stress(cell, energy_h)
+      CALL reference_pef_fill_stress(image, cell, energy_h)
     END IF
-    last_stress_valid = 1_c_int
+    image%stress%valid = 1_c_int
   END SUBROUTINE
 
-  SUBROUTINE reference_pef_fill_stress(cell, energy_h)
+  SUBROUTINE reference_pef_fill_stress(image, cell, energy_h)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
     REAL(c_double), INTENT(IN) :: energy_h
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
@@ -524,9 +414,9 @@ CONTAINS
          a(3) * (b(1) * c(2) - b(2) * c(1)))
     IF (vol <= 1.0e-12_real64) RETURN
     sig = REAL(energy_h, KIND=real64) / vol
-    last_stress(1) = REAL(sig, KIND=c_double)
-    last_stress(5) = REAL(sig, KIND=c_double)
-    last_stress(9) = REAL(sig, KIND=c_double)
+    image%stress%values(1) = REAL(sig, KIND=c_double)
+    image%stress%values(5) = REAL(sig, KIND=c_double)
+    image%stress%values(9) = REAL(sig, KIND=c_double)
   END SUBROUTINE
 
   ! Cold-deck helpers available without linking OpenCPMD (cmocka stub path).
@@ -841,20 +731,21 @@ CONTAINS
     cntl%use_xc_driver = .FALSE.
   END SUBROUTINE
 
-  SUBROUTINE snapshot_prop_from_modules(n_atoms)
+  SUBROUTINE snapshot_prop_from_modules(image, n_atoms)
     USE ddip, ONLY: pdipole
     USE coor, ONLY: fion
     USE ions, ONLY: ions0, ions1
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     INTEGER :: is, ia, k, idx, i
-    last_prop_valid = 1_c_int
-    last_dip_count = 3_c_int
+    image%prop%valid = 1_c_int
+    image%prop%dipole_count = 3_c_size_t
     DO i = 1, 3
-      last_dip(i) = REAL(pdipole(i), KIND=c_double)
+      image%prop%dipole(i) = REAL(pdipole(i), KIND=c_double)
     END DO
-    last_pol_count = 9_c_int
+    image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
-      last_pol(i) = 0.0_c_double
+      image%prop%polarizability(i) = 0.0_c_double
     END DO
     idx = 0
     IF (ALLOCATED(fion)) THEN
@@ -863,12 +754,12 @@ CONTAINS
           DO k = 1, 3
             idx = idx + 1
             IF (idx > 4096) EXIT
-            last_hess(idx) = REAL(-fion(k, ia, is), KIND=c_double)
+            image%prop%hessian(idx) = REAL(-fion(k, ia, is), KIND=c_double)
           END DO
         END DO
       END DO
     END IF
-    last_hess_count = MIN(idx, 4096)
+    image%prop%hessian_count = INT(MIN(idx, 4096), KIND=c_size_t)
   END SUBROUTINE
 
   SUBROUTINE embed_pp_for_z(zz, pp, lmax_val, ok)
@@ -926,7 +817,7 @@ CONTAINS
     ierr = 0
   END SUBROUTINE
 
-  SUBROUTINE embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
+  SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals, cpmdc_set_need_forces
     USE phfac_utils, ONLY: phfac
@@ -938,6 +829,7 @@ CONTAINS
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
     USE ropt, ONLY: ropt_mod
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -952,8 +844,8 @@ CONTAINS
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
-    last_stress_valid = 0_c_int
-    last_stress = 0.0_c_double
+    image%stress%valid = 0_c_int
+    image%stress%values = 0.0_c_double
     CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
     IF (ierr /= 0) RETURN
     ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
@@ -980,33 +872,33 @@ CONTAINS
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
-    IF (cfg_warm_steps > 0) THEN
+    IF (image%cfg_warm_steps > 0) THEN
       CALL cpmdc_set_warm_orbitals(.TRUE.)
     ELSE
       CALL cpmdc_set_warm_orbitals(.FALSE.)
     END IF
     CALL wfopts
     energy_h = REAL(ener_com%etot, KIND=c_double)
-    last_etot = energy_h
-    last_ekin = REAL(ener_com%ekin, KIND=c_double)
-    last_epseu = REAL(ener_com%epseu, KIND=c_double)
-    last_enl = REAL(ener_com%enl, KIND=c_double)
-    last_eht = REAL(ener_com%eht, KIND=c_double)
-    last_exc = REAL(ener_com%exc, KIND=c_double)
-    last_ener_valid = 1_c_int
-    last_csumg = REAL(chrg%csumg, KIND=c_double)
-    last_csumr = REAL(chrg%csumr, KIND=c_double)
-    last_csums = REAL(chrg%csums, KIND=c_double)
-    last_csumsabs = REAL(chrg%csumsabs, KIND=c_double)
-    last_chrg_valid = 1_c_int
-    last_ms_vals(1) = REAL(ener_c%etot_a, KIND=c_double)
-    last_ms_vals(2) = REAL(ener_c%etot_2, KIND=c_double)
-    last_ms_vals(3) = REAL(ener_c%etot_ab, KIND=c_double)
-    last_ms_vals(4) = REAL(ener_d%etot_b, KIND=c_double)
-    last_ms_vals(5) = REAL(ener_d%ecas, KIND=c_double)
-    last_ms_vals(6) = REAL(ener_d%etot_t, KIND=c_double)
-    last_ms_count = 6_c_int
-    last_ms_valid = 1_c_int
+    image%energy%etot = energy_h
+    image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
+    image%energy%epseu = REAL(ener_com%epseu, KIND=c_double)
+    image%energy%enl = REAL(ener_com%enl, KIND=c_double)
+    image%energy%eht = REAL(ener_com%eht, KIND=c_double)
+    image%energy%exc = REAL(ener_com%exc, KIND=c_double)
+    image%energy%valid = 1_c_int
+    image%charge%csumg = REAL(chrg%csumg, KIND=c_double)
+    image%charge%csumr = REAL(chrg%csumr, KIND=c_double)
+    image%charge%csums = REAL(chrg%csums, KIND=c_double)
+    image%charge%csumsabs = REAL(chrg%csumsabs, KIND=c_double)
+    image%charge%valid = 1_c_int
+    image%multi%values(1) = REAL(ener_c%etot_a, KIND=c_double)
+    image%multi%values(2) = REAL(ener_c%etot_2, KIND=c_double)
+    image%multi%values(3) = REAL(ener_c%etot_ab, KIND=c_double)
+    image%multi%values(4) = REAL(ener_d%etot_b, KIND=c_double)
+    image%multi%values(5) = REAL(ener_d%ecas, KIND=c_double)
+    image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
+    image%multi%count = 6_c_size_t
+    image%multi%valid = 1_c_int
     IF (ALLOCATED(fion)) THEN
       IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
         idx = 0
@@ -1028,12 +920,12 @@ CONTAINS
     IF (omega > 1.0e-30_real64) THEN
       DO i = 1, 3
         DO j = 1, 3
-          last_stress(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
+          image%stress%values(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
         END DO
       END DO
-      last_stress_valid = 1_c_int
+      image%stress%valid = 1_c_int
     END IF
-    CALL snapshot_prop_from_modules(n_atoms)
+    CALL snapshot_prop_from_modules(image, n_atoms)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
     ! a stationary point. Report it as a failure instead.
@@ -1788,37 +1680,39 @@ CONTAINS
     END IF
   END SUBROUTINE
 
-  LOGICAL FUNCTION warm_cell_matches(cell, has_cell)
+  LOGICAL FUNCTION warm_cell_matches(image, cell, has_cell)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
     INTEGER :: i
     warm_cell_matches = .FALSE.
-    IF (warm_cell_set == 0) RETURN
-    IF (has_cell /= warm_has_cell) RETURN
+    IF (image%warm_cell_set == 0) RETURN
+    IF (has_cell /= image%warm_has_cell) RETURN
     IF (has_cell == 0) THEN
       warm_cell_matches = .TRUE.
       RETURN
     END IF
     warm_cell_matches = .TRUE.
     DO i = 1, 9
-      IF (ABS(cell(i) - warm_cell(i)) > 1.0e-8_c_double) &
+      IF (ABS(cell(i) - image%warm_cell(i)) > 1.0e-8_c_double) &
           warm_cell_matches = .FALSE.
     END DO
   END FUNCTION
 
-  SUBROUTINE latch_warm_cell(cell, has_cell)
+  SUBROUTINE latch_warm_cell(image, cell, has_cell)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
     INTEGER :: i
-    warm_has_cell = has_cell
-    warm_cell_set = 1
+    image%warm_has_cell = has_cell
+    image%warm_cell_set = 1
     IF (has_cell == 0) RETURN
     DO i = 1, 9
-      warm_cell(i) = cell(i)
+      image%warm_cell(i) = cell(i)
     END DO
   END SUBROUTINE
 
-  SUBROUTINE run_embed_scf(n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+  SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -1856,6 +1750,7 @@ CONTAINS
     USE ropt, ONLY: init_pinf_pointers
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -1892,13 +1787,13 @@ CONTAINS
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
-    IF (cfg_warm_steps > 0 .AND. warm_cell_matches(cell, has_cell)) THEN
-      CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
-      IF (ok /= 0_c_int) cfg_warm_steps = cfg_warm_steps + 1
+    IF (image%cfg_warm_steps > 0 .AND. warm_cell_matches(image, cell, has_cell)) THEN
+      CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+      IF (ok /= 0_c_int) image%cfg_warm_steps = image%cfg_warm_steps + 1
       RETURN
     END IF
-    IF (cfg_warm_steps > 0) THEN
-      cfg_warm_steps = 0
+    IF (image%cfg_warm_steps > 0) THEN
+      image%cfg_warm_steps = 0
       CALL cpmdc_reset_warm_orbitals()
     END IF
     ! Cold: honor Cap'n-rendered applied_input_deck for method sections.
@@ -1971,12 +1866,12 @@ CONTAINS
     CALL gle_alloc
     CALL vdw_wf_alloc
     ! First and later forces: positions only from C arrays (nwchemc geom pattern).
-    CALL embed_eval_energy_grad(n_atoms, pos, z, energy_h, grad, ok)
+    CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN
-      cfg_warm_steps = 1
-      CALL latch_warm_cell(cell, has_cell)
+      image%cfg_warm_steps = 1
+      CALL latch_warm_cell(image, cell, has_cell)
     ELSE
-      CALL clear_last_energy_components()
+      CALL clear_last_energy_components(image)
     END IF
     ! Hand CWD back to the host (eOn workdir); PP loads already finished.
     IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN

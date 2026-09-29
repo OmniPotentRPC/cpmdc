@@ -645,7 +645,7 @@ if get_option('with_tests')
     'test_energy_components',
     'tests/test_energy_components.c',
     dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
-    include_directories: inc,
+    include_directories: [inc, include_directories('src')],
     c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
   )
 

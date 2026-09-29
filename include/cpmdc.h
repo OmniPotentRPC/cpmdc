@@ -403,18 +403,29 @@ void cpmdc_finalize(void);
 /**
  * @brief Copy the last in-process `ener_com` energy decomposition.
  *
- * Call after a successful `cpmdc_energy*`, `cpmdc_session_energy*`, or
- * `cpmdc_*_calculate_*` evaluation in the same process. Returns 0 when
- * `out->valid` is set; -1 when no successful evaluation has run yet (stub
- * builds always return -1 and leave `out` zeroed). Values are Hartree.
+ * The no-session entry points read the active calculator. A session entry
+ * point reads that session, including after another session has run.
+ * Returns 0 when `out->valid` is set. Values are Hartree.
  */
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
+int cpmdc_session_last_energy_components(const CPMDCSession *session,
+                                         CPMDCEnergyComponents *out);
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
+int cpmdc_session_last_charge_integrals(const CPMDCSession *session,
+                                        CPMDCChargeIntegrals *out);
 int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
+int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
+                                            CPMDCMultiStateEnergies *out);
 int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
+int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session,
+                                         CPMDCMDTrajectoryRow *out);
 int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
+int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
+                                         CPMDCPropertySnapshot *out);
 int cpmdc_last_stress(CPMDCStressTensor *out);
+int cpmdc_session_last_stress(const CPMDCSession *session,
+                              CPMDCStressTensor *out);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,14 @@
 #include "cpmdc_params.h"
+#include "cpmdc_embed_image.h"
+
+_Static_assert(offsetof(CPMDCEnergyComponents, eefield) -
+                       offsetof(CPMDCEnergyComponents, etot) ==
+                   23 * sizeof(double),
+               "energy component doubles are contiguous");
+_Static_assert(offsetof(CPMDCChargeIntegrals, csumsabs) -
+                       offsetof(CPMDCChargeIntegrals, csumg) ==
+                   3 * sizeof(double),
+               "charge integrals are contiguous");
 
 #include <ctype.h>
 #include <limits.h>
@@ -5218,8 +5228,15 @@ size_t cpmdc_potential_result_flat_size(size_t force_count) {
   return overhead + force_count * 16u;
 }
 
+static int snapshot_count(size_t n, size_t cap) {
+  if (n > cap)
+    n = cap;
+  return (int)n;
+}
+
 int cpmdc_potential_result_write(double energy, const double *forces,
                                  size_t force_count, double stress_factor,
+                                 const struct CPMDCEmbedImage *image,
                                  void *potential_result_capnp,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes) {
@@ -5248,40 +5265,19 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   for (size_t i = 0; i < force_count; ++i)
     capn_set64(force_list, (int)i, capn_from_f64(forces[i]));
 
-  extern int cpmdc_embed_last_energy_components(
-      int *valid, double *etot, double *ekin, double *epseu, double *enl,
-      double *eht, double *ehep, double *ehee, double *ehii, double *exc,
-      double *vxc, double *egc, double *esr, double *eeig, double *eband,
-      double *entropy, double *eself, double *ecnstr, double *amu, double *ebogo,
-      double *eext, double *etddft, double *ehsic, double *erestr,
-      double *eefield);
-  extern int cpmdc_embed_last_charge_integrals(int *valid, double *csumg,
-                                               double *csumr, double *csums,
-                                               double *csumsabs);
-  extern int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
-                                          int capacity);
-  extern int cpmdc_embed_last_md_row(int *valid, int *count, double *values,
-                                     int capacity);
-  extern int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
-                                         int hess_cap, int *dip_count, double *dip,
-                                         int *pol_count, double *pol);
-  extern int cpmdc_embed_last_stress(int *valid, double *stress);
-
   int cvalid = 0;
   double comps[24];
   memset(comps, 0, sizeof(comps));
-  if (cpmdc_embed_last_energy_components(
-          &cvalid, &comps[0], &comps[1], &comps[2], &comps[3], &comps[4],
-          &comps[5], &comps[6], &comps[7], &comps[8], &comps[9], &comps[10],
-          &comps[11], &comps[12], &comps[13], &comps[14], &comps[15], &comps[16],
-          &comps[17], &comps[18], &comps[19], &comps[20], &comps[21], &comps[22],
-          &comps[23]) != 0)
-    cvalid = 0;
-
   int ch_valid = 0;
   double ch[4] = {0, 0, 0, 0};
-  (void)cpmdc_embed_last_charge_integrals(&ch_valid, &ch[0], &ch[1], &ch[2],
-                                          &ch[3]);
+  if (image && image->energy.valid) {
+    cvalid = 1;
+    memcpy(comps, &image->energy.etot, sizeof(comps));
+  }
+  if (image && image->charge.valid) {
+    ch_valid = 1;
+    memcpy(ch, &image->charge.csumg, sizeof(ch));
+  }
   /* Successful eval always exposes charge surface (zeros if unset). */
   if (cvalid && !ch_valid) {
     ch_valid = 1;
@@ -5291,7 +5287,12 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   int ms_valid = 0, ms_count = 0;
   double ms_vals[64];
   memset(ms_vals, 0, sizeof(ms_vals));
-  (void)cpmdc_embed_last_multi_state(&ms_valid, &ms_count, ms_vals, 64);
+  if (image && image->multi.valid) {
+    ms_valid = 1;
+    ms_count = snapshot_count(image->multi.count, 64);
+    if (ms_count > 0)
+      memcpy(ms_vals, image->multi.values, (size_t)ms_count * sizeof(double));
+  }
   if (cvalid && !ms_valid) {
     ms_valid = 1;
     ms_count = 6;
@@ -5301,7 +5302,12 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   int md_valid = 0, md_count = 0;
   double md_vals[32];
   memset(md_vals, 0, sizeof(md_vals));
-  (void)cpmdc_embed_last_md_row(&md_valid, &md_count, md_vals, 32);
+  if (image && image->md.valid) {
+    md_valid = 1;
+    md_count = snapshot_count(image->md.count, 32);
+    if (md_count > 0)
+      memcpy(md_vals, image->md.values, (size_t)md_count * sizeof(double));
+  }
   if (cvalid && !md_valid) {
     md_valid = 1;
     md_count = 12;
@@ -5320,8 +5326,18 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   double pol[9];
   memset(hess, 0, sizeof(hess));
   memset(pol, 0, sizeof(pol));
-  (void)cpmdc_embed_last_properties(&prop_valid, &hess_count, hess, 4096,
-                                    &dip_count, dip, &pol_count, pol);
+  if (image && image->prop.valid) {
+    prop_valid = 1;
+    hess_count = snapshot_count(image->prop.hessian_count, 4096);
+    dip_count = snapshot_count(image->prop.dipole_count, 3);
+    pol_count = snapshot_count(image->prop.polarizability_count, 9);
+    if (hess_count > 0)
+      memcpy(hess, image->prop.hessian, (size_t)hess_count * sizeof(double));
+    if (dip_count > 0)
+      memcpy(dip, image->prop.dipole, (size_t)dip_count * sizeof(double));
+    if (pol_count > 0)
+      memcpy(pol, image->prop.polarizability, (size_t)pol_count * sizeof(double));
+  }
   if (cvalid && !prop_valid) {
     prop_valid = 1;
     dip_count = 3;
@@ -5399,7 +5415,10 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   int stress_valid = 0;
   double stress_native[9];
   memset(stress_native, 0, sizeof(stress_native));
-  (void)cpmdc_embed_last_stress(&stress_valid, stress_native);
+  if (image && image->stress.valid) {
+    stress_valid = 1;
+    memcpy(stress_native, image->stress.values, sizeof(stress_native));
+  }
   capn_list64 stress_list = {CAPN_NULL};
   if (stress_valid) {
     stress_list = capn_new_list64(root.seg, 9);
@@ -5446,71 +5465,3 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   return 0;
 }
 
-
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_energy_components(
-    int *valid, double *etot, double *ekin, double *epseu, double *enl, double *eht,
-    double *ehep, double *ehee, double *ehii, double *exc, double *vxc, double *egc,
-    double *esr, double *eeig, double *eband, double *entropy, double *eself,
-    double *ecnstr, double *amu, double *ebogo, double *eext, double *etddft,
-    double *ehsic, double *erestr, double *eefield) {
-  (void)etot; (void)ekin; (void)epseu; (void)enl; (void)eht; (void)ehep; (void)ehee;
-  (void)ehii; (void)exc; (void)vxc; (void)egc; (void)esr; (void)eeig; (void)eband;
-  (void)entropy; (void)eself; (void)ecnstr; (void)amu; (void)ebogo; (void)eext;
-  (void)etddft; (void)ehsic; (void)erestr; (void)eefield;
-  if (valid) *valid = 0;
-  return -1;
-}
-
-
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_charge_integrals(int *valid, double *csumg, double *csumr,
-                                      double *csums, double *csumsabs) {
-  (void)csumg; (void)csumr; (void)csums; (void)csumsabs;
-  if (valid) *valid = 0;
-  return -1;
-}
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_multi_state(int *valid, int *count, double *values,
-                                 int capacity) {
-  (void)count; (void)values; (void)capacity;
-  if (valid) *valid = 0;
-  return -1;
-}
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_md_row(int *valid, int *count, double *values,
-                            int capacity) {
-  (void)count; (void)values; (void)capacity;
-  if (valid) *valid = 0;
-  return -1;
-}
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_properties(int *valid, int *hess_count, double *hess,
-                                int hess_cap, int *dip_count, double *dip,
-                                int *pol_count, double *pol) {
-  (void)hess_count; (void)hess; (void)hess_cap; (void)dip_count; (void)dip;
-  (void)pol_count; (void)pol;
-  if (valid) *valid = 0;
-  return -1;
-}
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((weak))
-#endif
-int cpmdc_embed_last_stress(int *valid, double *stress) {
-  if (stress) {
-    for (int i = 0; i < 9; ++i)
-      stress[i] = 0.0;
-  }
-  if (valid) *valid = 0;
-  return -1;
-}

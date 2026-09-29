@@ -81,12 +81,16 @@ int cpmdc_force_input_stress_result_factors(ForceInput_ptr force_input,
 
 size_t cpmdc_potential_result_flat_size(size_t force_count);
 
+struct CPMDCEmbedImage;
+
 /**
  * @param stress_factor Multiplier applied to native Ha/Bohr^3 stress from the
  *        embed snapshot (1.0 leaves atomic units).
+ * @param image Caller-owned snapshot. NULL leaves component lists invalid.
  */
 int cpmdc_potential_result_write(double energy, const double *forces,
                                  size_t force_count, double stress_factor,
+                                 const struct CPMDCEmbedImage *image,
                                  void *potential_result_capnp,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes);

@@ -4,6 +4,7 @@
  * Live OpenCPMD (CPMDC_HAS_CPMD): also requires a non-total DFT/PP term non-zero.
  */
 #include "cpmdc.h"
+#include "cpmdc_embed_image.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -107,6 +108,44 @@ static void test_last_energy_components_after_eval(void **state) {
   cpmdc_finalize();
 }
 
+#ifndef CPMDC_HAS_CPMD
+int cpmdc_embed_init(void);
+int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
+                            const int *atomic_numbers, const double *cell_ang,
+                            int has_cell, double *energy_h, double *grad_h_bohr,
+                            CPMDCEmbedImage *image);
+
+static void test_two_images_keep_distinct_energies(void **state) {
+  (void)state;
+  CPMDCEmbedImage first;
+  CPMDCEmbedImage second;
+  double pos_first[3] = {0.2, 0.0, 0.0};
+  double pos_second[3] = {1.5, 0.3, -0.4};
+  int z[1] = {14};
+  double cell[9] = {0};
+  double energy_first = 0.0;
+  double energy_second = 0.0;
+  double grad_first[3] = {0};
+  double grad_second[3] = {0};
+  memset(&first, 0, sizeof(first));
+  memset(&second, 0, sizeof(second));
+  assert_int_not_equal(cpmdc_embed_init(), 0);
+  assert_int_not_equal(
+      cpmdc_embed_energy_grad(1, pos_first, z, cell, 0, &energy_first,
+                              grad_first, &first),
+      0);
+  assert_int_not_equal(
+      cpmdc_embed_energy_grad(1, pos_second, z, cell, 0, &energy_second,
+                              grad_second, &second),
+      0);
+  assert_int_equal(first.energy.valid, 1);
+  assert_int_equal(second.energy.valid, 1);
+  assert_true(fabs(first.energy.etot - energy_first) < 1e-12);
+  assert_true(fabs(second.energy.etot - energy_second) < 1e-12);
+  assert_true(fabs(first.energy.etot - second.energy.etot) > 1e-8);
+}
+#endif
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: %s params.bin force_input.bin\n", argv[0]);
@@ -116,6 +155,9 @@ int main(int argc, char **argv) {
   g_step = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_last_energy_components_after_eval),
+#ifndef CPMDC_HAS_CPMD
+      cmocka_unit_test(test_two_images_keep_distinct_energies),
+#endif
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
