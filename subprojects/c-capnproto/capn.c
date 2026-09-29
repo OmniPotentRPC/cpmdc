@@ -1360,6 +1360,11 @@ static void new_object(capn_ptr *p, int bytes) {
 
 capn_ptr capn_root(struct capn *c) {
 	capn_ptr r = {CAPN_PTR_LIST};
+	/* C11 6.5.3.2: a null message is not a segment list. */
+	if (!c) {
+		memset(&r, 0, sizeof(r));
+		return r;
+	}
 	r.seg = lookup_segment(c, NULL, 0);
 	r.data = r.seg ? r.seg->data : new_data(c, 8, &r.seg);
 	r.len = 1;
