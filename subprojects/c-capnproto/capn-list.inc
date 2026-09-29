@@ -49,7 +49,8 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	/* C11 6.5.6: a null list is not an element base. */
-	if (off < 0 || !p.data || sz < 0 || p.len < 0)
+	/* C11 7.24.1: a null caller buffer is not a copy destination. */
+	if (off < 0 || !p.data || !to || sz < 0 || p.len < 0)
 		return -1;
 	/* INT31-C: len minus off must not go negative. */
 	if ((uint64_t)off > (uint64_t)p.len)
@@ -146,7 +147,8 @@ int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	/* C11 6.5.6: a null list is not an element base. */
-	if (off < 0 || !p.data || sz < 0 || p.len < 0)
+	/* C11 7.24.1: a null caller buffer is not a copy source. */
+	if (off < 0 || !p.data || !from || sz < 0 || p.len < 0)
 		return -1;
 	/* INT31-C: len minus off must not go negative. */
 	if ((uint64_t)off > (uint64_t)p.len)
