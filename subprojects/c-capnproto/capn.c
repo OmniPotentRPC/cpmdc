@@ -614,15 +614,30 @@ static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
 }
 
 static int data_size(struct capn_ptr p) {
+	uint64_t n;
 	switch (p.type) {
 	case CAPN_BIT_LIST:
-		return p.datasz;
+		return (int)p.datasz;
 	case CAPN_PTR_LIST:
-		return p.len*8;
+		/* INT32-C: a pointer list is eight bytes times the length. */
+		if (p.len < 0 || (uint64_t)p.len > (uint64_t)INT_MAX / 8ull)
+			return -1;
+		return p.len * 8;
 	case CAPN_STRUCT:
-		return p.datasz + 8*p.ptrs;
+		n = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+		if (n > (uint64_t)INT_MAX)
+			return -1;
+		return (int)n;
 	case CAPN_LIST:
-		return p.len * (p.datasz + 8*p.ptrs) + 8*p.is_composite_list;
+		n = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+		if (p.len < 0)
+			return -1;
+		if (p.len > 0 && n > (uint64_t)INT_MAX / (uint64_t)p.len)
+			return -1;
+		n = (uint64_t)p.len * n + (p.is_composite_list ? 8ull : 0ull);
+		if (n > (uint64_t)INT_MAX)
+			return -1;
+		return (int)n;
 	default:
 		return 0;
 	}
@@ -632,9 +647,15 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	struct capn *c = seg->capn;
 	struct copy *cp = NULL;
 	struct capn_tree **xcp;
-	char *fbegin = f->data - 8*f->is_composite_list;
-	char *fend = fbegin + data_size(*f);
-	int zero_sized = (fend == fbegin);
+	int span = data_size(*f);
+	char *fbegin;
+	char *fend;
+	int zero_sized;
+	if (span < 0)
+		return -1;
+	fbegin = f->data - 8*f->is_composite_list;
+	fend = fbegin + span;
+	zero_sized = (fend == fbegin);
 
 	/* We always copy list members as it would otherwise be an
 	 * overlapped pointer (the data is owned by the enclosing list).
