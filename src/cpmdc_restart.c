@@ -273,10 +273,27 @@ static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
   return 0;
 }
 
+/* INT32-C: sec_start + offset is formed in size_t. A signed sum near INT_MAX is a different record. */
+static struct rec *rec_at(cpmdc_restart *file, int section, int offset) {
+  size_t idx;
+  if (!file || section < 1 || section > CPMDC_RESTART_MAX_SECTIONS || offset < 0)
+    return NULL;
+  if (file->sec_start[section] < 0)
+    return NULL;
+  idx = (size_t)file->sec_start[section] + (size_t)offset;
+  if (idx < (size_t)offset || idx >= file->nrecs)
+    return NULL;
+  return &file->recs[idx];
+}
+
 static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
   if (file->sec_nrec[2] == 3) {
-    const struct rec *sym = &file->recs[file->sec_start[2] + 1];
-    const struct rec *cell = &file->recs[file->sec_start[2] + 2];
+    const struct rec *sym = rec_at(file, 2, 1);
+    const struct rec *cell = rec_at(file, 2, 2);
+    if (!sym || !cell) {
+      set_err(err, err_cap, "section 2 symmetry or cell record is missing");
+      return -1;
+    }
     int32_t ibrav, indpg;
     if (sym->len < 8 || cell->len < 48) {
       set_err(err, err_cap, "section 2 symmetry or cell record has the wrong length");
@@ -293,8 +310,12 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     file->has_cell = 1;
   }
   if (file->sec_nrec[3] == 3) {
-    const struct rec *nsp_r = &file->recs[file->sec_start[3] + 1];
-    const struct rec *na_r = &file->recs[file->sec_start[3] + 2];
+    const struct rec *nsp_r = rec_at(file, 3, 1);
+    const struct rec *na_r = rec_at(file, 3, 2);
+    if (!nsp_r || !na_r) {
+      set_err(err, err_cap, "section 3 species record is missing");
+      return -1;
+    }
     int32_t nsp;
     if (read_i32(nsp_r, 0, &nsp) != 0 || nsp < 0 || nsp > 100000) {
       set_err(err, err_cap, "section 3 species count is unusable");
@@ -320,7 +341,11 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     }
   }
   if (file->sec_nrec[7] == 2) {
-    const struct rec *r = &file->recs[file->sec_start[7] + 1];
+    const struct rec *r = rec_at(file, 7, 1);
+    if (!r) {
+      set_err(err, err_cap, "section 7 cutoff record is missing");
+      return -1;
+    }
     int32_t dual_flag, nel, nr1, nr2, nr3;
     /* ecut, cdual (real*8), dual (logical*4), nel, nr1s, nr2s, nr3s. */
     if (r->len < 36) {
@@ -342,7 +367,11 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
     file->has_cut = 1;
   }
   if (file->sec_nrec[8] == 2) {
-    const struct rec *r = &file->recs[file->sec_start[8] + 1];
+    const struct rec *r = rec_at(file, 8, 1);
+    if (!r) {
+      set_err(err, err_cap, "section 8 state record is missing");
+      return -1;
+    }
     int32_t n, nk, ngw, ngwl, nhg, nhgl;
     if (r->len < 24) {
       set_err(err, err_cap, "section 8 state record is short");
@@ -576,8 +605,8 @@ int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]) {
   struct rec *r;
   if (!file || !file->has_cell || !celldm || file->sec_nrec[2] != 3)
     return -1;
-  r = &file->recs[file->sec_start[2] + 2];
-  if (r->len < 48)
+  r = rec_at(file, 2, 2);
+  if (!r || r->len < 48)
     return -1;
   memcpy(r->data, celldm, 48);
   memcpy(file->celldm, celldm, sizeof(file->celldm));
