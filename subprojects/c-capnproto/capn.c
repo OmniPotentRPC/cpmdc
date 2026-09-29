@@ -928,14 +928,20 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	}
 }
 
-static void copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
+static int copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 	/* copy struct data */
 	int sz = min(t->datasz, f->datasz);
-	/* C11 7.24.1p2: skip a zero count so a null data pointer stays unused. */
-	if (sz)
+	/* C11 7.24.1p2: a positive count needs both pointers. */
+	if (sz) {
+		if (!t->data || !f->data)
+			return -1;
 		memcpy(t->data, f->data, sz);
-	if (t->datasz > sz)
+	}
+	if (t->datasz > sz) {
+		if (!t->data)
+			return -1;
 		memset(t->data + sz, 0, t->datasz - sz);
+	}
 	if (t->datasz)
 		t->data += t->datasz;
 	if (f->datasz)
@@ -943,8 +949,11 @@ static void copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 
 	/* reset excess pointers */
 	sz = min(t->ptrs, f->ptrs);
-	if (t->ptrs > sz)
+	if (t->ptrs > sz) {
+		if (!t->data)
+			return -1;
 		memset(t->data + sz, 0, 8*(t->ptrs - sz));
+	}
 
 	/* create a pointer list for the main loop to copy */
 	if (t->ptrs) {
@@ -952,6 +961,7 @@ static void copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 		t->len = t->ptrs;
 		(*dep)++;
 	}
+	return 0;
 }
 
 #define MAX_COPY_DEPTH 32
@@ -990,7 +1000,8 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 				return -1;
 		}
 		from[0] = tgt;
-		copy_list_member(to, from, &dep);
+		if (copy_list_member(to, from, &dep))
+			return -1;
 		break;
 
 	case CAPN_PTR_LIST:
@@ -1054,7 +1065,8 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			*fn = capn_getp(*fc, 0, 1);
 			*tn = capn_getp(*tc, 0, 1);
 
-			copy_list_member(tn, fn, &dep);
+			if (copy_list_member(tn, fn, &dep))
+				return -1;
 
 			fc->data += fc->datasz + 8*fc->ptrs;
 			tc->data += tc->datasz + 8*tc->ptrs;
