@@ -946,8 +946,9 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 
 static void new_object(capn_ptr *p, int bytes) {
 	struct capn_segment *s = p->seg;
+	uint64_t aligned;
 
-	if (!s) {
+	if (!s || bytes < 0) {
 		memset(p, 0, sizeof(*p));
 		return;
 	}
@@ -955,10 +956,17 @@ static void new_object(capn_ptr *p, int bytes) {
 	if (!bytes)
 		return;
 
-	/* all allocations are 8 byte aligned */
-	bytes = (bytes + 7) & ~7;
+	/* INT32-C: align and the segment length must fit in a signed int. */
+	if (bytes > INT_MAX - 7) {
+		memset(p, 0, sizeof(*p));
+		return;
+	}
+	aligned = ((uint64_t)bytes + 7ull) & ~7ull;
+	bytes = (int)aligned;
 
-	if (s->len + bytes <= s->cap) {
+	if (s->len >= 0 && s->cap >= 0
+	    && (uint64_t)s->len <= (uint64_t)INT_MAX - (uint64_t)bytes
+	    && (uint64_t)s->len + (uint64_t)bytes <= (uint64_t)s->cap) {
 		p->data = s->data + s->len;
 		s->len += bytes;
 		return;
@@ -966,6 +974,10 @@ static void new_object(capn_ptr *p, int bytes) {
 
 	/* add a tag whenever we switch segments so that write_ptr can
 	 * use it */
+	if (ADD_TAG && bytes > INT_MAX - 8) {
+		memset(p, 0, sizeof(*p));
+		return;
+	}
 	p->data = new_data(s->capn, bytes + ADD_TAG*8, &p->seg);
 	if (!p->data) {
 		memset(p, 0, sizeof(*p));
@@ -1100,7 +1112,12 @@ capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz) {
 	p.len = sz;
 	p.ptrs = 0;
 	p.datasz = 0;
-	new_object(&p, sz*8);
+	/* INT32-C: length times eight must fit in a signed int. */
+	if (sz < 0 || (uint64_t)sz * 8ull > (uint64_t)INT_MAX) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	}
+	new_object(&p, sz * 8);
 	return p;
 }
 
