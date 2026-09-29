@@ -889,9 +889,12 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		return 0;
 
 	case CAPN_BIT_LIST:
-		/* C11 7.24.1p2: a zero count still needs a valid pointer. */
-		if (t->datasz)
+		/* C11 7.24.1p2: a positive count needs both pointers. */
+		if (t->datasz) {
+			if (!t->data || !f->data)
+				return -1;
 			memcpy(t->data, f->data, t->datasz);
+		}
 		return 0;
 
 	case CAPN_LIST:
