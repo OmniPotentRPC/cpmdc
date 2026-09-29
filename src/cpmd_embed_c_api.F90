@@ -83,6 +83,15 @@ MODULE cpmd_embed_c_api
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
 #endif
 
+  TYPE :: embed_knobs
+    CHARACTER(LEN=64) :: functional = 'BLYP'
+    REAL(real64) :: cutoff_ry = 70.0_real64
+    INTEGER :: charge = 0
+    INTEGER :: mult = 1
+    CHARACTER(LEN=4096) :: input_deck = ' '
+    CHARACTER(LEN=1024) :: cpmd_root = ' '
+  END TYPE
+
 CONTAINS
 
   SUBROUTINE clear_last_energy_components(image)
@@ -312,6 +321,30 @@ CONTAINS
     CALL store_image_config(image)
   END SUBROUTINE
 
+  FUNCTION knobs_of(image) RESULT(k)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    TYPE(embed_knobs) :: k
+    IF (image%cfg_set == 0_c_int) RETURN
+    CALL copy_cchars_to_f(image%functional, 64, k%functional)
+    IF (LEN_TRIM(k%functional) == 0) k%functional = 'BLYP'
+    k%cutoff_ry = REAL(image%cutoff_ry, KIND=real64)
+    IF (k%cutoff_ry <= 0.0_real64) k%cutoff_ry = 70.0_real64
+    k%charge = INT(image%cfg_charge)
+    k%mult = MAX(1, INT(image%multiplicity))
+    CALL copy_cchars_to_f(image%input_deck, 4096, k%input_deck)
+    CALL copy_cchars_to_f(image%cpmd_root, 1024, k%cpmd_root)
+  END FUNCTION
+
+  FUNCTION knobs_of_applied() RESULT(k)
+    TYPE(embed_knobs) :: k
+    k%functional = applied_functional
+    k%cutoff_ry = applied_cutoff_ry
+    k%charge = applied_charge
+    k%mult = applied_mult
+    k%input_deck = applied_input_deck
+    k%cpmd_root = applied_cpmd_root
+  END FUNCTION
+
   FUNCTION cpmdc_embed_set_config(functional, functional_len, cutoff_ry, charge, &
       multiplicity, input_deck, input_deck_len, cpmd_root, cpmd_root_len, image_c) &
       RESULT(ok) BIND(C, NAME='cpmdc_embed_set_config')
@@ -376,7 +409,6 @@ CONTAINS
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. n_atoms <= 0) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
-    CALL load_image_config(image)
 #if defined(CPMDC_HAS_CPMD)
     CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
@@ -408,6 +440,7 @@ CONTAINS
 
 #if !defined(CPMDC_HAS_CPMD)
   SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    TYPE(embed_knobs) :: knobs
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
@@ -418,14 +451,15 @@ CONTAINS
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
     INTEGER :: i, j, idx
+    knobs = knobs_of(image)
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0) RETURN
-    k = 1.0e-3_real64 * MAX(0.1_real64, applied_cutoff_ry / 70.0_real64)
-    deck_scale = REAL(MAX(1, LEN_TRIM(applied_functional) + LEN_TRIM(applied_input_deck) + &
-         LEN_TRIM(applied_cpmd_root)), KIND=real64)
+    k = 1.0e-3_real64 * MAX(0.1_real64, knobs%cutoff_ry / 70.0_real64)
+    deck_scale = REAL(MAX(1, LEN_TRIM(knobs%functional) + LEN_TRIM(knobs%input_deck) + &
+         LEN_TRIM(knobs%cpmd_root)), KIND=real64)
     energy_h = REAL(1.0e-8_real64 * deck_scale + &
-         1.0e-6_real64 * REAL(applied_charge + applied_mult, KIND=real64), KIND=c_double)
+         1.0e-6_real64 * REAL(knobs%charge + knobs%mult, KIND=real64), KIND=c_double)
     DO i = 1, n_atoms
       z_scale = REAL(MAX(1, INT(z(i))), KIND=real64)
       r_bohr = 0.0_real64
@@ -629,7 +663,8 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
-      deck, nlen, ierr)
+      deck, nlen, ierr, knobs)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -644,7 +679,7 @@ CONTAINS
     ierr = 1
     deck = ' '
     nlen = 0
-    CALL strip_atoms_sections_local(applied_input_deck, method, mlen)
+    CALL strip_atoms_sections_local(knobs%input_deck, method, mlen)
     base = MIN(mlen, LEN(deck) - 64)
     IF (base < 1) RETURN
     deck(1:base) = method(1:base)
@@ -671,7 +706,7 @@ CONTAINS
       ELSE
         lmax_c = 'D'
       END IF
-      IF (INDEX(applied_input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
+      IF (INDEX(knobs%input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
         CALL append_local(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'// &
              NEW_LINE('A'))
       ELSE
@@ -712,7 +747,8 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE embed_compose_cold_deck_local(n_atoms, pos, z, cell, has_cell, &
-      deck, nlen, ierr)
+      deck, nlen, ierr, knobs)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -721,15 +757,15 @@ CONTAINS
     nlen = 0
     ierr = 1
     deck = ' '
-    IF (LEN_TRIM(applied_input_deck) > 0) THEN
-      IF (deck_has_real_atoms_local(applied_input_deck)) THEN
-        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
-        deck(1:nlen) = applied_input_deck(1:nlen)
+    IF (LEN_TRIM(knobs%input_deck) > 0) THEN
+      IF (deck_has_real_atoms_local(knobs%input_deck)) THEN
+        nlen = MIN(LEN_TRIM(knobs%input_deck), LEN(deck))
+        deck(1:nlen) = knobs%input_deck(1:nlen)
         IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
         ierr = 0
-      ELSE IF (deck_has_method_sections_local(applied_input_deck)) THEN
+      ELSE IF (deck_has_method_sections_local(knobs%input_deck)) THEN
         CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
-             deck, nlen, ierr)
+             deck, nlen, ierr, knobs)
       END IF
     END IF
   END SUBROUTINE
@@ -748,11 +784,13 @@ CONTAINS
     INTEGER(c_int) :: ok
     CHARACTER(LEN=16384) :: deck
     INTEGER :: nlen, ierr, i, ncopy
+    TYPE(embed_knobs) :: knobs
     ok = 0_c_int
     deck_len = 0_c_int
     IF (deck_cap < 2) RETURN
+    knobs = knobs_of_applied()
     CALL embed_compose_cold_deck_local(INT(n_atoms), positions_ang, &
-         atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr)
+         atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
     ncopy = MIN(nlen, INT(deck_cap) - 1)
     DO i = 1, ncopy
@@ -765,15 +803,16 @@ CONTAINS
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE apply_method_knobs()
+  SUBROUTINE apply_method_knobs(knobs)
     USE system, ONLY: cntr, cntl
     USE spin, ONLY: clsd
     USE func, ONLY: func1, func2, func3, mfxcx_is_slaterx, mfxcc_is_lyp, &
          mgcx_is_becke88, mgcc_is_lyp, mhfx_is_skipped
     USE tbxc, ONLY: toldcode
     USE ener, ONLY: tenergy_ok
-    IF (applied_cutoff_ry > 0.0_real64) cntr%ecut = applied_cutoff_ry
-    clsd%nlsd = MERGE(2, 1, applied_mult > 1)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
+    IF (knobs%cutoff_ry > 0.0_real64) cntr%ecut = knobs%cutoff_ry
+    clsd%nlsd = MERGE(2, 1, knobs%mult > 1)
     toldcode = .TRUE.
     tenergy_ok = .TRUE.
     func1%mfxcx = mfxcx_is_slaterx
@@ -999,7 +1038,7 @@ CONTAINS
   END SUBROUTINE
 
   ! control/dftin/sysin without reading INPUT (nwchemc rtdb_put analogue).
-  SUBROUTINE embed_set_control_dft_sys(cell_ang, has_cell)
+  SUBROUTINE embed_set_control_dft_sys(cell_ang, has_cell, knobs)
     USE control_def_utils, ONLY: control_def
     USE control_test_utils, ONLY: control_test
     USE control_bcast_utils, ONLY: control_bcast
@@ -1014,6 +1053,7 @@ CONTAINS
     USE tbxc, ONLY: toldcode
     USE vdwcmod, ONLY: empvdwc
     USE ener, ONLY: tenergy_ok
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     REAL(c_double), INTENT(IN) :: cell_ang(*)
     INTEGER, INTENT(IN) :: has_cell
     REAL(real64) :: cell_a
@@ -1051,7 +1091,7 @@ CONTAINS
     func3%pclda = 1.0_real64
     func3%pcgc = 1.0_real64
     func3%phfx = 0.0_real64
-    empvdwc%dft_func = applied_functional
+    empvdwc%dft_func = knobs%functional
     IF (LEN_TRIM(empvdwc%dft_func) == 0) empvdwc%dft_func = 'BLYP'
     cntl%bohr = .FALSE.
     ! sysin defaults (module fields otherwise HUGE/undefined without file parse)
@@ -1070,13 +1110,13 @@ CONTAINS
     cell_com%celldm(3) = 1.0_real64
     cell_com%celldm(4:6) = 0.0_real64
     parm%ibrav = 0
-    cntr%ecut = applied_cutoff_ry
+    cntr%ecut = knobs%cutoff_ry
     isos3%ps_type = 1
     isos1%tclust = .TRUE.
     isos1%tisos = .TRUE.
     parm%ibrav = 1
-    crge%charge = REAL(applied_charge, KIND=real64)
-    clsd%nlsd = MERGE(2, 1, applied_mult > 1)
+    crge%charge = REAL(knobs%charge, KIND=real64)
+    clsd%nlsd = MERGE(2, 1, knobs%mult > 1)
     maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
     CALL control_test(.FALSE.)
     maxsys%mmaxx = MAX(cnti%nsplp + 20, 999)
@@ -1289,7 +1329,8 @@ CONTAINS
   END SUBROUTINE
 
   ! Cold: OpenCPMD parsers via anonymous memfd deck (no disk write). Warm: C arrays only.
-  SUBROUTINE embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr)
+  SUBROUTINE embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr, knobs)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -1320,16 +1361,16 @@ CONTAINS
     CALL format_cell_lines(cell, has_cell, celltxt, celln)
     CALL append(deck, nlen, celltxt(1:celln))
     CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
-    WRITE(line, '(A,F12.6)') '  ', applied_cutoff_ry
+    WRITE(line, '(A,F12.6)') '  ', knobs%cutoff_ry
     CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
-    IF (applied_charge /= 0) THEN
+    IF (knobs%charge /= 0) THEN
       CALL append(deck, nlen, ' CHARGE'//NEW_LINE('A'))
-      WRITE(line, '(A,I6)') '  ', applied_charge
+      WRITE(line, '(A,I6)') '  ', knobs%charge
       CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
     END IF
-    IF (applied_mult > 1) THEN
+    IF (knobs%mult > 1) THEN
       CALL append(deck, nlen, ' MULTIPLICITY'//NEW_LINE('A'))
-      WRITE(line, '(A,I6)') '  ', applied_mult
+      WRITE(line, '(A,I6)') '  ', knobs%mult
       CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
     END IF
     CALL append(deck, nlen, ' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
@@ -1337,7 +1378,7 @@ CONTAINS
     CALL append(deck, nlen, '&DFT'//NEW_LINE('A'))
     CALL append(deck, nlen, ' OLDCODE'//NEW_LINE('A'))
     ! Honor wire/applied functional (capnp-fortran apply path); default BLYP.
-    CALL append(deck, nlen, ' FUNCTIONAL '//TRIM(applied_functional)//NEW_LINE('A'))
+    CALL append(deck, nlen, ' FUNCTIONAL '//TRIM(knobs%functional)//NEW_LINE('A'))
     CALL append(deck, nlen, '&END'//NEW_LINE('A'))
     CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
     seen = .FALSE.
@@ -1523,7 +1564,8 @@ CONTAINS
 
   ! Cap'n method deck (empty/missing &ATOMS) + geometry atoms from C arrays.
   SUBROUTINE embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
-      deck, nlen, ierr)
+      deck, nlen, ierr, knobs)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -1539,7 +1581,7 @@ CONTAINS
     ierr = 1
     deck = ' '
     nlen = 0
-    CALL strip_atoms_sections(applied_input_deck, method, mlen)
+    CALL strip_atoms_sections(knobs%input_deck, method, mlen)
     base = MIN(mlen, LEN(deck) - 64)
     IF (base < 1) RETURN
     deck(1:base) = method(1:base)
@@ -1566,7 +1608,7 @@ CONTAINS
       ELSE
         lmax_c = 'D'
       END IF
-      IF (INDEX(applied_input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
+      IF (INDEX(knobs%input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
         CALL append(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'//NEW_LINE('A'))
       ELSE
         CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
@@ -1716,7 +1758,8 @@ CONTAINS
 
   ! Shared cold-deck assembly used by SCF and by compose preview for tests.
   SUBROUTINE embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, &
-      nlen, ierr)
+      nlen, ierr, knobs)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
@@ -1725,20 +1768,20 @@ CONTAINS
     nlen = 0
     ierr = 1
     deck = ' '
-    IF (LEN_TRIM(applied_input_deck) > 0) THEN
-      IF (deck_has_real_atoms(applied_input_deck)) THEN
-        nlen = MIN(LEN_TRIM(applied_input_deck), LEN(deck))
-        deck(1:nlen) = applied_input_deck(1:nlen)
+    IF (LEN_TRIM(knobs%input_deck) > 0) THEN
+      IF (deck_has_real_atoms(knobs%input_deck)) THEN
+        nlen = MIN(LEN_TRIM(knobs%input_deck), LEN(deck))
+        deck(1:nlen) = knobs%input_deck(1:nlen)
         IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
         ierr = 0
-      ELSE IF (deck_has_method_sections(applied_input_deck)) THEN
+      ELSE IF (deck_has_method_sections(knobs%input_deck)) THEN
         CALL embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
-             deck, nlen, ierr)
+             deck, nlen, ierr, knobs)
       END IF
     END IF
     IF (ierr /= 0) THEN
       CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
-           ierr)
+           ierr, knobs)
     END IF
     IF (ierr == 0 .AND. nlen > 0) THEN
       CALL inject_cell_if_missing(deck, nlen, cell, has_cell)
@@ -1824,6 +1867,7 @@ CONTAINS
     REAL(c_double), INTENT(OUT) :: grad(*)
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, idx, nmax, nlen, mfd
+    TYPE(embed_knobs) :: knobs
     LOGICAL :: tinfo
     CHARACTER(LEN=16384) :: deck
     CHARACTER(LEN=64) :: mempath
@@ -1868,8 +1912,9 @@ CONTAINS
     !    keep method text and append geometry &ATOMS from C arrays.
     ! 3) Else minimal deck with applied functional/cutoff/charge/mult.
     ! Geometry for forces always from C arrays into TAU0 after parse.
+    knobs = knobs_of(image)
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
-         ierr)
+         ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
     mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
          INT(LEN(mempath), KIND=c_int)))
@@ -1959,11 +2004,13 @@ CONTAINS
     INTEGER(c_int) :: ok
     CHARACTER(LEN=16384) :: deck
     INTEGER :: nlen, ierr, i, ncopy
+    TYPE(embed_knobs) :: knobs
     ok = 0_c_int
     deck_len = 0_c_int
     IF (deck_cap < 2) RETURN
+    knobs = knobs_of_applied()
     CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
-         cell_ang, INT(has_cell), deck, nlen, ierr)
+         cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
     ncopy = MIN(nlen, INT(deck_cap) - 1)
     DO i = 1, ncopy
