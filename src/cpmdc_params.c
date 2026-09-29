@@ -1542,7 +1542,9 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, " ELECTRONIC SPECTRA\n") != 0)
       return -1;
   }
-  int n_spin_orbit = list32_len((capn_list32 *)&sec->spinOrbitCouplingStates);
+  /* EXP05-C: resolve a copy. The section pointer stays const. */
+  capn_list32 spin_orbit = sec->spinOrbitCouplingStates;
+  int n_spin_orbit = list32_len(&spin_orbit);
   if (n_spin_orbit < 0)
     return -1;
   if (n_spin_orbit > 0) {
@@ -1550,9 +1552,7 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
       return -1;
     if (append_text(dst, dst_size, used, " SPIN-ORBIT COUPLING\n") != 0)
       return -1;
-    if (append_i32_list_line(dst, dst_size, used,
-                             (capn_list32 *)&sec->spinOrbitCouplingStates,
-                             2) != 0)
+    if (append_i32_list_line(dst, dst_size, used, &spin_orbit, 2) != 0)
       return -1;
   }
   if (sec->propagationSpectra) {
