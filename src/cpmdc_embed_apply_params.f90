@@ -148,6 +148,12 @@ contains
     sections = c_p_m_d_params_input_sections_get(params, err)
     n64 = 0_int64
     if (err == CAPNP_OK) n64 = capnp_list_len(sections)
+    ! INT of a value that does not fit the default integer is undefined.
+    if (n64 < 0_int64 .or. n64 > int(huge(i), kind=int64)) then
+      call capnp_message_free(msg)
+      deallocate (bytes)
+      return
+    end if
     do i = 0, int(n64) - 1
       sec = c_p_m_d_params_input_sections_get_elem(params, i, err)
       if (err /= CAPNP_OK) cycle
