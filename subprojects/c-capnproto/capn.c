@@ -1,6 +1,7 @@
 /* vim: set sw=8 ts=8 sts=8 noet: */
 #include "capn.h"
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
@@ -722,7 +723,10 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		} else if (t->ptrs && t->datasz) {
 			(*dep)++;
 		} else if (t->datasz) {
-			memcpy(t->data, f->data, t->len * t->datasz);
+			/* INT32-C: the byte count is a signed length times the element size. */
+			if (t->datasz < 0 || t->len > INT_MAX / t->datasz)
+				return -1;
+			memcpy(t->data, f->data, (size_t)t->len * (size_t)t->datasz);
 		} else if (t->ptrs) {
 			t->type = CAPN_PTR_LIST;
 			t->len *= t->ptrs;
