@@ -863,9 +863,30 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	int zero_sized;
 	if (span < 0)
 		return -1;
-	fbegin = f->data - 8*f->is_composite_list;
-	fend = fbegin + span;
-	zero_sized = (fend == fbegin);
+	/* C11 6.5.6: form a composite tag only inside the segment. */
+	if (f->is_composite_list) {
+		uintptr_t base, at;
+		if (!f->data || !f->seg || !f->seg->data || f->seg->cap < 8)
+			return -1;
+		base = (uintptr_t) f->seg->data;
+		at = (uintptr_t) f->data;
+		if (at < base + 8u || (uint64_t) (at - base) > (uint64_t) f->seg->cap)
+			return -1;
+		fbegin = f->data - 8;
+	} else if (!f->data) {
+		if (span > 0)
+			return -1;
+		fbegin = NULL;
+	} else {
+		fbegin = f->data;
+	}
+	if (!fbegin) {
+		fend = NULL;
+		zero_sized = 1;
+	} else {
+		fend = fbegin + span;
+		zero_sized = (fend == fbegin);
+	}
 
 	/* We always copy list members as it would otherwise be an
 	 * overlapped pointer (the data is owned by the enclosing list).
