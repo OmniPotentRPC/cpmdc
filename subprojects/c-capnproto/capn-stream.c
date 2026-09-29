@@ -103,6 +103,10 @@ int capn_deflate(struct capn_stream* s) {
 }
 
 int capn_inflate(struct capn_stream* s) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!s)
+		return CAPN_MISALIGNED;
+
 	if (s->avail_out % 8) {
 		return CAPN_MISALIGNED;
 	}
