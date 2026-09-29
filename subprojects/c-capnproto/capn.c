@@ -622,12 +622,37 @@ static void write_ptr_tag(char *d, capn_ptr p, int off) {
 	*(uint64_t*) d = capn_flip64(val);
 }
 
+/* C11 6.5.6: a pointer difference is defined only inside one array.
+   The segment bound is cap. An address inside it keeps the byte offset. */
+static int far_byte_off(const struct capn_segment *s, const char *tgt, uint64_t *off) {
+	uintptr_t base, at;
+
+	if (!s || !s->data || !tgt || s->cap <= 0)
+		return -1;
+	base = (uintptr_t) s->data;
+	at = (uintptr_t) tgt;
+	if (at < base || (uint64_t) (at - base) >= (uint64_t) s->cap)
+		return -1;
+	*off = (uint64_t) (at - base);
+	return 0;
+}
+
 static void write_far_ptr(char *d, struct capn_segment *s, char *tgt) {
-	*(uint64_t*) d = capn_flip64(FAR_PTR | U64(tgt - s->data) | (U64(s->id) << 32));
+	uint64_t off = 0;
+	uint64_t val = 0;
+
+	if (!far_byte_off(s, tgt, &off))
+		val = FAR_PTR | off | (U64(s->id) << 32);
+	*(uint64_t*) d = capn_flip64(val);
 }
 
 static void write_double_far(char *d, struct capn_segment *s, char *tgt) {
-	*(uint64_t*) d = capn_flip64(DOUBLE_PTR | U64(tgt - s->data) | (U64(s->id) << 32));
+	uint64_t off = 0;
+	uint64_t val = 0;
+
+	if (!far_byte_off(s, tgt, &off))
+		val = DOUBLE_PTR | off | (U64(s->id) << 32);
+	*(uint64_t*) d = capn_flip64(val);
 }
 
 #define NEED_TO_COPY 1
