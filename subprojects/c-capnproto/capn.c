@@ -878,25 +878,41 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 
 	switch (p.type) {
 	case CAPN_LIST:
-		if (off >= p.len || tgt.type != CAPN_STRUCT)
+		/* INT32-C: the member offset is an index times the element size. */
+		if (off < 0 || off >= p.len || tgt.type != CAPN_STRUCT)
 			return -1;
-
-		to[0] = p;
-		to[0].data += off * (p.datasz + 8*p.ptrs);
+		{
+			uint64_t elem = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t bytes;
+			if (off > 0 && elem > UINT64_MAX / (uint64_t)off)
+				return -1;
+			bytes = (uint64_t)off * elem;
+			to[0] = p;
+			if (ptr_at(&p, bytes, &to[0].data))
+				return -1;
+		}
 		from[0] = tgt;
 		copy_list_member(to, from, &dep);
 		break;
 
 	case CAPN_PTR_LIST:
-		if (off >= p.len)
+		if (off < 0 || off >= p.len)
 			return -1;
-		data = p.data + 8*off;
+		{
+			uint64_t bytes = (uint64_t)off * 8ull;
+			if (ptr_at(&p, bytes, &data))
+				return -1;
+		}
 		goto copy_ptr;
 
 	case CAPN_STRUCT:
-		if (off >= p.ptrs)
+		if (off < 0 || off >= p.ptrs)
 			return -1;
-		data = p.data + p.datasz + 8*off;
+		{
+			uint64_t bytes = (uint64_t)p.datasz + 8ull * (uint64_t)off;
+			if (ptr_at(&p, bytes, &data))
+				return -1;
+		}
 		goto copy_ptr;
 
 	copy_ptr:
@@ -978,42 +994,66 @@ int capn_set1(capn_list1 l, int off, int val) {
 	return 0;
 }
 
+/* C11 7.24.1p2: a zero count is skipped, and a count past the data fails. */
+static int bit_slice(capn_ptr p, int *off, int sz, int *bsz, int *partial) {
+	if (p.type != CAPN_BIT_LIST || sz < 0 || *off < 0 || (*off & 7) != 0)
+		return -1;
+	if (sz > INT_MAX - 7 || p.datasz < 0)
+		return -1;
+	*bsz = (sz + 7) / 8;
+	*off /= 8;
+	if (*off < 0 || *off > p.datasz)
+		return -1;
+	*partial = (uint64_t)*off + (uint64_t)sz > (uint64_t)p.datasz;
+	return 0;
+}
+
 int capn_getv1(capn_list1 l, int off, uint8_t *data, int sz) {
 	/* Note we only support aligned reads */
-	int bsz;
+	int bsz, partial, n;
 	capn_ptr p = l.p;
-	if (p.type != CAPN_BIT_LIST || (off & 7) != 0)
+	if (bit_slice(p, &off, sz, &bsz, &partial))
 		return -1;
 
-	bsz = (sz + 7) / 8;
-	off /= 8;
-
-	if (off + sz > p.datasz) {
-		memcpy(data, p.data + off, p.datasz - off);
-		return p.len - off*8;
-	} else {
-		memcpy(data, p.data + off, bsz);
-		return sz;
+	if (partial) {
+		n = p.datasz - off;
+		if (n > 0) {
+			if (!data || !p.data)
+				return -1;
+			memcpy(data, p.data + off, (size_t)n);
+		}
+		return p.len - off * 8;
 	}
+	if (bsz > 0) {
+		if (!data || !p.data)
+			return -1;
+		memcpy(data, p.data + off, (size_t)bsz);
+	}
+	return sz;
 }
 
 int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 	/* Note we only support aligned writes */
-	int bsz;
+	int bsz, partial, n;
 	capn_ptr p = l.p;
-	if (p.type != CAPN_BIT_LIST || (off & 7) != 0)
+	if (bit_slice(p, &off, sz, &bsz, &partial))
 		return -1;
 
-	bsz = (sz + 7) / 8;
-	off /= 8;
-
-	if (off + sz > p.datasz) {
-		memcpy(p.data + off, data, p.datasz - off);
-		return p.len - off*8;
-	} else {
-		memcpy(p.data + off, data, bsz);
-		return sz;
+	if (partial) {
+		n = p.datasz - off;
+		if (n > 0) {
+			if (!data || !p.data)
+				return -1;
+			memcpy(p.data + off, data, (size_t)n);
+		}
+		return p.len - off * 8;
 	}
+	if (bsz > 0) {
+		if (!data || !p.data)
+			return -1;
+		memcpy(p.data + off, data, (size_t)bsz);
+	}
+	return sz;
 }
 
 /* pull out whether we add a tag or not as a define so the unit test can
