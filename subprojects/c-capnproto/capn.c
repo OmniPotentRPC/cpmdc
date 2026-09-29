@@ -340,10 +340,26 @@ static capn_ptr read_ptr(struct capn_segment *s, char *d) {
 		break;
 	}
 
-	d += (I32(U32(val)) >> 2) * 8 + 8;
-
-	if (d < s->data) {
-		goto err;
+	/* INT32-C: the word offset is a signed 30-bit field. Scale it in int64_t. */
+	{
+		uint32_t raw = U32(val) >> 2;
+		int64_t words = (raw & 0x20000000u)
+			? (int64_t)raw - (int64_t)0x40000000
+			: (int64_t)raw;
+		int64_t delta = words * 8 + 8;
+		uint64_t base;
+		if (!s->data || d < s->data || s->len < 0)
+			goto err;
+		base = (uint64_t)(d - s->data);
+		if (delta < 0) {
+			if ((uint64_t)(-delta) > base)
+				goto err;
+			d = s->data + (base - (uint64_t)(-delta));
+		} else if ((uint64_t)delta > (uint64_t)s->len - base) {
+			goto err;
+		} else {
+			d = s->data + (base + (uint64_t)delta);
+		}
 	}
 
 	switch (val & 3) {
