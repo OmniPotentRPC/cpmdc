@@ -149,6 +149,9 @@ void capn_append_segment(struct capn *c, struct capn_segment *s) {
 	/* C11 6.5.3.2: a null message is not a segment list. */
 	if (!c)
 		return;
+	/* C11 6.5.3.2: a null segment is not a list node. */
+	if (!s)
+		return;
 	s->id = c->segnum++;
 	s->capn = c;
 	s->next = NULL;
