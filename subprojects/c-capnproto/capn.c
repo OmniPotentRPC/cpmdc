@@ -899,9 +899,10 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	xcp = &c->copy;
 	while (*xcp && !zero_sized) {
 		cp = (struct copy*) *xcp;
-		if (fend <= cp->fbegin) {
+		/* C11 6.5.8: order addresses as integers, not as pointers. */
+		if ((uintptr_t) fend <= (uintptr_t) cp->fbegin) {
 			xcp = &cp->hdr.link[0];
-		} else if (cp->fend <= fbegin) {
+		} else if ((uintptr_t) cp->fend <= (uintptr_t) fbegin) {
 			xcp = &cp->hdr.link[1];
 		} else if (is_ptr_equal(f, &cp->from)) {
 			/* we already have a copy so just point to that */
