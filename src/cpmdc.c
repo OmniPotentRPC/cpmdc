@@ -134,6 +134,19 @@ static CPMDCResult fail_msg(const char *msg) {
   return r;
 }
 
+/* CPMDC_DECK_OUT names a file that receives each deck cpmdc hands to CPMD,
+ * overwritten per deck, so a caller can read what CPMD parsed. */
+static void write_deck_if_requested(const char *deck) {
+  const char *path = getenv("CPMDC_DECK_OUT");
+  if (!path || !*path || !deck)
+    return;
+  FILE *fp = fopen(path, "w");
+  if (!fp)
+    return;
+  fputs(deck, fp);
+  fclose(fp);
+}
+
 static int apply_params_buffer(const void *params_capnp, size_t params_size,
                                const CPMDCScalarOverrides *overrides,
                                char *functional, size_t functional_size,
@@ -159,6 +172,7 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     cpmdc_params_release(&arena);
     return -1;
   }
+  write_deck_if_requested(input_deck);
   if (cpmdc_params_reject_unsupported_inputs(functional, input_deck) != 0) {
     cpmdc_params_release(&arena);
     return -1;
@@ -851,6 +865,7 @@ static int push_geometry_deck_from_params(const void *params_bytes,
     return -1;
   }
   cpmdc_params_release(&arena);
+  write_deck_if_requested(deck);
   int deck_len = 0;
   if (fit_c_int(strlen(deck), &deck_len) != 0)
     return -1;
