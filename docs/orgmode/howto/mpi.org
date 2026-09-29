@@ -16,8 +16,11 @@ reference evaluator on each rank independently.
    An evaluation is collective over the ranks of its calculator.
 3. Take the energy and forces from the first rank of each calculator, CPMD's
    parent rank, and broadcast them to the other ranks.
-   The other ranks return from the call, but their copy of the result is not
-   the calculator's result.
+   The other ranks return from the call with values of their own.
+   In a 4-rank water single point all four printed the parent's energy and
+   forces, but in a 4-rank dimer search, where every rank also ran the
+   host's optimizer, rank 1 took 3 steps on different curvatures while rank 0
+   took 5, and only rank 0's results matched an independent ~cpmd.x~ run.
 4. Keep one ~CPMDCSession~ per calculator.
 5. Call ~MPI_Finalize~ on every rank before the host exits.
    ~cpmdc_finalize()~ does not finalize MPI.
@@ -110,7 +113,8 @@ separate calculators, one session each.
 CPMD calls ~MPI_Init~ during its setup, and nothing in ~cpmdc~ calls
 ~MPI_Finalize~.
 Open MPI 5 treats a rank that exits without ~MPI_Finalize~ as an abnormal
-termination and kills the ranks still running.
+termination and kills the ranks still running; ~mpirun~ then reports that a
+process "exited without calling finalize".
 Call ~MPI_Finalize~ on every rank, after ~cpmdc_finalize()~, as the example
 above does.
 When the host cannot restructure its exit path, register a handler with

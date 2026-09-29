@@ -150,6 +150,16 @@ more than one argument, so a host with command-line arguments cannot rely on
 
 *Fix:* ~export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials~.
 
+** CPMD files appear in the pseudopotential directory
+*Cause:* the first call of a session runs with its working directory in
+~CPMDC_PSEUDO_DIR~, so the ~RESTART.1~, ~LATEST~, ~GEOMETRY~, and
+~GEOMETRY.xyz~ that CPMD writes at the end of that SCF land there.
+Later calls run in the host's working directory.
+
+*Fix:* give each run a writable copy of the pseudopotential directory, or
+link the needed files into a per-run directory and point ~CPMDC_PSEUDO_DIR~
+at it.
+
 ** A long method deck loses its end
 *Cause:* the OpenCPMD path stores the rendered method deck in a
 4096-character buffer; text past that is dropped.

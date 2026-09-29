@@ -35,6 +35,10 @@ minimisation that costs about two energy evaluations per step.
 #+end_src
 
 ~odiisVectors = 10~ renders ~ODIIS~ followed by ~10~ on the next line.
+With no optimiser keyword at all, OpenCPMD 4.3 also uses preconditioned DIIS
+with 10 vectors; its output then reads ~WAVEFUNCTION OPTIMIZATION BY
+PRECONDITIONED DIIS~ and ~MAXIMUM NUMBER OF VECTORS RETAINED FOR DIIS: 10~.
+Writing ~odiisVectors~ keeps the choice visible in the message.
 ~odiis = true~ renders a bare ~ODIIS~ with CPMD's default vector count, and
 ~odiisOptions~ adds inline options such as ~NOPREC~.
 To keep the deck's PCG line instead, use a directive:
