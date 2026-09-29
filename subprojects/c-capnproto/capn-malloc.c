@@ -190,6 +190,10 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	size_t datasz;
 	uint32_t *header;
 
+	/* C11 6.5.3.2: a null message is not a buffer. */
+	if (!c)
+		return -1;
+
 	/* TODO support packing */
 	if (packed)
 		return -1;
