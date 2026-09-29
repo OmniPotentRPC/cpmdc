@@ -874,6 +874,9 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 	switch (t->type) {
 	case CAPN_STRUCT:
 		if (t->datasz) {
+			/* C11 7.24.1p2: a positive count needs both pointers. */
+			if (!t->data || !f->data)
+				return -1;
 			memcpy(t->data, f->data, t->datasz);
 			t->data += t->datasz;
 			f->data += t->datasz;
