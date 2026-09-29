@@ -747,6 +747,9 @@ static int far_byte_off(const struct capn_segment *s, const char *tgt, uint64_t 
 	at = (uintptr_t) tgt;
 	if (at < base || (uint64_t) (at - base) >= (uint64_t) s->cap)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = (uint64_t) (at - base);
 	return 0;
 }
