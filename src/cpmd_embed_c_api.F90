@@ -457,23 +457,76 @@ CONTAINS
     END DO
     image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
     image%prop%valid = 1_c_int
-    ! Toy isotropic stress (Ha/Bohr^3) so PotentialResult.stress is exercised
-    ! without OpenCPMD: sigma_ii ~ energy / (cell volume in Bohr^3) when cell
-    ! present, else zeros with valid set.
+    ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
+    ! volume, so PotentialResult.stress is exercised without OpenCPMD.
+    ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
+    ! the tensor on a periodic cell as well.
     image%stress%values = 0.0_c_double
-    IF (has_cell /= 0) THEN
-      CALL reference_pef_fill_stress(image, cell, energy_h)
+    image%stress%valid = 0_c_int
+    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
+         .NOT. reference_deck_isolated(knobs%input_deck)) THEN
+      IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
+           image%stress%valid = 1_c_int
     END IF
-    image%stress%valid = 1_c_int
   END SUBROUTINE
 
-  SUBROUTINE reference_pef_fill_stress(image, cell, energy_h)
+  LOGICAL FUNCTION reference_stress_wanted()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st
+    reference_stress_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
+  END FUNCTION
+
+  ! Symmetry 0, a missing symmetry line, CLUSTER, or an isolated-molecule
+  ! keyword is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
+  ! symmetry code is a periodic cell.
+  LOGICAL FUNCTION reference_deck_isolated(deck)
+    CHARACTER(LEN=*), INTENT(IN) :: deck
+    INTEGER :: p, n, sym, saw
+    reference_deck_isolated = .TRUE.
+    n = LEN_TRIM(deck)
+    IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
+    IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
+    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
+    p = 1
+    DO WHILE (p <= n - 7)
+      IF (deck(p:p+7) == 'SYMMETRY') THEN
+        IF (p >= 7) THEN
+          IF (deck(p-6:p-1) == 'CHECK ') THEN
+            p = p + 1
+            CYCLE
+          END IF
+        END IF
+        p = p + 8
+        saw = 0
+        sym = 0
+        DO WHILE (p <= n)
+          IF (deck(p:p) >= '0' .AND. deck(p:p) <= '9') THEN
+            saw = 1
+            sym = sym * 10 + IACHAR(deck(p:p)) - IACHAR('0')
+            p = p + 1
+          ELSE IF (saw == 1) THEN
+            EXIT
+          ELSE
+            p = p + 1
+          END IF
+        END DO
+        IF (saw == 1 .AND. sym > 0) reference_deck_isolated = .FALSE.
+        RETURN
+      END IF
+      p = p + 1
+    END DO
+  END FUNCTION
+
+  INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
     REAL(c_double), INTENT(IN) :: energy_h
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
     INTEGER :: i
+    reference_pef_fill_stress = 0
     inv_b = 1.0_real64 / bohr_to_ang
     DO i = 1, 3
       a(i) = REAL(cell(i), KIND=real64) * inv_b
@@ -488,7 +541,8 @@ CONTAINS
     image%stress%values(1) = REAL(sig, KIND=c_double)
     image%stress%values(5) = REAL(sig, KIND=c_double)
     image%stress%values(9) = REAL(sig, KIND=c_double)
-  END SUBROUTINE
+    reference_pef_fill_stress = 1
+  END FUNCTION
 
   ! Cold-deck helpers available without linking OpenCPMD (cmocka stub path).
   SUBROUTINE embed_pp_for_z_local(zz, pp, lmax_val, ok)
@@ -885,6 +939,7 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, is, ia, k, idx, nmax, i, j
     REAL(real64) :: omega
+    LOGICAL :: stress_computed
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -914,9 +969,10 @@ CONTAINS
     ! tfor; iprint_force alone was not enough on the memfd embed path.
     CALL cpmdc_set_need_forces(.TRUE.)
     ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
-    ! (tclust): rinitwf does tpres→newcell→gf_periodic but scg is only
+    ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
-    IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
+    stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
+    IF (stress_computed) cntl%tpres = .TRUE.
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
@@ -964,8 +1020,10 @@ CONTAINS
     END IF
     ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
     ! true stress is paiu/omega (see totstr/wrstress). Row-major for Cap'n Proto.
+    ! totstr runs only when cntl%tpres was set above. A positive omega is the
+    ! cell volume, including an isolated box whose paiu was not computed.
     omega = parm%omega
-    IF (omega > 1.0e-30_real64) THEN
+    IF (stress_computed .AND. omega > 1.0e-30_real64) THEN
       DO i = 1, 3
         DO j = 1, 3
           image%stress%values(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
