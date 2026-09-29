@@ -1071,8 +1071,17 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			if (copy_list_member(tn, fn, &dep))
 				return -1;
 
-			fc->data += fc->datasz + 8*fc->ptrs;
-			tc->data += tc->datasz + 8*tc->ptrs;
+			/* C11 6.5.6: do not step a null pointer, even by zero. */
+			if (fc->datasz + 8*fc->ptrs) {
+				if (!fc->data)
+					return -1;
+				fc->data += fc->datasz + 8*fc->ptrs;
+			}
+			if (tc->datasz + 8*tc->ptrs) {
+				if (!tc->data)
+					return -1;
+				tc->data += tc->datasz + 8*tc->ptrs;
+			}
 			tc->len--;
 
 		} else { /* CAPN_PTR_LIST */
@@ -1081,6 +1090,9 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 			if (fn->type && copy_ptr(tc->seg, tc->data, tn, fn, &dep))
 				return -1;
 
+			/* C11 6.5.6: a word step needs both cursors. */
+			if (!fc->data || !tc->data)
+				return -1;
 			fc->data += 8;
 			tc->data += 8;
 			tc->len--;
