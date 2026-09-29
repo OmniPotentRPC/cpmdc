@@ -1358,7 +1358,8 @@ capn_ptr capn_root(struct capn *c) {
 	r.data = r.seg ? r.seg->data : new_data(c, 8, &r.seg);
 	r.len = 1;
 
-	if (!r.seg || r.seg->cap < 8) {
+	/* C11 6.5.6: a null data pointer is not a root base. */
+	if (!r.seg || !r.data || r.seg->cap < 8) {
 		memset(&r, 0, sizeof(r));
 	} else if (r.seg->len < 8) {
 		r.seg->len = 8;
