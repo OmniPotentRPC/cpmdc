@@ -637,6 +637,31 @@ static void write_ptr_tag(char *d, capn_ptr p, int off) {
 	*(uint64_t*) d = capn_flip64(val);
 }
 
+/* C11 6.5.6 / INT31-C: a tag offset is a pointer difference narrowed to int.
+   Addresses through one past cap stay comparable. Outside that, fail. */
+static int tag_off_int(const struct capn_segment *s, const char *pdata, const char *at, int *off) {
+	uintptr_t base, p_at, d_at;
+	uint64_t po, ao;
+	int64_t delta;
+
+	if (!s || !s->data || !pdata || !at || !off || s->cap < 0)
+		return -1;
+	base = (uintptr_t) s->data;
+	p_at = (uintptr_t) pdata;
+	d_at = (uintptr_t) at;
+	if (p_at < base || (uint64_t) (p_at - base) > (uint64_t) s->cap)
+		return -1;
+	if (d_at < base || (uint64_t) (d_at - base) > (uint64_t) s->cap)
+		return -1;
+	po = (uint64_t) (p_at - base);
+	ao = (uint64_t) (d_at - base);
+	delta = (int64_t) po - (int64_t) ao - 8;
+	if (delta < (int64_t) INT_MIN || delta > (int64_t) INT_MAX)
+		return -1;
+	*off = (int) delta;
+	return 0;
+}
+
 /* C11 6.5.6: a pointer difference is defined only inside one array.
    The segment bound is cap. An address inside it keeps the byte offset. */
 static int far_byte_off(const struct capn_segment *s, const char *tgt, uint64_t *off) {
@@ -692,7 +717,10 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 		return NEED_TO_COPY;
 
 	} else if (p.seg == s) {
-		write_ptr_tag(d, p, pdata - d - 8);
+		int off = 0;
+		if (tag_off_int(s, pdata, d, &off))
+			return -1;
+		write_ptr_tag(d, p, off);
 		return 0;
 
 	} else if (p.has_ptr_tag) {
@@ -705,7 +733,10 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 	} else if (seg_room(p.seg, 8)) {
 		/* The target segment has enough room for tag */
 		char *t = p.seg->data + p.seg->len;
-		write_ptr_tag(t, p, pdata - t - 8);
+		int off = 0;
+		if (tag_off_int(p.seg, pdata, t, &off))
+			return -1;
+		write_ptr_tag(t, p, off);
 		write_far_ptr(d, p.seg, t);
 		p.seg->len += 8;
 		return 0;
