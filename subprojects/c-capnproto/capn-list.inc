@@ -151,6 +151,11 @@ LIST_T CAT(capn_new_list,SZ) (struct capn_segment *seg, int sz) {
 	l.p.seg = seg;
 	l.p.len = sz;
 	l.p.datasz = SZ/8;
+	/* INT32-C: the element count times the width must fit in a signed int. */
+	if (sz < 0 || (uint64_t)sz > (uint64_t)INT_MAX / (uint64_t)(SZ/8)) {
+		memset(&l.p, 0, sizeof(l.p));
+		return l;
+	}
 	new_object(&l.p, sz*(SZ/8));
 	return l;
 }
