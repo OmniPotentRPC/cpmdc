@@ -12,6 +12,7 @@ PATCHES = {
     "opencpmd_keep_fion.patch": "src/rwfopt_utils.mod.F90",
     "opencpmd_warm_orbitals.patch": "src/rwfopt_utils.mod.F90",
     "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
+    "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
 }
 
 

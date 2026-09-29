@@ -11,12 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <setjmp.h>
 
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
 int cpmdc_stop_code(void);
-jmp_buf *cpmdc_stop_jmp(void);
 
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
@@ -886,16 +884,12 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
-  int ok;
-  if (setjmp(*cpmdc_stop_jmp()) != 0) {
-    cpmdc_stop_disarm();
-    return fail_msg("CPMD stopgm during embed SCF");
-  }
-  ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
-                               has_cell ? 1 : 0, &energy, grad_h_bohr);
+  int ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
+                                   has_cell ? 1 : 0, &energy, grad_h_bohr);
+  int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
-  if (!ok) {
-    snprintf(r.message, sizeof(r.message), "CPMD energy/gradient failed");
+  if (stop != 0 || !ok) {
+    snprintf(r.message, sizeof(r.message), "CPMD stopgm during embed SCF");
     return r;
   }
   r.ok = 1;
