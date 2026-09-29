@@ -2,6 +2,7 @@
 #include "cpmdc_restart.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -243,6 +244,11 @@ static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
     nfollow = count < 0 ? -(int64_t)count : (int64_t)count;
     if (nfollow > (int64_t)(file->nrecs - i - 1)) {
       set_err(err, err_cap, "section asks for records past the end of the file");
+      return -1;
+    }
+    /* INT31-C: sec_start and sec_nrec are int. A truncated index reads another record. */
+    if (i > (size_t)INT_MAX || nfollow > (int64_t)INT_MAX - 1) {
+      set_err(err, err_cap, "section index does not fit in int");
       return -1;
     }
     file->sec_start[s] = (int)i;
