@@ -1,10 +1,10 @@
 Default Build
 =============
 
-The default build is the first check for this repository. It builds the
-parser, generated Cap'n Proto readers, shared ``libcpmdc``, feature
-table, session runtime, and deterministic reference evaluator. No
-OpenCPMD checkout is needed.
+The default build is the first check for this repository. The build
+compiles the parser, generated Cap'n Proto readers, shared ``libcpmdc``,
+feature table, session runtime, and deterministic reference evaluator.
+No OpenCPMD checkout is needed.
 
 Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
 pkg-config with your system package manager, or use the checked-in Pixi
@@ -169,7 +169,7 @@ links OpenCPMD archives.
 Test Selection
 ==============
 
-Use the smallest suite that proves the layer you changed:
+Use the smallest suite that exercises the layer you changed:
 
 +----------------------+-------------------------------------------------------------------------------------+-----------------------+
 | Change               | Command                                                                             | Pass condition        |
@@ -199,12 +199,13 @@ Use the smallest suite that proves the layer you changed:
 ``meson test --print-errorlogs`` is preferred because cmocka assertion
 output and OpenCPMD diagnostics stay attached to the failed test.
 
-End-to-End Suites
-=================
+Session Suites
+==============
 
-The embed shell ships a deterministic harmonic evaluator so single-point
-and multi-step session paths work without linking OpenCPMD archives.
-Real PW-DFT evaluation replaces that evaluator when archives are wired.
+The embed shell includes a deterministic harmonic evaluator so
+single-point and multi-step session paths work without linking OpenCPMD
+archives. Real PW-DFT evaluation replaces that evaluator when archives
+are wired.
 
 .. code:: bash
 

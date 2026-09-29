@@ -231,8 +231,8 @@ is created.
 
 The first successful session evaluation fixes the topology: atom count
 and ordered atomic numbers. Later steps may change coordinates, the
-optional 3x3 cell, and requested units. A species change or atom-count
-change requires a new ``CPMDCSession``.
+optional 3 by 3 cell, and requested units. A species change or
+atom-count change requires a new ``CPMDCSession``.
 
 ``cpmdc_session_set_params()`` can replace method setup only before
 topology is accepted. Once a step has succeeded, method changes also

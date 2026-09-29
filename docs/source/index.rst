@@ -45,8 +45,8 @@ then pass ``ForceInput`` per step. The result-carrier call,
 ``PotentialResult`` message used by ``rgpot`` RPC clients.
 
 The first accepted session evaluation fixes atom count and ordered
-atomic numbers. Later steps may change coordinates, units, and the 3x3
-cell; topology changes require a new session.
+atomic numbers. Later steps may change coordinates, units, and the 3 by
+3 cell; topology changes require a new session.
 
 Start Here
 ==========

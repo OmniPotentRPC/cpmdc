@@ -75,8 +75,8 @@ optional cell, and the units the host wants back. A host builds one per
 step. Keeping them apart is what lets a session skip CPMD's setup on
 every step after the first.
 
-One evaluation, step by step
-============================
+What one evaluation does
+========================
 
 #. ``cpmdc_session_create()`` copies the ``CPMDParams`` bytes, renders
    the deck in C, writes it to ``CPMDC_DECK_OUT`` when set, and hands
@@ -110,12 +110,12 @@ Where the deck comes from
 The deck is rendered from ``CPMDParams`` for three reasons: CPMD's own
 parsers already turn every keyword into module state, so no C setter per
 keyword is needed; the rendered deck is what ``cpmd.x`` would read; and
-``CPMDC_DECK_OUT`` can show it to a person. Typed fields render
-first-class keywords, ``directives`` carry keywords without a typed
-field, and ``set``, ``generic``, ``raw``, and ``inputBlocks`` carry text
-that must pass through unchanged. The geometry never goes into
-``CPMDParams``: the bridge writes ``&ATOMS`` from the step on the first
-call and moves atoms through ``tau0`` afterwards.
+``CPMDC_DECK_OUT`` can show it to a person. Typed fields render the
+keywords the schema models, ``directives`` carry keywords without a
+typed field, and ``set``, ``generic``, ``raw``, and ``inputBlocks``
+carry text that must pass through unchanged. The geometry never goes
+into ``CPMDParams``: the bridge writes ``&ATOMS`` from the step on the
+first call and moves atoms through ``tau0`` afterwards.
 
 Sessions, topology, and state
 =============================

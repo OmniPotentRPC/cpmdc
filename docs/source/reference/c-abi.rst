@@ -1,0 +1,425 @@
+The public C ABI (application binary interface) of ``libcpmdc`` is
+declared in ``include/cpmdc.h`` and ``include/cpmdc_features.h``.
+Installed headers live under ``include/cpmdc/``. Every function has C
+linkage, and the header compiles as C and as C++. The generated
+:doc:`API pages <../api/index>` carry the header comments; this page
+adds the units, the return conventions, and the behaviour that the
+implementation in ``src/cpmdc.c`` gives each call.
+
+Conventions
+===========
+
++----------------------------+-----------------------------------------+
+| Item                       | Convention                              |
++============================+=========================================+
+| Parameter buffers          | unpacked flat Cap'n Proto messages:     |
+|                            | ``CPMDParams``, ``PotentialConfig``, or |
+|                            | ``ForceInput`` from                     |
+|                            | ``schema/Potentials.capnp``             |
++----------------------------+-----------------------------------------+
+| Positions in array calls   | Angstrom, ``3 * n_atoms`` doubles,      |
+|                            | atom-major (``x0 y0 z0 x1 ...``)        |
++----------------------------+-----------------------------------------+
+| Energy in ``CPMDCResult``  | Hartree                                 |
++----------------------------+-----------------------------------------+
+| Gradient and force arrays  | Hartree/Bohr; forces are the negative   |
+|                            | gradient                                |
++----------------------------+-----------------------------------------+
+| ``PotentialResult`` values | energy in ``ForceInput.energyUnit``,    |
+|                            | forces in ``energyUnit`` per            |
+|                            | ``lengthUnit``, stress in               |
+|                            | ``energyUnit`` per ``lengthUnit`` cubed |
++----------------------------+-----------------------------------------+
+| ``int`` setup calls        | 0 on success, -1 on failure             |
++----------------------------+-----------------------------------------+
+| ``CPMDCResult`` calls      | ``ok`` non-zero on success; ``message`` |
+|                            | holds ``"ok"`` or the reason            |
++----------------------------+-----------------------------------------+
+| Ownership                  | the caller owns every buffer it passes; |
+|                            | the library copies what it keeps        |
++----------------------------+-----------------------------------------+
+| Threads                    | one process-wide CPMD state; serialize  |
+|                            | calls into one library instance         |
++----------------------------+-----------------------------------------+
+
+``ForceInput`` unit strings are matched without regard to case. Length:
+``angstrom``, ``angstroms``, ``a``, ``aa``, ``bohr``, ``au``, ``a.u.``,
+``atomic``, ``nm``, ``nanometer``. Energy: ``hartree``, ``ha``, ``au``,
+``a.u.``, ``ev``, ``electronvolt``, ``ry``, ``rydberg``, ``kj/mol``,
+``kjmol``, ``kcal/mol``, ``kcalmol``. The schema defaults are
+``angstrom`` and ``eV``. ``ForceInput.box`` is empty or nine values, a
+row-major 3 by 3 cell in ``lengthUnit``. The ``hasCharge``, ``charge``,
+``hasMultiplicity``, and ``multiplicity`` fields of ``ForceInput`` are
+not read by ``cpmdc``.
+
+Types
+=====
+
+``CPMDCResult``
+---------------
+
+============ ============= =======================================
+Field        Type          Meaning
+============ ============= =======================================
+``ok``       ``int``       non-zero when the calculation succeeded
+``energy_h`` ``double``    total energy in Hartree, 0 on failure
+``message``  ``char[512]`` null-terminated status or error text
+============ ============= =======================================
+
+``CPMDCSession``
+----------------
+
+An opaque handle. A session holds a copy of the ``CPMDParams`` bytes,
+the rendered deck, the topology accepted on its first successful step,
+scratch arrays for step geometry, and the results of its last
+evaluation.
+
+Result snapshots
+----------------
+
+Each snapshot struct starts with ``int valid``, set by a successful
+evaluation.
+
++-----------------------------+----------------------------------------------------------------+------------------------+
+| Struct                      | Contents                                                       | Units                  |
++=============================+================================================================+========================+
+| ``CPMDCEnergyComponents``   | the 24 scalars of OpenCPMD's ``ener_com``, ``etot`` to         | Hartree                |
+|                             | ``eefield``                                                    |                        |
++-----------------------------+----------------------------------------------------------------+------------------------+
+| ``CPMDCChargeIntegrals``    | ``csumg``, ``csumr``, ``csums``, ``csumsabs`` from ``chrg``    | electrons              |
++-----------------------------+----------------------------------------------------------------+------------------------+
+| ``CPMDCMultiStateEnergies`` | ``count`` doubles in ``values[64]`` from ``ener_c`` and        | Hartree                |
+|                             | ``ener_d``                                                     |                        |
++-----------------------------+----------------------------------------------------------------+------------------------+
+| ``CPMDCMDTrajectoryRow``    | ``count`` doubles in ``values[32]``:                           | Hartree                |
+|                             | ``etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC`` |                        |
++-----------------------------+----------------------------------------------------------------+------------------------+
+| ``CPMDCPropertySnapshot``   | nuclear gradient in ``hessian[4096]``, dipole in               | atomic units           |
+|                             | ``dipole[3]``, polarizability in ``polarizability[9]``, each   |                        |
+|                             | with a count                                                   |                        |
++-----------------------------+----------------------------------------------------------------+------------------------+
+| ``CPMDCStressTensor``       | row-major ``values[9]``, ``paiu/omega``                        | Hartree/Bohr\ :sup:`3` |
++-----------------------------+----------------------------------------------------------------+------------------------+
+
+With OpenCPMD linked, ``CPMDCEnergyComponents`` fills ``etot``,
+``ekin``, ``epseu``, ``enl``, ``eht``, and ``exc``; the other fields
+stay zero. The reference evaluator fills ``etot`` only. ``EKINC``, the
+fictitious electronic kinetic energy, is zero for a wavefunction
+optimisation.
+
+``CPMDCFeatureEntry`` and ``CPMDCFeatureKind``
+----------------------------------------------
+
++----------------------+-----------------------------------------------+
+| Field                | Meaning                                       |
++======================+===============================================+
+| ``feature_id``       | stable ID such as                             |
+|                      | ``abi.cpmdc_session_calculate_result``        |
++----------------------+-----------------------------------------------+
+| ``kind``             | ``CPMDC_FEATURE_SECTION`` (1),                |
+|                      | ``CPMDC_FEATURE_PARAMS`` (2),                 |
+|                      | ``CPMDC_FEATURE_ABI`` (3),                    |
+|                      | ``CPMDC_FEATURE_KEYWORD`` (4)                 |
++----------------------+-----------------------------------------------+
+| ``stub_applicable``  | non-zero when the stub build exposes the      |
+|                      | feature                                       |
++----------------------+-----------------------------------------------+
+| ``embed_applicable`` | non-zero when an OpenCPMD build exposes the   |
+|                      | feature                                       |
++----------------------+-----------------------------------------------+
+
+Library status
+==============
+
++----------------------------------------+----------------------------------+
+| Function                               | Returns                          |
++========================================+==================================+
+| ``const char *cpmdc_version(void)``    | ``"cpmdc/"`` followed by the     |
+|                                        | project version                  |
++----------------------------------------+----------------------------------+
+| ``int cpmdc_abi_version(void)``        | the ABI generation, equal to     |
+|                                        | ``CPMDC_ABI_VERSION`` (0) and    |
+|                                        | the shared-library soversion     |
++----------------------------------------+----------------------------------+
+| ``int cpmdc_available(void)``          | 1 when an evaluator is ready:    |
+|                                        | the reference evaluator in the   |
+|                                        | default build, OpenCPMD in an    |
+|                                        | OpenCPMD build; 0 in the stub    |
+|                                        | and after ``cpmdc_finalize()``   |
++----------------------------------------+----------------------------------+
+| ``void cpmdc_finalize(void)``          | marks the runtime finalized;     |
+|                                        | later evaluations fail with      |
+|                                        | ``CPMD embed not available``;    |
+|                                        | does not call ``MPI_Finalize``   |
++----------------------------------------+----------------------------------+
+| ``const char *cpmdc_last_error(void)`` | per-thread text of the last      |
+|                                        | ``PotentialConfig``              |
+|                                        | configuration failure, empty     |
+|                                        | after a success                  |
++----------------------------------------+----------------------------------+
+
+``cpmdc_last_error()`` is written by ``cpmdc_configure()``,
+``cpmdc_session_create_from_config()``, and
+``cpmdc_session_configure()``. ``cpmdc_set_params()`` and
+``cpmdc_session_create()`` return their failure without a message.
+
+MPI
+===
+
++---------------------------------------------------+----------------------------------+
+| Function                                          | Behaviour                        |
++===================================================+==================================+
+| ``int cpmdc_bind_calculator(int ranks_per_calc)`` | collective on                    |
+|                                                   | ``MPI_COMM_WORLD``; initialises  |
+|                                                   | MPI when needed and splits the   |
+|                                                   | world into calculators of        |
+|                                                   | ``ranks_per_calc`` consecutive   |
+|                                                   | ranks; ``ranks_per_calc <= 0``   |
+|                                                   | keeps one calculator; returns    |
+|                                                   | this rank's calculator index, or |
+|                                                   | -1 when the world size is not a  |
+|                                                   | multiple or the library has no   |
+|                                                   | CPMD backend; a second call      |
+|                                                   | returns the same index           |
++---------------------------------------------------+----------------------------------+
+
+Call it once on every rank before the first evaluation. See
+:doc:`running under mpirun <../howto/mpi>`.
+
+Configuration without a session
+===============================
+
+These calls configure the process-wide state that the global array calls
+use.
+
++-----------------------------------------------------------+----------------------------------+
+| Function                                                  | Behaviour                        |
++===========================================================+==================================+
+| ``int cpmdc_set_params(const void *params, size_t size)`` | decode ``CPMDParams``, render    |
+|                                                           | the deck, apply it; 0 or -1      |
++-----------------------------------------------------------+----------------------------------+
+| ``int cpmdc_configure(const void *config, size_t size)``  | resolve a ``PotentialConfig``    |
+|                                                           | and apply the result like        |
+|                                                           | ``cpmdc_set_params()``; 0 or -1  |
++-----------------------------------------------------------+----------------------------------+
+
+``cpmdc_configure()`` takes the ``cpmd`` arm when it is set. With the
+arm unset, a ``common`` overlay (``CommonMethodSpec``) lowers into
+synthesized ``CPMDParams``. The fields it lowers are the ones
+``cpmdc_capabilities_result()`` lists: ``xcFunctionals``, ``basisSet``,
+``planewaveCutoffEv``, ``charge``, ``spinMultiplicity``,
+``scfEnergyToleranceEv``, ``scfMaxIterations``, ``kMesh``, ``smearing``,
+``vanDerWaalsMethod``, and ``vanDerWaalsS6``. Setting both the arm and
+the overlay is rejected, and so is an overlay field without a CPMD
+lowering, ``relativityMethod``.
+
+Global array calls
+==================
+
+Each call applies the message it is given and then evaluates, so every
+call starts from a cold SCF.
+
++------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+| Function                                                                                                                           | Output              |
++====================================================================================================================================+=====================+
+| ``CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang, const int *atomic_numbers, const void *params, size_t size)`` | energy              |
++------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+| ``CPMDCResult cpmdc_energy_gradient(..., double *grad_h_bohr)``                                                                    | energy and gradient |
++------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+| ``CPMDCResult cpmdc_energy_forces(..., double *forces_h_bohr)``                                                                    | energy and forces   |
++------------------------------------------------------------------------------------------------------------------------------------+---------------------+
+
+The output array holds ``3 * n_atoms`` doubles.
+
+Sessions
+========
+
++-------------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                            | Behaviour                        |
++=====================================================================================+==================================+
+| ``CPMDCSession *cpmdc_session_create(const void *params, size_t size)``             | copy and render ``CPMDParams``;  |
+|                                                                                     | ``NULL`` on a decode or render   |
+|                                                                                     | failure                          |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)`` | resolve a ``PotentialConfig``    |
+|                                                                                     | like ``cpmdc_configure()``, then |
+|                                                                                     | create a session                 |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)``  | replace the parameters; -1 once  |
+|                                                                                     | the session has accepted a       |
+|                                                                                     | topology                         |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)``   | replace the configuration from a |
+|                                                                                     | ``PotentialConfig``; same rule   |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``void cpmdc_session_destroy(CPMDCSession *s)``                                     | free the session; ``NULL`` is    |
+|                                                                                     | accepted                         |
++-------------------------------------------------------------------------------------+----------------------------------+
+
+The first successful step fixes the atom count and the ordered atomic
+numbers. A later step with a different topology fails with
+``topology change requires a new session`` before CPMD runs.
+Coordinates, the cell, and units may change between steps. A session
+evaluated after another session in the same process re-applies its
+configuration and starts cold (see
+:doc:`wavefunction state <../explanation/wavefunction-state>`).
+
+Session array steps
+-------------------
+
++----------------------------------------------------------------------------------------------------------------------------+---------------------+
+| Function                                                                                                                   | Output              |
++============================================================================================================================+=====================+
+| ``CPMDCResult cpmdc_session_energy(CPMDCSession *s, int n_atoms, const double *positions_ang, const int *atomic_numbers)`` | energy              |
++----------------------------------------------------------------------------------------------------------------------------+---------------------+
+| ``CPMDCResult cpmdc_session_energy_gradient(..., double *grad_h_bohr)``                                                    | energy and gradient |
++----------------------------------------------------------------------------------------------------------------------------+---------------------+
+| ``CPMDCResult cpmdc_session_energy_forces(..., double *forces_h_bohr)``                                                    | energy and forces   |
++----------------------------------------------------------------------------------------------------------------------------+---------------------+
+
+These calls pass no cell: the deck's ``CELL`` applies, or a 12 Angstrom
+cube when the deck has none.
+
+Session message steps
+---------------------
+
++-----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                                                                                            | Output                           |
++=====================================================================================================================================================+==================================+
+| ``CPMDCResult cpmdc_session_calculate_forces(CPMDCSession *s, const void *force_input, size_t size, double *forces_h_bohr, size_t forces_len)``     | energy in Hartree and forces in  |
+|                                                                                                                                                     | Hartree/Bohr;                    |
+|                                                                                                                                                     | ``forces_len >= 3 * n_atoms``    |
++-----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+| ``CPMDCResult cpmdc_session_calculate_result(CPMDCSession *s, const void *force_input, size_t size, void *out, size_t capacity, size_t *out_size)`` | a serialized ``PotentialResult`` |
+|                                                                                                                                                     | in ``out``, its byte count in    |
+|                                                                                                                                                     | ``*out_size``                    |
++-----------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+
+``cpmdc_session_calculate_result()`` writes the required byte count to
+``*out_size`` before it checks ``capacity``. When ``capacity`` is too
+small it returns ``ok == 0`` with ``PotentialResult buffer too small``
+and does not evaluate. The written ``PotentialResult`` carries
+``energy`` and ``forces`` in the requested units, ``stress``,
+``gradient``, ``dipole``, ``polarizability``, and the ``cpmdc``
+extension fields ``energyComponents``, ``chargeIntegrals``,
+``multiStateEnergies``, and ``mdTrajectoryRow`` with their ``...Valid``
+flags.
+
+One-shot message calls
+======================
+
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                                                                                                                 | Behaviour                        |
++==========================================================================================================================================================================+==================================+
+| ``CPMDCResult cpmdc_calculate_result(const void *params, size_t params_size, const void *force_input, size_t force_size, void *out, size_t capacity, size_t *out_size)`` | create a session, evaluate one   |
+|                                                                                                                                                                          | step, destroy the session        |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+| ``CPMDCResult cpmdc_calculate_result_from_config(const void *config, size_t config_size, ...)``                                                                          | the same with a                  |
+|                                                                                                                                                                          | ``PotentialConfig``              |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+| ``size_t cpmdc_potential_result_size_for_force_input(const void *force_input, size_t size)``                                                                             | bytes needed for one             |
+|                                                                                                                                                                          | ``PotentialResult``; parses      |
+|                                                                                                                                                                          | geometry only; 0 when the        |
+|                                                                                                                                                                          | message is invalid or too large  |
++--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
+
+Each one-shot call is a cold start. Use a session for more than one
+step.
+
+Results of the last evaluation
+==============================
+
+Each getter copies a snapshot into ``*out`` and returns 0 when
+``out->valid`` is set, -1 otherwise. The plain form reads the calculator
+that ran last: the active session, or the global state after a global
+call. The ``session`` form reads that session's own last result, also
+after another session has run.
+
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| Plain                                                                 | Per session                                                                                     |
++=======================================================================+=================================================================================================+
+| ``int cpmdc_last_energy_components(CPMDCEnergyComponents *out)``      | ``int cpmdc_session_last_energy_components(const CPMDCSession *s, CPMDCEnergyComponents *out)`` |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out)``        | ``cpmdc_session_last_charge_integrals``                                                         |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)`` | ``cpmdc_session_last_multi_state_energies``                                                     |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)``       | ``cpmdc_session_last_md_trajectory_row``                                                        |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)``      | ``cpmdc_session_last_property_snapshot``                                                        |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_stress(CPMDCStressTensor *out)``                     | ``cpmdc_session_last_stress``                                                                   |
++-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+
+With OpenCPMD linked, the stress snapshot is marked valid whenever the
+cell volume is positive, but CPMD computes the tensor only for a
+periodic cell and only when ``CPMDC_STRESS`` is not ``0``. Read it only
+in that case.
+
+Discovery
+=========
+
++---------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                        | Returns                          |
++=================================================================================+==================================+
+| ``size_t cpmdc_feature_count(void)``                                            | number of rows in the feature    |
+|                                                                                 | table                            |
++---------------------------------------------------------------------------------+----------------------------------+
+| ``const CPMDCFeatureEntry *cpmdc_feature_table(void)``                          | the contiguous table, owned by   |
+|                                                                                 | the library                      |
++---------------------------------------------------------------------------------+----------------------------------+
+| ``const CPMDCFeatureEntry *cpmdc_feature_find(const char *feature_id)``         | the matching row or ``NULL``     |
++---------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_capabilities_result(void *out, size_t capacity, size_t *out_size)`` | a serialized ``Capabilities``    |
+|                                                                                 | message; 0, or -1 with the       |
+|                                                                                 | required size in ``*out_size``   |
++---------------------------------------------------------------------------------+----------------------------------+
+
+Call ``cpmdc_capabilities_result(NULL, 0, &size)`` to query the size.
+The message names the backend, its version, the ABI generation,
+availability, the operations ``energy``, ``forces``, ``gradient``, and
+``stress``, the ``CommonMethodSpec`` fields the overlay lowers, and the
+``cpmd`` ``PotentialConfig`` arm. The
+:doc:`feature inventory <feature-inventory>` describes the table.
+
+RESTART file library
+====================
+
+``include/cpmdc_restart.h`` declares a separate static library,
+``libcpmdc_restart``, that reads and writes CPMD ``RESTART.n`` files
+without OpenCPMD.
+
++------------------+---------------------------------------------------+
+| Group            | Functions                                         |
++==================+===================================================+
+| open and close   | ``cpmdc_restart_read_mem``,                       |
+|                  | ``cpmdc_restart_read_path``,                      |
+|                  | ``cpmdc_restart_free``                            |
++------------------+---------------------------------------------------+
+| inspect          | ``cpmdc_restart_is_stream``,                      |
+|                  | ``cpmdc_restart_header``,                         |
+|                  | ``cpmdc_restart_section``,                        |
+|                  | ``cpmdc_restart_cell``,                           |
+|                  | ``cpmdc_restart_species``,                        |
+|                  | ``cpmdc_restart_ncoords``,                        |
+|                  | ``cpmdc_restart_cutoff``,                         |
+|                  | ``cpmdc_restart_states``                          |
++------------------+---------------------------------------------------+
+| read coordinates | ``cpmdc_restart_coordinates``,                    |
+|                  | ``cpmdc_restart_velocities``,                     |
+|                  | ``cpmdc_restart_initial_coordinates``             |
++------------------+---------------------------------------------------+
+| edit             | ``cpmdc_restart_set_coordinates``,                |
+|                  | ``cpmdc_restart_set_velocities``,                 |
+|                  | ``cpmdc_restart_set_cell``                        |
++------------------+---------------------------------------------------+
+| write            | ``cpmdc_restart_write_mem``,                      |
+|                  | ``cpmdc_restart_write_path``                      |
++------------------+---------------------------------------------------+
+
+Coordinates are Bohr in CPMD species order;
+``CPMDC_RESTART_ANGSTROM_PER_BOHR`` is 0.529177210859. Editing
+coordinates rewrites only those records and copies the wavefunction
+records unchanged. The ``cpmdc-restart`` command exposes ``info``,
+``positions``, ``velocities``, ``patch-positions``, and
+``patch-velocities``, with ``--angstrom`` for Angstrom input and output.
