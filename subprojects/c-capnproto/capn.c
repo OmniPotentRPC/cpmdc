@@ -146,6 +146,9 @@ struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n) 
 }
 
 void capn_append_segment(struct capn *c, struct capn_segment *s) {
+	/* C11 6.5.3.2: a null message is not a segment list. */
+	if (!c)
+		return;
 	s->id = c->segnum++;
 	s->capn = c;
 	s->next = NULL;
