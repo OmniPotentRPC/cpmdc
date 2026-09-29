@@ -871,6 +871,33 @@ test(
     depends: [params_escape_bin],
     suite: ['params'],
   )
+  pp_dir_test_args = []
+  pp_dir_test_deps = []
+  if has_cpmd
+    pp_dir_test_args = [
+      water_params_bin.full_path(),
+      meson.current_source_dir() / 'tests/encode_capnp.py',
+      capnp.full_path(),
+      meson.current_source_dir() / 'schema/Potentials.capnp',
+      meson.current_source_dir() / 'tests/water_blyp_params.capnp.txt',
+    ]
+    pp_dir_test_deps = [water_params_bin]
+  endif
+  test(
+    'pp-dir-and-species',
+    executable(
+      'test_pp_dir_and_species',
+      'tests/test_pp_dir_and_species.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc],
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: pp_dir_test_args,
+    depends: pp_dir_test_deps,
+    suite: ['e2e', 'cmocka'],
+    timeout: 900,
+  )
+
   if has_cpmd
     test(
       'water-capnp-cli-parity',
