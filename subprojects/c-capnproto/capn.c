@@ -301,8 +301,27 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 	}
 
 	datasz = U16(val >> 32);
-	/* INT34-C: the word offset is signed. Shift the unsigned bits. */
-	d += (int32_t)(U32(val) << 1) + 8;
+	/* INT32-C: the word offset is a signed 30-bit field. Scale it in int64_t. */
+	{
+		uint32_t raw = U32(val) >> 2;
+		int64_t words = (raw & 0x20000000u)
+			? (int64_t)raw - (int64_t)0x40000000
+			: (int64_t)raw;
+		int64_t delta = words * 8 + 8;
+		uint64_t base;
+		if (!s->data || d < s->data || s->len < 0)
+			return NULL;
+		base = (uint64_t)(d - s->data);
+		if (delta < 0) {
+			if ((uint64_t)(-delta) > base)
+				return NULL;
+			d = s->data + (base - (uint64_t)(-delta));
+		} else if ((uint64_t)delta > (uint64_t)s->len - base) {
+			return NULL;
+		} else {
+			d = s->data + (base + (uint64_t)delta);
+		}
+	}
 
 	if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz && s->data <= d && d < s->data + s->len) {
 		return d;
