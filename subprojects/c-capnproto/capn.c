@@ -449,6 +449,18 @@ void capn_resolve(capn_ptr *p) {
 }
 
 /* TODO: should this handle CAPN_BIT_LIST? */
+/* INT32-C: a member byte offset must fit in the bytes that remain. */
+static int ptr_at(const capn_ptr *p, uint64_t bytes, char **out) {
+	uint64_t base;
+	if (!p->seg || !p->seg->data || !p->data || p->data < p->seg->data || p->seg->len < 0)
+		return -1;
+	base = (uint64_t)(p->data - p->seg->data);
+	if (base > (uint64_t)p->seg->len || bytes > (uint64_t)p->seg->len - base)
+		return -1;
+	*out = p->data + bytes;
+	return 0;
+}
+
 capn_ptr capn_getp(capn_ptr p, int off, int resolve) {
 	capn_ptr ret = {CAPN_FAR_POINTER};
 	ret.seg = p.seg;
@@ -457,31 +469,43 @@ capn_ptr capn_getp(capn_ptr p, int off, int resolve) {
 
 	switch (p.type) {
 	case CAPN_LIST:
-		/* Return an inner pointer */
-		if (off < p.len) {
-			capn_ptr ret = {CAPN_STRUCT};
-			ret.is_list_member = 1;
-			ret.data = p.data + off * (p.datasz + 8*p.ptrs);
-			ret.seg = p.seg;
-			ret.datasz = p.datasz;
-			ret.ptrs = p.ptrs;
-			return ret;
-		} else {
+		/* INT32-C: the member offset is an index times the element size. */
+		if (off < 0 || off >= p.len)
 			goto err;
+		{
+			uint64_t elem = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t bytes;
+			capn_ptr inner = {CAPN_STRUCT};
+			if (off > 0 && elem > UINT64_MAX / (uint64_t)off)
+				goto err;
+			bytes = (uint64_t)off * elem;
+			if (ptr_at(&p, bytes, &inner.data))
+				goto err;
+			inner.is_list_member = 1;
+			inner.seg = p.seg;
+			inner.datasz = p.datasz;
+			inner.ptrs = p.ptrs;
+			return inner;
 		}
 
 	case CAPN_STRUCT:
-		if (off >= p.ptrs) {
+		if (off < 0 || off >= p.ptrs)
 			goto err;
+		{
+			uint64_t bytes = (uint64_t)p.datasz + 8ull * (uint64_t)off;
+			if (ptr_at(&p, bytes, &ret.data))
+				goto err;
 		}
-		ret.data = p.data + p.datasz + 8*off;
 		break;
 
 	case CAPN_PTR_LIST:
-		if (off >= p.len) {
+		if (off < 0 || off >= p.len)
 			goto err;
+		{
+			uint64_t bytes = (uint64_t)off * 8ull;
+			if (ptr_at(&p, bytes, &ret.data))
+				goto err;
 		}
-		ret.data = p.data + 8*off;
 		break;
 
 	default:
