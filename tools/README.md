@@ -11,6 +11,7 @@ linking `libcpmdc`.
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`; DIIS/PCG/steepest-descent updates only run while the pre-update gradient is unconverged |
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
 | `opencpmd_mp_comm_set.patch` | Publish `mp_comm_set` so an external driver can install `mp_comm_world` before `mp_start` |
+| `opencpmd_stopgm_return.patch` | While an embed call is active, `stopgm` records the stop and returns instead of `my_stopall` |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into `cpmdc_last_stress` / `PotentialResult.stress` |
 
 ```bash
@@ -23,9 +24,12 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_kpoints_inputfile.patch
 # rebuild libcpmdc against the updated archive
 ```
 
-The helper addresses the generated module objects and archive as explicit Make
-targets. OpenCPMD build trees contain a directory named `lib`, so `make lib`
-can consider that target satisfied without refreshing `lib/libcpmd.a`.
+The helper rebuilds the module objects with one Make job, then replaces
+those members with `ar r`. OpenCPMD build trees contain a directory named
+`lib`, and the generated Makefile may set `AR` to the archiver with no
+operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
+`FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
+shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
 
 Cold embed path also requires at runtime:
 

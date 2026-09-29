@@ -1,0 +1,33 @@
+--- a/src/error_handling.mod.F90
++++ b/src/error_handling.mod.F90
+@@ -19,6 +19,16 @@ CONTAINS
+ 
+     CHARACTER(100)                           :: buff, file_name
+     EXTERNAL                                 :: tistopgm
++    INTERFACE
++      FUNCTION cpmdc_embed_catch() BIND(C, NAME='cpmdc_embed_catch')
++        USE, INTRINSIC :: iso_c_binding, ONLY: c_int
++        INTEGER(c_int) :: cpmdc_embed_catch
++      END FUNCTION cpmdc_embed_catch
++      SUBROUTINE cpmdc_note_stop(code) BIND(C, NAME='cpmdc_note_stop')
++        USE, INTRINSIC :: iso_c_binding, ONLY: c_int
++        INTEGER(c_int), INTENT(IN) :: code
++      END SUBROUTINE cpmdc_note_stop
++    END INTERFACE
+     INTEGER                                  :: i_level, i_thread, nc
+ 
+ ! ==--------------------------------------------------------------==
+@@ -48,7 +58,12 @@ CONTAINS
+     CLOSE(file_unit)
+ 
+     nc=999
+-    CALL my_stopall(nc)
++    IF (cpmdc_embed_catch() /= 0) THEN
++      CALL cpmdc_note_stop(nc)
++      RETURN
++    ELSE
++      CALL my_stopall(nc)
++    END IF
+     ! ==--------------------------------------------------------------==
+   END SUBROUTINE stopgm
+ END MODULE error_handling
