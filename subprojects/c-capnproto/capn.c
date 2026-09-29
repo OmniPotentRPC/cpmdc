@@ -1144,12 +1144,26 @@ capn_ptr capn_new_ptr_list(struct capn_segment *seg, int sz) {
 
 capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int sz) {
 	capn_ptr p = {CAPN_LIST};
+	uint64_t n;
 	p.seg = seg;
-	p.len = ((sz >= 0) ? sz : strlen(str)) + 1;
 	p.datasz = 1;
+	/* INT32-C: the length plus the trailing NUL must fit in a signed int. */
+	if (sz >= 0) {
+		n = (uint64_t)sz;
+	} else if (!str) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	} else {
+		n = strlen(str);
+	}
+	if (n >= (uint64_t)INT_MAX) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	}
+	p.len = (int)n + 1;
 	new_object(&p, p.len);
 	if (p.data) {
-		memcpy(p.data, str, p.len-1);
+		memcpy(p.data, str, (size_t)p.len - 1);
 	}
 	return p;
 }
