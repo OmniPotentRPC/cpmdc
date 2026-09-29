@@ -263,6 +263,9 @@ static int far_off(uint64_t val, uint64_t need, const struct capn_segment *s, ui
 	uint64_t bytes = (uint64_t)(U32(val) >> 3) * 8ull;
 	if (!s || s->len < 0 || bytes > (uint64_t)s->len || need > (uint64_t)s->len - bytes)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = bytes;
 	return 0;
 }
