@@ -230,19 +230,26 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 	return s;
 }
 
+/* INT30-C: a far word offset times eight must not wrap. */
+static int far_off(uint64_t val, uint64_t need, const struct capn_segment *s, uint64_t *off) {
+	uint64_t bytes = (uint64_t)(U32(val) >> 3) * 8ull;
+	if (!s || s->len < 0 || bytes > (uint64_t)s->len || need > (uint64_t)s->len - bytes)
+		return -1;
+	*off = bytes;
+	return 0;
+}
+
 static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
-	uint64_t far, tag;
-	uint32_t off = (U32(val) >> 3) * 8;
+	uint64_t far, tag, off;
 	char *p;
 
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
 	}
 
-	p = (*s)->data + off;
-	if (off + 16 > (*s)->len) {
+	if (far_off(val, 16, *s, &off))
 		return 0;
-	}
+	p = (*s)->data + off;
 
 	far = capn_flip64(*(uint64_t*) p);
 	tag = capn_flip64(*(uint64_t*) (p+8));
@@ -267,15 +274,14 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 }
 
 static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
-	uint32_t off = (U32(val) >> 3) * 8;
+	uint64_t off;
 
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
 	}
 
-	if (off + 8 > (*s)->len) {
+	if (far_off(val, 8, *s, &off))
 		return 0;
-	}
 
 	*d = (*s)->data + off;
 	return capn_flip64(*(uint64_t*)*d);
