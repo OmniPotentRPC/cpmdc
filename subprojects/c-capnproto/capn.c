@@ -1261,6 +1261,11 @@ static void new_object(capn_ptr *p, int bytes) {
 	if (s->len >= 0 && s->cap >= 0
 	    && (uint64_t)s->len <= (uint64_t)INT_MAX - (uint64_t)bytes
 	    && (uint64_t)s->len + (uint64_t)bytes <= (uint64_t)s->cap) {
+		/* C11 6.5.6: do not add to a null data pointer. */
+		if (!s->data) {
+			memset(p, 0, sizeof(*p));
+			return;
+		}
 		p->data = s->data + s->len;
 		s->len += bytes;
 		return;
