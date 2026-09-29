@@ -163,18 +163,27 @@ void capn_append_segment(struct capn *c, struct capn_segment *s) {
 	c->segtree = capn_tree_insert(c->segtree, &s->hdr);
 }
 
+/* INT32-C: a segment length plus a byte count must fit in a signed int. */
+static int seg_room(const struct capn_segment *s, int sz) {
+	if (!s || sz < 0 || s->len < 0 || s->cap < 0)
+		return 0;
+	if ((uint64_t)s->len > (uint64_t)INT_MAX - (uint64_t)sz)
+		return 0;
+	return (uint64_t)s->len + (uint64_t)sz <= (uint64_t)s->cap;
+}
+
 static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
 	struct capn_segment *s;
 
 	/* find a segment with sufficient data */
 	for (s = c->seglist; s != NULL; s = s->next) {
-		if (s->len + sz <= s->cap) {
+		if (seg_room(s, sz)) {
 			goto end;
 		}
 	}
 
 	s = c->create ? c->create(c->user, c->segnum, sz) : NULL;
-	if (!s) {
+	if (!s || !seg_room(s, sz)) {
 		*ps = NULL;
 		return NULL;
 	}
@@ -645,7 +654,7 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 		write_far_ptr(d, p.seg, pdata-8);
 		return 0;
 
-	} else if (p.seg->len + 8 <= p.seg->cap) {
+	} else if (seg_room(p.seg, 8)) {
 		/* The target segment has enough room for tag */
 		char *t = p.seg->data + p.seg->len;
 		write_ptr_tag(t, p, pdata - t - 8);
@@ -658,7 +667,7 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 		 * pointer */
 		char *t;
 
-		if (s->len + 16 <= s->cap) {
+		if (seg_room(s, 16)) {
 			/* Try and allocate in the src segment
 			 * first. This should improve lookup on
 			 * read. */
