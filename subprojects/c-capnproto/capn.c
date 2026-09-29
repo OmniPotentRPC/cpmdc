@@ -294,7 +294,8 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 	}
 
 	datasz = U16(val >> 32);
-	d += (I32(U32(val)) << 1) + 8;
+	/* INT34-C: the word offset is signed. Shift the unsigned bits. */
+	d += (int32_t)(U32(val) << 1) + 8;
 
 	if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz && s->data <= d && d < s->data + s->len) {
 		return d;
@@ -465,7 +466,8 @@ err:
 }
 
 static void write_ptr_tag(char *d, capn_ptr p, int off) {
-	uint64_t val = U64(U32(I32(off/8) << 2));
+	/* INT34-C: off/8 is signed. Shift the unsigned bits. */
+	uint64_t val = U64((uint32_t)I32(off/8) << 2);
 
 	switch (p.type) {
 	case CAPN_STRUCT:
