@@ -171,6 +171,9 @@ int capn_init_fp(struct capn *c, FILE *f, int packed) {
 
 int capn_init_mem(struct capn *c, const uint8_t *p, size_t sz, int packed) {
 	struct capn_stream z;
+	/* C11 7.24.1p2: a null buffer is not a message image. */
+	if (sz > 0 && !p)
+		return -1;
 	memset(&z, 0, sizeof(z));
 	z.next_in = p;
 	z.avail_in = sz;
