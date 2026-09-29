@@ -1378,6 +1378,10 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 #endif
 
 static void new_object(capn_ptr *p, int bytes) {
+	/* C11 6.5.3.2: a null object is not a segment. */
+	if (!p)
+		return;
+
 	struct capn_segment *s = p->seg;
 	uint64_t aligned;
 
