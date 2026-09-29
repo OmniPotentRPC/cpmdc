@@ -540,6 +540,9 @@ err:
 }
 
 void capn_resolve(capn_ptr *p) {
+	/* C11 6.5.3.2: a null pointer is not a far pointer. */
+	if (!p)
+		return;
 	if (p->type == CAPN_FAR_POINTER) {
 		*p = read_ptr(p->seg, p->data);
 	}
