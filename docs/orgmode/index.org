@@ -64,7 +64,7 @@ require a new session.
      - :doc:`CPMD option mapping <reference/cpmd-options>`
    * - Linking a real OpenCPMD archive
      - Check the C/Fortran layer boundary and runtime data ownership
-     - :doc:`Architecture <reference/architecture>`
+     - :doc:`Architecture <explanation/architecture>`
    * - Checking exported C symbols
      - Inspect generated declarations and feature structs
      - :doc:`API reference <api/index>`
@@ -131,7 +131,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    :maxdepth: 2
    :caption: Reference
 
-   reference/architecture
+   explanation/architecture
    reference/cpmd-options
    api/index
 

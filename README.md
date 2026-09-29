@@ -329,7 +329,7 @@ Read the docs in this order:
   sessions, result buffers, units
 - [CPMD option mapping](docs/orgmode/reference/cpmd-options.org): schema fields
   and feature IDs for rendered CPMD controls
-- [Architecture](docs/orgmode/reference/architecture.org): layer boundaries and
+- [Architecture](docs/orgmode/explanation/architecture.org): layer boundaries and
   OpenCPMD archive link path
 
 Build the documentation site with:

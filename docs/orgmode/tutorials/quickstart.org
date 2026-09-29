@@ -85,9 +85,9 @@ evaluator and can run the session tests.
    * - Choose structured ``CPMDParams`` fields
      - :doc:`CPMD option mapping </reference/cpmd-options>`
    * - Understand sessions, units, and topology
-     - :doc:`Architecture </reference/architecture>`
+     - :doc:`Architecture </explanation/architecture>`
    * - Link against a real OpenCPMD archive
-     - :doc:`Architecture </reference/architecture>` and `OpenCPMD Archive Build`_ below
+     - :doc:`Architecture </explanation/architecture>` and `OpenCPMD Archive Build`_ below
 
 #+end_export
 
