@@ -353,6 +353,9 @@ static int seg_data_off(const struct capn_segment *s, const char *p, uint64_t *o
 	at = (uintptr_t) p;
 	if (at < base || (uint64_t) (at - base) > (uint64_t) s->len)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = (uint64_t) (at - base);
 	return 0;
 }
