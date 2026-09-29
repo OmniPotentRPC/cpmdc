@@ -365,6 +365,9 @@ static int load_word(const struct capn_segment *s, const char *d, uint64_t *val)
 	uint64_t off;
 	if (seg_data_off(s, d, &off) || (uint64_t)s->len - off < 8ull)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!val)
+		return -1;
 	*val = capn_flip64(*(uint64_t *)d);
 	return 0;
 }
