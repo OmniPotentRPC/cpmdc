@@ -903,6 +903,27 @@ not single CPMD/DFT catalog keyword rows in the typed tables below.
 | ``params.inputSections.atoms.pseudopotentials``                       | ``atoms.pseudopotentials``                       | Pseudopotential entries grouped with      |
 |                                                                       |                                                  | ``ForceInput`` coordinates                |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.constraints``                            | ``atoms.constraints``                            | CONSTRAINTS block entries                 |
+|                                                                       |                                                  | (FIX/DIST/BEND/TORSION)                   |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.isotopes``                               | ``atoms.isotopes``                               | ISOTOPE per-species mass overrides        |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.velocities``                             | ``atoms.velocities``                             | VELOCITIES block initial velocities       |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.dummyAtoms``                             | ``atoms.dummyAtoms``                             | DUMMY ATOMS entries (types 1-4)           |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.changeBonds``                            | ``atoms.changeBonds``                            | CHANGE BONDS lines                        |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.atoms.generate``                               | ``atoms.generate``                               | GENERATE COORDINATES flag                 |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.dft.hubbardU``                                 | ``dft.hubbardU``                                 | Structured HUBBARD U per-species entries  |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.dft.hfxWfcCutoff``                             | ``dft.hfxWfcCutoff``                             | HFX WFC CUTOFF value                      |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.dft.hfxBlock``                                 | ``dft.hfxBlock``                                 | HFX BLOCK size                            |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
+| ``params.inputSections.dft.hfxDistribution``                          | ``dft.hfxDistribution``                          | HFX DISTRIBUTION scheme                   |
++-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
 | ``params.inputSections.atoms.directives``                             | ``atoms.directives``                             | Additional non-coordinate ``&ATOMS``      |
 |                                                                       |                                                  | keyword/value lines                       |
 +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------+
@@ -2161,6 +2182,3 @@ Feature ID                              ``functional`` value
 For rgpot / multi-backend configure RPCs, ``PotentialConfig`` is a
 tagged union with ``cpmd @2 :CPMDParams`` (ordinal aligned with the
 shared schema; ``nwchem @1`` is reserved void in this package).
-
-
-Typed &ATOMS/&DFT extensions (v1.3.0 schema): ``params.inputSections.atoms.constraints``, ``params.inputSections.atoms.isotopes``, ``params.inputSections.atoms.velocities``, ``params.inputSections.atoms.dummyAtoms``, ``params.inputSections.atoms.changeBonds``, ``params.inputSections.atoms.generate``, ``params.inputSections.dft.hubbardU``, ``params.inputSections.dft.hfxWfcCutoff``, ``params.inputSections.dft.hfxBlock``, ``params.inputSections.dft.hfxDistribution``.

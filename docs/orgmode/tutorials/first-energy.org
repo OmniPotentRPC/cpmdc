@@ -245,9 +245,9 @@ force[1] =   0.000000   0.012514  -0.011962
 force[2] =   0.000000  -0.012514  -0.011962
 #+end_src
 
-The SCF converged in 13 iterations to -17.05571670 Hartree.
+The SCF reached -17.05571670 Hartree at iteration 13.
 The forces are those of an off-equilibrium water geometry: zero along ~x~,
-the axis normal to the molecular plane, and mirror-symmetric in ~y~.
+the direction normal to the molecular plane, and mirror-symmetric in ~y~.
 The iteration timings in the ~TCPU~ column depend on the machine.
 
 * What you built

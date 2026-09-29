@@ -43,7 +43,7 @@ A host builds one per step.
 Keeping them apart is what lets a session skip CPMD's setup on every step
 after the first.
 
-* One evaluation, step by step
+* What one evaluation does
 1. ~cpmdc_session_create()~ copies the ~CPMDParams~ bytes, renders the deck in
    C, writes it to ~CPMDC_DECK_OUT~ when set, and hands the bytes and the deck
    to the Fortran side, which decodes the functional, cutoff, charge, and
@@ -74,7 +74,7 @@ The deck is rendered from ~CPMDParams~ for three reasons: CPMD's own parsers
 already turn every keyword into module state, so no C setter per keyword is
 needed; the rendered deck is what ~cpmd.x~ would read; and ~CPMDC_DECK_OUT~
 can show it to a person.
-Typed fields render first-class keywords, ~directives~ carry keywords
+Typed fields render the keywords the schema models, ~directives~ carry keywords
 without a typed field, and ~set~, ~generic~, ~raw~, and ~inputBlocks~ carry
 text that must pass through unchanged.
 The geometry never goes into ~CPMDParams~: the bridge writes ~&ATOMS~ from the

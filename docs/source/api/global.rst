@@ -8,8 +8,14 @@ Global Namespace
 	:hidden:
 
 	enum_CPMDCFeatureKind.rst
+	struct_CPMDCChargeIntegrals.rst
+	struct_CPMDCEnergyComponents.rst
 	struct_CPMDCFeatureEntry.rst
+	struct_CPMDCMDTrajectoryRow.rst
+	struct_CPMDCMultiStateEnergies.rst
+	struct_CPMDCPropertySnapshot.rst
 	struct_CPMDCResult.rst
+	struct_CPMDCStressTensor.rst
 
 Overview
 ~~~~~~~~
@@ -24,9 +30,16 @@ Overview
 	// typedefs
 
 	typedef struct CPMDCResult :ref:`CPMDCResult<doxid-cpmdc_8h_1a624f3d7d040e783aef1536f49e2a43ca>`;
+	typedef struct CPMDCEnergyComponents :ref:`CPMDCEnergyComponents<doxid-cpmdc_8h_1aedc8eb0071a1f153ea4db9c0d96bce19>`;
+	typedef struct CPMDCChargeIntegrals :ref:`CPMDCChargeIntegrals<doxid-cpmdc_8h_1aae00229c7649a90a8da6e23113d367dd>`;
+	typedef struct CPMDCMultiStateEnergies :ref:`CPMDCMultiStateEnergies<doxid-cpmdc_8h_1a7154299d9d5bfe722eb33b24d941abf8>`;
+	typedef struct CPMDCMDTrajectoryRow :ref:`CPMDCMDTrajectoryRow<doxid-cpmdc_8h_1a116d67931c3d565982c327bb0a335818>`;
+	typedef struct CPMDCPropertySnapshot :ref:`CPMDCPropertySnapshot<doxid-cpmdc_8h_1a0ff3c92e7d255d36b825d98d6f9aaff2>`;
+	typedef struct CPMDCStressTensor :ref:`CPMDCStressTensor<doxid-cpmdc_8h_1ab0ed88166123b36bd5f3c01bba3400f4>`;
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
+	typedef struct cpmdc_restart :target:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`;
 
 	// enums
 
@@ -34,17 +47,27 @@ Overview
 
 	// structs
 
+	struct :ref:`CPMDCChargeIntegrals<doxid-struct_c_p_m_d_c_charge_integrals>`;
+	struct :ref:`CPMDCEnergyComponents<doxid-struct_c_p_m_d_c_energy_components>`;
 	struct :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`;
+	struct :ref:`CPMDCMDTrajectoryRow<doxid-struct_c_p_m_d_c_m_d_trajectory_row>`;
+	struct :ref:`CPMDCMultiStateEnergies<doxid-struct_c_p_m_d_c_multi_state_energies>`;
+	struct :ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`;
 	struct :ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>`;
+	struct :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`;
 
 	// global functions
 
 	int :ref:`cpmdc_set_params<doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>`(const void* params_capnp, size_t params_capnp_size_bytes);
+	int :ref:`cpmdc_configure<doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>`(const void* config_capnp, size_t config_capnp_size_bytes);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy_gradient<doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* grad_h_bohr);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy<doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy_forces<doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* forces_h_bohr);
-	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create<doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>`(const void* params_capnp, size_t params_capnp_size_bytes);
+	int :ref:`cpmdc_bind_calculator<doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>`(int ranks_per_calc);
+	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :target:`cpmdc_session_create<doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>`(const void* params_capnp, size_t params_capnp_size_bytes);
 	int :ref:`cpmdc_session_set_params<doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* params_capnp, size_t params_capnp_size_bytes);
+	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create_from_config<doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>`(const void* config_capnp, size_t config_capnp_size_bytes);
+	int :ref:`cpmdc_session_configure<doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* config_capnp, size_t config_capnp_size_bytes);
 	void :ref:`cpmdc_session_destroy<doxid-cpmdc_8h_1a6d07b0b1700b5352f1ce33f396a9f578>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_energy_gradient<doxid-cpmdc_8h_1a6d79318bc9f2eae253d4906376123570>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* grad_h_bohr);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_energy<doxid-cpmdc_8h_1a3c36a0c86b25223e47eb139ec2d89a33>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, int n_atoms, const double* positions_ang, const int* atomic_numbers);
@@ -52,13 +75,53 @@ Overview
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_calculate_forces<doxid-cpmdc_8h_1a9f5e4a955e689dcf3e06b52e68b6adb1>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, double* forces_h_bohr, size_t forces_len);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_calculate_result<doxid-cpmdc_8h_1ac63ef923626641269d88b5319f5eed8a>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_calculate_result<doxid-cpmdc_8h_1a9b206e2d2173eafb39c00977101da25b>`(const void* params_capnp, size_t params_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
+	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_calculate_result_from_config<doxid-cpmdc_8h_1ae25fc395d2c702ceb3604b211c31101c>`(const void* config_capnp, size_t config_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
 	size_t :ref:`cpmdc_potential_result_size_for_force_input<doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408>`(const void* force_input_capnp, size_t force_input_capnp_size_bytes);
+	int :ref:`cpmdc_capabilities_result<doxid-cpmdc_8h_1a1b9502d082856395b03a28318cff24a7>`(void* capabilities_capnp, size_t capabilities_capnp_capacity_bytes, size_t* capabilities_capnp_size_bytes);
 	const char* :ref:`cpmdc_version<doxid-cpmdc_8h_1a4d5a0eade3deceabe9f7e48e7a45d430>`(void);
+	const char* :ref:`cpmdc_last_error<doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>`(void);
+	int :ref:`cpmdc_abi_version<doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44>`(void);
 	int :ref:`cpmdc_available<doxid-cpmdc_8h_1a25f2bc651370d207f2049574e7073e0d>`(void);
 	void :ref:`cpmdc_finalize<doxid-cpmdc_8h_1afae0c7a27c94036223f7a0cf60488f56>`(void);
+	int :ref:`cpmdc_last_energy_components<doxid-cpmdc_8h_1a0d2884a4f1288d9f5e76ec4abb505246>`(:ref:`CPMDCEnergyComponents<doxid-struct_c_p_m_d_c_energy_components>`* out);
+	int :target:`cpmdc_session_last_energy_components<doxid-cpmdc_8h_1a6de74b0ee488509c061fcbbdab84701e>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCEnergyComponents<doxid-struct_c_p_m_d_c_energy_components>`* out);
+	int :target:`cpmdc_last_charge_integrals<doxid-cpmdc_8h_1a730ce53f4a99387b5f1ebe03e23f3883>`(:ref:`CPMDCChargeIntegrals<doxid-struct_c_p_m_d_c_charge_integrals>`* out);
+	int :target:`cpmdc_session_last_charge_integrals<doxid-cpmdc_8h_1a16b278145c1a0ebe3d1b6da8e0c3b2a2>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCChargeIntegrals<doxid-struct_c_p_m_d_c_charge_integrals>`* out);
+	int :target:`cpmdc_last_multi_state_energies<doxid-cpmdc_8h_1a81e70c2ce3ed9bf5ea9d85ca8dcf2c12>`(:ref:`CPMDCMultiStateEnergies<doxid-struct_c_p_m_d_c_multi_state_energies>`* out);
+	int :target:`cpmdc_session_last_multi_state_energies<doxid-cpmdc_8h_1ada692b66033d04c0a292173540ea8ba3>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCMultiStateEnergies<doxid-struct_c_p_m_d_c_multi_state_energies>`* out);
+	int :target:`cpmdc_last_md_trajectory_row<doxid-cpmdc_8h_1a79b53381ce1bfa4271eb3f0236e4c933>`(:ref:`CPMDCMDTrajectoryRow<doxid-struct_c_p_m_d_c_m_d_trajectory_row>`* out);
+	int :target:`cpmdc_session_last_md_trajectory_row<doxid-cpmdc_8h_1ac74b43e1abe4f7a80fc6b1d17b6cd24a>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCMDTrajectoryRow<doxid-struct_c_p_m_d_c_m_d_trajectory_row>`* out);
+	int :target:`cpmdc_last_property_snapshot<doxid-cpmdc_8h_1a82c93318bc595fe735d8551cf0c2065b>`(:ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`* out);
+	int :target:`cpmdc_session_last_property_snapshot<doxid-cpmdc_8h_1a1bbb45afce5cebb9f5141109fbe2f6d1>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`* out);
+	int :target:`cpmdc_last_stress<doxid-cpmdc_8h_1ad1997ec438a489fa8321c36bcf5ec0b7>`(:ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
+	int :target:`cpmdc_session_last_stress<doxid-cpmdc_8h_1a213829ea7a748a92923d6de4c20e9e50>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	size_t :ref:`cpmdc_feature_count<doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_table<doxid-cpmdc__features_8h_1ae40eb0e96927dc5f3feacc20c3869315>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_find<doxid-cpmdc__features_8h_1a4d2414cdfa87d867cf1ab1e708dfb4ca>`(const char* feature_id);
+	cpmdc_restart* :target:`cpmdc_restart_read_mem<doxid-cpmdc__restart_8h_1ae7b62fa4d0ac1400f7ca88fae6687f2e>`(const void* bytes, size_t nbytes, char* err, size_t err_cap);
+	cpmdc_restart* :target:`cpmdc_restart_read_path<doxid-cpmdc__restart_8h_1ac5c4295836c617d13898d447a69e5d23>`(const char* path, char* err, size_t err_cap);
+	void :target:`cpmdc_restart_free<doxid-cpmdc__restart_8h_1a21508759d96038feef8c60585540cef8>`(cpmdc_restart* file);
+	int :target:`cpmdc_restart_is_stream<doxid-cpmdc__restart_8h_1a9b4712e82aa09f84838b8df2dae379df>`(const cpmdc_restart* file);
+	const char* :target:`cpmdc_restart_header<doxid-cpmdc__restart_8h_1aba7859dc9d37fbd8e751eef430ca5850>`(const cpmdc_restart* file);
+	int :target:`cpmdc_restart_section<doxid-cpmdc__restart_8h_1a050b8c038447fe4331830979e20b168c>`(const cpmdc_restart* file, int section, int* count);
+	int :target:`cpmdc_restart_cell<doxid-cpmdc__restart_8h_1ac1cdda0a95509fea2153133d80f96b7b>`(const cpmdc_restart* file, int* ibrav, int* indpg, double celldm[6]);
+	int :target:`cpmdc_restart_species<doxid-cpmdc__restart_8h_1a25f632af816723de80cb0218a28b016e>`(const cpmdc_restart* file, int* nsp, const int** na_per_species);
+	int :target:`cpmdc_restart_ncoords<doxid-cpmdc__restart_8h_1abfa7aca8335d0fc77ba01516ca77d86a>`(const cpmdc_restart* file);
+	int :target:`cpmdc_restart_coordinates<doxid-cpmdc__restart_8h_1a1f0b3f9f57fd0ca15b1a07b8ff5a649c>`(const cpmdc_restart* file, double* xyz, int n3);
+	int :target:`cpmdc_restart_velocities<doxid-cpmdc__restart_8h_1aa8d1e583b86741cb4983f58e2fe911a0>`(const cpmdc_restart* file, double* xyz, int n3);
+	int :target:`cpmdc_restart_initial_coordinates<doxid-cpmdc__restart_8h_1a337a3c4578f21b024c908e66e0dd38fe>`(const cpmdc_restart* file, double* xyz, int n3);
+	int :target:`cpmdc_restart_set_coordinates<doxid-cpmdc__restart_8h_1a3f076f8969698092b18908fb462ca13d>`(cpmdc_restart* file, const double* xyz, int n3);
+	int :target:`cpmdc_restart_set_velocities<doxid-cpmdc__restart_8h_1a9f63ac6376aac41fd01fae63a73f3894>`(cpmdc_restart* file, const double* xyz, int n3);
+	int :target:`cpmdc_restart_set_cell<doxid-cpmdc__restart_8h_1a3395624eaaf387d38411b709c6f4c06b>`(cpmdc_restart* file, const double celldm[6]);
+	int :target:`cpmdc_restart_cutoff<doxid-cpmdc__restart_8h_1a7fb885214c7ad0cda83cb7f7680fac6c>`(const cpmdc_restart* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s);
+	int :target:`cpmdc_restart_states<doxid-cpmdc__restart_8h_1a5870f76d69d3672e1fa136c705475dbc>`(const cpmdc_restart* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl);
+	int :target:`cpmdc_restart_write_mem<doxid-cpmdc__restart_8h_1a999ee8be4f5b1b7c629b28fedd6e6a4f>`(const cpmdc_restart* file, void** bytes, size_t* nbytes, char* err, size_t err_cap);
+	int :target:`cpmdc_restart_write_path<doxid-cpmdc__restart_8h_1adda72bd3313b8e2ebd04360cb4ed5d2f>`(const cpmdc_restart* file, const char* path, char* err, size_t err_cap);
+
+	// macros
+
+	#define :ref:`CPMDC_ABI_VERSION<doxid-cpmdc_8h_1a3e1546a10c3fe2b968f3bfaffd048056>`
+	#define :target:`CPMDC_RESTART_ANGSTROM_PER_BOHR<doxid-cpmdc__restart_8h_1af60c430255991bb5fe2489d84b051597>`
 
 .. _details-global:
 
@@ -79,6 +142,80 @@ Typedefs
 	typedef struct CPMDCResult CPMDCResult
 
 Result returned by energy / gradient / forces entry points.
+
+.. index:: pair: typedef; CPMDCEnergyComponents
+.. _doxid-cpmdc_8h_1aedc8eb0071a1f153ea4db9c0d96bce19:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCEnergyComponents CPMDCEnergyComponents
+
+In-process snapshot of OpenCPMD ``ener_com`` scalars (Hartree a.u.).
+
+Filled after a successful embed SCF (``wfopts``) or reference PEF evaluation. Hosts read this via ``:ref:`cpmdc_last_energy_components() <doxid-cpmdc_8h_1a0d2884a4f1288d9f5e76ec4abb505246>``` without parsing CLI ENERGY files or opening a network socket. Field names mirror ``ener_com_t`` in OpenCPMD ``ener.mod.F90``. Zero fields are valid (not set for that run).
+
+.. index:: pair: typedef; CPMDCChargeIntegrals
+.. _doxid-cpmdc_8h_1aae00229c7649a90a8da6e23113d367dd:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCChargeIntegrals CPMDCChargeIntegrals
+
+OpenCPMD ``chrg_t`` density integrals (post-SCF module state).
+
+.. index:: pair: typedef; CPMDCMultiStateEnergies
+.. _doxid-cpmdc_8h_1a7154299d9d5bfe722eb33b24d941abf8:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCMultiStateEnergies CPMDCMultiStateEnergies
+
+Flattened CAS22-class multi-state catalog (``ener_c`` + ``ener_d``).
+
+Layout is backend-defined; ``count`` is the number of doubles copied into ``values`` (caller provides capacity). Returns -1 when no snapshot.
+
+.. index:: pair: typedef; CPMDCMDTrajectoryRow
+.. _doxid-cpmdc_8h_1a116d67931c3d565982c327bb0a335818:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCMDTrajectoryRow CPMDCMDTrajectoryRow
+
+One ENERGY-file-equivalent trajectory row (Hartree).
+
+Layout (count >= 12 after a successful eval): [0] etot [1] ekin [2] epseu [3] enl [4] eht [5] exc [6] ehep [7] ehee [8] ehii [9] esr [10] eself [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)
+
+.. index:: pair: typedef; CPMDCPropertySnapshot
+.. _doxid-cpmdc_8h_1a0ff3c92e7d255d36b825d98d6f9aaff2:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCPropertySnapshot CPMDCPropertySnapshot
+
+PROP-style property snapshot after a successful evaluation.
+
+* dipole[3]: OpenCPMD ``ddippdipole`` (a.u.) when linked; PEF zeros
+
+* polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
+
+* hessian[]: nuclear gradient dE/dR packed as [natoms\*3] (full Hessian needs dedicated PROP/Hessian run; gradient is always available after force eval)
+
+.. index:: pair: typedef; CPMDCStressTensor
+.. _doxid-cpmdc_8h_1ab0ed88166123b36bd5f3c01bba3400f4:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCStressTensor CPMDCStressTensor
+
+Cartesian stress tensor after a successful PEF evaluation.
+
+Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
 
 .. index:: pair: typedef; CPMDCSession
 .. _doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239:
@@ -123,7 +260,7 @@ Global Functions
 
 Apply CPMD method parameters from a Cap'n Proto message.
 
-Callers do not need C setter functions for individual CPMD keywords. Build one ``CPMDParams`` message with top-level fields, structured ``inputSections``, and literal ``inputBlocks``, then pass its bytes to this function or to ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```.
+Callers do not need C setter functions for individual CPMD keywords. Build one ``CPMDParams`` message with top-level fields, structured ``inputSections``, and literal ``inputBlocks``, then pass its bytes to this function or to ``cpmdc_session_create()``.
 
 Feature discovery mirrors the schema carriers: typed fields such as ``params.inputSections.cpmd.maxIter``, ``params.inputSections.system.cell``, ``params.inputSections.dft.hfxScreening``, and ``params.inputSections.atoms.pseudopotentials``; catalog sections such as ``catalog.section.VDW``; and escape hatches such as ``params.inputSections.raw``. The same serialized params buffer is accepted by ``:ref:`cpmdc_calculate_result() <doxid-cpmdc_8h_1a9b206e2d2173eafb39c00977101da25b>``` for one-shot calls.
 
@@ -149,6 +286,24 @@ Feature discovery mirrors the schema carriers: typed fields such as ``params.inp
 .. rubric:: Returns:
 
 0 on success, -1 on parse or configuration failure.
+
+.. index:: pair: function; cpmdc_configure
+.. _doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_configure(const void* config_capnp, size_t config_capnp_size_bytes)
+
+Apply configuration from a ``PotentialConfig`` message.
+
+The ``cpmd`` union arm carries ``CPMDParams`` and wins wholesale when present. With the arm unset, a set ``common`` overlay (``CommonMethodSpec``) lowers to synthesized ``CPMDParams`` : functional, plane-wave cutoff, charge, multiplicity, MAXITER, and the Monkhorst-Pack kMesh. Setting both the cpmd arm and the overlay is rejected (capnp cannot distinguish unset arm fields from defaults). Overlay fields without a CPMD lowering are rejected and reported through ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>```.
+
+
+
+.. rubric:: Returns:
+
+0 on success, -1 on parse, lowering, or apply failure.
 
 .. index:: pair: function; cpmdc_energy_gradient
 .. _doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f:
@@ -182,17 +337,21 @@ Compute total energy only (no gradient allocation).
 
 Compute energy and nuclear forces (negative gradient, Hartree/Bohr).
 
-.. index:: pair: function; cpmdc_session_create
-.. _doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745:
+.. index:: pair: function; cpmdc_bind_calculator
+.. _doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953:
 
 .. ref-code-block:: cpp
 	:class: doxyrest-title-code-block
 
-	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* cpmdc_session_create(const void* params_capnp, size_t params_capnp_size_bytes)
+	int cpmdc_bind_calculator(int ranks_per_calc)
 
 Create a persistent evaluation session from a Cap'n Proto message.
 
 The session owns a copy of the serialized message so callers may release the input buffer after this call returns.
+
+Bind this rank to one CPMD calculator of ``ranks_per_calc`` ranks.
+
+Collective on MPI_COMM_WORLD, once, before the first energy call. World size must divide into groups of ranks_per_calc. Each group is one CPMD calculator: its own communicator, its own wavefunction, the same deck. A value of zero or less takes the whole world as one group. Returns the group index, or -1 when the split is refused or the library carries no CPMD backend. A second call returns the same index and does not split again.
 
 .. index:: pair: function; cpmdc_session_set_params
 .. _doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5:
@@ -203,6 +362,30 @@ The session owns a copy of the serialized message so callers may release the inp
 	int cpmdc_session_set_params(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* params_capnp, size_t params_capnp_size_bytes)
 
 Replace Cap'n Proto parameters before the session accepts topology.
+
+.. index:: pair: function; cpmdc_session_create_from_config
+.. _doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* cpmdc_session_create_from_config(const void* config_capnp, size_t config_capnp_size_bytes)
+
+Create a persistent session from a ``PotentialConfig`` message.
+
+Resolves the config exactly like ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>``` and installs the effective ``CPMDParams`` on a new session.
+
+.. index:: pair: function; cpmdc_session_configure
+.. _doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_session_configure(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* config_capnp, size_t config_capnp_size_bytes)
+
+Configure an existing session from a ``PotentialConfig`` message.
+
+Accepted only before the session evaluates; resolution matches ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```.
 
 .. index:: pair: function; cpmdc_session_destroy
 .. _doxid-cpmdc_8h_1a6d07b0b1700b5352f1ce33f396a9f578:
@@ -288,6 +471,18 @@ One-shot Cap'n Proto entry point (params + ForceInput -> PotentialResult).
 
 Multi-step callers should create one session and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1ac63ef923626641269d88b5319f5eed8a>``` per step.
 
+.. index:: pair: function; cpmdc_calculate_result_from_config
+.. _doxid-cpmdc_8h_1ae25fc395d2c702ceb3604b211c31101c:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` cpmdc_calculate_result_from_config(const void* config_capnp, size_t config_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes)
+
+One-shot Cap'n Proto entry point resolving a full ``PotentialConfig`` (native arm plus common overlay, exactly like ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```).
+
+Multi-step callers should create one session via ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>``` and call ``:ref:`cpmdc_session_calculate_result() <doxid-cpmdc_8h_1ac63ef923626641269d88b5319f5eed8a>``` per step.
+
 .. index:: pair: function; cpmdc_potential_result_size_for_force_input
 .. _doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408:
 
@@ -300,6 +495,20 @@ Byte count needed for a ``PotentialResult`` for the given ``ForceInput``.
 
 Parses geometry only; does not initialize or evaluate CPMD. Returns 0 when the message is invalid or too large for the C ABI.
 
+.. index:: pair: function; cpmdc_capabilities_result
+.. _doxid-cpmdc_8h_1a1b9502d082856395b03a28318cff24a7:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_capabilities_result(void* capabilities_capnp, size_t capabilities_capnp_capacity_bytes, size_t* capabilities_capnp_size_bytes)
+
+Write a Cap'n Proto ``Capabilities`` message describing this backend.
+
+Loaders negotiate against the message before dispatch: backend name and version, ABI generation, availability, the calculate operations the ABI serves, the ``CommonMethodSpec`` fields the overlay lowers, and the ``PotentialConfig`` arms accepted. A stub build reports the same operation surface with ``available = false``.
+
+Returns 0 on success. On a too-small buffer (including the pure size query ``capabilities_capnp == NULL``, ``capabilities_capnp_capacity_bytes == 0``) returns -1 with ``*capabilities_capnp_size_bytes`` set to the required size.
+
 .. index:: pair: function; cpmdc_version
 .. _doxid-cpmdc_8h_1a4d5a0eade3deceabe9f7e48e7a45d430:
 
@@ -309,6 +518,30 @@ Parses geometry only; does not initialize or evaluate CPMD. Returns 0 when the m
 	const char* cpmdc_version(void)
 
 Compiled library version string.
+
+.. index:: pair: function; cpmdc_last_error
+.. _doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	const char* cpmdc_last_error(void)
+
+Diagnostic message for the most recent int-returning configuration call on this thread.
+
+Covers ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, and the session setup entry points. Returns an empty string when the last such call succeeded.
+
+.. index:: pair: function; cpmdc_abi_version
+.. _doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_abi_version(void)
+
+Numeric ABI generation of the compiled library.
+
+Compare against the CPMDC_ABI_VERSION the consumer compiled with.
 
 .. index:: pair: function; cpmdc_available
 .. _doxid-cpmdc_8h_1a25f2bc651370d207f2049574e7073e0d:
@@ -329,6 +562,18 @@ Compiled library version string.
 	void cpmdc_finalize(void)
 
 Finalize an owned embedded CPMD runtime.
+
+.. index:: pair: function; cpmdc_last_energy_components
+.. _doxid-cpmdc_8h_1a0d2884a4f1288d9f5e76ec4abb505246:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_last_energy_components(:ref:`CPMDCEnergyComponents<doxid-struct_c_p_m_d_c_energy_components>`* out)
+
+Copy the last in-process ``ener_com`` energy decomposition.
+
+The no-session entry points read the active calculator. A session entry point reads that session, including after another session has run. Returns 0 when ``out->valid`` is set. Values are Hartree.
 
 .. index:: pair: function; cpmdc_feature_count
 .. _doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e:
@@ -367,4 +612,19 @@ Find one feature by stable ID.
 .. rubric:: Returns:
 
 Pointer to the matching table entry, or ``NULL`` when the feature ID is not present.
+
+Macros
+------
+
+.. index:: pair: define; CPMDC_ABI_VERSION
+.. _doxid-cpmdc_8h_1a3e1546a10c3fe2b968f3bfaffd048056:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_ABI_VERSION
+
+Numeric ABI generation of this header.
+
+Matches the shared-library soversion and :ref:`cpmdc_abi_version() <doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44>`; bumps only on an incompatible ABI change.
 

@@ -3,7 +3,7 @@
 
 * Default Build
 The default build is the first check for this repository.
-It builds the parser, generated Cap'n Proto readers, shared ~libcpmdc~, feature
+The build compiles the parser, generated Cap'n Proto readers, shared ~libcpmdc~, feature
 table, session runtime, and deterministic reference evaluator.
 No OpenCPMD checkout is needed.
 
@@ -119,7 +119,7 @@ or ~tests/water_blyp_params.capnp.txt~ and
 OpenCPMD archives.
 
 * Test Selection
-Use the smallest suite that proves the layer you changed:
+Use the smallest suite that exercises the layer you changed:
 
 | Change | Command | Pass condition |
 |--------+---------+----------------|
@@ -133,8 +133,8 @@ Use the smallest suite that proves the layer you changed:
 ~meson test --print-errorlogs~ is preferred because cmocka assertion output and
 OpenCPMD diagnostics stay attached to the failed test.
 
-* End-to-End Suites
-The embed shell ships a deterministic harmonic evaluator so single-point and
+* Session Suites
+The embed shell includes a deterministic harmonic evaluator so single-point and
 multi-step session paths work without linking OpenCPMD archives.
 Real PW-DFT evaluation replaces that evaluator when archives are wired.
 
