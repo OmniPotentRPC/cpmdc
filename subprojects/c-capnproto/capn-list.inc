@@ -36,11 +36,13 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	/* C11 6.5.6: a null list is not an element base. */
-	if (off < 0 || !p.data)
+	if (off < 0 || !p.data || sz < 0 || p.len < 0)
 		return -1;
-	if (off + sz > p.len) {
-		sz = p.len - off;
-	}
+	/* INT31-C: len minus off must not go negative. */
+	if ((uint64_t)off > (uint64_t)p.len)
+		sz = 0;
+	else if ((uint64_t)sz > (uint64_t)p.len - (uint64_t)off)
+		sz = (int)((uint64_t)p.len - (uint64_t)off);
 
 	switch (p.type) {
 	case CAPN_LIST:
@@ -105,11 +107,13 @@ int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 	int i;
 	capn_ptr p = l.p;
 	/* C11 6.5.6: a null list is not an element base. */
-	if (off < 0 || !p.data)
+	if (off < 0 || !p.data || sz < 0 || p.len < 0)
 		return -1;
-	if (off + sz > p.len) {
-		sz = p.len - off;
-	}
+	/* INT31-C: len minus off must not go negative. */
+	if ((uint64_t)off > (uint64_t)p.len)
+		sz = 0;
+	else if ((uint64_t)sz > (uint64_t)p.len - (uint64_t)off)
+		sz = (int)((uint64_t)p.len - (uint64_t)off);
 
 	switch (p.type) {
 	case CAPN_LIST:
