@@ -18,7 +18,7 @@ typedef struct CPMDCEmbedImage {
   int cfg_set;
   char functional[64];
   double cutoff_ry;
-  int charge;
+  int cfg_charge;
   int multiplicity;
   char input_deck[4096];
   char cpmd_root[1024];

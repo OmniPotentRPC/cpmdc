@@ -74,7 +74,7 @@ MODULE cpmd_embed_c_api
     INTEGER(c_int) :: cfg_set
     CHARACTER(KIND=c_char) :: functional(64)
     REAL(c_double) :: cutoff_ry
-    INTEGER(c_int) :: charge
+    INTEGER(c_int) :: cfg_charge
     INTEGER(c_int) :: multiplicity
     CHARACTER(KIND=c_char) :: input_deck(4096)
     CHARACTER(KIND=c_char) :: cpmd_root(1024)
@@ -284,7 +284,7 @@ CONTAINS
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     CALL copy_f_to_cchars(applied_functional, image%functional, 64)
     image%cutoff_ry = REAL(applied_cutoff_ry, KIND=c_double)
-    image%charge = INT(applied_charge, KIND=c_int)
+    image%cfg_charge = INT(applied_charge, KIND=c_int)
     image%multiplicity = INT(applied_mult, KIND=c_int)
     CALL copy_f_to_cchars(applied_input_deck, image%input_deck, 4096)
     CALL copy_f_to_cchars(applied_cpmd_root, image%cpmd_root, 1024)
@@ -298,7 +298,7 @@ CONTAINS
     IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
     applied_cutoff_ry = REAL(image%cutoff_ry, KIND=real64)
     IF (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
-    applied_charge = INT(image%charge)
+    applied_charge = INT(image%cfg_charge)
     applied_mult = MAX(1, INT(image%multiplicity))
     CALL copy_cchars_to_f(image%input_deck, 4096, applied_input_deck)
     CALL copy_cchars_to_f(image%cpmd_root, 1024, applied_cpmd_root)
