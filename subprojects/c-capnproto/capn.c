@@ -711,7 +711,9 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		return 0;
 
 	case CAPN_BIT_LIST:
-		memcpy(t->data, f->data, t->datasz);
+		/* C11 7.24.1p2: a zero count still needs a valid pointer. */
+		if (t->datasz)
+			memcpy(t->data, f->data, t->datasz);
 		return 0;
 
 	case CAPN_LIST:
@@ -742,14 +744,20 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 static void copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 	/* copy struct data */
 	int sz = min(t->datasz, f->datasz);
-	memcpy(t->data, f->data, sz);
-	memset(t->data + sz, 0, t->datasz - sz);
-	t->data += t->datasz;
-	f->data += f->datasz;
+	/* C11 7.24.1p2: skip a zero count so a null data pointer stays unused. */
+	if (sz)
+		memcpy(t->data, f->data, sz);
+	if (t->datasz > sz)
+		memset(t->data + sz, 0, t->datasz - sz);
+	if (t->datasz)
+		t->data += t->datasz;
+	if (f->datasz)
+		f->data += f->datasz;
 
 	/* reset excess pointers */
 	sz = min(t->ptrs, f->ptrs);
-	memset(t->data + sz, 0, 8*(t->ptrs - sz));
+	if (t->ptrs > sz)
+		memset(t->data + sz, 0, 8*(t->ptrs - sz));
 
 	/* create a pointer list for the main loop to copy */
 	if (t->ptrs) {
