@@ -126,7 +126,4 @@ CPMD also runs OpenMP threads inside each rank when OpenCPMD was built with
 ~-omp~.
 Set ~OMP_NUM_THREADS~ per rank so that ranks times threads matches the cores
 the job holds.
-CPMD scales further on ranks than on threads.
-On the 7-atom Si3N4 cluster of the [[file:../explanation/routes.org][route
-comparison]], ~cpmd.x~ on 16 MPI ranks spent 0.54 s per SCF iteration, and the
-library on one rank with 16 OpenMP threads spent 2.3 s.
+
