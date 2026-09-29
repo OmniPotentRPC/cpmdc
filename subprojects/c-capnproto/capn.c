@@ -899,6 +899,9 @@ static capn_ptr new_clone(struct capn_segment *s, capn_ptr p) {
 }
 
 static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
+	/* C11 6.5.3.2: a null pointer is not a compare. */
+	if (!a || !b)
+		return 0;
 	return a->data == b->data
 		&& a->type == b->type
 		&& a->len == b->len
