@@ -1526,6 +1526,9 @@ capn_text capn_get_text(capn_ptr p, int off, capn_text def) {
 int capn_set_text(capn_ptr p, int off, capn_text tgt) {
 	capn_ptr m = {CAPN_NULL};
 	if (tgt.seg) {
+		/* INT32-C: the length plus the trailing NUL must fit in a signed int. */
+		if (tgt.len < 0 || tgt.len == INT_MAX)
+			return -1;
 		m.type = CAPN_LIST;
 		m.seg = tgt.seg;
 		m.data = (char*)tgt.str;
