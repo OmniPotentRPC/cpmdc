@@ -270,6 +270,10 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 	uint64_t far, tag, off;
 	char *p;
 
+	/* C11 6.5.3.2: a null segment cursor is not a lookup. */
+	if (!s || !*s)
+		return 0;
+
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
 	}
@@ -309,6 +313,10 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 
 static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	uint64_t off;
+
+	/* C11 6.5.3.2: a null segment cursor is not a lookup. */
+	if (!s || !*s)
+		return 0;
 
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
