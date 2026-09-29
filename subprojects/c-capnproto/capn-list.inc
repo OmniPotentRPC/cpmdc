@@ -27,7 +27,13 @@ UINT_T CAT(capn_get,SZ) (LIST_T l, int off) {
 		return FLIP(*(UINT_T*)d);
 
 	case CAPN_PTR_LIST:
-		d = struct_ptr(p.seg, p.data + 8*off, SZ/8);
+		{
+			uint64_t byte_off = 8ull * (uint64_t)off;
+			/* INT32-C: the index times eight must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return 0;
+			d = struct_ptr(p.seg, p.data + (size_t)byte_off, SZ/8);
+		}
 		if (d) {
 			return FLIP(*(UINT_T*)d);
 		} else {
@@ -77,7 +83,11 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 
 	case CAPN_PTR_LIST:
 		for (i = 0; i < sz; i++) {
-			char *d = struct_ptr(p.seg, p.data + 8*(i+off), SZ/8);
+			uint64_t byte_off = 8ull * ((uint64_t)i + (uint64_t)off);
+			/* INT32-C: the index times eight must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			char *d = struct_ptr(p.seg, p.data + (size_t)byte_off, SZ/8);
 			if (d) {
 				to[i] = FLIP(*(UINT_T*)d);
 			} else {
@@ -114,7 +124,13 @@ int CAT(capn_set,SZ) (LIST_T l, int off, UINT_T v) {
 		return 0;
 
 	case CAPN_PTR_LIST:
-		d = struct_ptr(p.seg, p.data + 8*off, SZ/8);
+		{
+			uint64_t byte_off = 8ull * (uint64_t)off;
+			/* INT32-C: the index times eight must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			d = struct_ptr(p.seg, p.data + (size_t)byte_off, SZ/8);
+		}
 		if (!d) {
 			return -1;
 		}
@@ -164,7 +180,11 @@ int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 
 	case CAPN_PTR_LIST:
 		for (i = 0; i < sz; i++) {
-			char *d = struct_ptr(p.seg, p.data + 8*(i+off), SZ/8);
+			uint64_t byte_off = 8ull * ((uint64_t)i + (uint64_t)off);
+			/* INT32-C: the index times eight must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			char *d = struct_ptr(p.seg, p.data + (size_t)byte_off, SZ/8);
 			if (d) {
 				*(UINT_T*) d = FLIP(from[i]);
 			} else {
