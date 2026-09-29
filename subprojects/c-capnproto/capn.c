@@ -524,12 +524,12 @@ void capn_resolve(capn_ptr *p) {
 /* INT32-C: a member byte offset must fit in the bytes that remain. */
 static int ptr_at(const capn_ptr *p, uint64_t bytes, char **out) {
 	uint64_t base;
-	if (!p->seg || !p->seg->data || !p->data || p->data < p->seg->data || p->seg->len < 0)
+	/* C11 6.5.8: relational compare is defined only inside one array. */
+	if (!p->seg || seg_data_off(p->seg, p->data, &base))
 		return -1;
-	base = (uint64_t)(p->data - p->seg->data);
-	if (base > (uint64_t)p->seg->len || bytes > (uint64_t)p->seg->len - base)
+	if (bytes > (uint64_t)p->seg->len - base)
 		return -1;
-	*out = p->data + bytes;
+	*out = p->seg->data + base + bytes;
 	return 0;
 }
 
