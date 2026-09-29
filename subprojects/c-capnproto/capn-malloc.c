@@ -75,6 +75,9 @@ void capn_reset_copy(struct capn *c) {
 #define ZBUF_SZ 4096
 
 static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* zbuf, int packed) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!z && !(f && !packed))
+		return -1;
 	if (f && packed) {
 		z->next_out = (uint8_t*) p;
 		z->avail_out = sz;
