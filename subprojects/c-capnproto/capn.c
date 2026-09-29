@@ -301,6 +301,9 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 
 	if (far_off(val, 8, *s, &off))
 		return 0;
+	/* C11 6.5.6: do not add to a null data pointer. */
+	if (!(*s)->data)
+		return 0;
 
 	*d = (*s)->data + off;
 	return capn_flip64(*(uint64_t*)*d);
