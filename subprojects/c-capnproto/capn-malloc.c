@@ -28,12 +28,18 @@ static struct capn_segment *create_local(void *u, int sz) {
 }
 
 void capn_init_malloc(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	memset(c, 0, sizeof(*c));
 	c->create = &create;
 	c->create_local = &create_local;
 }
 
 void capn_free(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	struct capn_segment *s = c->seglist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
@@ -44,6 +50,9 @@ void capn_free(struct capn *c) {
 }
 
 void capn_reset_copy(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	struct capn_segment *s = c->copylist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
