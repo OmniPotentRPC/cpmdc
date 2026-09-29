@@ -1110,7 +1110,11 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 
 static int copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 	/* copy struct data */
-	int sz = min(t->datasz, f->datasz);
+	int sz;
+	/* C11 6.5.3.2: a null list member is not a copy. */
+	if (!t || !f || !dep)
+		return -1;
+	sz = min(t->datasz, f->datasz);
 	/* C11 7.24.1p2: a positive count needs both pointers. */
 	if (sz) {
 		if (!t->data || !f->data)
