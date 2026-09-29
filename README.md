@@ -301,7 +301,7 @@ completed OpenCPMD archive build:
 
 ```bash
 export CPMD_ROOT=/path/to/OpenCPMD/CPMD
-export CPMDC_PSEUDO_DIR=/path/to/CPMD-Regtests/tests/PP_LIBRARY
+export CPMDC_PSEUDO_DIR=/path/to/Regtests/tests/PP_LIBRARY
 
 meson setup build-cpmd \
   -Dwith_cpmd=true \
@@ -315,22 +315,40 @@ meson test -C build-cpmd --print-errorlogs
 library-style pseudopotential names such as `O_MT_BLYP.psp`, set
 `CPMDC_PSEUDO_DIR` or provide absolute paths in `atoms.pseudopotentials`.
 
-To see the deck CPMD parses, set `CPMDC_DECK_OUT=/path/to/deck.inp`. cpmdc
-writes each deck it hands to CPMD there, and a later deck overwrites an
-earlier one.
+To see the deck cpmdc renders from `CPMDParams`, set
+`CPMDC_DECK_OUT=/path/to/deck.inp`. Each configuration overwrites the file.
+The OpenCPMD path then rebuilds `&ATOMS` from the step and adds `CELL` and
+`MAXITER` when the deck lacks them; see
+[Debug an input with CPMDC_DECK_OUT](docs/orgmode/howto/debug-deck.org).
 
 ## Documentation
 
 Read the docs in this order:
 
+- [First energy and forces](docs/orgmode/tutorials/first-energy.org): a C
+  host from the default build to a real OpenCPMD energy
+- [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org): a minimisation
+  driven by eOn with a `CPMDParams` file
 - [Quickstart](docs/orgmode/tutorials/quickstart.org): build, tests, and common
   environment failures
-- [Embedding cpmdc](docs/orgmode/howto/embedding.org): C ABI call flow,
-  sessions, result buffers, units
-- [CPMD option mapping](docs/orgmode/reference/cpmd-options.org): schema fields
-  and feature IDs for rendered CPMD controls
-- [Architecture](docs/orgmode/explanation/architecture.org): layer boundaries and
-  OpenCPMD archive link path
+- How-tos: [install and build](docs/orgmode/howto/install.org),
+  [OpenCPMD archive](docs/orgmode/howto/opencpmd-archive.org),
+  [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
+  [embedding cpmdc](docs/orgmode/howto/embedding.org),
+  [run under mpirun](docs/orgmode/howto/mpi.org),
+  [choose the wavefunction optimiser](docs/orgmode/howto/wavefunction-optimiser.org),
+  [debug a deck](docs/orgmode/howto/debug-deck.org),
+  [troubleshooting](docs/orgmode/howto/troubleshooting.org)
+- Reference: [C ABI](docs/orgmode/reference/c-abi.org),
+  [environment variables](docs/orgmode/reference/environment.org),
+  [CPMDParams fields](docs/orgmode/reference/cpmdparams-schema.org),
+  [CPMD option mapping](docs/orgmode/reference/cpmd-options.org),
+  [feature inventory](docs/orgmode/reference/feature-inventory.org),
+  [glossary](docs/orgmode/reference/glossary.org)
+- Explanation: [architecture](docs/orgmode/explanation/architecture.org),
+  [file route against in-process route](docs/orgmode/explanation/routes.org),
+  [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
+  [MPI model](docs/orgmode/explanation/mpi-model.org)
 
 Build the documentation site with:
 
