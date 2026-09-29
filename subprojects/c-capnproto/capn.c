@@ -1304,6 +1304,9 @@ int capn_set1(capn_list1 l, int off, int val) {
 
 /* C11 7.24.1p2: a zero count is skipped, and a count past the data fails. */
 static int bit_slice(capn_ptr p, int *off, int sz, int *bsz, int *partial) {
+	/* C11 6.5.3.2: a null index cursor is not a slice. */
+	if (!off || !bsz || !partial)
+		return -1;
 	if (p.type != CAPN_BIT_LIST || sz < 0 || *off < 0 || (*off & 7) != 0)
 		return -1;
 	if (sz > INT_MAX - 7 || p.datasz < 0)
