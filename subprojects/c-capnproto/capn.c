@@ -722,6 +722,9 @@ static void write_far_ptr(char *d, struct capn_segment *s, char *tgt) {
 	uint64_t off = 0;
 	uint64_t val = 0;
 
+	/* C11 6.5.3.2: a null destination is not a store. */
+	if (!d)
+		return;
 	if (!far_byte_off(s, tgt, &off))
 		val = FAR_PTR | off | (U64(s->id) << 32);
 	*(uint64_t*) d = capn_flip64(val);
