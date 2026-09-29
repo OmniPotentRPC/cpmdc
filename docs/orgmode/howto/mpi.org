@@ -113,8 +113,8 @@ separate calculators, one session each.
 CPMD calls ~MPI_Init~ during its setup, and nothing in ~cpmdc~ calls
 ~MPI_Finalize~.
 Open MPI 5 treats a rank that exits without ~MPI_Finalize~ as an abnormal
-termination and kills the ranks still running; ~mpirun~ then reports that a
-process "exited without calling finalize".
+termination and kills the ranks still running; ~mpirun~ then reports a rank
+"exiting improperly" and lists a missing finalize among the reasons.
 Call ~MPI_Finalize~ on every rank, after ~cpmdc_finalize()~, as the example
 above does.
 When the host cannot restructure its exit path, register a handler with
