@@ -903,37 +903,6 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   return cpmdc_set_params_ov(params_capnp, params_capnp_size_bytes, NULL);
 }
 
-/* Merge ForceInput geometry into a Cap'n Proto-derived CPMD INPUT deck. */
-static int push_geometry_deck_from_params(const void *params_bytes,
-                                          size_t params_size,
-                                          const CPMDCScalarOverrides *overrides,
-                                          int n_atoms,
-                                          const double *positions_ang,
-                                          const int *atomic_numbers,
-                                          const double *cell_ang,
-                                          int has_cell) {
-  if (!params_bytes || params_size == 0)
-    return -1;
-  struct capn arena;
-  CPMDParams_ptr root;
-  if (cpmdc_params_root(params_bytes, params_size, &arena, &root) != 0)
-    return -1;
-  char deck[CPMDC_BLOCKS];
-  if (cpmdc_params_render_deck_with_geometry_ov(root, overrides, n_atoms,
-                                                positions_ang, atomic_numbers,
-                                                cell_ang, has_cell, deck,
-                                                sizeof(deck)) != 0) {
-    cpmdc_params_release(&arena);
-    return -1;
-  }
-  cpmdc_params_release(&arena);
-  write_deck_if_requested(deck);
-  int deck_len = 0;
-  if (fit_c_int(strlen(deck), &deck_len) != 0)
-    return -1;
-  return cpmdc_embed_set_deck(deck, deck_len, active_image()) != 0 ? 0 : -1;
-}
-
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,

@@ -4237,19 +4237,6 @@ static int render_typed_directive_section(char *dst, size_t dst_size,
 #undef CPMDC_RENDER_DIRECTIVE_CASE
 }
 
-/* Deprecated/fatal OpenCPMD keywords modeled as non-supported host inputs. */
-static int cpmdc_keyword_is_unsupported(const char *kw) {
-  if (!kw)
-    return 0;
-  /* Exact deprecated CPMD control keyword (not BLAS_/FFT_N_STREAMS_PER_DEVICE). */
-  if (strcmp(kw, "N_STREAMS") == 0)
-    return 1;
-  if (strcmp(kw, "PBEoriginal") == 0 || strcmp(kw, "PBEORIGINAL") == 0 ||
-      strcmp(kw, "pbeoriginal") == 0)
-    return 1;
-  return 0;
-}
-
 int cpmdc_params_reject_unsupported_inputs(const char *functional,
                                            const char *input_deck) {
   if (functional && (strcmp(functional, "PBEoriginal") == 0 ||
