@@ -181,7 +181,8 @@ if has_cpmd
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_features.c',
+                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
+                      'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []

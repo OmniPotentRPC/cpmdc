@@ -408,6 +408,33 @@ static capn_text selected_file_path(const struct CPMDParams *view) {
   return empty_text;
 }
 
+int cpmdc_params_copy_output_dir(const void *params_capnp,
+                                 size_t params_capnp_size_bytes, char *dst,
+                                 size_t dst_cap) {
+  struct capn arena;
+  CPMDParams_ptr root;
+  struct CPMDParams view;
+  capn_text path;
+  size_t n;
+  if (!dst || dst_cap == 0)
+    return -1;
+  dst[0] = '\0';
+  if (cpmdc_params_root(params_capnp, params_capnp_size_bytes, &arena, &root) !=
+      0)
+    return -1;
+  read_CPMDParams(&view, root);
+  path = selected_file_path(&view);
+  if (path.str && path.len > 0) {
+    n = (size_t)path.len;
+    if (n >= dst_cap)
+      n = dst_cap - 1;
+    memcpy(dst, path.str, n);
+    dst[n] = '\0';
+  }
+  cpmdc_params_release(&arena);
+  return 0;
+}
+
 static int append_file_path_directive(char *dst, size_t dst_size, size_t *used,
                                       capn_text path) {
   if (!path.str || path.len <= 0)

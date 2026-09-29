@@ -30,9 +30,19 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
   return fd;
 }
 
-/* Host CWD saved by prepare_pp_cwd; restored after cold init (see restore). */
+/* Host CWD saved before leaving it for the pseudopotential library.
+ * Restored after CPMD has written RESTART, LATEST, and GEOMETRY. */
 static char g_host_cwd[1024];
 static int g_host_cwd_saved = 0;
+
+static int save_host_cwd(void) {
+  if (g_host_cwd_saved)
+    return 0;
+  if (getcwd(g_host_cwd, sizeof(g_host_cwd)) == NULL)
+    return -1;
+  g_host_cwd_saved = 1;
+  return 0;
+}
 
 /*
  * Point process CWD at the pseudopotential library for cold memfd decks.
@@ -43,8 +53,9 @@ static int g_host_cwd_saved = 0;
  * CWD lookup (basename alone). chdir to the library directory first.
  *
  * Also exports CPMD_PP_LIBRARY_PATH with a trailing slash for hosts that do
- * honor the env (argc==1 CLI runs). Saves the prior CWD for
- * cpmdc_restore_host_cwd after cold ratom/setbasis.
+ * honor the env (argc==1 CLI runs). Saves the prior CWD.
+ * cpmdc_enter_output_cwd leaves the library before CPMD writes, and
+ * cpmdc_restore_host_cwd returns to the host directory.
  *
  * Returns 0 on success, -1 on failure (missing dir / chdir failed).
  */
@@ -65,9 +76,8 @@ int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
     dir[--n] = '\0';
   if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode))
     return -1;
-  g_host_cwd_saved = 0;
-  if (getcwd(g_host_cwd, sizeof(g_host_cwd)) != NULL)
-    g_host_cwd_saved = 1;
+  if (save_host_cwd() != 0)
+    return -1;
   if (chdir(dir) != 0)
     return -1;
   /* Trailing slash required when CPMD_PP_LIBRARY_PATH is set (OpenCPMD get_pplib). */
@@ -78,6 +88,36 @@ int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
     (void)setenv("CPMD_PP_LIBRARY_PATH", libpath, 1);
     (void)setenv("PP_LIBRARY_PATH", libpath, 1);
   }
+  return 0;
+}
+
+/* Move to the directory CPMD should write into. Empty means the host CWD.
+ * A relative output_dir is resolved from the host CWD, not from the
+ * pseudopotential directory. */
+int cpmdc_enter_output_cwd(const char *output_dir) {
+  char dest[1024];
+  size_t n;
+  struct stat st;
+
+  if (save_host_cwd() != 0)
+    return -1;
+  if (!output_dir || !output_dir[0])
+    return chdir(g_host_cwd) == 0 ? 0 : -1;
+  n = strnlen(output_dir, sizeof(dest) - 1);
+  if (n == 0 || n >= sizeof(dest) - 1)
+    return -1;
+  memcpy(dest, output_dir, n);
+  dest[n] = '\0';
+  while (n > 1 && (dest[n - 1] == '/' || dest[n - 1] == ' '))
+    dest[--n] = '\0';
+  if (dest[0] != '/') {
+    if (chdir(g_host_cwd) != 0)
+      return -1;
+  }
+  if (stat(dest, &st) != 0 || !S_ISDIR(st.st_mode))
+    return -1;
+  if (chdir(dest) != 0)
+    return -1;
   return 0;
 }
 

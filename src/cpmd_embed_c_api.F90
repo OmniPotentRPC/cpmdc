@@ -73,6 +73,7 @@ MODULE cpmd_embed_c_api
     INTEGER(c_int) :: multiplicity
     CHARACTER(KIND=c_char) :: input_deck(4096)
     CHARACTER(KIND=c_char) :: cpmd_root(1024)
+    CHARACTER(KIND=c_char) :: output_dir(1024)
   END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
@@ -778,13 +779,12 @@ CONTAINS
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE snapshot_prop_from_modules(image, n_atoms)
+  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
     USE ddip, ONLY: pdipole
-    USE coor, ONLY: fion
-    USE ions, ONLY: ions0, ions1
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
-    INTEGER :: is, ia, k, idx, i
+    REAL(c_double), INTENT(IN) :: grad(*)
+    INTEGER :: i, ncopy
     image%prop%valid = 1_c_int
     image%prop%dipole_count = 3_c_size_t
     DO i = 1, 3
@@ -794,19 +794,13 @@ CONTAINS
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
     END DO
-    idx = 0
-    IF (ALLOCATED(fion)) THEN
-      DO is = 1, ions1%nsp
-        DO ia = 1, ions0%na(is)
-          DO k = 1, 3
-            idx = idx + 1
-            IF (idx > 4096) EXIT
-            image%prop%hessian(idx) = REAL(-fion(k, ia, is), KIND=c_double)
-          END DO
-        END DO
-      END DO
-    END IF
-    image%prop%hessian_count = INT(MIN(idx, 4096), KIND=c_size_t)
+    ncopy = n_atoms * 3
+    IF (ncopy > 4096) ncopy = 4096
+    IF (ncopy < 0) ncopy = 0
+    DO i = 1, ncopy
+      image%prop%hessian(i) = grad(i)
+    END DO
+    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
   END SUBROUTINE
 
   SUBROUTINE embed_pp_for_z(zz, pp, lmax_val, ok)
@@ -831,33 +825,61 @@ CONTAINS
     END IF
   END SUBROUTINE
 
-  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
+  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
     USE coor, ONLY: tau0
     USE ions, ONLY: ions0, ions1
     USE cnst, ONLY: fbohr
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER(c_int), INTENT(OUT) :: origin(*)
     INTEGER, INTENT(OUT) :: ierr
-    INTEGER :: is, j, k, taken, zz, expect
+    INTEGER :: is, ia, k, slot, j, astat
+    INTEGER(c_int), ALLOCATABLE :: species_z(:), species_n(:)
+    INTERFACE
+      FUNCTION cpmdc_species_order_map(n_atoms, atomic_numbers, n_species, &
+          species_z, species_count, map_out) BIND(C, NAME='cpmdc_species_order_map')
+        IMPORT :: c_int
+        INTEGER(c_int), INTENT(IN), VALUE :: n_atoms, n_species
+        INTEGER(c_int), INTENT(IN) :: atomic_numbers(*), species_z(*), species_count(*)
+        INTEGER(c_int), INTENT(OUT) :: map_out(*)
+        INTEGER(c_int) :: cpmdc_species_order_map
+      END FUNCTION
+      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
+        IMPORT :: c_char
+        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
+      END SUBROUTINE
+    END INTERFACE
     ierr = 1
-    IF (.NOT. ALLOCATED(tau0)) RETURN
-    expect = 0
+    IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp < 1) THEN
+      CALL cpmdc_note_embed_failure( &
+           'CPMD species tables are not initialized'//c_null_char)
+      RETURN
+    END IF
+    ALLOCATE(species_z(ions1%nsp), species_n(ions1%nsp), STAT=astat)
+    IF (astat /= 0) THEN
+      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+      RETURN
+    END IF
     DO is = 1, ions1%nsp
-      expect = expect + ions0%na(is)
+      species_z(is) = INT(ions0%iatyp(is), KIND=c_int)
+      species_n(is) = INT(ions0%na(is), KIND=c_int)
     END DO
-    IF (expect /= n_atoms) RETURN
-    j = 0
+    ! CPMD stores one contiguous block per species. ForceInput may list the
+    ! same element in more than one run; origin maps each block slot back.
+    IF (cpmdc_species_order_map(INT(n_atoms, KIND=c_int), z, &
+        INT(ions1%nsp, KIND=c_int), species_z, species_n, origin) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure( &
+           'atomic numbers do not match the CPMD species blocks'//c_null_char)
+      RETURN
+    END IF
+    slot = 0
     DO is = 1, ions1%nsp
-      zz = ions0%iatyp(is)
-      taken = 0
-      DO WHILE (taken < ions0%na(is))
-        j = j + 1
-        IF (j > n_atoms) RETURN
-        IF (INT(z(j)) /= zz) RETURN
-        taken = taken + 1
+      DO ia = 1, ions0%na(is)
+        slot = slot + 1
+        j = INT(origin(slot)) + 1
         DO k = 1, 3
-          tau0(k, taken, is) = REAL(pos(3*(j-1)+k), KIND=real64) * fbohr
+          tau0(k, ia, is) = REAL(pos(3*(j-1)+k), KIND=real64) * fbohr
         END DO
       END DO
     END DO
@@ -883,8 +905,24 @@ CONTAINS
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad(*)
     INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: ierr, is, ia, k, idx, nmax, i, j
+    INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
+    INTEGER(c_int), ALLOCATABLE :: origin(:)
+    REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
+    INTERFACE
+      SUBROUTINE cpmdc_scatter_species_gradient(n_atoms, map, species_grad, grad) &
+          BIND(C, NAME='cpmdc_scatter_species_gradient')
+        IMPORT :: c_int, c_double
+        INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+        INTEGER(c_int), INTENT(IN) :: map(*)
+        REAL(c_double), INTENT(IN) :: species_grad(*)
+        REAL(c_double), INTENT(OUT) :: grad(*)
+      END SUBROUTINE
+      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
+        IMPORT :: c_char
+        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
+      END SUBROUTINE
+    END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -894,7 +932,12 @@ CONTAINS
     END DO
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
-    CALL embed_set_tau0_from_pos(n_atoms, pos, z, ierr)
+    ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
+    IF (astat /= 0) THEN
+      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+      RETURN
+    END IF
+    CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
     IF (ierr /= 0) RETURN
     ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
     ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
@@ -947,19 +990,22 @@ CONTAINS
     image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
     image%multi%count = 6_c_size_t
     image%multi%valid = 1_c_int
+    species_grad = 0.0_c_double
     IF (ALLOCATED(fion)) THEN
       IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
-        idx = 0
+        slot = 0
         DO is = 1, ions1%nsp
           DO ia = 1, ions0%na(is)
             IF (ia > SIZE(fion, 2)) EXIT
+            slot = slot + 1
+            IF (slot > n_atoms) EXIT
             DO k = 1, 3
-              idx = idx + 1
-              IF (idx > nmax) EXIT
-              grad(idx) = REAL(-fion(k, ia, is), KIND=c_double)
+              species_grad(3 * (slot - 1) + k) = REAL(-fion(k, ia, is), KIND=c_double)
             END DO
           END DO
         END DO
+        CALL cpmdc_scatter_species_gradient(INT(n_atoms, KIND=c_int), origin, &
+             species_grad, grad)
       END IF
     END IF
     ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
@@ -973,7 +1019,7 @@ CONTAINS
       END DO
       image%stress%valid = 1_c_int
     END IF
-    CALL snapshot_prop_from_modules(image, n_atoms)
+    CALL snapshot_prop_from_modules(image, n_atoms, grad)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
     ! a stationary point. Report it as a failure instead.
@@ -1474,6 +1520,28 @@ CONTAINS
     END DO
   END SUBROUTINE
 
+  LOGICAL FUNCTION embed_use_output_dir(image)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    INTERFACE
+      FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
+        IMPORT :: c_char, c_int
+        CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
+        INTEGER(c_int) :: cpmdc_enter_output_cwd
+      END FUNCTION
+      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
+        IMPORT :: c_char
+        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
+      END SUBROUTINE
+    END INTERFACE
+    embed_use_output_dir = .FALSE.
+    IF (cpmdc_enter_output_cwd(image%output_dir) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure( &
+           'CPMD output directory is not a directory'//c_null_char)
+      RETURN
+    END IF
+    embed_use_output_dir = .TRUE.
+  END FUNCTION
+
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
@@ -1524,7 +1592,7 @@ CONTAINS
     LOGICAL :: tinfo
     CHARACTER(LEN=16384) :: deck
     CHARACTER(LEN=64) :: mempath
-    CHARACTER(LEN=1024) :: pp_dir
+    CHARACTER(KIND=c_char) :: pp_c(1024)
     INTERFACE
       FUNCTION cpmdc_memfd_write(bytes, nbytes, path_out, path_cap) BIND(C, NAME='cpmdc_memfd_write')
         IMPORT :: c_char, c_int
@@ -1533,6 +1601,13 @@ CONTAINS
         CHARACTER(KIND=c_char), INTENT(OUT) :: path_out(*)
         INTEGER(c_int), VALUE :: path_cap
         INTEGER(c_int) :: cpmdc_memfd_write
+      END FUNCTION
+      FUNCTION cpmdc_pseudopotential_directory(buf, cap) &
+          BIND(C, NAME='cpmdc_pseudopotential_directory')
+        IMPORT :: c_char, c_int, c_size_t
+        CHARACTER(KIND=c_char), INTENT(OUT) :: buf(*)
+        INTEGER(c_size_t), INTENT(IN), VALUE :: cap
+        INTEGER(c_int) :: cpmdc_pseudopotential_directory
       END FUNCTION
       FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
         IMPORT :: c_char, c_int
@@ -1543,6 +1618,10 @@ CONTAINS
         IMPORT :: c_int
         INTEGER(c_int) :: cpmdc_restore_host_cwd
       END FUNCTION
+      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
+        IMPORT :: c_char
+        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
+      END SUBROUTINE
     END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -1552,7 +1631,12 @@ CONTAINS
       grad(idx) = 0.0_c_double
     END DO
     IF (image%cfg_warm_steps > 0 .AND. warm_cell_matches(image, cell, has_cell)) THEN
+      IF (.NOT. embed_use_output_dir(image)) THEN
+        CALL cpmdc_restore_host_cwd()
+        RETURN
+      END IF
       CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+      CALL cpmdc_restore_host_cwd()
       IF (ok /= 0_c_int) image%cfg_warm_steps = image%cfg_warm_steps + 1
       RETURN
     END IF
@@ -1587,11 +1671,16 @@ CONTAINS
     ! so argc>1; relative *PP basenames then only resolve via recpnew's
     ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
     ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_PSEUDO_DIR', pp_dir)
-    IF (LEN_TRIM(pp_dir) == 0) &
-        CALL GET_ENVIRONMENT_VARIABLE('CPMD_PP_LIBRARY_PATH', pp_dir)
-    IF (LEN_TRIM(pp_dir) == 0) RETURN
-    IF (cpmdc_prepare_pp_cwd(TRIM(pp_dir)//c_null_char) /= 0_c_int) RETURN
+    ! The process leaves that directory again once the files are read.
+    IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure(pp_c)
+      RETURN
+    END IF
+    IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure( &
+           'cannot enter the pseudopotential directory'//c_null_char)
+      RETURN
+    END IF
     CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
@@ -1611,6 +1700,12 @@ CONTAINS
     CALL detsp
     CALL mm_init
     CALL ratom
+    ! Pseudopotential files are in memory. LATEST and GEOMETRY ignore FILEPATH
+    ! and follow the working directory, so leave the library before any write.
+    IF (.NOT. embed_use_output_dir(image)) THEN
+      CALL cpmdc_restore_host_cwd()
+      RETURN
+    END IF
     CALL vdwin
     CALL propin(tinfo)
     CALL setsys
@@ -1638,7 +1733,7 @@ CONTAINS
     ELSE
       CALL clear_last_energy_components(image)
     END IF
-    ! Hand CWD back to the host (eOn workdir); PP loads already finished.
+    ! Output files are already in permanentDir, scratchDir, or the host directory.
     IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF

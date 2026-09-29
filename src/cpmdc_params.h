@@ -95,3 +95,8 @@ int cpmdc_potential_result_write(double energy, const double *forces,
                                  size_t potential_result_capacity_bytes,
                                  size_t *potential_result_size_bytes);
 int cpmdc_params_reject_unsupported_inputs(const char *functional, const char *input_deck);
+
+/* permanentDir when set, otherwise scratchDir. Empty string when neither is. */
+int cpmdc_params_copy_output_dir(const void *params_capnp,
+                                 size_t params_capnp_size_bytes, char *dst,
+                                 size_t dst_cap);

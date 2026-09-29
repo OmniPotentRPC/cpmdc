@@ -22,4 +22,6 @@ typedef struct CPMDCEmbedImage {
   int multiplicity;
   char input_deck[4096];
   char cpmd_root[1024];
+  /* permanentDir, else scratchDir. Empty: host working directory. */
+  char output_dir[1024];
 } CPMDCEmbedImage;

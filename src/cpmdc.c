@@ -1,6 +1,7 @@
 /* C ABI frontend: Cap'n Proto sessions + unit carriers (nwchemc pattern).
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
+#include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
 
@@ -266,6 +267,7 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
       mult_ov = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
     }
   }
+  image->output_dir[0] = '\0';
   if (cpmdc_embed_reset_state(image) == 0)
     return -1;
   int deck_len = 0;
@@ -278,6 +280,8 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
           &image->multiplicity, image->input_deck, 4096, image->cpmd_root,
           1024) != 0)
     return -1;
+  (void)cpmdc_params_copy_output_dir(params_capnp, params_size, image->output_dir,
+                                     sizeof(image->output_dir));
   image->cfg_set = 1;
   return 0;
 }
@@ -298,11 +302,16 @@ static int configure_embed_from_session(CPMDCSession *session) {
   return 0;
 }
 
-/* Diagnostic channel for the int-returning configuration entry points. */
+/* Diagnostic channel for configuration entry points and evaluation failures. */
 static _Thread_local char g_last_error[512];
+static _Thread_local char g_embed_detail[512];
 
 static void cpmdc_store_error(const char *msg) {
   snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
+}
+
+void cpmdc_note_embed_failure(const char *msg) {
+  snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
@@ -914,13 +923,16 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.ok = 0;
   r.energy_h = 0.0;
   r.message[0] = '\0';
+  g_embed_detail[0] = '\0';
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr) {
     snprintf(r.message, sizeof(r.message), "invalid arguments");
+    cpmdc_store_error(r.message);
     return r;
   }
   if (!ensure_embed_init() || !cpmdc_embed_available()) {
     snprintf(r.message, sizeof(r.message), "CPMD embed not available");
+    cpmdc_store_error(r.message);
     return r;
   }
   double cell[9] = {0};
@@ -941,17 +953,23 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   cpmdc_stop_disarm();
   if (stop != 0) {
     snprintf(r.message, sizeof(r.message), "CPMD stopgm during embed SCF");
+    cpmdc_store_error(r.message);
     return r;
   }
   if (!ok) {
-    snprintf(r.message, sizeof(r.message),
-             "CPMD energy/gradient failed: orbitals not converged within "
-             "MAXITER, or no energy");
+    const char *detail =
+        g_embed_detail[0]
+            ? g_embed_detail
+            : "CPMD energy/gradient failed: orbitals not converged within "
+              "MAXITER, or no energy";
+    snprintf(r.message, sizeof(r.message), "%s", detail);
+    cpmdc_store_error(r.message);
     return r;
   }
   r.ok = 1;
   r.energy_h = energy;
   snprintf(r.message, sizeof(r.message), "ok");
+  cpmdc_store_error("");
   return r;
 }
 

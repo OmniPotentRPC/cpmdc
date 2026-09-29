@@ -379,11 +379,13 @@ int cpmdc_capabilities_result(void *capabilities_capnp,
 const char *cpmdc_version(void);
 
 /**
- * @brief Diagnostic message for the most recent int-returning configuration
- *        call on this thread.
+ * @brief Diagnostic message for the most recent configuration or evaluation
+ *        failure on this thread.
  *
  * Covers `cpmdc_set_params()`, `cpmdc_configure()`, and the session setup
- * entry points. Returns an empty string when the last such call succeeded.
+ * entry points. An evaluation failure writes the same text as
+ * `CPMDCResult.message`, including a missing pseudopotential directory.
+ * Returns an empty string when the last such call succeeded.
  */
 const char *cpmdc_last_error(void);
 
