@@ -5138,6 +5138,8 @@ int cpmdc_force_input_atom_count(ForceInput_ptr force_input, size_t *n_atoms,
   int n_box = list64_len(&view.box);
   if (n_pos < 0 || n_z <= 0 || n_box < 0)
     return -1;
+  if (n_z > INT_MAX / 3)
+    return -1;
   if (n_pos != n_z * 3)
     return -1;
   if (n_box != 0 && n_box != 9)
@@ -5170,6 +5172,8 @@ int cpmdc_force_input_copy_geometry(ForceInput_ptr force_input,
   capn_resolve(&view.box.p);
   for (size_t i = 0; i < n_atoms; ++i)
     atomic_numbers[i] = (int)(int32_t)capn_get32(view.atmnrs, (int)i);
+  if (n_atoms > (size_t)(INT_MAX / 3))
+    return -1;
   for (size_t i = 0; i < n_atoms * 3u; ++i)
     positions_ang[i] =
         capn_to_f64(capn_get64(view.pos, (int)i)) * length_factor;

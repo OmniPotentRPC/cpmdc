@@ -231,6 +231,15 @@ static int fit_c_int(size_t n, int *out) {
   return 0;
 }
 
+/* INT32-C: the gradient length is a signed atom count times three. */
+static int grad_len_from_atoms(int n_atoms, size_t *out) {
+  if (n_atoms <= 0 || n_atoms > INT_MAX / 3)
+    return -1;
+  if (out)
+    *out = (size_t)n_atoms * 3u;
+  return 0;
+}
+
 static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
                                  const char *input_deck,
                                  const CPMDCScalarOverrides *overrides,
@@ -936,7 +945,8 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.ok = 0;
   r.energy_h = 0.0;
   r.message[0] = '\0';
-  if (n_atoms <= 0 || !positions_ang || !atomic_numbers || !grad_h_bohr) {
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr) {
     snprintf(r.message, sizeof(r.message), "invalid arguments");
     return r;
   }
@@ -1002,12 +1012,13 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
                          const int *atomic_numbers, const void *params_capnp,
                          size_t params_capnp_size_bytes) {
+  size_t n3 = 0;
   double *grad = NULL;
-  if (n_atoms > 0) {
-    grad = (double *)calloc((size_t)n_atoms * 3u, sizeof(double));
-    if (!grad)
-      return fail_msg("out of memory");
-  }
+  if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    return fail_msg("invalid arguments");
+  grad = (double *)calloc(n3, sizeof(double));
+  if (!grad)
+    return fail_msg("out of memory");
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,
                                         params_capnp, params_capnp_size_bytes,
                                         grad);
@@ -1024,7 +1035,10 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
                                         params_capnp, params_capnp_size_bytes,
                                         forces_h_bohr);
   if (r.ok && forces_h_bohr) {
-    for (int i = 0; i < n_atoms * 3; ++i)
+    size_t n3 = 0;
+    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+      return fail_msg("invalid arguments");
+    for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
   return r;
@@ -1175,6 +1189,8 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
+  if (grad_len_from_atoms(n_atoms, NULL) != 0)
+    return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
   if ((!session->embed_configured || g_active_session != session) &&
@@ -1202,12 +1218,13 @@ CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
 CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const double *positions_ang,
                                  const int *atomic_numbers) {
+  size_t n3 = 0;
   double *grad = NULL;
-  if (n_atoms > 0) {
-    grad = (double *)calloc((size_t)n_atoms * 3u, sizeof(double));
-    if (!grad)
-      return fail_msg("out of memory");
-  }
+  if (grad_len_from_atoms(n_atoms, &n3) != 0)
+    return fail_msg("invalid arguments");
+  grad = (double *)calloc(n3, sizeof(double));
+  if (!grad)
+    return fail_msg("out of memory");
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
                                                 atomic_numbers, grad);
   free(grad);
@@ -1221,7 +1238,10 @@ CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
                                                 atomic_numbers, forces_h_bohr);
   if (r.ok && forces_h_bohr) {
-    for (int i = 0; i < n_atoms * 3; ++i)
+    size_t n3 = 0;
+    if (grad_len_from_atoms(n_atoms, &n3) != 0)
+      return fail_msg("invalid arguments");
+    for (size_t i = 0; i < n3; ++i)
       forces_h_bohr[i] = -forces_h_bohr[i];
   }
   return r;
@@ -1243,7 +1263,8 @@ CPMDCResult cpmdc_session_calculate_forces(
   size_t n_atoms = 0;
   int has_cell = 0;
   if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
-      n_atoms == 0 || forces_len < n_atoms * 3u) {
+      n_atoms == 0 || n_atoms > (size_t)(INT_MAX / 3) ||
+      forces_len < n_atoms * 3u) {
     cpmdc_params_release(&arena);
     return fail_msg("invalid ForceInput geometry");
   }

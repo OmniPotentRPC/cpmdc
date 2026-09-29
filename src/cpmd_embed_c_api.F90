@@ -372,11 +372,12 @@ CONTAINS
     INTEGER :: i, n3
     ok = 0_c_int
     energy_h = 0.0_c_double
-    n3 = MAX(0, INT(n_atoms) * 3)
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(n3) / 3) RETURN
+    n3 = INT(n_atoms) * 3
     DO i = 1, n3
       grad_h_bohr(i) = 0.0_c_double
     END DO
-    IF (.NOT. runtime_ready .OR. runtime_finalized .OR. n_atoms <= 0) RETURN
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
@@ -424,7 +425,7 @@ CONTAINS
     knobs = knobs_of(image)
     ok = 0_c_int
     energy_h = 0.0_c_double
-    IF (n_atoms <= 0) RETURN
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(i) / 3) RETURN
     k = 1.0e-3_real64 * MAX(0.1_real64, knobs%cutoff_ry / 70.0_real64)
     deck_scale = REAL(MAX(1, LEN_TRIM(knobs%functional) + LEN_TRIM(knobs%input_deck) + &
          LEN_TRIM(knobs%cpmd_root)), KIND=real64)
@@ -886,6 +887,7 @@ CONTAINS
     REAL(real64) :: omega
     ok = 0_c_int
     energy_h = 0.0_c_double
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
@@ -1646,6 +1648,7 @@ CONTAINS
     END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
     nmax = n_atoms * 3
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
