@@ -5453,7 +5453,7 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     return -1;
   }
   int wrote = capn_write_mem(&arena, (uint8_t *)potential_result_capnp,
-                             (int)potential_result_capacity_bytes, 0);
+                             potential_result_capacity_bytes, 0);
   capn_free(&arena);
   if (wrote < 0 || (size_t)wrote > potential_result_capacity_bytes)
     return -1;
