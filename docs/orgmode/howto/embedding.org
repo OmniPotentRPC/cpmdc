@@ -272,6 +272,8 @@ Apply the vendored patches under ~tools/~ before building ~libcpmd.a~ (see
 - ~tools/opencpmd_keep_fion.patch~ — keep ~fion~ allocated after ~wfopts~ for export
 - ~tools/opencpmd_warm_orbitals.patch~ — warm multi-force orbital store/restore plus
   ~cpmdc_set_need_forces~ / ~tfor~
+- ~tools/opencpmd_kpoints_inputfile.patch~ — the k-point report names ~cnts%inputfile~,
+  not the host's ~argv[1]~, so a k-point run does not stop in ~m_getarg~
 
 Warm multi-force (same process, same topology, new ~ForceInput~ positions):
 

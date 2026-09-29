@@ -20,4 +20,5 @@ fi
   -j "$jobs" \
   rwfopt_utils.mod.o \
   updwf_utils.mod.o \
+  rkpnt_utils.mod.o \
   "$cpmd_root/lib/libcpmd.a"

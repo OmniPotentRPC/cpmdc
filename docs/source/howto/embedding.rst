@@ -334,7 +334,9 @@ definition). The embed bridge calls ``cpmdc_set_need_forces(.TRUE.)``
 before each ``wfopts``. Apply ``tools/opencpmd_keep_fion.patch`` and
 ``tools/opencpmd_warm_orbitals.patch`` to the OpenCPMD tree used as
 ``-Dcpmd_root`` so ``tfor`` includes ``cpmdc_need_forces`` and warm
-multi-force can retain orbitals. Cold path resolves relative ``*PP``
+multi-force can retain orbitals. A k-point deck also needs
+``tools/opencpmd_kpoints_inputfile.patch``: without it the k-point report
+reads the host's ``argv[1]`` and CPMD stops in ``m_getarg``. Cold path resolves relative ``*PP``
 names from ``CPMDC_PSEUDO_DIR`` (and optionally ``CPMD_PP_LIBRARY_PATH``).
 Prefer off-equilibrium water-style systems when checking force norms;
 some cluster geometries report zero nuclear gradient even under native

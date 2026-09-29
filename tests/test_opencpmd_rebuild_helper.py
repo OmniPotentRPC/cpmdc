@@ -50,6 +50,7 @@ def main() -> int:
             "3",
             "rwfopt_utils.mod.o",
             "updwf_utils.mod.o",
+            "rkpnt_utils.mod.o",
             str(root / "lib" / "libcpmd.a"),
         ]
         if actual != expected:
