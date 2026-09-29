@@ -191,6 +191,9 @@ static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
 	capn_append_segment(c, s);
 end:
 	*ps = s;
+	/* C11 6.5.6: do not add to a null data pointer. */
+	if (!s->data)
+		return NULL;
 	s->len += sz;
 	return s->data + s->len - sz;
 }
