@@ -259,3 +259,45 @@ int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
     memset(out, 0, sizeof(*out));
   return -1;
 }
+
+int cpmdc_session_last_energy_components(const CPMDCSession *session, CPMDCEnergyComponents *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_charge_integrals(const CPMDCSession *session, CPMDCChargeIntegrals *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_multi_state_energies(const CPMDCSession *session, CPMDCMultiStateEnergies *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session, CPMDCMDTrajectoryRow *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_property_snapshot(const CPMDCSession *session, CPMDCPropertySnapshot *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
