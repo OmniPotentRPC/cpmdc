@@ -16,7 +16,14 @@ UINT_T CAT(capn_get,SZ) (LIST_T l, int off) {
 	case CAPN_LIST:
 		if (p.datasz < SZ/8)
 			return 0;
-		d = p.data + off * (p.datasz + 8*p.ptrs);
+		{
+			uint64_t stride = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t byte_off = (uint64_t)off * stride;
+			/* INT32-C: the index times the stride must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return 0;
+			d = p.data + (size_t)byte_off;
+		}
 		return FLIP(*(UINT_T*)d);
 
 	case CAPN_PTR_LIST:
@@ -58,7 +65,12 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 		}
 
 		for (i = 0; i < sz; i++) {
-			char *d = p.data + (i + off) * (p.datasz + 8*p.ptrs);
+			uint64_t stride = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t byte_off = ((uint64_t)i + (uint64_t)off) * stride;
+			/* INT32-C: the index times the stride must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			char *d = p.data + (size_t)byte_off;
 			to[i] = FLIP(*(UINT_T*)d);
 		}
 		return sz;
@@ -90,7 +102,14 @@ int CAT(capn_set,SZ) (LIST_T l, int off, UINT_T v) {
 	case CAPN_LIST:
 		if (p.datasz < SZ/8)
 			return -1;
-		d = p.data + off * (p.datasz + 8*p.ptrs);
+		{
+			uint64_t stride = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t byte_off = (uint64_t)off * stride;
+			/* INT32-C: the index times the stride must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			d = p.data + (size_t)byte_off;
+		}
 		*(UINT_T*) d = FLIP(v);
 		return 0;
 
@@ -133,7 +152,12 @@ int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 		}
 
 		for (i = 0; i < sz; i++) {
-			char *d = p.data + (i + off) * (p.datasz + 8*p.ptrs);
+			uint64_t stride = (uint64_t)p.datasz + 8ull * (uint64_t)p.ptrs;
+			uint64_t byte_off = ((uint64_t)i + (uint64_t)off) * stride;
+			/* INT32-C: the index times the stride must fit in a signed int. */
+			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			char *d = p.data + (size_t)byte_off;
 			*(UINT_T*) d = FLIP(from[i]);
 		}
 		return sz;
