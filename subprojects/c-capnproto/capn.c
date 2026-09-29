@@ -424,6 +424,9 @@ static int list_end(const struct capn_segment *s, const char *d, uint64_t nbytes
 		return -1;
 	if (off > (uint64_t)s->len || nbytes > (uint64_t)s->len - off)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!end)
+		return -1;
 	*end = (char *)d + nbytes;
 	return 0;
 }
