@@ -70,7 +70,18 @@ static int read_f64(const struct rec *r, size_t off, double *out) {
 static int push_rec(struct rec **recs, size_t *n, size_t *cap, unsigned char *data,
                     size_t len) {
   if (*n == *cap) {
-    size_t ncap = *cap ? *cap * 2 : 64;
+    size_t ncap;
+    /* INT30-C: a wrapped cap * 2 or cap * sizeof is a short realloc. */
+    if (*cap == 0)
+      ncap = 64;
+    else if (*cap > SIZE_MAX / 2)
+      ncap = 0;
+    else
+      ncap = *cap * 2;
+    if (ncap == 0 || ncap > SIZE_MAX / sizeof(*recs[0])) {
+      free(data);
+      return -1;
+    }
     struct rec *grown = realloc(*recs, ncap * sizeof(*recs[0]));
     if (!grown) {
       free(data);
