@@ -996,10 +996,22 @@ capn_ptr capn_root(struct capn *c) {
 
 capn_ptr capn_new_struct(struct capn_segment *seg, int datasz, int ptrs) {
 	capn_ptr p = {CAPN_STRUCT};
+	uint64_t aligned, nbytes;
 	p.seg = seg;
-	p.datasz = (datasz + 7) & ~7;
+	/* INT32-C: the aligned data size plus eight times the pointer count must fit. */
+	if (datasz < 0 || ptrs < 0 || datasz > INT_MAX - 7) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	}
+	aligned = ((uint64_t)datasz + 7ull) & ~7ull;
+	nbytes = aligned + 8ull * (uint64_t)ptrs;
+	if (nbytes > (uint64_t)INT_MAX) {
+		memset(&p, 0, sizeof(p));
+		return p;
+	}
+	p.datasz = (int)aligned;
 	p.ptrs = ptrs;
-	new_object(&p, p.datasz + 8*p.ptrs);
+	new_object(&p, (int)nbytes);
 	return p;
 }
 
