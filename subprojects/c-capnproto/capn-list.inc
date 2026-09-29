@@ -8,9 +8,9 @@
 UINT_T CAT(capn_get,SZ) (LIST_T l, int off) {
 	char *d;
 	capn_ptr p = l.p;
-	if (off >= p.len) {
+	/* C11 6.5.6: a null list is not an element base. */
+	if (off < 0 || off >= p.len || !p.data)
 		return 0;
-	}
 
 	switch (p.type) {
 	case CAPN_LIST:
@@ -35,6 +35,9 @@ UINT_T CAT(capn_get,SZ) (LIST_T l, int off) {
 int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 	int i;
 	capn_ptr p = l.p;
+	/* C11 6.5.6: a null list is not an element base. */
+	if (off < 0 || !p.data)
+		return -1;
 	if (off + sz > p.len) {
 		sz = p.len - off;
 	}
@@ -73,9 +76,9 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 int CAT(capn_set,SZ) (LIST_T l, int off, UINT_T v) {
 	char *d;
 	capn_ptr p = l.p;
-	if (off >= p.len) {
+	/* C11 6.5.6: a null list is not an element base. */
+	if (off < 0 || off >= p.len || !p.data)
 		return -1;
-	}
 
 	switch (p.type) {
 	case CAPN_LIST:
@@ -101,6 +104,9 @@ int CAT(capn_set,SZ) (LIST_T l, int off, UINT_T v) {
 int CAT(capn_setv,SZ) (LIST_T l, int off, const UINT_T *from, int sz) {
 	int i;
 	capn_ptr p = l.p;
+	/* C11 6.5.6: a null list is not an element base. */
+	if (off < 0 || !p.data)
+		return -1;
 	if (off + sz > p.len) {
 		sz = p.len - off;
 	}
