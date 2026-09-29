@@ -25,19 +25,30 @@ int cpmdc_embed_set_config(const char *functional, int functional_len,
                            const char *input_deck, int input_deck_len,
                            const char *cpmd_root, int cpmd_root_len,
                            CPMDCEmbedImage *image);
-int cpmdc_embed_set_deck(const char *deck, int deck_len);
+int cpmdc_embed_set_deck(const char *deck, int deck_len, CPMDCEmbedImage *image);
 /* Fortran capnp-fortran decode of CPMDParams into embed knobs. */
-void cpmdc_embed_store_config(CPMDCEmbedImage *image);
 int cpmdc_embed_apply_params(const void *params_capnp,
                              size_t params_capnp_size_bytes,
                              const char *input_deck, int input_deck_len,
                              const char *functional_ov, int functional_ov_len,
                              double cutoff_ov, int has_charge_ov, int charge_ov,
-                             int has_mult_ov, int mult_ov);
+                             int has_mult_ov, int mult_ov, char *functional_out,
+                             int functional_cap, double *cutoff_out,
+                             int *charge_out, int *mult_out, char *deck_out,
+                             int deck_cap, char *root_out, int root_cap);
 int cpmdc_embed_get_config(char *functional, int functional_len,
                            double *cutoff_ry, int *charge, int *mult,
                            char *input_deck, int input_deck_len, char *cpmd_root,
                            int cpmd_root_len);
+int cpmdc_embed_compose_cold_deck_image(int n_atoms, const double *positions_ang,
+                                        const int *atomic_numbers,
+                                        const double *cell_ang, int has_cell,
+                                        char *deck_out, int deck_cap,
+                                        int *deck_len, CPMDCEmbedImage *image);
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len);
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
@@ -106,6 +117,46 @@ static CPMDCEmbedImage g_image;
 
 static CPMDCEmbedImage *active_image(void) {
   return g_active_session ? &g_active_session->image : &g_image;
+}
+
+static void copy_knob_text(char *dst, int cap, const char *src, size_t src_cap) {
+  int i;
+  int n;
+  if (!dst || cap <= 0)
+    return;
+  n = cap - 1;
+  if ((size_t)n > src_cap)
+    n = (int)src_cap;
+  for (i = 0; i < n && src[i] != '\0'; i++)
+    dst[i] = src[i];
+  dst[i] = '\0';
+}
+
+int cpmdc_embed_get_config(char *functional, int functional_len, double *cutoff_ry,
+                           int *charge, int *mult, char *input_deck,
+                           int input_deck_len, char *cpmd_root, int cpmd_root_len) {
+  const CPMDCEmbedImage *image = active_image();
+  if (!image || !image->cfg_set || !cutoff_ry || !charge || !mult)
+    return -1;
+  copy_knob_text(functional, functional_len, image->functional,
+                 sizeof(image->functional));
+  *cutoff_ry = image->cutoff_ry;
+  *charge = image->cfg_charge;
+  *mult = image->multiplicity;
+  copy_knob_text(input_deck, input_deck_len, image->input_deck,
+                 sizeof(image->input_deck));
+  copy_knob_text(cpmd_root, cpmd_root_len, image->cpmd_root,
+                 sizeof(image->cpmd_root));
+  return 0;
+}
+
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len) {
+  return cpmdc_embed_compose_cold_deck_image(
+      n_atoms, positions_ang, atomic_numbers, cell_ang, has_cell, deck_out,
+      deck_cap, deck_len, active_image());
 }
 
 static int ensure_embed_init(void) {
@@ -213,9 +264,12 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
     return -1;
   if (cpmdc_embed_apply_params(
           params_capnp, params_size, input_deck, deck_len, fov, fov_len,
-          cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov) != 0)
+          cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov,
+          image->functional, 64, &image->cutoff_ry, &image->cfg_charge,
+          &image->multiplicity, image->input_deck, 4096, image->cpmd_root,
+          1024) != 0)
     return -1;
-  cpmdc_embed_store_config(image);
+  image->cfg_set = 1;
   return 0;
 }
 
@@ -868,7 +922,7 @@ static int push_geometry_deck_from_params(const void *params_bytes,
   int deck_len = 0;
   if (fit_c_int(strlen(deck), &deck_len) != 0)
     return -1;
-  return cpmdc_embed_set_deck(deck, deck_len) != 0 ? 0 : -1;
+  return cpmdc_embed_set_deck(deck, deck_len, active_image()) != 0 ? 0 : -1;
 }
 
 static CPMDCResult

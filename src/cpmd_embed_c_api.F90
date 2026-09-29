@@ -7,10 +7,6 @@
 MODULE cpmd_embed_c_api
   USE, INTRINSIC :: iso_c_binding
   USE, INTRINSIC :: iso_fortran_env, ONLY: real64
-  ! Config knobs live in cpmdc_embed_apply_params (capnp-fortran decode path).
-  USE cpmdc_embed_apply_params_mod, ONLY: &
-      applied_functional, applied_cutoff_ry, applied_charge, applied_mult, &
-      applied_input_deck, applied_cpmd_root
   IMPLICIT NONE
   PRIVATE
 
@@ -23,8 +19,7 @@ MODULE cpmd_embed_c_api
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
-  ! Config state is applied_* from cpmdc_embed_apply_params_mod.
-  ! Results and the warm cell live in the caller image (CPMDCEmbedImage).
+  ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
   TYPE, BIND(C) :: cpmdc_energy_components
@@ -289,38 +284,6 @@ CONTAINS
     END DO
   END SUBROUTINE
 
-  SUBROUTINE store_image_config(image)
-    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    CALL copy_f_to_cchars(applied_functional, image%functional, 64)
-    image%cutoff_ry = REAL(applied_cutoff_ry, KIND=c_double)
-    image%cfg_charge = INT(applied_charge, KIND=c_int)
-    image%multiplicity = INT(applied_mult, KIND=c_int)
-    CALL copy_f_to_cchars(applied_input_deck, image%input_deck, 4096)
-    CALL copy_f_to_cchars(applied_cpmd_root, image%cpmd_root, 1024)
-    image%cfg_set = 1_c_int
-  END SUBROUTINE
-
-  SUBROUTINE load_image_config(image)
-    TYPE(cpmdc_embed_image), INTENT(IN) :: image
-    IF (image%cfg_set == 0_c_int) RETURN
-    CALL copy_cchars_to_f(image%functional, 64, applied_functional)
-    IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
-    applied_cutoff_ry = REAL(image%cutoff_ry, KIND=real64)
-    IF (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
-    applied_charge = INT(image%cfg_charge)
-    applied_mult = MAX(1, INT(image%multiplicity))
-    CALL copy_cchars_to_f(image%input_deck, 4096, applied_input_deck)
-    CALL copy_cchars_to_f(image%cpmd_root, 1024, applied_cpmd_root)
-  END SUBROUTINE
-
-  SUBROUTINE cpmdc_embed_store_config(image_c) BIND(C, NAME='cpmdc_embed_store_config')
-    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
-    TYPE(cpmdc_embed_image), POINTER :: image
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
-    CALL C_F_POINTER(image_c, image)
-    CALL store_image_config(image)
-  END SUBROUTINE
-
   FUNCTION knobs_of(image) RESULT(k)
     TYPE(cpmdc_embed_image), INTENT(IN) :: image
     TYPE(embed_knobs) :: k
@@ -335,16 +298,6 @@ CONTAINS
     CALL copy_cchars_to_f(image%cpmd_root, 1024, k%cpmd_root)
   END FUNCTION
 
-  FUNCTION knobs_of_applied() RESULT(k)
-    TYPE(embed_knobs) :: k
-    k%functional = applied_functional
-    k%cutoff_ry = applied_cutoff_ry
-    k%charge = applied_charge
-    k%mult = applied_mult
-    k%input_deck = applied_input_deck
-    k%cpmd_root = applied_cpmd_root
-  END FUNCTION
-
   FUNCTION cpmdc_embed_set_config(functional, functional_len, cutoff_ry, charge, &
       multiplicity, input_deck, input_deck_len, cpmd_root, cpmd_root_len, image_c) &
       RESULT(ok) BIND(C, NAME='cpmdc_embed_set_config')
@@ -357,32 +310,49 @@ CONTAINS
     CHARACTER(KIND=c_char), INTENT(IN) :: cpmd_root(*)
     INTEGER(c_int), INTENT(IN), VALUE :: cpmd_root_len
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+    CHARACTER(LEN=64) :: functional_l
+    CHARACTER(LEN=4096) :: deck_l
+    CHARACTER(LEN=1024) :: root_l
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (functional_len < 0 .OR. input_deck_len < 0 .OR. cpmd_root_len < 0) RETURN
     IF (cutoff_ry < 0.0_c_double) RETURN
     IF (cpmdc_embed_reset_state(image_c) == 0_c_int) RETURN
-    CALL cstr_to_f(functional, functional_len, applied_functional)
-    IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
-    applied_cutoff_ry = REAL(cutoff_ry, KIND=real64)
-    IF (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
-    applied_charge = INT(charge)
-    applied_mult = MAX(1, INT(multiplicity))
-    CALL cstr_to_f(input_deck, input_deck_len, applied_input_deck)
-    CALL cstr_to_f(cpmd_root, cpmd_root_len, applied_cpmd_root)
-    CALL cpmdc_embed_store_config(image_c)
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    CALL cstr_to_f(functional, functional_len, functional_l)
+    IF (LEN_TRIM(functional_l) == 0) functional_l = 'BLYP'
+    CALL cstr_to_f(input_deck, input_deck_len, deck_l)
+    CALL cstr_to_f(cpmd_root, cpmd_root_len, root_l)
+    CALL copy_f_to_cchars(functional_l, image%functional, 64)
+    image%cutoff_ry = REAL(cutoff_ry, KIND=c_double)
+    IF (image%cutoff_ry <= 0.0_c_double) image%cutoff_ry = 70.0_c_double
+    image%cfg_charge = INT(charge, KIND=c_int)
+    image%multiplicity = MAX(1_c_int, INT(multiplicity, KIND=c_int))
+    CALL copy_f_to_cchars(deck_l, image%input_deck, 4096)
+    CALL copy_f_to_cchars(root_l, image%cpmd_root, 1024)
+    image%cfg_set = 1_c_int
     ok = 1_c_int
   END FUNCTION
 
 
-  FUNCTION cpmdc_embed_set_deck(deck, deck_len) RESULT(ok) BIND(C, NAME='cpmdc_embed_set_deck')
+  FUNCTION cpmdc_embed_set_deck(deck, deck_len, image_c) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_set_deck')
     CHARACTER(KIND=c_char), INTENT(IN) :: deck(*)
     INTEGER(c_int), INTENT(IN), VALUE :: deck_len
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+    CHARACTER(LEN=4096) :: deck_l
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. deck_len < 0) RETURN
-    CALL cstr_to_f(deck, deck_len, applied_input_deck)
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    CALL cstr_to_f(deck, deck_len, deck_l)
+    CALL copy_f_to_cchars(deck_l, image%input_deck, 4096)
+    image%cfg_set = 1_c_int
     ok = 1_c_int
   END FUNCTION
 
@@ -771,8 +741,8 @@ CONTAINS
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, deck_out, deck_cap, deck_len) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_compose_cold_deck')
+      cell_ang, has_cell, deck_out, deck_cap, deck_len, image_c) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_compose_cold_deck_image')
     INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
     REAL(c_double), INTENT(IN) :: positions_ang(*)
     INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
@@ -781,6 +751,8 @@ CONTAINS
     CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
     INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
     INTEGER(c_int), INTENT(OUT) :: deck_len
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
     CHARACTER(LEN=16384) :: deck
     INTEGER :: nlen, ierr, i, ncopy
@@ -788,7 +760,9 @@ CONTAINS
     ok = 0_c_int
     deck_len = 0_c_int
     IF (deck_cap < 2) RETURN
-    knobs = knobs_of_applied()
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    knobs = knobs_of(image)
     CALL embed_compose_cold_deck_local(INT(n_atoms), positions_ang, &
          atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
@@ -1991,8 +1965,8 @@ CONTAINS
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, deck_out, deck_cap, deck_len) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_compose_cold_deck')
+      cell_ang, has_cell, deck_out, deck_cap, deck_len, image_c) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_compose_cold_deck_image')
     INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
     REAL(c_double), INTENT(IN) :: positions_ang(*)
     INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
@@ -2001,6 +1975,8 @@ CONTAINS
     CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
     INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
     INTEGER(c_int), INTENT(OUT) :: deck_len
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
     CHARACTER(LEN=16384) :: deck
     INTEGER :: nlen, ierr, i, ncopy
@@ -2008,7 +1984,9 @@ CONTAINS
     ok = 0_c_int
     deck_len = 0_c_int
     IF (deck_cap < 2) RETURN
-    knobs = knobs_of_applied()
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    knobs = knobs_of(image)
     CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
          cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1) RETURN
