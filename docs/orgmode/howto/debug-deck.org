@@ -37,9 +37,13 @@ CPMD parses from it in three steps:
 1. If the method deck has an ~&ATOMS~ block with coordinate lines, it is used
    as it is.
    Otherwise every ~&ATOMS~ block is dropped and a new one is written from the
-   step's atomic numbers and positions, with the pseudopotential file and
-   channels from the built-in element table (see [[file:write-cpmdparams.org][writing a CPMDParams
-   message]]).
+   step's atomic numbers and positions.
+   A ~!SPECIES SYM~ comment in the method deck selects that element's file,
+   ~LMAX~, ~LOC~, and, when the ~*file~ line has it, ~KLEINMAN-BYLANDER~.
+   An element with no such comment uses the built-in table (see
+   [[file:write-cpmdparams.org][writing a CPMDParams message]]).
+   An element in neither fails before CPMD starts, and the error names the
+   atomic number.
    When the method deck has no ~&CPMD~, ~&SYSTEM~, or ~&DFT~ section at all,
    a minimal isolated deck replaces it: ~OPTIMIZE WAVEFUNCTION~,
    ~CONVERGENCE ORBITALS 1.0d-5~, ~MAXITER 40~, ~SYMMETRY 0~,
