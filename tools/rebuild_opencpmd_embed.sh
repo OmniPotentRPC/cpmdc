@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cpmd_root=${1:?usage: rebuild_opencpmd_embed.sh CPMD_ROOT [JOBS]}
-jobs=${2:-${CPMDC_BUILD_JOBS:-1}}
+cpmd_root=${1:?usage: rebuild_opencpmd_embed.sh CPMD_ROOT}
 make_program=${MAKE:-make}
 
 if [[ ! -f "$cpmd_root/Makefile" ]]; then
@@ -14,11 +13,17 @@ if [[ ! -d "$cpmd_root/obj" || ! -d "$cpmd_root/lib" ]]; then
   exit 2
 fi
 
+# gfortran stores a copy of Scex_t in rwfopt_utils.mod. One job writes
+# scex_utils.mod before rwfopt_utils reads it. A parallel rebuild leaves
+# the two module files naming different vtable components, and the next
+# USE rwfopt_utils stops.
 "$make_program" \
   -C "$cpmd_root/obj" \
   -f "$cpmd_root/Makefile" \
-  -j "$jobs" \
+  -j1 \
+  error_handling.mod.o \
+  scex_utils.mod.o \
+  mp_interface.mod.o \
   rwfopt_utils.mod.o \
   updwf_utils.mod.o \
-  error_handling.mod.o \
   "$cpmd_root/lib/libcpmd.a"

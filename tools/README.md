@@ -23,8 +23,9 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch
 ```
 
 The helper addresses the generated module objects and archive as explicit Make
-targets. OpenCPMD build trees contain a directory named `lib`, so `make lib`
-can consider that target satisfied without refreshing `lib/libcpmd.a`.
+targets, and it runs Make with one job. OpenCPMD build trees contain a
+directory named `lib`, so `make lib` can consider that target satisfied
+without refreshing `lib/libcpmd.a`.
 
 Cold embed path also requires at runtime:
 
