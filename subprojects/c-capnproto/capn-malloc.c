@@ -17,6 +17,9 @@ static struct capn_segment *create(void *u, uint32_t id, int sz) {
 	if (sz < 4096) {
 		sz = 4096;
 	} else {
+		/* CERT INT32-C: a size that does not fit the round-up is not a segment. */
+		if (sz > INT_MAX - 4095)
+			return NULL;
 		sz = (sz + 4095) & ~4095;
 	}
 	s = (struct capn_segment*) calloc(1, sz);
