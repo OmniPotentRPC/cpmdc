@@ -255,6 +255,10 @@ directory containing the files (the cold memfd path ~CHDIR~s there before
 fine). The embed layer also checks common pseudopotential directories under
 ~cpmdRoot~.
 
+~CPMDC_DECK_OUT~ names a file that receives each deck cpmdc hands to CPMD, the
+method deck and then the geometry deck, so a failed run shows the input CPMD
+parsed.
+
 * Multi-force PEF / BOMD-style nuclear forces
 A live OpenCPMD link evaluates each geometry with fixed nuclei (OPTIMIZE
 WAVEFUNCTION) and then exports nuclear forces from ~coor%fion~ — the same

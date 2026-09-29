@@ -314,6 +314,10 @@ meson test -C build-cpmd --print-errorlogs
 library-style pseudopotential names such as `O_MT_BLYP.psp`, set
 `CPMDC_PSEUDO_DIR` or provide absolute paths in `atoms.pseudopotentials`.
 
+To see the deck CPMD parses, set `CPMDC_DECK_OUT=/path/to/deck.inp`. cpmdc
+writes each deck it hands to CPMD there, and a later deck overwrites an
+earlier one.
+
 ## Documentation
 
 Read the docs in this order:

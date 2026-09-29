@@ -356,3 +356,7 @@ paths or library-style names. For library-style names, set
 memfd path changes into that directory before ``ratom``/``recpnew``).
 The embed layer also checks common pseudopotential directories under
 ``cpmdRoot``.
+
+``CPMDC_DECK_OUT`` names a file that receives each deck cpmdc hands to
+CPMD, the method deck and then the geometry deck, so a failed run shows
+the input CPMD parsed.
