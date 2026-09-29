@@ -77,7 +77,7 @@ A keyword without a typed field goes into that section's ~directives~ list:
 ~keyword~ is the line, and each entry of ~args~ becomes one indented line
 below it.
 
-* Fields that change the physics silently
+* Defaults that change the physics
 Four defaults decide what CPMD computes when the message leaves them out.
 
 | Left out | What ~cpmdc~ renders | Consequence |

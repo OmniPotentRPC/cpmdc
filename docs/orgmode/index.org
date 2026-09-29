@@ -41,7 +41,7 @@ The result-carrier call, ~cpmdc_session_calculate_result()~, writes the same
 
 The first accepted session evaluation fixes atom count and ordered atomic
 numbers.
-Later steps may change coordinates, units, and the 3x3 cell; topology changes
+Later steps may change coordinates, units, and the 3 by 3 cell; topology changes
 require a new session.
 
 * Start Here

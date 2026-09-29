@@ -172,7 +172,7 @@ evaluation.
 free or reuse their original input bytes after the session is created.
 
 The first successful session evaluation fixes the topology: atom count and
-ordered atomic numbers. Later steps may change coordinates, the optional 3x3
+ordered atomic numbers. Later steps may change coordinates, the optional 3 by 3
 cell, and requested units. A species change or atom-count change requires a new
 ~CPMDCSession~.
 
