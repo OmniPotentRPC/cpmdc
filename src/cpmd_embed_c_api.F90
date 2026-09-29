@@ -876,6 +876,7 @@ CONTAINS
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
     USE ropt, ONLY: ropt_mod
+    USE parac, ONLY: paral
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
@@ -885,6 +886,7 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, is, ia, k, idx, nmax, i, j
     REAL(real64) :: omega
+    LOGICAL :: was_diis, was_pcg, was_pcgmin, was_prec
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -926,6 +928,29 @@ CONTAINS
       CALL cpmdc_set_warm_orbitals(.FALSE.)
     END IF
     CALL wfopts
+    ! ODIIS can stop a few steps short of the orbital threshold and use up
+    ! MAXITER there. Continue once from the current orbitals with
+    ! preconditioned conjugate-gradient minimization, then restore the
+    ! optimizer, so one stalled geometry does not fail the whole search.
+    IF (.NOT. ropt_mod%convwf .AND. cntl%diis) THEN
+      was_diis = cntl%diis
+      was_pcg = cntl%pcg
+      was_pcgmin = cntl%pcgmin
+      was_prec = cntl%prec
+      cntl%diis = .FALSE.
+      cntl%pcg = .TRUE.
+      cntl%pcgmin = .TRUE.
+      cntl%prec = .TRUE.
+      ropt_mod%spcg = .TRUE.
+      IF (paral%io_parent) WRITE(6, '(A)') &
+        ' cpmdc: ODIIS did not converge; continuing with PCG MINIMIZE'
+      CALL cpmdc_set_warm_orbitals(.TRUE.)
+      CALL wfopts
+      cntl%diis = was_diis
+      cntl%pcg = was_pcg
+      cntl%pcgmin = was_pcgmin
+      cntl%prec = was_prec
+    END IF
     energy_h = REAL(ener_com%etot, KIND=c_double)
     image%energy%etot = energy_h
     image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
