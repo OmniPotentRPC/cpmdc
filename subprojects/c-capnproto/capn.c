@@ -745,8 +745,12 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 
 	} else if (seg_room(p.seg, 8)) {
 		/* The target segment has enough room for tag */
-		char *t = p.seg->data + p.seg->len;
+		char *t;
 		int off = 0;
+		/* C11 6.5.6: do not add to a null data pointer. */
+		if (!p.seg->data)
+			return -1;
+		t = p.seg->data + p.seg->len;
 		if (tag_off_int(p.seg, pdata, t, &off))
 			return -1;
 		write_ptr_tag(t, p, off);
@@ -763,6 +767,9 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 			/* Try and allocate in the src segment
 			 * first. This should improve lookup on
 			 * read. */
+			/* C11 6.5.6: do not add to a null data pointer. */
+			if (!s->data)
+				return -1;
 			t = s->data + s->len;
 			s->len += 16;
 		} else {
