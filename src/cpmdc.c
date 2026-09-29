@@ -293,13 +293,15 @@ static int common_text_list_len(capn_ptr ptr) {
   return ptr.len;
 }
 
-static int common_list32_len(capn_list32 list) {
-  capn_resolve(&list.p);
-  if (list.p.type == CAPN_NULL)
+/* Resolves the caller's list in place: capn_get32 reads 0 from a list
+ * pointer that has not been resolved. */
+static int common_list32_len(capn_list32 *list) {
+  capn_resolve(&list->p);
+  if (list->p.type == CAPN_NULL)
     return 0;
-  if (list.p.type != CAPN_LIST || list.p.datasz != 4)
+  if (list->p.type != CAPN_LIST || list->p.datasz != 4)
     return -1;
-  return list.p.len;
+  return list->p.len;
 }
 
 static int cpmd_common_xc_token(capn_ptr list, char *out, size_t out_size) {
@@ -425,7 +427,7 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     }
   }
 
-  int kmesh_len = common_list32_len(c.kMesh);
+  int kmesh_len = common_list32_len(&c.kMesh);
   if (kmesh_len != 0 && kmesh_len != 3) {
     cpmdc_store_error("common overlay: kMesh must have 3 Monkhorst divisions");
     return -1;
@@ -598,7 +600,7 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
   memset(&c, 0, sizeof(c));
   read_CommonMethodSpec(&c, common_root);
 
-  if (common_list32_len(c.kMesh) != 0 || c.scfMaxIterations > 0 ||
+  if (common_list32_len(&c.kMesh) != 0 || c.scfMaxIterations > 0 ||
       c.scfEnergyToleranceEv > 0.0) {
     cpmdc_store_error(
         "common overlay: kMesh/SCF controls next to a native cpmd arm are "

@@ -2,6 +2,7 @@
  * PotentialConfig common-overlay lowering: session creation, evaluation, and
  * loud rejection of unsound combinations.
  */
+#define _GNU_SOURCE
 #include "cpmdc.h"
 
 #include <setjmp.h>
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cmocka.h>
 
@@ -96,6 +98,34 @@ static void test_overlay_rejects_unlowerable_field(void **state) {
   free(config);
 }
 
+static void test_overlay_kmesh_reaches_deck(void **state) {
+  (void)state;
+  size_t config_size = 0;
+  unsigned char *config = read_file(g_overlay, &config_size);
+  assert_non_null(config);
+  char deck_path[] = "overlay_kmesh_deck_XXXXXX";
+  int fd = mkstemp(deck_path);
+  assert_true(fd >= 0);
+  close(fd);
+  setenv("CPMDC_DECK_OUT", deck_path, 1);
+  CPMDCSession *session =
+      cpmdc_session_create_from_config(config, config_size);
+  unsetenv("CPMDC_DECK_OUT");
+  assert_non_null(session);
+  size_t deck_size = 0;
+  unsigned char *deck = read_file(deck_path, &deck_size);
+  remove(deck_path);
+  assert_non_null(deck);
+  unsigned char *text = (unsigned char *)realloc(deck, deck_size + 1);
+  assert_non_null(text);
+  text[deck_size] = '\0';
+  /* potential_config_common_cpmd.capnp.txt sets kMesh = [2, 2, 2]. */
+  assert_non_null(strstr((const char *)text, "KPOINTS MONKHORST-PACK\n  2 2 2"));
+  free(text);
+  cpmdc_session_destroy(session);
+  free(config);
+}
+
 int main(int argc, char **argv) {
   if (argc != 4) {
     fprintf(stderr, "usage: %s OVERLAY_BIN REJECT_BIN STEP_BIN\n", argv[0]);
@@ -107,6 +137,7 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_overlay_session_evaluates),
       cmocka_unit_test(test_overlay_rejects_unlowerable_field),
+      cmocka_unit_test(test_overlay_kmesh_reaches_deck),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
