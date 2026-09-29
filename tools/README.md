@@ -26,6 +26,8 @@ The helper rebuilds the module objects with one Make job, then replaces
 those members with `ar r`. OpenCPMD build trees contain a directory named
 `lib`, and the generated Makefile may set `AR` to the archiver with no
 operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
+`FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
+shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
 
 Cold embed path also requires at runtime:
 
