@@ -674,7 +674,15 @@ static void write_double_far(char *d, struct capn_segment *s, char *tgt) {
 
 static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 	/* note p.seg can be NULL if its a ptr to static data */
-	char *pdata = p.data - 8*p.is_composite_list;
+	/* C11 6.5.6: do not step a null pointer, or step before the segment. */
+	char *pdata = p.data;
+
+	if (p.is_composite_list && p.data && p.seg && p.seg->data && p.seg->cap >= 8) {
+		uintptr_t base = (uintptr_t) p.seg->data;
+		uintptr_t at = (uintptr_t) p.data;
+		if (at >= base + 8u && (uint64_t) (at - base) <= (uint64_t) p.seg->cap)
+			pdata = p.data - 8;
+	}
 
 	if (p.type == CAPN_NULL || (p.type == CAPN_STRUCT && p.datasz == 0 && p.ptrs == 0)) {
 		write_ptr_tag(d, p, 0);
