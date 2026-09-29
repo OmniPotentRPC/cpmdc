@@ -897,6 +897,9 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 			c->copylist = cs;
 		}
 
+		/* C11 6.5.6: do not add to a null data pointer. */
+		if (!cs->data)
+			return -1;
 		n = (struct copy*) (cs->data + cs->len);
 		cs->len += sizeof(*n);
 
