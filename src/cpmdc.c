@@ -27,6 +27,7 @@ int cpmdc_embed_set_config(const char *functional, int functional_len,
                            CPMDCEmbedImage *image);
 int cpmdc_embed_set_deck(const char *deck, int deck_len);
 /* Fortran capnp-fortran decode of CPMDParams into embed knobs. */
+void cpmdc_embed_store_config(CPMDCEmbedImage *image);
 int cpmdc_embed_apply_params(const void *params_capnp,
                              size_t params_capnp_size_bytes,
                              const char *input_deck, int input_deck_len,
@@ -210,9 +211,12 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
   int deck_len = 0;
   if (!input_deck || fit_c_int(strlen(input_deck), &deck_len) != 0)
     return -1;
-  return cpmdc_embed_apply_params(
-      params_capnp, params_size, input_deck, deck_len, fov, fov_len, cutoff_ov,
-      has_charge_ov, charge_ov, has_mult_ov, mult_ov);
+  if (cpmdc_embed_apply_params(
+          params_capnp, params_size, input_deck, deck_len, fov, fov_len,
+          cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov) != 0)
+    return -1;
+  cpmdc_embed_store_config(image);
+  return 0;
 }
 
 static int configure_embed_from_session(CPMDCSession *session) {

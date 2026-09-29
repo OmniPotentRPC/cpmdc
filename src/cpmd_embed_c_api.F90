@@ -71,6 +71,13 @@ MODULE cpmd_embed_c_api
     INTEGER(c_int) :: warm_cell_set
     INTEGER(c_int) :: warm_has_cell
     INTEGER(c_int) :: cfg_warm_steps
+    INTEGER(c_int) :: cfg_set
+    CHARACTER(KIND=c_char) :: functional(64)
+    REAL(c_double) :: cutoff_ry
+    INTEGER(c_int) :: charge
+    INTEGER(c_int) :: multiplicity
+    CHARACTER(KIND=c_char) :: input_deck(4096)
+    CHARACTER(KIND=c_char) :: cpmd_root(1024)
   END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
@@ -248,6 +255,63 @@ CONTAINS
     runtime_finalized = .TRUE.
   END SUBROUTINE
 
+  SUBROUTINE copy_f_to_cchars(src, dst, n)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(KIND=c_char), INTENT(OUT) :: dst(*)
+    INTEGER, INTENT(IN) :: n
+    INTEGER :: i, m
+    m = MIN(LEN_TRIM(src), MAX(0, n - 1))
+    DO i = 1, m
+      dst(i) = src(i:i)
+    END DO
+    IF (n > 0) dst(m + 1) = c_null_char
+  END SUBROUTINE
+
+  SUBROUTINE copy_cchars_to_f(src, n, dst)
+    CHARACTER(KIND=c_char), INTENT(IN) :: src(*)
+    INTEGER, INTENT(IN) :: n
+    CHARACTER(LEN=*), INTENT(OUT) :: dst
+    INTEGER :: i, m
+    dst = ' '
+    m = MIN(n, LEN(dst))
+    DO i = 1, m
+      IF (src(i) == c_null_char) EXIT
+      dst(i:i) = src(i)
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE store_image_config(image)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    CALL copy_f_to_cchars(applied_functional, image%functional, 64)
+    image%cutoff_ry = REAL(applied_cutoff_ry, KIND=c_double)
+    image%charge = INT(applied_charge, KIND=c_int)
+    image%multiplicity = INT(applied_mult, KIND=c_int)
+    CALL copy_f_to_cchars(applied_input_deck, image%input_deck, 4096)
+    CALL copy_f_to_cchars(applied_cpmd_root, image%cpmd_root, 1024)
+    image%cfg_set = 1_c_int
+  END SUBROUTINE
+
+  SUBROUTINE load_image_config(image)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    IF (image%cfg_set == 0_c_int) RETURN
+    CALL copy_cchars_to_f(image%functional, 64, applied_functional)
+    IF (LEN_TRIM(applied_functional) == 0) applied_functional = 'BLYP'
+    applied_cutoff_ry = REAL(image%cutoff_ry, KIND=real64)
+    IF (applied_cutoff_ry <= 0.0_real64) applied_cutoff_ry = 70.0_real64
+    applied_charge = INT(image%charge)
+    applied_mult = MAX(1, INT(image%multiplicity))
+    CALL copy_cchars_to_f(image%input_deck, 4096, applied_input_deck)
+    CALL copy_cchars_to_f(image%cpmd_root, 1024, applied_cpmd_root)
+  END SUBROUTINE
+
+  SUBROUTINE cpmdc_embed_store_config(image_c) BIND(C, NAME='cpmdc_embed_store_config')
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    CALL store_image_config(image)
+  END SUBROUTINE
+
   FUNCTION cpmdc_embed_set_config(functional, functional_len, cutoff_ry, charge, &
       multiplicity, input_deck, input_deck_len, cpmd_root, cpmd_root_len, image_c) &
       RESULT(ok) BIND(C, NAME='cpmdc_embed_set_config')
@@ -274,6 +338,7 @@ CONTAINS
     applied_mult = MAX(1, INT(multiplicity))
     CALL cstr_to_f(input_deck, input_deck_len, applied_input_deck)
     CALL cstr_to_f(cpmd_root, cpmd_root_len, applied_cpmd_root)
+    CALL cpmdc_embed_store_config(image_c)
     ok = 1_c_int
   END FUNCTION
 
@@ -311,6 +376,7 @@ CONTAINS
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. n_atoms <= 0) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
+    CALL load_image_config(image)
 #if defined(CPMDC_HAS_CPMD)
     CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)

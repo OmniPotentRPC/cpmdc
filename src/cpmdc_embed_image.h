@@ -15,4 +15,11 @@ typedef struct CPMDCEmbedImage {
   int warm_cell_set;
   int warm_has_cell;
   int cfg_warm_steps;
+  int cfg_set;
+  char functional[64];
+  double cutoff_ry;
+  int charge;
+  int multiplicity;
+  char input_deck[4096];
+  char cpmd_root[1024];
 } CPMDCEmbedImage;
