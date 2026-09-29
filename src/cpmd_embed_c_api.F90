@@ -260,11 +260,11 @@ CONTAINS
     CHARACTER(KIND=c_char), INTENT(OUT) :: dst(*)
     INTEGER, INTENT(IN) :: n
     INTEGER :: i, m
-    m = MIN(LEN_TRIM(src), MAX(0, n - 1))
+    m = MIN(LEN_TRIM(src), n)
     DO i = 1, m
       dst(i) = src(i:i)
     END DO
-    IF (n > 0) dst(m + 1) = c_null_char
+    IF (m < n) dst(m + 1) = c_null_char
   END SUBROUTINE
 
   SUBROUTINE copy_cchars_to_f(src, n, dst)
