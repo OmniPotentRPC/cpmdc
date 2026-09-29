@@ -1475,7 +1475,9 @@ capn_ptr capn_new_string(struct capn_segment *seg, const char *str, int sz) {
 capn_text capn_get_text(capn_ptr p, int off, capn_text def) {
 	capn_ptr m = capn_getp(p, off, 1);
 	capn_text ret = def;
-	if (m.type == CAPN_LIST && m.datasz == 1 && m.len && m.data[m.len - 1] == 0) {
+	/* C11 6.5.6: a null list is not an index base. */
+	if (m.type == CAPN_LIST && m.datasz == 1 && m.len > 0 && m.data
+	    && m.data[m.len - 1] == 0) {
 		ret.seg = m.seg;
 		ret.str = m.data;
 		ret.len = m.len - 1;
