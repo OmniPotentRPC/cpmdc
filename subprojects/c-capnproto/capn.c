@@ -727,7 +727,17 @@ static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 		/* By lucky chance, the data has a tag in front
 		 * of it. This happens when new_object had to move
 		 * the data to a new segment. */
-		write_far_ptr(d, p.seg, pdata-8);
+		/* C11 6.5.6: form the tag address only inside the segment. */
+		char *tag = NULL;
+		if (pdata && p.seg && p.seg->data && p.seg->cap >= 8) {
+			uintptr_t base = (uintptr_t) p.seg->data;
+			uintptr_t at = (uintptr_t) pdata;
+			if (at >= base + 8u && (uint64_t) (at - base) <= (uint64_t) p.seg->cap)
+				tag = pdata - 8;
+		}
+		if (!tag)
+			return -1;
+		write_far_ptr(d, p.seg, tag);
 		return 0;
 
 	} else if (seg_room(p.seg, 8)) {
