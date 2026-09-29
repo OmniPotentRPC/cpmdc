@@ -1067,6 +1067,9 @@ int capn_setp(capn_ptr p, int off, capn_ptr tgt) {
 
 	capn_resolve(&p);
 
+	/* C11 6.5.3.2: a null segment or data pointer is not a load. */
+	if (tgt.type == CAPN_FAR_POINTER && (!tgt.seg || !p.seg || !tgt.data || !p.data))
+		return -1;
 	if (tgt.type == CAPN_FAR_POINTER && tgt.seg->capn == p.seg->capn) {
 		uint64_t val = capn_flip64(*(uint64_t*) tgt.data);
 		if ((val & 3) == FAR_PTR) {
