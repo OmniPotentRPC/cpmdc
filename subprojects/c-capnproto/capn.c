@@ -946,13 +946,18 @@ static int data_size(struct capn_ptr p) {
 }
 
 static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, struct capn_ptr *f, int *dep) {
-	struct capn *c = seg->capn;
+	struct capn *c;
 	struct copy *cp = NULL;
 	struct capn_tree **xcp;
-	int span = data_size(*f);
+	int span;
 	char *fbegin;
 	char *fend;
 	int zero_sized;
+	/* C11 6.5.3.2: a null segment is not a copy. */
+	if (!seg || !seg->capn || !t || !f || !dep)
+		return -1;
+	c = seg->capn;
+	span = data_size(*f);
 	if (span < 0)
 		return -1;
 	/* C11 6.5.6: form a composite tag only inside the segment. */
