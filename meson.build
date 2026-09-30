@@ -981,6 +981,26 @@ test(
   )
 
   if has_cpmd
+    si3n4_params_bin = custom_target(
+      'si3n4_params_bin',
+      input: 'tests/si3n4_blyp_params.capnp.txt',
+      output: 'si3n4_blyp_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    test(
+      'oneshot-twice',
+      executable(
+        'test_oneshot_twice',
+        'tests/test_oneshot_twice.c',
+        dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+        include_directories: [inc],
+        c_args: common_c_args + ['-DCPMDC_HAS_CPMD=1'],
+      ),
+      args: [si3n4_params_bin.full_path()],
+      depends: [si3n4_params_bin],
+      suite: ['e2e', 'cmocka'],
+      timeout: 1800,
+    )
     test(
       'water-capnp-cli-parity',
       executable(
