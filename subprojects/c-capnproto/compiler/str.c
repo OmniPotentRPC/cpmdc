@@ -16,6 +16,9 @@
 char str_static[] = "\0";
 
 void str_reserve(struct str *v, int sz) {
+	/* C11 6.5.3.2: a null buffer is not a reserve. */
+	if (!v)
+		return;
 	if (sz < v->cap)
 		return;
 
