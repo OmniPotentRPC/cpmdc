@@ -135,10 +135,9 @@ Meson options
 +----------------+---------+-----------+-------------------------------+
 
 ``with_cpmd=true`` only takes effect together with a non-empty
-``cpmd_root``. Configuration stops with
-``with_cpmd requires DIR/lib/libcpmd.a`` when the archive is missing.
-When ``DIR/obj/timetag.o`` exists, it is linked too, because OpenCPMD
-keeps that object outside the archive.
+``cpmd_root``. Configuration stops when ``DIR/lib/libcpmd.a`` or
+``DIR/obj/timetag.o`` is missing. OpenCPMD keeps ``timetag`` outside the
+archive, and ``header`` calls it.
 
 Build against OpenCPMD
 ======================

@@ -121,6 +121,14 @@ operation letter, so its archive rule does not replace members.
 ~MAKE~ and ~AR~ in the environment override the programs it runs.
 
 * Link and check
+OpenCPMD leaves ~timetag~ out of ~libcpmd.a~ and links ~obj/timetag.o~ into
+~cpmd.x~. ~header~ calls ~timetag~, so the embed link needs that object too.
+Build it from the configured tree before ~meson setup~:
+
+#+begin_src bash
+make -C /path/to/opencpmd-build/obj -f /path/to/opencpmd-build/Makefile timetag.o
+#+end_src
+
 #+begin_src bash
 meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build
 meson compile -C build-cpmd

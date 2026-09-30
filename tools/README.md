@@ -24,6 +24,13 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
 # rebuild libcpmdc against the updated archive
 ```
 
+`header` calls `timetag`. OpenCPMD compiles `src/timetag.F90` to
+`obj/timetag.o` outside `libcpmd.a`, and the embed link needs that object:
+
+```bash
+make -C /path/to/cpmd-root/obj -f /path/to/cpmd-root/Makefile timetag.o
+```
+
 The helper rebuilds the module objects with one Make job, then replaces
 those members with `ar r`. OpenCPMD build trees contain a directory named
 `lib`, and the generated Makefile may set `AR` to the archiver with no

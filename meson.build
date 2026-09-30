@@ -147,10 +147,11 @@ if has_cpmd
     ],
     check: false,
   )
-  if timetag_check.returncode() == 0
-    # OpenCPMD links timetag outside libcpmd.a for executable build stamps.
-    cpmd_extra_objects += [cpmd_timetag_obj]
+  if timetag_check.returncode() != 0
+    error('with_cpmd requires ' + cpmd_timetag_obj + '. OpenCPMD leaves timetag out of libcpmd.a; build it with make -C ' + cpmd_obj + ' -f ' + cpmd_root + '/Makefile timetag.o')
   endif
+  # header calls timetag. OpenCPMD compiles that file outside libcpmd.a.
+  cpmd_extra_objects += [cpmd_timetag_obj]
   cpmd_embed_f_args += [
     '-DCPMDC_HAS_CPMD=1',
     '-I' + cpmd_src,

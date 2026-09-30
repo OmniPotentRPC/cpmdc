@@ -155,6 +155,15 @@ environment override the programs it runs.
 Link and check
 ==============
 
+OpenCPMD leaves ``timetag`` out of ``libcpmd.a`` and links
+``obj/timetag.o`` into ``cpmd.x``. ``header`` calls ``timetag``, so the
+embed link needs that object too. Build it from the configured tree
+before ``meson setup``:
+
+.. code:: bash
+
+   make -C /path/to/opencpmd-build/obj -f /path/to/opencpmd-build/Makefile timetag.o
+
 .. code:: bash
 
    meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build
