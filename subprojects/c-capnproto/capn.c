@@ -40,6 +40,9 @@ static int min(int a, int b) { return (a < b) ? a : b; }
 #endif
 
 struct capn_tree *capn_tree_insert(struct capn_tree *root, struct capn_tree *n) {
+	/* C11 6.5.3.2: a null node is not a tree insert. */
+	if (!n)
+		return root;
 	n->red = 1;
 	n->link[0] = n->link[1] = NULL;
 
