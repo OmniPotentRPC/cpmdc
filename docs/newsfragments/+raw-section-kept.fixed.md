@@ -1,0 +1,1 @@
+A raw input block that already opens `&CPMD`, `&SYSTEM`, `&DFT`, or `&ATOMS` is that section. The renderer does not append a second copy, so a periodic `SYMMETRY 1` block is not followed by the isolated Hockney system.

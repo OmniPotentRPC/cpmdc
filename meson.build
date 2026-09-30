@@ -673,6 +673,12 @@ if get_option('with_tests')
     output: 'params_escape_generic.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_raw_periodic_bin = custom_target(
+    'params_raw_periodic_bin',
+    input: 'tests/params_raw_periodic_block.capnp.txt',
+    output: 'params_raw_periodic_block.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   energy_components_exe = executable(
     'test_energy_components',
     'tests/test_energy_components.c',
@@ -928,6 +934,20 @@ test(
     ),
     args: [params_escape_bin.full_path()],
     depends: [params_escape_bin],
+    suite: ['params'],
+  )
+  test(
+    'raw-periodic-block',
+    executable(
+      'test_raw_periodic_block',
+      ['tests/test_raw_periodic_block.c', 'src/cpmdc_features.c'],
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args,
+    ),
+    args: [params_raw_periodic_bin.full_path()],
+    depends: [params_raw_periodic_bin],
     suite: ['params'],
   )
   pp_dir_test_args = []
