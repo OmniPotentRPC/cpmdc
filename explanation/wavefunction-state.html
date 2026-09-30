@@ -458,9 +458,11 @@ previous copy in place. A failed store allocation calls <code class="docutils li
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> sets <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> on every SCF, including the
 first. Restore does nothing until a converged copy exists, so the first
 call still starts from CPMD’s guess and stores <code class="docutils literal notranslate"><span class="pre">c0</span></code> only if that SCF
-converges. On a later call, <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> first runs <code class="docutils literal notranslate"><span class="pre">initrun</span></code>, which
-sets up the iteration state and scratch arrays as for any SCF, and then
-overwrites the generated starting orbitals with the saved copy when its
+converges. On a later call, <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> copies the saved <code class="docutils literal notranslate"><span class="pre">c0</span></code> in before
+<code class="docutils literal notranslate"><span class="pre">initrun</span></code>. <code class="docutils literal notranslate"><span class="pre">rinitwf</span></code> then returns after the phase factors, so it
+does not build a guess, and the density <code class="docutils literal notranslate"><span class="pre">initrun</span></code> builds comes from
+those orbitals. A restart read inside <code class="docutils literal notranslate"><span class="pre">initrun</span></code> can replace <code class="docutils literal notranslate"><span class="pre">c0</span></code>, so
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> copies the saved orbitals in again after <code class="docutils literal notranslate"><span class="pre">initrun</span></code> when the
 shape still matches. A different shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> and names
 <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> makes that call when the
 functional, the deck, the cutoff, the cell, the charge, the
@@ -546,8 +548,11 @@ are not a result</p></td>
 </table>
 </div>
 <p>A topology change is refused outright rather than treated as cold: the
-atom count and the ordered atomic numbers belong to the session. A new
-session with those atoms in another order keeps the stored orbitals.</p>
+atom count and the elemental composition belong to the session. A
+reordering of those atomic numbers stays on the session. A new session
+with that composition keeps the stored orbitals. An evaluation whose
+positions match the previous successful call on that session, including
+that reordering, returns the stored energy and forces.</p>
 </section>
 <section id="the-restart-file">
 <h1>The RESTART file<a class="headerlink" href="#the-restart-file" title="Link to this heading">¶</a></h1>

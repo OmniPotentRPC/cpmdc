@@ -230,9 +230,10 @@ Callers may free or reuse their original input bytes after the session
 is created.
 
 The first successful session evaluation fixes the topology: atom count
-and ordered atomic numbers. Later steps may change coordinates, the
-optional 3 by 3 cell, and requested units. A species change or
-atom-count change requires a new ``CPMDCSession``.
+and elemental composition. A reordering of those elements stays on the
+session. Later steps may change coordinates, the optional 3 by 3 cell,
+and requested units. A different composition or atom count requires a
+new ``CPMDCSession``.
 
 ``cpmdc_session_set_params()`` can replace method setup only before
 topology is accepted. Once a step has succeeded, method changes also

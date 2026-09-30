@@ -513,11 +513,12 @@ the call <code class="docutils literal notranslate"><span class="pre">stopgm</sp
 <section id="topology-change-requires-a-new-session">
 <h2><code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code><a class="headerlink" href="#topology-change-requires-a-new-session" title="Link to this heading">¶</a></h2>
 <p><strong>Cause:</strong> the first successful step of a session fixes the atom count
-and the ordered atomic numbers. A later step with a different count or
-order is refused before CPMD runs.</p>
-<p><strong>Fix:</strong> create a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>. A reordering of the same
-elements keeps the stored orbitals. A different elemental composition
-runs setup.</p>
+and the elemental composition. A later step with a different count or
+composition is refused before CPMD runs. A reordering of the same
+elements stays on the session.</p>
+<p><strong>Fix:</strong> create a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> for a different composition. A
+reordering of the same elements keeps the stored orbitals. A different
+elemental composition runs setup.</p>
 </section>
 <section id="potentialresult-buffer-too-small">
 <h2><code class="docutils literal notranslate"><span class="pre">PotentialResult</span> <span class="pre">buffer</span> <span class="pre">too</span> <span class="pre">small</span></code><a class="headerlink" href="#potentialresult-buffer-too-small" title="Link to this heading">¶</a></h2>

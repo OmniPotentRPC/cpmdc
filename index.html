@@ -436,9 +436,10 @@ internally.</p>
 then pass <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> per step. The result-carrier call,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result()</span></code>, writes the same
 <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> message used by <code class="docutils literal notranslate"><span class="pre">rgpot</span></code> RPC clients.</p>
-<p>The first accepted session evaluation fixes atom count and ordered
-atomic numbers. Later steps may change coordinates, units, and the 3 by
-3 cell; topology changes require a new session.</p>
+<p>The first accepted session evaluation fixes the atom count and the
+elemental composition. A reordering of those elements stays on the
+session. Later steps may change coordinates, units, and the 3 by 3 cell;
+a different composition requires a new session.</p>
 </section>
 <section id="start-here">
 <h1>Start Here<a class="headerlink" href="#start-here" title="Link to this heading">¶</a></h1>

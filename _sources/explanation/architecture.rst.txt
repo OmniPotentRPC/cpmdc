@@ -120,17 +120,18 @@ first call and moves atoms through ``tau0`` afterwards.
 Sessions, topology, and state
 =============================
 
-A session fixes the atom count and the ordered atomic numbers on its
+A session fixes the atom count and the elemental composition on its
 first successful step, because CPMD's species tables, plane-wave setup,
-and stored orbitals are all sized for one composition. Coordinates may
-change freely; a changed cell sends the next call back through the full
-setup. OpenCPMD's module state is one per process, so one session at a
-time owns it. A different session with the same functional, deck,
-cutoff, cell, charge, multiplicity, and elemental composition reuses the
-stored orbitals. A different method or composition runs setup again on
-the next evaluation. :doc:`Wavefunction state <wavefunction-state>`
-follows the orbitals from call to call, and
-:doc:`the MPI model <mpi-model>` covers ranks and calculator groups.
+and stored orbitals are all sized for one composition. A reordering of
+those elements stays on the session. Coordinates may change freely; a
+changed cell sends the next call back through the full setup. OpenCPMD's
+module state is one per process, so one session at a time owns it. A
+different session with the same functional, deck, cutoff, cell, charge,
+multiplicity, and elemental composition reuses the stored orbitals. A
+different method or composition runs setup again on the next evaluation.
+:doc:`Wavefunction state <wavefunction-state>` follows the orbitals from
+call to call, and :doc:`the MPI model <mpi-model>` covers ranks and
+calculator groups.
 
 Three builds, one ABI
 =====================

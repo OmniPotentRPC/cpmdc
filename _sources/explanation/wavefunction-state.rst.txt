@@ -59,9 +59,11 @@ previous copy in place. A failed store allocation calls ``stopgm``.
 ``cpmdc`` sets ``embed_warm_orbitals`` on every SCF, including the
 first. Restore does nothing until a converged copy exists, so the first
 call still starts from CPMD's guess and stores ``c0`` only if that SCF
-converges. On a later call, ``rwfopt`` first runs ``initrun``, which
-sets up the iteration state and scratch arrays as for any SCF, and then
-overwrites the generated starting orbitals with the saved copy when its
+converges. On a later call, ``rwfopt`` copies the saved ``c0`` in before
+``initrun``. ``rinitwf`` then returns after the phase factors, so it
+does not build a guess, and the density ``initrun`` builds comes from
+those orbitals. A restart read inside ``initrun`` can replace ``c0``, so
+``rwfopt`` copies the saved orbitals in again after ``initrun`` when the
 shape still matches. A different shape calls ``stopgm`` and names
 ``embed_reset_warm_orbitals``. ``cpmdc`` makes that call when the
 functional, the deck, the cutoff, the cell, the charge, the
@@ -126,8 +128,11 @@ What clears the orbitals
 +----------------------------------+----------------------------------+
 
 A topology change is refused outright rather than treated as cold: the
-atom count and the ordered atomic numbers belong to the session. A new
-session with those atoms in another order keeps the stored orbitals.
+atom count and the elemental composition belong to the session. A
+reordering of those atomic numbers stays on the session. A new session
+with that composition keeps the stored orbitals. An evaluation whose
+positions match the previous successful call on that session, including
+that reordering, returns the stored energy and forces.
 
 The RESTART file
 ================

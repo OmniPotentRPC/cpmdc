@@ -391,7 +391,7 @@ process. A stock OpenCPMD archive does not work inside a host:
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> imports routines that only the patches add, the shared link
 stops on code built without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, and the unpatched SCF driver
 drops the forces and the orbitals that <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads after each call.
-Six patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.
+The patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.
 <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> makes <code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> return the address
 as <code class="docutils literal notranslate"><span class="pre">size_t</span></code>. GCC 14 rejects the stock return of a pointer from that
 function.</p>
@@ -407,7 +407,13 @@ function.</p>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/rinitwf_driver.mod.F90</span></code></p></td>
+<td><p>a warm call still builds the
+wavefunction guess and then
+discards it</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>,
 <code class="docutils literal notranslate"><span class="pre">src/initrun_driver.mod.F90</span></code>,
 <code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code></p></td>
@@ -417,7 +423,7 @@ function.</p>
 and <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> has no
 <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> to read</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rwfopt_utils.mod.F90</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> deallocates <code class="docutils literal notranslate"><span class="pre">fion</span></code> on
 return and starts every SCF from a
@@ -425,7 +431,7 @@ fresh guess, and
 <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> does not
 compile</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/updwf_utils.mod.F90</span></code></p></td>
 <td><p>the optimiser applies one more
 update after convergence, so the
@@ -436,7 +442,7 @@ steepest descent with
 <code class="docutils literal notranslate"><span class="pre">gemax</span></code> reset before the
 convergence check</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_kpoints_inputfile.patch</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_kpoints_inputfile.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rkpnt_utils.mod.F90</span></code></p></td>
 <td><p>the k-point report reads the host’s
 <code class="docutils literal notranslate"><span class="pre">argv[1]</span></code> as the input file name
@@ -444,14 +450,14 @@ and stops with <code class="docutils literal notranslate"><span class="pre">STOP
 it is missing or longer than 80
 characters</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/error_handling.mod.F90</span></code></p></td>
 <td><p>a CPMD stop inside an evaluation
 takes the <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code> path,
 which OpenCPMD writes to end the
 run</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_tistopgm.patch</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_tistopgm.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/timer.mod.F90</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tistopgm</span></code> indexes
 <code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>,
@@ -459,7 +465,7 @@ while the depth is still
 <code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the process faults
 before <code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/c_mem_utils.c</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> returns a
 <code class="docutils literal notranslate"><span class="pre">size_t</span></code> pointer, and GCC 14
@@ -481,22 +487,26 @@ only when <code class="docutils literal notranslate"><span class="pre">embed_nee
 before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>. It saves <code class="docutils literal notranslate"><span class="pre">c0</span></code> only when
 <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> is true and the SCF converged. An unconverged
 pass leaves the previous copy. A failed store allocation calls
-<code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. On the next call it restores that copy after <code class="docutils literal notranslate"><span class="pre">initrun</span></code>
-when the shape still matches, and a different shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. It
-sets <code class="docutils literal notranslate"><span class="pre">tfor</span></code> when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true. The stop patch
-publishes <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>, a C function pointer. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> calls
-it with the stop code passed by value, after writing
-<code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code>. A nonzero return makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> return to its
-caller, and a null pointer makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> call <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code>. The
-caller then continues past the failed check. The wavefunction, <code class="docutils literal notranslate"><span class="pre">fion</span></code>,
-and module state of that call are undefined, so <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> discards the
-result and sets CPMD up again before the next call. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> runs only
-on the ranks that hit the error. A host with more than one rank aborts
-the others, because a rank that returns while the rest wait in an MPI
-call leaves them waiting. A standalone <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the pointer
-null and links without <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. While an evaluation is armed,
-<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> stores a catch in the pointer. The catch records the code
-and returns 1, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reports the stop as a failed call (see
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. On the next call it copies that <code class="docutils literal notranslate"><span class="pre">c0</span></code> in before
+<code class="docutils literal notranslate"><span class="pre">initrun</span></code>. <code class="docutils literal notranslate"><span class="pre">rinitwf</span></code> then returns after the phase factors when
+<code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> is true, so the guess does not run. A restart
+read inside <code class="docutils literal notranslate"><span class="pre">initrun</span></code> can replace <code class="docutils literal notranslate"><span class="pre">c0</span></code>, so the same copy is applied
+again after <code class="docutils literal notranslate"><span class="pre">initrun</span></code> when the shape still matches, and a different
+shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets <code class="docutils literal notranslate"><span class="pre">tfor</span></code> when
+<code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true. The stop patch publishes
+<code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>, a C function pointer. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> calls it with the
+stop code passed by value, after writing <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code>. A nonzero
+return makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> return to its caller, and a null pointer makes
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> call <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code>. The caller then continues past the
+failed check. The wavefunction, <code class="docutils literal notranslate"><span class="pre">fion</span></code>, and module state of that call
+are undefined, so <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> discards the result and sets CPMD up again
+before the next call. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> runs only on the ranks that hit the
+error. A host with more than one rank aborts the others, because a rank
+that returns while the rest wait in an MPI call leaves them waiting. A
+standalone <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the pointer null and links without
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. While an evaluation is armed, <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> stores a catch
+in the pointer. The catch records the code and returns 1, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
+reports the stop as a failed call (see
 <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>). <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_catch</span></code> and
 <code class="docutils literal notranslate"><span class="pre">cpmdc_note_stop</span></code> are exported from <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. The calculator split
 does not need a patch: <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> assigns <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> only when
@@ -510,8 +520,11 @@ faults instead of writing <code class="docutils literal notranslate"><span class
 depth is inside <code class="docutils literal notranslate"><span class="pre">SIZE(tname%trace_names)</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_patch_integrity.py</span></code> checks that the patches are
 portable unified diffs against the files named above. Apply
-<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code> first: <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads
-<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. The other five are the commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request
+<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code> before the rwfopt patch. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>
+reads <code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> from <code class="docutils literal notranslate"><span class="pre">rinitwf_driver</span></code>. Apply
+<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code> before that rwfopt patch as well:
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. The rwfopt, converged-state, k-point,
+stop, and timer patches are the commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request
 9</a> (branch
 <code class="docutils literal notranslate"><span class="pre">embedding-hooks</span></code>, <code class="docutils literal notranslate"><span class="pre">43cf4e7</span></code>) and apply in sequence to OpenCPMD
 commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>. Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> with them.
@@ -523,7 +536,7 @@ commit <code class="docutils literal notranslate"><span class="pre">062582b</spa
 first build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/OpenCPMD/CPMD.git<span class="w"> </span>opencpmd
 </span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>opencpmd
-</span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="5"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="6"><span class="k">done</span>
@@ -558,7 +571,7 @@ and the headers in <code class="docutils literal notranslate"><span class="pre">
 <p>When the tree was built before the patches were applied, patch the
 source and rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
-</span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="4"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="5"><span class="k">done</span>
@@ -566,12 +579,12 @@ source and rebuild only the affected members:</p>
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code> with one Make job, then
-replaces those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one
-job because gfortran stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside
-<code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can leave the two module files
-naming different components. It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the
+<code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code> with
+one Make job, then replaces those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs
+<code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code>
+inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can leave the two module
+files naming different components. It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the
 generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an operation letter, so its
 archive rule does not replace members. <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">AR</span></code> in the
 environment override the programs it runs.</p>

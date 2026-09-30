@@ -261,13 +261,15 @@ Sessions
 |                                                                                     | accepted                         |
 +-------------------------------------------------------------------------------------+----------------------------------+
 
-The first successful step fixes the atom count and the ordered atomic
-numbers. A later step with a different topology fails with
-``topology change requires a new session`` before CPMD runs.
-Coordinates, the cell, and units may change between steps. A session
-evaluated after another session in the same process reuses the stored
-orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
-and elemental composition match. A different method or composition runs
+The first successful step fixes the atom count and the elemental
+composition. A later step with a different count or composition fails
+with ``topology change requires a new session`` before CPMD runs. A
+reordering of the same elements stays on the session. Coordinates, the
+cell, and units may change between steps. An evaluation with the same
+positions returns the stored energy and forces. A session evaluated
+after another session in the same process reuses the stored orbitals
+when the functional, deck, cutoff, cell, charge, multiplicity, and
+elemental composition match. A different method or composition runs
 setup on the next evaluation (see
 :doc:`wavefunction state <../explanation/wavefunction-state>`).
 

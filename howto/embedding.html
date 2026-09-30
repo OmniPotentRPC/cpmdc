@@ -671,9 +671,10 @@ smaller, the call returns <code class="docutils literal notranslate"><span class
 Callers may free or reuse their original input bytes after the session
 is created.</p>
 <p>The first successful session evaluation fixes the topology: atom count
-and ordered atomic numbers. Later steps may change coordinates, the
-optional 3 by 3 cell, and requested units. A species change or
-atom-count change requires a new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.</p>
+and elemental composition. A reordering of those elements stays on the
+session. Later steps may change coordinates, the optional 3 by 3 cell,
+and requested units. A different composition or atom count requires a
+new <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code> can replace method setup only before
 topology is accepted. Once a step has succeeded, method changes also
 need a new session.</p>

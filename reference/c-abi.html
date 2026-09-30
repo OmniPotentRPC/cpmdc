@@ -764,13 +764,15 @@ accepted</p></td>
 </tbody>
 </table>
 </div>
-<p>The first successful step fixes the atom count and the ordered atomic
-numbers. A later step with a different topology fails with
-<code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code> before CPMD runs.
-Coordinates, the cell, and units may change between steps. A session
-evaluated after another session in the same process reuses the stored
-orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
-and elemental composition match. A different method or composition runs
+<p>The first successful step fixes the atom count and the elemental
+composition. A later step with a different count or composition fails
+with <code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code> before CPMD runs. A
+reordering of the same elements stays on the session. Coordinates, the
+cell, and units may change between steps. An evaluation with the same
+positions returns the stored energy and forces. A session evaluated
+after another session in the same process reuses the stored orbitals
+when the functional, deck, cutoff, cell, charge, multiplicity, and
+elemental composition match. A different method or composition runs
 setup on the next evaluation (see
 <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state</span></a>).</p>
 <section id="session-array-steps">

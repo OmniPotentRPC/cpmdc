@@ -534,17 +534,18 @@ first call and moves atoms through <code class="docutils literal notranslate"><s
 </section>
 <section id="sessions-topology-and-state">
 <h1>Sessions, topology, and state<a class="headerlink" href="#sessions-topology-and-state" title="Link to this heading">¶</a></h1>
-<p>A session fixes the atom count and the ordered atomic numbers on its
+<p>A session fixes the atom count and the elemental composition on its
 first successful step, because CPMD’s species tables, plane-wave setup,
-and stored orbitals are all sized for one composition. Coordinates may
-change freely; a changed cell sends the next call back through the full
-setup. OpenCPMD’s module state is one per process, so one session at a
-time owns it. A different session with the same functional, deck,
-cutoff, cell, charge, multiplicity, and elemental composition reuses the
-stored orbitals. A different method or composition runs setup again on
-the next evaluation. <a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a>
-follows the orbitals from call to call, and
-<a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and calculator groups.</p>
+and stored orbitals are all sized for one composition. A reordering of
+those elements stays on the session. Coordinates may change freely; a
+changed cell sends the next call back through the full setup. OpenCPMD’s
+module state is one per process, so one session at a time owns it. A
+different session with the same functional, deck, cutoff, cell, charge,
+multiplicity, and elemental composition reuses the stored orbitals. A
+different method or composition runs setup again on the next evaluation.
+<a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a> follows the orbitals from
+call to call, and <a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and
+calculator groups.</p>
 </section>
 <section id="three-builds-one-abi">
 <h1>Three builds, one ABI<a class="headerlink" href="#three-builds-one-abi" title="Link to this heading">¶</a></h1>

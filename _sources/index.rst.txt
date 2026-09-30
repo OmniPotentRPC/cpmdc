@@ -44,9 +44,10 @@ then pass ``ForceInput`` per step. The result-carrier call,
 ``cpmdc_session_calculate_result()``, writes the same
 ``PotentialResult`` message used by ``rgpot`` RPC clients.
 
-The first accepted session evaluation fixes atom count and ordered
-atomic numbers. Later steps may change coordinates, units, and the 3 by
-3 cell; topology changes require a new session.
+The first accepted session evaluation fixes the atom count and the
+elemental composition. A reordering of those elements stays on the
+session. Later steps may change coordinates, units, and the 3 by 3 cell;
+a different composition requires a new session.
 
 Start Here
 ==========

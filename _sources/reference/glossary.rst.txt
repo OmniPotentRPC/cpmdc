@@ -171,8 +171,9 @@ T
    OpenCPMD's array of ionic positions in Bohr, ``coor%tau0``, written
    by ``cpmdc`` from each step's positions.
 Topology
-   The atom count and ordered atomic numbers a session accepts on its
-   first successful step.
+   The atom count and elemental composition a session accepts on its
+   first successful step. A reordering of those elements stays on the
+   session.
 
 W
 =
