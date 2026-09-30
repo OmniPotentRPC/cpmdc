@@ -1046,6 +1046,11 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                    image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
+  /* The embed enters the pseudopotential library for the &ATOMS read and
+   * returns to the host directory itself. This call is the last word on
+   * where the host process stands after an evaluation, whatever path the
+   * embed took out. */
+  (void)cpmdc_restore_host_cwd();
   if (stop != 0) {
     /* stopgm returned on this rank. The wavefunction, forces and module
      * state of this call are undefined. Drop them so the next call sets

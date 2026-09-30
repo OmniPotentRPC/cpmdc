@@ -2192,19 +2192,10 @@ CONTAINS
         EXIT
       END IF
     END DO
-    ! OpenCPMD get_pplib uses argv[2] as the PP library whenever argc>1,
-    ! ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn always pass filters
-    ! so argc>1; relative *PP basenames then only resolve via recpnew's
-    ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
-    ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
-    ! The process leaves that directory again once the files are read.
+    ! The library is checked before CPMD starts, so a missing directory is
+    ! reported without a half-initialised runtime.
     IF (cpmdc_pseudopotential_directory(pp_c, INT(1024, KIND=c_size_t)) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure(pp_c)
-      RETURN
-    END IF
-    IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure( &
-           'cannot enter the pseudopotential directory'//c_null_char)
       RETURN
     END IF
     CALL tistart(tcpu0, twall0)
@@ -2225,6 +2216,20 @@ CONTAINS
     CALL setsc
     CALL detsp
     CALL mm_init
+    ! OpenCPMD get_pplib uses argv[2] as the PP library whenever argc>1,
+    ! ignoring CPMD_PP_LIBRARY_PATH. Hosts like Catch2/eOn always pass filters
+    ! so argc>1; relative *PP basenames then only resolve via recpnew's
+    ! second-chance CWD lookup. cpmdc_prepare_pp_cwd chdirs to the library
+    ! and also exports CPMD_PP_LIBRARY_PATH (trailing slash) for argc==1 hosts.
+    ! Only ratom reads the library, so the process enters it here and leaves
+    ! again once the files are read. A CPMD stop while the deck is parsed
+    ! then writes LocalError into the host directory, not the library.
+    IF (cpmdc_prepare_pp_cwd(pp_c) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure( &
+           'cannot enter the pseudopotential directory'//c_null_char)
+      ierr = cpmdc_restore_host_cwd()
+      RETURN
+    END IF
     CALL ratom
     ! Pseudopotential files are in memory. Leave that directory before the
     ! SCF so a stray write cannot land on the library.

@@ -53,15 +53,21 @@ static int save_host_cwd(void) {
  * CWD lookup (basename alone). chdir to the library directory first.
  *
  * Also exports CPMD_PP_LIBRARY_PATH with a trailing slash for hosts that do
- * honor the env (argc==1 CLI runs). Saves the prior CWD.
- * cpmdc_enter_output_cwd leaves the library before CPMD writes, and
- * cpmdc_restore_host_cwd returns to the host directory.
+ * honor the env (argc==1 CLI runs). The exported value is the absolute
+ * library path: the next call reads it back through
+ * cpmdc_pseudopotential_directory, and a relative value only resolves from
+ * the directory the host stood in on the first call. A relative
+ * CPMDC_PSEUDO_DIR is rewritten to the same absolute path for that reason.
+ * Saves the prior CWD. cpmdc_enter_output_cwd leaves the library before
+ * CPMD writes, and cpmdc_restore_host_cwd returns to the host directory.
  *
  * Returns 0 on success, -1 on failure (missing dir / chdir failed).
  */
 int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
   char dir[1024];
+  char abs_dir[1024];
   char libpath[1100];
+  const char *caller_dir;
   size_t n;
   struct stat st;
 
@@ -80,14 +86,20 @@ int cpmdc_prepare_pp_cwd(const char *pseudo_dir) {
     return -1;
   if (chdir(dir) != 0)
     return -1;
+  if (getcwd(abs_dir, sizeof(abs_dir)) == NULL)
+    return -1;
+  n = strlen(abs_dir);
   /* Trailing slash required when CPMD_PP_LIBRARY_PATH is set (OpenCPMD get_pplib). */
   if (n + 2 < sizeof(libpath)) {
-    memcpy(libpath, dir, n);
+    memcpy(libpath, abs_dir, n);
     libpath[n] = '/';
     libpath[n + 1] = '\0';
     (void)setenv("CPMD_PP_LIBRARY_PATH", libpath, 1);
     (void)setenv("PP_LIBRARY_PATH", libpath, 1);
   }
+  caller_dir = getenv("CPMDC_PSEUDO_DIR");
+  if (caller_dir && caller_dir[0] && caller_dir[0] != '/')
+    (void)setenv("CPMDC_PSEUDO_DIR", abs_dir, 1);
   return 0;
 }
 

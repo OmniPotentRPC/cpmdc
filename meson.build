@@ -521,6 +521,7 @@ if get_option('with_tests')
       force_input_step_a_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],
+    timeout: 900,
   )
 
   test(
@@ -703,6 +704,7 @@ if get_option('with_tests')
     args: [runtime_params_bin.full_path(), force_input_step_a_bin.full_path()],
     depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['abi', 'params', 'cmocka'],
+    timeout: 900,
   )
 
   test(
@@ -1286,6 +1288,7 @@ test(
       force_input_step_a_bin,
     ],
     suite: ['params', 'capnp'],
+    timeout: 900,
   )
 
   meson_prog = find_program('meson', required: false)
