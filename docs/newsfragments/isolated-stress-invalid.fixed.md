@@ -1,0 +1,1 @@
+The stress snapshot is valid only after the tensor was computed for a periodic cell. An isolated cell leaves it unset even when the box volume is positive, and `CPMDC_STRESS=0` leaves it unset on a periodic cell too.

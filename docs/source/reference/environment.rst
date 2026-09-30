@@ -39,8 +39,9 @@ as the library path whenever the process has more than one argument,
 which most hosts do.
 
 ``CPMDC_STRESS=0`` saves the stress calculation for callers that use
-only energy and forces. Isolated cells never compute stress, whatever
-the variable says.
+only energy and forces, and the stress snapshot stays invalid. Isolated
+cells never compute stress, whatever the variable says, and the snapshot
+stays invalid for them even when the box volume is positive.
 
 Read by the tests and tools
 ===========================

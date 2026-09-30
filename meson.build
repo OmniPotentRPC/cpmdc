@@ -351,6 +351,12 @@ if get_option('with_tests')
     output: 'force_input_water.bin',
     command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
   )
+  water_periodic_params_bin = custom_target(
+    'water_periodic_params_bin',
+    input: 'tests/water_blyp_periodic_params.capnp.txt',
+    output: 'water_blyp_periodic_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   effective_top_params_bin = custom_target(
     'effective_top_params_bin',
     input: 'tests/params_effective_config_top.capnp.txt',
@@ -679,6 +685,37 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  test(
+    'last-error',
+    executable(
+      'test_last_error',
+      'tests/test_last_error.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [cpmd_parser_params_bin.full_path()],
+    depends: [cpmd_parser_params_bin],
+    suite: ['e2e', 'cmocka'],
+  )
+  test(
+    'stress-isolated',
+    executable(
+      'test_stress_isolated',
+      'tests/test_stress_isolated.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [
+      water_params_bin.full_path(),
+      water_periodic_params_bin.full_path(),
+      water_force_bin.full_path(),
+    ],
+    depends: [water_params_bin, water_periodic_params_bin, water_force_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: 300,
+  )
 
   test(
     'embed-warm-no-nomore-clamp',
