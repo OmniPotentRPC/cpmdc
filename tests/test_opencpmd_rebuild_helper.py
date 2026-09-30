@@ -30,13 +30,18 @@ def main() -> int:
         )
         fake_make.chmod(0o755)
 
+        # One member per vendored patch, plus scex_utils for module order.
         members = [
             "error_handling.mod.o",
             "scex_utils.mod.o",
+            "embed_ctrl.mod.o",
+            "rinitwf_driver.mod.o",
+            "initrun_driver.mod.o",
             "rwfopt_utils.mod.o",
             "updwf_utils.mod.o",
             "rkpnt_utils.mod.o",
             "timer.mod.o",
+            "c_mem_utils.o",
         ]
         for name in members:
             (root / "obj" / name).write_bytes(b"\0")

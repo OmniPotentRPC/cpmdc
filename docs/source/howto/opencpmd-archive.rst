@@ -177,9 +177,11 @@ source and rebuild only the affected members:
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 
-``rebuild_opencpmd_embed.sh`` recompiles ``error_handling.mod.o``,
-``scex_utils.mod.o``, ``rinitwf_driver.mod.o``, ``rwfopt_utils.mod.o``,
-``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, and ``timer.mod.o`` with
+``rebuild_opencpmd_embed.sh`` recompiles the object of each vendored
+patch, ``error_handling.mod.o``, ``embed_ctrl.mod.o``,
+``rinitwf_driver.mod.o``, ``initrun_driver.mod.o``, ``rwfopt_utils.mod.o``,
+``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, ``timer.mod.o``, and
+``c_mem_utils.o``, and ``scex_utils.mod.o`` for the module order, with
 one Make job, then replaces those members with ``ar r`` and runs
 ``ranlib``. It runs one
 job because gfortran stores a copy of ``Scex_t`` inside
