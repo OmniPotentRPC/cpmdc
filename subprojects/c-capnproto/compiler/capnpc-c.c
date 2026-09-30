@@ -101,10 +101,16 @@ static void resolve_names(struct str *b, struct node *n, capn_text name, struct 
 static void define_enum(struct node *n) {
 	int i;
 
+	/* C11 6.5.3.2: a null node is not an enum name. */
+	if (!n || !n->name.str)
+		return;
 	str_addf(&HDR, "\nenum %s {", n->name.str);
 	for (i = 0; i < capn_len(n->n._enum.enumerants); i++) {
 		struct Enumerant e;
 		get_Enumerant(&e, n->n._enum.enumerants, i);
+		/* C11 7.21.6.1: a null enumerant name is not a %s argument. */
+		if (!e.name.str)
+			return;
 		if (i) {
 			str_addf(&HDR, ",");
 		}
