@@ -158,7 +158,10 @@ if has_cpmd
     '-I' + cpmd_obj,
   ]
   cpmd_embed_link += [cpmd_lib]
-  cpmd_mpi_dep = [dependency('mpi', language: 'fortran', required: true)]
+  cpmd_mpi_dep = [
+    dependency('mpi', language: 'fortran', required: true),
+    dependency('mpi', language: 'c', required: true),
+  ]
   # foss puts BLAS behind FlexiBLAS. OpenBLAS is the backend that module loads.
   flexiblas = cc.find_library('flexiblas', required: false)
   openblas = cc.find_library('openblas', required: false)

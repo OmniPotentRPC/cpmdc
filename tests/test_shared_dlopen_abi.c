@@ -38,6 +38,8 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_energy",
     "cpmdc_energy_forces",
     "cpmdc_bind_calculator",
+    "cpmdc_adopt_calculator_comm",
+    "cpmdc_adopted_comm",
     "cpmdc_session_create",
     "cpmdc_session_set_params",
     "cpmdc_session_destroy",

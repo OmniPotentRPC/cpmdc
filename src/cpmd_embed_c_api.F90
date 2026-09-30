@@ -70,6 +70,7 @@ MODULE cpmd_embed_c_api
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_bind_calculator
+  PUBLIC :: cpmdc_embed_adopt_comm, cpmdc_embed_adopted_fcomm
   PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
@@ -291,6 +292,48 @@ CONTAINS
     END BLOCK
 #endif
   END FUNCTION cpmdc_embed_bind_calculator
+
+  FUNCTION cpmdc_embed_adopt_comm(fcomm, ranks_per_calc) RESULT(calc) &
+      BIND(C, NAME='cpmdc_embed_adopt_comm')
+    INTEGER(c_int), INTENT(IN), VALUE :: fcomm
+    INTEGER(c_int), INTENT(IN), VALUE :: ranks_per_calc
+    INTEGER(c_int) :: calc
+    calc = -1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mpi
+      USE mp_interface, ONLY: mp_comm_world
+      INTEGER :: ierr, rank, npe, rpc
+      LOGICAL :: inited
+      ! Fortran MPI_COMM_NULL is 0 on Open MPI and MPICH.
+      IF (fcomm == 0_c_int) RETURN
+      CALL MPI_INITIALIZED(inited, ierr)
+      IF (.NOT. inited) RETURN
+      rpc = INT(ranks_per_calc)
+      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+      CALL MPI_Comm_size(MPI_COMM_WORLD, npe, ierr)
+      IF (rpc <= 0) rpc = npe
+      IF (rpc > npe .OR. MOD(npe, rpc) /= 0) RETURN
+      calc = INT(rank / rpc, c_int)
+      IF (embed_calculator_bound) RETURN
+      mp_comm_world = INT(fcomm)
+      embed_calculator_bound = .TRUE.
+    END BLOCK
+#endif
+  END FUNCTION cpmdc_embed_adopt_comm
+
+  FUNCTION cpmdc_embed_adopted_fcomm() RESULT(fcomm) &
+      BIND(C, NAME='cpmdc_embed_adopted_fcomm')
+    INTEGER(c_int) :: fcomm
+    fcomm = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mp_interface, ONLY: mp_comm_world
+      IF (.NOT. embed_calculator_bound) RETURN
+      fcomm = INT(mp_comm_world, c_int)
+    END BLOCK
+#endif
+  END FUNCTION cpmdc_embed_adopted_fcomm
 
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok

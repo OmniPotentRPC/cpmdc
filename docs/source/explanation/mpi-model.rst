@@ -32,7 +32,14 @@ running, then splits ``MPI_COMM_WORLD`` with ``MPI_Comm_split``, colour
 own CPMD setup, its own SCF, its own stored orbitals, all driven by the
 same deck. The split happens once per process.
 ``embed_calculator_bound``, a module variable in ``cpmd_embed_c_api``,
-records it, and a second call only reports the group index.
+records it, and a second call only reports the group index. A host that
+already holds the calculator communicator calls
+``cpmdc_adopt_calculator_comm`` instead. That call copies the
+communicator into ``mp_comm_world`` and does not call ``MPI_Init`` or
+``MPI_Comm_split``. ``cpmdc_adopted_comm`` copies ``mp_comm_world`` back
+out. A null communicator, a world that does not divide, or a build
+without CPMD returns -1. A second adopt returns the same index and
+leaves the communicator alone.
 
 ========== ================== =================== ============
 World size ``ranks_per_calc`` Calculators         Parent ranks
