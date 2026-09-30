@@ -183,7 +183,7 @@ needed:
 |---------+-------|
 | ~with_cpmd requires ... lib/libcpmd.a~ | ~CPMD_ROOT~ points at a completed OpenCPMD build tree with ~lib/libcpmd.a~ |
 | OpenCPMD cannot find ~O_MT_BLYP.psp~ or ~H_CVB_BLYP.psp~ | ~CPMDC_PSEUDO_DIR~ points at the regtest ~PP_LIBRARY~ or the params use absolute pseudopotential paths |
-| A session reports a topology change | the same ~CPMDCSession~ received a different atom count or ordered atomic-number list; create a new session |
+| A session reports a topology change | the same ~CPMDCSession~ received a different atom count or elemental composition; a reordering stays on the session |
 | ~PotentialResult buffer too small~ | call ~cpmdc_potential_result_size_for_force_input()~ and allocate at least that many bytes |
 | Unit parsing fails | use supported length/energy strings such as ~angstrom~, ~bohr~, ~eV~, and ~hartree~ |
 | ~capnp encode~ fails on a fixture | re-run the command against ~schema/Potentials.capnp~ and the intended root type, either ~CPMDParams~ or ~ForceInput~ |

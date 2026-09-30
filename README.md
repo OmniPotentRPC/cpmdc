@@ -142,9 +142,11 @@ cpmdc_session_destroy(session);
 ```
 
 `cpmdc_session_create()` copies the serialized params buffer. The first
-successful session evaluation fixes atom count and ordered atomic numbers.
-Coordinates, units, and the 3x3 cell may change between later steps; atom count
-or species changes require a new session.
+successful session evaluation fixes the atom count and the elemental
+composition. A reordering of those elements stays on the session.
+Coordinates, units, and the 3x3 cell may change between later steps. An
+evaluation with the same positions returns the stored energy and forces.
+A different composition or atom count requires a new session.
 
 ## Host Example
 

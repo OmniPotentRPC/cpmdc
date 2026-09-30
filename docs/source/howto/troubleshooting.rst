@@ -110,12 +110,13 @@ returned from.
 ------------------------------------------
 
 **Cause:** the first successful step of a session fixes the atom count
-and the ordered atomic numbers. A later step with a different count or
-order is refused before CPMD runs.
+and the elemental composition. A later step with a different count or
+composition is refused before CPMD runs. A reordering of the same
+elements stays on the session.
 
-**Fix:** create a new ``CPMDCSession``. A reordering of the same
-elements keeps the stored orbitals. A different elemental composition
-runs setup.
+**Fix:** create a new ``CPMDCSession`` for a different composition. A
+reordering of the same elements keeps the stored orbitals. A different
+elemental composition runs setup.
 
 ``PotentialResult buffer too small``
 ------------------------------------

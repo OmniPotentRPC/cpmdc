@@ -267,8 +267,8 @@ are needed:
 |                                          | pseudopotential paths                             |
 +------------------------------------------+---------------------------------------------------+
 | A session reports a topology change      | the same ``CPMDCSession`` received a different    |
-|                                          | atom count or ordered atomic-number list; create  |
-|                                          | a new session                                     |
+|                                          | atom count or elemental composition; a reordering |
+|                                          | stays on the session                              |
 +------------------------------------------+---------------------------------------------------+
 | ``PotentialResult buffer too small``     | call                                              |
 |                                          | ``cpmdc_potential_result_size_for_force_input()`` |

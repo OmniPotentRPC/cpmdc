@@ -102,7 +102,7 @@ struct CPMDCSession {
   int topology_fixed;
   /** Atom count accepted by the first successful topology check. */
   size_t fixed_n_atoms;
-  /** Ordered atomic numbers accepted by the first successful topology check. */
+  /** Atomic numbers from the latest accepted step. Identity is the element counts. */
   int *fixed_atomic_numbers;
   /** Scratch positions for the current step in Angstrom. */
   double *step_positions_ang;
@@ -110,6 +110,16 @@ struct CPMDCSession {
   int *step_atomic_numbers;
   /** Allocated atom capacity for step scratch buffers. */
   size_t step_atom_capacity;
+  /** Non-zero when the last successful gradient is stored. */
+  int result_cached;
+  /** Positions, atomic numbers, and gradient of that call. Owned. */
+  double *cached_positions_ang;
+  int *cached_atomic_numbers;
+  double *cached_grad_h_bohr;
+  size_t cached_n_atoms;
+  double cached_energy_h;
+  int cached_has_cell;
+  double cached_cell_ang[9];
   /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
   /** Result of the last evaluation of this session. */
@@ -1153,6 +1163,152 @@ static int session_reserve_step_atoms(CPMDCSession *session, size_t n_atoms) {
   return 0;
 }
 
+static int element_counts_match(size_t n_atoms, const int *left,
+                                const int *right) {
+  int counts[119];
+  if (!left || !right)
+    return 0;
+  memset(counts, 0, sizeof(counts));
+  for (size_t i = 0; i < n_atoms; ++i) {
+    if (left[i] < 1 || left[i] > 118)
+      return 0;
+    counts[left[i]] += 1;
+  }
+  for (size_t i = 0; i < n_atoms; ++i) {
+    if (right[i] < 1 || right[i] > 118)
+      return 0;
+    counts[right[i]] -= 1;
+    if (counts[right[i]] < 0)
+      return 0;
+  }
+  return 1;
+}
+
+static int coords_differ(const double *left, const double *right) {
+  for (int k = 0; k < 3; ++k) {
+    double delta = left[k] - right[k];
+    if (delta < 0.0)
+      delta = -delta;
+    if (delta > 1.0e-8)
+      return 1;
+  }
+  return 0;
+}
+
+static int cell_differs(int left_has, const double *left, int right_has,
+                        const double *right) {
+  if (left_has != right_has)
+    return 1;
+  if (!left_has)
+    return 0;
+  if (!left || !right)
+    return 1;
+  for (int i = 0; i < 9; ++i) {
+    double delta = left[i] - right[i];
+    if (delta < 0.0)
+      delta = -delta;
+    if (delta > 1.0e-8)
+      return 1;
+  }
+  return 0;
+}
+
+static void session_drop_cache(CPMDCSession *session) {
+  if (!session)
+    return;
+  free(session->cached_positions_ang);
+  free(session->cached_atomic_numbers);
+  free(session->cached_grad_h_bohr);
+  session->cached_positions_ang = NULL;
+  session->cached_atomic_numbers = NULL;
+  session->cached_grad_h_bohr = NULL;
+  session->cached_n_atoms = 0;
+  session->result_cached = 0;
+}
+
+static int session_store_cache(CPMDCSession *session, size_t n_atoms,
+                               const double *positions_ang,
+                               const int *atomic_numbers, const double *grad,
+                               double energy_h, const double *cell_ang,
+                               int has_cell) {
+  if (!session || !positions_ang || !atomic_numbers || !grad || n_atoms == 0)
+    return -1;
+  if (session->cached_n_atoms != n_atoms) {
+    double *pos = (double *)malloc(n_atoms * 3u * sizeof(double));
+    int *z = (int *)malloc(n_atoms * sizeof(int));
+    double *g = (double *)malloc(n_atoms * 3u * sizeof(double));
+    if (!pos || !z || !g) {
+      free(pos);
+      free(z);
+      free(g);
+      return -1;
+    }
+    free(session->cached_positions_ang);
+    free(session->cached_atomic_numbers);
+    free(session->cached_grad_h_bohr);
+    session->cached_positions_ang = pos;
+    session->cached_atomic_numbers = z;
+    session->cached_grad_h_bohr = g;
+    session->cached_n_atoms = n_atoms;
+  }
+  memcpy(session->cached_positions_ang, positions_ang,
+         n_atoms * 3u * sizeof(double));
+  memcpy(session->cached_atomic_numbers, atomic_numbers,
+         n_atoms * sizeof(int));
+  memcpy(session->cached_grad_h_bohr, grad, n_atoms * 3u * sizeof(double));
+  session->cached_energy_h = energy_h;
+  session->cached_has_cell = has_cell;
+  if (has_cell && cell_ang)
+    memcpy(session->cached_cell_ang, cell_ang, sizeof(session->cached_cell_ang));
+  else
+    memset(session->cached_cell_ang, 0, sizeof(session->cached_cell_ang));
+  session->result_cached = 1;
+  return 0;
+}
+
+/* The stored gradient is copied into the caller's atom order. Two atoms
+ * match when the element and the position agree within 1e-8 Angstrom. */
+static int session_copy_cached_gradient(const CPMDCSession *session,
+                                        size_t n_atoms, const double *positions,
+                                        const int *atomic_numbers,
+                                        const double *cell_ang, int has_cell,
+                                        double *grad) {
+  unsigned char *used;
+  if (!session || !session->result_cached || !grad ||
+      session->cached_n_atoms != n_atoms)
+    return 0;
+  if (cell_differs(session->cached_has_cell, session->cached_cell_ang, has_cell,
+                   cell_ang))
+    return 0;
+  used = (unsigned char *)calloc(n_atoms, 1);
+  if (!used)
+    return 0;
+  for (size_t i = 0; i < n_atoms; ++i) {
+    size_t found = n_atoms;
+    for (size_t j = 0; j < n_atoms; ++j) {
+      if (used[j])
+        continue;
+      if (session->cached_atomic_numbers[j] != atomic_numbers[i])
+        continue;
+      if (coords_differ(session->cached_positions_ang + 3u * j,
+                        positions + 3u * i))
+        continue;
+      found = j;
+      break;
+    }
+    if (found == n_atoms) {
+      free(used);
+      return 0;
+    }
+    used[found] = 1;
+    grad[3u * i] = session->cached_grad_h_bohr[3u * found];
+    grad[3u * i + 1u] = session->cached_grad_h_bohr[3u * found + 1u];
+    grad[3u * i + 2u] = session->cached_grad_h_bohr[3u * found + 2u];
+  }
+  free(used);
+  return 1;
+}
+
 static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
                                    const int *atomic_numbers) {
   if (!session || !atomic_numbers || n_atoms == 0)
@@ -1169,10 +1325,11 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   }
   if (session->fixed_n_atoms != n_atoms)
     return -1;
-  for (size_t i = 0; i < n_atoms; ++i) {
-    if (session->fixed_atomic_numbers[i] != atomic_numbers[i])
-      return -1;
-  }
+  if (!element_counts_match(n_atoms, session->fixed_atomic_numbers,
+                            atomic_numbers))
+    return -1;
+  memcpy(session->fixed_atomic_numbers, atomic_numbers,
+         n_atoms * sizeof(int));
   return 0;
 }
 
@@ -1287,6 +1444,7 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   free(session->fixed_atomic_numbers);
   free(session->step_positions_ang);
   free(session->step_atomic_numbers);
+  session_drop_cache(session);
   free(session);
 }
 
@@ -1300,18 +1458,36 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
+  if (grad_h_bohr &&
+      session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
+                                   atomic_numbers, cell_ang, has_cell,
+                                   grad_h_bohr)) {
+    CPMDCResult cached;
+    cached.ok = 1;
+    cached.energy_h = session->cached_energy_h;
+    cached.message[0] = '\0';
+    cpmdc_store_error("");
+    return cached;
+  }
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
-  return energy_gradient_cell_with_params(session->params_bytes,
-                                          session->params_size,
-                                          session->has_overrides
-                                              ? &session->overrides
-                                              : NULL,
-                                          n_atoms,
-                                          positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, grad_h_bohr,
-                                          &session->image);
+  {
+    CPMDCResult evaluated = energy_gradient_cell_with_params(
+        session->params_bytes, session->params_size,
+        session->has_overrides ? &session->overrides : NULL, n_atoms,
+        positions_ang, atomic_numbers, cell_ang, has_cell, grad_h_bohr,
+        &session->image);
+    if (evaluated.ok && grad_h_bohr) {
+      if (session_store_cache(session, (size_t)n_atoms, positions_ang,
+                              atomic_numbers, grad_h_bohr, evaluated.energy_h,
+                              cell_ang, has_cell) != 0)
+        session->result_cached = 0;
+    } else {
+      session->result_cached = 0;
+    }
+    return evaluated;
+  }
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,

@@ -83,8 +83,11 @@ that check: those steps do not converge on ~gemax~.
 | ~stopgm~ returns through ~cpmd_stopgm_hook~ | the call continued past a failed check, so the stored orbitals are not a result |
 
 A topology change is refused outright rather than treated as cold: the atom
-count and the ordered atomic numbers belong to the session.
-A new session with those atoms in another order keeps the stored orbitals.
+count and the elemental composition belong to the session.
+A reordering of those atomic numbers stays on the session.
+A new session with that composition keeps the stored orbitals.
+An evaluation whose positions match the previous successful call on that
+session, including that reordering, returns the stored energy and forces.
 
 * The RESTART file
 A library force call writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or

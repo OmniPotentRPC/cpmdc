@@ -149,10 +149,12 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
 
-The first successful step fixes the atom count and the ordered atomic numbers.
-A later step with a different topology fails with ~topology change requires a
-new session~ before CPMD runs.
+The first successful step fixes the atom count and the elemental composition.
+A later step with a different count or composition fails with ~topology change
+requires a new session~ before CPMD runs.
+A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+An evaluation with the same positions returns the stored energy and forces.
 A session evaluated after another session in the same process reuses the
 stored orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
 and elemental composition match.

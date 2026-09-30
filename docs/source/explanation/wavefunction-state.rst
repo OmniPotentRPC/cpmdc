@@ -102,8 +102,11 @@ What clears the orbitals
      - the call continued past a failed check, so the stored orbitals are not a result
 
 A topology change is refused outright rather than treated as cold: the
-atom count and the ordered atomic numbers belong to the session. A new
-session with those atoms in another order keeps the stored orbitals.
+atom count and the elemental composition belong to the session. A
+reordering of those atomic numbers stays on the session. A new session
+with that composition keeps the stored orbitals. An evaluation whose
+positions match the previous successful call on that session, including
+that reordering, returns the stored energy and forces.
 
 The RESTART file
 ================
