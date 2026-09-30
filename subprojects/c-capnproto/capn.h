@@ -316,6 +316,9 @@ CAPN_INLINE uint64_t capn_flip64(uint64_t v) {
 }
 
 CAPN_INLINE int capn_write1(capn_ptr p, int off, int val) {
+	/* C11 6.5.3.2: a null data pointer is not a bit store. */
+	if (!p.data)
+		return -1;
 	if (off >= p.datasz*8) {
 		return -1;
 	} else if (val) {
