@@ -385,6 +385,9 @@ CAPN_INLINE int capn_write32(capn_ptr p, int off, uint32_t val) {
 }
 
 CAPN_INLINE uint64_t capn_read64(capn_ptr p, int off) {
+	/* C11 6.5.3.2: a null data pointer is not a 64-bit load. */
+	if (!p.data)
+		return 0;
 	return off+8 <= p.datasz ? capn_flip64(*(uint64_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val) {
