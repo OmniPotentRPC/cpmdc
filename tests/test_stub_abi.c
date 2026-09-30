@@ -115,9 +115,82 @@ static void test_stub_reports_unavailable(void **state) {
   cpmdc_finalize();
 }
 
+static void expect_stub_entry(const char *entry) {
+  const char *err = cpmdc_last_error();
+  assert_non_null(err);
+  assert_non_null(strstr(err, "stub"));
+  assert_non_null(strstr(err, entry));
+}
+
+static void test_stub_failing_calls_set_last_error(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_set_params(NULL, 0), -1);
+  expect_stub_entry("cpmdc_set_params");
+  assert_int_equal(cpmdc_configure(NULL, 0), -1);
+  expect_stub_entry("cpmdc_configure");
+  assert_null(cpmdc_session_create(NULL, 0));
+  expect_stub_entry("cpmdc_session_create");
+  assert_int_equal(cpmdc_session_set_params(NULL, NULL, 0), -1);
+  expect_stub_entry("cpmdc_session_set_params");
+  assert_null(cpmdc_session_create_from_config(NULL, 0));
+  expect_stub_entry("cpmdc_session_create_from_config");
+  assert_int_equal(cpmdc_session_configure(NULL, NULL, 0), -1);
+  expect_stub_entry("cpmdc_session_configure");
+  assert_int_equal(cpmdc_bind_calculator(1), -1);
+  expect_stub_entry("cpmdc_bind_calculator");
+  assert_int_equal(cpmdc_potential_result_size_for_force_input(NULL, 0), 0);
+  expect_stub_entry("cpmdc_potential_result_size_for_force_input");
+
+  CPMDCResult energy = cpmdc_energy(0, NULL, NULL, NULL, 0);
+  assert_int_equal(energy.ok, 0);
+  expect_stub_entry("cpmdc_energy");
+  assert_string_equal(cpmdc_last_error(), energy.message);
+  CPMDCResult gradient = cpmdc_energy_gradient(0, NULL, NULL, NULL, 0, NULL);
+  assert_int_equal(gradient.ok, 0);
+  expect_stub_entry("cpmdc_energy_gradient");
+  CPMDCResult forces = cpmdc_energy_forces(0, NULL, NULL, NULL, 0, NULL);
+  assert_int_equal(forces.ok, 0);
+  expect_stub_entry("cpmdc_energy_forces");
+  CPMDCResult session_energy = cpmdc_session_energy(NULL, 0, NULL, NULL);
+  assert_int_equal(session_energy.ok, 0);
+  expect_stub_entry("cpmdc_session_energy");
+  CPMDCResult session_gradient =
+      cpmdc_session_energy_gradient(NULL, 0, NULL, NULL, NULL);
+  assert_int_equal(session_gradient.ok, 0);
+  expect_stub_entry("cpmdc_session_energy_gradient");
+  CPMDCResult session_forces =
+      cpmdc_session_energy_forces(NULL, 0, NULL, NULL, NULL);
+  assert_int_equal(session_forces.ok, 0);
+  expect_stub_entry("cpmdc_session_energy_forces");
+  CPMDCResult session_step =
+      cpmdc_session_calculate_forces(NULL, NULL, 0, NULL, 0);
+  assert_int_equal(session_step.ok, 0);
+  expect_stub_entry("cpmdc_session_calculate_forces");
+  CPMDCResult session_result =
+      cpmdc_session_calculate_result(NULL, NULL, 0, NULL, 0, NULL);
+  assert_int_equal(session_result.ok, 0);
+  expect_stub_entry("cpmdc_session_calculate_result");
+  CPMDCResult one_shot = cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
+  assert_int_equal(one_shot.ok, 0);
+  expect_stub_entry("cpmdc_calculate_result");
+  CPMDCResult one_shot_config =
+      cpmdc_calculate_result_from_config(NULL, 0, NULL, 0, NULL, 0, NULL);
+  assert_int_equal(one_shot_config.ok, 0);
+  expect_stub_entry("cpmdc_calculate_result_from_config");
+
+  /* Snapshot readers do not replace the diagnostic from the call above. */
+  expect_stub_entry("cpmdc_calculate_result_from_config");
+  CPMDCStressTensor stress;
+  memset(&stress, 0, sizeof(stress));
+  assert_int_equal(cpmdc_last_stress(&stress), -1);
+  assert_int_equal(stress.valid, 0);
+  expect_stub_entry("cpmdc_calculate_result_from_config");
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_stub_reports_unavailable),
+      cmocka_unit_test(test_stub_failing_calls_set_last_error),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

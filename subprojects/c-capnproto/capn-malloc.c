@@ -97,6 +97,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 		return 0;
 
 	} else if (f && !packed) {
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && !p)
+			return -1;
+		if (sz == 0)
+			return 0;
 		return fread(p, sz, 1, f) != 1;
 
 	} else if (packed) {
@@ -107,7 +112,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 	} else {
 		if (z->avail_in < sz)
 			return -1;
-		memcpy(p, z->next_in, sz);
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && (!p || !z->next_in))
+			return -1;
+		if (sz > 0)
+			memcpy(p, z->next_in, sz);
 		z->next_in += sz;
 		z->avail_in -= sz;
 		return 0;
@@ -223,6 +232,10 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	header = (uint32_t*) p;
 
 	if (sz < datasz)
+		return -1;
+
+	/* C11 6.5.3.2: a null buffer is not a store. */
+	if (!p)
 		return -1;
 
 	header[0] = capn_flip32(c->segnum - 1);

@@ -203,12 +203,15 @@ exists:
 
 Use ~generic~ for non-catalog aliases, ~set~ for merge-only keywords inside a
 named section, and ~raw~ or ~inputBlocks~ for text-preserving deck fragments.
-Typed ~atoms~ sections must cover every element present in the step geometry.
-Without an explicit ~atoms~ section, the renderer's defaults cover H and O
-only.
-On the OpenCPMD path the ~&ATOMS~ block CPMD reads comes from each step and a
-built-in pseudopotential table for H, C, N, O, Si, and Ge; see
-[[file:write-cpmdparams.org][writing a CPMDParams message]].
+On a geometry render that is not the OpenCPMD merge, typed ~atoms~ sections
+must cover every element present in the step, and a missing ~atoms~ section
+covers H and O only.
+On the OpenCPMD path the ~&ATOMS~ block CPMD reads is rebuilt from each step.
+Elements listed in ~atoms.pseudopotentials~ supply the file, ~LMAX~, ~LOC~,
+and ~KLEINMAN-BYLANDER~ on the ~*file~ line.
+Elements the message omits use the built-in table for H, C, N, O, Si, and Ge.
+An element in neither is an error.
+See [[file:write-cpmdparams.org][writing a CPMDParams message]].
 
 Choose the least lossy structured carrier:
 

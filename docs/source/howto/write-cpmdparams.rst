@@ -151,8 +151,14 @@ Where the geometry-dependent lines go
 =====================================
 
 The OpenCPMD path writes ``&ATOMS`` itself from each step's atomic
-numbers and positions. It takes the pseudopotential file, ``LMAX``, and
-``LOC`` for each element from a built-in table:
+numbers and positions. An element listed in ``atoms.pseudopotentials``
+takes its pseudopotential file, ``LMAX``, ``LOC``, and
+``KLEINMAN-BYLANDER`` from that entry. ``KLEINMAN-BYLANDER`` is written
+on the ``*file`` line, which is where CPMD reads it, and only when that
+entry sets ``kleinmanBylander = true``. The rendered method deck marks
+each listed entry with a ``!SPECIES SYM`` comment so the geometry merge
+can match the file to an atomic number. An element the message does not
+list uses this table:
 
 ======= ================== ================
 Element File               Channels
@@ -165,9 +171,8 @@ Si      ``Si_MT_BLYP.psp`` ``LMAX=D LOC=D``
 Ge      ``Ge_MT_BLYP.psp`` ``LMAX=P``
 ======= ================== ================
 
-``KLEINMAN-BYLANDER`` is added to every pseudopotential line when the
-rendered method deck contains that word, which
-``kleinmanBylander = true`` on any entry does. An element outside the
-table fails the first evaluation. A method deck whose ``&ATOMS`` block
-already has coordinate lines, for example from ``inputBlocks``, is
-passed to CPMD unchanged; each step then overwrites only the positions.
+An element in neither the message nor the table fails the evaluation.
+The message names the atomic number. A method deck whose ``&ATOMS``
+block already has coordinate lines, for example from ``inputBlocks``,
+is passed to CPMD unchanged; each step then overwrites only the
+positions.

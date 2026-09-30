@@ -57,7 +57,7 @@ The same message has three other causes, all visible before the SCF starts:
 | Check | Cause |
 |-------+-------|
 | ~CPMDC_PSEUDO_DIR~ and ~CPMD_PP_LIBRARY_PATH~ are both unset or name a missing directory | the first call returns before CPMD's setup |
-| an element outside H, C, N, O, Si, and Ge | the built-in pseudopotential table has no entry, so no deck is composed |
+| an element absent from ~atoms.pseudopotentials~ and outside H, C, N, O, Si, and Ge | the message and the built-in table have no pseudopotential, so no deck is composed; the error names the atomic number |
 | atoms of one element are not contiguous in ~ForceInput~, or the species order differs from the deck's ~&ATOMS~ block | positions are copied species by species into CPMD's ~tau0~, and a mismatch stops the copy |
 
 *Fix:* raise ~maxIter~, or switch the optimiser (see

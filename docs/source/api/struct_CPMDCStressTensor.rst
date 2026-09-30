@@ -31,5 +31,5 @@ Detailed Documentation
 
 Cartesian stress tensor after a successful PEF evaluation.
 
-Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
+Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). ``valid`` is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves ``valid`` unset. Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
 
