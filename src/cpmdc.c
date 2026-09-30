@@ -1704,9 +1704,14 @@ const char *cpmdc_version(void) { return "cpmdc/" CPMDC_VERSION_STRING; }
 int cpmdc_abi_version(void) { return CPMDC_ABI_VERSION; }
 
 int cpmdc_available(void) {
-  if (!ensure_embed_init())
+  if (!ensure_embed_init() || !cpmdc_embed_available())
     return 0;
-  return cpmdc_embed_available() != 0;
+  /* A ready reference evaluator is not an OpenCPMD archive. */
+#ifndef CPMDC_HAS_CPMD
+  return 0;
+#else
+  return 1;
+#endif
 }
 
 void cpmdc_finalize(void) {

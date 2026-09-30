@@ -295,10 +295,7 @@ CONTAINS
 
   FUNCTION cpmdc_embed_available() RESULT(ok) BIND(C, NAME='cpmdc_embed_available')
     INTEGER(c_int) :: ok
-    ok = 0_c_int
-#if defined(CPMDC_HAS_CPMD)
     ok = MERGE(1_c_int, 0_c_int, runtime_ready .AND. .NOT. runtime_finalized)
-#endif
   END FUNCTION
 
   FUNCTION cpmdc_embed_reset_state(image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
