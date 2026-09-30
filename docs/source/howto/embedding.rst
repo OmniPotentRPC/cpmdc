@@ -392,9 +392,14 @@ bridge's ``IF (ALLOCATED(fion))`` guard is optional.
 Warm calls (same process, same session, same cell, new ``ForceInput``
 positions):
 
-#. First force call: cold setup once, from the in-memory deck.
+#. First force call: cold setup once, from the in-memory deck. The SCF
+   sets ``embed_set_warm_orbitals`` so a converged ``c0`` is stored.
+   Restore does nothing until that copy exists.
 #. Later calls: update ``tau0`` from C arrays, ``phfac``, full SCF from
-   the retained orbitals (``embed_set_warm_orbitals``), no second setup.
+   the retained orbitals, no second setup. An unconverged ODIIS pass does
+   not replace the stored ``c0``. The same call then continues once with
+   ``PCG MINIMIZE`` from that previous converged copy, and the call still
+   counts as warm.
 #. Every call requests forces through ``embed_set_need_forces`` and
    keeps the deck's ``MAXITER``;
    ``tests/test_embed_warm_no_nomore_clamp.py`` and

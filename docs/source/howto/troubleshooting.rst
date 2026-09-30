@@ -99,9 +99,12 @@ to a ``LocalError-*.log`` file in the working directory of that moment.
 That is ``permanentDir``, or ``scratchDir`` when no permanent directory
 is set, or the host working directory.
 
-**Fix:** read the ``LocalError`` file in that directory. The stopped call
-has no result. ``cpmdc`` drops the stored orbitals and the warm cell, and
-the next call on the same session sets CPMD up again.
+**Fix:** read the ``LocalError`` file in that directory. The wavefunction,
+forces, and module state of that call are undefined. ``cpmdc`` drops the
+stored orbitals and the warm cell, and the next call on the same session
+sets CPMD up again. With more than one MPI rank, ``cpmdc`` aborts the
+other ranks, which would otherwise stay blocked in the call ``stopgm``
+returned from.
 
 ``topology change requires a new session``
 ------------------------------------------

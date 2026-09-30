@@ -139,6 +139,14 @@ MODULE cpmd_embed_c_api
   ! mp_start assigns mp_comm_world only when it calls MPI_Init.
   ! The flag records that this process already split a calculator.
   LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
+  ! The saved c0 matches one cutoff, cell and state count. A later call
+  ! with a different basis clears it before rwfopt can restore it.
+  LOGICAL, SAVE :: embed_basis_latched = .FALSE.
+  REAL(c_double), SAVE :: embed_saved_cutoff = -1.0_c_double
+  INTEGER, SAVE :: embed_saved_charge = -999
+  INTEGER, SAVE :: embed_saved_mult = -999
+  INTEGER, SAVE :: embed_saved_natoms = -1
+  INTEGER, ALLOCATABLE, SAVE :: embed_saved_z(:)
 #endif
 
   TYPE :: embed_knobs
@@ -313,9 +321,35 @@ CONTAINS
     image%warm_cell = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
     CALL embed_reset_warm_orbitals()
+    CALL clear_embed_basis_latch()
 #endif
     ok = 1_c_int
   END FUNCTION
+
+  SUBROUTINE cpmdc_embed_abort_other_ranks() &
+      BIND(C, NAME='cpmdc_embed_abort_other_ranks')
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mpi
+      USE mp_interface, ONLY: mp_comm_world
+      INTEGER :: ierr, npe, comm
+      LOGICAL :: inited
+      ! stopgm returns only on the ranks that hit it. Any other rank is
+      ! still inside an MPI call, so a calculator larger than one rank
+      ! has to abort the communicator itself.
+      CALL MPI_INITIALIZED(inited, ierr)
+      IF (.NOT. inited) RETURN
+      IF (embed_calculator_bound) THEN
+        comm = mp_comm_world
+      ELSE
+        comm = MPI_COMM_WORLD
+      END IF
+      CALL MPI_Comm_size(comm, npe, ierr)
+      IF (ierr /= 0) RETURN
+      IF (npe > 1) CALL MPI_Abort(comm, 1, ierr)
+    END BLOCK
+#endif
+  END SUBROUTINE
 
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
     runtime_ready = .FALSE.
@@ -1404,6 +1438,7 @@ CONTAINS
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
     USE ropt, ONLY: ropt_mod
+    USE parac, ONLY: paral
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: pos(*)
@@ -1415,7 +1450,13 @@ CONTAINS
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
-    LOGICAL :: stress_computed
+    LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
+    INTERFACE
+      FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
+        IMPORT :: c_int
+        INTEGER(c_int) :: code
+      END FUNCTION cpmdc_stop_code
+    END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -1454,14 +1495,39 @@ CONTAINS
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
     stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
     IF (stress_computed) cntl%tpres = .TRUE.
-    ! Warm: embed_warm_orbitals makes rwfopt restore saved c0 after initrun.
+    ! Store a converged c0 for the next call. Restore does nothing until
+    ! that store exists, and an unconverged SCF leaves the previous
+    ! converged copy in place, so a later SCF is still a warm start.
     ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
-    IF (image%cfg_warm_steps > 0) THEN
-      CALL embed_set_warm_orbitals(.TRUE.)
-    ELSE
-      CALL embed_set_warm_orbitals(.FALSE.)
-    END IF
+    CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
+    ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
+    ! does not replace the stored c0. Continue once with PCG MINIMIZE from
+    ! the previous converged copy, which still counts as a warm start.
+    ! A stopgm in the first pass leaves the CPMD state undefined, so it
+    ! does not start this continuation.
+    IF (.NOT. ropt_mod%convwf .AND. cntl%diis .AND. &
+        cpmdc_stop_code() == 0_c_int) THEN
+      was_diis = cntl%diis
+      was_pcg = cntl%pcg
+      was_pcgmin = cntl%pcgmin
+      was_prec = cntl%prec
+      cntl%diis = .FALSE.
+      cntl%pcg = .TRUE.
+      cntl%pcgmin = .TRUE.
+      cntl%prec = .TRUE.
+      ropt_mod%spcg = .TRUE.
+      IF (paral%io_parent) WRITE(6, '(A)') &
+          ' cpmdc: ODIIS did not converge; continuing with PCG MINIMIZE'
+      CALL embed_set_warm_orbitals(.TRUE.)
+      IF (ALLOCATED(fion)) DEALLOCATE(fion)
+      IF (ALLOCATED(taup)) DEALLOCATE(taup)
+      CALL wfopts
+      cntl%diis = was_diis
+      cntl%pcg = was_pcg
+      cntl%pcgmin = was_pcgmin
+      cntl%prec = was_prec
+    END IF
     energy_h = REAL(ener_com%etot, KIND=c_double)
     image%energy%etot = energy_h
     image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
@@ -1985,6 +2051,63 @@ CONTAINS
     embed_use_output_dir = .TRUE.
   END FUNCTION
 
+  SUBROUTINE clear_embed_basis_latch()
+    embed_basis_latched = .FALSE.
+    embed_saved_cutoff = -1.0_c_double
+    embed_saved_charge = -999
+    embed_saved_mult = -999
+    embed_saved_natoms = -1
+    IF (ALLOCATED(embed_saved_z)) DEALLOCATE(embed_saved_z)
+  END SUBROUTINE
+
+  SUBROUTINE latch_embed_basis(n_atoms, z, knobs)
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
+    INTEGER :: i, astat
+    IF (ALLOCATED(embed_saved_z)) DEALLOCATE(embed_saved_z)
+    ALLOCATE(embed_saved_z(n_atoms), STAT=astat)
+    IF (astat /= 0) THEN
+      CALL embed_reset_warm_orbitals()
+      CALL clear_embed_basis_latch()
+      RETURN
+    END IF
+    DO i = 1, n_atoms
+      embed_saved_z(i) = INT(z(i))
+    END DO
+    embed_saved_cutoff = REAL(knobs%cutoff_ry, KIND=c_double)
+    embed_saved_charge = knobs%charge
+    embed_saved_mult = knobs%mult
+    embed_saved_natoms = n_atoms
+    embed_basis_latched = .TRUE.
+  END SUBROUTINE
+
+  LOGICAL FUNCTION embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
+    INTEGER :: i
+    REAL(c_double) :: cutoff
+    embed_basis_changed = .FALSE.
+    IF (.NOT. embed_basis_latched) RETURN
+    cutoff = REAL(knobs%cutoff_ry, KIND=c_double)
+    IF (.NOT. warm_cell_matches(image, cell, has_cell)) embed_basis_changed = .TRUE.
+    IF (ABS(cutoff - embed_saved_cutoff) > 1.0e-8_c_double) embed_basis_changed = .TRUE.
+    IF (knobs%charge /= embed_saved_charge) embed_basis_changed = .TRUE.
+    IF (knobs%mult /= embed_saved_mult) embed_basis_changed = .TRUE.
+    IF (n_atoms /= embed_saved_natoms) embed_basis_changed = .TRUE.
+    IF (.NOT. ALLOCATED(embed_saved_z) .OR. SIZE(embed_saved_z) /= n_atoms) THEN
+      embed_basis_changed = .TRUE.
+      RETURN
+    END IF
+    DO i = 1, n_atoms
+      IF (INT(z(i)) /= embed_saved_z(i)) embed_basis_changed = .TRUE.
+    END DO
+  END FUNCTION
+
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
@@ -2046,6 +2169,15 @@ CONTAINS
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
+    ! Saved orbitals match one cutoff, cell and state count. A shape
+    ! mismatch in embed_restore_orbitals calls stopgm, so drop the copy
+    ! before rwfopt when the deck changes any of those.
+    knobs = knobs_of(image)
+    IF (embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)) THEN
+      CALL embed_reset_warm_orbitals()
+      CALL clear_embed_basis_latch()
+      image%cfg_warm_steps = 0
+    END IF
     IF (image%cfg_warm_steps > 0 .AND. warm_cell_matches(image, cell, has_cell)) THEN
       IF (.NOT. embed_use_output_dir(image)) THEN
         ierr = cpmdc_restore_host_cwd()
@@ -2053,12 +2185,19 @@ CONTAINS
       END IF
       CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
       ierr = cpmdc_restore_host_cwd()
-      IF (ok /= 0_c_int) image%cfg_warm_steps = image%cfg_warm_steps + 1
+      ! A failed SCF leaves the counter and the previous converged c0.
+      ! The next call on this basis is still warm.
+      IF (ok /= 0_c_int) THEN
+        image%cfg_warm_steps = image%cfg_warm_steps + 1
+        CALL latch_embed_basis(n_atoms, z, knobs)
+        IF (.NOT. embed_basis_latched) image%cfg_warm_steps = 0
+      END IF
       RETURN
     END IF
     IF (image%cfg_warm_steps > 0) THEN
       image%cfg_warm_steps = 0
       CALL embed_reset_warm_orbitals()
+      CALL clear_embed_basis_latch()
     END IF
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.
@@ -2068,7 +2207,6 @@ CONTAINS
     ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
     !    multiplicity.
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
-    knobs = knobs_of(image)
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
@@ -2149,6 +2287,8 @@ CONTAINS
     IF (ok /= 0_c_int) THEN
       image%cfg_warm_steps = 1
       CALL latch_warm_cell(image, cell, has_cell)
+      CALL latch_embed_basis(n_atoms, z, knobs)
+      IF (.NOT. embed_basis_latched) image%cfg_warm_steps = 0
     ELSE
       CALL clear_last_energy_components(image)
     END IF

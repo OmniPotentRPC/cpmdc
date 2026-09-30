@@ -25,17 +25,23 @@ The rwfopt patch publishes ~embed_set_warm_orbitals~,
 ~cpmd.x~ behaviour.
 ~rwfopt~ leaves ~fion~ allocated only when ~embed_need_forces~ is true, and
 frees a surviving ~fion~ before its own ~ALLOCATE~.
-It saves ~c0~ only when ~embed_warm_orbitals~ is true.
+It saves ~c0~ only when ~embed_warm_orbitals~ is true and the SCF converged.
+An unconverged pass leaves the previous copy.
 A failed store allocation calls ~stopgm~.
-On the next call it restores that copy after ~initrun~ when the dimensions
-still match, and sets ~tfor~ when ~embed_need_forces~ is true.
+On the next call it restores that copy after ~initrun~ when the shape still
+matches, and a different shape calls ~stopgm~.
+It sets ~tfor~ when ~embed_need_forces~ is true.
 The stop patch publishes ~cpmd_stopgm_hook~, a C function pointer.
 ~stopgm~ calls it with the stop code passed by value, after writing
 ~LocalError-*.log~.
 A nonzero return makes ~stopgm~ return to its caller, and a null pointer
 makes ~stopgm~ call ~my_stopall~.
-The caller then continues past the failed check, so ~cpmdc~ treats every
-result of that call as invalid and sets CPMD up again before the next one.
+The caller then continues past the failed check.
+The wavefunction, ~fion~, and module state of that call are undefined, so
+~cpmdc~ discards the result and sets CPMD up again before the next call.
+~stopgm~ runs only on the ranks that hit the error.
+A host with more than one rank aborts the others, because a rank that
+returns while the rest wait in an MPI call leaves them waiting.
 A standalone ~cpmd.x~ leaves the pointer null and links without ~libcpmdc~.
 While an evaluation is armed, ~libcpmdc~ stores a catch in the pointer.
 The catch records the code and returns 1, and ~cpmdc~ reports the stop as a

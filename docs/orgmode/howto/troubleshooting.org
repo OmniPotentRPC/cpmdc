@@ -87,9 +87,11 @@ That is ~permanentDir~, or ~scratchDir~ when no permanent directory is set,
 or the host working directory.
 
 *Fix:* read the ~LocalError~ file in that directory.
-The stopped call has no result.
+The wavefunction, forces, and module state of that call are undefined.
 ~cpmdc~ drops the stored orbitals and the warm cell, and the next call on
 the same session sets CPMD up again.
+With more than one MPI rank, ~cpmdc~ aborts the other ranks, which would
+otherwise stay blocked in the call ~stopgm~ returned from.
 
 ** ~topology change requires a new session~
 *Cause:* the first successful step of a session fixes the atom count and the

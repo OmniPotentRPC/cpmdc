@@ -25,8 +25,13 @@ def test_no_warm_nomore_iter_clamp() -> None:
     assert not bad, f"warm eval clamps nomore_iter to {bad} (not physical SCF)"
     assert "embed_set_tau0_from_pos" in body
     assert "phfac" in body
-    assert "embed_set_warm_orbitals" in body
-    assert "wfopts" in body
+    assert "embed_set_warm_orbitals(.TRUE.)" in body
+    assert "embed_set_warm_orbitals(.FALSE.)" not in body
+    assert body.count("CALL wfopts") == 2
+    assert "continuing with PCG MINIMIZE" in body
+    assert "cntl%pcgmin = .TRUE." in body
+    assert "cpmdc_stop_code() == 0_c_int" in body
+    assert "embed_reset_warm_orbitals" not in body
 
 
 def test_calculator_once_flag_and_stop_reset() -> None:
@@ -50,6 +55,25 @@ def test_calculator_once_flag_and_stop_reset() -> None:
         host,
         re.S,
     ), "a stopgm return must reset the image before the next call"
+    assert re.search(
+        r"if \(stop != 0\) \{\s*.*?cpmdc_embed_abort_other_ranks\(\);",
+        host,
+        re.S,
+    ), "a stopgm return on more than one rank must abort the others"
+    scf = re.search(
+        r"SUBROUTINE run_embed_scf.*?END SUBROUTINE",
+        embed,
+        re.S,
+    )
+    assert scf, "run_embed_scf not found"
+    scf_body = scf.group(0)
+    assert "embed_basis_changed" in scf_body
+    assert "CALL embed_reset_warm_orbitals()" in scf_body
+    assert "latch_embed_basis" in scf_body
+    assert "embed_basis_latched" in embed
+    # A failed warm SCF increments nothing and does not clear the counter.
+    assert "IF (ok /= 0_c_int) THEN" in scf_body
+    assert "image%cfg_warm_steps = 0" in scf_body
 
 
 if __name__ == "__main__":

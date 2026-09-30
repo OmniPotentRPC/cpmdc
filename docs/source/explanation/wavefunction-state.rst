@@ -13,38 +13,54 @@ cell of the call that started them.
 +------+-------------------------------+-------------------------------+
 | Call | Condition                     | What runs                     |
 +======+===============================+===============================+
-| cold | first call of a session, a    | the full CPMD setup on the    |
-|      | changed cell, or the session  | composed deck, then the SCF   |
-|      | was re-configured             | from CPMD's initial guess, or |
+| cold | first call, a changed cell,   | the full CPMD setup on the    |
+|      | cutoff, or state count, or a  | composed deck, then the SCF   |
+|      | re-configured session         | from CPMD's initial guess, or |
 |      |                               | from ``RESTART`` when the     |
 |      |                               | deck has                      |
 |      |                               | ``RESTART WAVEFUNCTION``      |
 +------+-------------------------------+-------------------------------+
-| warm | the previous call of this     | new positions into ``tau0``,  |
-|      | session succeeded and the     | ``phfac``, then the SCF from  |
-|      | cell is unchanged             | the stored ``c0``             |
+| warm | a previous success with the   | new positions into ``tau0``,  |
+|      | same cell, cutoff, and state  | ``phfac``, then the SCF from  |
+|      | count                         | the stored ``c0``             |
 +------+-------------------------------+-------------------------------+
 
 A cell counts as unchanged when every component of ``ForceInput.box``
 matches the stored cell within 1e-8 Angstrom, and when both calls agree
-on having a box at all. A failed warm call leaves the counter where it
-was, so the next call is warm again; a failed cold call clears the
-stored results. A ``stopgm`` during the call is not that failure: the
-result is invalid, ``cpmdc`` drops the stored orbitals and the warm
-cell, and the next call runs setup again.
+on having a box at all. The cutoff matches within 1e-8 Rydberg. The
+state count follows the number of atoms, their atomic numbers, the
+charge, and the multiplicity. A failed warm call leaves the counter
+where it was, so the next call is warm again; a failed cold call clears
+the stored results. An SCF that does not converge does not replace the
+stored orbitals. When ODIIS exhausts ``MAXITER``, the same call
+continues once with ``PCG MINIMIZE``. That pass restores the previous
+converged ``c0`` when a converged copy is already stored, and it still
+counts as warm. A ``stopgm`` during the call is not that failure: the
+wavefunction, forces, and module state of the call are undefined,
+``cpmdc`` drops the stored orbitals and the warm cell, and the next call
+runs setup again. With more than one MPI rank, ``cpmdc`` aborts the
+other ranks.
 
 Where the orbitals are kept
 ===========================
 
 ``opencpmd_embed_rwfopt.patch`` adds a module-level copy of ``c0`` to
 ``rwfopt_utils``. At the end of ``rwfopt``, every rank saves its own
-slice of ``c0`` when ``embed_warm_orbitals`` is true. A failed store
-allocation calls ``stopgm``. On a warm call, ``rwfopt`` first runs
-``initrun``, which sets up the iteration state and scratch arrays as for
-any SCF, and then overwrites the generated starting orbitals with the
-saved copy when its dimensions still match. The SCF then runs to the orbital convergence
-threshold with the full ``MAXITER`` budget of the deck; a warm call is a
-complete SCF from a better start, not a shortened one.
+slice of ``c0`` when ``embed_warm_orbitals`` is true and
+``ropt_mod%convwf`` is true. A call that does not converge leaves the
+previous copy in place. A failed store allocation calls ``stopgm``.
+``cpmdc`` sets ``embed_warm_orbitals`` on every SCF, including the
+first. Restore does nothing until a converged copy exists, so the first
+call still starts from CPMD's guess and stores ``c0`` only if that SCF
+converges. On a later call, ``rwfopt`` first runs ``initrun``, which
+sets up the iteration state and scratch arrays as for any SCF, and then
+overwrites the generated starting orbitals with the saved copy when its
+shape still matches. A different shape calls ``stopgm`` and names
+``embed_reset_warm_orbitals``. ``cpmdc`` makes that call when the
+cutoff, the cell, or the state count changes, before ``rwfopt`` runs.
+The SCF then runs to the orbital convergence threshold with the full
+``MAXITER`` budget of the deck; a warm call is a complete SCF from a
+better start, not a shortened one.
 
 ``opencpmd_converged_state.patch`` makes the saved copy trustworthy. In
 stock OpenCPMD, ``updwf`` applies an optimiser step to ``c0`` before it
@@ -64,6 +80,14 @@ What clears the orbitals
 | a cell change                    | the plane-wave basis depends on  |
 |                                  | the cell, so the stored          |
 |                                  | coefficients no longer fit       |
++----------------------------------+----------------------------------+
+| a cutoff change                  | the plane-wave basis changes, so |
+|                                  | the stored coefficients no       |
+|                                  | longer fit                       |
++----------------------------------+----------------------------------+
+| a change of atom count, atomic   | those inputs set the number of   |
+| numbers, charge, or              | states, and a restored ``c0`` of |
+| multiplicity                     | another shape calls ``stopgm``   |
 +----------------------------------+----------------------------------+
 | ``cpmdc_session_set_params()``   | a new method invalidates the     |
 | or ``cpmdc_session_configure()`` | orbitals                         |

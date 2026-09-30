@@ -23,6 +23,7 @@ int cpmdc_stop_code(void);
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
 int cpmdc_embed_reset_state(CPMDCEmbedImage *image);
+void cpmdc_embed_abort_other_ranks(void);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
                            const char *input_deck, int input_deck_len,
@@ -1036,10 +1037,11 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (stop != 0) {
-    /* The hook returned, so CPMD continued past a failed check. This
-     * call has no result. Drop the snapshot and the warm orbitals so
-     * the next call runs setup again. */
+    /* stopgm returned on this rank. The wavefunction, forces and module
+     * state of this call are undefined. Drop them so the next call sets
+     * CPMD up again. Other ranks may still be inside MPI; abort those. */
     (void)cpmdc_embed_reset_state(image);
+    cpmdc_embed_abort_other_ranks();
     return fail_msg("CPMD stopgm during embed SCF");
   }
   if (!ok) {

@@ -103,9 +103,9 @@ What each route has to guard against
 | another client       |                      |                                  |
 +----------------------+----------------------+----------------------------------+
 | a CPMD stop          | ``cpmd.x`` ends and  | ``cpmd_stopgm_hook`` returns     |
-|                      | the wrapper sees a   | nonzero, the result is invalid,  |
-|                      | failed run           | and the next call sets CPMD up   |
-|                      |                      | again                            |
+|                      | the wrapper sees a   | nonzero. Discard that call and   |
+|                      | failed run           | set CPMD up again. More than one |
+|                      |                      | rank aborts the others           |
 +----------------------+----------------------+----------------------------------+
 | rank consistency     | none: the host runs  | the host must take the parent    |
 | under ``mpirun``     | as one process       | rank's result and finalize MPI   |

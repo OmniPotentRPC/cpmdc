@@ -6,10 +6,10 @@ linking `libcpmdc`.
 
 | Patch | Purpose |
 | --- | --- |
-| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, and `embed_reset_warm_orbitals`. Leave `fion` allocated only when `embed_need_forces` is true, and save `c0` only when `embed_warm_orbitals` is true |
+| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, and `embed_reset_warm_orbitals`. Leave `fion` allocated only when `embed_need_forces` is true, and save `c0` only when `embed_warm_orbitals` is true and the SCF converged. A shape mismatch on restore calls `stopgm` |
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`. DIIS/PCG/steepest-descent updates run only while the pre-update gradient is unconverged. Steepest descent with `iproj <= 1` raises `gemax` before that check |
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
-| `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The result of that call is invalid, and the next call sets CPMD up again. A null hook leaves `cpmd.x` calling `my_stopall` |
+| `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The wavefunction and forces of that call are undefined, the next call sets CPMD up again, and more than one rank aborts the others. A null hook leaves `cpmd.x` calling `my_stopall` |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 ```bash
