@@ -14,6 +14,9 @@ extern char str_static[];
 void str_reserve(struct str *v, int sz);
 
 static void str_init(struct str *v, int sz) {
+	/* C11 6.5.3.2: a null buffer is not an init. */
+	if (!v)
+		return;
 	v->str = str_static;
 	v->len = v->cap = 0;
 	if (sz)
