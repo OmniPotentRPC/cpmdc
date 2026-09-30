@@ -211,11 +211,12 @@ Later calls run in the host's working directory.
 or link the needed files into a per-run directory and point
 ``CPMDC_PSEUDO_DIR`` at it.
 
-A long method deck loses its end
---------------------------------
+A preview buffer is shorter than the method deck
+------------------------------------------------
 
-**Cause:** the OpenCPMD path stores the rendered method deck in a
-4096-character buffer; text past that is dropped.
+**Cause:** the embed path keeps the rendered method deck at the length
+of that text. A preview or a config read whose buffer is shorter than
+the text returns an error and does not write a shortened deck.
 
-**Fix:** move long literal blocks into typed fields, or check the deck
-size in ``CPMDC_DECK_OUT`` (``wc -c``).
+**Fix:** size the caller buffer from the rendered text, or read the full
+deck from ``CPMDC_DECK_OUT``.

@@ -53,6 +53,10 @@ steps:
 #. If the deck has no ``MAXITER`` keyword, ``MAXITER 40`` is inserted
    after ``&CPMD``.
 
+The method text is kept in full, including a block longer than a few
+thousand characters. A preview buffer shorter than the composed deck
+returns an error and does not keep a shortened copy.
+
 So read ``method.inp`` with those three edits in mind. The ``&ATOMS``
 block in the file lists the pseudopotential lines with a placeholder
 atom count of 0; the coordinates come from each step.
