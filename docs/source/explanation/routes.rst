@@ -102,9 +102,10 @@ What each route has to guard against
 | pool pruned by       | vanished entry       |                                  |
 | another client       |                      |                                  |
 +----------------------+----------------------+----------------------------------+
-| a CPMD stop          | ``cpmd.x`` ends and  | ``stopgm`` returns and the call  |
-|                      | the wrapper sees a   | fails, with                      |
-|                      | failed run           | ``opencpmd_stopgm_return.patch`` |
+| a CPMD stop          | ``cpmd.x`` ends and  | ``cpmd_stopgm_hook`` returns     |
+|                      | the wrapper sees a   | nonzero, the result is invalid,  |
+|                      | failed run           | and the next call sets CPMD up   |
+|                      |                      | again                            |
 +----------------------+----------------------+----------------------------------+
 | rank consistency     | none: the host runs  | the host must take the parent    |
 | under ``mpirun``     | as one process       | rank's result and finalize MPI   |

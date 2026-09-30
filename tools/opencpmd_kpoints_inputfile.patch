@@ -1,6 +1,8 @@
+diff --git a/src/rkpnt_utils.mod.F90 b/src/rkpnt_utils.mod.F90
+index 74bd38d..194a022 100644
 --- a/src/rkpnt_utils.mod.F90
 +++ b/src/rkpnt_utils.mod.F90
-@@ -22,8 +22,7 @@
+@@ -22,8 +22,7 @@ MODULE rkpnt_utils
    USE kpts,                            ONLY: kpts_com,&
                                               tkpts,&
                                               wvk0
@@ -10,7 +12,7 @@
    USE mp_interface,                    ONLY: mp_sum
    USE parac,                           ONLY: parai,&
                                               paral
-@@ -37,7 +36,8 @@
+@@ -37,7 +36,8 @@ MODULE rkpnt_utils
                                               ngwkps,&
                                               tsphere
    USE symm,                            ONLY: symmr
@@ -20,7 +22,7 @@
                                               ncpw,&
                                               nkpbl,&
                                               nkpt,&
-@@ -235,7 +235,7 @@
+@@ -235,7 +235,7 @@ CONTAINS
  
      CHARACTER(len=26)                        :: datx
      CHARACTER(len=30)                        :: fformat
@@ -29,7 +31,7 @@
      INTEGER                                  :: i, ia, ierr, ih1, ih2, ikind, &
                                                  iout, is, istriz, isum, iu1, &
                                                  iu2, l, nat0, nhash, ntvect
-@@ -277,7 +277,8 @@
+@@ -277,7 +277,8 @@ CONTAINS
           WRITE(iout,&
           '(" CPMD JOB - (",A,") PID= ",I7," ON ",A,10(" "))')&
           user(iu1:iu2), my_pid, hname(ih1:ih2)

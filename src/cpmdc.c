@@ -960,8 +960,13 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                    image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
-  if (stop != 0)
+  if (stop != 0) {
+    /* The hook returned, so CPMD continued past a failed check. This
+     * call has no result. Drop the snapshot and the warm orbitals so
+     * the next call runs setup again. */
+    (void)cpmdc_embed_reset_state(image);
     return fail_msg("CPMD stopgm during embed SCF");
+  }
   if (!ok)
     return fail_msg("CPMD energy/gradient failed: orbitals not converged within "
                     "MAXITER, or no energy");

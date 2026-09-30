@@ -25,10 +25,34 @@ def test_no_warm_nomore_iter_clamp() -> None:
     assert not bad, f"warm eval clamps nomore_iter to {bad} (not physical SCF)"
     assert "embed_set_tau0_from_pos" in body
     assert "phfac" in body
-    assert "cpmdc_set_warm_orbitals" in body
+    assert "embed_set_warm_orbitals" in body
     assert "wfopts" in body
+
+
+def test_calculator_once_flag_and_stop_reset() -> None:
+    embed = EMBED.read_text(encoding="utf-8", errors="replace")
+    assert "mp_comm_set" not in embed
+    assert "LOGICAL, SAVE :: embed_calculator_bound = .FALSE." in embed
+    bind = re.search(
+        r"FUNCTION cpmdc_embed_bind_calculator.*?END FUNCTION",
+        embed,
+        re.S,
+    )
+    assert bind, "cpmdc_embed_bind_calculator not found"
+    body = bind.group(0)
+    assert "USE mp_interface, ONLY: mp_comm_world" in body
+    assert "IF (embed_calculator_bound) RETURN" in body
+    assert "embed_calculator_bound = .TRUE." in body
+    host = (ROOT / "src" / "cpmdc.c").read_text(encoding="utf-8", errors="replace")
+    assert "if (stop != 0)" in host
+    assert re.search(
+        r"if \(stop != 0\) \{\s*.*?cpmdc_embed_reset_state\(image\);",
+        host,
+        re.S,
+    ), "a stopgm return must reset the image before the next call"
 
 
 if __name__ == "__main__":
     test_no_warm_nomore_iter_clamp()
+    test_calculator_once_flag_and_stop_reset()
     print("ok")

@@ -76,6 +76,9 @@ MODULE cpmd_embed_c_api
   END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
+  ! mp_start assigns mp_comm_world only when it calls MPI_Init.
+  ! The flag records that this process already split a calculator.
+  LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
 #endif
 
   TYPE :: embed_knobs
@@ -191,7 +194,7 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     BLOCK
       USE mpi
-      USE mp_interface, ONLY: mp_comm_set, mp_comm_world
+      USE mp_interface, ONLY: mp_comm_world
       INTEGER :: ierr, rank, npe, rpc, color, key, comm
       LOGICAL :: inited
       rpc = INT(ranks_per_calc)
@@ -202,7 +205,7 @@ CONTAINS
       IF (rpc <= 0) rpc = npe
       IF (rpc > npe .OR. MOD(npe, rpc) /= 0) RETURN
       calc = INT(rank / rpc, c_int)
-      IF (mp_comm_set) RETURN
+      IF (embed_calculator_bound) RETURN
       color = rank / rpc
       key = MOD(rank, rpc)
       CALL MPI_Comm_split(MPI_COMM_WORLD, color, key, comm, ierr)
@@ -211,7 +214,7 @@ CONTAINS
         RETURN
       END IF
       mp_comm_world = comm
-      mp_comm_set = .TRUE.
+      embed_calculator_bound = .TRUE.
     END BLOCK
 #endif
   END FUNCTION cpmdc_embed_bind_calculator
@@ -234,7 +237,7 @@ CONTAINS
 
   FUNCTION cpmdc_embed_reset_state(image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
 #if defined(CPMDC_HAS_CPMD)
-    USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
 #endif
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
@@ -249,7 +252,7 @@ CONTAINS
     image%warm_has_cell = 0_c_int
     image%warm_cell = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
-    CALL cpmdc_reset_warm_orbitals()
+    CALL embed_reset_warm_orbitals()
 #endif
     ok = 1_c_int
   END FUNCTION
@@ -1247,7 +1250,7 @@ CONTAINS
 
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE wfopts_utils, ONLY: wfopts
-    USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals, cpmdc_set_need_forces
+    USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
@@ -1294,19 +1297,18 @@ CONTAINS
     cprint%iprint(iprint_force) = 1
     ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
     ! tfor; iprint_force alone was not enough on the memfd embed path.
-    CALL cpmdc_set_need_forces(.TRUE.)
+    CALL embed_set_need_forces(.TRUE.)
     ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
     ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
     stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
     IF (stress_computed) cntl%tpres = .TRUE.
-    ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
-    ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
-    ! physical SCF for the new geometry).
+    ! Warm: embed_warm_orbitals makes rwfopt restore saved c0 after initrun.
+    ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
     IF (image%cfg_warm_steps > 0) THEN
-      CALL cpmdc_set_warm_orbitals(.TRUE.)
+      CALL embed_set_warm_orbitals(.TRUE.)
     ELSE
-      CALL cpmdc_set_warm_orbitals(.FALSE.)
+      CALL embed_set_warm_orbitals(.FALSE.)
     END IF
     CALL wfopts
     energy_h = REAL(ener_com%etot, KIND=c_double)
@@ -1849,7 +1851,7 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
-    USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
@@ -1932,7 +1934,7 @@ CONTAINS
     END IF
     IF (image%cfg_warm_steps > 0) THEN
       image%cfg_warm_steps = 0
-      CALL cpmdc_reset_warm_orbitals()
+      CALL embed_reset_warm_orbitals()
     END IF
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.
