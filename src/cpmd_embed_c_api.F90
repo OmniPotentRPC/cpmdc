@@ -4,6 +4,64 @@
 ! (nwchemc pattern: bind(C) names; engine CALLs live here / in legacy helpers).
 !
 #include "cpmd_embed_config.h"
+
+MODULE cpmdc_embed_host_iface
+  USE, INTRINSIC :: iso_c_binding, ONLY: c_char, c_int, c_double, c_size_t
+  IMPLICIT NONE
+  INTERFACE
+    FUNCTION cpmdc_species_order_map(n_atoms, atomic_numbers, n_species, &
+        species_z, species_count, map_out) BIND(C, NAME='cpmdc_species_order_map')
+      IMPORT :: c_int
+      INTEGER(c_int), INTENT(IN), VALUE :: n_atoms, n_species
+      INTEGER(c_int), INTENT(IN) :: atomic_numbers(*), species_z(*), species_count(*)
+      INTEGER(c_int), INTENT(OUT) :: map_out(*)
+      INTEGER(c_int) :: cpmdc_species_order_map
+    END FUNCTION
+    SUBROUTINE cpmdc_scatter_species_gradient(n_atoms, map, species_grad, grad) &
+        BIND(C, NAME='cpmdc_scatter_species_gradient')
+      IMPORT :: c_int, c_double
+      INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+      INTEGER(c_int), INTENT(IN) :: map(*)
+      REAL(c_double), INTENT(IN) :: species_grad(*)
+      REAL(c_double), INTENT(OUT) :: grad(*)
+    END SUBROUTINE
+    SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
+      IMPORT :: c_char
+      CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
+    END SUBROUTINE
+    FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
+      IMPORT :: c_char, c_int
+      CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
+      INTEGER(c_int) :: cpmdc_enter_output_cwd
+    END FUNCTION
+    FUNCTION cpmdc_pseudopotential_directory(buf, cap) &
+        BIND(C, NAME='cpmdc_pseudopotential_directory')
+      IMPORT :: c_char, c_int, c_size_t
+      CHARACTER(KIND=c_char), INTENT(OUT) :: buf(*)
+      INTEGER(c_size_t), INTENT(IN), VALUE :: cap
+      INTEGER(c_int) :: cpmdc_pseudopotential_directory
+    END FUNCTION
+    FUNCTION cpmdc_memfd_write(bytes, nbytes, path_out, path_cap) &
+        BIND(C, NAME='cpmdc_memfd_write')
+      IMPORT :: c_char, c_int
+      CHARACTER(KIND=c_char), INTENT(IN) :: bytes(*)
+      INTEGER(c_int), VALUE :: nbytes
+      CHARACTER(KIND=c_char), INTENT(OUT) :: path_out(*)
+      INTEGER(c_int), VALUE :: path_cap
+      INTEGER(c_int) :: cpmdc_memfd_write
+    END FUNCTION
+    FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
+      IMPORT :: c_char, c_int
+      CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
+      INTEGER(c_int) :: cpmdc_prepare_pp_cwd
+    END FUNCTION
+    FUNCTION cpmdc_restore_host_cwd() BIND(C, NAME='cpmdc_restore_host_cwd')
+      IMPORT :: c_int
+      INTEGER(c_int) :: cpmdc_restore_host_cwd
+    END FUNCTION
+  END INTERFACE
+END MODULE
+
 MODULE cpmd_embed_c_api
   USE, INTRINSIC :: iso_c_binding
   USE, INTRINSIC :: iso_fortran_env, ONLY: real64
@@ -826,6 +884,7 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_species_order_map, cpmdc_note_embed_failure
     USE coor, ONLY: tau0
     USE ions, ONLY: ions0, ions1
     USE cnst, ONLY: fbohr
@@ -836,20 +895,6 @@ CONTAINS
     INTEGER, INTENT(OUT) :: ierr
     INTEGER :: is, ia, k, slot, j, astat
     INTEGER(c_int), ALLOCATABLE :: species_z(:), species_n(:)
-    INTERFACE
-      FUNCTION cpmdc_species_order_map(n_atoms, atomic_numbers, n_species, &
-          species_z, species_count, map_out) BIND(C, NAME='cpmdc_species_order_map')
-        IMPORT :: c_int
-        INTEGER(c_int), INTENT(IN), VALUE :: n_atoms, n_species
-        INTEGER(c_int), INTENT(IN) :: atomic_numbers(*), species_z(*), species_count(*)
-        INTEGER(c_int), INTENT(OUT) :: map_out(*)
-        INTEGER(c_int) :: cpmdc_species_order_map
-      END FUNCTION
-      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
-        IMPORT :: c_char
-        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
-      END SUBROUTINE
-    END INTERFACE
     ierr = 1
     IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp < 1) THEN
       CALL cpmdc_note_embed_failure( &
@@ -887,6 +932,8 @@ CONTAINS
   END SUBROUTINE
 
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
+        cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: cpmdc_set_warm_orbitals, cpmdc_set_need_forces
     USE phfac_utils, ONLY: phfac
@@ -909,20 +956,6 @@ CONTAINS
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
-    INTERFACE
-      SUBROUTINE cpmdc_scatter_species_gradient(n_atoms, map, species_grad, grad) &
-          BIND(C, NAME='cpmdc_scatter_species_gradient')
-        IMPORT :: c_int, c_double
-        INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
-        INTEGER(c_int), INTENT(IN) :: map(*)
-        REAL(c_double), INTENT(IN) :: species_grad(*)
-        REAL(c_double), INTENT(OUT) :: grad(*)
-      END SUBROUTINE
-      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
-        IMPORT :: c_char
-        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
-      END SUBROUTINE
-    END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -1521,18 +1554,8 @@ CONTAINS
   END SUBROUTINE
 
   LOGICAL FUNCTION embed_use_output_dir(image)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_enter_output_cwd, cpmdc_note_embed_failure
     TYPE(cpmdc_embed_image), INTENT(IN) :: image
-    INTERFACE
-      FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
-        IMPORT :: c_char, c_int
-        CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
-        INTEGER(c_int) :: cpmdc_enter_output_cwd
-      END FUNCTION
-      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
-        IMPORT :: c_char
-        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
-      END SUBROUTINE
-    END INTERFACE
     embed_use_output_dir = .FALSE.
     IF (cpmdc_enter_output_cwd(image%output_dir) /= 0_c_int) THEN
       CALL cpmdc_note_embed_failure( &
@@ -1543,6 +1566,9 @@ CONTAINS
   END FUNCTION
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
+        cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
+        cpmdc_restore_host_cwd, cpmdc_note_embed_failure
     USE rwfopt_utils, ONLY: cpmdc_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -1593,36 +1619,6 @@ CONTAINS
     CHARACTER(LEN=16384) :: deck
     CHARACTER(LEN=64) :: mempath
     CHARACTER(KIND=c_char) :: pp_c(1024)
-    INTERFACE
-      FUNCTION cpmdc_memfd_write(bytes, nbytes, path_out, path_cap) BIND(C, NAME='cpmdc_memfd_write')
-        IMPORT :: c_char, c_int
-        CHARACTER(KIND=c_char), INTENT(IN) :: bytes(*)
-        INTEGER(c_int), VALUE :: nbytes
-        CHARACTER(KIND=c_char), INTENT(OUT) :: path_out(*)
-        INTEGER(c_int), VALUE :: path_cap
-        INTEGER(c_int) :: cpmdc_memfd_write
-      END FUNCTION
-      FUNCTION cpmdc_pseudopotential_directory(buf, cap) &
-          BIND(C, NAME='cpmdc_pseudopotential_directory')
-        IMPORT :: c_char, c_int, c_size_t
-        CHARACTER(KIND=c_char), INTENT(OUT) :: buf(*)
-        INTEGER(c_size_t), INTENT(IN), VALUE :: cap
-        INTEGER(c_int) :: cpmdc_pseudopotential_directory
-      END FUNCTION
-      FUNCTION cpmdc_prepare_pp_cwd(pseudo_dir) BIND(C, NAME='cpmdc_prepare_pp_cwd')
-        IMPORT :: c_char, c_int
-        CHARACTER(KIND=c_char), INTENT(IN) :: pseudo_dir(*)
-        INTEGER(c_int) :: cpmdc_prepare_pp_cwd
-      END FUNCTION
-      FUNCTION cpmdc_restore_host_cwd() BIND(C, NAME='cpmdc_restore_host_cwd')
-        IMPORT :: c_int
-        INTEGER(c_int) :: cpmdc_restore_host_cwd
-      END FUNCTION
-      SUBROUTINE cpmdc_note_embed_failure(msg) BIND(C, NAME='cpmdc_note_embed_failure')
-        IMPORT :: c_char
-        CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
-      END SUBROUTINE
-    END INTERFACE
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
