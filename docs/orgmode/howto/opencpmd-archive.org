@@ -97,6 +97,10 @@ Copying that file and adding ~-fPIC~ leaves the path in the build.
 ~cpmdc~ ships ~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ for the command below.
 It calls ~mpif90~ and ~gcc~ from ~PATH~, adds ~-fPIC~ to ~FFLAGS~ and
 ~CFLAGS~, and sets ~LIBS~ to ~-lopenblas~.
+When ~mpif90~ accepts it, ~FFLAGS~ also gains ~-fallow-argument-mismatch~.
+~mp_bcast_byte~ broadcasts the bytes of its first argument, and one
+procedure calls it with several derived types.
+gfortran 10 and later stop on those calls without the flag.
 That OpenBLAS build has to export the LAPACK symbols.
 ~libcpmdc~ is a shared library; a member of ~libcpmd.a~ compiled without
 ~-fPIC~ fails the link with a ~R_X86_64_PC32~ relocation error.

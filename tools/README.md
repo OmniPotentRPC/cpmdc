@@ -42,8 +42,9 @@ operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
 `FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
 shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
 `tools/LINUX-X86_64-GFORTRAN-MPI-PIC` is the configuration the archive
-how-to copies into `configure/` before `configure.sh`. It adds `-fPIC`
-and links `-lopenblas`.
+how-to copies into `configure/` before `configure.sh`. It adds `-fPIC`,
+links `-lopenblas`, and adds `-fallow-argument-mismatch` when `mpif90`
+accepts that flag.
 
 Cold embed path also requires at runtime:
 
