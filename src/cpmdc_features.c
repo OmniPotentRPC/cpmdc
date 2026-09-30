@@ -1294,6 +1294,8 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_energy", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_energy_forces", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_bind_calculator", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_adopt_calculator_comm", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_adopted_comm", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_create", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_set_params", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_destroy", CPMDC_FEATURE_ABI, 1, 1},

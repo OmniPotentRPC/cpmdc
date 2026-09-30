@@ -13,6 +13,8 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_energy",
     "abi.cpmdc_energy_forces",
     "abi.cpmdc_bind_calculator",
+    "abi.cpmdc_adopt_calculator_comm",
+    "abi.cpmdc_adopted_comm",
     "abi.cpmdc_session_create",
     "abi.cpmdc_session_set_params",
     "abi.cpmdc_session_destroy",
@@ -70,6 +72,8 @@ static void test_stub_reports_unavailable(void **state) {
   CPMDCResult forces_result = cpmdc_energy_forces(0, NULL, NULL, NULL, 0, NULL);
   assert_int_equal(forces_result.ok, 0);
   assert_int_equal(cpmdc_bind_calculator(1), -1);
+  assert_int_equal(cpmdc_adopt_calculator_comm(NULL, 0, 1), -1);
+  assert_int_equal(cpmdc_adopted_comm(NULL, 0), -1);
   assert_null(cpmdc_session_create(NULL, 0));
   assert_int_not_equal(cpmdc_session_set_params(NULL, NULL, 0), 0);
   cpmdc_session_destroy(NULL);
@@ -138,6 +142,10 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   expect_stub_entry("cpmdc_session_configure");
   assert_int_equal(cpmdc_bind_calculator(1), -1);
   expect_stub_entry("cpmdc_bind_calculator");
+  assert_int_equal(cpmdc_adopt_calculator_comm(NULL, 0, 1), -1);
+  expect_stub_entry("cpmdc_adopt_calculator_comm");
+  assert_int_equal(cpmdc_adopted_comm(NULL, 0), -1);
+  expect_stub_entry("cpmdc_adopt_calculator_comm");
   assert_int_equal(cpmdc_potential_result_size_for_force_input(NULL, 0), 0);
   expect_stub_entry("cpmdc_potential_result_size_for_force_input");
 

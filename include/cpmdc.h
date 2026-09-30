@@ -273,6 +273,31 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
 int cpmdc_bind_calculator(int ranks_per_calc);
 
 /**
+ * @brief Install a communicator the caller already split.
+ *
+ * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. The call does not
+ * call `MPI_Init` or `MPI_Comm_split`. An OpenCPMD build stores that
+ * communicator as `mp_comm_world` and returns this rank's calculator
+ * index, `world_rank / ranks_per_calc`. A value of zero or less means one
+ * calculator. Returns -1 when `comm` is null, MPI is not initialized, the
+ * world does not divide, or this library has no CPMD backend. Failure
+ * text is `cpmdc_last_error()`. A second call returns the same index and
+ * does not replace the communicator.
+ */
+int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                int ranks_per_calc);
+
+/**
+ * @brief Copy the adopted `mp_comm_world` into `out`.
+ *
+ * `out` receives an `MPI_Comm` of `nbytes` bytes. Returns 0 when a
+ * calculator communicator is stored, and -1 when `out` is null, `nbytes`
+ * is not that size, or no communicator has been adopted. Does not write
+ * `cpmdc_last_error()`.
+ */
+int cpmdc_adopted_comm(void *out, size_t nbytes);
+
+/**
  * @brief Create a persistent evaluation session from a Cap'n Proto message.
  *
  * The session owns a copy of the serialized message so callers may release the
@@ -433,7 +458,8 @@ const char *cpmdc_version(void);
  *        reports failure through this string.
  *
  * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
- * `cpmdc_bind_calculator()`, `cpmdc_session_create()`,
+ * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
+ * `cpmdc_session_create()`,
  * `cpmdc_session_set_params()`, `cpmdc_session_create_from_config()`,
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,
@@ -444,8 +470,9 @@ const char *cpmdc_version(void);
  *
  * Snapshot readers (`cpmdc_last_stress()` and the other `cpmdc_last_*` /
  * `cpmdc_session_last_*` getters) do not write it: -1 means the snapshot is
- * absent or the output pointer is null. `cpmdc_capabilities_result()` does
- * not write it either; its -1 is the size query.
+ * absent or the output pointer is null. `cpmdc_adopted_comm()` and
+ * `cpmdc_capabilities_result()` do not write it either. A capabilities
+ * return of -1 is the size query.
  */
 const char *cpmdc_last_error(void);
 

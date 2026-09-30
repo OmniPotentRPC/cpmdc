@@ -235,6 +235,21 @@ int cpmdc_bind_calculator(int ranks_per_calc) {
   return -1;
 }
 
+int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                int ranks_per_calc) {
+  (void)comm;
+  (void)comm_bytes;
+  (void)ranks_per_calc;
+  stub_store_error("cpmdc_adopt_calculator_comm");
+  return -1;
+}
+
+int cpmdc_adopted_comm(void *out, size_t nbytes) {
+  (void)out;
+  (void)nbytes;
+  return -1;
+}
+
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
   if (out)
     memset(out, 0, sizeof(*out));
