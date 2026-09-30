@@ -27,6 +27,9 @@ static void str_release(struct str *v) {
 }
 
 static void str_reset(struct str *v) {
+	/* C11 6.5.3.2: a null buffer is not a reset. */
+	if (!v || !v->str)
+		return;
 	if (v->len) {
 		v->len = 0;
 		v->str[0] = '\0';
