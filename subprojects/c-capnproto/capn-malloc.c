@@ -10,13 +10,22 @@ struct check_segment_alignment {
 
 static struct capn_segment *create(void *u, uint32_t id, int sz) {
 	struct capn_segment *s;
-	sz += sizeof(*s);
+	/* CERT INT32-C: a size that does not fit in int is not a segment. */
+	if (sz < 0 || sz > INT_MAX - (int)sizeof(*s))
+		return NULL;
+	sz += (int)sizeof(*s);
 	if (sz < 4096) {
 		sz = 4096;
 	} else {
+		/* CERT INT32-C: a size that does not fit the round-up is not a segment. */
+		if (sz > INT_MAX - 4095)
+			return NULL;
 		sz = (sz + 4095) & ~4095;
 	}
 	s = (struct capn_segment*) calloc(1, sz);
+	/* C11 6.5.3.2: a null allocation is not a segment. */
+	if (!s)
+		return NULL;
 	s->data = (char*) (s+1);
 	s->cap = sz - sizeof(*s);
 	s->user = s;
@@ -28,12 +37,18 @@ static struct capn_segment *create_local(void *u, int sz) {
 }
 
 void capn_init_malloc(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	memset(c, 0, sizeof(*c));
 	c->create = &create;
 	c->create_local = &create_local;
 }
 
 void capn_free(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	struct capn_segment *s = c->seglist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
@@ -44,6 +59,9 @@ void capn_free(struct capn *c) {
 }
 
 void capn_reset_copy(struct capn *c) {
+	/* C11 6.5.3.2: a null message is not a session. */
+	if (!c)
+		return;
 	struct capn_segment *s = c->copylist;
 	while (s != NULL) {
 		struct capn_segment *n = s->next;
@@ -57,13 +75,20 @@ void capn_reset_copy(struct capn *c) {
 #define ZBUF_SZ 4096
 
 static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* zbuf, int packed) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!z && !(f && !packed))
+		return -1;
 	if (f && packed) {
 		z->next_out = (uint8_t*) p;
 		z->avail_out = sz;
 
 		while (z->avail_out && capn_inflate(z) == CAPN_NEED_MORE) {
 			int r;
-			memmove(zbuf, z->next_in, z->avail_in);
+			/* C11 7.24.1p2: a null buffer is not a copy. */
+			if (z->avail_in > 0 && (!zbuf || !z->next_in))
+				return -1;
+			if (z->avail_in > 0)
+				memmove(zbuf, z->next_in, z->avail_in);
 			r = fread(zbuf+z->avail_in, 1, ZBUF_SZ - z->avail_in, f);
 			if (r <= 0)
 				return -1;
@@ -72,6 +97,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 		return 0;
 
 	} else if (f && !packed) {
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && !p)
+			return -1;
+		if (sz == 0)
+			return 0;
 		return fread(p, sz, 1, f) != 1;
 
 	} else if (packed) {
@@ -82,7 +112,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 	} else {
 		if (z->avail_in < sz)
 			return -1;
-		memcpy(p, z->next_in, sz);
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && (!p || !z->next_in))
+			return -1;
+		if (sz > 0)
+			memcpy(p, z->next_in, sz);
 		z->next_in += sz;
 		z->avail_in -= sz;
 		return 0;
@@ -90,6 +124,9 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 }
 
 static int init_fp(struct capn *c, FILE *f, struct capn_stream *z, int packed) {
+	/* C11 6.5.3.2: a null message is not a stream. */
+	if (!c)
+		return -1;
 	struct capn_segment *s = NULL;
 	uint32_t i, segnum, total = 0;
 	uint32_t hdr[1024];
@@ -150,6 +187,9 @@ int capn_init_fp(struct capn *c, FILE *f, int packed) {
 
 int capn_init_mem(struct capn *c, const uint8_t *p, size_t sz, int packed) {
 	struct capn_stream z;
+	/* C11 7.24.1p2: a null buffer is not a message image. */
+	if (sz > 0 && !p)
+		return -1;
 	memset(&z, 0, sizeof(z));
 	z.next_in = p;
 	z.avail_in = sz;
@@ -165,6 +205,10 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	uint32_t headerlen;
 	size_t datasz;
 	uint32_t *header;
+
+	/* C11 6.5.3.2: a null message is not a buffer. */
+	if (!c)
+		return -1;
 
 	/* TODO support packing */
 	if (packed)
@@ -188,6 +232,10 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	header = (uint32_t*) p;
 
 	if (sz < datasz)
+		return -1;
+
+	/* C11 6.5.3.2: a null buffer is not a store. */
+	if (!p)
 		return -1;
 
 	header[0] = capn_flip32(c->segnum - 1);

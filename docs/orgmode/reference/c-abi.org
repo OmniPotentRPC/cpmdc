@@ -85,14 +85,20 @@ optimisation.
 | ~int cpmdc_abi_version(void)~ | the ABI generation, equal to ~CPMDC_ABI_VERSION~ (0) and the shared-library soversion |
 | ~int cpmdc_available(void)~ | 1 when an evaluator is ready: the reference evaluator in the default build, OpenCPMD in an OpenCPMD build; 0 in the stub and after ~cpmdc_finalize()~ |
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
-| ~const char *cpmdc_last_error(void)~ | per-thread text of the last configuration or evaluation failure, empty after a success |
+| ~const char *cpmdc_last_error(void)~ | per-thread text of the last failing public call, empty after a success |
 
-~cpmdc_last_error()~ is written by ~cpmdc_configure()~,
-~cpmdc_session_create_from_config()~, and ~cpmdc_session_configure()~.
-~cpmdc_set_params()~ and ~cpmdc_session_create()~ return their failure without
-a message.
-An evaluation failure writes the same text as ~CPMDCResult.message~, including
-a missing pseudopotential directory.
+~cpmdc_last_error()~ is written by ~cpmdc_set_params()~, ~cpmdc_configure()~,
+~cpmdc_bind_calculator()~, ~cpmdc_session_create()~,
+~cpmdc_session_set_params()~, ~cpmdc_session_create_from_config()~,
+~cpmdc_session_configure()~, ~cpmdc_potential_result_size_for_force_input()~,
+and every evaluation entry point.
+When the call returns ~CPMDCResult~, the text matches ~message~, including a
+missing pseudopotential directory.
+Snapshot readers (~cpmdc_last_stress()~ and the other ~cpmdc_last_*~ /
+~cpmdc_session_last_*~ getters) do not write it: -1 means the snapshot is
+absent or the output pointer is null.
+~cpmdc_capabilities_result()~ does not write it either; its -1 is the size
+query.
 
 * MPI
 
@@ -205,10 +211,13 @@ session has run.
 | ~int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)~ | ~cpmdc_session_last_property_snapshot~ |
 | ~int cpmdc_last_stress(CPMDCStressTensor *out)~ | ~cpmdc_session_last_stress~ |
 
-With OpenCPMD linked, the stress snapshot is marked valid whenever the cell
-volume is positive, but CPMD computes the tensor only for a periodic cell and
-only when ~CPMDC_STRESS~ is not ~0~.
-Read it only in that case.
+The stress snapshot is valid only when the tensor was computed for a periodic
+cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and
+~CPMDC_STRESS~ other than ~0~), or the reference evaluator filled the toy
+tensor for a periodic deck with a positive cell volume.
+An isolated cell (symmetry 0, ~CLUSTER~, or an isolated-molecule keyword,
+including Hockney) leaves ~valid~ unset even when the box volume is positive.
+~CPMDC_STRESS=0~ leaves it unset on a periodic cell as well.
 
 * Discovery
 

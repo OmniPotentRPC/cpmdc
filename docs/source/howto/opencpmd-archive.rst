@@ -145,4 +145,5 @@ evaluation needs the pseudopotential directory in ``CPMDC_PSEUDO_DIR``;
 the :doc:`first energy tutorial <../tutorials/first-energy>` runs one.
 Stress tensors, which ``PotentialResult.stress`` carries for periodic
 cells, need no extra patch: ``cpmdc`` sets ``cntl%tpres`` before the SCF
-and copies ``paiu/omega`` afterwards.
+and copies ``paiu/omega`` afterwards. An isolated cell does not set the
+snapshot. The box has a volume, and CPMD does not compute the tensor.

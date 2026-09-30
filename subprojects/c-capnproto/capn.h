@@ -316,6 +316,9 @@ CAPN_INLINE uint64_t capn_flip64(uint64_t v) {
 }
 
 CAPN_INLINE int capn_write1(capn_ptr p, int off, int val) {
+	/* C11 6.5.3.2: a null data pointer is not a bit store. */
+	if (!p.data)
+		return -1;
 	if (off >= p.datasz*8) {
 		return -1;
 	} else if (val) {
@@ -328,9 +331,15 @@ CAPN_INLINE int capn_write1(capn_ptr p, int off, int val) {
 }
 
 CAPN_INLINE uint8_t capn_read8(capn_ptr p, int off) {
+	/* C11 6.5.3.2: a null data pointer is not a byte load. */
+	if (!p.data)
+		return 0;
 	return off+1 <= p.datasz ? capn_flip8(*(uint8_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write8(capn_ptr p, int off, uint8_t val) {
+	/* C11 6.5.3.2: a null data pointer is not a byte store. */
+	if (!p.data)
+		return -1;
 	if (off+1 <= p.datasz) {
 		*(uint8_t*) (p.data+off) = capn_flip8(val);
 		return 0;
@@ -340,9 +349,15 @@ CAPN_INLINE int capn_write8(capn_ptr p, int off, uint8_t val) {
 }
 
 CAPN_INLINE uint16_t capn_read16(capn_ptr p, int off) {
+	/* C11 6.5.3.2: a null data pointer is not a 16-bit load. */
+	if (!p.data)
+		return 0;
 	return off+2 <= p.datasz ? capn_flip16(*(uint16_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write16(capn_ptr p, int off, uint16_t val) {
+	/* C11 6.5.3.2: a null data pointer is not a 16-bit store. */
+	if (!p.data)
+		return -1;
 	if (off+2 <= p.datasz) {
 		*(uint16_t*) (p.data+off) = capn_flip16(val);
 		return 0;

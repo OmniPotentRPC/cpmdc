@@ -136,8 +136,10 @@ typedef struct CPMDCPropertySnapshot {
  * @brief Cartesian stress tensor after a successful PEF evaluation.
  *
  * Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3
- * (OpenCPMD `paiu/omega` after `totstr` when `cntl%tpres`). Returns 0 when
- * `out->valid` is set; -1 when stress was not computed.
+ * (OpenCPMD `paiu/omega` after `totstr` when `cntl%tpres`). `valid` is set
+ * only when that tensor was computed for a periodic cell. A positive cell
+ * volume is not enough: an isolated (cluster/Hockney) box leaves `valid`
+ * unset. Returns 0 when `out->valid` is set; -1 when stress was not computed.
  */
 typedef struct CPMDCStressTensor {
   int valid;
@@ -166,6 +168,7 @@ typedef struct CPMDCSession CPMDCSession;
  * @param params_capnp Pointer to an unpacked flat `CPMDParams` message.
  * @param params_capnp_size_bytes Size of `params_capnp` in bytes.
  * @return 0 on success, -1 on parse or configuration failure.
+ *         Failure text is `cpmdc_last_error()`.
  */
 int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
 
@@ -213,12 +216,6 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
                                 double *forces_h_bohr);
 
 /**
- * @brief Create a persistent evaluation session from a Cap'n Proto message.
- *
- * The session owns a copy of the serialized message so callers may release the
- * input buffer after this call returns.
- */
-/**
  * @brief Bind this rank to one CPMD calculator of @p ranks_per_calc ranks.
  *
  * Collective on MPI_COMM_WORLD, once, before the first energy call.
@@ -226,11 +223,18 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
  * CPMD calculator: its own communicator, its own wavefunction, the same deck.
  * A value of zero or less takes the whole world as one group.
  * Returns the group index, or -1 when the split is refused or the library
- * carries no CPMD backend.
+ * carries no CPMD backend. Failure text is `cpmdc_last_error()`.
  * A second call returns the same index and does not split again.
  */
 int cpmdc_bind_calculator(int ranks_per_calc);
 
+/**
+ * @brief Create a persistent evaluation session from a Cap'n Proto message.
+ *
+ * The session owns a copy of the serialized message so callers may release the
+ * input buffer after this call returns. Returns NULL on failure; the reason
+ * is `cpmdc_last_error()`.
+ */
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes);
 
@@ -353,7 +357,8 @@ CPMDCResult cpmdc_calculate_result_from_config(
  * @brief Byte count needed for a `PotentialResult` for the given `ForceInput`.
  *
  * Parses geometry only; does not initialize or evaluate CPMD. Returns 0 when
- * the message is invalid or too large for the C ABI.
+ * the message is invalid or too large for the C ABI. That failure is
+ * reported through `cpmdc_last_error()`.
  */
 size_t cpmdc_potential_result_size_for_force_input(
     const void *force_input_capnp, size_t force_input_capnp_size_bytes);
@@ -370,6 +375,7 @@ size_t cpmdc_potential_result_size_for_force_input(
  * Returns 0 on success. On a too-small buffer (including the pure size query
  * `capabilities_capnp == NULL`, `capabilities_capnp_capacity_bytes == 0`)
  * returns -1 with `*capabilities_capnp_size_bytes` set to the required size.
+ * That -1 does not write `cpmdc_last_error()`.
  */
 int cpmdc_capabilities_result(void *capabilities_capnp,
                               size_t capabilities_capnp_capacity_bytes,
@@ -379,13 +385,23 @@ int cpmdc_capabilities_result(void *capabilities_capnp,
 const char *cpmdc_version(void);
 
 /**
- * @brief Diagnostic message for the most recent configuration or evaluation
- *        failure on this thread.
+ * @brief Diagnostic for the most recent public call on this thread that
+ *        reports failure through this string.
  *
- * Covers `cpmdc_set_params()`, `cpmdc_configure()`, and the session setup
- * entry points. An evaluation failure writes the same text as
- * `CPMDCResult.message`, including a missing pseudopotential directory.
- * Returns an empty string when the last such call succeeded.
+ * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
+ * `cpmdc_bind_calculator()`, `cpmdc_session_create()`,
+ * `cpmdc_session_set_params()`, `cpmdc_session_create_from_config()`,
+ * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
+ * and every evaluation entry point (`cpmdc_energy()`,
+ * `cpmdc_energy_gradient()`, `cpmdc_energy_forces()`, the session variants,
+ * and the calculate-result calls). When the call returns `CPMDCResult`, the
+ * text matches `message`, including a missing pseudopotential directory.
+ * Empty after a successful call.
+ *
+ * Snapshot readers (`cpmdc_last_stress()` and the other `cpmdc_last_*` /
+ * `cpmdc_session_last_*` getters) do not write it: -1 means the snapshot is
+ * absent or the output pointer is null. `cpmdc_capabilities_result()` does
+ * not write it either; its -1 is the size query.
  */
 const char *cpmdc_last_error(void);
 

@@ -65,6 +65,11 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 			/* INT32-C: the element count times the width must fit in a signed int. */
 			if (nbytes > (uint64_t)INT_MAX)
 				return -1;
+			if (nbytes == 0)
+				return sz;
+			/* C11 7.24.1p2: a null buffer is not a copy. */
+			if (!to || !p.data)
+				return -1;
 			memcpy(to, p.data + off, (size_t)nbytes);
 			return sz;
 		} else if (p.datasz < SZ/8) {
@@ -76,6 +81,9 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 			uint64_t byte_off = ((uint64_t)i + (uint64_t)off) * stride;
 			/* INT32-C: the index times the stride must fit in a signed int. */
 			if (byte_off > (uint64_t)INT_MAX)
+				return -1;
+			/* C11 6.5.3.2: a null buffer is not a copy. */
+			if (!to || !p.data)
 				return -1;
 			char *d = p.data + (size_t)byte_off;
 			to[i] = FLIP(*(UINT_T*)d);

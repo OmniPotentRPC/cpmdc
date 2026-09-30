@@ -56,11 +56,12 @@ The same message has one other cause visible before the SCF starts:
 
 | Check | Cause |
 |-------+-------|
-| an element outside H, C, N, O, Si, and Ge | the built-in pseudopotential table has no entry, so no deck is composed |
+| an element absent from ~atoms.pseudopotentials~ and outside H, C, N, O, Si, and Ge | the message and the built-in table have no pseudopotential, so no deck is composed; the error names the atomic number |
 
 *Fix:* raise ~maxIter~, or switch the optimiser (see
-[[file:wavefunction-optimiser.org][choosing the optimiser]]); otherwise use an element the
-built-in table knows.
+[[file:wavefunction-optimiser.org][choosing the optimiser]]); otherwise put
+that element's pseudopotential in the message, or use an element the built-in
+table knows.
 
 A missing pseudopotential directory is a different message.
 When neither ~CPMDC_PSEUDO_DIR~ nor ~CPMD_PP_LIBRARY_PATH~ names a directory,

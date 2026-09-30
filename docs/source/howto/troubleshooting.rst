@@ -62,17 +62,19 @@ OpenCPMD path inserts ``MAXITER 40``.
 
 The same message has one other cause visible before the SCF starts:
 
-+----------------------------------+----------------------------------+
-| Check                            | Cause                            |
-+==================================+==================================+
-| an element outside H, C, N, O,   | the built-in pseudopotential     |
-| Si, and Ge                       | table has no entry, so no deck   |
-|                                  | is composed                      |
-+----------------------------------+----------------------------------+
++----------------------------------------+----------------------------------------+
+| Check                                  | Cause                                  |
++========================================+========================================+
+| an element absent from                 | the message and the built-in table     |
+| ``atoms.pseudopotentials`` and outside | have no pseudopotential, so no deck is |
+| H, C, N, O, Si, and Ge                 | composed; the error names the atomic   |
+|                                        | number                                 |
++----------------------------------------+----------------------------------------+
 
 **Fix:** raise ``maxIter``, or switch the optimiser (see
-:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise use
-an element the built-in table knows.
+:doc:`choosing the optimiser <wavefunction-optimiser>`); otherwise put
+that element's pseudopotential in the message, or use an element the
+built-in table knows.
 
 A missing pseudopotential directory is a different message. When neither
 ``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names a directory,

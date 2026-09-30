@@ -215,7 +215,7 @@ PROP-style property snapshot after a successful evaluation.
 
 Cartesian stress tensor after a successful PEF evaluation.
 
-Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
+Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). ``valid`` is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves ``valid`` unset. Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
 
 .. index:: pair: typedef; CPMDCSession
 .. _doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239:
@@ -527,9 +527,9 @@ Compiled library version string.
 
 	const char* cpmdc_last_error(void)
 
-Diagnostic message for the most recent configuration or evaluation failure on this thread.
+Diagnostic for the most recent public call on this thread that reports failure through this string.
 
-Covers ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, and the session setup entry points. An evaluation failure writes the same text as ``CPMDCResult.message``, including a missing pseudopotential directory. Returns an empty string when the last such call succeeded.
+Written by ``cpmdc_set_params()``, ``cpmdc_configure()``, ``cpmdc_bind_calculator()``, ``cpmdc_session_create()``, ``cpmdc_session_set_params()``, ``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``, ``cpmdc_potential_result_size_for_force_input()``, and every evaluation entry point. When the call returns ``CPMDCResult``, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call. Snapshot readers and ``cpmdc_capabilities_result()`` do not write it. A capabilities return of -1 is the size query.
 
 .. index:: pair: function; cpmdc_abi_version
 .. _doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44:

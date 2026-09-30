@@ -3827,7 +3827,17 @@ static int render_atoms_section(char *dst, size_t dst_size, size_t *used,
   for (int i = 0; i < npsp; ++i) {
     struct CPMDAtomsPseudopotential psp;
     get_CPMDAtomsPseudopotential(&psp, atoms->pseudopotentials, i);
-    /* path is the PP filename (e.g. O_MT_BLYP.psp); element is Z symbol only. */
+    /* path is the PP filename (e.g. O_MT_BLYP.psp); element is Z symbol only.
+     * The embed geometry merge keys on this comment; the *file line has no
+     * element symbol of its own. */
+    if (psp.element.str && psp.element.len > 0) {
+      if (append_text(dst, dst_size, used, "!SPECIES ") != 0)
+        return -1;
+      if (append_capn_text(dst, dst_size, used, psp.element) != 0)
+        return -1;
+      if (append_text(dst, dst_size, used, "\n") != 0)
+        return -1;
+    }
     if (append_text(dst, dst_size, used, "*") != 0)
       return -1;
     if (psp.path.str && psp.path.len > 0) {

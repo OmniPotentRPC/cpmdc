@@ -10,25 +10,29 @@ static _Thread_local char g_last_error[512];
 
 const char *cpmdc_last_error(void) { return g_last_error; }
 
-static void stub_store_error(void) {
-  snprintf(g_last_error, sizeof(g_last_error),
-           "OpenCPMD embed not available in cpmdc stub");
+static void stub_store_error(const char *entry) {
+  if (entry && entry[0] != '\0')
+    snprintf(g_last_error, sizeof(g_last_error),
+             "OpenCPMD embed not available in cpmdc stub (%s)", entry);
+  else
+    snprintf(g_last_error, sizeof(g_last_error),
+             "OpenCPMD embed not available in cpmdc stub");
 }
 #include <string.h>
 
-static CPMDCResult stub_fail(void) {
+static CPMDCResult stub_fail(const char *entry) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
-  snprintf(r.message, sizeof(r.message),
-           "CPMD embed not available in cpmdc stub");
+  stub_store_error(entry);
+  snprintf(r.message, sizeof(r.message), "%s", cpmdc_last_error());
   return r;
 }
 
 int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   (void)params_capnp;
   (void)params_capnp_size_bytes;
-  stub_store_error();
+  stub_store_error("cpmdc_set_params");
   return -1;
 }
 
@@ -36,7 +40,7 @@ int cpmdc_configure(const void *config_capnp,
                     size_t config_capnp_size_bytes) {
   (void)config_capnp;
   (void)config_capnp_size_bytes;
-  stub_store_error();
+  stub_store_error("cpmdc_configure");
   return -1;
 }
 
@@ -44,7 +48,7 @@ CPMDCSession *cpmdc_session_create_from_config(
     const void *config_capnp, size_t config_capnp_size_bytes) {
   (void)config_capnp;
   (void)config_capnp_size_bytes;
-  stub_store_error();
+  stub_store_error("cpmdc_session_create_from_config");
   return NULL;
 }
 
@@ -53,7 +57,7 @@ int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
   (void)session;
   (void)config_capnp;
   (void)config_capnp_size_bytes;
-  stub_store_error();
+  stub_store_error("cpmdc_session_configure");
   return -1;
 }
 
@@ -68,7 +72,7 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
   (void)params_capnp;
   (void)params_capnp_size_bytes;
   (void)grad_h_bohr;
-  return stub_fail();
+  return stub_fail("cpmdc_energy_gradient");
 }
 
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
@@ -79,7 +83,7 @@ CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
   (void)atomic_numbers;
   (void)params_capnp;
   (void)params_capnp_size_bytes;
-  return stub_fail();
+  return stub_fail("cpmdc_energy");
 }
 
 CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
@@ -93,7 +97,7 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
   (void)params_capnp;
   (void)params_capnp_size_bytes;
   (void)forces_h_bohr;
-  return stub_fail();
+  return stub_fail("cpmdc_energy_forces");
 }
 
 const char *cpmdc_version(void) { return "cpmdc-stub/" CPMDC_VERSION_STRING; }
@@ -108,6 +112,7 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes) {
   (void)params_capnp;
   (void)params_capnp_size_bytes;
+  stub_store_error("cpmdc_session_create");
   return NULL;
 }
 
@@ -116,6 +121,7 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
   (void)session;
   (void)params_capnp;
   (void)params_capnp_size_bytes;
+  stub_store_error("cpmdc_session_set_params");
   return -1;
 }
 
@@ -128,7 +134,7 @@ CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
   (void)n_atoms;
   (void)positions_ang;
   (void)atomic_numbers;
-  return stub_fail();
+  return stub_fail("cpmdc_session_energy");
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
@@ -140,7 +146,7 @@ CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
   (void)positions_ang;
   (void)atomic_numbers;
   (void)grad_h_bohr;
-  return stub_fail();
+  return stub_fail("cpmdc_session_energy_gradient");
 }
 
 CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
@@ -152,7 +158,7 @@ CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
   (void)positions_ang;
   (void)atomic_numbers;
   (void)forces_h_bohr;
-  return stub_fail();
+  return stub_fail("cpmdc_session_energy_forces");
 }
 
 CPMDCResult cpmdc_session_calculate_forces(
@@ -164,7 +170,7 @@ CPMDCResult cpmdc_session_calculate_forces(
   (void)force_input_capnp_size_bytes;
   (void)forces_h_bohr;
   (void)forces_len;
-  return stub_fail();
+  return stub_fail("cpmdc_session_calculate_forces");
 }
 
 CPMDCResult cpmdc_session_calculate_result(
@@ -178,7 +184,7 @@ CPMDCResult cpmdc_session_calculate_result(
   (void)potential_result_capnp;
   (void)potential_result_capnp_capacity_bytes;
   (void)potential_result_capnp_size_bytes;
-  return stub_fail();
+  return stub_fail("cpmdc_session_calculate_result");
 }
 
 CPMDCResult cpmdc_calculate_result(const void *params_capnp,
@@ -195,7 +201,7 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
   (void)potential_result_capnp;
   (void)potential_result_capnp_capacity_bytes;
   (void)potential_result_capnp_size_bytes;
-  return stub_fail();
+  return stub_fail("cpmdc_calculate_result");
 }
 
 CPMDCResult cpmdc_calculate_result_from_config(
@@ -211,19 +217,21 @@ CPMDCResult cpmdc_calculate_result_from_config(
   (void)potential_result_capnp;
   (void)potential_result_capnp_capacity_bytes;
   (void)potential_result_capnp_size_bytes;
-  return stub_fail();
+  return stub_fail("cpmdc_calculate_result_from_config");
 }
 
 size_t cpmdc_potential_result_size_for_force_input(
     const void *force_input_capnp, size_t force_input_capnp_size_bytes) {
   (void)force_input_capnp;
   (void)force_input_capnp_size_bytes;
+  stub_store_error("cpmdc_potential_result_size_for_force_input");
   return 0;
 }
 
 
 int cpmdc_bind_calculator(int ranks_per_calc) {
   (void)ranks_per_calc;
+  stub_store_error("cpmdc_bind_calculator");
   return -1;
 }
 

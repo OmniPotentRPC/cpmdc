@@ -172,10 +172,19 @@ if has_cpmd
       cpmd_embed_link += [blas]
     endif
   endif
-  # FFTW3 when OpenCPMD was configured with -D__FFTW3 / -D__HAS_FFT_FFTW3
+  # FFTW3 when OpenCPMD was configured with -D__FFTW3 / -D__HAS_FFT_FFTW3.
+  # An OpenMP build also needs the threaded planner (fftw3_omp) and libgomp.
   fftw3 = cc.find_library('fftw3', required: false)
+  fftw3_omp = cc.find_library('fftw3_omp', required: false)
+  gomp = cc.find_library('gomp', required: false)
+  if fftw3_omp.found()
+    cpmd_embed_link += [fftw3_omp]
+  endif
   if fftw3.found()
     cpmd_embed_link += [fftw3]
+  endif
+  if gomp.found()
+    cpmd_embed_link += [gomp]
   endif
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
@@ -189,7 +198,9 @@ cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
 if has_cpmd
   cpmd_archive_math_libs = (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+      + (fftw3_omp.found() ? ['-lfftw3_omp'] : []) \
       + (fftw3.found() ? ['-lfftw3'] : []) \
+      + (gomp.found() ? ['-lgomp'] : []) \
       + ['-lgfortran', '-lquadmath', '-lm']
   cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
       + cpmd_archive_math_libs
@@ -351,6 +362,12 @@ if get_option('with_tests')
     input: 'tests/force_input_water.capnp.txt',
     output: 'force_input_water.bin',
     command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
+  water_periodic_params_bin = custom_target(
+    'water_periodic_params_bin',
+    input: 'tests/water_blyp_periodic_params.capnp.txt',
+    output: 'water_blyp_periodic_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
   effective_top_params_bin = custom_target(
     'effective_top_params_bin',
@@ -680,6 +697,37 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  test(
+    'last-error',
+    executable(
+      'test_last_error',
+      'tests/test_last_error.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [cpmd_parser_params_bin.full_path()],
+    depends: [cpmd_parser_params_bin],
+    suite: ['e2e', 'cmocka'],
+  )
+  test(
+    'stress-isolated',
+    executable(
+      'test_stress_isolated',
+      'tests/test_stress_isolated.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [
+      water_params_bin.full_path(),
+      water_periodic_params_bin.full_path(),
+      water_force_bin.full_path(),
+    ],
+    depends: [water_params_bin, water_periodic_params_bin, water_force_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: 300,
+  )
 
   test(
     'embed-warm-no-nomore-clamp',
@@ -1075,6 +1123,12 @@ test(
     output: 'params_method_only.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_atoms_from_message_bin = custom_target(
+    'params_atoms_from_message_bin',
+    input: 'tests/params_atoms_from_message.capnp.txt',
+    output: 'params_atoms_from_message.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
 
   test(
     'capnp-fortran-apply',
@@ -1091,6 +1145,7 @@ test(
       cpmd_parser_params_bin.full_path(),
       params_atoms_extras_bin.full_path(),
       params_method_only_bin.full_path(),
+      params_atoms_from_message_bin.full_path(),
     ],
     depends: [
       effective_top_params_bin,
@@ -1098,6 +1153,7 @@ test(
       cpmd_parser_params_bin,
       params_atoms_extras_bin,
       params_method_only_bin,
+      params_atoms_from_message_bin,
     ],
     suite: ['cmocka', 'params', 'capnp-fortran'],
   )

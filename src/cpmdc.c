@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void cpmdc_store_error(const char *msg);
+
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
 int cpmdc_stop_code(void);
@@ -175,6 +177,7 @@ static CPMDCResult fail_msg(const char *msg) {
   r.ok = 0;
   r.energy_h = 0.0;
   snprintf(r.message, sizeof(r.message), "%s", msg ? msg : "error");
+  cpmdc_store_error(r.message);
   return r;
 }
 
@@ -199,14 +202,21 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
                                char *cpmd_root, size_t cpmd_root_size) {
   struct capn arena;
   CPMDParams_ptr root;
-  if (cpmdc_params_root(params_capnp, params_size, &arena, &root) != 0)
+  if (!params_capnp || params_size == 0) {
+    cpmdc_store_error("CPMDParams buffer is empty");
     return -1;
+  }
+  if (cpmdc_params_root(params_capnp, params_size, &arena, &root) != 0) {
+    cpmdc_store_error("CPMDParams parse failed");
+    return -1;
+  }
   struct CPMDParams view;
   read_CPMDParams(&view, root);
   if (cpmdc_params_effective_config_ov(root, overrides, functional,
                                        functional_size, cutoff_ry, charge,
                                        multiplicity) != 0) {
     cpmdc_params_release(&arena);
+    cpmdc_store_error("CPMDParams configuration failed");
     return -1;
   }
   snprintf(cpmd_root, cpmd_root_size, "%s",
@@ -214,11 +224,13 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
   if (cpmdc_params_render_input_deck_ov(root, overrides, input_deck,
                                         input_deck_size) != 0) {
     cpmdc_params_release(&arena);
+    cpmdc_store_error("CPMDParams deck render failed");
     return -1;
   }
   write_deck_if_requested(input_deck);
   if (cpmdc_params_reject_unsupported_inputs(functional, input_deck) != 0) {
     cpmdc_params_release(&arena);
+    cpmdc_store_error("CPMDParams input is not supported");
     return -1;
   }
   cpmdc_params_release(&arena);
@@ -597,6 +609,7 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
     if (!next) {
       free(buffer);
       capn_free(&arena);
+      cpmdc_store_error("out of memory");
       return -1;
     }
     buffer = next;
@@ -620,13 +633,16 @@ static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
                                size_t *out_size) {
   *out = NULL;
   *out_size = 0;
-  if (struct_ptr.type == CAPN_NULL)
+  if (struct_ptr.type == CAPN_NULL) {
+    cpmdc_store_error("CPMDParams serialization failed");
     return -1;
+  }
   struct capn arena;
   capn_init_malloc(&arena);
   capn_ptr root = capn_root(&arena);
   if (root.type == CAPN_NULL || capn_setp(root, 0, struct_ptr) != 0) {
     capn_free(&arena);
+    cpmdc_store_error("CPMDParams serialization failed");
     return -1;
   }
   size_t capacity = 4096u;
@@ -637,6 +653,7 @@ static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
     if (!next) {
       free(buffer);
       capn_free(&arena);
+      cpmdc_store_error("out of memory");
       return -1;
     }
     buffer = next;
@@ -647,6 +664,7 @@ static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
   capn_free(&arena);
   if (written < 0) {
     free(buffer);
+    cpmdc_store_error("CPMDParams serialization failed");
     return -1;
   }
   *out = buffer;
@@ -887,24 +905,31 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   } else {
     g_has_overrides = 0;
   }
-  if (!ensure_embed_init() || !cpmdc_embed_available())
+  if (!ensure_embed_init() || !cpmdc_embed_available()) {
+    cpmdc_store_error("CPMD embed not available");
     return -1;
+  }
   free(g_params_bytes);
   g_params_bytes = (unsigned char *)malloc(params_capnp_size_bytes);
-  if (!g_params_bytes)
+  if (!g_params_bytes) {
+    cpmdc_store_error("out of memory");
     return -1;
+  }
   memcpy(g_params_bytes, params_capnp, params_capnp_size_bytes);
   g_params_size = params_capnp_size_bytes;
   /* Fortran decode of functional/cutoff/charge/mult/root + store C deck. */
   if (embed_apply_from_wire(params_capnp, params_capnp_size_bytes, input_deck,
-                            overrides, &g_image) != 0)
+                            overrides, &g_image) != 0) {
+    cpmdc_store_error("applying CPMD params failed");
     return -1;
+  }
   (void)functional;
   (void)cutoff_ry;
   (void)charge;
   (void)multiplicity;
   (void)cpmd_root;
   g_active_session = NULL;
+  cpmdc_store_error("");
   return 0;
 }
 
@@ -925,16 +950,10 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.message[0] = '\0';
   g_embed_detail[0] = '\0';
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr) {
-    snprintf(r.message, sizeof(r.message), "invalid arguments");
-    cpmdc_store_error(r.message);
-    return r;
-  }
-  if (!ensure_embed_init() || !cpmdc_embed_available()) {
-    snprintf(r.message, sizeof(r.message), "CPMD embed not available");
-    cpmdc_store_error(r.message);
-    return r;
-  }
+      !atomic_numbers || !grad_h_bohr)
+    return fail_msg("invalid arguments");
+  if (!ensure_embed_init() || !cpmdc_embed_available())
+    return fail_msg("CPMD embed not available");
   double cell[9] = {0};
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
@@ -951,20 +970,15 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                    image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
-  if (stop != 0) {
-    snprintf(r.message, sizeof(r.message), "CPMD stopgm during embed SCF");
-    cpmdc_store_error(r.message);
-    return r;
-  }
+  if (stop != 0)
+    return fail_msg("CPMD stopgm during embed SCF");
   if (!ok) {
     const char *detail =
         g_embed_detail[0]
             ? g_embed_detail
             : "CPMD energy/gradient failed: orbitals not converged within "
               "MAXITER, or no energy";
-    snprintf(r.message, sizeof(r.message), "%s", detail);
-    cpmdc_store_error(r.message);
-    return r;
+    return fail_msg(detail);
   }
   r.ok = 1;
   r.energy_h = energy;
@@ -990,8 +1004,12 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                   const void *params_capnp,
                                   size_t params_capnp_size_bytes,
                                   double *grad_h_bohr) {
-  if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0)
-    return fail_msg("embed config failed");
+  if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
+    const char *err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "embed config failed";
+    return fail_msg(err);
+  }
   return energy_gradient_cell(n_atoms, positions_ang, atomic_numbers, NULL, 0,
                               grad_h_bohr);
 }
@@ -1085,14 +1103,19 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
 
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes) {
-  if (!params_capnp || params_capnp_size_bytes == 0)
+  if (!params_capnp || params_capnp_size_bytes == 0) {
+    cpmdc_store_error("CPMDParams buffer is empty");
     return NULL;
+  }
   CPMDCSession *session = (CPMDCSession *)calloc(1, sizeof(*session));
-  if (!session)
+  if (!session) {
+    cpmdc_store_error("out of memory");
     return NULL;
+  }
   session->params_bytes = (unsigned char *)malloc(params_capnp_size_bytes);
   if (!session->params_bytes) {
     free(session);
+    cpmdc_store_error("out of memory");
     return NULL;
   }
   memcpy(session->params_bytes, params_capnp, params_capnp_size_bytes);
@@ -1109,6 +1132,7 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
     return NULL;
   }
   (void)configure_embed_from_session(session);
+  cpmdc_store_error("");
   return session;
 }
 
@@ -1116,13 +1140,23 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
                                        const void *params_capnp,
                                        size_t params_capnp_size_bytes,
                                        const CPMDCScalarOverrides *overrides) {
-  if (!session || !params_capnp || params_capnp_size_bytes == 0)
+  if (!session) {
+    cpmdc_store_error("invalid session");
     return -1;
-  if (session->topology_fixed)
+  }
+  if (!params_capnp || params_capnp_size_bytes == 0) {
+    cpmdc_store_error("CPMDParams buffer is empty");
     return -1;
+  }
+  if (session->topology_fixed) {
+    cpmdc_store_error("session topology is already fixed");
+    return -1;
+  }
   unsigned char *bytes = (unsigned char *)malloc(params_capnp_size_bytes);
-  if (!bytes)
+  if (!bytes) {
+    cpmdc_store_error("out of memory");
     return -1;
+  }
   if (overrides) {
     session->overrides = *overrides;
     if (overrides->functional) {
@@ -1149,7 +1183,12 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
   free(session->params_bytes);
   session->params_bytes = bytes;
   session->params_size = params_capnp_size_bytes;
-  return configure_embed_from_session(session);
+  if (configure_embed_from_session(session) != 0) {
+    cpmdc_store_error("CPMD embed not available");
+    return -1;
+  }
+  cpmdc_store_error("");
+  return 0;
 }
 
 int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
@@ -1288,35 +1327,29 @@ CPMDCResult cpmdc_session_calculate_result(
   r.energy_h = 0.0;
   r.message[0] = '\0';
   if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
-      !potential_result_capnp_size_bytes) {
-    snprintf(r.message, sizeof(r.message), "invalid arguments");
-    return r;
-  }
+      !potential_result_capnp_size_bytes)
+    return fail_msg("invalid arguments");
   *potential_result_capnp_size_bytes = 0;
 
   struct capn arena;
   ForceInput_ptr force_input;
   if (cpmdc_force_input_root(force_input_capnp, force_input_capnp_size_bytes,
-                             &arena, &force_input) != 0) {
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput message");
-    return r;
-  }
+                             &arena, &force_input) != 0)
+    return fail_msg("invalid ForceInput message");
 
   size_t n_atoms = 0;
   int has_cell = 0;
   if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
       n_atoms > (size_t)INT_MAX || n_atoms > SIZE_MAX / 3u) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
-    return r;
+    return fail_msg("invalid ForceInput geometry");
   }
   size_t force_count = n_atoms * 3u;
   size_t required_size = cpmdc_potential_result_flat_size(force_count);
   *potential_result_capnp_size_bytes = required_size;
   if (required_size == 0 || force_count > (size_t)INT_MAX) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
-    return r;
+    return fail_msg("invalid ForceInput geometry");
   }
 
   double energy_factor = 1.0;
@@ -1325,25 +1358,21 @@ CPMDCResult cpmdc_session_calculate_result(
   if (cpmdc_force_input_result_factors(force_input, &energy_factor,
                                        &force_factor) != 0) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput result units");
-    return r;
+    return fail_msg("invalid ForceInput result units");
   }
   if (cpmdc_force_input_stress_result_factors(force_input, &energy_factor,
                                               &stress_factor) != 0) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput stress units");
-    return r;
+    return fail_msg("invalid ForceInput stress units");
   }
   if (!potential_result_capnp ||
       potential_result_capnp_capacity_bytes < required_size) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "PotentialResult buffer too small");
-    return r;
+    return fail_msg("PotentialResult buffer too small");
   }
   if (session_reserve_step_atoms(session, n_atoms) != 0) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "out of memory");
-    return r;
+    return fail_msg("out of memory");
   }
 
   double cell_ang[9];
@@ -1351,16 +1380,13 @@ CPMDCResult cpmdc_session_calculate_result(
           force_input, session->step_positions_ang, session->step_atomic_numbers,
           session->step_atom_capacity, cell_ang, &has_cell) != 0) {
     cpmdc_params_release(&arena);
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
-    return r;
+    return fail_msg("invalid ForceInput geometry");
   }
   cpmdc_params_release(&arena);
 
   double *forces = (double *)malloc(force_count * sizeof(*forces));
-  if (!forces) {
-    snprintf(r.message, sizeof(r.message), "out of memory");
-    return r;
-  }
+  if (!forces)
+    return fail_msg("out of memory");
   r = session_energy_gradient_cell(session, (int)n_atoms,
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
@@ -1375,6 +1401,7 @@ CPMDCResult cpmdc_session_calculate_result(
                                      potential_result_capnp_size_bytes) != 0) {
       r.ok = 0;
       snprintf(r.message, sizeof(r.message), "PotentialResult write failed");
+      cpmdc_store_error(r.message);
     }
   }
   free(forces);
@@ -1388,37 +1415,33 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                    void *potential_result_capnp,
                                    size_t potential_result_capnp_capacity_bytes,
                                    size_t *potential_result_capnp_size_bytes) {
-  CPMDCResult r;
-  r.ok = 0;
-  r.energy_h = 0.0;
-  r.message[0] = '\0';
   if (!params_capnp || params_capnp_size_bytes == 0 || !force_input_capnp ||
-      force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes) {
-    snprintf(r.message, sizeof(r.message), "invalid arguments");
-    return r;
-  }
+      force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes)
+    return fail_msg("invalid arguments");
   *potential_result_capnp_size_bytes = 0;
 
   size_t required_size = cpmdc_potential_result_size_for_force_input(
       force_input_capnp, force_input_capnp_size_bytes);
   *potential_result_capnp_size_bytes = required_size;
   if (required_size == 0) {
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
-    return r;
+    const char *err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "invalid ForceInput geometry";
+    return fail_msg(err);
   }
   if (!potential_result_capnp ||
-      potential_result_capnp_capacity_bytes < required_size) {
-    snprintf(r.message, sizeof(r.message), "PotentialResult buffer too small");
-    return r;
-  }
+      potential_result_capnp_capacity_bytes < required_size)
+    return fail_msg("PotentialResult buffer too small");
 
   CPMDCSession *session =
       cpmdc_session_create(params_capnp, params_capnp_size_bytes);
   if (!session) {
-    snprintf(r.message, sizeof(r.message), "embed config failed");
-    return r;
+    const char *err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "embed config failed";
+    return fail_msg(err);
   }
-  r = cpmdc_session_calculate_result(
+  CPMDCResult r = cpmdc_session_calculate_result(
       session, force_input_capnp, force_input_capnp_size_bytes,
       potential_result_capnp, potential_result_capnp_capacity_bytes,
       potential_result_capnp_size_bytes);
@@ -1432,37 +1455,33 @@ CPMDCResult cpmdc_calculate_result_from_config(
     void *potential_result_capnp,
     size_t potential_result_capnp_capacity_bytes,
     size_t *potential_result_capnp_size_bytes) {
-  CPMDCResult r;
-  r.ok = 0;
-  r.energy_h = 0.0;
-  r.message[0] = '\0';
   if (!config_capnp || config_capnp_size_bytes == 0 || !force_input_capnp ||
-      force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes) {
-    snprintf(r.message, sizeof(r.message), "invalid arguments");
-    return r;
-  }
+      force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes)
+    return fail_msg("invalid arguments");
   *potential_result_capnp_size_bytes = 0;
 
   size_t required_size = cpmdc_potential_result_size_for_force_input(
       force_input_capnp, force_input_capnp_size_bytes);
   *potential_result_capnp_size_bytes = required_size;
   if (required_size == 0) {
-    snprintf(r.message, sizeof(r.message), "invalid ForceInput geometry");
-    return r;
+    const char *err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "invalid ForceInput geometry";
+    return fail_msg(err);
   }
   if (!potential_result_capnp ||
-      potential_result_capnp_capacity_bytes < required_size) {
-    snprintf(r.message, sizeof(r.message), "PotentialResult buffer too small");
-    return r;
-  }
+      potential_result_capnp_capacity_bytes < required_size)
+    return fail_msg("PotentialResult buffer too small");
 
   CPMDCSession *session =
       cpmdc_session_create_from_config(config_capnp, config_capnp_size_bytes);
   if (!session) {
-    snprintf(r.message, sizeof(r.message), "embed config failed");
-    return r;
+    const char *err = cpmdc_last_error();
+    if (!err || err[0] == '\0')
+      err = "embed config failed";
+    return fail_msg(err);
   }
-  r = cpmdc_session_calculate_result(
+  CPMDCResult r = cpmdc_session_calculate_result(
       session, force_input_capnp, force_input_capnp_size_bytes,
       potential_result_capnp, potential_result_capnp_capacity_bytes,
       potential_result_capnp_size_bytes);
@@ -1472,7 +1491,12 @@ CPMDCResult cpmdc_calculate_result_from_config(
 
 
 int cpmdc_bind_calculator(int ranks_per_calc) {
-  return cpmdc_embed_bind_calculator(ranks_per_calc);
+  int calc = cpmdc_embed_bind_calculator(ranks_per_calc);
+  if (calc < 0)
+    cpmdc_store_error("CPMD calculator bind refused");
+  else
+    cpmdc_store_error("");
+  return calc;
 }
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
@@ -1569,23 +1593,32 @@ size_t cpmdc_potential_result_size_for_force_input(
   struct capn arena;
   ForceInput_ptr force_input;
   if (cpmdc_force_input_root(force_input_capnp, force_input_capnp_size_bytes,
-                             &arena, &force_input) != 0)
+                             &arena, &force_input) != 0) {
+    cpmdc_store_error("invalid ForceInput message");
     return 0;
+  }
   size_t n_atoms = 0;
   int has_cell = 0;
   if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
       n_atoms > (size_t)INT_MAX || n_atoms > SIZE_MAX / 3u) {
     cpmdc_params_release(&arena);
+    cpmdc_store_error("invalid ForceInput geometry");
     return 0;
   }
   (void)has_cell;
   size_t force_count = n_atoms * 3u;
   if (force_count > (size_t)INT_MAX) {
     cpmdc_params_release(&arena);
+    cpmdc_store_error("invalid ForceInput geometry");
     return 0;
   }
   size_t result_size = cpmdc_potential_result_flat_size(force_count);
   cpmdc_params_release(&arena);
+  if (result_size == 0) {
+    cpmdc_store_error("invalid ForceInput geometry");
+    return 0;
+  }
+  cpmdc_store_error("");
   return result_size;
 }
 

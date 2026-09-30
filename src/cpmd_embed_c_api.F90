@@ -64,7 +64,7 @@ END MODULE
 
 MODULE cpmd_embed_c_api
   USE, INTRINSIC :: iso_c_binding
-  USE, INTRINSIC :: iso_fortran_env, ONLY: real64
+  USE, INTRINSIC :: iso_fortran_env, ONLY: real64, error_unit
   IMPLICIT NONE
   PRIVATE
 
@@ -468,6 +468,387 @@ CONTAINS
     END DO
   END SUBROUTINE
 
+  ! Rendered &ATOMS stubs tag each pseudopotential with '!SPECIES SYM'.
+  ! KLEINMAN-BYLANDER is read from that species' *file line only.
+  FUNCTION embed_z_of_symbol(sym) RESULT(zz)
+    CHARACTER(LEN=*), INTENT(IN) :: sym
+    INTEGER :: zz
+    CHARACTER(LEN=*), PARAMETER :: k_sym = &
+      'H ' // 'HE' // 'LI' // 'BE' // 'B ' // 'C ' // 'N ' // 'O ' // 'F ' // 'NE' // &
+      'NA' // 'MG' // 'AL' // 'SI' // 'P ' // 'S ' // 'CL' // 'AR' // 'K ' // 'CA' // &
+      'SC' // 'TI' // 'V ' // 'CR' // 'MN' // 'FE' // 'CO' // 'NI' // 'CU' // 'ZN' // &
+      'GA' // 'GE' // 'AS' // 'SE' // 'BR' // 'KR' // 'RB' // 'SR' // 'Y ' // 'ZR' // &
+      'NB' // 'MO' // 'TC' // 'RU' // 'RH' // 'PD' // 'AG' // 'CD' // 'IN' // 'SN' // &
+      'SB' // 'TE' // 'I ' // 'XE' // 'CS' // 'BA' // 'LA' // 'CE' // 'PR' // 'ND' // &
+      'PM' // 'SM' // 'EU' // 'GD' // 'TB' // 'DY' // 'HO' // 'ER' // 'TM' // 'YB' // &
+      'LU' // 'HF' // 'TA' // 'W ' // 'RE' // 'OS' // 'IR' // 'PT' // 'AU' // 'HG' // &
+      'TL' // 'PB' // 'BI' // 'PO' // 'AT' // 'RN' // 'FR' // 'RA' // 'AC' // 'TH' // &
+      'PA' // 'U ' // 'NP' // 'PU' // 'AM' // 'CM' // 'BK' // 'CF' // 'ES' // 'FM' // &
+      'MD' // 'NO' // 'LR' // 'RF' // 'DB' // 'SG' // 'BH' // 'HS' // 'MT' // 'DS' // &
+      'RG' // 'CN' // 'NH' // 'FL' // 'MC' // 'LV' // 'TS' // 'OG'
+    CHARACTER(LEN=2) :: key
+    INTEGER :: i, n
+    CHARACTER(LEN=1) :: ch
+    zz = -1
+    key = ' '
+    n = 0
+    DO i = 1, LEN_TRIM(sym)
+      ch = sym(i:i)
+      IF (ch == ' ' .OR. ch == ACHAR(9)) EXIT
+      IF (ch >= 'a' .AND. ch <= 'z') ch = ACHAR(IACHAR(ch) - 32)
+      IF (ch < 'A' .OR. ch > 'Z') RETURN
+      n = n + 1
+      IF (n > 2) RETURN
+      key(n:n) = ch
+    END DO
+    IF (n < 1) RETURN
+    DO i = 1, LEN(k_sym) / 2
+      IF (k_sym(2 * i - 1:2 * i) == key) THEN
+        zz = i
+        RETURN
+      END IF
+    END DO
+  END FUNCTION
+
+  SUBROUTINE embed_ltrim(src, dst)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(LEN=*), INTENT(OUT) :: dst
+    INTEGER :: i, n, k
+    dst = ' '
+    n = LEN_TRIM(src)
+    i = 1
+    DO WHILE (i <= n .AND. (src(i:i) == ' ' .OR. src(i:i) == ACHAR(9)))
+      i = i + 1
+    END DO
+    k = n - i + 1
+    IF (k < 1) RETURN
+    IF (k > LEN(dst)) k = LEN(dst)
+    dst(1:k) = src(i:i + k - 1)
+  END SUBROUTINE
+
+  SUBROUTINE embed_upper_copy(src, dst)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(LEN=*), INTENT(OUT) :: dst
+    INTEGER :: i, n
+    CHARACTER(LEN=1) :: ch
+    dst = ' '
+    n = MIN(LEN_TRIM(src), LEN(dst))
+    DO i = 1, n
+      ch = src(i:i)
+      IF (ch >= 'a' .AND. ch <= 'z') ch = ACHAR(IACHAR(ch) - 32)
+      dst(i:i) = ch
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_next_tok(line, pos, tok)
+    CHARACTER(LEN=*), INTENT(IN) :: line
+    INTEGER, INTENT(INOUT) :: pos
+    CHARACTER(LEN=*), INTENT(OUT) :: tok
+    INTEGER :: n, i, k
+    tok = ' '
+    n = LEN_TRIM(line)
+    DO WHILE (pos <= n .AND. (line(pos:pos) == ' ' .OR. line(pos:pos) == ACHAR(9)))
+      pos = pos + 1
+    END DO
+    IF (pos > n) RETURN
+    i = pos
+    DO WHILE (i <= n .AND. line(i:i) /= ' ' .AND. line(i:i) /= ACHAR(9))
+      i = i + 1
+    END DO
+    k = MIN(i - pos, LEN(tok))
+    IF (k > 0) tok(1:k) = line(pos:pos + k - 1)
+    pos = i
+  END SUBROUTINE
+
+  SUBROUTINE embed_take_line(src, zend, pos, line)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    INTEGER, INTENT(IN) :: zend
+    INTEGER, INTENT(INOUT) :: pos
+    CHARACTER(LEN=*), INTENT(OUT) :: line
+    INTEGER :: i, k
+    line = ' '
+    IF (pos < 1) pos = 1
+    IF (pos > zend) RETURN
+    i = pos
+    DO WHILE (i <= zend .AND. src(i:i) /= NEW_LINE('A') .AND. src(i:i) /= ACHAR(13))
+      i = i + 1
+    END DO
+    k = MIN(i - pos, LEN(line))
+    IF (k > 0) line(1:k) = src(pos:pos + k - 1)
+    IF (i <= zend .AND. src(i:i) == ACHAR(13)) i = i + 1
+    IF (i <= zend .AND. src(i:i) == NEW_LINE('A')) i = i + 1
+    pos = i
+  END SUBROUTINE
+
+  LOGICAL FUNCTION embed_is_int_token(tok)
+    CHARACTER(LEN=*), INTENT(IN) :: tok
+    INTEGER :: i, n, a
+    embed_is_int_token = .FALSE.
+    n = LEN_TRIM(tok)
+    IF (n < 1) RETURN
+    a = 1
+    IF (tok(1:1) == '+' .OR. tok(1:1) == '-') THEN
+      IF (n == 1) RETURN
+      a = 2
+    END IF
+    DO i = a, n
+      IF (tok(i:i) < '0' .OR. tok(i:i) > '9') RETURN
+    END DO
+    embed_is_int_token = .TRUE.
+  END FUNCTION
+
+  LOGICAL FUNCTION embed_is_count_line(work)
+    CHARACTER(LEN=*), INTENT(IN) :: work
+    INTEGER :: tpos, ntok
+    CHARACTER(LEN=64) :: tok
+    embed_is_count_line = .FALSE.
+    tpos = 1
+    ntok = 0
+    DO
+      CALL embed_next_tok(work, tpos, tok)
+      IF (LEN_TRIM(tok) == 0) EXIT
+      ntok = ntok + 1
+      IF (ntok > 1) RETURN
+      IF (.NOT. embed_is_int_token(tok)) RETURN
+    END DO
+    embed_is_count_line = ntok == 1
+  END FUNCTION
+
+  LOGICAL FUNCTION embed_is_species_tag(up)
+    CHARACTER(LEN=*), INTENT(IN) :: up
+    embed_is_species_tag = .FALSE.
+    IF (LEN_TRIM(up) < 8) RETURN
+    IF (up(1:8) /= '!SPECIES') RETURN
+    IF (LEN_TRIM(up) == 8) THEN
+      embed_is_species_tag = .TRUE.
+      RETURN
+    END IF
+    embed_is_species_tag = up(9:9) == ' ' .OR. up(9:9) == ACHAR(9)
+  END FUNCTION
+
+  SUBROUTINE embed_absorb_option_line(work, lmaxc, locc, extra)
+    CHARACTER(LEN=*), INTENT(IN) :: work
+    CHARACTER(LEN=*), INTENT(INOUT) :: lmaxc, locc, extra
+    INTEGER :: tpos
+    CHARACTER(LEN=192) :: tok
+    CHARACTER(LEN=192) :: up
+    tpos = 1
+    DO
+      CALL embed_next_tok(work, tpos, tok)
+      IF (LEN_TRIM(tok) == 0) EXIT
+      CALL embed_upper_copy(tok, up)
+      IF (LEN_TRIM(up) >= 6 .AND. up(1:5) == 'LMAX=') THEN
+        lmaxc = up(6:6)
+      ELSE IF (LEN_TRIM(up) >= 5 .AND. up(1:4) == 'LOC=') THEN
+        locc = up(5:5)
+      ELSE IF (TRIM(up) /= 'KLEINMAN-BYLANDER') THEN
+        IF (LEN_TRIM(extra) == 0) THEN
+          extra = TRIM(tok)
+        ELSE
+          extra = TRIM(extra) // ' ' // TRIM(tok)
+        END IF
+      END IF
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_parse_star(work, path, kb)
+    CHARACTER(LEN=*), INTENT(IN) :: work
+    CHARACTER(LEN=*), INTENT(OUT) :: path
+    LOGICAL, INTENT(OUT) :: kb
+    INTEGER :: tpos
+    CHARACTER(LEN=512) :: tok
+    CHARACTER(LEN=512) :: up
+    path = ' '
+    kb = .FALSE.
+    tpos = 2
+    CALL embed_next_tok(work, tpos, path)
+    DO
+      CALL embed_next_tok(work, tpos, tok)
+      IF (LEN_TRIM(tok) == 0) EXIT
+      CALL embed_upper_copy(tok, up)
+      IF (TRIM(up) == 'KLEINMAN-BYLANDER') kb = .TRUE.
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_parse_following_options(src, zend, pos, lmaxc, locc, extra)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    INTEGER, INTENT(IN) :: zend
+    INTEGER, INTENT(INOUT) :: pos
+    CHARACTER(LEN=*), INTENT(INOUT) :: lmaxc, locc, extra
+    INTEGER :: save
+    CHARACTER(LEN=512) :: line, work, up
+    DO WHILE (pos <= zend)
+      save = pos
+      CALL embed_take_line(src, zend, pos, line)
+      CALL embed_ltrim(line, work)
+      IF (LEN_TRIM(work) == 0) CYCLE
+      IF (work(1:1) == '*' .OR. work(1:1) == '&') THEN
+        pos = save
+        RETURN
+      END IF
+      CALL embed_upper_copy(work, up)
+      IF (embed_is_species_tag(up)) THEN
+        pos = save
+        RETURN
+      END IF
+      IF (embed_is_count_line(work)) RETURN
+      CALL embed_absorb_option_line(work, lmaxc, locc, extra)
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    LOGICAL, INTENT(OUT) :: have(0:120), kbflag(0:120)
+    CHARACTER(LEN=512), INTENT(OUT) :: paths(0:120)
+    CHARACTER(LEN=8), INTENT(OUT) :: lmaxs(0:120), locs(0:120)
+    CHARACTER(LEN=192), INTENT(OUT) :: extras(0:120)
+    INTEGER :: nsrc, pos, rel, ia, iend, zend, pending, tpos
+    CHARACTER(LEN=512) :: line, work, up, path
+    CHARACTER(LEN=64) :: sym
+    CHARACTER(LEN=8) :: lmaxc, locc
+    CHARACTER(LEN=192) :: extra
+    LOGICAL :: kb
+    have = .FALSE.
+    kbflag = .FALSE.
+    paths = ' '
+    lmaxs = ' '
+    locs = ' '
+    extras = ' '
+    nsrc = LEN_TRIM(src)
+    pos = 1
+    DO WHILE (pos <= nsrc)
+      rel = INDEX(src(pos:nsrc), '&ATOMS')
+      IF (rel == 0) rel = INDEX(src(pos:nsrc), '&atoms')
+      IF (rel <= 0) EXIT
+      ia = pos + rel - 1
+      iend = INDEX(src(ia:nsrc), '&END')
+      IF (iend == 0) iend = INDEX(src(ia:nsrc), '&end')
+      IF (iend <= 0) EXIT
+      zend = ia + iend - 2
+      pos = ia
+      pending = -1
+      DO WHILE (pos <= zend)
+        CALL embed_take_line(src, zend, pos, line)
+        CALL embed_ltrim(line, work)
+        IF (LEN_TRIM(work) == 0) CYCLE
+        CALL embed_upper_copy(work, up)
+        IF (embed_is_species_tag(up)) THEN
+          tpos = 9
+          CALL embed_next_tok(work, tpos, sym)
+          pending = embed_z_of_symbol(sym)
+        ELSE IF (work(1:1) == '*') THEN
+          CALL embed_parse_star(work, path, kb)
+          lmaxc = 'S'
+          locc = ' '
+          extra = ' '
+          CALL embed_parse_following_options(src, zend, pos, lmaxc, locc, extra)
+          IF (pending >= 1 .AND. pending <= 120 .AND. LEN_TRIM(path) > 0) THEN
+            have(pending) = .TRUE.
+            kbflag(pending) = kb
+            paths(pending) = path
+            lmaxs(pending) = lmaxc
+            locs(pending) = locc
+            extras(pending) = extra
+          END IF
+          pending = -1
+        END IF
+      END DO
+      pos = ia + iend + 3
+    END DO
+  END SUBROUTINE
+
+  SUBROUTINE embed_table_pp(zz, pp, lmax_val, ok)
+    INTEGER, INTENT(IN) :: zz
+    CHARACTER(LEN=*), INTENT(OUT) :: pp
+    INTEGER, INTENT(OUT) :: lmax_val, ok
+    ok = 0
+    pp = ' '
+    lmax_val = -1
+    IF (zz == 1) THEN
+      pp = 'H_CVB_BLYP.psp'
+      lmax_val = 0
+      ok = 1
+    ELSE IF (zz == 6) THEN
+      pp = 'C_MT_BLYP.psp'
+      lmax_val = 1
+      ok = 1
+    ELSE IF (zz == 7) THEN
+      pp = 'N_MT_BLYP.psp'
+      lmax_val = 1
+      ok = 1
+    ELSE IF (zz == 8) THEN
+      pp = 'O_MT_BLYP.psp'
+      lmax_val = 1
+      ok = 1
+    ELSE IF (zz == 14) THEN
+      pp = 'Si_MT_BLYP.psp'
+      lmax_val = 2
+      ok = 1
+    ELSE IF (zz == 32) THEN
+      pp = 'Ge_MT_BLYP.psp'
+      lmax_val = 1
+      ok = 1
+    END IF
+  END SUBROUTINE
+
+  SUBROUTINE embed_pp_lines_for_z(src, zz, star, opt, ok)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    INTEGER, INTENT(IN) :: zz
+    CHARACTER(LEN=*), INTENT(OUT) :: star, opt
+    INTEGER, INTENT(OUT) :: ok
+    LOGICAL, ALLOCATABLE :: have(:), kbflag(:)
+    CHARACTER(LEN=512), ALLOCATABLE :: paths(:)
+    CHARACTER(LEN=8), ALLOCATABLE :: lmaxs(:), locs(:)
+    CHARACTER(LEN=192), ALLOCATABLE :: extras(:)
+    CHARACTER(LEN=64) :: tpath
+    CHARACTER(LEN=1) :: lc
+    INTEGER :: astat, lmax_val, pok
+    ok = 0
+    star = ' '
+    opt = ' '
+    IF (zz < 1 .OR. zz > 120) THEN
+      WRITE(error_unit, '(A,I0,A)') 'cpmdc: atomic number ', zz, ' is outside 1..120'
+      FLUSH(error_unit)
+      RETURN
+    END IF
+    ALLOCATE(have(0:120), kbflag(0:120), paths(0:120), lmaxs(0:120), locs(0:120), &
+         extras(0:120), STAT=astat)
+    IF (astat /= 0) THEN
+      WRITE(error_unit, '(A)') 'cpmdc: failed to allocate pseudopotential table'
+      FLUSH(error_unit)
+      RETURN
+    END IF
+    CALL embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+    IF (have(zz)) THEN
+      star = '*' // TRIM(paths(zz))
+      IF (kbflag(zz)) star = TRIM(star) // ' KLEINMAN-BYLANDER'
+      opt = ' LMAX=' // TRIM(lmaxs(zz))
+      IF (LEN_TRIM(locs(zz)) > 0) opt = TRIM(opt) // ' LOC=' // TRIM(locs(zz))
+      IF (LEN_TRIM(extras(zz)) > 0) opt = TRIM(opt) // ' ' // TRIM(extras(zz))
+      ok = 1
+      RETURN
+    END IF
+    CALL embed_table_pp(zz, tpath, lmax_val, pok)
+    IF (pok == 0) THEN
+      WRITE(error_unit, '(A,I0,A)') &
+           'cpmdc: no pseudopotential for atomic number ', zz, &
+           ' (absent from the message and from the built-in table H C N O Si Ge)'
+      FLUSH(error_unit)
+      RETURN
+    END IF
+    IF (lmax_val <= 0) THEN
+      lc = 'S'
+    ELSE IF (lmax_val == 1) THEN
+      lc = 'P'
+    ELSE
+      lc = 'D'
+    END IF
+    star = '*' // TRIM(tpath)
+    opt = ' LMAX=' // lc
+    IF (zz == 14) opt = TRIM(opt) // ' LOC=D'
+    ok = 1
+  END SUBROUTINE
+
 #if !defined(CPMDC_HAS_CPMD)
   SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     TYPE(embed_knobs) :: knobs
@@ -516,23 +897,76 @@ CONTAINS
     END DO
     image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
     image%prop%valid = 1_c_int
-    ! Toy isotropic stress (Ha/Bohr^3) so PotentialResult.stress is exercised
-    ! without OpenCPMD: sigma_ii ~ energy / (cell volume in Bohr^3) when cell
-    ! present, else zeros with valid set.
+    ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
+    ! volume, so PotentialResult.stress is exercised without OpenCPMD.
+    ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
+    ! the tensor on a periodic cell as well.
     image%stress%values = 0.0_c_double
-    IF (has_cell /= 0) THEN
-      CALL reference_pef_fill_stress(image, cell, energy_h)
+    image%stress%valid = 0_c_int
+    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
+         .NOT. reference_deck_isolated(knobs%input_deck)) THEN
+      IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
+           image%stress%valid = 1_c_int
     END IF
-    image%stress%valid = 1_c_int
   END SUBROUTINE
 
-  SUBROUTINE reference_pef_fill_stress(image, cell, energy_h)
+  LOGICAL FUNCTION reference_stress_wanted()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st
+    reference_stress_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
+  END FUNCTION
+
+  ! Symmetry 0, a missing symmetry line, CLUSTER, or an isolated-molecule
+  ! keyword is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
+  ! symmetry code is a periodic cell.
+  LOGICAL FUNCTION reference_deck_isolated(deck)
+    CHARACTER(LEN=*), INTENT(IN) :: deck
+    INTEGER :: p, n, sym, saw
+    reference_deck_isolated = .TRUE.
+    n = LEN_TRIM(deck)
+    IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
+    IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
+    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
+    p = 1
+    DO WHILE (p <= n - 7)
+      IF (deck(p:p+7) == 'SYMMETRY') THEN
+        IF (p >= 7) THEN
+          IF (deck(p-6:p-1) == 'CHECK ') THEN
+            p = p + 1
+            CYCLE
+          END IF
+        END IF
+        p = p + 8
+        saw = 0
+        sym = 0
+        DO WHILE (p <= n)
+          IF (deck(p:p) >= '0' .AND. deck(p:p) <= '9') THEN
+            saw = 1
+            sym = sym * 10 + IACHAR(deck(p:p)) - IACHAR('0')
+            p = p + 1
+          ELSE IF (saw == 1) THEN
+            EXIT
+          ELSE
+            p = p + 1
+          END IF
+        END DO
+        IF (saw == 1 .AND. sym > 0) reference_deck_isolated = .FALSE.
+        RETURN
+      END IF
+      p = p + 1
+    END DO
+  END FUNCTION
+
+  INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
     REAL(c_double), INTENT(IN) :: energy_h
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
     INTEGER :: i
+    reference_pef_fill_stress = 0
     inv_b = 1.0_real64 / bohr_to_ang
     DO i = 1, 3
       a(i) = REAL(cell(i), KIND=real64) * inv_b
@@ -547,30 +981,8 @@ CONTAINS
     image%stress%values(1) = REAL(sig, KIND=c_double)
     image%stress%values(5) = REAL(sig, KIND=c_double)
     image%stress%values(9) = REAL(sig, KIND=c_double)
-  END SUBROUTINE
-
-  ! Cold-deck helpers available without linking OpenCPMD (cmocka stub path).
-  SUBROUTINE embed_pp_for_z_local(zz, pp, lmax_val, ok)
-    INTEGER, INTENT(IN) :: zz
-    CHARACTER(LEN=*), INTENT(OUT) :: pp
-    INTEGER, INTENT(OUT) :: lmax_val, ok
-    ok = 0
-    pp = ' '
-    lmax_val = -1
-    IF (zz == 1) THEN
-      pp = 'H_CVB_BLYP.psp'; lmax_val = 0; ok = 1
-    ELSE IF (zz == 6) THEN
-      pp = 'C_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 7) THEN
-      pp = 'N_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 8) THEN
-      pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 14) THEN
-      pp = 'Si_MT_BLYP.psp'; lmax_val = 2; ok = 1
-    ELSE IF (zz == 32) THEN
-      pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    END IF
-  END SUBROUTINE
+    reference_pef_fill_stress = 1
+  END FUNCTION
 
   ! True only when &ATOMS has PP stars AND at least one coordinate triple
   ! before its &END. Params often render *PP.psp stubs without coords; those
@@ -700,10 +1112,10 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=*), INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, lmax_val, base, mlen
+    INTEGER :: i, j, zz, count, pok, base, mlen
     LOGICAL :: seen(0:120)
-    CHARACTER(LEN=64) :: pp
-    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=600) :: star
+    CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
     CHARACTER(LEN=4096) :: method
     ierr = 1
@@ -724,29 +1136,20 @@ CONTAINS
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
-      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (zz < 0 .OR. zz > 120) THEN
+        CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+        ierr = 2
+        RETURN
+      END IF
       IF (seen(zz)) CYCLE
       seen(zz) = .TRUE.
-      CALL embed_pp_for_z_local(zz, pp, lmax_val, pok)
-      IF (pok == 0) RETURN
-      IF (lmax_val == 0) THEN
-        lmax_c = 'S'
-      ELSE IF (lmax_val == 1) THEN
-        lmax_c = 'P'
-      ELSE
-        lmax_c = 'D'
+      CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+      IF (pok == 0) THEN
+        ierr = 2
+        RETURN
       END IF
-      IF (INDEX(knobs%input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
-        CALL append_local(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'// &
-             NEW_LINE('A'))
-      ELSE
-        CALL append_local(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      END IF
-      IF (zz == 14) THEN
-        CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
-      ELSE
-        CALL append_local(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
-      END IF
+      CALL append_local(deck, nlen, TRIM(star)//NEW_LINE('A'))
+      CALL append_local(deck, nlen, TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -861,28 +1264,6 @@ CONTAINS
     image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
   END SUBROUTINE
 
-  SUBROUTINE embed_pp_for_z(zz, pp, lmax_val, ok)
-    INTEGER, INTENT(IN) :: zz
-    CHARACTER(LEN=*), INTENT(OUT) :: pp
-    INTEGER, INTENT(OUT) :: lmax_val, ok
-    ok = 0
-    pp = ' '
-    lmax_val = -1
-    IF (zz == 1) THEN
-      pp = 'H_CVB_BLYP.psp'; lmax_val = 0; ok = 1
-    ELSE IF (zz == 6) THEN
-      pp = 'C_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 7) THEN
-      pp = 'N_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 8) THEN
-      pp = 'O_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    ELSE IF (zz == 14) THEN
-      pp = 'Si_MT_BLYP.psp'; lmax_val = 2; ok = 1
-    ELSE IF (zz == 32) THEN
-      pp = 'Ge_MT_BLYP.psp'; lmax_val = 1; ok = 1
-    END IF
-  END SUBROUTINE
-
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_species_order_map, cpmdc_note_embed_failure
     USE coor, ONLY: tau0
@@ -956,6 +1337,7 @@ CONTAINS
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
+    LOGICAL :: stress_computed
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
@@ -990,9 +1372,10 @@ CONTAINS
     ! tfor; iprint_force alone was not enough on the memfd embed path.
     CALL cpmdc_set_need_forces(.TRUE.)
     ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
-    ! (tclust): rinitwf does tpres→newcell→gf_periodic but scg is only
+    ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
-    IF (.NOT. isos1%tclust .AND. embed_stress_wanted()) cntl%tpres = .TRUE.
+    stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
+    IF (stress_computed) cntl%tpres = .TRUE.
     ! Warm: retain orbitals (skip initrun) and converge to cntr%tolog with the
     ! same MAXITER budget as cold — do not clamp nomore_iter (that is not a
     ! physical SCF for the new geometry).
@@ -1043,8 +1426,10 @@ CONTAINS
     END IF
     ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
     ! true stress is paiu/omega (see totstr/wrstress). Row-major for Cap'n Proto.
+    ! totstr runs only when cntl%tpres was set above. A positive omega is the
+    ! cell volume, including an isolated box whose paiu was not computed.
     omega = parm%omega
-    IF (omega > 1.0e-30_real64) THEN
+    IF (stress_computed .AND. omega > 1.0e-30_real64) THEN
       DO i = 1, 3
         DO j = 1, 3
           image%stress%values(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
@@ -1068,10 +1453,10 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=*), INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, lmax_val
+    INTEGER :: i, j, zz, count, pok
     LOGICAL :: seen(0:120)
-    CHARACTER(LEN=64) :: pp
-    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=600) :: star
+    CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
     CHARACTER(LEN=400) :: celltxt
     INTEGER :: celln
@@ -1116,24 +1501,20 @@ CONTAINS
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
-      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (zz < 0 .OR. zz > 120) THEN
+        CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+        ierr = 2
+        RETURN
+      END IF
       IF (seen(zz)) CYCLE
       seen(zz) = .TRUE.
-      CALL embed_pp_for_z(zz, pp, lmax_val, pok)
-      IF (pok == 0) RETURN
-      IF (lmax_val == 0) THEN
-        lmax_c = 'S'
-      ELSE IF (lmax_val == 1) THEN
-        lmax_c = 'P'
-      ELSE
-        lmax_c = 'D'
+      CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+      IF (pok == 0) THEN
+        ierr = 2
+        RETURN
       END IF
-      CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      IF (zz == 14) THEN
-        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
-      ELSE
-        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
-      END IF
+      CALL append(deck, nlen, TRIM(star)//NEW_LINE('A'))
+      CALL append(deck, nlen, TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -1303,10 +1684,10 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=*), INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, lmax_val, base
+    INTEGER :: i, j, zz, count, pok, base
     LOGICAL :: seen(0:120)
-    CHARACTER(LEN=64) :: pp
-    CHARACTER(LEN=8) :: lmax_c
+    CHARACTER(LEN=600) :: star
+    CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
     CHARACTER(LEN=4096) :: method
     INTEGER :: mlen
@@ -1328,28 +1709,20 @@ CONTAINS
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
-      IF (zz < 0 .OR. zz > 120) RETURN
+      IF (zz < 0 .OR. zz > 120) THEN
+        CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+        ierr = 2
+        RETURN
+      END IF
       IF (seen(zz)) CYCLE
       seen(zz) = .TRUE.
-      CALL embed_pp_for_z(zz, pp, lmax_val, pok)
-      IF (pok == 0) RETURN
-      IF (lmax_val == 0) THEN
-        lmax_c = 'S'
-      ELSE IF (lmax_val == 1) THEN
-        lmax_c = 'P'
-      ELSE
-        lmax_c = 'D'
+      CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
+      IF (pok == 0) THEN
+        ierr = 2
+        RETURN
       END IF
-      IF (INDEX(knobs%input_deck, 'KLEINMAN-BYLANDER') > 0) THEN
-        CALL append(deck, nlen, '*'//TRIM(pp)//' KLEINMAN-BYLANDER'//NEW_LINE('A'))
-      ELSE
-        CALL append(deck, nlen, '*'//TRIM(pp)//NEW_LINE('A'))
-      END IF
-      IF (zz == 14) THEN
-        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//' LOC=D'//NEW_LINE('A'))
-      ELSE
-        CALL append(deck, nlen, ' LMAX='//TRIM(lmax_c)//NEW_LINE('A'))
-      END IF
+      CALL append(deck, nlen, TRIM(star)//NEW_LINE('A'))
+      CALL append(deck, nlen, TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
@@ -1511,7 +1884,8 @@ CONTAINS
              deck, nlen, ierr, knobs)
       END IF
     END IF
-    IF (ierr /= 0) THEN
+    ! ierr 2 is a missing pseudopotential. The minimal deck cannot supply one.
+    IF (ierr /= 0 .AND. ierr /= 2) THEN
       CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
            ierr, knobs)
     END IF
@@ -1640,12 +2014,14 @@ CONTAINS
       image%cfg_warm_steps = 0
       CALL cpmdc_reset_warm_orbitals()
     END IF
-    ! Cold: honor Cap'n-rendered applied_input_deck for method sections.
-    ! 1) Deck with real &ATOMS PP lines (*...) → use as-is.
-    ! 2) Method sections with empty/missing &ATOMS (C render placeholder) →
-    !    keep method text and append geometry &ATOMS from C arrays.
-    ! 3) Else minimal deck with applied functional/cutoff/charge/mult.
-    ! Geometry for forces always from C arrays into TAU0 after parse.
+    ! Cold: honor the rendered method deck.
+    ! 1) &ATOMS that already has coordinates is kept.
+    ! 2) Method sections keep their text. &ATOMS is rebuilt from the step.
+    !    A '!SPECIES' entry supplies that element's file, LMAX, LOC, and
+    !    KLEINMAN-BYLANDER. Other elements use the built-in table.
+    ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
+    !    multiplicity.
+    ! Geometry for forces always comes from the C arrays into TAU0 after parse.
     knobs = knobs_of(image)
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)

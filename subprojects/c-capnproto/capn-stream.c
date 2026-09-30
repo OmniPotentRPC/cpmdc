@@ -7,6 +7,10 @@ static int min(int a, int b) { return (a < b) ? a : b; }
 #endif
 
 int capn_deflate(struct capn_stream* s) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!s)
+		return CAPN_MISALIGNED;
+
 	if (s->avail_in % 8) {
 		return CAPN_MISALIGNED;
 	}
@@ -18,6 +22,10 @@ int capn_deflate(struct capn_stream* s) {
 
 		if (!s->avail_out)
 			return CAPN_NEED_MORE;
+
+		/* C11 6.5.3.2: a null cursor is not a buffer. */
+		if (!s->next_in || !s->next_out)
+			return CAPN_MISALIGNED;
 
 		if (s->raw > 0) {
 			sz = min(s->raw, min(s->avail_in, s->avail_out));
@@ -99,6 +107,10 @@ int capn_deflate(struct capn_stream* s) {
 }
 
 int capn_inflate(struct capn_stream* s) {
+	/* C11 6.5.3.2: a null stream is not a buffer. */
+	if (!s)
+		return CAPN_MISALIGNED;
+
 	if (s->avail_out % 8) {
 		return CAPN_MISALIGNED;
 	}
@@ -106,6 +118,10 @@ int capn_inflate(struct capn_stream* s) {
 	while (s->avail_out) {
 		int i, sz;
 		uint8_t hdr;
+
+		/* C11 6.5.3.2: a null cursor is not a buffer. */
+		if (!s->next_out || (s->avail_in > 0 && !s->next_in))
+			return CAPN_MISALIGNED;
 
 		if (s->zeros > 0) {
 			sz = min(s->avail_out, s->zeros);

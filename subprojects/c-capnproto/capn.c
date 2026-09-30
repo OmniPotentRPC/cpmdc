@@ -152,6 +152,9 @@ void capn_append_segment(struct capn *c, struct capn_segment *s) {
 	/* C11 6.5.3.2: a null segment is not a list node. */
 	if (!s)
 		return;
+	/* CERT INT30-C: a segment count that does not fit is not a new id. */
+	if (c->segnum == (uint32_t)-1)
+		return;
 	s->id = c->segnum++;
 	s->capn = c;
 	s->next = NULL;
@@ -181,6 +184,9 @@ static int seg_room(const struct capn_segment *s, int sz) {
 static char *new_data(struct capn *c, int sz, struct capn_segment **ps) {
 	struct capn_segment *s;
 
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!ps)
+		return NULL;
 	/* C11 6.5.3.2: a null message is not a segment list. */
 	if (!c) {
 		*ps = NULL;
@@ -243,7 +249,8 @@ static struct capn_segment *lookup_segment(struct capn* c, struct capn_segment *
 		s->capn = c;
 		s->next = c->seglist;
 		c->seglist = s;
-		s->hdr.parent = &y->hdr;
+		/* C11 6.5.3.2: a null node is not a parent. */
+		s->hdr.parent = y ? &y->hdr : NULL;
 		*x = &s->hdr;
 		c->segtree = capn_tree_insert(c->segtree, &s->hdr);
 	} else {
@@ -259,6 +266,9 @@ static int far_off(uint64_t val, uint64_t need, const struct capn_segment *s, ui
 	uint64_t bytes = (uint64_t)(U32(val) >> 3) * 8ull;
 	if (!s || s->len < 0 || bytes > (uint64_t)s->len || need > (uint64_t)s->len - bytes)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = bytes;
 	return 0;
 }
@@ -266,6 +276,10 @@ static int far_off(uint64_t val, uint64_t need, const struct capn_segment *s, ui
 static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 	uint64_t far, tag, off;
 	char *p;
+
+	/* C11 6.5.3.2: a null segment cursor is not a lookup. */
+	if (!s || !*s)
+		return 0;
 
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
@@ -296,6 +310,9 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 	   the same byte from the segment start. */
 	if (!(*s)->data)
 		return 0;
+	/* C11 6.5.3.2: a null out-cursor is not a store. */
+	if (!d)
+		return 0;
 	*d = (*s)->data;
 	{
 		uint32_t words = U32(far) >> 3;
@@ -307,6 +324,10 @@ static uint64_t lookup_double(struct capn_segment **s, char **d, uint64_t val) {
 static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	uint64_t off;
 
+	/* C11 6.5.3.2: a null segment cursor is not a lookup. */
+	if (!s || !*s)
+		return 0;
+
 	if ((*s = lookup_segment((*s)->capn, *s, U32(val >> 32))) == NULL) {
 		return 0;
 	}
@@ -317,6 +338,9 @@ static uint64_t lookup_far(struct capn_segment **s, char **d, uint64_t val) {
 	if (!(*s)->data)
 		return 0;
 
+	/* C11 6.5.3.2: a null out-cursor is not a store. */
+	if (!d)
+		return 0;
 	*d = (*s)->data + off;
 	return capn_flip64(*(uint64_t*)*d);
 }
@@ -332,6 +356,9 @@ static int seg_data_off(const struct capn_segment *s, const char *p, uint64_t *o
 	at = (uintptr_t) p;
 	if (at < base || (uint64_t) (at - base) > (uint64_t) s->len)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = (uint64_t) (at - base);
 	return 0;
 }
@@ -340,6 +367,9 @@ static int seg_data_off(const struct capn_segment *s, const char *p, uint64_t *o
 static int load_word(const struct capn_segment *s, const char *d, uint64_t *val) {
 	uint64_t off;
 	if (seg_data_off(s, d, &off) || (uint64_t)s->len - off < 8ull)
+		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!val)
 		return -1;
 	*val = capn_flip64(*(uint64_t *)d);
 	return 0;
@@ -383,8 +413,12 @@ static char *struct_ptr(struct capn_segment *s, char *d, int minsz) {
 		}
 	}
 
-	if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz && s->data <= d && d < s->data + s->len) {
-		return d;
+	/* C11 6.5.8: a relational compare is defined only inside one array. */
+	{
+		uint64_t at;
+		if (val != 0 && (val&3) != STRUCT_PTR && datasz >= minsz
+		    && !seg_data_off(s, d, &at) && at < (uint64_t)s->len)
+			return d;
 	}
 
 	return NULL;
@@ -396,6 +430,9 @@ static int list_end(const struct capn_segment *s, const char *d, uint64_t nbytes
 	if (seg_data_off(s, d, &off))
 		return -1;
 	if (off > (uint64_t)s->len || nbytes > (uint64_t)s->len - off)
+		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!end)
 		return -1;
 	*end = (char *)d + nbytes;
 	return 0;
@@ -552,10 +589,16 @@ void capn_resolve(capn_ptr *p) {
 /* INT32-C: a member byte offset must fit in the bytes that remain. */
 static int ptr_at(const capn_ptr *p, uint64_t bytes, char **out) {
 	uint64_t base;
+	/* C11 6.5.3.2: a null pointer is not a member. */
+	if (!p)
+		return -1;
 	/* C11 6.5.8: relational compare is defined only inside one array. */
 	if (!p->seg || seg_data_off(p->seg, p->data, &base))
 		return -1;
 	if (bytes > (uint64_t)p->seg->len - base)
+		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!out)
 		return -1;
 	*out = p->seg->data + base + bytes;
 	return 0;
@@ -717,6 +760,9 @@ static int far_byte_off(const struct capn_segment *s, const char *tgt, uint64_t 
 	at = (uintptr_t) tgt;
 	if (at < base || (uint64_t) (at - base) >= (uint64_t) s->cap)
 		return -1;
+	/* C11 6.5.3.2: a null out-pointer is not a store. */
+	if (!off)
+		return -1;
 	*off = (uint64_t) (at - base);
 	return 0;
 }
@@ -853,6 +899,9 @@ static capn_ptr new_clone(struct capn_segment *s, capn_ptr p) {
 }
 
 static int is_ptr_equal(const struct capn_ptr *a, const struct capn_ptr *b) {
+	/* C11 6.5.3.2: a null pointer is not a compare. */
+	if (!a || !b)
+		return 0;
 	return a->data == b->data
 		&& a->type == b->type
 		&& a->len == b->len
@@ -989,7 +1038,8 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 		n->fend = fend;
 
 		*xcp = &n->hdr;
-		n->hdr.parent = &cp->hdr;
+		/* C11 6.5.3.2: a null copy node is not a parent. */
+		n->hdr.parent = cp ? &cp->hdr : NULL;
 
 		c->copy = capn_tree_insert(c->copy, &n->hdr);
 	}
@@ -1060,7 +1110,11 @@ static int copy_ptr(struct capn_segment *seg, char *data, struct capn_ptr *t, st
 
 static int copy_list_member(capn_ptr* t, capn_ptr *f, int *dep) {
 	/* copy struct data */
-	int sz = min(t->datasz, f->datasz);
+	int sz;
+	/* C11 6.5.3.2: a null list member is not a copy. */
+	if (!t || !f || !dep)
+		return -1;
+	sz = min(t->datasz, f->datasz);
 	/* C11 7.24.1p2: a positive count needs both pointers. */
 	if (sz) {
 		if (!t->data || !f->data)
@@ -1264,6 +1318,9 @@ int capn_set1(capn_list1 l, int off, int val) {
 
 /* C11 7.24.1p2: a zero count is skipped, and a count past the data fails. */
 static int bit_slice(capn_ptr p, int *off, int sz, int *bsz, int *partial) {
+	/* C11 6.5.3.2: a null index cursor is not a slice. */
+	if (!off || !bsz || !partial)
+		return -1;
 	if (p.type != CAPN_BIT_LIST || sz < 0 || *off < 0 || (*off & 7) != 0)
 		return -1;
 	if (sz > INT_MAX - 7 || p.datasz < 0)
@@ -1331,6 +1388,10 @@ int capn_setv1(capn_list1 l, int off, const uint8_t *data, int sz) {
 #endif
 
 static void new_object(capn_ptr *p, int bytes) {
+	/* C11 6.5.3.2: a null object is not a segment. */
+	if (!p)
+		return;
+
 	struct capn_segment *s = p->seg;
 	uint64_t aligned;
 
