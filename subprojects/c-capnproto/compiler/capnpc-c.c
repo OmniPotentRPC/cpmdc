@@ -666,7 +666,11 @@ static const char *field_name(struct field *f) {
 	};
 
 	int i;
-	const char *s = f->f.name.str;
+	const char *s;
+	/* C11 6.5.3.2: a null field is not a name. */
+	if (!f || !f->f.name.str)
+		return "";
+	s = f->f.name.str;
 	for (i = 0; i < sizeof(reserved)/sizeof(reserved[0]); i++) {
 		if (!strcmp(s, reserved[i])) {
 			return strf(&buf, "_%s", s);
