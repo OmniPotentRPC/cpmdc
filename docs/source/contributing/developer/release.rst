@@ -4,6 +4,8 @@ Versioning
 ``cpmdc`` uses semantic versioning on the public C ABI and Cap'n Proto
 schema fields. Additive Cap'n Proto fields and new ABI entry points are
 minor; breaking field renumbers or ABI signature changes are major.
+The Sphinx ``version`` and ``release`` are the ``version`` field in the
+root ``meson.build``. ``docs/source/conf.py`` reads that field.
 
 Checklist
 =========

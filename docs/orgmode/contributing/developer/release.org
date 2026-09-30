@@ -6,6 +6,8 @@
 fields.
 Additive Cap'n Proto fields and new ABI entry points are minor; breaking field
 renumbers or ABI signature changes are major.
+The Sphinx ~version~ and ~release~ are the ~version~ field in the root
+~meson.build~. ~docs/source/conf.py~ reads that field.
 
 * Checklist
 1. Run ~meson test -C build --print-errorlogs~ on the default parser/session
