@@ -443,11 +443,10 @@ needed because OpenCPMD’s <code class="docutils literal notranslate"><span cla
 path whenever the process has more than one argument, which most hosts
 do. Once the pseudopotential files are read, the working directory
 becomes <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> if that field is set, otherwise <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>,
-otherwise the host directory from before the call. <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>,
-<code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code> are written there.
-<code class="docutils literal notranslate"><span class="pre">LATEST</span></code> and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> do not follow <code class="docutils literal notranslate"><span class="pre">FILEPATH</span></code>, so the working
-directory is what places them. The pseudopotential directory is left
-unchanged.</p>
+otherwise the host directory from before the call. A library force call
+writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>
+there. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes those files in that directory. The
+pseudopotential directory is left unchanged.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code> saves the stress calculation for callers that use
 only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot

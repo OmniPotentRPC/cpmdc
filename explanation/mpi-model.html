@@ -448,11 +448,12 @@ records it, and a second call only reports the group index.</p>
 <h1>Why the parent rank’s result counts<a class="headerlink" href="#why-the-parent-rank-s-result-counts" title="Link to this heading">¶</a></h1>
 <p>CPMD computes the energy and ionic forces for the calculation as a
 whole, and its parent rank, rank 0 of <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>, is the one CPMD
-itself treats as holding them: it writes the output, the restart file,
-and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>. The other ranks return from the same call with values
-of their own. They agreed with the parent in a 4-rank water single
-point. Over the many steps of a search they need not: in a 4-rank dimer
-search where every rank also ran the host’s optimiser, the ranks’ paths
+itself treats as holding them. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes the output, the restart
+file, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> from that rank. A library force call writes none
+of those files. The other ranks return from the same call with values of
+their own. They agreed with the parent in a 4-rank water single point.
+Over the many steps of a search they need not: in a 4-rank dimer search
+where every rank also ran the host’s optimiser, the ranks’ paths
 diverged, and only rank 0’s results matched the file route. The robust
 rule is that the host takes the parent’s result and broadcasts it, so
 every rank’s optimiser steps from the same numbers. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> does not

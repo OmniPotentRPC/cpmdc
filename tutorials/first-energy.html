@@ -625,15 +625,14 @@ The iteration timings in the <code class="docutils literal notranslate"><span cl
 <li><p>the same host running against the default evaluator and against
 OpenCPMD.</p></li>
 </ul>
-<p>CPMD writes <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code> in <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> when that field is set, otherwise
-in <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>, otherwise in the host’s working directory. The
-pseudopotential directory is unchanged. To evaluate many geometries,
-call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> again on the same session:
-every call after the first starts from the orbitals of the previous one.
-The <a class="reference internal" href="eon-rgpot.html"><span class="doc">eOn tutorial</span></a> drives exactly that loop from a
-minimiser, and <a class="reference internal" href="../howto/mpi.html"><span class="doc">running under mpirun</span></a> spreads each
-SCF over several ranks.</p>
+<p>A library force call writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>. The pseudopotential directory is unchanged. To
+evaluate many geometries, call <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code>
+again on the same session: every call after the first starts from the
+orbitals of the previous one. The <a class="reference internal" href="eon-rgpot.html"><span class="doc">eOn tutorial</span></a> drives
+exactly that loop from a minimiser, and
+<a class="reference internal" href="../howto/mpi.html"><span class="doc">running under mpirun</span></a> spreads each SCF over several
+ranks.</p>
 </section>
 
         </article><button class="back-to-top" type="button">

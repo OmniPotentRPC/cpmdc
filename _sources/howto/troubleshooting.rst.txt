@@ -203,18 +203,18 @@ the directory while it reads the pseudopotential files.
 
 **Fix:** ``export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials``.
 
-Where ``RESTART.1``, ``LATEST``, and ``GEOMETRY`` are written
--------------------------------------------------------------
+A library force call writes no restart files
+--------------------------------------------
 
-**Cause:** ``LATEST`` and ``GEOMETRY`` follow the working directory.
-``RESTART.1`` follows ``FILEPATH`` when the deck sets one, and the
-working directory otherwise.
+**Cause:** ``zhwwf`` and ``geofile`` run at the end of an SCF unless the
+embed flag is false. ``libcpmdc`` sets that flag false before every
+force call.
 
-**Fix:** set ``permanentDir``, or ``scratchDir`` when there is no
-permanent directory. The OpenCPMD path uses that directory as the
-working directory after it has read the pseudopotentials. With neither
-field set, the files are written in the host working directory. The
-pseudopotential directory is not used for these files.
+**Fix:** expect no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or
+``GEOMETRY.xyz`` from ``cpmdc_session_calculate_forces`` or
+``cpmdc_session_energy_forces``. ``cpmd.x`` writes those files in
+``permanentDir``, otherwise ``scratchDir``, otherwise the working
+directory.
 
 A preview buffer is shorter than the method deck
 ------------------------------------------------

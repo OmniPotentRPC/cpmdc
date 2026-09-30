@@ -843,8 +843,10 @@ for what the OpenCPMD path adds before CPMD parses it.</p>
 <code class="docutils literal notranslate"><span class="pre">coor%fion</span></code>, the same Born-Oppenheimer force definition as a
 single-point force evaluation after the SCF (self-consistent field).</p>
 <p>On the embed path the Fortran bridge always calls
-<code class="docutils literal notranslate"><span class="pre">embed_set_need_forces(.TRUE.)</span></code> before <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>. OpenCPMD must be
-patched so <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets
+<code class="docutils literal notranslate"><span class="pre">embed_set_need_forces(.TRUE.)</span></code> before <code class="docutils literal notranslate"><span class="pre">wfopts</span></code>. The same subroutine
+calls <code class="docutils literal notranslate"><span class="pre">embed_set_write_files(.FALSE.)</span></code>, so the force call writes no
+<code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>
+leaves that flag true. OpenCPMD must be patched so <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets
 <code class="docutils literal notranslate"><span class="pre">tfor</span> <span class="pre">=</span> <span class="pre">(iprint_force</span> <span class="pre">==</span> <span class="pre">1)</span> <span class="pre">.OR.</span> <span class="pre">embed_need_forces</span></code>. Without that,
 OpenCPMD zeros <code class="docutils literal notranslate"><span class="pre">fion</span></code> after <code class="docutils literal notranslate"><span class="pre">forcedr</span></code> when <code class="docutils literal notranslate"><span class="pre">tfor</span></code> is false and the
 C force buffer stays all zeros even though the energy is finite.

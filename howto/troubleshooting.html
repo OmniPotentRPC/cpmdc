@@ -315,7 +315,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#link-fails-with-r-x86-64-pc32-against-libcpmd-a">Link fails with <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> against <code class="docutils literal notranslate">.a</span></code></a></li>
 <li><a class="reference internal" href="#cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals"><code class="docutils literal notranslate">.F90</span></code> fails to compile on <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code></a></li>
 <li><a class="reference internal" href="#cpmd-cannot-find-o-mt-blyp-psp">CPMD cannot find <code class="docutils literal notranslate">.psp</span></code></a></li>
-<li><a class="reference internal" href="#where-restart-1-latest-and-geometry-are-written">Where <code class="docutils literal notranslate">.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> are written</a></li>
+<li><a class="reference internal" href="#a-library-force-call-writes-no-restart-files">A library force call writes no restart files</a></li>
 <li><a class="reference internal" href="#a-preview-buffer-is-shorter-than-the-method-deck">A preview buffer is shorter than the method deck</a></li>
 </ul>
 </li>
@@ -587,16 +587,16 @@ than one argument, so a host with command-line arguments cannot rely on
 the directory while it reads the pseudopotential files.</p>
 <p><strong>Fix:</strong> <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">CPMDC_PSEUDO_DIR=/path/to/pseudopotentials</span></code>.</p>
 </section>
-<section id="where-restart-1-latest-and-geometry-are-written">
-<h2>Where <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> are written<a class="headerlink" href="#where-restart-1-latest-and-geometry-are-written" title="Link to this heading">¶</a></h2>
-<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">LATEST</span></code> and <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> follow the working directory.
-<code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> follows <code class="docutils literal notranslate"><span class="pre">FILEPATH</span></code> when the deck sets one, and the
-working directory otherwise.</p>
-<p><strong>Fix:</strong> set <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, or <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code> when there is no
-permanent directory. The OpenCPMD path uses that directory as the
-working directory after it has read the pseudopotentials. With neither
-field set, the files are written in the host working directory. The
-pseudopotential directory is not used for these files.</p>
+<section id="a-library-force-call-writes-no-restart-files">
+<h2>A library force call writes no restart files<a class="headerlink" href="#a-library-force-call-writes-no-restart-files" title="Link to this heading">¶</a></h2>
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> run at the end of an SCF unless the
+embed flag is false. <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> sets that flag false before every
+force call.</p>
+<p><strong>Fix:</strong> expect no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code> from <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code> or
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes those files in
+<code class="docutils literal notranslate"><span class="pre">permanentDir</span></code>, otherwise <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>, otherwise the working
+directory.</p>
 </section>
 <section id="a-preview-buffer-is-shorter-than-the-method-deck">
 <h2>A preview buffer is shorter than the method deck<a class="headerlink" href="#a-preview-buffer-is-shorter-than-the-method-deck" title="Link to this heading">¶</a></h2>

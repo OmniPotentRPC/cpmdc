@@ -527,13 +527,12 @@ atom count and the ordered atomic numbers belong to the session.</p>
 </section>
 <section id="the-restart-file">
 <h1>The RESTART file<a class="headerlink" href="#the-restart-file" title="Link to this heading">¶</a></h1>
-<p>The warm path never reads or writes <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> on the host’s behalf.
-CPMD still writes <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code> at the end of each SCF, in
-<code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> if that field is set, otherwise in <code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>,
-otherwise in the host working directory, and reads one on a cold call
-when the deck asks for <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> turns off
-CPMD’s restart of coordinates, velocities, and the stored geometry
-before every SCF: the host owns the geometry, and a
+<p>A library force call writes no <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>. The orbitals for the next call stay in memory.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes those files. A cold library call reads a <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>
+only when the deck asks for <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> turns
+off CPMD’s restart of coordinates, velocities, and the stored geometry
+before every SCF. The host owns the geometry, and a
 <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">COORDINATES</span></code> in the deck would otherwise overwrite the step’s
 positions.</p>
 <p>To seed a cold start from an earlier run with a new geometry, patch the
