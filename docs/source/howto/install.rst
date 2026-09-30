@@ -228,3 +228,4 @@ Pixi tasks
 +---------------------------+-------------+----------------------------+
 
 Run a docs task with ``pixi run -e docs docbld``.
+The published site is `cpmdc.rgoswami.me <https://cpmdc.rgoswami.me>`__.
