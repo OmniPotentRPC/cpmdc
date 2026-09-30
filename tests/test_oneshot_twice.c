@@ -176,12 +176,81 @@ static void test_one_shot_twice_relative_library_path(void **state) {
   free(params);
 }
 
+/* The host names the library relative to where it stands, evaluates once,
+ * then moves to another directory and evaluates a different composition.
+ * That second call is cold and reads the library again, so the path the
+ * first call exported has to resolve from the new directory. */
+static void test_one_shot_host_moves_between_calls(void **state) {
+  struct saved_env pseudo_env;
+  struct saved_env library_env;
+  struct saved_env pp_env;
+  unsigned char *params = NULL;
+  size_t params_size = 0;
+  char original[PATH_MAX];
+  char parent[PATH_MAX];
+  char relative[PATH_MAX];
+  char after[PATH_MAX];
+  char scratch_tmpl[] = "/tmp/cpmdc-oneshot-XXXXXX";
+  char *scratch;
+  const char *pseudo;
+  const char *slash;
+  double grad_a[6];
+  double grad_b[9];
+  const double positions_b[9] = {0.0, 0.0, 0.0, 1.7, 0.0, 0.0, -1.7, 0.0, 0.0};
+  const int numbers_b[3] = {14, 7, 7};
+  CPMDCResult first;
+  CPMDCResult second;
+  (void)state;
+  pseudo = getenv("CPMDC_PSEUDO_DIR");
+  if (!g_params || !pseudo || pseudo[0] != '/')
+    skip();
+  params = read_file(g_params, &params_size);
+  assert_non_null(params);
+  assert_non_null(getcwd(original, sizeof(original)));
+  save_env("CPMDC_PSEUDO_DIR", &pseudo_env);
+  save_env("CPMD_PP_LIBRARY_PATH", &library_env);
+  save_env("PP_LIBRARY_PATH", &pp_env);
+  snprintf(parent, sizeof(parent), "%s", pseudo);
+  while (strlen(parent) > 1 && parent[strlen(parent) - 1] == '/')
+    parent[strlen(parent) - 1] = '\0';
+  slash = strrchr(parent, '/');
+  assert_non_null(slash);
+  assert_true(slash > parent);
+  snprintf(relative, sizeof(relative), "%s", slash + 1);
+  parent[slash - parent] = '\0';
+  scratch = mkdtemp(scratch_tmpl);
+  assert_non_null(scratch);
+  assert_int_equal(chdir(parent), 0);
+  unsetenv("CPMDC_PSEUDO_DIR");
+  setenv("CPMD_PP_LIBRARY_PATH", relative, 1);
+  first = cpmdc_energy_gradient(2, k_positions, k_numbers, params, params_size,
+                                grad_a);
+  report("moving host call 1", &first);
+  assert_int_equal(chdir(scratch), 0);
+  second = cpmdc_energy_gradient(3, positions_b, numbers_b, params,
+                                 params_size, grad_b);
+  report("moving host call 2", &second);
+  assert_non_null(getcwd(after, sizeof(after)));
+  assert_string_equal(after, scratch);
+  assert_int_equal(chdir(original), 0);
+  rmdir(scratch);
+  restore_env("CPMDC_PSEUDO_DIR", &pseudo_env);
+  restore_env("CPMD_PP_LIBRARY_PATH", &library_env);
+  restore_env("PP_LIBRARY_PATH", &pp_env);
+  free(params);
+  assert_int_equal(first.ok, 1);
+  assert_int_equal(second.ok, 1);
+  assert_true(first.energy_h < -5.0);
+  assert_true(second.energy_h < first.energy_h);
+}
+
 int main(int argc, char **argv) {
   if (argc >= 2)
     g_params = argv[1];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_one_shot_twice_absolute_dir),
       cmocka_unit_test(test_one_shot_twice_relative_library_path),
+      cmocka_unit_test(test_one_shot_host_moves_between_calls),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
