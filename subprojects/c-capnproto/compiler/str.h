@@ -24,6 +24,9 @@ static void str_init(struct str *v, int sz) {
 }
 
 static void str_release(struct str *v) {
+	/* C11 6.5.3.2: a null buffer is not a release. */
+	if (!v)
+		return;
 	if (v->cap) {
 		free(v->str);
 	}
