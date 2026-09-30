@@ -97,6 +97,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 		return 0;
 
 	} else if (f && !packed) {
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && !p)
+			return -1;
+		if (sz == 0)
+			return 0;
 		return fread(p, sz, 1, f) != 1;
 
 	} else if (packed) {
