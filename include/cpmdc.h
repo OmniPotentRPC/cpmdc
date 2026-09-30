@@ -426,22 +426,65 @@ void cpmdc_finalize(void);
  * Returns 0 when `out->valid` is set. Values are Hartree.
  */
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
+
+/** @brief Copy the last energy decomposition stored on @p session. */
 int cpmdc_session_last_energy_components(const CPMDCSession *session,
                                          CPMDCEnergyComponents *out);
 
+/**
+ * @brief Copy the last in-process density integrals.
+ *
+ * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
+ */
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
+
+/** @brief Copy the last density integrals stored on @p session. */
 int cpmdc_session_last_charge_integrals(const CPMDCSession *session,
                                         CPMDCChargeIntegrals *out);
+
+/**
+ * @brief Copy the last multi-state energy catalog.
+ *
+ * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
+ */
 int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
+
+/** @brief Copy the last multi-state energy catalog stored on @p session. */
 int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
                                             CPMDCMultiStateEnergies *out);
+
+/**
+ * @brief Copy the last trajectory row.
+ *
+ * Values are Hartree. Returns 0 when `out->valid` is set. Does not write
+ * `cpmdc_last_error()`.
+ */
 int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
+
+/** @brief Copy the last trajectory row stored on @p session. */
 int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session,
                                          CPMDCMDTrajectoryRow *out);
+
+/**
+ * @brief Copy the last property snapshot.
+ *
+ * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
+ */
 int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
+
+/** @brief Copy the last property snapshot stored on @p session. */
 int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
                                          CPMDCPropertySnapshot *out);
+
+/**
+ * @brief Copy the last stress tensor.
+ *
+ * Returns 0 when `out->valid` is set, which is only after stress was computed
+ * for a periodic cell. Does not write `cpmdc_last_error()`.
+ */
 int cpmdc_last_stress(CPMDCStressTensor *out);
+
+/** @brief Copy the last stress tensor stored on @p session. */
 int cpmdc_session_last_stress(const CPMDCSession *session,
                               CPMDCStressTensor *out);
 
