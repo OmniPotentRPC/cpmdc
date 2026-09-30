@@ -19,6 +19,7 @@ PATCHES = {
     "opencpmd_kpoints_inputfile.patch": "src/rkpnt_utils.mod.F90",
     "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
     "opencpmd_tistopgm.patch": "src/timer.mod.F90",
+    "opencpmd_c_mem_addrs.patch": "src/c_mem_utils.c",
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -157,6 +158,14 @@ def main() -> int:
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
             assert_tistopgm(patch)
+        elif name == "opencpmd_c_mem_addrs.patch":
+            text = patch.read_text(encoding="utf-8")
+            if "return (size_t) pp;" not in text:
+                raise AssertionError(f"{name}: missing the address cast")
+            if "return pp;" not in text:
+                raise AssertionError(f"{name}: missing the stock return")
+            if removed <= 0:
+                raise AssertionError(f"{name}: patch must replace upstream code")
         elif removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
         expected = expected_target if isinstance(expected_target, tuple) else (expected_target,)

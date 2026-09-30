@@ -12,6 +12,7 @@ linking `libcpmdc`.
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
 | `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The wavefunction and forces of that call are undefined, the next call sets CPMD up again, and more than one rank aborts the others. A null hook leaves `cpmd.x` calling `my_stopall` |
 | `opencpmd_tistopgm.patch` | `tistopgm` prints the call stack only when `trace_depth` lies inside `trace_names`. Before `tistart` the depth is `HUGE(0)`, and the unguarded walk faults instead of writing `LocalError` |
+| `opencpmd_c_mem_addrs.patch` | `cGetMemAddrs` returns the pointer as `size_t`. `cuda_get_address` stores that integer. GCC 14 rejects the stock return of a `size_t` pointer |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 ```bash
@@ -22,6 +23,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_kpoints_inputfile.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_c_mem_addrs.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
