@@ -201,7 +201,14 @@ cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
 if has_cpmd
-  cpmd_archive_math_libs = (flexiblas.found() ? ['-lflexiblas'] : (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas'])) \
+  if flexiblas.found()
+    blas_link = ['-lflexiblas']
+  elif openblas.found()
+    blas_link = ['-lopenblas']
+  else
+    blas_link = ['-llapack', '-lblas']
+  endif
+  cpmd_archive_math_libs = blas_link \
       + (fftw3_omp.found() ? ['-lfftw3_omp'] : []) \
       + (fftw3.found() ? ['-lfftw3'] : []) \
       + (gomp.found() ? ['-lgomp'] : []) \
