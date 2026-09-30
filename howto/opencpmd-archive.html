@@ -391,7 +391,7 @@ process. A stock OpenCPMD archive does not work inside a host:
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> imports routines that only the patches add, the shared link
 stops on code built without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, and the unpatched SCF driver
 drops the forces and the orbitals that <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads after each call.
-Five patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.</p>
+Six patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.</p>
 </section>
 <section id="patches-and-what-each-one-is-for">
 <h1>Patches and what each one is for<a class="headerlink" href="#patches-and-what-each-one-is-for" title="Link to this heading">¶</a></h1>
@@ -404,62 +404,68 @@ Five patches in <code class="docutils literal notranslate"><span class="pre">too
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/rwfopt_utils.mod.F90</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> deallocates
-<code class="docutils literal notranslate"><span class="pre">fion</span></code> on return and
-starts every SCF from a
-fresh guess, and
-<code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code>
-does not compile</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>,
+<code class="docutils literal notranslate"><span class="pre">src/initrun_driver.mod.F90</span></code>,
+<code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">initrun</span></code> still writes
+<code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> after
+<code class="docutils literal notranslate"><span class="pre">embed_set_write_files(.FALSE.)</span></code>,
+and <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> has no
+<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> to read</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/rwfopt_utils.mod.F90</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> deallocates <code class="docutils literal notranslate"><span class="pre">fion</span></code> on
+return and starts every SCF from a
+fresh guess, and
+<code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> does not
+compile</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/updwf_utils.mod.F90</span></code></p></td>
-<td><p>the optimiser applies
-one more update after
-convergence, so the
-saved orbitals no longer
-match the reported
-energy and forces;
+<td><p>the optimiser applies one more
+update after convergence, so the
+saved orbitals no longer match the
+reported energy and forces;
 steepest descent with
-<code class="docutils literal notranslate"><span class="pre">iproj</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code> also
-needs its <code class="docutils literal notranslate"><span class="pre">gemax</span></code>
-reset before the
+<code class="docutils literal notranslate"><span class="pre">iproj</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code> also needs its
+<code class="docutils literal notranslate"><span class="pre">gemax</span></code> reset before the
 convergence check</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_kpoints_inputfile.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_kpoints_inputfile.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rkpnt_utils.mod.F90</span></code></p></td>
-<td><p>the k-point report reads
-the host’s <code class="docutils literal notranslate"><span class="pre">argv[1]</span></code>
-as the input file name
-and stops with
-<code class="docutils literal notranslate"><span class="pre">STOP</span> <span class="pre">12345</span></code> when it
-is missing or longer
-than 80 characters</p></td>
+<td><p>the k-point report reads the host’s
+<code class="docutils literal notranslate"><span class="pre">argv[1]</span></code> as the input file name
+and stops with <code class="docutils literal notranslate"><span class="pre">STOP</span> <span class="pre">12345</span></code> when
+it is missing or longer than 80
+characters</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/error_handling.mod.F90</span></code></p></td>
-<td><p>a CPMD stop inside an
-evaluation takes the
-<code class="docutils literal notranslate"><span class="pre">my_stopall</span></code> path,
-which OpenCPMD writes to
-end the run</p></td>
+<td><p>a CPMD stop inside an evaluation
+takes the <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code> path,
+which OpenCPMD writes to end the
+run</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_tistopgm.patch</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_tistopgm.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/timer.mod.F90</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tistopgm</span></code> indexes
-<code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> before
-<code class="docutils literal notranslate"><span class="pre">tistart</span></code>, while the
-depth is still
-<code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the
-process faults before
-<code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
+<code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>,
+while the depth is still
+<code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the process faults
+before <code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>The rwfopt patch publishes <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code>,
-<code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code>, and <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>.
+<code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">embed_set_write_files</span></code>. The geometry patch adds <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>, which
+holds <code class="docutils literal notranslate"><span class="pre">embed_write_files</span></code> (default true). Setting it false skips
+<code class="docutils literal notranslate"><span class="pre">geofile</span></code> in <code class="docutils literal notranslate"><span class="pre">initrun</span></code> and the <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> writes in
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>. <code class="docutils literal notranslate"><span class="pre">wrgeof</span></code> still prints coordinates.
+<code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals(.FALSE.)</span></code> frees the saved orbitals.
 <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> and <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> default to false,
 which is the <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> behaviour. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> leaves <code class="docutils literal notranslate"><span class="pre">fion</span></code> allocated
 only when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true, and frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code>
