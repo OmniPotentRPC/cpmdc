@@ -67,7 +67,8 @@ The walk runs only when the depth is inside ~SIZE(tname%trace_names)~.
 
 ~tests/test_opencpmd_patch_integrity.py~ checks that the patches are portable
 unified diffs against the files named above.
-All five are the commits on [[https://github.com/OpenCPMD/CPMD/pull/9][OpenCPMD pull request 9]]
+Apply ~opencpmd_embed_geometry.patch~ first: ~rwfopt~ reads ~embed_ctrl~.
+The other five are the commits on [[https://github.com/OpenCPMD/CPMD/pull/9][OpenCPMD pull request 9]]
 (branch ~embedding-hooks~, ~43cf4e7~) and apply in sequence to OpenCPMD
 commit ~062582b~.
 
@@ -78,7 +79,7 @@ build:
 #+begin_src bash
 git clone https://github.com/OpenCPMD/CPMD.git opencpmd
 cd opencpmd
-for p in embed_rwfopt converged_state \
+for p in embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
@@ -112,7 +113,7 @@ rebuild only the affected members:
 
 #+begin_src bash
 cd /path/to/opencpmd-source
-for p in embed_rwfopt converged_state \
+for p in embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done

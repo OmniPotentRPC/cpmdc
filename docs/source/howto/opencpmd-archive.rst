@@ -7,7 +7,7 @@ process. A stock OpenCPMD archive does not work inside a host:
 ``libcpmdc`` imports routines that only the patches add, the shared link
 stops on code built without ``-fPIC``, and the unpatched SCF driver
 drops the forces and the orbitals that ``cpmdc`` reads after each call.
-Five patches in ``tools/`` and one compiler flag fix those.
+Six patches in ``tools/`` and one compiler flag fix those.
 
 Patches and what each one is for
 ================================
@@ -15,6 +15,11 @@ Patches and what each one is for
 +--------------------------------------+--------------------------------+-----------------------------+
 | Patch                                | File patched                   | Without it                  |
 +======================================+================================+=============================+
+| ``opencpmd_embed_geometry.patch``    | ``src/embed_ctrl.mod.F90``,    | ``initrun`` still writes    |
+|                                      | ``src/initrun_driver.mod.F90``,| ``GEOMETRY``, and           |
+|                                      | ``src/SOURCES``                | ``rwfopt`` has no           |
+|                                      |                                | ``embed_ctrl`` to read      |
++--------------------------------------+--------------------------------+-----------------------------+
 | ``opencpmd_embed_rwfopt.patch``      | ``src/rwfopt_utils.mod.F90``   | ``rwfopt`` drops ``fion``   |
 |                                      |                                | and starts every SCF from   |
 |                                      |                                | a fresh guess, and the      |
@@ -88,8 +93,10 @@ instead of writing ``LocalError``. The walk runs only when the depth is
 inside ``SIZE(tname%trace_names)``.
 
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are
-portable unified diffs against the files named above. All five are the
-commits on `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
+portable unified diffs against the files named above. Apply
+``opencpmd_embed_geometry.patch`` first: ``rwfopt`` reads
+``embed_ctrl``. The other five are the commits on
+`OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
 (branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to
 OpenCPMD commit ``062582b``.
 
@@ -103,7 +110,7 @@ first build:
 
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
-   for p in embed_rwfopt converged_state \
+   for p in embed_geometry embed_rwfopt converged_state \
             kpoints_inputfile stopgm_return tistopgm; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
@@ -139,7 +146,7 @@ source and rebuild only the affected members:
 .. code:: bash
 
    cd /path/to/opencpmd-source
-   for p in embed_rwfopt converged_state \
+   for p in embed_geometry embed_rwfopt converged_state \
             kpoints_inputfile stopgm_return tistopgm; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
