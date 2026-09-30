@@ -66,9 +66,11 @@ table.
 
 ** ~CPMD stopgm during embed SCF~
 *Cause:* CPMD called ~stopgm~, its fatal-error routine, inside the call.
-With ~opencpmd_stopgm_return.patch~ in the archive, ~stopgm~ records the stop
-and returns while an evaluation runs, and ~cpmdc~ returns ~ok == 0~ instead
-of ending the host.
+With ~opencpmd_stopgm_return.patch~ in the archive, ~stopgm~ calls
+~cpmd_stopgm_hook~.
+While an evaluation is armed the catch records the stop code and returns 1,
+so ~stopgm~ returns to its caller, and ~cpmdc~ returns ~ok == 0~ instead of
+ending the host.
 CPMD writes its reason to a ~LocalError-*.log~ file in the working directory
 of that moment.
 During the first call that is the pseudopotential directory, because ~cpmdc~

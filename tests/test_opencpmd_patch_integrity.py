@@ -15,6 +15,9 @@ PATCHES = {
     "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
 }
 
+# The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
+INSERT_ONLY = {"opencpmd_stopgm_return.patch"}
+
 
 def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
     result = subprocess.run(
@@ -31,6 +34,19 @@ def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
     return int(added), int(removed), target
 
 
+def assert_stopgm_hook(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    if "NAME='cpmd_stopgm_hook'" not in text:
+        raise AssertionError(f"{patch.name}: must publish cpmd_stopgm_hook")
+    if "INTEGER(c_int), VALUE :: code" not in text:
+        raise AssertionError(f"{patch.name}: hook must take the stop code by value")
+    for symbol in ("cpmdc_embed_catch", "cpmdc_note_stop"):
+        if symbol in text:
+            raise AssertionError(
+                f"{patch.name}: references {symbol}, so a standalone cpmd.x cannot link"
+            )
+
+
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
     for name, expected_target in PATCHES.items():
@@ -38,7 +54,13 @@ def main() -> int:
         added, removed, target = patch_numstat(repo, patch)
         if added <= 0:
             raise AssertionError(f"{name}: patch must add embed integration code")
-        if removed <= 0:
+        if name in INSERT_ONLY:
+            if removed != 0:
+                raise AssertionError(
+                    f"{name}: hook patch must only add lines, removed {removed}"
+                )
+            assert_stopgm_hook(patch)
+        elif removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
         if target != expected_target:
             raise AssertionError(

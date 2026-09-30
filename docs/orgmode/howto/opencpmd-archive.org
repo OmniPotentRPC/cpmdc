@@ -27,9 +27,15 @@ The warm-orbitals patch adds three public routines to ~rwfopt_utils~,
 It keeps a copy of ~c0~ after each converged call on every rank, restores it
 after ~initrun~ on the next call, and sets ~tfor~ when ~cpmdc~ requests
 forces.
-The stop patch calls ~cpmdc_embed_catch~ and ~cpmdc_note_stop~, which
-~libcpmdc~ provides; ~cpmdc~ then reports the stop as a failed call (see
-[[file:troubleshooting.org][troubleshooting]]).
+The stop patch publishes ~cpmd_stopgm_hook~, a C function pointer.
+~stopgm~ calls it with the stop code passed by value.
+A nonzero return makes ~stopgm~ return to its caller, and a null pointer
+makes ~stopgm~ call ~my_stopall~.
+A standalone ~cpmd.x~ leaves the pointer null and links without ~libcpmdc~.
+While an evaluation is armed, ~libcpmdc~ stores a catch in the pointer.
+The catch records the code and returns 1, and ~cpmdc~ reports the stop as a
+failed call (see [[file:troubleshooting.org][troubleshooting]]).
+~cpmdc_embed_catch~ and ~cpmdc_note_stop~ are exported from ~libcpmdc~.
 
 ~tests/test_opencpmd_patch_integrity.py~ checks that the patches are portable
 unified diffs against the files named above.
