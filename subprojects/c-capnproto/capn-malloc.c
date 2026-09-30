@@ -84,7 +84,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 
 		while (z->avail_out && capn_inflate(z) == CAPN_NEED_MORE) {
 			int r;
-			memmove(zbuf, z->next_in, z->avail_in);
+			/* C11 7.24.1p2: a null buffer is not a copy. */
+			if (z->avail_in > 0 && (!zbuf || !z->next_in))
+				return -1;
+			if (z->avail_in > 0)
+				memmove(zbuf, z->next_in, z->avail_in);
 			r = fread(zbuf+z->avail_in, 1, ZBUF_SZ - z->avail_in, f);
 			if (r <= 0)
 				return -1;
