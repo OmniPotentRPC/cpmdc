@@ -40,10 +40,12 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "PUBLIC :: embed_set_warm_orbitals",
         "PUBLIC :: embed_set_need_forces",
         "PUBLIC :: embed_reset_warm_orbitals",
-        "IF (embed_warm_orbitals) CALL embed_save_orbitals(c0)",
+        "IF (embed_warm_orbitals .AND. ropt_mod%convwf) CALL embed_save_orbitals(c0)",
         "IF (.NOT.embed_need_forces) THEN",
         "IF (ALLOCATED(fion)) DEALLOCATE(fion)",
         "CALL stopgm('embed_save_orbitals', 'allocation problem'",
+        "CALL stopgm('embed_restore_orbitals'",
+        "saved orbitals do not match c0; call embed_reset_warm_orbitals",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
@@ -86,10 +88,10 @@ def assert_stopgm_hook(patch: Path) -> None:
         raise AssertionError(f"{patch.name}: must publish cpmd_stopgm_hook")
     if "INTEGER(c_int), VALUE :: code" not in text:
         raise AssertionError(f"{patch.name}: hook must take the stop code by value")
-    if "every result of the current CPMD call as invalid" not in text:
+    if "its results and set CPMD up again" not in text:
         raise AssertionError(f"{patch.name}: missing the invalid-result contract")
-    if "set up CPMD again" not in text:
-        raise AssertionError(f"{patch.name}: missing the setup-again contract")
+    if "or abort the others itself" not in text:
+        raise AssertionError(f"{patch.name}: missing the multi-rank contract")
     for symbol in ("cpmdc_embed_catch", "cpmdc_note_stop"):
         if symbol in text:
             raise AssertionError(
