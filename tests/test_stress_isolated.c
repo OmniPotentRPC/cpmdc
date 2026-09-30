@@ -83,12 +83,12 @@ static int eval_stress(const char *params_path, int *wire_stress,
   pr.p = capn_getp(capn_root(&arena), 0, 1);
   struct PotentialResult view;
   read_PotentialResult(&view, pr);
-  if (view.stress.p.type == CAPN_NULL)
-    *wire_stress = 0;
-  else {
-    assert_int_equal(capn_len(view.stress), 9);
-    *wire_stress = 1;
-  }
+  /* An omitted tensor is an empty list, not a null pointer. Nine values
+   * means the snapshot was written. */
+  int nstress = 0;
+  if (view.stress.p.type != CAPN_NULL)
+    nstress = capn_len(view.stress);
+  *wire_stress = nstress == 9;
   capn_free(&arena);
   cpmdc_session_destroy(session);
   free(out);
