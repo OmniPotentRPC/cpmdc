@@ -663,81 +663,472 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 <p>Pointer to the matching table entry, or <code class="docutils literal notranslate"><span class="pre">NULL</span></code> when the feature ID is not present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ae7b62fa4d0ac1400f7ca88fae6687f2e"><span id="index-52"></span><a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* cpmdc_restart_read_mem(const void* bytes, size_t nbytes, char* err, size_t err_cap)</pre>
 <p>Read a RESTART image from a memory buffer.</p>
-<p><code class="docutils literal notranslate"><span class="pre">err</span></code> receives a diagnostic when the read fails and may be NULL.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>bytes</p></td>
+<td><p>RESTART image bytes.</p></td>
+</tr>
+<tr class="row-even"><td><p>nbytes</p></td>
+<td><p>Number of bytes in <code class="docutils literal notranslate"><span class="pre">bytes</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>err</p></td>
+<td><p>Diagnostic buffer. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>err_cap</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">err</span></code>, including the terminating NUL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>The image, or NULL on failure.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ac5c4295836c617d13898d447a69e5d23"><span id="index-53"></span><a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* cpmdc_restart_read_path(const char* path, char* err, size_t err_cap)</pre>
 <p>Read a RESTART image from a filesystem path.</p>
-<p><code class="docutils literal notranslate"><span class="pre">err</span></code> receives a diagnostic when the read fails and may be NULL.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>path</p></td>
+<td><p>Filesystem path of the RESTART file.</p></td>
+</tr>
+<tr class="row-even"><td><p>err</p></td>
+<td><p>Diagnostic buffer. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>err_cap</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">err</span></code>, including the terminating NUL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>The image, or NULL on failure.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a21508759d96038feef8c60585540cef8"><span id="index-54"></span>void cpmdc_restart_free(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
 <p>Release an image returned by the readers.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to free. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9b4712e82aa09f84838b8df2dae379df"><span id="index-55"></span>int cpmdc_restart_is_stream(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
-<p>1 when <code class="docutils literal notranslate"><span class="pre">file</span></code> uses the continuing-record stream layout.</p>
+<p>Report whether the image uses the continuing-record stream layout.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>1 when <code class="docutils literal notranslate"><span class="pre">file</span></code> uses that layout, 0 otherwise.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aba7859dc9d37fbd8e751eef430ca5850"><span id="index-56"></span>const char* cpmdc_restart_header(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
-<p>Section 1 header text, or NULL when the image has none.</p>
+<p>Section 1 header text.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>The header, or NULL when the image has none.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a050b8c038447fe4331830979e20b168c"><span id="index-57"></span>int cpmdc_restart_section(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int section, int* count)</pre>
 <p>Report one section’s record count.</p>
-<p><code class="docutils literal notranslate"><span class="pre">section</span></code> is 1-based. <code class="docutils literal notranslate"><span class="pre">count</span></code> is the integer in the section header, or 0 when the section is empty.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>section</p></td>
+<td><p>1-based section index.</p></td>
+</tr>
+<tr class="row-odd"><td><p>count</p></td>
+<td><p>Receives the integer in the section header, or 0 when the section is empty.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 when the section is present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ac1cdda0a95509fea2153133d80f96b7b"><span id="index-58"></span>int cpmdc_restart_cell(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* ibrav, int* indpg, double celldm[6])</pre>
 <p>Read the cell description.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>ibrav</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">ibrav</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>indpg</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">indpg</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>celldm</p></td>
+<td><p>Receives the six lattice parameters. Required.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 when the cell section is present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a25f632af816723de80cb0218a28b016e"><span id="index-59"></span>int cpmdc_restart_species(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* nsp, const int** na_per_species)</pre>
 <p>Read the species counts.</p>
-<p><code class="docutils literal notranslate"><span class="pre">na_per_species</span></code> points at the image’s own array until the image is freed or rewritten.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>nsp</p></td>
+<td><p>Receives the stored species count. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>na_per_species</p></td>
+<td><p>Points at the image’s own array. May be NULL. Valid until the image is freed or rewritten.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 when the species section is present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span id="index-60"></span>int cpmdc_restart_ncoords(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
-<p>Number of coordinate triples in section 4, or 0 when that section is empty.</p>
+<p>Number of coordinate triples in section 4.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>The triple count, or 0 when that section is empty.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span id="index-61"></span>int cpmdc_restart_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy coordinates in Bohr.</p>
-<p><code class="docutils literal notranslate"><span class="pre">xyz</span></code> receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n3</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">xyz</span></code> in doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span id="index-62"></span>int cpmdc_restart_velocities(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy velocities in Bohr.</p>
-<p><code class="docutils literal notranslate"><span class="pre">xyz</span></code> receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n3</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">xyz</span></code> in doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a337a3c4578f21b024c908e66e0dd38fe"><span id="index-63"></span>int cpmdc_restart_initial_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy the initial geometry in Bohr.</p>
-<p><code class="docutils literal notranslate"><span class="pre">xyz</span></code> receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n3</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">xyz</span></code> in doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3f076f8969698092b18908fb462ca13d"><span id="index-64"></span>int cpmdc_restart_set_coordinates(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
 <p>Replace coordinates, leaving every other record unchanged.</p>
-<p><code class="docutils literal notranslate"><span class="pre">xyz</span></code> holds <code class="docutils literal notranslate"><span class="pre">n3</span></code> doubles, <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code>.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to modify.</p></td>
+</tr>
+<tr class="row-even"><td><p>xyz</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">n3</span></code> doubles, <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code>, in Bohr.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n3</p></td>
+<td><p>Number of doubles in <code class="docutils literal notranslate"><span class="pre">xyz</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9f63ac6376aac41fd01fae63a73f3894"><span id="index-65"></span>int cpmdc_restart_set_velocities(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
 <p>Replace velocities, leaving every other record unchanged.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to modify.</p></td>
+</tr>
+<tr class="row-even"><td><p>xyz</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">n3</span></code> doubles, in Bohr.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n3</p></td>
+<td><p>Number of doubles in <code class="docutils literal notranslate"><span class="pre">xyz</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3395624eaaf387d38411b709c6f4c06b"><span id="index-66"></span>int cpmdc_restart_set_cell(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double celldm[6])</pre>
 <p>Replace the cell lattice parameters.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to modify.</p></td>
+</tr>
+<tr class="row-even"><td><p>celldm</p></td>
+<td><p>Six lattice parameters.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a7fb885214c7ad0cda83cb7f7680fac6c"><span id="index-67"></span>int cpmdc_restart_cutoff(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s)</pre>
 <p>Read the cutoff section.</p>
 <p><code class="docutils literal notranslate"><span class="pre">dual_flag</span></code> is the logical <code class="docutils literal notranslate"><span class="pre">dual</span></code> stored in section 7 (0 or 1), not the real dual factor. That factor is <code class="docutils literal notranslate"><span class="pre">cdual</span></code>.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>ecut</p></td>
+<td><p>Receives the stored cutoff. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cdual</p></td>
+<td><p>Receives the stored real dual factor. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>dual_flag</p></td>
+<td><p>Receives the stored logical dual, 0 or 1. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nel</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nel</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>nr1s</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nr1s</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nr2s</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nr2s</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>nr3s</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nr3s</span></code>. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 when the section is present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a5870f76d69d3672e1fa136c705475dbc"><span id="index-68"></span>int cpmdc_restart_states(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl)</pre>
 <p>Read the electronic-state counts.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to query.</p></td>
+</tr>
+<tr class="row-even"><td><p>n</p></td>
+<td><p>Receives the stored state count. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nkpts</p></td>
+<td><p>Receives the stored k-point count. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>ngw</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">ngw</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>ngwl</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">ngwl</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>nhg</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nhg</span></code>. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nhgl</p></td>
+<td><p>Receives the stored <code class="docutils literal notranslate"><span class="pre">nhgl</span></code>. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 when the section is present.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a999ee8be4f5b1b7c629b28fedd6e6a4f"><span id="index-69"></span>int cpmdc_restart_write_mem(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, void** bytes, size_t* nbytes, char* err, size_t err_cap)</pre>
 <p>Write the image to a newly allocated buffer.</p>
-<p><code class="docutils literal notranslate"><span class="pre">bytes</span></code> receives a buffer the caller frees. <code class="docutils literal notranslate"><span class="pre">err</span></code> receives a diagnostic when the write fails and may be NULL.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to write.</p></td>
+</tr>
+<tr class="row-even"><td><p>bytes</p></td>
+<td><p>Receives a buffer the caller frees.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nbytes</p></td>
+<td><p>Receives the number of bytes written.</p></td>
+</tr>
+<tr class="row-even"><td><p>err</p></td>
+<td><p>Diagnostic buffer. May be NULL.</p></td>
+</tr>
+<tr class="row-odd"><td><p>err_cap</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">err</span></code>, including the terminating NUL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1adda72bd3313b8e2ebd04360cb4ed5d2f"><span id="index-70"></span>int cpmdc_restart_write_path(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char* path, char* err, size_t err_cap)</pre>
 <p>Write the image to a filesystem path.</p>
-<p><code class="docutils literal notranslate"><span class="pre">err</span></code> receives a diagnostic when the write fails and may be NULL.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image to write.</p></td>
+</tr>
+<tr class="row-even"><td><p>path</p></td>
+<td><p>Destination path.</p></td>
+</tr>
+<tr class="row-odd"><td><p>err</p></td>
+<td><p>Diagnostic buffer. May be NULL.</p></td>
+</tr>
+<tr class="row-even"><td><p>err_cap</p></td>
+<td><p>Capacity of <code class="docutils literal notranslate"><span class="pre">err</span></code>, including the terminating NUL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
 </section>
