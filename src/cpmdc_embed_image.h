@@ -20,6 +20,9 @@ typedef struct CPMDCEmbedImage {
   double cutoff_ry;
   int cfg_charge;
   int multiplicity;
-  char input_deck[4096];
+  /* Owned method deck. NULL when unset. input_deck_len is the byte count
+   * and does not include the trailing NUL; the allocation is one past it. */
+  char *input_deck;
+  int input_deck_len;
   char cpmd_root[1024];
 } CPMDCEmbedImage;

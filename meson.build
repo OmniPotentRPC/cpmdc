@@ -1130,6 +1130,18 @@ test(
     suite: ['cmocka', 'params', 'capnp-fortran'],
   )
 
+  test(
+    'long-method-deck',
+    executable(
+      'test_long_method_deck',
+      'tests/test_long_method_deck.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    suite: ['cmocka', 'params'],
+  )
+
   potential_config_common_cpmd_bin = custom_target(
     'potential_config_common_cpmd_bin',
     input: 'tests/potential_config_common_cpmd.capnp.txt',

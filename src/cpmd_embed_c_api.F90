@@ -71,7 +71,8 @@ MODULE cpmd_embed_c_api
     REAL(c_double) :: cutoff_ry
     INTEGER(c_int) :: cfg_charge
     INTEGER(c_int) :: multiplicity
-    CHARACTER(KIND=c_char) :: input_deck(4096)
+    TYPE(c_ptr) :: input_deck
+    INTEGER(c_int) :: input_deck_len
     CHARACTER(KIND=c_char) :: cpmd_root(1024)
   END TYPE
 #if defined(CPMDC_HAS_CPMD)
@@ -83,7 +84,7 @@ MODULE cpmd_embed_c_api
     REAL(real64) :: cutoff_ry = 70.0_real64
     INTEGER :: charge = 0
     INTEGER :: mult = 1
-    CHARACTER(LEN=4096) :: input_deck = ' '
+    CHARACTER(LEN=:), ALLOCATABLE :: input_deck
     CHARACTER(LEN=1024) :: cpmd_root = ' '
   END TYPE
 
@@ -287,6 +288,7 @@ CONTAINS
   FUNCTION knobs_of(image) RESULT(k)
     TYPE(cpmdc_embed_image), INTENT(IN) :: image
     TYPE(embed_knobs) :: k
+    k%input_deck = ''
     IF (image%cfg_set == 0_c_int) RETURN
     CALL copy_cchars_to_f(image%functional, 64, k%functional)
     IF (LEN_TRIM(k%functional) == 0) k%functional = 'BLYP'
@@ -294,7 +296,8 @@ CONTAINS
     IF (k%cutoff_ry <= 0.0_real64) k%cutoff_ry = 70.0_real64
     k%charge = INT(image%cfg_charge)
     k%mult = MAX(1, INT(image%multiplicity))
-    CALL copy_cchars_to_f(image%input_deck, 4096, k%input_deck)
+    IF (C_ASSOCIATED(image%input_deck) .AND. image%input_deck_len > 0) &
+        CALL cptr_to_alloc(image%input_deck, INT(image%input_deck_len), k%input_deck)
     CALL copy_cchars_to_f(image%cpmd_root, 1024, k%cpmd_root)
   END FUNCTION
 
@@ -312,7 +315,6 @@ CONTAINS
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     CHARACTER(LEN=64) :: functional_l
-    CHARACTER(LEN=4096) :: deck_l
     CHARACTER(LEN=1024) :: root_l
     INTEGER(c_int) :: ok
     ok = 0_c_int
@@ -324,14 +326,16 @@ CONTAINS
     CALL C_F_POINTER(image_c, image)
     CALL cstr_to_f(functional, functional_len, functional_l)
     IF (LEN_TRIM(functional_l) == 0) functional_l = 'BLYP'
-    CALL cstr_to_f(input_deck, input_deck_len, deck_l)
     CALL cstr_to_f(cpmd_root, cpmd_root_len, root_l)
     CALL copy_f_to_cchars(functional_l, image%functional, 64)
     image%cutoff_ry = REAL(cutoff_ry, KIND=c_double)
     IF (image%cutoff_ry <= 0.0_c_double) image%cutoff_ry = 70.0_c_double
     image%cfg_charge = INT(charge, KIND=c_int)
     image%multiplicity = MAX(1_c_int, INT(multiplicity, KIND=c_int))
-    CALL copy_f_to_cchars(deck_l, image%input_deck, 4096)
+    IF (store_image_deck(image_c, input_deck, input_deck_len) /= 0_c_int) THEN
+      image%cfg_set = 0_c_int
+      RETURN
+    END IF
     CALL copy_f_to_cchars(root_l, image%cpmd_root, 1024)
     image%cfg_set = 1_c_int
     ok = 1_c_int
@@ -344,14 +348,12 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: deck_len
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
-    CHARACTER(LEN=4096) :: deck_l
     INTEGER(c_int) :: ok
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized .OR. deck_len < 0) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    IF (store_image_deck(image_c, deck, deck_len) /= 0_c_int) RETURN
     CALL C_F_POINTER(image_c, image)
-    CALL cstr_to_f(deck, deck_len, deck_l)
-    CALL copy_f_to_cchars(deck_l, image%input_deck, 4096)
     image%cfg_set = 1_c_int
     ok = 1_c_int
   END FUNCTION
@@ -408,6 +410,123 @@ CONTAINS
       fstr(i:i) = TRANSFER(cbuf(i), 'a')
     END DO
   END SUBROUTINE
+
+  FUNCTION store_image_deck(image_c, text, text_len) RESULT(rc)
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    CHARACTER(KIND=c_char), INTENT(IN) :: text(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: text_len
+    INTEGER(c_int) :: rc
+    INTERFACE
+      FUNCTION cpmdc_embed_image_store_deck(image, text, text_len) &
+          BIND(C, NAME='cpmdc_embed_image_store_deck')
+        IMPORT :: c_ptr, c_char, c_int
+        TYPE(c_ptr), VALUE :: image
+        CHARACTER(KIND=c_char), INTENT(IN) :: text(*)
+        INTEGER(c_int), VALUE :: text_len
+        INTEGER(c_int) :: cpmdc_embed_image_store_deck
+      END FUNCTION
+    END INTERFACE
+    rc = cpmdc_embed_image_store_deck(image_c, text, text_len)
+  END FUNCTION
+
+  SUBROUTINE cptr_to_alloc(src, n, dst)
+    TYPE(c_ptr), INTENT(IN) :: src
+    INTEGER, INTENT(IN) :: n
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: dst
+    CHARACTER(KIND=c_char), POINTER :: bytes(:)
+    INTEGER :: i, stat
+    IF (n <= 0 .OR. .NOT. C_ASSOCIATED(src)) THEN
+      dst = ''
+      RETURN
+    END IF
+    ALLOCATE(CHARACTER(LEN=n) :: dst, STAT=stat)
+    IF (stat /= 0) THEN
+      dst = ''
+      RETURN
+    END IF
+    CALL C_F_POINTER(src, bytes, [n])
+    DO i = 1, n
+      dst(i:i) = bytes(i)
+    END DO
+  END SUBROUTINE
+
+  ! Grow buf so the next m characters fit. A short buf is an error, not a cut.
+  SUBROUTINE append_grow(buf, n, s, ierr)
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: buf
+    INTEGER, INTENT(INOUT) :: n
+    CHARACTER(LEN=*), INTENT(IN) :: s
+    INTEGER, INTENT(OUT) :: ierr
+    CHARACTER(LEN=:), ALLOCATABLE :: grown
+    INTEGER :: m, need, stat
+    ierr = 1
+    m = LEN(s)
+    IF (n < 0 .OR. m < 0) RETURN
+    IF (m > HUGE(need) - MAX(n, 0)) RETURN
+    need = n + m
+    IF (.NOT. ALLOCATED(buf) .OR. need > LEN(buf)) THEN
+      ALLOCATE(CHARACTER(LEN=need) :: grown, STAT=stat)
+      IF (stat /= 0) RETURN
+      IF (n > 0 .AND. ALLOCATED(buf)) grown(1:n) = buf(1:n)
+      CALL MOVE_ALLOC(grown, buf)
+    END IF
+    IF (m > 0) buf(n + 1:n + m) = s(1:m)
+    n = need
+    ierr = 0
+  END SUBROUTINE
+
+  ! Copy src without &ATOMS blocks. dst is sized from src, so nothing is dropped.
+  SUBROUTINE strip_atoms_alloc(src, dst, nlen, ierr)
+    CHARACTER(LEN=*), INTENT(IN) :: src
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: dst
+    INTEGER, INTENT(OUT) :: nlen, ierr
+    INTEGER :: i, n, end_at, j, stat
+    CHARACTER(LEN=16) :: tag
+    ierr = 0
+    nlen = 0
+    n = LEN_TRIM(src)
+    IF (n < 1) THEN
+      dst = ''
+      RETURN
+    END IF
+    ALLOCATE(CHARACTER(LEN=n) :: dst, STAT=stat)
+    IF (stat /= 0) THEN
+      dst = ''
+      ierr = 1
+      RETURN
+    END IF
+    i = 1
+    DO WHILE (i <= n)
+      IF (i + 5 <= n) THEN
+        tag = src(i:MIN(i + 5, n))
+        IF (tag == '&ATOMS' .OR. tag == '&atoms') THEN
+          end_at = 0
+          j = i + 6
+          DO WHILE (j + 3 <= n)
+            IF (src(j:j + 3) == '&END' .OR. src(j:j + 3) == '&end') THEN
+              end_at = j + 3
+              EXIT
+            END IF
+            j = j + 1
+          END DO
+          IF (end_at > 0) THEN
+            i = end_at + 1
+            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
+              i = i + 1
+            END DO
+            CYCLE
+          END IF
+        END IF
+      END IF
+      IF (nlen >= LEN(dst)) THEN
+        ierr = 1
+        RETURN
+      END IF
+      nlen = nlen + 1
+      dst(nlen:nlen) = src(i:i)
+      i = i + 1
+    END DO
+  END SUBROUTINE
+
 
   ! Rendered &ATOMS stubs tag each pseudopotential with '!SPECIES SYM'.
   ! KLEINMAN-BYLANDER is read from that species' *file line only.
@@ -1004,76 +1123,32 @@ CONTAINS
         INDEX(d, '&CPMD') > 0 .OR. INDEX(d, '&cpmd') > 0
   END FUNCTION
 
-  SUBROUTINE strip_atoms_sections_local(src, dst, nlen)
-    CHARACTER(LEN=*), INTENT(IN) :: src
-    CHARACTER(LEN=*), INTENT(OUT) :: dst
-    INTEGER, INTENT(OUT) :: nlen
-    INTEGER :: i, n, end_at, j
-    CHARACTER(LEN=16) :: tag
-    dst = ' '
-    nlen = 0
-    n = LEN_TRIM(src)
-    IF (n < 1) RETURN
-    i = 1
-    DO WHILE (i <= n)
-      IF (i + 5 <= n) THEN
-        tag = src(i:MIN(i + 5, n))
-        IF (tag == '&ATOMS' .OR. tag == '&atoms') THEN
-          end_at = 0
-          j = i + 6
-          DO WHILE (j + 3 <= n)
-            IF (src(j:j+3) == '&END' .OR. src(j:j+3) == '&end') THEN
-              end_at = j + 3
-              EXIT
-            END IF
-            j = j + 1
-          END DO
-          IF (end_at > 0) THEN
-            i = end_at + 1
-            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
-              i = i + 1
-            END DO
-            CYCLE
-          END IF
-        END IF
-      END IF
-      IF (nlen < LEN(dst)) THEN
-        nlen = nlen + 1
-        dst(nlen:nlen) = src(i:i)
-      END IF
-      i = i + 1
-    END DO
-  END SUBROUTINE
-
   SUBROUTINE embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
       deck, nlen, ierr, knobs)
     TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, base, mlen
+    INTEGER :: i, j, zz, count, pok, mlen, failed, stat
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=600) :: star
     CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
-    CHARACTER(LEN=4096) :: method
+    CHARACTER(LEN=:), ALLOCATABLE :: method
     ierr = 1
-    deck = ' '
     nlen = 0
-    CALL strip_atoms_sections_local(knobs%input_deck, method, mlen)
-    base = MIN(mlen, LEN(deck) - 64)
-    IF (base < 1) RETURN
-    deck(1:base) = method(1:base)
-    nlen = base
-    IF (deck(nlen:nlen) /= NEW_LINE('A')) THEN
-      IF (nlen < LEN(deck)) THEN
-        nlen = nlen + 1
-        deck(nlen:nlen) = NEW_LINE('A')
-      END IF
-    END IF
-    CALL append_local(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    deck = ''
+    failed = 0
+    IF (.NOT. ALLOCATED(knobs%input_deck)) RETURN
+    CALL strip_atoms_alloc(knobs%input_deck, method, mlen, stat)
+    IF (stat /= 0 .OR. mlen < 1) RETURN
+    deck = method(1:mlen)
+    nlen = mlen
+    IF (deck(nlen:nlen) /= NEW_LINE('A')) &
+        CALL append_local(NEW_LINE('A'))
+    CALL append_local('&ATOMS'//NEW_LINE('A'))
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
@@ -1089,34 +1164,32 @@ CONTAINS
         ierr = 2
         RETURN
       END IF
-      CALL append_local(deck, nlen, TRIM(star)//NEW_LINE('A'))
-      CALL append_local(deck, nlen, TRIM(opt)//NEW_LINE('A'))
+      CALL append_local(TRIM(star)//NEW_LINE('A'))
+      CALL append_local(TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
       END DO
       WRITE(line, '(A,I4)') '   ', count
-      CALL append_local(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      CALL append_local(TRIM(line)//NEW_LINE('A'))
       DO j = 1, n_atoms
         IF (INT(z(j)) /= zz) CYCLE
         WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
-        CALL append_local(deck, nlen, TRIM(line)//NEW_LINE('A'))
+        CALL append_local(TRIM(line)//NEW_LINE('A'))
       END DO
     END DO
-    CALL append_local(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append_local('&END'//NEW_LINE('A'))
+    IF (failed /= 0) RETURN
     IF (has_cell < 0) RETURN
     IF (cell(1) < -1.0e300_c_double) RETURN
     ierr = 0
   CONTAINS
-    SUBROUTINE append_local(buf, n, s)
-      CHARACTER(LEN=*), INTENT(INOUT) :: buf
-      INTEGER, INTENT(INOUT) :: n
+    SUBROUTINE append_local(s)
       CHARACTER(LEN=*), INTENT(IN) :: s
-      INTEGER :: m
-      m = LEN(s)
-      IF (n + m > LEN(buf)) RETURN
-      buf(n+1:n+m) = s
-      n = n + m
+      INTEGER :: st
+      IF (failed /= 0) RETURN
+      CALL append_grow(deck, nlen, s, st)
+      IF (st /= 0) failed = 1
     END SUBROUTINE
   END SUBROUTINE
 
@@ -1126,20 +1199,21 @@ CONTAINS
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
     nlen = 0
     ierr = 1
-    deck = ' '
-    IF (LEN_TRIM(knobs%input_deck) > 0) THEN
-      IF (deck_has_real_atoms_local(knobs%input_deck)) THEN
-        nlen = MIN(LEN_TRIM(knobs%input_deck), LEN(deck))
-        deck(1:nlen) = knobs%input_deck(1:nlen)
-        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
-        ierr = 0
-      ELSE IF (deck_has_method_sections_local(knobs%input_deck)) THEN
-        CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
-             deck, nlen, ierr, knobs)
+    deck = ''
+    IF (ALLOCATED(knobs%input_deck)) THEN
+      IF (LEN_TRIM(knobs%input_deck) > 0) THEN
+        IF (deck_has_real_atoms_local(knobs%input_deck)) THEN
+          nlen = LEN_TRIM(knobs%input_deck)
+          deck = knobs%input_deck(1:nlen)
+          ierr = 0
+        ELSE IF (deck_has_method_sections_local(knobs%input_deck)) THEN
+          CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
+               deck, nlen, ierr, knobs)
+        END IF
       END IF
     END IF
   END SUBROUTINE
@@ -1158,8 +1232,8 @@ CONTAINS
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
-    CHARACTER(LEN=16384) :: deck
-    INTEGER :: nlen, ierr, i, ncopy
+    CHARACTER(LEN=:), ALLOCATABLE :: deck
+    INTEGER :: nlen, ierr, i
     TYPE(embed_knobs) :: knobs
     ok = 0_c_int
     deck_len = 0_c_int
@@ -1169,13 +1243,14 @@ CONTAINS
     knobs = knobs_of(image)
     CALL embed_compose_cold_deck_local(INT(n_atoms), positions_ang, &
          atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1) RETURN
-    ncopy = MIN(nlen, INT(deck_cap) - 1)
-    DO i = 1, ncopy
+    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
+    ! One byte stays for the trailing NUL. A short buffer is an error.
+    IF (nlen >= INT(deck_cap)) RETURN
+    DO i = 1, nlen
       deck_out(i) = deck(i:i)
     END DO
-    deck_out(ncopy + 1) = c_null_char
-    deck_len = INT(ncopy, KIND=c_int)
+    deck_out(nlen + 1) = c_null_char
+    deck_len = INT(nlen, KIND=c_int)
     ok = 1_c_int
   END FUNCTION
 #endif
@@ -1372,9 +1447,9 @@ CONTAINS
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok
+    INTEGER :: i, j, zz, count, pok, failed
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=600) :: star
     CHARACTER(LEN=256) :: opt
@@ -1382,43 +1457,44 @@ CONTAINS
     CHARACTER(LEN=400) :: celltxt
     INTEGER :: celln
     ierr = 1
-    deck = ' '
     nlen = 0
-    CALL append(deck, nlen, '&CPMD'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' OPTIMIZE WAVEFUNCTION'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' CONVERGENCE ORBITALS'//NEW_LINE('A'))
-    CALL append(deck, nlen, '  1.0d-5'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' MAXITER'//NEW_LINE('A'))
-    CALL append(deck, nlen, '  40'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' CENTER MOLECULE OFF'//NEW_LINE('A'))
-    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
-    CALL append(deck, nlen, '&SYSTEM'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' SYMMETRY'//NEW_LINE('A'))
-    CALL append(deck, nlen, '  0'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' ANGSTROM'//NEW_LINE('A'))
+    failed = 0
+    deck = ''
+    CALL append('&CPMD'//NEW_LINE('A'))
+    CALL append(' OPTIMIZE WAVEFUNCTION'//NEW_LINE('A'))
+    CALL append(' CONVERGENCE ORBITALS'//NEW_LINE('A'))
+    CALL append('  1.0d-5'//NEW_LINE('A'))
+    CALL append(' MAXITER'//NEW_LINE('A'))
+    CALL append('  40'//NEW_LINE('A'))
+    CALL append(' CENTER MOLECULE OFF'//NEW_LINE('A'))
+    CALL append('&END'//NEW_LINE('A'))
+    CALL append('&SYSTEM'//NEW_LINE('A'))
+    CALL append(' SYMMETRY'//NEW_LINE('A'))
+    CALL append('  0'//NEW_LINE('A'))
+    CALL append(' ANGSTROM'//NEW_LINE('A'))
     CALL format_cell_lines(cell, has_cell, celltxt, celln)
-    CALL append(deck, nlen, celltxt(1:celln))
-    CALL append(deck, nlen, ' CUTOFF'//NEW_LINE('A'))
+    CALL append(celltxt(1:celln))
+    CALL append(' CUTOFF'//NEW_LINE('A'))
     WRITE(line, '(A,F12.6)') '  ', knobs%cutoff_ry
-    CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+    CALL append(TRIM(line)//NEW_LINE('A'))
     IF (knobs%charge /= 0) THEN
-      CALL append(deck, nlen, ' CHARGE'//NEW_LINE('A'))
+      CALL append(' CHARGE'//NEW_LINE('A'))
       WRITE(line, '(A,I6)') '  ', knobs%charge
-      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      CALL append(TRIM(line)//NEW_LINE('A'))
     END IF
     IF (knobs%mult > 1) THEN
-      CALL append(deck, nlen, ' MULTIPLICITY'//NEW_LINE('A'))
+      CALL append(' MULTIPLICITY'//NEW_LINE('A'))
       WRITE(line, '(A,I6)') '  ', knobs%mult
-      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      CALL append(TRIM(line)//NEW_LINE('A'))
     END IF
-    CALL append(deck, nlen, ' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
-    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
-    CALL append(deck, nlen, '&DFT'//NEW_LINE('A'))
-    CALL append(deck, nlen, ' OLDCODE'//NEW_LINE('A'))
+    CALL append(' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
+    CALL append('&END'//NEW_LINE('A'))
+    CALL append('&DFT'//NEW_LINE('A'))
+    CALL append(' OLDCODE'//NEW_LINE('A'))
     ! Honor wire/applied functional (capnp-fortran apply path); default BLYP.
-    CALL append(deck, nlen, ' FUNCTIONAL '//TRIM(knobs%functional)//NEW_LINE('A'))
-    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
-    CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    CALL append(' FUNCTIONAL '//TRIM(knobs%functional)//NEW_LINE('A'))
+    CALL append('&END'//NEW_LINE('A'))
+    CALL append('&ATOMS'//NEW_LINE('A'))
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
@@ -1434,32 +1510,30 @@ CONTAINS
         ierr = 2
         RETURN
       END IF
-      CALL append(deck, nlen, TRIM(star)//NEW_LINE('A'))
-      CALL append(deck, nlen, TRIM(opt)//NEW_LINE('A'))
+      CALL append(TRIM(star)//NEW_LINE('A'))
+      CALL append(TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
       END DO
       WRITE(line, '(A,I4)') '   ', count
-      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      CALL append(TRIM(line)//NEW_LINE('A'))
       DO j = 1, n_atoms
         IF (INT(z(j)) /= zz) CYCLE
         WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
-        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+        CALL append(TRIM(line)//NEW_LINE('A'))
       END DO
     END DO
-    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append('&END'//NEW_LINE('A'))
+    IF (failed /= 0) RETURN
     ierr = 0
   CONTAINS
-    SUBROUTINE append(buf, n, s)
-      CHARACTER(LEN=*), INTENT(INOUT) :: buf
-      INTEGER, INTENT(INOUT) :: n
+    SUBROUTINE append(s)
       CHARACTER(LEN=*), INTENT(IN) :: s
-      INTEGER :: m
-      m = LEN(s)
-      IF (n + m > LEN(buf)) RETURN
-      buf(n+1:n+m) = s
-      n = n + m
+      INTEGER :: st
+      IF (failed /= 0) RETURN
+      CALL append_grow(deck, nlen, s, st)
+      IF (st /= 0) failed = 1
     END SUBROUTINE
   END SUBROUTINE
 
@@ -1552,50 +1626,6 @@ CONTAINS
         INDEX(d, '&CPMD') > 0 .OR. INDEX(d, '&cpmd') > 0
   END FUNCTION
 
-  ! Drop &ATOMS ... &END blocks so geometry can be re-appended from C arrays.
-  SUBROUTINE strip_atoms_sections(src, dst, nlen)
-    CHARACTER(LEN=*), INTENT(IN) :: src
-    CHARACTER(LEN=*), INTENT(OUT) :: dst
-    INTEGER, INTENT(OUT) :: nlen
-    INTEGER :: i, n, start_at, end_at, j
-    CHARACTER(LEN=16) :: tag
-    dst = ' '
-    nlen = 0
-    n = LEN_TRIM(src)
-    IF (n < 1) RETURN
-    i = 1
-    DO WHILE (i <= n)
-      IF (i + 5 <= n) THEN
-        tag = src(i:MIN(i + 5, n))
-        IF (tag == '&ATOMS' .OR. tag == '&atoms') THEN
-          start_at = i
-          end_at = 0
-          j = i + 6
-          DO WHILE (j + 3 <= n)
-            IF (src(j:j+3) == '&END' .OR. src(j:j+3) == '&end') THEN
-              end_at = j + 3
-              EXIT
-            END IF
-            j = j + 1
-          END DO
-          IF (end_at > 0) THEN
-            i = end_at + 1
-            ! skip trailing newlines after &END
-            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
-              i = i + 1
-            END DO
-            CYCLE
-          END IF
-        END IF
-      END IF
-      IF (nlen < LEN(dst)) THEN
-        nlen = nlen + 1
-        dst(nlen:nlen) = src(i:i)
-      END IF
-      i = i + 1
-    END DO
-  END SUBROUTINE
-
   ! Cap'n method deck (empty/missing &ATOMS) + geometry atoms from C arrays.
   SUBROUTINE embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
       deck, nlen, ierr, knobs)
@@ -1603,30 +1633,25 @@ CONTAINS
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, base
+    INTEGER :: i, j, zz, count, pok, mlen, failed, stat
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=600) :: star
     CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
-    CHARACTER(LEN=4096) :: method
-    INTEGER :: mlen
+    CHARACTER(LEN=:), ALLOCATABLE :: method
     ierr = 1
-    deck = ' '
     nlen = 0
-    CALL strip_atoms_sections(knobs%input_deck, method, mlen)
-    base = MIN(mlen, LEN(deck) - 64)
-    IF (base < 1) RETURN
-    deck(1:base) = method(1:base)
-    nlen = base
-    IF (deck(nlen:nlen) /= NEW_LINE('A')) THEN
-      IF (nlen < LEN(deck)) THEN
-        nlen = nlen + 1
-        deck(nlen:nlen) = NEW_LINE('A')
-      END IF
-    END IF
-    CALL append(deck, nlen, '&ATOMS'//NEW_LINE('A'))
+    failed = 0
+    deck = ''
+    IF (.NOT. ALLOCATED(knobs%input_deck)) RETURN
+    CALL strip_atoms_alloc(knobs%input_deck, method, mlen, stat)
+    IF (stat /= 0 .OR. mlen < 1) RETURN
+    deck = method(1:mlen)
+    nlen = mlen
+    IF (deck(nlen:nlen) /= NEW_LINE('A')) CALL append(NEW_LINE('A'))
+    CALL append('&ATOMS'//NEW_LINE('A'))
     seen = .FALSE.
     DO i = 1, n_atoms
       zz = INT(z(i))
@@ -1642,53 +1667,52 @@ CONTAINS
         ierr = 2
         RETURN
       END IF
-      CALL append(deck, nlen, TRIM(star)//NEW_LINE('A'))
-      CALL append(deck, nlen, TRIM(opt)//NEW_LINE('A'))
+      CALL append(TRIM(star)//NEW_LINE('A'))
+      CALL append(TRIM(opt)//NEW_LINE('A'))
       count = 0
       DO j = 1, n_atoms
         IF (INT(z(j)) == zz) count = count + 1
       END DO
       WRITE(line, '(A,I4)') '   ', count
-      CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+      CALL append(TRIM(line)//NEW_LINE('A'))
       DO j = 1, n_atoms
         IF (INT(z(j)) /= zz) CYCLE
         WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
-        CALL append(deck, nlen, TRIM(line)//NEW_LINE('A'))
+        CALL append(TRIM(line)//NEW_LINE('A'))
       END DO
     END DO
-    CALL append(deck, nlen, '&END'//NEW_LINE('A'))
+    CALL append('&END'//NEW_LINE('A'))
     ! Lattice is injected in embed_compose_cold_deck via inject_cell_if_missing.
+    IF (failed /= 0) RETURN
     IF (has_cell < 0) RETURN
     IF (cell(1) < -1.0e300_c_double) RETURN
     ierr = 0
   CONTAINS
-    SUBROUTINE append(buf, n, s)
-      CHARACTER(LEN=*), INTENT(INOUT) :: buf
-      INTEGER, INTENT(INOUT) :: n
+    SUBROUTINE append(s)
       CHARACTER(LEN=*), INTENT(IN) :: s
-      INTEGER :: m
-      m = LEN(s)
-      IF (n + m > LEN(buf)) RETURN
-      buf(n+1:n+m) = s
-      n = n + m
+      INTEGER :: st
+      IF (failed /= 0) RETURN
+      CALL append_grow(deck, nlen, s, st)
+      IF (st /= 0) failed = 1
     END SUBROUTINE
   END SUBROUTINE
 
   ! Cap'n C render of bare scalars often omits MAXITER; OpenCPMD then uses
   ! 10000 SC steps (~minutes per force). Clamp cold force decks to a finite
   ! bound unless the wire already set one.
-  SUBROUTINE inject_maxiter_if_missing(deck, nlen)
-    CHARACTER(LEN=*), INTENT(INOUT) :: deck
+  SUBROUTINE inject_maxiter_if_missing(deck, nlen, ierr)
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
     INTEGER, INTENT(INOUT) :: nlen
+    INTEGER, INTENT(OUT) :: ierr
+    CHARACTER(LEN=:), ALLOCATABLE :: tmp
     CHARACTER(LEN=48) :: insert
-    CHARACTER(LEN=16384) :: tmp
-    INTEGER :: icpmd, ins_at, m, k
-    IF (nlen < 1) RETURN
+    INTEGER :: icpmd, ins_at, m, k, stat, newn
+    ierr = 0
+    IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
     IF (INDEX(deck(1:nlen), 'MAXITER') > 0 .OR. &
         INDEX(deck(1:nlen), 'maxiter') > 0) RETURN
     insert = ' MAXITER'//NEW_LINE('A')//'  40'//NEW_LINE('A')
     m = LEN_TRIM(insert)
-    IF (nlen + m > LEN(deck)) RETURN
     icpmd = INDEX(deck(1:nlen), '&CPMD')
     IF (icpmd == 0) icpmd = INDEX(deck(1:nlen), '&cpmd')
     IF (icpmd <= 0) RETURN
@@ -1697,15 +1721,24 @@ CONTAINS
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
-    tmp = deck(1:nlen)
-    deck = ' '
-    IF (ins_at > 1) deck(1:ins_at-1) = tmp(1:ins_at-1)
-    deck(ins_at:ins_at+m-1) = insert(1:m)
+    IF (m > HUGE(newn) - nlen) THEN
+      ierr = 1
+      RETURN
+    END IF
+    newn = nlen + m
+    ALLOCATE(CHARACTER(LEN=newn) :: tmp, STAT=stat)
+    IF (stat /= 0) THEN
+      ierr = 1
+      RETURN
+    END IF
+    IF (ins_at > 1) tmp(1:ins_at-1) = deck(1:ins_at-1)
+    tmp(ins_at:ins_at+m-1) = insert(1:m)
     IF (ins_at <= nlen) THEN
       k = nlen - ins_at + 1
-      deck(ins_at+m:ins_at+m+k-1) = tmp(ins_at:nlen)
+      tmp(ins_at+m:ins_at+m+k-1) = deck(ins_at:nlen)
     END IF
-    nlen = nlen + m
+    CALL MOVE_ALLOC(tmp, deck)
+    nlen = newn
   END SUBROUTINE
 
   SUBROUTINE format_cell_lines(cell, has_cell, text, ntext)
@@ -1743,20 +1776,21 @@ CONTAINS
 
   ! Cap'n C render often emits &SYSTEM without CELL (lattice comes from the
   ! ForceInput box). OpenCPMD sysin stopgms if the lattice constant is zero.
-  SUBROUTINE inject_cell_if_missing(deck, nlen, cell, has_cell)
-    CHARACTER(LEN=*), INTENT(INOUT) :: deck
+  SUBROUTINE inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
     INTEGER, INTENT(INOUT) :: nlen
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
+    INTEGER, INTENT(OUT) :: ierr
     CHARACTER(LEN=400) :: insert
-    CHARACTER(LEN=16384) :: tmp
-    INTEGER :: isys, iang, ins_at, m, k
-    IF (nlen < 1) RETURN
+    CHARACTER(LEN=:), ALLOCATABLE :: tmp
+    INTEGER :: isys, iang, ins_at, m, k, stat, newn
+    ierr = 0
+    IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
     ! Already has a CELL keyword (do not second-guess explicit decks).
     IF (INDEX(deck(1:nlen), 'CELL') > 0 .OR. INDEX(deck(1:nlen), 'cell') > 0) &
         RETURN
     CALL format_cell_lines(cell, has_cell, insert, m)
-    IF (nlen + m > LEN(deck)) RETURN
     isys = INDEX(deck(1:nlen), '&SYSTEM')
     IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
     IF (isys <= 0) RETURN
@@ -1771,15 +1805,24 @@ CONTAINS
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
-    tmp = deck(1:nlen)
-    deck = ' '
-    IF (ins_at > 1) deck(1:ins_at-1) = tmp(1:ins_at-1)
-    deck(ins_at:ins_at+m-1) = insert(1:m)
+    IF (m < 0 .OR. m > HUGE(newn) - nlen) THEN
+      ierr = 1
+      RETURN
+    END IF
+    newn = nlen + m
+    ALLOCATE(CHARACTER(LEN=newn) :: tmp, STAT=stat)
+    IF (stat /= 0) THEN
+      ierr = 1
+      RETURN
+    END IF
+    IF (ins_at > 1) tmp(1:ins_at-1) = deck(1:ins_at-1)
+    IF (m > 0) tmp(ins_at:ins_at+m-1) = insert(1:m)
     IF (ins_at <= nlen) THEN
       k = nlen - ins_at + 1
-      deck(ins_at+m:ins_at+m+k-1) = tmp(ins_at:nlen)
+      tmp(ins_at+m:ins_at+m+k-1) = deck(ins_at:nlen)
     END IF
-    nlen = nlen + m
+    CALL MOVE_ALLOC(tmp, deck)
+    nlen = newn
   END SUBROUTINE
 
   ! Shared cold-deck assembly used by SCF and by compose preview for tests.
@@ -1789,20 +1832,21 @@ CONTAINS
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=*), INTENT(OUT) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
     nlen = 0
     ierr = 1
-    deck = ' '
-    IF (LEN_TRIM(knobs%input_deck) > 0) THEN
-      IF (deck_has_real_atoms(knobs%input_deck)) THEN
-        nlen = MIN(LEN_TRIM(knobs%input_deck), LEN(deck))
-        deck(1:nlen) = knobs%input_deck(1:nlen)
-        IF (nlen < LEN(deck)) deck(nlen+1:) = ' '
-        ierr = 0
-      ELSE IF (deck_has_method_sections(knobs%input_deck)) THEN
-        CALL embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
-             deck, nlen, ierr, knobs)
+    deck = ''
+    IF (ALLOCATED(knobs%input_deck)) THEN
+      IF (LEN_TRIM(knobs%input_deck) > 0) THEN
+        IF (deck_has_real_atoms(knobs%input_deck)) THEN
+          nlen = LEN_TRIM(knobs%input_deck)
+          deck = knobs%input_deck(1:nlen)
+          ierr = 0
+        ELSE IF (deck_has_method_sections(knobs%input_deck)) THEN
+          CALL embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
+               deck, nlen, ierr, knobs)
+        END IF
       END IF
     END IF
     ! ierr 2 is a missing pseudopotential. The minimal deck cannot supply one.
@@ -1811,8 +1855,8 @@ CONTAINS
            ierr, knobs)
     END IF
     IF (ierr == 0 .AND. nlen > 0) THEN
-      CALL inject_cell_if_missing(deck, nlen, cell, has_cell)
-      CALL inject_maxiter_if_missing(deck, nlen)
+      CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      IF (ierr == 0) CALL inject_maxiter_if_missing(deck, nlen, ierr)
     END IF
   END SUBROUTINE
 
@@ -1896,7 +1940,7 @@ CONTAINS
     INTEGER :: ierr, idx, nmax, nlen, mfd
     TYPE(embed_knobs) :: knobs
     LOGICAL :: tinfo
-    CHARACTER(LEN=16384) :: deck
+    CHARACTER(LEN=:), ALLOCATABLE :: deck
     CHARACTER(LEN=64) :: mempath
     CHARACTER(LEN=1024) :: pp_dir
     INTERFACE
@@ -1945,7 +1989,8 @@ CONTAINS
     knobs = knobs_of(image)
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1) RETURN
+    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
+    IF (nlen > HUGE(0_c_int)) RETURN
     mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
          INT(LEN(mempath), KIND=c_int)))
     IF (mfd < 0) RETURN
@@ -2034,8 +2079,8 @@ CONTAINS
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
-    CHARACTER(LEN=16384) :: deck
-    INTEGER :: nlen, ierr, i, ncopy
+    CHARACTER(LEN=:), ALLOCATABLE :: deck
+    INTEGER :: nlen, ierr, i
     TYPE(embed_knobs) :: knobs
     ok = 0_c_int
     deck_len = 0_c_int
@@ -2045,13 +2090,14 @@ CONTAINS
     knobs = knobs_of(image)
     CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
          cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1) RETURN
-    ncopy = MIN(nlen, INT(deck_cap) - 1)
-    DO i = 1, ncopy
+    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
+    ! One byte stays for the trailing NUL. A short buffer is an error.
+    IF (nlen >= INT(deck_cap)) RETURN
+    DO i = 1, nlen
       deck_out(i) = deck(i:i)
     END DO
-    deck_out(ncopy + 1) = c_null_char
-    deck_len = INT(ncopy, KIND=c_int)
+    deck_out(nlen + 1) = c_null_char
+    deck_len = INT(nlen, KIND=c_int)
     ok = 1_c_int
   END FUNCTION
 #endif

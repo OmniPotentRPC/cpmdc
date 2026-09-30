@@ -88,8 +88,8 @@ struct CPMDCSession {
   int charge;
   /** Effective spin multiplicity. */
   int multiplicity;
-  /** Rendered CPMD input deck for the session parameters. */
-  char input_deck[CPMDC_BLOCKS];
+  /** Rendered CPMD input deck for the session parameters. Owned. */
+  char *input_deck;
   /** Common-overlay scalar overrides merged over the params (may be unset). */
   CPMDCScalarOverrides overrides;
   char overrides_functional[64];
@@ -134,19 +134,59 @@ static void copy_knob_text(char *dst, int cap, const char *src, size_t src_cap) 
   dst[i] = '\0';
 }
 
+int cpmdc_embed_image_store_deck(CPMDCEmbedImage *image, const char *text,
+                                 int len) {
+  size_t n = 0;
+  char *buf = NULL;
+  if (!image || len < 0)
+    return -1;
+  if (len > 0 && !text)
+    return -1;
+  if (len > 0) {
+    n = (size_t)len;
+    for (size_t i = 0; i < n; ++i) {
+      if (text[i] == '\0') {
+        n = i;
+        break;
+      }
+    }
+  }
+  if (n > 0) {
+    buf = (char *)malloc(n + 1u);
+    if (!buf)
+      return -1;
+    memcpy(buf, text, n);
+    buf[n] = '\0';
+  }
+  free(image->input_deck);
+  image->input_deck = buf;
+  image->input_deck_len = (int)n;
+  return 0;
+}
+
 int cpmdc_embed_get_config(char *functional, int functional_len, double *cutoff_ry,
                            int *charge, int *mult, char *input_deck,
                            int input_deck_len, char *cpmd_root, int cpmd_root_len) {
   const CPMDCEmbedImage *image = active_image();
+  int deck_n;
   if (!image || !image->cfg_set || !cutoff_ry || !charge || !mult)
     return -1;
+  deck_n = image->input_deck ? image->input_deck_len : 0;
+  if (deck_n < 0)
+    return -1;
+  /* A short caller buffer is an error. The stored deck stays intact. */
+  if (deck_n > 0 && (!input_deck || input_deck_len <= deck_n))
+    return -1;
+  if (input_deck && input_deck_len > 0) {
+    if (deck_n > 0)
+      memcpy(input_deck, image->input_deck, (size_t)deck_n);
+    input_deck[deck_n] = '\0';
+  }
   copy_knob_text(functional, functional_len, image->functional,
                  sizeof(image->functional));
   *cutoff_ry = image->cutoff_ry;
   *charge = image->cfg_charge;
   *mult = image->multiplicity;
-  copy_knob_text(input_deck, input_deck_len, image->input_deck,
-                 sizeof(image->input_deck));
   copy_knob_text(cpmd_root, cpmd_root_len, image->cpmd_root,
                  sizeof(image->cpmd_root));
   return 0;
@@ -197,10 +237,17 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
                                const CPMDCScalarOverrides *overrides,
                                char *functional, size_t functional_size,
                                double *cutoff_ry, int *charge, int *multiplicity,
-                               char *input_deck, size_t input_deck_size,
-                               char *cpmd_root, size_t cpmd_root_size) {
+                               char **input_deck, char *cpmd_root,
+                               size_t cpmd_root_size) {
   struct capn arena;
   CPMDParams_ptr root;
+  char *deck = NULL;
+  if (input_deck)
+    *input_deck = NULL;
+  if (!input_deck) {
+    cpmdc_store_error("CPMDParams deck buffer is missing");
+    return -1;
+  }
   if (!params_capnp || params_size == 0) {
     cpmdc_store_error("CPMDParams buffer is empty");
     return -1;
@@ -220,19 +267,20 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
   }
   snprintf(cpmd_root, cpmd_root_size, "%s",
            cpmdc_params_text_or(view.cpmdRoot, ""));
-  if (cpmdc_params_render_input_deck_ov(root, overrides, input_deck,
-                                        input_deck_size) != 0) {
+  if (cpmdc_params_render_input_deck_alloc(root, overrides, &deck) != 0) {
     cpmdc_params_release(&arena);
     cpmdc_store_error("CPMDParams deck render failed");
     return -1;
   }
-  write_deck_if_requested(input_deck);
-  if (cpmdc_params_reject_unsupported_inputs(functional, input_deck) != 0) {
+  write_deck_if_requested(deck);
+  if (cpmdc_params_reject_unsupported_inputs(functional, deck) != 0) {
+    free(deck);
     cpmdc_params_release(&arena);
     cpmdc_store_error("CPMDParams input is not supported");
     return -1;
   }
   cpmdc_params_release(&arena);
+  *input_deck = deck;
   return 0;
 }
 
@@ -283,13 +331,24 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
   int deck_len = 0;
   if (!input_deck || fit_c_int(strlen(input_deck), &deck_len) != 0)
     return -1;
+  if (deck_len == INT_MAX)
+    return -1;
+  int deck_cap = deck_len + 1;
+  char *deck_buf = (char *)malloc((size_t)deck_cap);
+  if (!deck_buf)
+    return -1;
   if (cpmdc_embed_apply_params(
           params_capnp, params_size, input_deck, deck_len, fov, fov_len,
           cutoff_ov, has_charge_ov, charge_ov, has_mult_ov, mult_ov,
           image->functional, 64, &image->cutoff_ry, &image->cfg_charge,
-          &image->multiplicity, image->input_deck, 4096, image->cpmd_root,
-          1024) != 0)
+          &image->multiplicity, deck_buf, deck_cap, image->cpmd_root,
+          1024) != 0) {
+    free(deck_buf);
     return -1;
+  }
+  free(image->input_deck);
+  image->input_deck = deck_buf;
+  image->input_deck_len = (int)strlen(deck_buf);
   image->cfg_set = 1;
   return 0;
 }
@@ -878,13 +937,15 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   double cutoff_ry = 70.0;
   int charge = 0;
   int multiplicity = 1;
-  char input_deck[CPMDC_BLOCKS];
+  char *input_deck = NULL;
   char cpmd_root[1024];
   if (apply_params_buffer(params_capnp, params_capnp_size_bytes, overrides,
                           functional, sizeof(functional), &cutoff_ry, &charge,
-                          &multiplicity, input_deck, sizeof(input_deck),
-                          cpmd_root, sizeof(cpmd_root)) != 0)
+                          &multiplicity, &input_deck, cpmd_root,
+                          sizeof(cpmd_root)) != 0) {
+    free(input_deck);
     return -1;
+  }
   if (overrides) {
     g_overrides = *overrides;
     if (overrides->functional) {
@@ -897,12 +958,14 @@ static int cpmdc_set_params_ov(const void *params_capnp,
     g_has_overrides = 0;
   }
   if (!ensure_embed_init() || !cpmdc_embed_available()) {
+    free(input_deck);
     cpmdc_store_error("CPMD embed not available");
     return -1;
   }
   free(g_params_bytes);
   g_params_bytes = (unsigned char *)malloc(params_capnp_size_bytes);
   if (!g_params_bytes) {
+    free(input_deck);
     cpmdc_store_error("out of memory");
     return -1;
   }
@@ -911,9 +974,11 @@ static int cpmdc_set_params_ov(const void *params_capnp,
   /* Fortran decode of functional/cutoff/charge/mult/root + store C deck. */
   if (embed_apply_from_wire(params_capnp, params_capnp_size_bytes, input_deck,
                             overrides, &g_image) != 0) {
+    free(input_deck);
     cpmdc_store_error("applying CPMD params failed");
     return -1;
   }
+  free(input_deck);
   (void)functional;
   (void)cutoff_ry;
   (void)charge;
@@ -1109,9 +1174,9 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
                           session->has_overrides ? &session->overrides : NULL,
                           session->functional, sizeof(session->functional),
                           &session->cutoff_ry, &session->charge,
-                          &session->multiplicity, session->input_deck,
-                          sizeof(session->input_deck), session->cpmd_root,
-                          sizeof(session->cpmd_root)) != 0) {
+                          &session->multiplicity, &session->input_deck,
+                          session->cpmd_root, sizeof(session->cpmd_root)) != 0) {
+    free(session->input_deck);
     free(session->params_bytes);
     free(session);
     return NULL;
@@ -1154,13 +1219,14 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
   } else {
     session->has_overrides = 0;
   }
+  char *deck = NULL;
   if (apply_params_buffer(params_capnp, params_capnp_size_bytes,
                           session->has_overrides ? &session->overrides : NULL,
                           session->functional, sizeof(session->functional),
                           &session->cutoff_ry, &session->charge,
-                          &session->multiplicity, session->input_deck,
-                          sizeof(session->input_deck), session->cpmd_root,
+                          &session->multiplicity, &deck, session->cpmd_root,
                           sizeof(session->cpmd_root)) != 0) {
+    free(deck);
     free(bytes);
     return -1;
   }
@@ -1168,6 +1234,8 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
   free(session->params_bytes);
   session->params_bytes = bytes;
   session->params_size = params_capnp_size_bytes;
+  free(session->input_deck);
+  session->input_deck = deck;
   if (configure_embed_from_session(session) != 0) {
     cpmdc_store_error("CPMD embed not available");
     return -1;
@@ -1188,6 +1256,9 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   if (g_active_session == session)
     g_active_session = NULL;
   free(session->params_bytes);
+  if (session->image.input_deck != session->input_deck)
+    free(session->image.input_deck);
+  free(session->input_deck);
   free(session->fixed_atomic_numbers);
   free(session->step_positions_ang);
   free(session->step_atomic_numbers);
@@ -1619,5 +1690,8 @@ int cpmdc_available(void) {
 
 void cpmdc_finalize(void) {
   g_active_session = NULL;
+  free(g_image.input_deck);
+  g_image.input_deck = NULL;
+  g_image.input_deck_len = 0;
   cpmdc_embed_finalize();
 }
