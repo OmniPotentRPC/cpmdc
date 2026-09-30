@@ -8,7 +8,7 @@ A stock OpenCPMD archive does not work inside a host: ~libcpmdc~ imports
 routines that only the patches add, the shared link stops on code built
 without ~-fPIC~, and the unpatched SCF driver drops the forces and the
 orbitals that ~cpmdc~ reads after each call.
-Six patches in ~tools/~ and one compiler flag fix those.
+Seven patches in ~tools/~ and one compiler flag fix those.
 ~opencpmd_c_mem_addrs.patch~ makes ~cGetMemAddrs~ return the address as
 ~size_t~.
 GCC 14 rejects the stock return of a pointer from that function.
