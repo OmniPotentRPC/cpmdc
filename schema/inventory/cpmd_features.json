@@ -287,6 +287,8 @@
   "cpmdc_energy",
   "cpmdc_energy_forces",
   "cpmdc_bind_calculator",
+  "cpmdc_adopt_calculator_comm",
+  "cpmdc_adopted_comm",
   "cpmdc_session_create",
   "cpmdc_session_set_params",
   "cpmdc_session_destroy",
@@ -10796,6 +10798,20 @@
    "feature_id": "abi.cpmdc_bind_calculator",
    "kind": "abi",
    "name": "cpmdc_bind_calculator",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_adopt_calculator_comm",
+   "kind": "abi",
+   "name": "cpmdc_adopt_calculator_comm",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_adopted_comm",
+   "kind": "abi",
+   "name": "cpmdc_adopted_comm",
    "stub_applicable": true,
    "embed_applicable": true
   },

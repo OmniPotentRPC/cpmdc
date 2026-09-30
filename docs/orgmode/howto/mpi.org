@@ -82,6 +82,14 @@ rank.
 and ~cpmdc_bind_calculator~ has already initialised MPI and stored the
 calculator communicator by the time setup reaches ~mp_start~.
 
+* A communicator the host already split
+~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~ stores the
+caller's ~MPI_Comm~ as ~mp_comm_world~.
+~nbytes~ is the size of that communicator.
+The call does not call ~MPI_Init~ or ~MPI_Comm_split~.
+~cpmdc_adopted_comm~ copies the stored communicator back to the caller.
+~cpmdc_bind_calculator~ remains the split for a host that has not split.
+
 * Share the parent's result
 The host owns the broadcast.
 With one calculator over the whole world, broadcast from world rank 0:

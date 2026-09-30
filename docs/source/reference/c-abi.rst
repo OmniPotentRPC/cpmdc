@@ -159,7 +159,8 @@ Library status
 
 ``cpmdc_last_error()`` is written by ``cpmdc_set_params()``,
 ``cpmdc_configure()``, ``cpmdc_bind_calculator()``,
-``cpmdc_session_create()``, ``cpmdc_session_set_params()``,
+``cpmdc_adopt_calculator_comm()``, ``cpmdc_session_create()``,
+``cpmdc_session_set_params()``,
 ``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``,
 ``cpmdc_potential_result_size_for_force_input()``, and every evaluation
 entry point. When the call returns ``CPMDCResult``, the text matches
@@ -167,8 +168,8 @@ entry point. When the call returns ``CPMDCResult``, the text matches
 readers (``cpmdc_last_stress()`` and the other ``cpmdc_last_*`` /
 ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot
 is absent or the output pointer is null.
-``cpmdc_capabilities_result()`` does not write it either; its -1 is the
-size query.
+``cpmdc_adopted_comm()`` and ``cpmdc_capabilities_result()`` do not write
+it either. A capabilities return of -1 is the size query.
 
 MPI
 ===
@@ -190,8 +191,18 @@ MPI
 |                                                   | returns the same index           |
 +---------------------------------------------------+----------------------------------+
 
-Call it once on every rank before the first evaluation. See
-:doc:`running under mpirun <../howto/mpi>`.
+``cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)``
+stores the caller's communicator as ``mp_comm_world``.
+It does not call ``MPI_Init`` or ``MPI_Comm_split``.
+It returns the calculator index, or -1 when the communicator is null, the
+world does not divide, or the library has no CPMD backend.
+``cpmdc_adopted_comm(void *out, size_t nbytes)`` copies ``mp_comm_world``
+into ``out`` and returns 0, or -1 when no communicator is stored.
+It does not write ``cpmdc_last_error()``.
+
+Call ``cpmdc_bind_calculator`` once on every rank before the first
+evaluation when the host has not already split.
+See :doc:`running under mpirun <../howto/mpi>`.
 
 Configuration without a session
 ===============================

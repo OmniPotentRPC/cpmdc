@@ -30,6 +30,8 @@ row.
 | ~cpmdc_energy~ | step, arrays | Y | Y | Y | Y |
 | ~cpmdc_energy_forces~ | step, arrays | Y | Y | Y | Y |
 | ~cpmdc_bind_calculator~ | MPI | Y | Y | Y | Y |
+| ~cpmdc_adopt_calculator_comm~ | MPI | Y | Y | Y | Y |
+| ~cpmdc_adopted_comm~ | MPI | Y | Y | Y | Y |
 | ~cpmdc_session_create~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_set_params~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_destroy~ | lifecycle | Y | Y | Y | Y |
@@ -66,7 +68,7 @@ row.
 | ~cpmdc_feature_table~ | discovery | Y | Y | Y | Y |
 | ~cpmdc_feature_find~ | discovery | Y | Y | Y | Y |
 
-40 symbols in ~abi_symbols~, 40 with every column present.
+42 symbols in ~abi_symbols~, 42 with every column present.
 
 * Parser sections
 The 25 sections OpenCPMD reads with ~inscan('&SECTION')~, recorded in

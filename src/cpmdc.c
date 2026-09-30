@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(CPMDC_HAS_CPMD)
+#include <mpi.h>
+#endif
 
 static void cpmdc_store_error(const char *msg);
 
@@ -58,6 +61,10 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
+#if defined(CPMDC_HAS_CPMD)
+int cpmdc_embed_adopt_comm(int fcomm, int ranks_per_calc);
+int cpmdc_embed_adopted_fcomm(void);
+#endif
 
 
 /* Last Cap'n Proto params bytes for geometry-aware deck render on eval. */
@@ -1574,6 +1581,54 @@ int cpmdc_bind_calculator(int ranks_per_calc) {
   else
     cpmdc_store_error("");
   return calc;
+}
+
+int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                int ranks_per_calc) {
+#if defined(CPMDC_HAS_CPMD)
+  MPI_Comm ccomm;
+  int calc;
+  if (!comm || comm_bytes != sizeof(MPI_Comm)) {
+    cpmdc_store_error("CPMD calculator bind refused");
+    return -1;
+  }
+  memcpy(&ccomm, comm, sizeof(ccomm));
+  if (ccomm == MPI_COMM_NULL) {
+    cpmdc_store_error("CPMD calculator bind refused");
+    return -1;
+  }
+  calc = cpmdc_embed_adopt_comm(MPI_Comm_c2f(ccomm), ranks_per_calc);
+  if (calc < 0)
+    cpmdc_store_error("CPMD calculator bind refused");
+  else
+    cpmdc_store_error("");
+  return calc;
+#else
+  (void)comm;
+  (void)comm_bytes;
+  (void)ranks_per_calc;
+  cpmdc_store_error("CPMD calculator bind refused");
+  return -1;
+#endif
+}
+
+int cpmdc_adopted_comm(void *out, size_t nbytes) {
+#if defined(CPMDC_HAS_CPMD)
+  MPI_Fint fcomm;
+  MPI_Comm ccomm;
+  if (!out || nbytes != sizeof(MPI_Comm))
+    return -1;
+  fcomm = cpmdc_embed_adopted_fcomm();
+  if (fcomm == 0)
+    return -1;
+  ccomm = MPI_Comm_f2c(fcomm);
+  memcpy(out, &ccomm, sizeof(ccomm));
+  return 0;
+#else
+  (void)out;
+  (void)nbytes;
+  return -1;
+#endif
 }
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {
