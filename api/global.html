@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="violet" data-content_root="../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Global Namespace - cpmdc 0.2.0 documentation</title><link rel="shortcut icon" href="../_static/mark.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="enum CPMDCFeatureKind" href="enum_CPMDCFeatureKind.html" /><link rel="prev" title="API Reference" href="index.html" />
+      <link rel="canonical" href="https://cpmdc.rgoswami.me/api/global.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="../_static/doxyrest-pygments.css?v=ff3f4257" />
+    <link media="print" rel="stylesheet" type="text/css" href="../_static/print.css?v=20ff2c19" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=eba7a9a6" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://cpmdc.rgoswami.me/api/global.html"/>
+  <meta property="og:title" content="Global Namespace"/>
+    <meta name="twitter:card" content="summary"/>
+  <!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script></head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../index.html">
+      
+      
+      <strong>cpmdc</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">Build the default library</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#describe-the-method-and-the-geometry">Describe the method and the geometry</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#run-the-example-host">Run the example host</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#write-your-own-host">Write your own host</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#switch-to-opencpmd">Switch to OpenCPMD</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#what-you-built">What you built</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">What connects to what</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#prepare-the-run-directory">Prepare the run directory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-the-minimisation">Run the minimisation</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#change-the-method">Change the method</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-on-several-ranks">Run on several ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Default Build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-paths">Common Paths</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#work-loop">Work Loop</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#what-to-read-after-the-first-run">What To Read After The First Run</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#run-the-host-example">Run The Host Example</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#test-selection">Test Selection</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#session-suites">Session Suites</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#opencpmd-archive-build">OpenCPMD Archive Build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-failures">Common Failures</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#cap-n-proto-fixtures">Cap&#8217;n Proto Fixtures</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">What gets built</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#requirements">Requirements</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#build-the-default-library">Build the default library</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#meson-options">Meson options</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#build-against-opencpmd">Build against OpenCPMD</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#install">Install</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#pixi-tasks">Pixi tasks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Goal</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#patches-and-what-each-one-is-for">Patches and what each one is for</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#build-a-patched-tree">Build a patched tree</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#patch-a-tree-that-is-already-built">Patch a tree that is already built</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#link-and-check">Link and check</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Goal</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#write-the-message-as-cap-n-proto-text">Write the message as Cap&#8217;n Proto text</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#map-deck-lines-to-fields">Map deck lines to fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#defaults-that-change-the-physics">Defaults that change the physics</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#check-the-rendered-deck">Check the rendered deck</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#where-the-geometry-dependent-lines-go">Where the geometry-dependent lines go</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Pick The Entry Point</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#c-abi">C ABI</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#message-flow">Message Flow</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#feature-discovery">Feature Discovery</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#session-step-calls-direct-call-socket">Session Step Calls (direct-call socket)</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#result-buffer-contract">Result Buffer Contract</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#session-lifetime">Session Lifetime</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#cpmd-input-ownership">CPMD Input Ownership</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#restart-files">RESTART files</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#units">Units</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#opencpmd-runtime-inputs">OpenCPMD Runtime Inputs</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#nuclear-forces-from-repeated-scf-calls">Nuclear forces from repeated SCF calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Goal</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#the-rules">The rules</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-session-per-calculator">One session per calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#finalize-mpi">Finalize MPI</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#threads">Threads</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Goal</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#measured-on-the-si3n4-cluster">Measured on the Si3N4 cluster</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#set-odiis-in-the-message">Set ODIIS in the message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#when-to-keep-pcg">When to keep PCG</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#always-set-maxiter">Always set MAXITER</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Goal</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#write-the-deck-to-a-file">Write the deck to a file</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#what-the-opencpmd-path-changes">What the OpenCPMD path changes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#checks-worth-making-on-the-file">Checks worth making on the file</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#compare-with-a-deck-that-works">Compare with a deck that works</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Energies</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#failed-calls">Failed calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#forces">Forces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#build-and-link">Build and link</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">Conventions</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#types">Types</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#library-status">Library status</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#mpi">MPI</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#configuration-without-a-session">Configuration without a session</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#global-array-calls">Global array calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#sessions">Sessions</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#one-shot-message-calls">One-shot message calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#results-of-the-last-evaluation">Results of the last evaluation</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#discovery">Discovery</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#restart-file-library">RESTART file library</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Read by libcpmdc at run time</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html#read-by-the-tests-and-tools">Read by the tests and tools</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html#read-by-hosts-that-load-libcpmdc">Read by hosts that load libcpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdinputsection"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmddirective"><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdcpmdsection-the-fields-a-force-call-uses"><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdsystemsection-the-fields-that-set-the-cell"><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmddftsection"><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdatomssection-and-cpmdatomspseudopotential"><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#forceinput"><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">Contract</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#top-level-cpmdparams-fields">Top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#feature-id-namespaces">Feature ID namespaces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#mapping-a-cpmd-manual-line">Mapping a CPMD manual line</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#inventory-guardrails">Inventory guardrails</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#cpmdinputsection-kinds"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code> kinds</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#escape-hatches">Escape hatches</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#choosing-an-input-carrier">Choosing an input carrier</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#catalog-section-exposure">Catalog section exposure</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#other-structured-parameter-features">Other structured parameter features</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#typed-cpmd-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#typed-dft-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> controls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Two copies of one list</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#feature-ids">Feature IDs</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#query-it-from-c">Query it from C</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#the-inventory-file">The inventory file</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#the-checks">The checks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#add-a-row">Add a row</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Sources checked</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html#symbols">Symbols</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html#parser-sections">Parser sections</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">A</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#c">C</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#d">D</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#e">E</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#f">F</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#g">G</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#h">H</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#k">K</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#m">M</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#n">N</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#o">O</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#p">P</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#r">R</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#s">S</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#t">T</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#w">W</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Global Namespace</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCChargeIntegrals.html">struct CPMDCChargeIntegrals</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCEnergyComponents.html">struct CPMDCEnergyComponents</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCFeatureEntry.html">struct CPMDCFeatureEntry</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html">struct CPMDCMDTrajectoryRow</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCMultiStateEnergies.html">struct CPMDCMultiStateEnergies</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Why a C ABI around CPMD</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#layers">Layers</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#two-messages-two-lifetimes">Two messages, two lifetimes</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#what-one-evaluation-does">What one evaluation does</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#where-the-deck-comes-from">Where the deck comes from</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#sessions-topology-and-state">Sessions, topology, and state</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#three-builds-one-abi">Three builds, one ABI</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#the-file-route-it-replaces">The file route it replaces</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">What one call costs</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#how-the-wavefunction-travels">How the wavefunction travels</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#what-each-route-has-to-guard-against">What each route has to guard against</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#both-routes-give-the-same-answers">Both routes give the same answers</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">Every rank is a copy of the host</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#one-session-per-calculator">One session per calculator</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#who-ends-mpi">Who ends MPI</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#threads-inside-ranks">Threads inside ranks</a></li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Development Checks</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#add-a-typed-cpmd-keyword">Add a typed CPMD keyword</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#source-layout">Source Layout</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#documentation">Documentation</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#release-process">Release Process</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Versioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html#checklist">Checklist</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Project</span></p>
+<ul>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+</ul>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#typedefs">Typedefs</a></li>
+<li><a class="reference internal" href="#global-functions">Global Functions</a></li>
+<li><a class="reference internal" href="#macros">Macros</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+  data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
+  <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </span>
+  <span class="flex-grow px-2 break-all">
+    
+    
+      <span>cpmdc</span>
+    
+    <span class="flex text-sm repo-stats-count">
+      <span class="flex items-center pr-3">
+        <iconify-icon icon="lucide:star"></iconify-icon>
+        <strong class="js-repo-stars ml-1">0</strong>
+      </span>
+      <span class="flex items-center">
+        <iconify-icon icon="lucide:git-fork"></iconify-icon>
+        <strong class="js-repo-forks ml-1">0</strong>
+      </span>
+    </span>
+  </span>
+</a><div class="edit-this-page">
+  <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/api/global.rst">Edit this page</a>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../index.html"><span itemprop="name">cpmdc</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">API Reference</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Global Namespace</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <div class="copy-page-wrapper relative pb-4 lg:absolute lg:top-8 lg:right-6 xl:right-12">
+  <div id="copy-page-trigger">
+    <button
+      type="button"
+      class="js-copy px-3 py-1 inline-flex items-center gap-1"
+      data-url="https://cpmdc.rgoswami.me/_sources/api/global.rst.txt"
+    >
+      <i class="i-lucide" data-icon="copy"></i>
+      <span>Copy page</span>
+    </button>
+    <button class="js-menu px-2 py-1" type="button" aria-label="More actions"
+      aria-haspopup="menu" aria-expanded="false" aria-controls="copy-page-content">
+      <i class="i-lucide chevron-down"></i>
+    </button>
+  </div>
+  <div id="copy-page-content" role="menu" aria-orientation="vertical" aria-hidden="true">
+    <div role="presentation">
+      <div class="flex flex-col" role="group">
+        <button class="js-copy" type="button" role="menuitem"
+          data-url="https://cpmdc.rgoswami.me/_sources/api/global.rst.txt">
+          <span class="iconify-icon">
+            <i class="i-lucide" data-icon="copy"></i>
+          </span>
+          <span>Copy page</span>
+        </button>
+        <a role="menuitem" href="https://cpmdc.rgoswami.me/_sources/api/global.rst.txt" target="_blank" rel="nofollow"><iconify-icon icon="bi:code-slash"></iconify-icon>
+            <span>View Source</span></a><a role="menuitem" href="https://chatgpt.com/?hints=search&q=Read%20https%3A//cpmdc.rgoswami.me/_sources/api/global.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:openai"></iconify-icon>
+          <span>Open in ChatGPT</span>
+        </a><a role="menuitem" href="https://claude.ai/new?q=Read%20https%3A//cpmdc.rgoswami.me/_sources/api/global.rst.txt%20so%20I%20can%20ask%20questions%20about%20it." target="_blank" rel="nofollow">
+          <iconify-icon icon="bi:claude"></iconify-icon>
+          <span>Open in Claude</span>
+        </a></div>
+    </div>
+  </div>
+</div><article class="yue dark-code" role="main">
+          <section id="global-namespace">
+<span id="index-0"></span><span id="global"></span><h1>Global Namespace<a class="headerlink" href="#global-namespace" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<pre class="highlight doxyrest-overview-code-block literal-block">// typedefs
+
+typedef struct CPMDCResult <a class="reference internal" href="#doxid-cpmdc-8h-1a624f3d7d040e783aef1536f49e2a43ca"><span class="std std-ref">CPMDCResult</span></a>;
+typedef struct CPMDCEnergyComponents <a class="reference internal" href="#doxid-cpmdc-8h-1aedc8eb0071a1f153ea4db9c0d96bce19"><span class="std std-ref">CPMDCEnergyComponents</span></a>;
+typedef struct CPMDCChargeIntegrals <a class="reference internal" href="#doxid-cpmdc-8h-1aae00229c7649a90a8da6e23113d367dd"><span class="std std-ref">CPMDCChargeIntegrals</span></a>;
+typedef struct CPMDCMultiStateEnergies <a class="reference internal" href="#doxid-cpmdc-8h-1a7154299d9d5bfe722eb33b24d941abf8"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>;
+typedef struct CPMDCMDTrajectoryRow <a class="reference internal" href="#doxid-cpmdc-8h-1a116d67931c3d565982c327bb0a335818"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>;
+typedef struct CPMDCPropertySnapshot <a class="reference internal" href="#doxid-cpmdc-8h-1a0ff3c92e7d255d36b825d98d6f9aaff2"><span class="std std-ref">CPMDCPropertySnapshot</span></a>;
+typedef struct CPMDCStressTensor <a class="reference internal" href="#doxid-cpmdc-8h-1ab0ed88166123b36bd5f3c01bba3400f4"><span class="std std-ref">CPMDCStressTensor</span></a>;
+typedef struct <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>;
+typedef enum <a class="reference internal" href="enum_CPMDCFeatureKind.html#doxid-cpmdc-features-8h-1af730055345a93286960ba9ef1a3f05b2"><span class="std std-ref">CPMDCFeatureKind</span></a> <a class="reference internal" href="#doxid-cpmdc-features-8h-1ab8efa8b96095d9bcb86951f47cdf3ddd"><span class="std std-ref">CPMDCFeatureKind</span></a>;
+typedef struct CPMDCFeatureEntry <a class="reference internal" href="#doxid-cpmdc-features-8h-1a78e933e2bdea5d5a752302a384a3137b"><span class="std std-ref">CPMDCFeatureEntry</span></a>;
+typedef struct <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a> <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>;
+
+// enums
+
+enum <a class="reference internal" href="enum_CPMDCFeatureKind.html#doxid-cpmdc-features-8h-1af730055345a93286960ba9ef1a3f05b2"><span class="std std-ref">CPMDCFeatureKind</span></a>;
+
+// structs
+
+struct <a class="reference internal" href="struct_CPMDCChargeIntegrals.html#doxid-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">CPMDCChargeIntegrals</span></a>;
+struct <a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>;
+struct <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>;
+struct <a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html#doxid-struct-c-p-m-d-c-m-d-trajectory-row"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>;
+struct <a class="reference internal" href="struct_CPMDCMultiStateEnergies.html#doxid-struct-c-p-m-d-c-multi-state-energies"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>;
+struct <a class="reference internal" href="struct_CPMDCPropertySnapshot.html#doxid-struct-c-p-m-d-c-property-snapshot"><span class="std std-ref">CPMDCPropertySnapshot</span></a>;
+struct <a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a>;
+struct <a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>;
+
+// global functions
+
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a22da50d15419dadce4925c88100a1c23"><span class="std std-ref">cpmdc_set_params</span></a>(const void* params_capnp, size_t params_capnp_size_bytes);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span class="std std-ref">cpmdc_configure</span></a>(const void* config_capnp, size_t config_capnp_size_bytes);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a525b75c1e47dd8595be42d2175f9f64f"><span class="std std-ref">cpmdc_energy_gradient</span></a>(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* grad_h_bohr);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a6e17756faffc4d181352a5953991f584"><span class="std std-ref">cpmdc_energy</span></a>(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1ad653481360bf399295aed47e14cef118"><span class="std std-ref">cpmdc_energy_forces</span></a>(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* forces_h_bohr);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a7e3d1f5e69de7f1bc8218d7e5b7c8953"><span class="std std-ref">cpmdc_bind_calculator</span></a>(int ranks_per_calc);
+<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* <a class="reference internal" href="#doxid-cpmdc-8h-1a08b6b5b994b9754e6c853d3dd46c7745"><span class="std std-ref">cpmdc_session_create</span></a>(const void* params_capnp, size_t params_capnp_size_bytes);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a0ffb70752daab4a244e5ffd58eaa6db5"><span class="std std-ref">cpmdc_session_set_params</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* params_capnp, size_t params_capnp_size_bytes);
+<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* <a class="reference internal" href="#doxid-cpmdc-8h-1a42fcd68eb0fc7a563dba31de8aae65d4"><span class="std std-ref">cpmdc_session_create_from_config</span></a>(const void* config_capnp, size_t config_capnp_size_bytes);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a9390ba94fbc7816b7badeeaedbbffb55"><span class="std std-ref">cpmdc_session_configure</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* config_capnp, size_t config_capnp_size_bytes);
+void <a class="reference internal" href="#doxid-cpmdc-8h-1a6d07b0b1700b5352f1ce33f396a9f578"><span class="std std-ref">cpmdc_session_destroy</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a6d79318bc9f2eae253d4906376123570"><span class="std std-ref">cpmdc_session_energy_gradient</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* grad_h_bohr);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a3c36a0c86b25223e47eb139ec2d89a33"><span class="std std-ref">cpmdc_session_energy</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1ab94170b806559374915fb2510fd46d6b"><span class="std std-ref">cpmdc_session_energy_forces</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* forces_h_bohr);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a9f5e4a955e689dcf3e06b52e68b6adb1"><span class="std std-ref">cpmdc_session_calculate_forces</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, double* forces_h_bohr, size_t forces_len);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1ac63ef923626641269d88b5319f5eed8a"><span class="std std-ref">cpmdc_session_calculate_result</span></a>(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a9b206e2d2173eafb39c00977101da25b"><span class="std std-ref">cpmdc_calculate_result</span></a>(const void* params_capnp, size_t params_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
+<a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1ae25fc395d2c702ceb3604b211c31101c"><span class="std std-ref">cpmdc_calculate_result_from_config</span></a>(const void* config_capnp, size_t config_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes);
+size_t <a class="reference internal" href="#doxid-cpmdc-8h-1a50c58b775c95334c2842f3d07c247408"><span class="std std-ref">cpmdc_potential_result_size_for_force_input</span></a>(const void* force_input_capnp, size_t force_input_capnp_size_bytes);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a1b9502d082856395b03a28318cff24a7"><span class="std std-ref">cpmdc_capabilities_result</span></a>(void* capabilities_capnp, size_t capabilities_capnp_capacity_bytes, size_t* capabilities_capnp_size_bytes);
+const char* <a class="reference internal" href="#doxid-cpmdc-8h-1a4d5a0eade3deceabe9f7e48e7a45d430"><span class="std std-ref">cpmdc_version</span></a>(void);
+const char* <a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref">cpmdc_last_error</span></a>(void);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a32d9936fa0bb1380d6da4b8c34c4be44"><span class="std std-ref">cpmdc_abi_version</span></a>(void);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a25f2bc651370d207f2049574e7073e0d"><span class="std std-ref">cpmdc_available</span></a>(void);
+void <a class="reference internal" href="#doxid-cpmdc-8h-1afae0c7a27c94036223f7a0cf60488f56"><span class="std std-ref">cpmdc_finalize</span></a>(void);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a0d2884a4f1288d9f5e76ec4abb505246"><span class="std std-ref">cpmdc_last_energy_components</span></a>(<a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a6de74b0ee488509c061fcbbdab84701e"><span class="std std-ref">cpmdc_session_last_energy_components</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a730ce53f4a99387b5f1ebe03e23f3883"><span class="std std-ref">cpmdc_last_charge_integrals</span></a>(<a class="reference internal" href="struct_CPMDCChargeIntegrals.html#doxid-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">CPMDCChargeIntegrals</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a16b278145c1a0ebe3d1b6da8e0c3b2a2"><span class="std std-ref">cpmdc_session_last_charge_integrals</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCChargeIntegrals.html#doxid-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">CPMDCChargeIntegrals</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a81e70c2ce3ed9bf5ea9d85ca8dcf2c12"><span class="std std-ref">cpmdc_last_multi_state_energies</span></a>(<a class="reference internal" href="struct_CPMDCMultiStateEnergies.html#doxid-struct-c-p-m-d-c-multi-state-energies"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1ada692b66033d04c0a292173540ea8ba3"><span class="std std-ref">cpmdc_session_last_multi_state_energies</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCMultiStateEnergies.html#doxid-struct-c-p-m-d-c-multi-state-energies"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a79b53381ce1bfa4271eb3f0236e4c933"><span class="std std-ref">cpmdc_last_md_trajectory_row</span></a>(<a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html#doxid-struct-c-p-m-d-c-m-d-trajectory-row"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1ac74b43e1abe4f7a80fc6b1d17b6cd24a"><span class="std std-ref">cpmdc_session_last_md_trajectory_row</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html#doxid-struct-c-p-m-d-c-m-d-trajectory-row"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a82c93318bc595fe735d8551cf0c2065b"><span class="std std-ref">cpmdc_last_property_snapshot</span></a>(<a class="reference internal" href="struct_CPMDCPropertySnapshot.html#doxid-struct-c-p-m-d-c-property-snapshot"><span class="std std-ref">CPMDCPropertySnapshot</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a1bbb45afce5cebb9f5141109fbe2f6d1"><span class="std std-ref">cpmdc_session_last_property_snapshot</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCPropertySnapshot.html#doxid-struct-c-p-m-d-c-property-snapshot"><span class="std std-ref">CPMDCPropertySnapshot</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1ad1997ec438a489fa8321c36bcf5ec0b7"><span class="std std-ref">cpmdc_last_stress</span></a>(<a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>* out);
+int <a class="reference internal" href="#doxid-cpmdc-8h-1a213829ea7a748a92923d6de4c20e9e50"><span class="std std-ref">cpmdc_session_last_stress</span></a>(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>* out);
+size_t <a class="reference internal" href="#doxid-cpmdc-features-8h-1a4cf7e2f669806606c1d1293533b3d38e"><span class="std std-ref">cpmdc_feature_count</span></a>(void);
+const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* <a class="reference internal" href="#doxid-cpmdc-features-8h-1ae40eb0e96927dc5f3feacc20c3869315"><span class="std std-ref">cpmdc_feature_table</span></a>(void);
+const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* <a class="reference internal" href="#doxid-cpmdc-features-8h-1a4d2414cdfa87d867cf1ab1e708dfb4ca"><span class="std std-ref">cpmdc_feature_find</span></a>(const char* feature_id);
+<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ae7b62fa4d0ac1400f7ca88fae6687f2e"><span class="std std-ref">cpmdc_restart_read_mem</span></a>(const void* bytes, size_t nbytes, char* err, size_t err_cap);
+<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ac5c4295836c617d13898d447a69e5d23"><span class="std std-ref">cpmdc_restart_read_path</span></a>(const char* path, char* err, size_t err_cap);
+void <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a21508759d96038feef8c60585540cef8"><span class="std std-ref">cpmdc_restart_free</span></a>(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a9b4712e82aa09f84838b8df2dae379df"><span class="std std-ref">cpmdc_restart_is_stream</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
+const char* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1aba7859dc9d37fbd8e751eef430ca5850"><span class="std std-ref">cpmdc_restart_header</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a050b8c038447fe4331830979e20b168c"><span class="std std-ref">cpmdc_restart_section</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int section, int* count);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ac1cdda0a95509fea2153133d80f96b7b"><span class="std std-ref">cpmdc_restart_cell</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* ibrav, int* indpg, double celldm[6]);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a25f632af816723de80cb0218a28b016e"><span class="std std-ref">cpmdc_restart_species</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* nsp, const int** na_per_species);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span class="std std-ref">cpmdc_restart_ncoords</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span class="std std-ref">cpmdc_restart_coordinates</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span class="std std-ref">cpmdc_restart_velocities</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a337a3c4578f21b024c908e66e0dd38fe"><span class="std std-ref">cpmdc_restart_initial_coordinates</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a3f076f8969698092b18908fb462ca13d"><span class="std std-ref">cpmdc_restart_set_coordinates</span></a>(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a9f63ac6376aac41fd01fae63a73f3894"><span class="std std-ref">cpmdc_restart_set_velocities</span></a>(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a3395624eaaf387d38411b709c6f4c06b"><span class="std std-ref">cpmdc_restart_set_cell</span></a>(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double celldm[6]);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a7fb885214c7ad0cda83cb7f7680fac6c"><span class="std std-ref">cpmdc_restart_cutoff</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a5870f76d69d3672e1fa136c705475dbc"><span class="std std-ref">cpmdc_restart_states</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a999ee8be4f5b1b7c629b28fedd6e6a4f"><span class="std std-ref">cpmdc_restart_write_mem</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, void** bytes, size_t* nbytes, char* err, size_t err_cap);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e2ebd04360cb4ed5d2f"><span class="std std-ref">cpmdc_restart_write_path</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char* path, char* err, size_t err_cap);
+
+// macros
+
+#define <a class="reference internal" href="#doxid-cpmdc-8h-1a3e1546a10c3fe2b968f3bfaffd048056"><span class="std std-ref">CPMDC_ABI_VERSION</span></a>
+#define <a class="reference internal" href="#doxid-cpmdc-restart-8h-1af60c430255991bb5fe2489d84b051597"><span class="std std-ref">CPMDC_RESTART_ANGSTROM_PER_BOHR</span></a></pre>
+</section>
+<section id="detailed-documentation">
+<span id="details-global"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
+<section id="typedefs">
+<h3>Typedefs<a class="headerlink" href="#typedefs" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a624f3d7d040e783aef1536f49e2a43ca"><span id="index-1"></span>typedef struct CPMDCResult CPMDCResult</pre>
+<p>Result returned by energy / gradient / forces entry points.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1aedc8eb0071a1f153ea4db9c0d96bce19"><span id="index-2"></span>typedef struct CPMDCEnergyComponents CPMDCEnergyComponents</pre>
+<p>In-process snapshot of OpenCPMD <code class="docutils literal notranslate"><span class="pre">ener_com</span></code> scalars (Hartree a.u.).</p>
+<p>Filled after a successful embed SCF (<code class="docutils literal notranslate"><span class="pre">wfopts</span></code>) or reference PEF evaluation. Hosts read this via <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a0d2884a4f1288d9f5e76ec4abb505246"><span class="std std-ref"><span class="pre">cpmdc_last_energy_components()</span></span></a></code> without parsing CLI ENERGY files or opening a network socket. Field names mirror <code class="docutils literal notranslate"><span class="pre">ener_com_t</span></code> in OpenCPMD <code class="docutils literal notranslate"><span class="pre">ener.mod.F90</span></code>. Zero fields are valid (not set for that run).</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1aae00229c7649a90a8da6e23113d367dd"><span id="index-3"></span>typedef struct CPMDCChargeIntegrals CPMDCChargeIntegrals</pre>
+<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg_t</span></code> density integrals (post-SCF module state).</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a7154299d9d5bfe722eb33b24d941abf8"><span id="index-4"></span>typedef struct CPMDCMultiStateEnergies CPMDCMultiStateEnergies</pre>
+<p>Flattened CAS22-class multi-state catalog (<code class="docutils literal notranslate"><span class="pre">ener_c</span></code> + <code class="docutils literal notranslate"><span class="pre">ener_d</span></code>).</p>
+<p>Layout is backend-defined; <code class="docutils literal notranslate"><span class="pre">count</span></code> is the number of doubles copied into <code class="docutils literal notranslate"><span class="pre">values</span></code> (caller provides capacity). Returns -1 when no snapshot.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a116d67931c3d565982c327bb0a335818"><span id="index-5"></span>typedef struct CPMDCMDTrajectoryRow CPMDCMDTrajectoryRow</pre>
+<p>One ENERGY-file-equivalent trajectory row (Hartree).</p>
+<p>Layout (count &gt;= 12 after a successful eval): [0] etot [1] ekin [2] epseu [3] enl [4] eht [5] exc [6] ehep [7] ehee [8] ehii [9] esr [10] eself [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a0ff3c92e7d255d36b825d98d6f9aaff2"><span id="index-6"></span>typedef struct CPMDCPropertySnapshot CPMDCPropertySnapshot</pre>
+<p>PROP-style property snapshot after a successful evaluation.</p>
+<ul class="simple">
+<li><p>dipole[3]: OpenCPMD <code class="docutils literal notranslate"><span class="pre">ddippdipole</span></code> (a.u.) when linked; PEF zeros</p></li>
+<li><p>polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9</p></li>
+<li><p>hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs dedicated PROP/Hessian run; gradient is always available after force eval)</p></li>
+</ul>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ab0ed88166123b36bd5f3c01bba3400f4"><span id="index-7"></span>typedef struct CPMDCStressTensor CPMDCStressTensor</pre>
+<p>Cartesian stress tensor after a successful PEF evaluation.</p>
+<p>Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code> after <code class="docutils literal notranslate"><span class="pre">totstr</span></code> when <code class="docutils literal notranslate"><span class="pre">cntltpres</span></code>). <code class="docutils literal notranslate"><span class="pre">valid</span></code> is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves <code class="docutils literal notranslate"><span class="pre">valid</span></code> unset. Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set; -1 when stress was not computed.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span id="index-8"></span>typedef struct <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a> CPMDCSession</pre>
+<p>Opaque handle for repeated evaluations with one Cap’n Proto parameter set.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-features-8h-1ab8efa8b96095d9bcb86951f47cdf3ddd"><span id="index-9"></span>typedef enum <a class="reference internal" href="enum_CPMDCFeatureKind.html#doxid-cpmdc-features-8h-1af730055345a93286960ba9ef1a3f05b2"><span class="std std-ref">CPMDCFeatureKind</span></a> CPMDCFeatureKind</pre>
+<p>Feature namespace represented by a <code class="docutils literal notranslate"><a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref"><span class="pre">CPMDCFeatureEntry</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-features-8h-1a78e933e2bdea5d5a752302a384a3137b"><span id="index-10"></span>typedef struct CPMDCFeatureEntry CPMDCFeatureEntry</pre>
+<p>One discoverable ABI, parameter, section, or keyword capability.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span id="index-11"></span>typedef struct <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a> cpmdc_restart</pre>
+<p>Opaque RESTART image.</p>
+</section>
+<section id="global-functions">
+<h3>Global Functions<a class="headerlink" href="#global-functions" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a22da50d15419dadce4925c88100a1c23"><span id="index-12"></span>int cpmdc_set_params(const void* params_capnp, size_t params_capnp_size_bytes)</pre>
+<p>Apply CPMD method parameters from a Cap’n Proto message.</p>
+<p>Callers do not need C setter functions for individual CPMD keywords. Build one <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message with top-level fields, structured <code class="docutils literal notranslate"><span class="pre">inputSections</span></code>, and literal <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code>, then pass its bytes to this function or to <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a08b6b5b994b9754e6c853d3dd46c7745"><span class="std std-ref"><span class="pre">cpmdc_session_create()</span></span></a></code>.</p>
+<p>Feature discovery mirrors the schema carriers: typed fields such as <code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.maxIter</span></code>, <code class="docutils literal notranslate"><span class="pre">params.inputSections.system.cell</span></code>, <code class="docutils literal notranslate"><span class="pre">params.inputSections.dft.hfxScreening</span></code>, and <code class="docutils literal notranslate"><span class="pre">params.inputSections.atoms.pseudopotentials</span></code>; catalog sections such as <code class="docutils literal notranslate"><span class="pre">catalog.section.VDW</span></code>; and escape hatches such as <code class="docutils literal notranslate"><span class="pre">params.inputSections.raw</span></code>. The same serialized params buffer is accepted by <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a9b206e2d2173eafb39c00977101da25b"><span class="std std-ref"><span class="pre">cpmdc_calculate_result()</span></span></a></code> for one-shot calls.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>params_capnp</p></td>
+<td><p>Pointer to an unpacked flat <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> message.</p></td>
+</tr>
+<tr class="row-even"><td><p>params_capnp_size_bytes</p></td>
+<td><p>Size of <code class="docutils literal notranslate"><span class="pre">params_capnp</span></code> in bytes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success, -1 on parse or configuration failure. Failure text is <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span id="index-13"></span>int cpmdc_configure(const void* config_capnp, size_t config_capnp_size_bytes)</pre>
+<p>Apply configuration from a <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> message.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">cpmd</span></code> union arm carries <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> and wins wholesale when present. With the arm unset, a set <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay (<code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code>) lowers to synthesized <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> : functional, plane-wave cutoff, charge, multiplicity, MAXITER, and the Monkhorst-Pack kMesh. Setting both the cpmd arm and the overlay is rejected (capnp cannot distinguish unset arm fields from defaults). Overlay fields without a CPMD lowering are rejected and reported through <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<p class="rubric">Returns:</p>
+<p>0 on success, -1 on parse, lowering, or apply failure.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a525b75c1e47dd8595be42d2175f9f64f"><span id="index-14"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_energy_gradient(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* grad_h_bohr)</pre>
+<p>Compute energy and nuclear gradient for an atomic configuration.</p>
+<p>Positions are Angstrom; gradient is Hartree/Bohr (CPMD ionic forces are negated into a nuclear gradient for API symmetry with nwchemc).</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a6e17756faffc4d181352a5953991f584"><span id="index-15"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_energy(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes)</pre>
+<p>Compute total energy only (no gradient allocation).</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ad653481360bf399295aed47e14cef118"><span id="index-16"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_energy_forces(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* forces_h_bohr)</pre>
+<p>Compute energy and nuclear forces (negative gradient, Hartree/Bohr).</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a7e3d1f5e69de7f1bc8218d7e5b7c8953"><span id="index-17"></span>int cpmdc_bind_calculator(int ranks_per_calc)</pre>
+<p>Bind this rank to one CPMD calculator of <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> ranks.</p>
+<p>Collective on MPI_COMM_WORLD, once, before the first energy call. World size must divide into groups of ranks_per_calc. Each group is one CPMD calculator: its own communicator, its own wavefunction, the same deck. A value of zero or less takes the whole world as one group. Returns the group index, or -1 when the split is refused or the library carries no CPMD backend. Failure text is <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>. A second call returns the same index and does not split again.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a08b6b5b994b9754e6c853d3dd46c7745"><span id="index-18"></span><a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* cpmdc_session_create(const void* params_capnp, size_t params_capnp_size_bytes)</pre>
+<p>Create a persistent evaluation session from a Cap’n Proto message.</p>
+<p>The session owns a copy of the serialized message so callers may release the input buffer after this call returns. Returns NULL on failure; the reason is <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a0ffb70752daab4a244e5ffd58eaa6db5"><span id="index-19"></span>int cpmdc_session_set_params(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* params_capnp, size_t params_capnp_size_bytes)</pre>
+<p>Replace Cap’n Proto parameters before the session accepts topology.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a42fcd68eb0fc7a563dba31de8aae65d4"><span id="index-20"></span><a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* cpmdc_session_create_from_config(const void* config_capnp, size_t config_capnp_size_bytes)</pre>
+<p>Create a persistent session from a <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> message.</p>
+<p>Resolves the config exactly like <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span class="std std-ref"><span class="pre">cpmdc_configure()</span></span></a></code> and installs the effective <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> on a new session.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a9390ba94fbc7816b7badeeaedbbffb55"><span id="index-21"></span>int cpmdc_session_configure(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* config_capnp, size_t config_capnp_size_bytes)</pre>
+<p>Configure an existing session from a <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> message.</p>
+<p>Accepted only before the session evaluates; resolution matches <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span class="std std-ref"><span class="pre">cpmdc_configure()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a6d07b0b1700b5352f1ce33f396a9f578"><span id="index-22"></span>void cpmdc_session_destroy(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session)</pre>
+<p>Release a persistent evaluation session.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a6d79318bc9f2eae253d4906376123570"><span id="index-23"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_session_energy_gradient(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* grad_h_bohr)</pre>
+<p>Compute energy and nuclear gradient with session-owned parameters.</p>
+<p>Positions are Angstrom. The gradient buffer must have <code class="docutils literal notranslate"><span class="pre">n_atoms</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles and is filled in Hartree/Bohr.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a3c36a0c86b25223e47eb139ec2d89a33"><span id="index-24"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_session_energy(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers)</pre>
+<p>Compute total energy with session-owned parameters.</p>
+<p>Positions are Angstrom and the returned energy is Hartree.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ab94170b806559374915fb2510fd46d6b"><span id="index-25"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_session_energy_forces(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* forces_h_bohr)</pre>
+<p>Compute energy and nuclear forces with session-owned parameters.</p>
+<p>Positions are Angstrom. The forces buffer must have <code class="docutils literal notranslate"><span class="pre">n_atoms</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles and is filled in Hartree/Bohr.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a9f5e4a955e689dcf3e06b52e68b6adb1"><span id="index-26"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_session_calculate_forces(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, double* forces_h_bohr, size_t forces_len)</pre>
+<p>Compute energy and forces for one Cap’n Proto <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> step.</p>
+<p>Session keeps persistent <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>; each call supplies geometry. Returned energy/forces use CPMD native units: Hartree and Hartree/Bohr.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ac63ef923626641269d88b5319f5eed8a"><span id="index-27"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_session_calculate_result(<a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes)</pre>
+<p>Compute forces for one <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> step and write <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>.</p>
+<p>Direct-call socket entry point: method state in the session, geometry in <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>, output energy/forces converted to <code class="docutils literal notranslate"><span class="pre">ForceInput.energyUnit</span></code> and <code class="docutils literal notranslate"><span class="pre">energyUnit</span> <span class="pre">/</span> <span class="pre">lengthUnit</span></code>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">potential_result_capnp_capacity_bytes</span></code> is too small, returns <code class="docutils literal notranslate"><span class="pre">ok</span> <span class="pre">==</span> <span class="pre">0</span></code>, writes the required byte count to <code class="docutils literal notranslate"><span class="pre">potential_result_capnp_size_bytes</span></code>, and does not evaluate CPMD.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a9b206e2d2173eafb39c00977101da25b"><span id="index-28"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_calculate_result(const void* params_capnp, size_t params_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes)</pre>
+<p>One-shot Cap’n Proto entry point (params + ForceInput -&gt; PotentialResult).</p>
+<p>Multi-step callers should create one session and call <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac63ef923626641269d88b5319f5eed8a"><span class="std std-ref"><span class="pre">cpmdc_session_calculate_result()</span></span></a></code> per step.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ae25fc395d2c702ceb3604b211c31101c"><span id="index-29"></span><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a> cpmdc_calculate_result_from_config(const void* config_capnp, size_t config_capnp_size_bytes, const void* force_input_capnp, size_t force_input_capnp_size_bytes, void* potential_result_capnp, size_t potential_result_capnp_capacity_bytes, size_t* potential_result_capnp_size_bytes)</pre>
+<p>One-shot Cap’n Proto entry point resolving a full <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> (native arm plus common overlay, exactly like <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span class="std std-ref"><span class="pre">cpmdc_configure()</span></span></a></code>).</p>
+<p>Multi-step callers should create one session via <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a42fcd68eb0fc7a563dba31de8aae65d4"><span class="std std-ref"><span class="pre">cpmdc_session_create_from_config()</span></span></a></code> and call <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac63ef923626641269d88b5319f5eed8a"><span class="std std-ref"><span class="pre">cpmdc_session_calculate_result()</span></span></a></code> per step.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a50c58b775c95334c2842f3d07c247408"><span id="index-30"></span>size_t cpmdc_potential_result_size_for_force_input(const void* force_input_capnp, size_t force_input_capnp_size_bytes)</pre>
+<p>Byte count needed for a <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> for the given <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>.</p>
+<p>Parses geometry only; does not initialize or evaluate CPMD. Returns 0 when the message is invalid or too large for the C ABI. That failure is reported through <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a1b9502d082856395b03a28318cff24a7"><span id="index-31"></span>int cpmdc_capabilities_result(void* capabilities_capnp, size_t capabilities_capnp_capacity_bytes, size_t* capabilities_capnp_size_bytes)</pre>
+<p>Write a Cap’n Proto <code class="docutils literal notranslate"><span class="pre">Capabilities</span></code> message describing this backend.</p>
+<p>Loaders negotiate against the message before dispatch: backend name and version, ABI generation, availability, the calculate operations the ABI serves, the <code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code> fields the overlay lowers, and the <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code> arms accepted. A stub build reports the same operation surface with <code class="docutils literal notranslate"><span class="pre">available</span> <span class="pre">=</span> <span class="pre">false</span></code>.</p>
+<p>Returns 0 on success. On a too-small buffer (including the pure size query <code class="docutils literal notranslate"><span class="pre">capabilities_capnp</span> <span class="pre">==</span> <span class="pre">NULL</span></code>, <code class="docutils literal notranslate"><span class="pre">capabilities_capnp_capacity_bytes</span> <span class="pre">==</span> <span class="pre">0</span></code>) returns -1 with <code class="docutils literal notranslate"><span class="pre">*capabilities_capnp_size_bytes</span></code> set to the required size. That -1 does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a4d5a0eade3deceabe9f7e48e7a45d430"><span id="index-32"></span>const char* cpmdc_version(void)</pre>
+<p>Compiled library version string.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span id="index-33"></span>const char* cpmdc_last_error(void)</pre>
+<p>Diagnostic for the most recent public call on this thread that reports failure through this string.</p>
+<p>Written by <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a22da50d15419dadce4925c88100a1c23"><span class="std std-ref"><span class="pre">cpmdc_set_params()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a63e0e322b316e71ce331fb8bd720a278"><span class="std std-ref"><span class="pre">cpmdc_configure()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a7e3d1f5e69de7f1bc8218d7e5b7c8953"><span class="std std-ref"><span class="pre">cpmdc_bind_calculator()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a08b6b5b994b9754e6c853d3dd46c7745"><span class="std std-ref"><span class="pre">cpmdc_session_create()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a0ffb70752daab4a244e5ffd58eaa6db5"><span class="std std-ref"><span class="pre">cpmdc_session_set_params()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a42fcd68eb0fc7a563dba31de8aae65d4"><span class="std std-ref"><span class="pre">cpmdc_session_create_from_config()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a9390ba94fbc7816b7badeeaedbbffb55"><span class="std std-ref"><span class="pre">cpmdc_session_configure()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a50c58b775c95334c2842f3d07c247408"><span class="std std-ref"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></span></a></code>, and every evaluation entry point (<code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a6e17756faffc4d181352a5953991f584"><span class="std std-ref"><span class="pre">cpmdc_energy()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a525b75c1e47dd8595be42d2175f9f64f"><span class="std std-ref"><span class="pre">cpmdc_energy_gradient()</span></span></a></code>, <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ad653481360bf399295aed47e14cef118"><span class="std std-ref"><span class="pre">cpmdc_energy_forces()</span></span></a></code>, the session variants, and the calculate-result calls). When the call returns <code class="docutils literal notranslate"><a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref"><span class="pre">CPMDCResult</span></span></a></code>, the text matches <code class="docutils literal notranslate"><span class="pre">message</span></code>, including a missing pseudopotential directory. Empty after a successful call.</p>
+<p>Snapshot readers (<code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ad1997ec438a489fa8321c36bcf5ec0b7"><span class="std std-ref"><span class="pre">cpmdc_last_stress()</span></span></a></code> and the other <code class="docutils literal notranslate"><span class="pre">cpmdc_last_*</span></code> / <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_*</span></code> getters) do not write it: -1 means the snapshot is absent or the output pointer is null. <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1a1b9502d082856395b03a28318cff24a7"><span class="std std-ref"><span class="pre">cpmdc_capabilities_result()</span></span></a></code> does not write it either; its -1 is the size query.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a32d9936fa0bb1380d6da4b8c34c4be44"><span id="index-34"></span>int cpmdc_abi_version(void)</pre>
+<p>Numeric ABI generation of the compiled library.</p>
+<p>Compare against the CPMDC_ABI_VERSION the consumer compiled with.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a25f2bc651370d207f2049574e7073e0d"><span id="index-35"></span>int cpmdc_available(void)</pre>
+<p>1 when the embedded OpenCPMD runtime is available.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1afae0c7a27c94036223f7a0cf60488f56"><span id="index-36"></span>void cpmdc_finalize(void)</pre>
+<p>Finalize an owned embedded CPMD runtime.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a0d2884a4f1288d9f5e76ec4abb505246"><span id="index-37"></span>int cpmdc_last_energy_components(<a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>* out)</pre>
+<p>Copy the last in-process <code class="docutils literal notranslate"><span class="pre">ener_com</span></code> energy decomposition.</p>
+<p>The no-session entry points read the active calculator. A session entry point reads that session, including after another session has run. Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set. Values are Hartree.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a6de74b0ee488509c061fcbbdab84701e"><span id="index-38"></span>int cpmdc_session_last_energy_components(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>* out)</pre>
+<p>Copy the last energy decomposition stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a730ce53f4a99387b5f1ebe03e23f3883"><span id="index-39"></span>int cpmdc_last_charge_integrals(<a class="reference internal" href="struct_CPMDCChargeIntegrals.html#doxid-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">CPMDCChargeIntegrals</span></a>* out)</pre>
+<p>Copy the last in-process density integrals.</p>
+<p>Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set. Does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a16b278145c1a0ebe3d1b6da8e0c3b2a2"><span id="index-40"></span>int cpmdc_session_last_charge_integrals(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCChargeIntegrals.html#doxid-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">CPMDCChargeIntegrals</span></a>* out)</pre>
+<p>Copy the last density integrals stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a81e70c2ce3ed9bf5ea9d85ca8dcf2c12"><span id="index-41"></span>int cpmdc_last_multi_state_energies(<a class="reference internal" href="struct_CPMDCMultiStateEnergies.html#doxid-struct-c-p-m-d-c-multi-state-energies"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>* out)</pre>
+<p>Copy the last multi-state energy catalog.</p>
+<p>Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set. Does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ada692b66033d04c0a292173540ea8ba3"><span id="index-42"></span>int cpmdc_session_last_multi_state_energies(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCMultiStateEnergies.html#doxid-struct-c-p-m-d-c-multi-state-energies"><span class="std std-ref">CPMDCMultiStateEnergies</span></a>* out)</pre>
+<p>Copy the last multi-state energy catalog stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a79b53381ce1bfa4271eb3f0236e4c933"><span id="index-43"></span>int cpmdc_last_md_trajectory_row(<a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html#doxid-struct-c-p-m-d-c-m-d-trajectory-row"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>* out)</pre>
+<p>Copy the last trajectory row.</p>
+<p>Values are Hartree. Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set. Does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ac74b43e1abe4f7a80fc6b1d17b6cd24a"><span id="index-44"></span>int cpmdc_session_last_md_trajectory_row(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCMDTrajectoryRow.html#doxid-struct-c-p-m-d-c-m-d-trajectory-row"><span class="std std-ref">CPMDCMDTrajectoryRow</span></a>* out)</pre>
+<p>Copy the last trajectory row stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a82c93318bc595fe735d8551cf0c2065b"><span id="index-45"></span>int cpmdc_last_property_snapshot(<a class="reference internal" href="struct_CPMDCPropertySnapshot.html#doxid-struct-c-p-m-d-c-property-snapshot"><span class="std std-ref">CPMDCPropertySnapshot</span></a>* out)</pre>
+<p>Copy the last property snapshot.</p>
+<p>Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set. Does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a1bbb45afce5cebb9f5141109fbe2f6d1"><span id="index-46"></span>int cpmdc_session_last_property_snapshot(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCPropertySnapshot.html#doxid-struct-c-p-m-d-c-property-snapshot"><span class="std std-ref">CPMDCPropertySnapshot</span></a>* out)</pre>
+<p>Copy the last property snapshot stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1ad1997ec438a489fa8321c36bcf5ec0b7"><span id="index-47"></span>int cpmdc_last_stress(<a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>* out)</pre>
+<p>Copy the last stress tensor.</p>
+<p>Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set, which is only after stress was computed for a periodic cell. Does not write <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-8h-1ac58f0528fddd704c6fcf57da49885956"><span class="std std-ref"><span class="pre">cpmdc_last_error()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a213829ea7a748a92923d6de4c20e9e50"><span id="index-48"></span>int cpmdc_session_last_stress(const <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>* session, <a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>* out)</pre>
+<p>Copy the last stress tensor stored on <code class="docutils literal notranslate"><span class="pre">session</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-features-8h-1a4cf7e2f669806606c1d1293533b3d38e"><span id="index-49"></span>size_t cpmdc_feature_count(void)</pre>
+<p>Number of entries returned by <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-features-8h-1ae40eb0e96927dc5f3feacc20c3869315"><span class="std std-ref"><span class="pre">cpmdc_feature_table()</span></span></a></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-features-8h-1ae40eb0e96927dc5f3feacc20c3869315"><span id="index-50"></span>const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* cpmdc_feature_table(void)</pre>
+<p>Return the contiguous feature table.</p>
+<p>The returned pointer has <code class="docutils literal notranslate"><a class="reference internal" href="#doxid-cpmdc-features-8h-1a4cf7e2f669806606c1d1293533b3d38e"><span class="std std-ref"><span class="pre">cpmdc_feature_count()</span></span></a></code> entries and remains owned by the library.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-features-8h-1a4d2414cdfa87d867cf1ab1e708dfb4ca"><span id="index-51"></span>const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* cpmdc_feature_find(const char* feature_id)</pre>
+<p>Find one feature by stable ID.</p>
+<p class="rubric">Returns:</p>
+<p>Pointer to the matching table entry, or <code class="docutils literal notranslate"><span class="pre">NULL</span></code> when the feature ID is not present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ae7b62fa4d0ac1400f7ca88fae6687f2e"><span id="index-52"></span><a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* cpmdc_restart_read_mem(const void* bytes, size_t nbytes, char* err, size_t err_cap)</pre>
+<p>Read a RESTART image from a memory buffer.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>err</p></td>
+<td><p>Receives a diagnostic when the read fails. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>The image, or NULL on failure.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ac5c4295836c617d13898d447a69e5d23"><span id="index-53"></span><a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* cpmdc_restart_read_path(const char* path, char* err, size_t err_cap)</pre>
+<p>Read a RESTART image from a filesystem path.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>err</p></td>
+<td><p>Receives a diagnostic when the read fails. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>The image, or NULL on failure.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a21508759d96038feef8c60585540cef8"><span id="index-54"></span>void cpmdc_restart_free(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
+<p>Release an image returned by the readers.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9b4712e82aa09f84838b8df2dae379df"><span id="index-55"></span>int cpmdc_restart_is_stream(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
+<p>1 when <code class="docutils literal notranslate"><span class="pre">file</span></code> uses the continuing-record stream layout.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aba7859dc9d37fbd8e751eef430ca5850"><span id="index-56"></span>const char* cpmdc_restart_header(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
+<p>Section 1 header text, or NULL when the image has none.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a050b8c038447fe4331830979e20b168c"><span id="index-57"></span>int cpmdc_restart_section(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int section, int* count)</pre>
+<p>Report one section’s record count.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>section</p></td>
+<td><p>1-based section index.</p></td>
+</tr>
+<tr class="row-even"><td><p>count</p></td>
+<td><p>The section’s own record count (the integer in its header), 0 when the section is empty.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 when the section is present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1ac1cdda0a95509fea2153133d80f96b7b"><span id="index-58"></span>int cpmdc_restart_cell(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* ibrav, int* indpg, double celldm[6])</pre>
+<p>Read the cell description.</p>
+<p class="rubric">Returns:</p>
+<p>0 when the cell section is present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a25f632af816723de80cb0218a28b016e"><span id="index-59"></span>int cpmdc_restart_species(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* nsp, const int** na_per_species)</pre>
+<p>Read the species counts.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>na_per_species</p></td>
+<td><p>Points at the image’s own array. Valid until the image is freed or rewritten.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 when the species section is present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span id="index-60"></span>int cpmdc_restart_ncoords(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
+<p>Number of coordinate triples in section 4, or 0 when that section is empty.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span id="index-61"></span>int cpmdc_restart_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<p>Copy coordinates in Bohr.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span id="index-62"></span>int cpmdc_restart_velocities(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<p>Copy velocities in Bohr.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a337a3c4578f21b024c908e66e0dd38fe"><span id="index-63"></span>int cpmdc_restart_initial_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<p>Copy the initial geometry in Bohr.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>xyz</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code> doubles.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3f076f8969698092b18908fb462ca13d"><span id="index-64"></span>int cpmdc_restart_set_coordinates(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
+<p>Replace coordinates, leaving every other record unchanged.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>xyz</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">n3</span></code> doubles, <code class="docutils literal notranslate"><span class="pre">ncoords</span> <span class="pre">*</span> <span class="pre">3</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9f63ac6376aac41fd01fae63a73f3894"><span id="index-65"></span>int cpmdc_restart_set_velocities(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
+<p>Replace velocities, leaving every other record unchanged.</p>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3395624eaaf387d38411b709c6f4c06b"><span id="index-66"></span>int cpmdc_restart_set_cell(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double celldm[6])</pre>
+<p>Replace the cell lattice parameters.</p>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a7fb885214c7ad0cda83cb7f7680fac6c"><span id="index-67"></span>int cpmdc_restart_cutoff(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s)</pre>
+<p>Read the cutoff section.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dual_flag</span></code> is the logical <code class="docutils literal notranslate"><span class="pre">dual</span></code> stored in section 7 (0 or 1), not the real dual factor. That factor is <code class="docutils literal notranslate"><span class="pre">cdual</span></code>.</p>
+<p class="rubric">Returns:</p>
+<p>0 when the section is present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a5870f76d69d3672e1fa136c705475dbc"><span id="index-68"></span>int cpmdc_restart_states(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl)</pre>
+<p>Read the electronic-state counts.</p>
+<p class="rubric">Returns:</p>
+<p>0 when the section is present.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a999ee8be4f5b1b7c629b28fedd6e6a4f"><span id="index-69"></span>int cpmdc_restart_write_mem(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, void** bytes, size_t* nbytes, char* err, size_t err_cap)</pre>
+<p>Write the image to a newly allocated buffer.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>bytes</p></td>
+<td><p>Receives a buffer the caller frees.</p></td>
+</tr>
+<tr class="row-even"><td><p>err</p></td>
+<td><p>Receives a diagnostic when the write fails. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1adda72bd3313b8e2ebd04360cb4ed5d2f"><span id="index-70"></span>int cpmdc_restart_write_path(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char* path, char* err, size_t err_cap)</pre>
+<p>Write the image to a filesystem path.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>err</p></td>
+<td><p>Receives a diagnostic when the write fails. May be NULL.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+</section>
+<section id="macros">
+<h3>Macros<a class="headerlink" href="#macros" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a3e1546a10c3fe2b968f3bfaffd048056"><span id="index-71"></span>#define CPMDC_ABI_VERSION</pre>
+<p>Numeric ABI generation of this header.</p>
+<p>Matches the shared-library soversion and <a class="reference internal" href="#doxid-cpmdc-8h-1a32d9936fa0bb1380d6da4b8c34c4be44"><span class="std std-ref">cpmdc_abi_version()</span></a>; bumps only on an incompatible ABI change.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1af60c430255991bb5fe2489d84b051597"><span id="index-72"></span>#define CPMDC_RESTART_ANGSTROM_PER_BOHR</pre>
+<p>Angstroms per Bohr, matching OpenCPMD <code class="docutils literal notranslate"><span class="pre">cnstfbohr</span></code>.</p>
+</section>
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="index.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">API Reference</div></div>
+    </a>
+  </div><div class="navigation-next">
+    <a href="enum_CPMDCFeatureKind.html">
+      <div class="page-info">
+        <span>Next</span>
+        <div class="title">enum CPMDCFeatureKind</div>
+      </div>
+      <i class="i-lucide chevron-right"></i>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../_static/documentation_options.js?v=938c9ccc"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/target-highlight.js?v=df7d332b"></script>
+      <script src="../_static/shibuya.js?v=50760d75"></script></body>
+</html>

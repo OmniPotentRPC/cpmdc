@@ -1,0 +1,9 @@
+/* Show logo variant matching color scheme (Shibuya / prefers-color-scheme). */
+img.light-only { display: block; }
+img.dark-only { display: none; }
+html[data-theme="dark"] img.light-only,
+html.dark img.light-only,
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) img.light-only { display: none; }
+  html:not([data-theme="light"]) img.dark-only { display: block; }
+}

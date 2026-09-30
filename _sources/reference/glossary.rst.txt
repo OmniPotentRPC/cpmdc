@@ -1,0 +1,182 @@
+A
+=
+
+ABI
+   Application binary interface: the functions, types, and calling
+   conventions of ``libcpmdc`` as a compiled library.
+   ``CPMDC_ABI_VERSION`` and ``cpmdc_abi_version()`` number its
+   generations.
+BLYP
+   Becke exchange with Lee, Yang, and Parr correlation, a generalized
+   gradient density functional; the default ``functional`` of
+   ``CPMDParams``.
+
+C
+=
+
+Calculator
+   A group of MPI ranks that runs one CPMD calculation with its own
+   communicator and orbitals. Created by ``cpmdc_bind_calculator()``.
+Cap'n Proto
+   The serialization format of every message ``cpmdc`` reads or writes.
+   ``capnp encode`` turns a text message into the binary form.
+Cold call
+   An evaluation that runs CPMD's full setup and starts the SCF without
+   stored orbitals: the first call of a session, a changed cell, or a
+   re-configured session.
+CPMD
+   Car-Parrinello Molecular Dynamics, the plane-wave density functional
+   code; ``cpmdc`` embeds its OpenCPMD distribution.
+``CPMDParams``
+   The message holding method setup: functional, cutoff, and the deck
+   sections. One per session.
+``CPMDCSession``
+   The C handle that owns one ``CPMDParams``, a fixed topology, and the
+   results of its last evaluation.
+
+D
+=
+
+Deck
+   A CPMD input file of ``&SECTION ... &END`` blocks. ``cpmdc`` renders
+   one from ``CPMDParams`` and hands it to CPMD in memory.
+Default build
+   ``libcpmdc.so`` built without OpenCPMD. It evaluates a deterministic
+   reference function so the ABI can be tested anywhere.
+DFT
+   Density functional theory.
+
+E
+=
+
+``ener_com``
+   The OpenCPMD module that holds the energy terms of the last SCF;
+   ``cpmdc_last_energy_components()`` copies it.
+
+F
+=
+
+Feature ID
+   A stable string naming a capability, such as
+   ``abi.cpmdc_session_calculate_result`` or
+   ``params.inputSections.cpmd.maxIter``. Looked up with
+   ``cpmdc_feature_find()``.
+File route
+   Running ``cpmd.x`` once per force call and exchanging decks and
+   output files through the file system; the alternative to embedding.
+``fion``
+   OpenCPMD's array of ionic forces, ``coor%fion``, read by ``cpmdc``
+   after each SCF.
+``ForceInput``
+   The message holding one geometry: positions, atomic numbers, an
+   optional cell, and output units.
+
+G
+=
+
+Gauss-Hermite integration
+   CPMD's default numerical treatment of the nonlocal pseudopotential
+   projectors, used when ``KLEINMAN-BYLANDER`` is not on the
+   pseudopotential file line.
+
+H
+=
+
+Hockney solver
+   ``POISSON SOLVER HOCKNEY``, CPMD's Poisson solver for an isolated
+   system in a box. Added by ``cpmdc`` when ``SYMMETRY 0`` has no
+   solver.
+
+K
+=
+
+Kleinman-Bylander form
+   A separable form of the nonlocal pseudopotential, selected per
+   species with ``KLEINMAN-BYLANDER`` on the ``*file`` line, or
+   ``kleinmanBylander = true`` in ``CPMDAtomsPseudopotential``.
+
+M
+=
+
+``memfd``
+   An anonymous in-memory file. ``cpmdc`` writes the composed deck to
+   one and passes CPMD its ``/proc/self/fd/N`` path.
+MPI
+   Message Passing Interface, the library CPMD uses to spread one SCF
+   over several processes (ranks).
+
+N
+=
+
+NEB
+   Nudged elastic band, a method that relaxes a chain of images between
+   two minima to find the minimum energy path.
+
+O
+=
+
+ODIIS
+   Orbital direct inversion in the iterative subspace, CPMD's
+   preconditioned DIIS wavefunction optimiser and its default.
+OpenCPMD
+   The open-source CPMD code base at ``github.com/OpenCPMD/CPMD``.
+
+P
+=
+
+Parent rank
+   Rank 0 of CPMD's communicator; it writes CPMD's output and holds the
+   result the host should use.
+PCG
+   Preconditioned conjugate gradient wavefunction optimiser.
+   ``PCG  MINIMIZE`` adds a line minimisation along each search
+   direction.
+``PotentialConfig``
+   A message with one backend arm, such as ``cpmd``, and an optional
+   ``CommonMethodSpec`` overlay; read by ``cpmdc_configure()``.
+``PotentialResult``
+   The result message: energy, forces, and the extension fields, in the
+   units ``ForceInput`` asked for.
+Pseudopotential
+   A file, such as ``O_MT_BLYP.psp``, replacing the core electrons of an
+   element; found through ``CPMDC_PSEUDO_DIR``.
+
+R
+=
+
+Reference evaluator
+   The deterministic function the default build evaluates instead of
+   CPMD.
+``RESTART.1``
+   CPMD's binary restart file with orbitals, coordinates, and cell; read
+   and patched by ``cpmdc-restart``.
+rgpot
+   The OmniPotentRPC library that loads potential backends, among them
+   ``libcpmdc`` through its ``CPMDPot`` frontend.
+
+S
+=
+
+SCF
+   Self-consistent field: the iterative optimisation of the orbitals for
+   fixed nuclei that each force call runs.
+Stub
+   ``libcpmdc_stub.a``, a link-only build whose calls all fail and whose
+   ``cpmdc_available()`` is 0.
+
+T
+=
+
+``tau0``
+   OpenCPMD's array of ionic positions in Bohr, ``coor%tau0``, written
+   by ``cpmdc`` from each step's positions.
+Topology
+   The atom count and ordered atomic numbers a session accepts on its
+   first successful step.
+
+W
+=
+
+Warm call
+   An evaluation that reuses CPMD's setup and starts the SCF from the
+   orbitals of the previous call of the same session.

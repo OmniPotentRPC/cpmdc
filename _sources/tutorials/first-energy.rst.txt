@@ -1,0 +1,280 @@
+This tutorial takes you from a fresh checkout to the energy and forces
+of a water molecule, computed through the ``cpmdc`` C API. You first run
+it against the default build, which needs no OpenCPMD, and then against
+a build that links OpenCPMD, where the same program returns a BLYP
+(Becke, Lee, Yang, Parr) density functional energy.
+
+Build the default library
+=========================
+
+Clone the repository and build it with the checked-in Pixi environment:
+
+.. code:: bash
+
+   git clone https://github.com/OmniPotentRPC/cpmdc.git
+   cd cpmdc
+   pixi run test-stub
+   export CPMDC=$PWD
+
+The last lines of the test run report ``Fail: 0``. The build directory
+``build/`` now holds ``libcpmdc.so`` and the example program
+``example_host_step``. ``CPMDC`` remembers the checkout for the commands
+below.
+
+Describe the method and the geometry
+====================================
+
+``cpmdc`` takes two messages: ``CPMDParams`` for the method, written
+once, and ``ForceInput`` for each geometry. Work in a directory outside
+the checkout, and open a shell in the Pixi environment so that ``capnp``
+and the compilers are on the path:
+
+.. code:: bash
+
+   mkdir -p ../cpmdc-tutorial
+   cd ../cpmdc-tutorial
+   pixi shell --manifest-path "$CPMDC/pixi.toml"
+
+Save the method as ``water.params.txt``. It asks for BLYP at a 50 Ry
+cutoff, an isolated molecule in a 10 Angstrom box, and names one
+pseudopotential per element:
+
+.. code:: capnp
+
+   (
+     functional = "BLYP",
+     cutOffRy = 50.0,
+     inputSections = [
+       ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5,
+           maxIter = 100, centerMoleculeOff = true ) ),
+       ( dft = ( functional = "BLYP" ) ),
+       ( system = ( symmetry = 0, angstrom = true, cutOffRy = 50.0,
+           cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+           poissonSolver = "HOCKNEY" ) ),
+       ( atoms = ( pseudopotentials = [
+           ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+           ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+         ] ) )
+     ]
+   )
+
+Save the geometry as ``water.step.txt``, with the molecule at the centre
+of the box:
+
+.. code:: capnp
+
+   (
+     pos = [
+       5.0, 5.0, 5.1173,
+       5.0, 5.7572, 4.5308,
+       5.0, 4.2428, 4.5308
+     ],
+     atmnrs = [8, 1, 1],
+     box = [10.0, 0.0, 0.0,  0.0, 10.0, 0.0,  0.0, 0.0, 10.0],
+     lengthUnit = "angstrom",
+     energyUnit = "eV"
+   )
+
+Encode both into the binary form the C API reads:
+
+.. code:: bash
+
+   capnp encode "$CPMDC/schema/Potentials.capnp" CPMDParams \
+     < water.params.txt > water.params.bin
+   capnp encode "$CPMDC/schema/Potentials.capnp" ForceInput \
+     < water.step.txt > water.step.bin
+
+Run the example host
+====================
+
+``example_host_step`` creates a session from the first file, evaluates
+the second, and prints a summary:
+
+.. code:: bash
+
+   "$CPMDC/build/example_host_step" water.params.bin water.step.bin
+
+.. code:: text
+
+   energy_h=0.958703657646
+   potential_result_size_bytes=888
+   message=ok
+   ener_com_etot=0.958703657646
+   ener_com_ekin=0.000000000000
+   ener_com_exc=0.000000000000
+   ener_com_eht=0.000000000000
+
+The default build evaluates with a deterministic reference function, a
+harmonic well scaled by the atomic numbers, not with DFT. Its numbers
+exercise the API and mean nothing physically, which is why the energy is
+positive and the components other than ``etot`` are zero.
+
+Write your own host
+===================
+
+Save this program as ``first_forces.c``. It creates a session, evaluates
+one ``ForceInput``, and prints the energy and the force on each atom:
+
+.. code:: c
+
+   #include <cpmdc.h>
+
+   #include <stdio.h>
+   #include <stdlib.h>
+
+   static unsigned char *slurp(const char *path, size_t *size) {
+     FILE *fp = fopen(path, "rb");
+     if (!fp)
+       return NULL;
+     fseek(fp, 0, SEEK_END);
+     long len = ftell(fp);
+     rewind(fp);
+     unsigned char *buf = malloc((size_t)len);
+     *size = fread(buf, 1, (size_t)len, fp);
+     fclose(fp);
+     return buf;
+   }
+
+   int main(int argc, char **argv) {
+     if (argc != 3) {
+       fprintf(stderr, "usage: %s params.bin step.bin\n", argv[0]);
+       return 2;
+     }
+     size_t params_size = 0, step_size = 0;
+     unsigned char *params = slurp(argv[1], &params_size);
+     unsigned char *step = slurp(argv[2], &step_size);
+     if (!params || !step)
+       return 2;
+
+     printf("%s available=%d\n", cpmdc_version(), cpmdc_available());
+     CPMDCSession *session = cpmdc_session_create(params, params_size);
+     if (!session) {
+       fprintf(stderr, "cpmdc_session_create failed\n");
+       return 1;
+     }
+
+     double forces[9]; /* three atoms, x y z each, Hartree/Bohr */
+     CPMDCResult r =
+         cpmdc_session_calculate_forces(session, step, step_size, forces, 9);
+     if (!r.ok) {
+       fprintf(stderr, "step failed: %s\n", r.message);
+       return 1;
+     }
+     printf("energy_h=%.8f\n", r.energy_h);
+     for (int i = 0; i < 3; ++i)
+       printf("force[%d] = %10.6f %10.6f %10.6f\n", i, forces[3 * i],
+              forces[3 * i + 1], forces[3 * i + 2]);
+
+     cpmdc_session_destroy(session);
+     cpmdc_finalize();
+     free(params);
+     free(step);
+     return 0;
+   }
+
+Compile it with the C compiler and link it with the Fortran compiler,
+which brings in the Fortran runtime that ``libcpmdc`` needs:
+
+.. code:: bash
+
+   $CC -c first_forces.c -I "$CPMDC/include"
+   $FC first_forces.o -L "$CPMDC/build" -lcpmdc \
+     -Wl,-rpath,"$CPMDC/build" -o first_forces
+   ./first_forces water.params.bin water.step.bin
+
+.. code:: text
+
+   cpmdc/0.2.0 available=1
+   energy_h=0.95870366
+   force[0] =  -0.053992  -0.053992  -0.055259
+   force[1] =  -0.006749  -0.007771  -0.006116
+   force[2] =  -0.006749  -0.005727  -0.006116
+
+``cpmdc_session_calculate_forces()`` returns the energy in Hartree and
+the forces in Hartree/Bohr, whatever units the ``ForceInput`` names; the
+units of the message apply to the serialized ``PotentialResult`` path.
+
+Switch to OpenCPMD
+==================
+
+The same program and the same two messages now run against real CPMD.
+Three things change: the library, the pseudopotential files, and one
+environment variable.
+
+#. Build a patched OpenCPMD archive with ``-fPIC``, as the
+   :doc:`archive how-to <../howto/opencpmd-archive>` describes, into
+   ``/path/to/opencpmd-build``.
+
+#. Link ``cpmdc`` against it, with the MPI compiler wrappers that built
+   OpenCPMD:
+
+   .. code:: bash
+
+      cd "$CPMDC"
+      CC=mpicc FC=mpif90 meson setup build-cpmd \
+        -Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build -Dwith_tests=false
+      meson compile -C build-cpmd
+      cd ../cpmdc-tutorial
+
+   When OpenCPMD was built with OpenMP and FFTW3, pass the same
+   libraries to the link, for example with
+   ``LDFLAGS="-fopenmp -lfftw3_omp -lfftw3"`` in front of
+   ``meson setup``.
+
+#. Fetch the two pseudopotentials from the OpenCPMD regression tests:
+
+   .. code:: bash
+
+      git clone --depth 1 https://github.com/OpenCPMD/Regtests.git
+      export CPMDC_PSEUDO_DIR=$PWD/Regtests/tests/PP_LIBRARY
+
+Relink the program against the new library and run it on one rank:
+
+.. code:: bash
+
+   mpicc -c first_forces.c -I "$CPMDC/include" -o first_forces_live.o
+   mpif90 first_forces_live.o -L "$CPMDC/build-cpmd" -lcpmdc \
+     -Wl,-rpath,"$CPMDC/build-cpmd" -o first_forces_live
+   OMP_NUM_THREADS=1 ./first_forces_live water.params.bin water.step.bin
+
+CPMD prints its usual output to standard output, ending with the SCF
+iterations and the energy breakdown, and then the program prints its
+lines:
+
+.. code:: text
+
+    NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
+      1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.63
+    ...
+     13  4.399E-06   6.431E-07     -17.055717   -1.356E-08      0.65
+    ...
+    (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
+    ...
+   energy_h=-17.05571670
+   force[0] =   0.000000   0.000000   0.022496
+   force[1] =   0.000000   0.012514  -0.011962
+   force[2] =   0.000000  -0.012514  -0.011962
+
+The SCF reached -17.05571670 Hartree at iteration 13. The forces are
+those of an off-equilibrium water geometry: zero along ``x``, the
+direction normal to the molecular plane, and mirror-symmetric in ``y``.
+The iteration timings in the ``TCPU`` column depend on the machine.
+
+What you built
+==============
+
+- a ``CPMDParams`` message and a ``ForceInput`` message, encoded with
+  ``capnp``;
+- a C host that creates a session and evaluates a step;
+- the same host running against the default evaluator and against
+  OpenCPMD.
+
+CPMD writes ``RESTART.1``, ``LATEST``, ``GEOMETRY``, and
+``GEOMETRY.xyz`` in ``permanentDir`` when that field is set, otherwise
+in ``scratchDir``, otherwise in the host's working directory. The
+pseudopotential directory is unchanged. To evaluate many geometries,
+call ``cpmdc_session_calculate_forces()`` again on the same session:
+every call after the first starts from the orbitals of the previous one.
+The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
+minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each
+SCF over several ranks.

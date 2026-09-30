@@ -1,0 +1,231 @@
+What gets built
+===============
+
+A ``cpmdc`` build produces one shared library, ``libcpmdc.so``, and a
+few helpers around it. The build has two modes, selected by the Meson
+option ``with_cpmd``:
+
++----------+--------------------------------------+-----------------------+-----------------------+
+| Mode     | Option                               | Evaluator behind the  | ``cpmdc_available()`` |
+|          |                                      | C ABI                 |                       |
++==========+======================================+=======================+=======================+
+| Default  | ``-Dwith_cpmd=false``                | deterministic         | 1                     |
+|          |                                      | reference evaluator,  |                       |
+|          |                                      | no OpenCPMD           |                       |
++----------+--------------------------------------+-----------------------+-----------------------+
+| OpenCPMD | ``-Dwith_cpmd=true -Dcpmd_root=DIR`` | OpenCPMD linked from  | 1                     |
+|          |                                      | ``DIR/lib/libcpmd.a`` |                       |
++----------+--------------------------------------+-----------------------+-----------------------+
+
+Both modes export the same symbols. A third target, ``libcpmdc_stub.a``,
+is a link-only placeholder: every call fails and ``cpmdc_available()``
+returns 0. The tests use it to check the ABI without a working
+evaluator.
+
++------------------------+----------------------------+----------------------+
+| Artifact               | Installed as               | Purpose              |
++========================+============================+======================+
+| ``libcpmdc.so``        | ``lib/libcpmdc.so.0``      | the C ABI from       |
+|                        |                            | ``include/cpmdc.h``  |
++------------------------+----------------------------+----------------------+
+| public headers         | ``include/cpmdc/cpmdc.h``, | declarations for     |
+|                        | ``cpmdc_features.h``,      | hosts                |
+|                        | ``cpmdc_restart.h``        |                      |
++------------------------+----------------------------+----------------------+
+| ``libcpmdc_restart.a`` | ``lib/libcpmdc_restart.a`` | reader and writer    |
+|                        |                            | for CPMD ``RESTART`` |
+|                        |                            | files                |
++------------------------+----------------------------+----------------------+
+| ``cpmdc-restart``      | ``bin/cpmdc-restart``      | command-line front   |
+|                        |                            | end to               |
+|                        |                            | ``libcpmdc_restart`` |
++------------------------+----------------------------+----------------------+
+| pkg-config files       | ``cpmdc.pc``,              | compiler and linker  |
+|                        | ``cpmdc-restart.pc``       | flags                |
++------------------------+----------------------------+----------------------+
+| CMake package          | ``cpmdcConfig.cmake``      | imported target      |
+|                        |                            | ``cpmdc::cpmdc``     |
++------------------------+----------------------------+----------------------+
+
+Requirements
+============
+
+The checked-in Pixi manifest pins every build dependency. Without Pixi,
+install the same set from your package manager:
+
++----------------------+----------------------+-----------------------+
+| Dependency           | Version in           | Needed for            |
+|                      | ``pixi.toml``        |                       |
++======================+======================+=======================+
+| Meson, Ninja         | Meson 1.5.2 or       | every build           |
+|                      | newer, Ninja 1.11 or |                       |
+|                      | newer                |                       |
++----------------------+----------------------+-----------------------+
+| Cap'n Proto          | 1.0.2 or newer,      | generating the schema |
+| (``capnp`` compiler) | below 2              | readers, encoding     |
+|                      |                      | messages              |
++----------------------+----------------------+-----------------------+
+| C and Fortran        | any recent GCC and   | every build           |
+| compilers            | gfortran             |                       |
++----------------------+----------------------+-----------------------+
+| pkg-config           | 2.5.1 or newer       | dependency lookup     |
++----------------------+----------------------+-----------------------+
+| Python 3             | 3.10 or newer        | build helpers and     |
+|                      |                      | tests                 |
++----------------------+----------------------+-----------------------+
+| cmocka               | 1.1.7 or newer       | ``-Dwith_tests=true`` |
++----------------------+----------------------+-----------------------+
+| MPI with Fortran     | OpenMPI 4.1 to 5,    | ``-Dwith_cpmd=true``  |
+| bindings, BLAS and   | OpenBLAS 0.3         |                       |
+| LAPACK               |                      |                       |
++----------------------+----------------------+-----------------------+
+| FFTW3                | optional             | linked when OpenCPMD  |
+|                      |                      | was configured with   |
+|                      |                      | FFTW3                 |
++----------------------+----------------------+-----------------------+
+
+Meson fetches three subprojects on the first ``meson setup``: the C
+Cap'n Proto runtime (``c-capnproto``), the shared schema
+(``potentials-schema``, pinned in
+``subprojects/potentials-schema.wrap``), and ``capnp-fortran``. On a
+machine without network access, download them first where the network is
+available:
+
+.. code:: bash
+
+   meson subprojects download
+
+Build the default library
+=========================
+
+Clone the repository and run the default suite:
+
+.. code:: bash
+
+   git clone https://github.com/OmniPotentRPC/cpmdc.git
+   cd cpmdc
+   pixi run test-stub
+
+``test-stub`` configures ``build/`` with tests on, compiles, and runs
+the Meson suite. A healthy run ends with every test reported ``OK`` and
+``Fail: 0``. The same steps without Pixi:
+
+.. code:: bash
+
+   meson setup build -Dwith_tests=true
+   meson compile -C build
+   meson test -C build --print-errorlogs
+
+Meson options
+=============
+
++----------------+---------+-----------+-------------------------------+
+| Option         | Type    | Default   | Effect                        |
++================+=========+===========+===============================+
+| ``with_tests`` | boolean | ``true``  | build the cmocka suites,      |
+|                |         |           | contract checks, and          |
+|                |         |           | ``example_host_step``         |
++----------------+---------+-----------+-------------------------------+
+| ``with_cpmd``  | boolean | ``false`` | link OpenCPMD instead of the  |
+|                |         |           | reference evaluator           |
++----------------+---------+-----------+-------------------------------+
+| ``cpmd_root``  | string  | empty     | OpenCPMD build tree holding   |
+|                |         |           | ``lib/libcpmd.a``, ``obj/``,  |
+|                |         |           | and ``src/``                  |
++----------------+---------+-----------+-------------------------------+
+
+``with_cpmd=true`` only takes effect together with a non-empty
+``cpmd_root``. Configuration stops when ``DIR/lib/libcpmd.a`` or
+``DIR/obj/timetag.o`` is missing. OpenCPMD keeps ``timetag`` outside the
+archive, and ``header`` calls it.
+
+Build against OpenCPMD
+======================
+
+The OpenCPMD archive needs the patches in ``tools/`` and
+position-independent code; the :doc:`archive how-to <opencpmd-archive>`
+covers that build. With the archive in place:
+
+.. code:: bash
+
+   export CPMD_ROOT=/path/to/opencpmd-build
+   meson setup build-cpmd \
+     -Dwith_cpmd=true \
+     -Dcpmd_root="$CPMD_ROOT" \
+     -Dwith_tests=true
+   meson compile -C build-cpmd
+   meson test -C build-cpmd --print-errorlogs
+
+The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS
+when OpenBLAS is absent), FFTW3 when found, ``libgfortran``, and
+``libquadmath``. When OpenCPMD was built with MPI compiler wrappers,
+configure with the same wrappers so both sides agree on one MPI:
+
+.. code:: bash
+
+   CC=mpicc FC=mpif90 meson setup build-cpmd \
+     -Dwith_cpmd=true -Dcpmd_root="$CPMD_ROOT"
+
+Install
+=======
+
+.. code:: bash
+
+   meson setup build-install --prefix "$HOME/.local" -Dwith_tests=false
+   meson install -C build-install
+   pkg-config --modversion cpmdc
+
+The last command prints the project version from ``meson.build``. Hosts
+that load the library at run time, such as ``rgpot``, look for it
+through ``CPMDC_LIBRARY``; see the
+:doc:`environment reference <../reference/environment>`.
+
+Pixi tasks
+==========
+
++---------------------------+-------------+----------------------------+
+| Task                      | Environment | Runs                       |
++===========================+=============+============================+
+| ``test-stub``             | default     | configure ``build/``,      |
+|                           |             | compile, full Meson suite  |
++---------------------------+-------------+----------------------------+
+| ``test-cmocka``           | default     | the ``cmocka`` suite only  |
++---------------------------+-------------+----------------------------+
+| ``test-e2e``              | default     | the ``e2e`` suite only     |
+|                           |             | (single point and          |
+|                           |             | optimizer session)         |
++---------------------------+-------------+----------------------------+
+| ``test-stub-sanitize``    | default     | full suite in              |
+|                           |             | ``build-sanitize/`` under  |
+|                           |             | AddressSanitizer and       |
+|                           |             | UndefinedBehaviorSanitizer |
++---------------------------+-------------+----------------------------+
+| ``fortran-lint``          | default     | ``fprettify --diff`` over  |
+|                           |             | ``src/*.f90``              |
++---------------------------+-------------+----------------------------+
+| ``prek``,                 | default     | pre-commit hooks from      |
+| ``prek-install``,         |             | ``prek.toml``              |
+| ``prek-validate``         |             |                            |
++---------------------------+-------------+----------------------------+
+| ``lychee``                | default     | link check over README,    |
+|                           |             | ``docs/orgmode``, and news |
+|                           |             | fragments                  |
++---------------------------+-------------+----------------------------+
+| ``release-assert``,       | default     | release metadata checks    |
+| ``towncrier-draft``,      |             |                            |
+| ``release-cog-dry``       |             |                            |
++---------------------------+-------------+----------------------------+
+| ``mkrst``                 | ``docs``    | export ``docs/orgmode`` to |
+|                           |             | ``docs/source`` RST        |
++---------------------------+-------------+----------------------------+
+| ``doxybuild``             | ``docs``    | Doxygen XML and Doxyrest   |
+|                           |             | pages for the public       |
+|                           |             | headers                    |
++---------------------------+-------------+----------------------------+
+| ``sphinxbld``, ``docbld`` | ``docs``    | ``mkrst``, ``doxybuild``,  |
+|                           |             | then the Sphinx HTML site  |
+|                           |             | in ``docs/build``          |
++---------------------------+-------------+----------------------------+
+
+Run a docs task with ``pixi run -e docs docbld``. The published site is
+`cpmdc.rgoswami.me <https://cpmdc.rgoswami.me>`__.
