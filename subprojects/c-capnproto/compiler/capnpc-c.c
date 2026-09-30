@@ -49,7 +49,11 @@ struct node *find_node(uint64_t id) {
 }
 
 static void insert_node(struct node *s) {
-	struct capn_tree **x = &g_node_tree;
+	struct capn_tree **x;
+	/* C11 6.5.3.2: a null node is not a tree insert. */
+	if (!s)
+		return;
+	x = &g_node_tree;
 	while (*x) {
 		s->hdr.parent = *x;
 		x = &(*x)->link[((struct node*)*x)->n.id < s->n.id];
