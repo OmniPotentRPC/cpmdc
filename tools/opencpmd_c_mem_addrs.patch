@@ -1,0 +1,11 @@
+diff --git a/src/c_mem_utils.c b/src/c_mem_utils.c
+--- a/src/c_mem_utils.c
++++ b/src/c_mem_utils.c
+@@ -8,6 +8,6 @@
+ size_t cGetMemAddrs ( void *p )
+ {
+   size_t *pp = (size_t *) p;
+-  return pp;
++  return (size_t) pp;
+ }
+ 

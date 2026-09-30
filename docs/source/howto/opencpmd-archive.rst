@@ -8,6 +8,9 @@ process. A stock OpenCPMD archive does not work inside a host:
 stops on code built without ``-fPIC``, and the unpatched SCF driver
 drops the forces and the orbitals that ``cpmdc`` reads after each call.
 Six patches in ``tools/`` and one compiler flag fix those.
+``opencpmd_c_mem_addrs.patch`` makes ``cGetMemAddrs`` return the address
+as ``size_t``. GCC 14 rejects the stock return of a pointer from that
+function.
 
 Patches and what each one is for
 ================================
@@ -56,6 +59,10 @@ Patches and what each one is for
 |                                      |                                | so the process faults       |
 |                                      |                                | before ``LocalError``       |
 +--------------------------------------+--------------------------------+-----------------------------+
+| ``opencpmd_c_mem_addrs.patch``       | ``src/c_mem_utils.c``          | ``cGetMemAddrs`` returns a  |
+|                                      |                                | ``size_t`` pointer. GCC 14  |
+|                                      |                                | stops on that conversion    |
++--------------------------------------+--------------------------------+-----------------------------+
 
 The rwfopt patch publishes ``embed_set_warm_orbitals``,
 ``embed_set_need_forces``, and ``embed_reset_warm_orbitals``.
@@ -98,7 +105,8 @@ portable unified diffs against the files named above. Apply
 ``embed_ctrl``. The other five are the commits on
 `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
 (branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to
-OpenCPMD commit ``062582b``.
+OpenCPMD commit ``062582b``. Apply ``opencpmd_c_mem_addrs.patch`` with
+them. ``cuda_get_address`` stores the ``size_t`` that function returns.
 
 Build a patched tree
 ====================
@@ -111,7 +119,7 @@ first build:
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
    for p in embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm; do
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
@@ -147,7 +155,7 @@ source and rebuild only the affected members:
 
    cd /path/to/opencpmd-source
    for p in embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm; do
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build

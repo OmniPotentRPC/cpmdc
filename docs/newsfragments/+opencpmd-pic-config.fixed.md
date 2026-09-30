@@ -1,1 +1,1 @@
-The archive how-to applies `opencpmd_embed_geometry.patch` before `opencpmd_embed_rwfopt.patch`, then copies `tools/LINUX-X86_64-GFORTRAN-MPI-PIC` into the clone before `configure.sh`. That file adds `-fPIC` and links `-lopenblas`.
+The archive how-to applies `opencpmd_embed_geometry.patch` before `opencpmd_embed_rwfopt.patch`, then `opencpmd_c_mem_addrs.patch`, and copies `tools/LINUX-X86_64-GFORTRAN-MPI-PIC` into the clone before `configure.sh`. That configuration adds `-fPIC` and links `-lopenblas`. The address patch makes `cGetMemAddrs` return the pointer as `size_t`.
