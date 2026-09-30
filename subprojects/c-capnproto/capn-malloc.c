@@ -107,7 +107,11 @@ static int read_fp(void *p, size_t sz, FILE *f, struct capn_stream *z, uint8_t* 
 	} else {
 		if (z->avail_in < sz)
 			return -1;
-		memcpy(p, z->next_in, sz);
+		/* C11 7.24.1p2: a null buffer is not a copy. */
+		if (sz > 0 && (!p || !z->next_in))
+			return -1;
+		if (sz > 0)
+			memcpy(p, z->next_in, sz);
 		z->next_in += sz;
 		z->avail_in -= sz;
 		return 0;

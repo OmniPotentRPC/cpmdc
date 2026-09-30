@@ -119,6 +119,10 @@ int capn_inflate(struct capn_stream* s) {
 		int i, sz;
 		uint8_t hdr;
 
+		/* C11 6.5.3.2: a null cursor is not a buffer. */
+		if (!s->next_out || (s->avail_in > 0 && !s->next_in))
+			return CAPN_MISALIGNED;
+
 		if (s->zeros > 0) {
 			sz = min(s->avail_out, s->zeros);
 			memset(s->next_out, 0, sz);
