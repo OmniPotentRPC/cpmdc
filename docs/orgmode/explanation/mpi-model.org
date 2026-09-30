@@ -19,21 +19,20 @@ A rank that skips a call, or evaluates a different geometry, leaves the others
 waiting inside CPMD.
 
 * The communicator CPMD uses
-OpenCPMD keeps its world communicator in ~mp_comm_world~, set by ~mp_start~
-during setup.
-Stock ~mp_start~ always sets it to ~MPI_COMM_WORLD~, so every rank of the job
-joins one calculation.
-~opencpmd_mp_comm_set.patch~ adds a flag, ~mp_comm_set~, that makes
-~mp_start~ keep a communicator installed before it runs.
+OpenCPMD keeps its world communicator in ~mp_comm_world~.
+~mp_start~ assigns that variable only when CPMD itself calls ~MPI_Init~.
+When MPI is already running, ~mp_start~ leaves ~mp_comm_world~ as the host
+set it.
 
-~cpmdc_bind_calculator(ranks_per_calc)~ uses that flag.
-It splits ~MPI_COMM_WORLD~ with ~MPI_Comm_split~, colour
-~world_rank / ranks_per_calc~ and key ~world_rank mod ranks_per_calc~, installs
-the new communicator as ~mp_comm_world~, and sets ~mp_comm_set~.
+~cpmdc_bind_calculator(ranks_per_calc)~ initialises MPI when it is not
+running, then splits ~MPI_COMM_WORLD~ with ~MPI_Comm_split~, colour
+~world_rank / ranks_per_calc~ and key ~world_rank mod ranks_per_calc~, and
+installs the new communicator as ~mp_comm_world~ before ~mp_start~.
 Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
-The split happens once per process: once ~mp_comm_set~ is true, a second
-call only reports the group index.
+The split happens once per process.
+~embed_calculator_bound~, a module variable in ~cpmd_embed_c_api~, records
+it, and a second call only reports the group index.
 
 | World size | ~ranks_per_calc~ | Calculators | Parent ranks |
 |------------+------------------+-------------+--------------|

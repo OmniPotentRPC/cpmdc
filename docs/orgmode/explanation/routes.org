@@ -80,7 +80,7 @@ SCF step (see [[file:../howto/wavefunction-optimiser.org][choosing the optimiser
 | reading a stale ~GEOMETRY~ as this call's forces | real: remove it before each run | none: forces come from ~coor%fion~ |
 | an unconverged SCF that still prints ~TOTAL ENERGY~ | real: check for ~NO CONVERGENCE~ | reported as a failed call |
 | a shared restart pool pruned by another client | real: tolerate a vanished entry | none |
-| a CPMD stop | ~cpmd.x~ ends and the wrapper sees a failed run | ~cpmd_stopgm_hook~ returns nonzero and the call fails, with ~opencpmd_stopgm_return.patch~ |
+| a CPMD stop | ~cpmd.x~ ends and the wrapper sees a failed run | ~cpmd_stopgm_hook~ returns nonzero, the call's result is invalid, and the next call sets CPMD up again |
 | rank consistency under ~mpirun~ | none: the host runs as one process | the host must take the parent rank's result and finalize MPI |
 | the method deck | written by the host, whole | rendered from ~CPMDParams~; defaults apply to what the message leaves out |
 

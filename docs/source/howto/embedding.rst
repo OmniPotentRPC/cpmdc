@@ -378,19 +378,21 @@ A live OpenCPMD link evaluates each geometry with fixed nuclei
 single-point force evaluation after the SCF (self-consistent field).
 
 On the embed path the Fortran bridge always calls
-``cpmdc_set_need_forces(.TRUE.)`` before ``wfopts``. OpenCPMD must be
+``embed_set_need_forces(.TRUE.)`` before ``wfopts``. OpenCPMD must be
 patched so ``rwfopt`` sets
-``tfor = (iprint_force == 1) .OR. cpmdc_need_forces``. Without that,
+``tfor = (iprint_force == 1) .OR. embed_need_forces``. Without that,
 OpenCPMD zeros ``fion`` after ``forcedr`` when ``tfor`` is false and the
 C force buffer stays all zeros even though the energy is finite.
+``rwfopt`` frees a surviving ``fion`` before its own ``ALLOCATE``, so the
+bridge's ``IF (ALLOCATED(fion))`` guard is optional.
 
 Warm calls (same process, same session, same cell, new ``ForceInput``
 positions):
 
 #. First force call: cold setup once, from the in-memory deck.
 #. Later calls: update ``tau0`` from C arrays, ``phfac``, full SCF from
-   the retained orbitals (``cpmdc_set_warm_orbitals``), no second setup.
-#. Every call requests forces through ``cpmdc_set_need_forces`` and
+   the retained orbitals (``embed_set_warm_orbitals``), no second setup.
+#. Every call requests forces through ``embed_set_need_forces`` and
    keeps the deck's ``MAXITER``;
    ``tests/test_embed_warm_no_nomore_clamp.py`` and
    ``tests/test_embed_bomd_force_export.py`` guard both.

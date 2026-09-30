@@ -98,9 +98,9 @@ During the first call that is the pseudopotential directory, because
 ``cpmdc`` changes into it while CPMD reads the pseudopotentials.
 
 **Fix:** read the ``LocalError`` file in ``CPMDC_PSEUDO_DIR`` or in the
-host's working directory. ``cpmdc`` does not reset CPMD's module state
-after a stop, so restart the host process before trusting another result
-from it.
+host's working directory. The stopped call has no result. ``cpmdc`` drops
+the stored orbitals and the warm cell, and the next call on the same
+session sets CPMD up again.
 
 ``topology change requires a new session``
 ------------------------------------------
@@ -136,7 +136,7 @@ Forces
 Forces are all zero with a finite energy
 ----------------------------------------
 
-**Cause:** the OpenCPMD archive lacks ``opencpmd_keep_fion.patch``, so
+**Cause:** the OpenCPMD archive lacks ``opencpmd_embed_rwfopt.patch``, so
 ``fion`` is deallocated before ``cpmdc`` reads it.
 
 **Fix:** apply the patches in ``tools/`` and rebuild the archive (see
@@ -180,13 +180,12 @@ Link fails with ``R_X86_64_PC32`` against ``libcpmd.a``
 **Fix:** add ``-fPIC`` to ``FFLAGS`` and ``CFLAGS`` of the OpenCPMD
 configuration and rebuild the archive.
 
-``cpmd_embed_c_api.F90`` fails to compile on ``cpmdc_set_warm_orbitals`` or ``mp_comm_set``
--------------------------------------------------------------------------------------------
+``cpmd_embed_c_api.F90`` fails to compile on ``embed_set_warm_orbitals``
+---------------------------------------------------------------------
 
 **Cause:** the archive's module files come from an unpatched tree.
 
-**Fix:** apply ``opencpmd_warm_orbitals.patch`` and
-``opencpmd_mp_comm_set.patch``, then rebuild with
+**Fix:** apply ``opencpmd_embed_rwfopt.patch``, then rebuild with
 ``tools/rebuild_opencpmd_embed.sh``.
 
 CPMD cannot find ``O_MT_BLYP.psp``

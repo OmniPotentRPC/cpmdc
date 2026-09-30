@@ -9,9 +9,9 @@ from pathlib import Path
 
 
 PATCHES = {
-    "opencpmd_keep_fion.patch": "src/rwfopt_utils.mod.F90",
-    "opencpmd_warm_orbitals.patch": "src/rwfopt_utils.mod.F90",
+    "opencpmd_embed_rwfopt.patch": "src/rwfopt_utils.mod.F90",
     "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
+    "opencpmd_kpoints_inputfile.patch": "src/rkpnt_utils.mod.F90",
     "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
 }
 
@@ -34,12 +34,62 @@ def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
     return int(added), int(removed), target
 
 
+def assert_embed_rwfopt(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "PUBLIC :: embed_set_warm_orbitals",
+        "PUBLIC :: embed_set_need_forces",
+        "PUBLIC :: embed_reset_warm_orbitals",
+        "IF (embed_warm_orbitals) CALL embed_save_orbitals(c0)",
+        "IF (.NOT.embed_need_forces) THEN",
+        "IF (ALLOCATED(fion)) DEALLOCATE(fion)",
+        "CALL stopgm('embed_save_orbitals', 'allocation problem'",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+    for symbol in (
+        "cpmdc_set_warm_orbitals",
+        "cpmdc_set_need_forces",
+        "cpmdc_reset_warm_orbitals",
+    ):
+        if symbol in text:
+            raise AssertionError(f"{patch.name}: still names {symbol}")
+
+
+def assert_converged_state(patch: Path) -> None:
+    lines = patch.read_text(encoding="utf-8").splitlines()
+    gemax = [
+        i
+        for i, line in enumerate(lines)
+        if line.startswith("+") and "gemax=2.0_real_8*cntr%tolog" in line
+    ]
+    check = [
+        i
+        for i, line in enumerate(lines)
+        if line.startswith(" ") and "CALL tol_chk_cnvgrad" in line
+    ]
+    if len(gemax) != 1 or len(check) != 1 or gemax[0] > check[0]:
+        raise AssertionError(
+            f"{patch.name}: steepest-descent gemax reset must precede the convergence check"
+        )
+    if not any(
+        line.startswith("+")
+        and "Steepest descent with iproj <= 1 never converges on gemax." in line
+        for line in lines
+    ):
+        raise AssertionError(f"{patch.name}: missing the steepest-descent gemax note")
+
+
 def assert_stopgm_hook(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     if "NAME='cpmd_stopgm_hook'" not in text:
         raise AssertionError(f"{patch.name}: must publish cpmd_stopgm_hook")
     if "INTEGER(c_int), VALUE :: code" not in text:
         raise AssertionError(f"{patch.name}: hook must take the stop code by value")
+    if "every result of the current CPMD call as invalid" not in text:
+        raise AssertionError(f"{patch.name}: missing the invalid-result contract")
+    if "set up CPMD again" not in text:
+        raise AssertionError(f"{patch.name}: missing the setup-again contract")
     for symbol in ("cpmdc_embed_catch", "cpmdc_note_stop"):
         if symbol in text:
             raise AssertionError(
@@ -60,6 +110,14 @@ def main() -> int:
                     f"{name}: hook patch must only add lines, removed {removed}"
                 )
             assert_stopgm_hook(patch)
+        elif name == "opencpmd_embed_rwfopt.patch":
+            if removed <= 0:
+                raise AssertionError(f"{name}: patch must replace upstream code")
+            assert_embed_rwfopt(patch)
+        elif name == "opencpmd_converged_state.patch":
+            if removed <= 0:
+                raise AssertionError(f"{name}: patch must replace upstream code")
+            assert_converged_state(patch)
         elif removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
         if target != expected_target:

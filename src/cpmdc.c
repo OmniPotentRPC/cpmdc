@@ -940,6 +940,10 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (stop != 0) {
+    /* The hook returned, so CPMD continued past a failed check. This
+     * call has no result. Drop the snapshot and the warm orbitals so
+     * the next call runs setup again. */
+    (void)cpmdc_embed_reset_state(image);
     snprintf(r.message, sizeof(r.message), "CPMD stopgm during embed SCF");
     return r;
   }

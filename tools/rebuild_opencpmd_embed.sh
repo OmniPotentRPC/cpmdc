@@ -20,7 +20,6 @@ fi
 objects=(
   error_handling.mod.o
   scex_utils.mod.o
-  mp_interface.mod.o
   rwfopt_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o

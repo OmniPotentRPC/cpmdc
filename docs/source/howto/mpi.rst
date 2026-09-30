@@ -91,9 +91,11 @@ evaluation:
 
 A second call returns the same index without splitting again. The
 group's first rank, world rank ``group * ranks_per_calc``, is its parent
-rank. The split needs ``opencpmd_mp_comm_set.patch`` in the OpenCPMD
-archive: it keeps CPMD's ``mp_start`` from resetting the communicator
-back to ``MPI_COMM_WORLD``.
+rank. ``cpmdc`` remembers the split in ``embed_calculator_bound``.
+``mp_start`` assigns ``mp_comm_world`` only when CPMD itself calls
+``MPI_Init``, and ``cpmdc_bind_calculator`` has already initialised MPI
+and stored the calculator communicator by the time setup reaches
+``mp_start``.
 
 Share the parent's result
 =========================
