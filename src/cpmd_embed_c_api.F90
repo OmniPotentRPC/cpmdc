@@ -1673,7 +1673,7 @@ CONTAINS
     USE benc, ONLY: ibench
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
-    USE ropt, ONLY: ropt_mod
+    USE ropt, ONLY: ropt_mod, iteropt
     USE parac, ONLY: paral
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
@@ -1755,6 +1755,7 @@ CONTAINS
     END IF
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
+    CALL note_scf_steps(iteropt%nfi)
     ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
     ! does not replace the stored c0. Continue once with PCG MINIMIZE from
     ! the previous converged copy, which still counts as a warm start.
@@ -1777,6 +1778,7 @@ CONTAINS
       IF (ALLOCATED(fion)) DEALLOCATE(fion)
       IF (ALLOCATED(taup)) DEALLOCATE(taup)
       CALL wfopts
+      CALL note_scf_steps(iteropt%nfi)
       cntl%diis = was_diis
       cntl%pcg = was_pcg
       cntl%pcgmin = was_pcgmin
@@ -1853,6 +1855,21 @@ CONTAINS
     IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
   END SUBROUTINE
 
+
+  ! CPMDC_SCF_STEPS=1 reports the iteration count of the SCF that just
+  ! returned. The error unit stays attached when unit 6 is a file.
+  SUBROUTINE note_scf_steps(nfi)
+    USE ISO_FORTRAN_ENV, ONLY: error_unit
+    USE parac, ONLY: paral
+    INTEGER, INTENT(IN) :: nfi
+    CHARACTER(LEN=8) :: v
+    INTEGER :: st
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_SCF_STEPS', v, STATUS=st)
+    IF (st /= 0) RETURN
+    IF (TRIM(v) /= '1') RETURN
+    IF (.NOT. paral%io_parent) RETURN
+    WRITE(error_unit, '(A,I0)') 'cpmdc_scf_steps ', nfi
+  END SUBROUTINE
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
   ! takes only energy and forces does not need totstr.

@@ -50,6 +50,9 @@ only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot
 stays invalid for them even when the box volume is positive.
 
+``CPMDC_SCF_STEPS=1`` writes one line, ``cpmdc_scf_steps N``, for each SCF
+that returns. ``N`` is that SCF's iteration count.
+
 Read by the tests and tools
 ===========================
 

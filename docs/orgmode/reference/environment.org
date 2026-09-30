@@ -9,6 +9,7 @@
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
+| ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_scf_steps N~ to the error stream |
 
 The first call of an OpenCPMD session fails when neither
 ~CPMDC_PSEUDO_DIR~ nor ~CPMD_PP_LIBRARY_PATH~ names an existing directory.
@@ -32,6 +33,10 @@ The pseudopotential directory is left unchanged.
 and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.
+
+~CPMDC_SCF_STEPS=1~ writes one line, ~cpmdc_scf_steps N~, for each SCF that
+returns.
+~N~ is that SCF's iteration count.
 
 * Read by the tests and tools
 

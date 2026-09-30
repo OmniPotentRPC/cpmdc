@@ -28,6 +28,8 @@ def test_no_warm_nomore_iter_clamp() -> None:
     assert "embed_set_warm_orbitals(.TRUE.)" in body
     assert "embed_set_warm_orbitals(.FALSE.)" not in body
     assert body.count("CALL wfopts") == 2
+    assert body.count("CALL note_scf_steps(iteropt%nfi)") == 2
+    assert "CPMDC_SCF_STEPS" in text
     assert "continuing with PCG MINIMIZE" in body
     assert "cntl%pcgmin = .TRUE." in body
     assert "cpmdc_stop_code() == 0_c_int" in body
