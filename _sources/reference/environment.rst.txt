@@ -1,33 +1,36 @@
 Read by libcpmdc at run time
 ============================
 
-+--------------------------+-------------------------------+----------------------+
-| Variable                 | Read in                       | Effect               |
-+==========================+===============================+======================+
-| ``CPMDC_PSEUDO_DIR``     | ``src/cpmd_embed_c_api.F90``, | directory holding    |
-|                          | first call of an OpenCPMD     | the pseudopotential  |
-|                          | session                       | files named in the   |
-|                          |                               | deck; ``cpmdc``      |
-|                          |                               | changes into it      |
-|                          |                               | while CPMD reads     |
-|                          |                               | them, then leaves it |
-|                          |                               | before CPMD writes   |
-|                          |                               | output files         |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMD_PP_LIBRARY_PATH`` | same place, when              | fallback for the     |
-|                          | ``CPMDC_PSEUDO_DIR`` is unset | same directory       |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMDC_DECK_OUT``       | ``src/cpmdc.c``, each time a  | file that receives   |
-|                          | message is rendered           | the rendered method  |
-|                          |                               | deck; each write     |
-|                          |                               | replaces the last    |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMDC_STRESS``         | ``src/cpmd_embed_c_api.F90``, | ``0`` skips the      |
-|                          | each OpenCPMD evaluation      | stress tensor on     |
-|                          |                               | periodic cells; any  |
-|                          |                               | other value, or      |
-|                          |                               | unset, computes it   |
-+--------------------------+-------------------------------+----------------------+
++--------------------------+-------------------------------+-----------------------+
+| Variable                 | Read in                       | Effect                |
++==========================+===============================+=======================+
+| ``CPMDC_PSEUDO_DIR``     | ``src/cpmd_embed_c_api.F90``, | directory holding the |
+|                          | first call of an OpenCPMD     | pseudopotential files |
+|                          | session                       | named in the deck;    |
+|                          |                               | ``cpmdc`` changes     |
+|                          |                               | into it while CPMD    |
+|                          |                               | reads them, then      |
+|                          |                               | leaves it before CPMD |
+|                          |                               | writes output files   |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMD_PP_LIBRARY_PATH`` | same place, when              | fallback for the same |
+|                          | ``CPMDC_PSEUDO_DIR`` is unset | directory             |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_DECK_OUT``       | ``src/cpmdc.c``, each time a  | file that receives    |
+|                          | message is rendered           | the rendered method   |
+|                          |                               | deck; each write      |
+|                          |                               | replaces the last     |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_STRESS``         | ``src/cpmd_embed_c_api.F90``, | ``0`` skips the       |
+|                          | each OpenCPMD evaluation      | stress tensor on      |
+|                          |                               | periodic cells; any   |
+|                          |                               | other value, or       |
+|                          |                               | unset, computes it    |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_SCF_STEPS``      | ``src/cpmd_embed_c_api.F90``, | ``1`` writes          |
+|                          | each OpenCPMD evaluation      | ``cpmdc_scf_steps N`` |
+|                          |                               | to the error stream   |
++--------------------------+-------------------------------+-----------------------+
 
 The first call of an OpenCPMD session fails when neither
 ``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names an existing
@@ -49,6 +52,9 @@ pseudopotential directory is left unchanged.
 only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot
 stays invalid for them even when the box volume is positive.
+
+``CPMDC_SCF_STEPS=1`` writes one line, ``cpmdc_scf_steps N``, for each
+SCF that returns. ``N`` is that SCF's iteration count.
 
 Read by the tests and tools
 ===========================

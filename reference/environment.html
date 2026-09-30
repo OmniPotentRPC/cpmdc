@@ -396,21 +396,20 @@ data-aria-dark="Switch to auto color mode">
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>,
 first call of an OpenCPMD
 session</p></td>
-<td><p>directory holding
-the pseudopotential
-files named in the
-deck; <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
-changes into it
-while CPMD reads
-them, then leaves it
-before CPMD writes
-output files</p></td>
+<td><p>directory holding the
+pseudopotential files
+named in the deck;
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> changes
+into it while CPMD
+reads them, then
+leaves it before CPMD
+writes output files</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMD_PP_LIBRARY_PATH</span></code></p></td>
 <td><p>same place, when
 <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code> is unset</p></td>
-<td><p>fallback for the
-same directory</p></td>
+<td><p>fallback for the same
+directory</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code>, each time a
@@ -428,6 +427,13 @@ stress tensor on
 periodic cells; any
 other value, or
 unset, computes it</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>,
+each OpenCPMD evaluation</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> writes
+<code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code>
+to the error stream</p></td>
 </tr>
 </tbody>
 </table>
@@ -451,6 +457,8 @@ pseudopotential directory is left unchanged.</p>
 only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot
 stays invalid for them even when the box volume is positive.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS=1</span></code> writes one line, <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code>, for each
+SCF that returns. <code class="docutils literal notranslate"><span class="pre">N</span></code> is that SCF’s iteration count.</p>
 </section>
 <section id="read-by-the-tests-and-tools">
 <h1>Read by the tests and tools<a class="headerlink" href="#read-by-the-tests-and-tools" title="Link to this heading">¶</a></h1>
