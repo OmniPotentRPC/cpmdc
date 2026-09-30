@@ -769,8 +769,10 @@ accepted</p></td>
 numbers. A later step with a different topology fails with
 <code class="docutils literal notranslate"><span class="pre">topology</span> <span class="pre">change</span> <span class="pre">requires</span> <span class="pre">a</span> <span class="pre">new</span> <span class="pre">session</span></code> before CPMD runs.
 Coordinates, the cell, and units may change between steps. A session
-evaluated after another session in the same process re-applies its
-configuration and starts cold (see
+evaluated after another session in the same process reuses the stored
+orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
+and elemental composition match. A different method or composition runs
+setup on the next evaluation (see
 <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">wavefunction state</span></a>).</p>
 <section id="session-array-steps">
 <h2>Session array steps<a class="headerlink" href="#session-array-steps" title="Link to this heading">¶</a></h2>
@@ -858,8 +860,9 @@ message is invalid or too large</p></td>
 </tbody>
 </table>
 </div>
-<p>Each one-shot call is a cold start. Use a session for more than one
-step.</p>
+<p>A one-shot call reuses the stored orbitals when its basis matches the
+previous call in the process. The first call of the process is cold. Use
+a session for more than one step.</p>
 </section>
 <section id="results-of-the-last-evaluation">
 <h1>Results of the last evaluation<a class="headerlink" href="#results-of-the-last-evaluation" title="Link to this heading">¶</a></h1>

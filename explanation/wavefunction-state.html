@@ -390,8 +390,8 @@ keeping them in memory is the main reason to run CPMD inside the host.
 This page follows <code class="docutils literal notranslate"><span class="pre">c0</span></code> from call to call.</p>
 <section id="cold-and-warm-calls">
 <h1>Cold and warm calls<a class="headerlink" href="#cold-and-warm-calls" title="Link to this heading">¶</a></h1>
-<p>Each session keeps a counter of successful warm-capable calls and the
-cell of the call that started them.</p>
+<p>The process keeps the converged orbitals, the cell, and the method that
+produced them. Each session keeps a counter of its own successful calls.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -402,10 +402,11 @@ cell of the call that started them.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>cold</p></td>
-<td><p>first call of a session, a
-changed cell, cutoff, or
-state count, or the session
-was re-configured</p></td>
+<td><p>first call of the process, or
+a changed functional, deck,
+cell, cutoff, charge,
+multiplicity, atom count, or
+elemental composition</p></td>
 <td><p>the full CPMD setup on the
 composed deck, then the SCF
 from CPMD’s initial guess, or
@@ -414,10 +415,14 @@ deck has
 <code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>warm</p></td>
-<td><p>the previous call of this
-session succeeded and the
-cell, cutoff, and state count
-are unchanged</p></td>
+<td><p>a previous success in this
+process kept the same
+functional, deck, cell,
+cutoff, charge, multiplicity,
+and elemental composition,
+including a new session or a
+reordering of those atomic
+numbers</p></td>
 <td><p>new positions into <code class="docutils literal notranslate"><span class="pre">tau0</span></code>,
 <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, then the SCF from
 the stored <code class="docutils literal notranslate"><span class="pre">c0</span></code></p></td>
@@ -427,19 +432,21 @@ the stored <code class="docutils literal notranslate"><span class="pre">c0</span
 </div>
 <p>A cell counts as unchanged when every component of <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code>
 matches the stored cell within 1e-8 Angstrom, and when both calls agree
-on having a box at all. The cutoff matches within 1e-8 Rydberg. The
-state count follows the number of atoms, their atomic numbers, the
-charge, and the multiplicity. A failed warm call leaves the counter
-where it was, so the next call is warm again; a failed cold call clears
-the stored results. An SCF that does not converge does not replace the
-stored orbitals. When ODIIS exhausts <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>, the same call
-continues once with <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code>. That pass restores the previous
-converged <code class="docutils literal notranslate"><span class="pre">c0</span></code> when a converged copy is already stored, and it still
-counts as warm. A <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> during the call is not that failure: the
-wavefunction, forces, and module state of the call are undefined,
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and the warm cell, and the next call
-runs setup again. With more than one MPI rank, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> aborts the
-other ranks.</p>
+on having a box at all. A new session has no cell of its own yet, so
+that comparison uses the cell stored with the orbitals. The cutoff
+matches within 1e-8 Rydberg. The elemental composition is the count of
+each atomic number. Reordering the same atoms keeps that composition.
+The charge and the multiplicity belong to the same match. A failed warm
+call leaves the counter where it was, so the next call is warm again; a
+failed cold call clears the stored results. An SCF that does not
+converge does not replace the stored orbitals. When ODIIS exhausts
+<code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>, the same call continues once with <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code>. That
+pass restores the previous converged <code class="docutils literal notranslate"><span class="pre">c0</span></code> when a converged copy is
+already stored, and it still counts as warm. A <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> during the
+call is not that failure: the wavefunction, forces, and module state of
+the call are undefined, <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> drops the stored orbitals and the warm
+cell, and the next call runs setup again. With more than one MPI rank,
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> aborts the other ranks.</p>
 </section>
 <section id="where-the-orbitals-are-kept">
 <h1>Where the orbitals are kept<a class="headerlink" href="#where-the-orbitals-are-kept" title="Link to this heading">¶</a></h1>
@@ -456,10 +463,11 @@ sets up the iteration state and scratch arrays as for any SCF, and then
 overwrites the generated starting orbitals with the saved copy when its
 shape still matches. A different shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> and names
 <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> makes that call when the
-cutoff, the cell, or the state count changes, before <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> runs.
-The SCF then runs to the orbital convergence threshold with the full
-<code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> budget of the deck; a warm call is a complete SCF from a
-better start, not a shortened one.</p>
+functional, the deck, the cutoff, the cell, the charge, the
+multiplicity, the atom count, or the elemental composition changes,
+before <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> runs. The SCF then runs to the orbital convergence
+threshold with the full <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> budget of the deck; a warm call is a
+complete SCF from a better start, not a shortened one.</p>
 <p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code> makes the saved copy trustworthy. In
 stock OpenCPMD, <code class="docutils literal notranslate"><span class="pre">updwf</span></code> applies an optimiser step to <code class="docutils literal notranslate"><span class="pre">c0</span></code> before it
 checks convergence, so the orbitals left behind after the last iteration
@@ -489,31 +497,46 @@ coefficients no longer fit</p></td>
 the stored coefficients no
 longer fit</p></td>
 </tr>
-<tr class="row-even"><td><p>a change of atom count, atomic
-numbers, charge, or multiplicity</p></td>
+<tr class="row-even"><td><p>a change of atom count or
+elemental composition, or of
+charge or multiplicity</p></td>
 <td><p>those inputs set the number of
 states, and a restored <code class="docutils literal notranslate"><span class="pre">c0</span></code> of
 another shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>
-or <code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code></p></td>
-<td><p>a new method invalidates the
-orbitals</p></td>
+or <code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code>
+when the functional, cutoff,
+charge, multiplicity, or deck
+differs</p></td>
+<td><p>the next evaluation drops the
+orbitals; the call itself keeps
+them</p></td>
 </tr>
-<tr class="row-even"><td><p>evaluating a different session
-in the same process</p></td>
-<td><p>the stored copy is process-wide;
-the other session re-applies its
-configuration and starts cold</p></td>
+<tr class="row-even"><td><p>a new session with the same
+functional, deck, cutoff, cell,
+charge, multiplicity, and
+elemental composition</p></td>
+<td><p>reuses the stored orbitals and
+skips setup</p></td>
 </tr>
-<tr class="row-odd"><td><p>any global call
+<tr class="row-odd"><td><p>a new session whose functional,
+deck, cutoff, cell, charge,
+multiplicity, or elemental
+composition differs</p></td>
+<td><p>the next evaluation drops the
+stored orbitals and runs setup</p></td>
+</tr>
+<tr class="row-even"><td><p>a one-shot or global call
 (<code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_energy*()</span></code>) or a
-one-shot call
-(<code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result()</span></code>)</p></td>
-<td><p>each applies its message afresh</p></td>
+<code class="docutils literal notranslate"><span class="pre">cpmdc_energy*()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result()</span></code>)
+whose basis differs from the
+stored one</p></td>
+<td><p>that call runs setup; a matching
+basis reuses the orbitals</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returns through
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stopgm</span></code> returns through
 <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code></p></td>
 <td><p>the call continued past a failed
 check, so the stored orbitals
@@ -523,7 +546,8 @@ are not a result</p></td>
 </table>
 </div>
 <p>A topology change is refused outright rather than treated as cold: the
-atom count and the ordered atomic numbers belong to the session.</p>
+atom count and the ordered atomic numbers belong to the session. A new
+session with those atoms in another order keeps the stored orbitals.</p>
 </section>
 <section id="the-restart-file">
 <h1>The RESTART file<a class="headerlink" href="#the-restart-file" title="Link to this heading">¶</a></h1>

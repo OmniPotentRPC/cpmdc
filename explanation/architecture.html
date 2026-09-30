@@ -539,11 +539,12 @@ first successful step, because CPMD’s species tables, plane-wave setup,
 and stored orbitals are all sized for one composition. Coordinates may
 change freely; a changed cell sends the next call back through the full
 setup. OpenCPMD’s module state is one per process, so one session at a
-time owns it: evaluating a different session re-applies that session’s
-configuration and starts cold.
-<a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a> follows the orbitals from
-call to call, and <a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and
-calculator groups.</p>
+time owns it. A different session with the same functional, deck,
+cutoff, cell, charge, multiplicity, and elemental composition reuses the
+stored orbitals. A different method or composition runs setup again on
+the next evaluation. <a class="reference internal" href="wavefunction-state.html"><span class="doc">Wavefunction state</span></a>
+follows the orbitals from call to call, and
+<a class="reference internal" href="mpi-model.html"><span class="doc">the MPI model</span></a> covers ranks and calculator groups.</p>
 </section>
 <section id="three-builds-one-abi">
 <h1>Three builds, one ABI<a class="headerlink" href="#three-builds-one-abi" title="Link to this heading">¶</a></h1>

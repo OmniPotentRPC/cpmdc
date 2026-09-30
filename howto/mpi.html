@@ -511,11 +511,11 @@ from their own copies drift apart after the first step.</p>
 <section id="one-session-per-calculator">
 <h1>One session per calculator<a class="headerlink" href="#one-session-per-calculator" title="Link to this heading">¶</a></h1>
 <p>The OpenCPMD module state and the stored orbitals belong to the process,
-not to a <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>. When a process evaluates a second session,
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> applies that session’s configuration and clears the stored
-orbitals; the next call of either session starts cold. Run independent
-calculations, such as the images of a nudged elastic band, on separate
-calculators, one session each.</p>
+not to a <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code>. A second session keeps those orbitals when
+its functional, deck, cutoff, cell, charge, multiplicity, and elemental
+composition match. A different method or composition drops them on the
+next evaluation. Run independent calculations, such as the images of a
+nudged elastic band, on separate calculators, one session each.</p>
 </section>
 <section id="finalize-mpi">
 <h1>Finalize MPI<a class="headerlink" href="#finalize-mpi" title="Link to this heading">¶</a></h1>

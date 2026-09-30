@@ -122,11 +122,11 @@ One session per calculator
 ==========================
 
 The OpenCPMD module state and the stored orbitals belong to the process,
-not to a ``CPMDCSession``. When a process evaluates a second session,
-``cpmdc`` applies that session's configuration and clears the stored
-orbitals; the next call of either session starts cold. Run independent
-calculations, such as the images of a nudged elastic band, on separate
-calculators, one session each.
+not to a ``CPMDCSession``. A second session keeps those orbitals when
+its functional, deck, cutoff, cell, charge, multiplicity, and elemental
+composition match. A different method or composition drops them on the
+next evaluation. Run independent calculations, such as the images of a
+nudged elastic band, on separate calculators, one session each.
 
 Finalize MPI
 ============

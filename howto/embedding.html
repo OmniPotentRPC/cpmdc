@@ -852,16 +852,17 @@ OpenCPMD zeros <code class="docutils literal notranslate"><span class="pre">fion
 C force buffer stays all zeros even though the energy is finite.
 <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code> before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>, so
 the bridge’s <code class="docutils literal notranslate"><span class="pre">IF</span> <span class="pre">(ALLOCATED(fion))</span></code> guard is optional.</p>
-<p>Warm calls (same process, same session, same cell, new <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>
-positions):</p>
+<p>Warm calls (same process, same cell, same method, same elemental
+composition, new <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> positions):</p>
 <ol class="arabic simple">
-<li><p>First force call: cold setup once, from the in-memory deck. The SCF
-sets <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code> so a converged <code class="docutils literal notranslate"><span class="pre">c0</span></code> is stored.
-Restore does nothing until that copy exists.</p></li>
-<li><p>Later calls: update <code class="docutils literal notranslate"><span class="pre">tau0</span></code> from C arrays, <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, full SCF from
-the retained orbitals, no second setup. An unconverged ODIIS pass
-does not replace the stored <code class="docutils literal notranslate"><span class="pre">c0</span></code>. The same call then continues once
-with <code class="docutils literal notranslate"><span class="pre">PCG</span>&#160;&#160; <span class="pre">MINIMIZE</span></code> from that previous converged copy, and the
+<li><p>First force call of the process: cold setup once, from the in-memory
+deck. The SCF sets <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code> so a converged <code class="docutils literal notranslate"><span class="pre">c0</span></code>
+is stored. Restore does nothing until that copy exists.</p></li>
+<li><p>Later calls, including a new session and a reordering of the same
+atomic numbers: update <code class="docutils literal notranslate"><span class="pre">tau0</span></code> from C arrays, <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, full SCF
+from the retained orbitals, no second setup. An unconverged ODIIS
+pass does not replace the stored <code class="docutils literal notranslate"><span class="pre">c0</span></code>. The same call then continues
+once with <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> from that previous converged copy, and the
 call still counts as warm.</p></li>
 <li><p>Every call requests forces through <code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code> and
 keeps the deck’s <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>;
