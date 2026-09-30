@@ -46,7 +46,12 @@ void str_add(struct str *v, const char *str, int sz) {
 }
 
 int str_vaddf(struct str *v, const char* format, va_list ap) {
+	/* C11 6.5.3.2: a null buffer is not a format write. */
+	if (!v || !format)
+		return -1;
 	str_reserve(v, v->len + 1);
+	if (!v->str)
+		return -1;
 
 	for (;;) {
 		int ret;
@@ -68,6 +73,8 @@ int str_vaddf(struct str *v, const char* format, va_list ap) {
 			 * behavior)
 			 */
 			str_reserve(v, v->len + ret);
+			if (!v->str)
+				return -1;
 
 		} else if (ret >= 0) {
 			/* success */
@@ -82,6 +89,8 @@ int str_vaddf(struct str *v, const char* format, va_list ap) {
 			 * figure out its an error next time around.
 			 */
 			str_reserve(v, v->len + bufsz + 1);
+			if (!v->str)
+				return -1;
 
 		} else {
 			/* snprintf has returned an error but has not written to the last
