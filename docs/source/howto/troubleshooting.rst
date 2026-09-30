@@ -185,7 +185,7 @@ Link fails with ``R_X86_64_PC32`` against ``libcpmd.a``
 configuration and rebuild the archive.
 
 ``cpmd_embed_c_api.F90`` fails to compile on ``embed_set_warm_orbitals``
----------------------------------------------------------------------
+------------------------------------------------------------------------
 
 **Cause:** the archive's module files come from an unpatched tree.
 

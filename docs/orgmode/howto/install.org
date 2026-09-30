@@ -136,3 +136,4 @@ reference]].
 | ~sphinxbld~, ~docbld~ | ~docs~ | ~mkrst~, ~doxybuild~, then the Sphinx HTML site in ~docs/build~ |
 
 Run a docs task with ~pixi run -e docs docbld~.
+The published site is [[https://cpmdc.rgoswami.me][cpmdc.rgoswami.me]].

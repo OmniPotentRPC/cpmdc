@@ -7,8 +7,9 @@
 extern "C" {
 #endif
 
-/*
- * OpenCPMD / CPMD RESTART.n reader and writer.
+/**
+ * @file cpmdc_restart.h
+ * @brief Read and write an OpenCPMD / CPMD `RESTART.n` file.
  *
  * The file is a gfortran sequential unformatted stream (4-byte record
  * markers, negative marker means the record continues). Section 1 is the
@@ -27,54 +28,155 @@ extern "C" {
  * endianness must match the Fortran file (little endian on x86_64 gfortran).
  */
 
+/** Angstroms per Bohr, matching OpenCPMD `cnst%fbohr`. */
 #define CPMDC_RESTART_ANGSTROM_PER_BOHR 0.529177210859
 
+/** Opaque RESTART image. */
 typedef struct cpmdc_restart cpmdc_restart;
 
+/**
+ * @brief Read a RESTART image from a memory buffer.
+ *
+ * @param err Receives a diagnostic when the read fails. May be NULL.
+ * @return The image, or NULL on failure.
+ */
 cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
                                       char *err, size_t err_cap);
+
+/**
+ * @brief Read a RESTART image from a filesystem path.
+ *
+ * @param err Receives a diagnostic when the read fails. May be NULL.
+ * @return The image, or NULL on failure.
+ */
 cpmdc_restart *cpmdc_restart_read_path(const char *path, char *err,
                                        size_t err_cap);
+
+/** @brief Release an image returned by the readers. */
 void cpmdc_restart_free(cpmdc_restart *file);
 
+/** @brief 1 when @p file uses the continuing-record stream layout. */
 int cpmdc_restart_is_stream(const cpmdc_restart *file);
+
+/** @brief Section 1 header text, or NULL when the image has none. */
 const char *cpmdc_restart_header(const cpmdc_restart *file);
 
-/* section is 1-based. *count is the section's own record count (the integer
- * in its header), 0 when the section is empty. Returns 0 when the section is
- * present. */
+/**
+ * @brief Report one section's record count.
+ *
+ * @param section 1-based section index.
+ * @param count The section's own record count (the integer in its header),
+ *        0 when the section is empty.
+ * @return 0 when the section is present.
+ */
 int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count);
 
+/**
+ * @brief Read the cell description.
+ *
+ * @return 0 when the cell section is present.
+ */
 int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
                        double celldm[6]);
+
+/**
+ * @brief Read the species counts.
+ *
+ * @param na_per_species Points at the image's own array. Valid until the
+ *        image is freed or rewritten.
+ * @return 0 when the species section is present.
+ */
 int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
                           const int **na_per_species);
 
-/* Number of coordinate triples in section 4, or 0 when that section is empty. */
+/** @brief Number of coordinate triples in section 4, or 0 when that section is empty. */
 int cpmdc_restart_ncoords(const cpmdc_restart *file);
 
-/* xyz has ncoords * 3 doubles. Returns 0 on success. */
+/**
+ * @brief Copy coordinates in Bohr.
+ *
+ * @param xyz Receives `ncoords * 3` doubles.
+ * @return 0 on success.
+ */
 int cpmdc_restart_coordinates(const cpmdc_restart *file, double *xyz, int n3);
+
+/**
+ * @brief Copy velocities in Bohr.
+ *
+ * @param xyz Receives `ncoords * 3` doubles.
+ * @return 0 on success.
+ */
 int cpmdc_restart_velocities(const cpmdc_restart *file, double *xyz, int n3);
+
+/**
+ * @brief Copy the initial geometry in Bohr.
+ *
+ * @param xyz Receives `ncoords * 3` doubles.
+ * @return 0 on success.
+ */
 int cpmdc_restart_initial_coordinates(const cpmdc_restart *file, double *xyz,
                                       int n3);
 
+/**
+ * @brief Replace coordinates, leaving every other record unchanged.
+ *
+ * @param xyz `n3` doubles, `ncoords * 3`.
+ * @return 0 on success.
+ */
 int cpmdc_restart_set_coordinates(cpmdc_restart *file, const double *xyz,
                                   int n3);
+
+/**
+ * @brief Replace velocities, leaving every other record unchanged.
+ *
+ * @return 0 on success.
+ */
 int cpmdc_restart_set_velocities(cpmdc_restart *file, const double *xyz,
                                  int n3);
+
+/**
+ * @brief Replace the cell lattice parameters.
+ *
+ * @return 0 on success.
+ */
 int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]);
 
-/* dual_flag is the logical `dual` stored in section 7 (0 or 1), not the
- * real dual factor. That factor is cdual. */
+/**
+ * @brief Read the cutoff section.
+ *
+ * `dual_flag` is the logical `dual` stored in section 7 (0 or 1), not the
+ * real dual factor. That factor is `cdual`.
+ *
+ * @return 0 when the section is present.
+ */
 int cpmdc_restart_cutoff(const cpmdc_restart *file, double *ecut, double *cdual,
                          int *dual_flag, int *nel, int *nr1s, int *nr2s,
                          int *nr3s);
+
+/**
+ * @brief Read the electronic-state counts.
+ *
+ * @return 0 when the section is present.
+ */
 int cpmdc_restart_states(const cpmdc_restart *file, int *n, int *nkpts,
                          int *ngw, int *ngwl, int *nhg, int *nhgl);
 
+/**
+ * @brief Write the image to a newly allocated buffer.
+ *
+ * @param bytes Receives a buffer the caller frees.
+ * @param err Receives a diagnostic when the write fails. May be NULL.
+ * @return 0 on success.
+ */
 int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes,
                             size_t *nbytes, char *err, size_t err_cap);
+
+/**
+ * @brief Write the image to a filesystem path.
+ *
+ * @param err Receives a diagnostic when the write fails. May be NULL.
+ * @return 0 on success.
+ */
 int cpmdc_restart_write_path(const cpmdc_restart *file, const char *path,
                              char *err, size_t err_cap);
 

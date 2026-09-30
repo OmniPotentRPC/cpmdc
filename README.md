@@ -5,6 +5,8 @@
 non-Fortran callers one stable boundary for CPMD setup, geometry steps, feature
 discovery, and result messages.
 
+Documentation: [cpmdc.rgoswami.me](https://cpmdc.rgoswami.me).
+
 Use this repository when you need to:
 
 - pass CPMD method setup as a serialized Cap'n Proto `CPMDParams` message
@@ -323,6 +325,8 @@ and adds `CELL` and `MAXITER` when the deck lacks them; see
 [Debug an input with CPMDC_DECK_OUT](docs/orgmode/howto/debug-deck.org).
 
 ## Documentation
+
+The published site is [cpmdc.rgoswami.me](https://cpmdc.rgoswami.me).
 
 Read the docs in this order:
 
