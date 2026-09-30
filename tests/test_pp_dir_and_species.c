@@ -516,10 +516,10 @@ static void test_split_species_and_output_directory(void **state) {
   }
   assert_non_null(after);
   assert_true(snapshots_equal(before, before_n, after, after_n));
-  assert_true(file_exists(scratch, "GEOMETRY.xyz") ||
-              file_exists(scratch, "GEOMETRY") ||
-              file_exists(scratch, "LATEST") ||
-              file_exists(scratch, "RESTART.1"));
+  assert_false(file_exists(scratch, "GEOMETRY.xyz"));
+  assert_false(file_exists(scratch, "GEOMETRY"));
+  assert_false(file_exists(scratch, "LATEST"));
+  assert_false(file_exists(scratch, "RESTART.1"));
 
   free(before);
   free(after);

@@ -1638,7 +1638,8 @@ CONTAINS
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
         cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
-    USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces
+    USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
+        embed_set_write_files
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
@@ -1702,6 +1703,10 @@ CONTAINS
     ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
     ! tfor; iprint_force alone was not enough on the memfd embed path.
     CALL embed_set_need_forces(.TRUE.)
+    ! Orbitals for the next call stay in embed_c0_store. rwfopt then skips
+    ! zhwwf and geofile, so this call writes no RESTART, LATEST, or GEOMETRY.
+    ! cpmd.x leaves embed_write_files at its default, which is true.
+    CALL embed_set_write_files(.FALSE.)
     ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
     ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
     ! allocated for periodic cells in initclust — SEGV on cluster decks.
@@ -1716,9 +1721,6 @@ CONTAINS
     ! superposition (inwfun 3: loadc, one orthogonalisation, no force
     ! evaluation) stands in for the Lanczos guess and for the random start,
     ! both of which run a full SCF step on orbitals that are then discarded.
-    ! zhwwf writes RESTART.1 and LATEST on every converged call; ibench(1)
-    ! makes it return at once. The in-process host keeps c0 in memory, so a
-    ! warm call needs no file; the cold call still writes one.
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
     IF (image%cfg_warm_steps > 0) THEN
@@ -2086,8 +2088,8 @@ CONTAINS
     CALL detsp
     CALL mm_init
     CALL ratom
-    ! Pseudopotential files are in memory. LATEST and GEOMETRY ignore FILEPATH
-    ! and follow the working directory, so leave the library before any write.
+    ! Pseudopotential files are in memory. Leave that directory before the
+    ! SCF so a stray write cannot land on the library.
     IF (.NOT. embed_use_output_dir(image)) THEN
       ierr = cpmdc_restore_host_cwd()
       RETURN
@@ -2121,7 +2123,7 @@ CONTAINS
     ELSE
       CALL clear_last_energy_components(image)
     END IF
-    ! Output files are already in permanentDir, scratchDir, or the host directory.
+    ! The force call writes no RESTART, LATEST, or GEOMETRY.
     IF (cpmdc_restore_host_cwd() /= 0_c_int) THEN
       ! Keep ok from SCF; lost host CWD is non-fatal for the energy itself.
     END IF

@@ -43,7 +43,9 @@ it, and a second call only reports the group index.
 * Why the parent rank's result counts
 CPMD computes the energy and ionic forces for the calculation as a whole, and
 its parent rank, rank 0 of ~mp_comm_world~, is the one CPMD itself treats as
-holding them: it writes the output, the restart file, and ~GEOMETRY~.
+holding them.
+~cpmd.x~ writes the output, the restart file, and ~GEOMETRY~ from that rank.
+A library force call writes none of those files.
 The other ranks return from the same call with values of their own.
 They agreed with the parent in a 4-rank water single point.
 Over the many steps of a search they need not: in a 4-rank dimer search where

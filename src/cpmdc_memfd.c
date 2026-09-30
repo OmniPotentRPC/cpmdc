@@ -31,7 +31,7 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
 }
 
 /* Host CWD saved before leaving it for the pseudopotential library.
- * Restored after CPMD has written RESTART, LATEST, and GEOMETRY. */
+ * Restored after the SCF. A force call writes no RESTART, LATEST, or GEOMETRY. */
 static char g_host_cwd[1024];
 static int g_host_cwd_saved = 0;
 

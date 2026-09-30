@@ -20,6 +20,9 @@ def test_bomd_force_export_path() -> None:
     body = m.group(0)
     assert "embed_set_need_forces" in body, "must request OpenCPMD embed_need_forces"
     assert "embed_set_need_forces(.TRUE.)" in body or "embed_set_need_forces(.true.)" in body.lower()
+    write_at = body.lower().find("embed_set_write_files(.false.)")
+    wf_at = body.lower().find("call wfopts")
+    assert write_at != -1 and wf_at != -1 and write_at < wf_at
     assert "iprint_force" in body
     assert "ALLOCATED(fion)" in body
     assert "-fion" in body or "-fion(" in body.replace(" ", "")

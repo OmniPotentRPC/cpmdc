@@ -40,11 +40,10 @@ needed because OpenCPMD's ``get_pplib`` takes ``argv[2]`` as the library
 path whenever the process has more than one argument, which most hosts
 do. Once the pseudopotential files are read, the working directory
 becomes ``permanentDir`` if that field is set, otherwise ``scratchDir``,
-otherwise the host directory from before the call. ``RESTART.1``,
-``LATEST``, ``GEOMETRY``, and ``GEOMETRY.xyz`` are written there.
-``LATEST`` and ``GEOMETRY`` do not follow ``FILEPATH``, so the working
-directory is what places them. The pseudopotential directory is left
-unchanged.
+otherwise the host directory from before the call. A library force call
+writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz``
+there. ``cpmd.x`` writes those files in that directory. The
+pseudopotential directory is left unchanged.
 
 ``CPMDC_STRESS=0`` saves the stress calculation for callers that use
 only energy and forces, and the stress snapshot stays invalid. Isolated

@@ -381,8 +381,10 @@ A live OpenCPMD link evaluates each geometry with fixed nuclei
 single-point force evaluation after the SCF (self-consistent field).
 
 On the embed path the Fortran bridge always calls
-``embed_set_need_forces(.TRUE.)`` before ``wfopts``. OpenCPMD must be
-patched so ``rwfopt`` sets
+``embed_set_need_forces(.TRUE.)`` before ``wfopts``. The same subroutine
+calls ``embed_set_write_files(.FALSE.)``, so the force call writes no
+``RESTART.1``, ``LATEST``, ``GEOMETRY``, or ``GEOMETRY.xyz``. ``cpmd.x``
+leaves that flag true. OpenCPMD must be patched so ``rwfopt`` sets
 ``tfor = (iprint_force == 1) .OR. embed_need_forces``. Without that,
 OpenCPMD zeros ``fion`` after ``forcedr`` when ``tfor`` is false and the
 C force buffer stays all zeros even though the energy is finite.

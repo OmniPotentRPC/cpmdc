@@ -23,9 +23,9 @@ argument, which most hosts do.
 Once the pseudopotential files are read, the working directory becomes
 ~permanentDir~ if that field is set, otherwise ~scratchDir~, otherwise the
 host directory from before the call.
-~RESTART.1~, ~LATEST~, ~GEOMETRY~, and ~GEOMETRY.xyz~ are written there.
-~LATEST~ and ~GEOMETRY~ do not follow ~FILEPATH~, so the working directory
-is what places them.
+A library force call writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or
+~GEOMETRY.xyz~ there.
+~cpmd.x~ writes those files in that directory.
 The pseudopotential directory is left unchanged.
 
 ~CPMDC_STRESS=0~ saves the stress calculation for callers that use only energy
