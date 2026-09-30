@@ -172,10 +172,19 @@ if has_cpmd
       cpmd_embed_link += [blas]
     endif
   endif
-  # FFTW3 when OpenCPMD was configured with -D__FFTW3 / -D__HAS_FFT_FFTW3
+  # FFTW3 when OpenCPMD was configured with -D__FFTW3 / -D__HAS_FFT_FFTW3.
+  # An OpenMP build also needs the threaded planner (fftw3_omp) and libgomp.
   fftw3 = cc.find_library('fftw3', required: false)
+  fftw3_omp = cc.find_library('fftw3_omp', required: false)
+  gomp = cc.find_library('gomp', required: false)
+  if fftw3_omp.found()
+    cpmd_embed_link += [fftw3_omp]
+  endif
   if fftw3.found()
     cpmd_embed_link += [fftw3]
+  endif
+  if gomp.found()
+    cpmd_embed_link += [gomp]
   endif
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
@@ -188,7 +197,9 @@ cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
 if has_cpmd
   cpmd_archive_math_libs = (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+      + (fftw3_omp.found() ? ['-lfftw3_omp'] : []) \
       + (fftw3.found() ? ['-lfftw3'] : []) \
+      + (gomp.found() ? ['-lgomp'] : []) \
       + ['-lgfortran', '-lquadmath', '-lm']
   cpmdc_shared_link_args = cpmd_link_multi + ['-Wl,--start-group', cpmd_root / 'lib' / 'libcpmd.a', '-Wl,--end-group'] \
       + cpmd_archive_math_libs
