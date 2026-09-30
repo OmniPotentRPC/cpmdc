@@ -326,31 +326,6 @@ CONTAINS
     ok = 1_c_int
   END FUNCTION
 
-  SUBROUTINE cpmdc_embed_abort_other_ranks() &
-      BIND(C, NAME='cpmdc_embed_abort_other_ranks')
-#if defined(CPMDC_HAS_CPMD)
-    BLOCK
-      USE mpi
-      USE mp_interface, ONLY: mp_comm_world
-      INTEGER :: ierr, npe, comm
-      LOGICAL :: inited
-      ! stopgm returns only on the ranks that hit it. Any other rank is
-      ! still inside an MPI call, so a calculator larger than one rank
-      ! has to abort the communicator itself.
-      CALL MPI_INITIALIZED(inited, ierr)
-      IF (.NOT. inited) RETURN
-      IF (embed_calculator_bound) THEN
-        comm = mp_comm_world
-      ELSE
-        comm = MPI_COMM_WORLD
-      END IF
-      CALL MPI_Comm_size(comm, npe, ierr)
-      IF (ierr /= 0) RETURN
-      IF (npe > 1) CALL MPI_Abort(comm, 1, ierr)
-    END BLOCK
-#endif
-  END SUBROUTINE
-
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
     runtime_ready = .FALSE.
     runtime_finalized = .TRUE.

@@ -55,11 +55,13 @@ def test_calculator_once_flag_and_stop_reset() -> None:
         host,
         re.S,
     ), "a stopgm return must reset the image before the next call"
+    assert "cpmdc_embed_abort_other_ranks" not in host
+    assert "MPI_Abort" not in host
     assert re.search(
-        r"if \(stop != 0\) \{\s*.*?cpmdc_embed_abort_other_ranks\(\);",
+        r'if \(stop != 0\) \{\s*.*?return fail_msg\("CPMD stopgm during embed SCF"\);',
         host,
         re.S,
-    ), "a stopgm return on more than one rank must abort the others"
+    ), "a stopgm return must come back as an error the caller handles"
     scf = re.search(
         r"SUBROUTINE run_embed_scf.*?END SUBROUTINE",
         embed,
