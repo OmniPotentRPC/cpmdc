@@ -7,7 +7,7 @@ process. A stock OpenCPMD archive does not work inside a host:
 ``libcpmdc`` imports routines that only the patches add, the shared link
 stops on code built without ``-fPIC``, and the unpatched SCF driver
 drops the forces and the orbitals that ``cpmdc`` reads after each call.
-Four patches in ``tools/`` and one compiler flag fix those.
+Five patches in ``tools/`` and one compiler flag fix those.
 
 Patches and what each one is for
 ================================
@@ -44,6 +44,13 @@ Patches and what each one is for
 |                                      |                                | OpenCPMD writes to end the  |
 |                                      |                                | run                         |
 +--------------------------------------+--------------------------------+-----------------------------+
+| ``opencpmd_tistopgm.patch``          | ``src/timer.mod.F90``          | ``tistopgm`` indexes        |
+|                                      |                                | ``trace_depth`` before      |
+|                                      |                                | ``tistart``. The depth      |
+|                                      |                                | is still ``HUGE(0)``,       |
+|                                      |                                | so the process faults       |
+|                                      |                                | before ``LocalError``       |
++--------------------------------------+--------------------------------+-----------------------------+
 
 The rwfopt patch publishes ``embed_set_warm_orbitals``,
 ``embed_set_need_forces``, and ``embed_reset_warm_orbitals``.
@@ -74,10 +81,17 @@ does not need a patch: ``mp_start`` assigns ``mp_comm_world`` only when
 CPMD itself calls ``MPI_Init``, and ``cpmdc_embed_bind_calculator``
 initialises MPI and stores its communicator before that. A module flag,
 ``embed_calculator_bound``, makes a second bind return the same index.
+The timer patch changes ``tistopgm``. ``trace_depth`` stays ``HUGE(0)``
+until ``tistart``, and without the guard the call-stack walk indexes
+``trace_names`` from that value, so a ``stopgm`` before ``tistart`` faults
+instead of writing ``LocalError``. The walk runs only when the depth is
+inside ``SIZE(tname%trace_names)``.
 
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are
-portable unified diffs against the files named above. All four apply in
-sequence to OpenCPMD commit ``062582b``.
+portable unified diffs against the files named above. All five are the
+commits on `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
+(branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to
+OpenCPMD commit ``062582b``.
 
 Build a patched tree
 ====================
@@ -90,7 +104,7 @@ first build:
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
    for p in embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return; do
+            kpoints_inputfile stopgm_return tistopgm; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
@@ -122,14 +136,14 @@ source and rebuild only the affected members:
 
    cd /path/to/opencpmd-source
    for p in embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return; do
+            kpoints_inputfile stopgm_return tistopgm; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 
 ``rebuild_opencpmd_embed.sh`` recompiles ``error_handling.mod.o``,
 ``scex_utils.mod.o``, ``rwfopt_utils.mod.o``,
-``updwf_utils.mod.o``, and ``rkpnt_utils.mod.o`` with one Make job, then
+``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, and ``timer.mod.o`` with one Make job, then
 replaces those members with ``ar r`` and runs ``ranlib``. It runs one
 job because gfortran stores a copy of ``Scex_t`` inside
 ``rwfopt_utils.mod``: a parallel rebuild can leave the two module files

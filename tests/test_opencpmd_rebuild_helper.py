@@ -36,6 +36,7 @@ def main() -> int:
             "rwfopt_utils.mod.o",
             "updwf_utils.mod.o",
             "rkpnt_utils.mod.o",
+            "timer.mod.o",
         ]
         for name in members:
             (root / "obj" / name).write_bytes(b"\0")

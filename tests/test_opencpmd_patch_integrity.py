@@ -13,6 +13,7 @@ PATCHES = {
     "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
     "opencpmd_kpoints_inputfile.patch": "src/rkpnt_utils.mod.F90",
     "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
+    "opencpmd_tistopgm.patch": "src/timer.mod.F90",
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -82,6 +83,18 @@ def assert_converged_state(patch: Path) -> None:
         raise AssertionError(f"{patch.name}: missing the steepest-descent gemax note")
 
 
+def assert_tistopgm(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    if "trace_depth is HUGE(0) until tistart" not in text:
+        raise AssertionError(f"{patch.name}: missing the pre-tistart note")
+    needle = (
+        "tname%trace_depth.GT.0 .AND. "
+        "tname%trace_depth.LE.SIZE(tname%trace_names)"
+    )
+    if needle not in text:
+        raise AssertionError(f"{patch.name}: missing the pre-tistart stack guard")
+
+
 def assert_stopgm_hook(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     if "NAME='cpmd_stopgm_hook'" not in text:
@@ -120,6 +133,10 @@ def main() -> int:
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
             assert_converged_state(patch)
+        elif name == "opencpmd_tistopgm.patch":
+            if removed <= 0:
+                raise AssertionError(f"{name}: patch must replace upstream code")
+            assert_tistopgm(patch)
         elif removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
         if target != expected_target:

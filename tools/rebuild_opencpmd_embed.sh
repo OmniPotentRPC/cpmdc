@@ -23,6 +23,7 @@ objects=(
   rwfopt_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o
+  timer.mod.o
 )
 "$make_program" \
   -C "$cpmd_root/obj" \
