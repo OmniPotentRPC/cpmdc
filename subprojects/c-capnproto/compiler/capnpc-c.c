@@ -395,6 +395,10 @@ static void decode_field(struct field *fields, Field_list l, int i) {
 static const char *xor_member(struct field *f) {
 	static struct str buf = STR_INIT;
 
+	/* C11 6.5.3.2: a null field is not a member. */
+	if (!f)
+		return "";
+
 	if (f->v.intval) {
 		switch (f->v.v.which) {
 		case Value_int8:
