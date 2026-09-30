@@ -32,9 +32,14 @@ void str_reserve(struct str *v, int sz) {
 }
 
 void str_add(struct str *v, const char *str, int sz) {
+	/* C11 6.5.3.2: a null buffer is not a copy. */
+	if (!v || !str)
+		return;
 	if (sz < 0)
 		sz = strlen(str);
 	str_reserve(v, v->len + sz);
+	if (!v->str)
+		return;
 	memcpy(v->str+v->len, str, sz);
 	v->len += sz;
 	v->str[v->len] = '\0';
