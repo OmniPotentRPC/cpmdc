@@ -158,35 +158,51 @@ Library status
 
 ``cpmdc_last_error()`` is written by ``cpmdc_set_params()``,
 ``cpmdc_configure()``, ``cpmdc_bind_calculator()``,
-``cpmdc_session_create()``, ``cpmdc_session_set_params()``,
-``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``,
+``cpmdc_adopt_calculator_comm()``, ``cpmdc_session_create()``,
+``cpmdc_session_set_params()``, ``cpmdc_session_create_from_config()``,
+``cpmdc_session_configure()``,
 ``cpmdc_potential_result_size_for_force_input()``, and every evaluation
 entry point. When the call returns ``CPMDCResult``, the text matches
 ``message``, including a missing pseudopotential directory. Snapshot
 readers (``cpmdc_last_stress()`` and the other ``cpmdc_last_*`` /
 ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot
-is absent or the output pointer is null. ``cpmdc_capabilities_result()``
-does not write it either; its -1 is the size query.
+is absent or the output pointer is null. ``cpmdc_adopted_comm()`` and
+``cpmdc_capabilities_result()`` do not write it either. A capabilities
+return of -1 is the size query.
 
 MPI
 ===
 
-+---------------------------------------------------+----------------------------------+
-| Function                                          | Behaviour                        |
-+===================================================+==================================+
-| ``int cpmdc_bind_calculator(int ranks_per_calc)`` | collective on                    |
-|                                                   | ``MPI_COMM_WORLD``; initialises  |
-|                                                   | MPI when needed and splits the   |
-|                                                   | world into calculators of        |
-|                                                   | ``ranks_per_calc`` consecutive   |
-|                                                   | ranks; ``ranks_per_calc <= 0``   |
-|                                                   | keeps one calculator; returns    |
-|                                                   | this rank's calculator index, or |
-|                                                   | -1 when the world size is not a  |
-|                                                   | multiple or the library has no   |
-|                                                   | CPMD backend; a second call      |
-|                                                   | returns the same index           |
-+---------------------------------------------------+----------------------------------+
++------------------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                                 | Behaviour                        |
++==========================================================================================+==================================+
+| ``int cpmdc_bind_calculator(int ranks_per_calc)``                                        | collective on                    |
+|                                                                                          | ``MPI_COMM_WORLD``; initialises  |
+|                                                                                          | MPI when needed and splits the   |
+|                                                                                          | world into calculators of        |
+|                                                                                          | ``ranks_per_calc`` consecutive   |
+|                                                                                          | ranks; ``ranks_per_calc <= 0``   |
+|                                                                                          | keeps one calculator; returns    |
+|                                                                                          | this rank's calculator index, or |
+|                                                                                          | -1 when the world size is not a  |
+|                                                                                          | multiple or the library has no   |
+|                                                                                          | CPMD backend; a second call      |
+|                                                                                          | returns the same index           |
++------------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)`` | stores the caller's communicator |
+|                                                                                          | as ``mp_comm_world``; does not   |
+|                                                                                          | call ``MPI_Init`` or             |
+|                                                                                          | ``MPI_Comm_split``; returns the  |
+|                                                                                          | calculator index, or -1 when the |
+|                                                                                          | communicator is null, the world  |
+|                                                                                          | does not divide, or the library  |
+|                                                                                          | has no CPMD backend              |
++------------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_adopted_comm(void *out, size_t nbytes)``                                     | copies ``mp_comm_world`` into    |
+|                                                                                          | ``out``; returns 0, or -1 when   |
+|                                                                                          | no communicator is stored; does  |
+|                                                                                          | not write ``cpmdc_last_error()`` |
++------------------------------------------------------------------------------------------+----------------------------------+
 
 Call it once on every rank before the first evaluation. See
 :doc:`running under mpirun <../howto/mpi>`.

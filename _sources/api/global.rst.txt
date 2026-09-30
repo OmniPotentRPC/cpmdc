@@ -64,6 +64,8 @@ Overview
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy<doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_energy_forces<doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>`(int n_atoms, const double* positions_ang, const int* atomic_numbers, const void* params_capnp, size_t params_capnp_size_bytes, double* forces_h_bohr);
 	int :ref:`cpmdc_bind_calculator<doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>`(int ranks_per_calc);
+	int :ref:`cpmdc_adopt_calculator_comm<doxid-cpmdc_8h_1af51ea5fe4538337ebd01bf1e421fe275>`(const void* comm, size_t comm_bytes, int ranks_per_calc);
+	int :ref:`cpmdc_adopted_comm<doxid-cpmdc_8h_1a88b631a01e268dfef527641fb8b3ce32>`(void* out, size_t nbytes);
 	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create<doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>`(const void* params_capnp, size_t params_capnp_size_bytes);
 	int :ref:`cpmdc_session_set_params<doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* params_capnp, size_t params_capnp_size_bytes);
 	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create_from_config<doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>`(const void* config_capnp, size_t config_capnp_size_bytes);
@@ -359,6 +361,30 @@ Bind this rank to one CPMD calculator of ``ranks_per_calc`` ranks.
 
 Collective on MPI_COMM_WORLD, once, before the first energy call. World size must divide into groups of ranks_per_calc. Each group is one CPMD calculator: its own communicator, its own wavefunction, the same deck. A value of zero or less takes the whole world as one group. Returns the group index, or -1 when the split is refused or the library carries no CPMD backend. Failure text is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>```. A second call returns the same index and does not split again.
 
+.. index:: pair: function; cpmdc_adopt_calculator_comm
+.. _doxid-cpmdc_8h_1af51ea5fe4538337ebd01bf1e421fe275:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_adopt_calculator_comm(const void* comm, size_t comm_bytes, int ranks_per_calc)
+
+Install a communicator the caller already split.
+
+``comm`` points at an ``MPI_Comm`` of ``comm_bytes`` bytes. The call does not call ``MPI_Init`` or ``MPI_Comm_split``. An OpenCPMD build stores that communicator as ``mp_comm_world`` and returns this rank's calculator index, ``world_rank / ranks_per_calc``. A value of zero or less means one calculator. Returns -1 when ``comm`` is null, MPI is not initialized, the world does not divide, or this library has no CPMD backend. Failure text is ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>```. A second call returns the same index and does not replace the communicator.
+
+.. index:: pair: function; cpmdc_adopted_comm
+.. _doxid-cpmdc_8h_1a88b631a01e268dfef527641fb8b3ce32:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_adopted_comm(void* out, size_t nbytes)
+
+Copy the adopted ``mp_comm_world`` into ``out``.
+
+``out`` receives an ``MPI_Comm`` of ``nbytes`` bytes. Returns 0 when a calculator communicator is stored, and -1 when ``out`` is null, ``nbytes`` is not that size, or no communicator has been adopted. Does not write ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>```.
+
 .. index:: pair: function; cpmdc_session_create
 .. _doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745:
 
@@ -547,9 +573,9 @@ Compiled library version string.
 
 Diagnostic for the most recent public call on this thread that reports failure through this string.
 
-Written by ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>```, the session variants, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
+Written by ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1af51ea5fe4538337ebd01bf1e421fe275>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>```, the session variants, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
 
-Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1ad1997ec438a489fa8321c36bcf5ec0b7>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a1b9502d082856395b03a28318cff24a7>``` does not write it either; its -1 is the size query.
+Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1ad1997ec438a489fa8321c36bcf5ec0b7>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_adopted_comm() <doxid-cpmdc_8h_1a88b631a01e268dfef527641fb8b3ce32>``` and ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a1b9502d082856395b03a28318cff24a7>``` do not write it either. A capabilities return of -1 is the size query.
 
 .. index:: pair: function; cpmdc_abi_version
 .. _doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44:

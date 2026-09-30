@@ -124,6 +124,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#the-rules">The rules</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#a-communicator-the-host-already-split">A communicator the host already split</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#finalize-mpi">Finalize MPI</a></li>
@@ -402,6 +403,8 @@ waiting inside CPMD.</p>
 </section>
 <section id="the-communicator-cpmd-uses">
 <h1>The communicator CPMD uses<a class="headerlink" href="#the-communicator-cpmd-uses" title="Link to this heading">¶</a></h1>
+<p>cpmdc has no <code class="docutils literal notranslate"><span class="pre">with_mpi</span></code> option. The engine takes MPI from the CPMD
+archive it is linked into.</p>
 <p>OpenCPMD keeps its world communicator in <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>. <code class="docutils literal notranslate"><span class="pre">mp_start</span></code>
 assigns that variable only when CPMD itself calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>. When MPI
 is already running, <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> leaves <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> as the host
@@ -414,7 +417,14 @@ running, then splits <code class="docutils literal notranslate"><span class="pre
 its own CPMD setup, its own SCF, its own stored orbitals, all driven by
 the same deck. The split happens once per process.
 <code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, a module variable in <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api</span></code>,
-records it, and a second call only reports the group index.</p>
+records it, and a second call only reports the group index. A host that
+already holds the calculator communicator calls
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> instead. That call copies the
+communicator into <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> and does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
+<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> back
+out. A null communicator, a world that does not divide, or a build
+without CPMD returns -1. A second adopt returns the same index and
+leaves the communicator alone.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>

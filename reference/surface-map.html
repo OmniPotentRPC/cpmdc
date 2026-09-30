@@ -124,6 +124,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#the-rules">The rules</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#a-communicator-the-host-already-split">A communicator the host already split</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#finalize-mpi">Finalize MPI</a></li>
@@ -473,6 +474,20 @@ feature row.</p>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code></p></td>
+<td><p>MPI</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code></p></td>
+<td><p>MPI</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
@@ -734,7 +749,7 @@ snapshot</p></td>
 </tbody>
 </table>
 </div>
-<p>40 symbols in <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code>, 40 with every column present.</p>
+<p>42 symbols in <code class="docutils literal notranslate"><span class="pre">abi_symbols</span></code>, 42 with every column present.</p>
 </section>
 <section id="parser-sections">
 <h1>Parser sections<a class="headerlink" href="#parser-sections" title="Link to this heading">¶</a></h1>

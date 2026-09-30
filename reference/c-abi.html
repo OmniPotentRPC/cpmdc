@@ -124,6 +124,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#the-rules">The rules</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#a-communicator-the-host-already-split">A communicator the host already split</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#finalize-mpi">Finalize MPI</a></li>
@@ -628,15 +629,17 @@ a success</p></td>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> is written by <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_configure()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></code>, and every evaluation
 entry point. When the call returns <code class="docutils literal notranslate"><span class="pre">CPMDCResult</span></code>, the text matches
 <code class="docutils literal notranslate"><span class="pre">message</span></code>, including a missing pseudopotential directory. Snapshot
 readers (<code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress()</span></code> and the other <code class="docutils literal notranslate"><span class="pre">cpmdc_last_*</span></code> /
 <code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_*</span></code> getters) do not write it: -1 means the snapshot
-is absent or the output pointer is null. <code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result()</span></code>
-does not write it either; its -1 is the size query.</p>
+is absent or the output pointer is null. <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm()</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result()</span></code> do not write it either. A capabilities
+return of -1 is the size query.</p>
 </section>
 <section id="mpi">
 <h1>MPI<a class="headerlink" href="#mpi" title="Link to this heading">¶</a></h1>
@@ -661,6 +664,22 @@ this rank’s calculator index, or
 multiple or the library has no
 CPMD backend; a second call
 returns the same index</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_adopt_calculator_comm(const</span> <span class="pre">void</span> <span class="pre">*comm,</span> <span class="pre">size_t</span> <span class="pre">nbytes,</span> <span class="pre">int</span> <span class="pre">ranks_per_calc)</span></code></p></td>
+<td><p>stores the caller’s communicator
+as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>; does not
+call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
+<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>; returns the
+calculator index, or -1 when the
+communicator is null, the world
+does not divide, or the library
+has no CPMD backend</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_adopted_comm(void</span> <span class="pre">*out,</span> <span class="pre">size_t</span> <span class="pre">nbytes)</span></code></p></td>
+<td><p>copies <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> into
+<code class="docutils literal notranslate"><span class="pre">out</span></code>; returns 0, or -1 when
+no communicator is stored; does
+not write <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code></p></td>
 </tr>
 </tbody>
 </table>

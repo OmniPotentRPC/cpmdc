@@ -124,6 +124,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="#the-rules">The rules</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="#a-communicator-the-host-already-split">A communicator the host already split</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#finalize-mpi">Finalize MPI</a></li>
@@ -294,6 +295,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#the-rules">The rules</a></li>
 <li><a class="reference internal" href="#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
 <li><a class="reference internal" href="#several-calculators-in-one-job">Several calculators in one job</a></li>
+<li><a class="reference internal" href="#a-communicator-the-host-already-split">A communicator the host already split</a></li>
 <li><a class="reference internal" href="#share-the-parent-s-result">Share the parent’s result</a></li>
 <li><a class="reference internal" href="#one-session-per-calculator">One session per calculator</a></li>
 <li><a class="reference internal" href="#finalize-mpi">Finalize MPI</a></li>
@@ -489,6 +491,15 @@ rank. <code class="docutils literal notranslate"><span class="pre">cpmdc</span><
 <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> has already initialised MPI
 and stored the calculator communicator by the time setup reaches
 <code class="docutils literal notranslate"><span class="pre">mp_start</span></code>.</p>
+</section>
+<section id="a-communicator-the-host-already-split">
+<h1>A communicator the host already split<a class="headerlink" href="#a-communicator-the-host-already-split" title="Link to this heading">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm(comm,</span> <span class="pre">nbytes,</span> <span class="pre">ranks_per_calc)</span></code> stores the
+caller’s <code class="docutils literal notranslate"><span class="pre">MPI_Comm</span></code> as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>. <code class="docutils literal notranslate"><span class="pre">nbytes</span></code> is the size of
+that communicator. The call does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
+<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies the stored
+communicator back to the caller. <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> remains the
+split for a host that has not split.</p>
 </section>
 <section id="share-the-parent-s-result">
 <h1>Share the parent’s result<a class="headerlink" href="#share-the-parent-s-result" title="Link to this heading">¶</a></h1>
