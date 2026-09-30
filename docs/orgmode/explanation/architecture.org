@@ -98,7 +98,7 @@ and [[file:mpi-model.org][the MPI model]] covers ranks and calculator groups.
 | Build | ~cpmdc_available()~ | Evaluator | ~cpmdc_last_energy_components()~ |
 |-------+---------------------+-----------+----------------------------------|
 | stub (~libcpmdc_stub.a~) | 0 | none; every call fails | returns -1 |
-| default ~libcpmdc.so~ | 1 | reference function, harmonic in the positions and scaled by atomic number | ~etot~ only |
+| default ~libcpmdc.so~ | 0 | reference function, harmonic in the positions and scaled by atomic number | ~etot~ only |
 | OpenCPMD ~libcpmdc.so~ (~-Dwith_cpmd=true~) | 1 | OpenCPMD ~wfopts~ with ionic forces | ~etot~, ~ekin~, ~epseu~, ~enl~, ~eht~, ~exc~ |
 
 The reference build exists so the ABI, the parser, sessions, units, and

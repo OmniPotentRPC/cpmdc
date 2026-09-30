@@ -83,7 +83,7 @@ optimisation.
 |----------+---------|
 | ~const char *cpmdc_version(void)~ | ~"cpmdc/"~ followed by the project version |
 | ~int cpmdc_abi_version(void)~ | the ABI generation, equal to ~CPMDC_ABI_VERSION~ (0) and the shared-library soversion |
-| ~int cpmdc_available(void)~ | 1 when an evaluator is ready: the reference evaluator in the default build, OpenCPMD in an OpenCPMD build; 0 in the stub and after ~cpmdc_finalize()~ |
+| ~int cpmdc_available(void)~ | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
 | ~const char *cpmdc_last_error(void)~ | per-thread text of the last failing public call, empty after a success |
 

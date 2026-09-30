@@ -15,6 +15,13 @@
 
 #include <cmocka.h>
 
+/* 1 only when this binary is the OpenCPMD link. The reference build is 0. */
+#if defined(CPMDC_HAS_CPMD)
+#define CPMDC_AVAILABLE_WHEN_LINKED 1
+#else
+#define CPMDC_AVAILABLE_WHEN_LINKED 0
+#endif
+
 int cpmdc_embed_get_config(char *functional, int functional_len,
                            double *cutoff_ry, int *charge, int *mult,
                            char *input_deck, int input_deck_len, char *cpmd_root,
@@ -119,7 +126,7 @@ static void test_long_method_deck_is_kept(void **state) {
   int mult = 0;
   int cold_len = 0;
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   raw = make_raw();
   assert_non_null(raw);
   assert_true(k_mark_at > 16384);

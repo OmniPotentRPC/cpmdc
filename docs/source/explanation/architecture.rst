@@ -142,7 +142,7 @@ Three builds, one ABI
 | stub                   | 0                     | none; every    | returns -1                         |
 | (``libcpmdc_stub.a``)  |                       | call fails     |                                    |
 +------------------------+-----------------------+----------------+------------------------------------+
-| default                | 1                     | reference      | ``etot`` only                      |
+| default                | 0                     | reference      | ``etot`` only                      |
 | ``libcpmdc.so``        |                       | function,      |                                    |
 |                        |                       | harmonic in    |                                    |
 |                        |                       | the positions  |                                    |

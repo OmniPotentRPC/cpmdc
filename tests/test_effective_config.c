@@ -61,11 +61,6 @@ static CPMDCResult eval_result(const unsigned char *params, size_t params_size,
 
 static void test_sections_override_top_level_scalars(void **state) {
   (void)state;
-  if (!cpmdc_available()) {
-    print_message("[  SKIP   ] libcpmd embed not linked\n");
-    skip();
-  }
-
   size_t top_size = 0, section_size = 0, step_size = 0;
   unsigned char *top = read_file(g_top, &top_size);
   unsigned char *sections = read_file(g_sections, &section_size);
