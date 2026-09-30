@@ -349,6 +349,9 @@ CAPN_INLINE int capn_write8(capn_ptr p, int off, uint8_t val) {
 }
 
 CAPN_INLINE uint16_t capn_read16(capn_ptr p, int off) {
+	/* C11 6.5.3.2: a null data pointer is not a 16-bit load. */
+	if (!p.data)
+		return 0;
 	return off+2 <= p.datasz ? capn_flip16(*(uint16_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write16(capn_ptr p, int off, uint16_t val) {
