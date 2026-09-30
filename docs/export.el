@@ -12,6 +12,9 @@
         (make-directory (file-name-directory rst-file) t)
         (unless (= 0 (call-process "pandoc" nil "*cpmdc-pandoc*" t
                                    "-f" "org" "-t" "rst"
+                                   "--lua-filter"
+                                   (expand-file-name "org-links.lua"
+                                                     default-directory)
                                    org-file "-o" rst-file))
           (with-current-buffer "*cpmdc-pandoc*"
             (princ (buffer-string)))

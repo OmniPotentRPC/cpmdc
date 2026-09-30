@@ -92,6 +92,8 @@ if need_capnp_c
     'cpmdc_apply_f',
     [potentials_capnp_f, 'src/cpmdc_embed_apply_params.f90'],
     dependencies: capnp_fortran_dep,
+    # Generated Cap'n Proto Fortran exceeds the 132-column free-form default.
+    fortran_args: ['-ffree-line-length-none'],
     install: false,
   )
   cpmdc_apply_f_dep = declare_dependency(
@@ -114,7 +116,7 @@ cpmdc_stub_dep = declare_dependency(
 )
 
 # ISO_C embed without libcpmd: deterministic reference PEF for tests and dlopen users.
-cpmd_embed_f_args = []
+cpmd_embed_f_args = ['-ffree-line-length-none']
 cpmd_embed_link = []
 cpmd_embed_inc = [inc]
 cpmd_extra_objects = []

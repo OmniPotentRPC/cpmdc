@@ -1,0 +1,93 @@
+CPMD is an MPI program: one SCF is spread over the ranks of a
+communicator, and one of those ranks, the parent, owns input and output.
+Embedding it in a host that is itself started under ``mpirun`` raises
+three questions: which ranks form one CPMD calculation, which rank's
+result counts, and who ends MPI. This page explains the answers
+``cpmdc`` gives and why.
+
+Every rank is a copy of the host
+================================
+
+Under ``mpirun``, each rank runs the whole host program, and each rank's
+copy of ``libcpmdc`` calls into its own copy of CPMD. CPMD's collective
+operations tie those copies together: an SCF can only advance when every
+rank of its communicator takes part. So every rank must make the same
+``cpmdc`` calls, with the same messages, in the same order. A rank that
+skips a call, or evaluates a different geometry, leaves the others
+waiting inside CPMD.
+
+The communicator CPMD uses
+==========================
+
+OpenCPMD keeps its world communicator in ``mp_comm_world``, set by
+``mp_start`` during setup. Stock ``mp_start`` always sets it to
+``MPI_COMM_WORLD``, so every rank of the job joins one calculation.
+``opencpmd_mp_comm_set.patch`` adds a flag, ``mp_comm_set``, that makes
+``mp_start`` keep a communicator installed before it runs.
+
+``cpmdc_bind_calculator(ranks_per_calc)`` uses that flag. It splits
+``MPI_COMM_WORLD`` with ``MPI_Comm_split``, colour
+``world_rank / ranks_per_calc`` and key
+``world_rank mod ranks_per_calc``, installs the new communicator as
+``mp_comm_world``, and sets ``mp_comm_set``. Each colour is one
+calculator: its own CPMD setup, its own SCF, its own stored orbitals,
+all driven by the same deck. The split happens once per process: once
+``mp_comm_set`` is true, a second call only reports the group index.
+
+========== ================== =================== ============
+World size ``ranks_per_calc`` Calculators         Parent ranks
+========== ================== =================== ============
+16         16, 0, or no call  1                   0
+16         4                  4                   0, 4, 8, 12
+16         5                  refused, returns -1 
+========== ================== =================== ============
+
+Why the parent rank's result counts
+===================================
+
+CPMD computes the energy and ionic forces for the calculation as a
+whole, and its parent rank, rank 0 of ``mp_comm_world``, is the one CPMD
+itself treats as holding them: it writes the output, the restart file,
+and ``GEOMETRY``. The other ranks return from the same call with values
+of their own. They agreed with the parent in a 4-rank water single
+point. Over the many steps of a search they need not: in a 4-rank dimer
+search where every rank also ran the host's optimiser, the ranks' paths
+diverged, and only rank 0's results matched the file route. The robust
+rule is that the host takes the parent's result and broadcasts it, so
+every rank's optimiser steps from the same numbers. ``cpmdc`` does not
+broadcast on its own because it cannot know which of the host's
+communicators should receive the result.
+
+One session per calculator
+==========================
+
+CPMD's module state and the stored orbitals live in the process, one set
+per rank. A calculator therefore evaluates one ``CPMDCSession``. A
+second session in the same process is possible, but switching between
+them re-applies the configuration and clears the stored orbitals each
+time, which turns every call into a cold start. Independent calculations
+belong on separate calculators: one per image of a nudged elastic band,
+one per end of a dimer.
+
+Who ends MPI
+============
+
+CPMD calls ``MPI_Init`` in its setup when MPI is not running yet, and
+``cpmdc_bind_calculator`` does the same. Neither ``cpmdc`` nor the
+patched CPMD calls ``MPI_Finalize``: in a host, the host decides when
+MPI ends, and a library that finalized MPI would break a host that still
+needs it. The host has to finalize on every rank before exit. Open MPI 5
+counts a rank that exits without it as an abnormal termination and kills
+the others, which in a 4-rank single point killed rank 0 before it had
+written its result. ``cpmdc_finalize()`` marks the library finalized and
+leaves MPI alone for the same reason.
+
+Threads inside ranks
+====================
+
+An OpenCPMD build with OpenMP adds threads inside each rank. Ranks,
+threads, and calculators multiply: 16 cores can hold one calculator of
+16 single-threaded ranks, four calculators of four ranks, or other
+combinations, set with ``mpirun -np``, ``cpmdc_bind_calculator``, and
+``OMP_NUM_THREADS``. The :doc:`mpirun how-to <../howto/mpi>` shows the
+calls.

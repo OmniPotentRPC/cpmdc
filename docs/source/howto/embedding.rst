@@ -231,8 +231,8 @@ is created.
 
 The first successful session evaluation fixes the topology: atom count
 and ordered atomic numbers. Later steps may change coordinates, the
-optional 3x3 cell, and requested units. A species change or atom-count
-change requires a new ``CPMDCSession``.
+optional 3 by 3 cell, and requested units. A species change or
+atom-count change requires a new ``CPMDCSession``.
 
 ``cpmdc_session_set_params()`` can replace method setup only before
 topology is accepted. Once a step has succeeded, method changes also
@@ -242,17 +242,18 @@ CPMD Input Ownership
 ====================
 
 ``CPMDParams`` owns method and backend setup. ``ForceInput`` owns
-coordinates, atomic numbers, unit strings, and the optional 3x3 cell for
-a single evaluation. The runtime merges those carriers into a CPMD
-``INPUT`` deck for each accepted step.
+coordinates, atomic numbers, unit strings, and the optional 3 by 3 cell
+for a single evaluation. The runtime renders a CPMD ``INPUT`` deck from
+``CPMDParams`` and merges the step geometry into it on the first
+evaluation of a session.
 
 Structured ``inputSections`` should be preferred over raw blocks when a
 typed arm exists:
 
 - ``system`` for cells, cutoff/grid/mesh controls, state occupation,
-  external fields, CDFT Gaussian controls, pressure and stress controls,
-  Poisson settings, isolated-shape controls, charge, and spin
-  multiplicity
+  external fields, CDFT (constrained DFT) Gaussian controls, pressure
+  and stress controls, Poisson settings, isolated-shape controls,
+  charge, and spin multiplicity
 - ``cpmd`` for wavefunction optimization, MD, convergence, restart, and
   trajectory controls
 - ``dft`` for functional and spin-polarized DFT controls
@@ -265,7 +266,10 @@ Use ``generic`` for non-catalog aliases, ``set`` for merge-only keywords
 inside a named section, and ``raw`` or ``inputBlocks`` for
 text-preserving deck fragments. Typed ``atoms`` sections must cover
 every element present in the step geometry. Without an explicit
-``atoms`` section, built-in BLYP defaults cover H and O only.
+``atoms`` section, the renderer's defaults cover H and O only. On the
+OpenCPMD path the ``&ATOMS`` block CPMD reads comes from each step and a
+built-in pseudopotential table for H, C, N, O, Si, and Ge; see
+:doc:`writing a CPMDParams message <write-cpmdparams>`.
 
 Choose the least lossy structured carrier:
 
@@ -313,8 +317,28 @@ Choose the least lossy structured carrier:
 | structured sections   |                      |                                                 |
 +-----------------------+----------------------+-------------------------------------------------+
 
+RESTART files
+=============
+
+The binary ``RESTART`` file is a separate object from the deck keyword.
+Read and rewrite it with ``cpmdc-restart`` or ``cpmdc_restart.h``
+(``libcpmdc_restart``). Coordinates in that file are Bohr in species
+order. A coordinate patch copies the wavefunction records unchanged,
+which is how a host keeps orbitals while it owns the next geometry. Put
+``RESTART WAVEFUNCTION`` in the deck to start the first SCF of a session
+from the patched file; the OpenCPMD path ignores restarted coordinates,
+velocities, and geometry, because each step supplies them.
+
 Units
 =====
+
+After a successful in-process evaluation
+(``cpmdc_session_energy_forces``, ``cpmdc_session_calculate_result``, or
+one-shot ``cpmdc_energy*``), call ``cpmdc_last_energy_components`` to
+read the OpenCPMD ``ener_com`` snapshot (``etot``, ``ekin``, ``epseu``,
+``enl``, ``eht``, ``exc``, and the rest) in Hartree without parsing CLI
+``ENERGY`` files. ``etot`` matches ``CPMDCResult.energy_h`` for that
+step.
 
 Native evaluation units on ``CPMDCResult.energy_h`` and force buffers
 are Hartree and Hartree/Bohr. ``PotentialResult`` energy and forces are
@@ -325,38 +349,64 @@ converted to ``ForceInput.energyUnit`` and ``energyUnit / lengthUnit``
 The native array calls take positions in Angstrom regardless of the
 schema defaults.
 
-Multi-force PEF / BOMD-style nuclear forces
-===========================================
-
-Live OpenCPMD links evaluate each geometry with fixed nuclei (OPTIMIZE
-WAVEFUNCTION) and export nuclear forces from ``coor%fion`` (PEF/BOMD
-definition). The embed bridge calls ``cpmdc_set_need_forces(.TRUE.)``
-before each ``wfopts``. Apply ``tools/opencpmd_keep_fion.patch`` and
-``tools/opencpmd_warm_orbitals.patch`` to the OpenCPMD tree used as
-``-Dcpmd_root`` so ``tfor`` includes ``cpmdc_need_forces`` and warm
-multi-force can retain orbitals. A k-point deck also needs
-``tools/opencpmd_kpoints_inputfile.patch``: without it the k-point report
-reads the host's ``argv[1]`` and CPMD stops in ``m_getarg``. Cold path resolves relative ``*PP``
-names from ``CPMDC_PSEUDO_DIR`` (and optionally ``CPMD_PP_LIBRARY_PATH``).
-Prefer off-equilibrium water-style systems when checking force norms;
-some cluster geometries report zero nuclear gradient even under native
-``cpmd.x``.
-
 OpenCPMD Runtime Inputs
 =======================
 
 Archive builds require ``-Dwith_cpmd=true`` and
 ``-Dcpmd_root=/path/to/OpenCPMD``. That tree must contain
 ``lib/libcpmd.a`` and the OpenCPMD object/include files from a completed
-executable build.
+executable build with the patches in ``tools/``; see
+:doc:`building the archive <opencpmd-archive>`.
 
-Pseudopotential names in ``atoms.pseudopotentials`` can be absolute
-paths or library-style names. For library-style names, set
-``CPMDC_PSEUDO_DIR`` to the directory containing the files (the cold
-memfd path changes into that directory before ``ratom``/``recpnew``).
-The embed layer also checks common pseudopotential directories under
-``cpmdRoot``.
+Set ``CPMDC_PSEUDO_DIR`` to the directory holding the pseudopotential
+files. The first evaluation of a session changes into that directory
+while CPMD reads them (``ratom`` and ``recpnew``), then returns to the
+host's directory. ``CPMD_PP_LIBRARY_PATH`` is the fallback when
+``CPMDC_PSEUDO_DIR`` is unset; with neither set, the first evaluation
+fails.
 
-``CPMDC_DECK_OUT`` names a file that receives each deck cpmdc hands to
-CPMD, the method deck and then the geometry deck, so a failed run shows
-the input CPMD parsed.
+``CPMDC_DECK_OUT`` names a file that receives the method deck cpmdc
+renders from ``CPMDParams``; see :doc:`debugging a deck <debug-deck>`
+for what the OpenCPMD path adds before CPMD parses it.
+
+Nuclear forces from repeated SCF calls
+======================================
+
+A live OpenCPMD link evaluates each geometry with fixed nuclei
+(``OPTIMIZE WAVEFUNCTION``) and then exports nuclear forces from
+``coor%fion``, the same Born-Oppenheimer force definition as a
+single-point force evaluation after the SCF (self-consistent field).
+
+On the embed path the Fortran bridge always calls
+``cpmdc_set_need_forces(.TRUE.)`` before ``wfopts``. OpenCPMD must be
+patched so ``rwfopt`` sets
+``tfor = (iprint_force == 1) .OR. cpmdc_need_forces``. Without that,
+OpenCPMD zeros ``fion`` after ``forcedr`` when ``tfor`` is false and the
+C force buffer stays all zeros even though the energy is finite.
+
+Warm calls (same process, same session, same cell, new ``ForceInput``
+positions):
+
+#. First force call: cold setup once, from the in-memory deck.
+#. Later calls: update ``tau0`` from C arrays, ``phfac``, full SCF from
+   the retained orbitals (``cpmdc_set_warm_orbitals``), no second setup.
+#. Every call requests forces through ``cpmdc_set_need_forces`` and
+   keeps the deck's ``MAXITER``;
+   ``tests/test_embed_warm_no_nomore_clamp.py`` and
+   ``tests/test_embed_bomd_force_export.py`` guard both.
+
+:doc:`Wavefunction state <../explanation/wavefunction-state>` explains
+what makes a call cold or warm.
+
+Prefer an off-equilibrium water or similar system when checking forces.
+Some tightly packed cluster geometries can report a zero nuclear
+gradient even under native ``cpmd.x``; an energy that changes between
+calls does not show that the forces are right.
+
+Example environment for a live driver:
+
+.. code:: bash
+
+   export CPMDC_LIBRARY=/path/to/libcpmdc.so
+   export CPMDC_PSEUDO_DIR=/path/to/pseudopotentials
+   # one session, many ForceInput steps via cpmdc_session_calculate_forces

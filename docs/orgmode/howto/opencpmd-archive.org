@@ -1,0 +1,107 @@
+#+TITLE: Build the OpenCPMD archive for embedding
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Goal
+Produce an OpenCPMD build tree whose ~lib/libcpmd.a~ can be linked into the
+shared ~libcpmdc.so~ and evaluated repeatedly from one host process.
+A stock OpenCPMD archive does not work inside a host: ~libcpmdc~ imports
+routines that only the patches add, the shared link stops on code built
+without ~-fPIC~, and the unpatched SCF driver drops the forces and the
+orbitals that ~cpmdc~ reads after each call.
+Six patches in ~tools/~ and one compiler flag fix those.
+
+* Patches and what each one is for
+
+| Patch | File patched | Without it |
+|-------+--------------+------------|
+| ~opencpmd_keep_fion.patch~ | ~src/rwfopt_utils.mod.F90~ | ~rwfopt~ deallocates ~fion~ on return, so there are no ionic forces left to copy out |
+| ~opencpmd_warm_orbitals.patch~ | ~src/rwfopt_utils.mod.F90~ | ~cpmd_embed_c_api.F90~ does not compile: it imports ~cpmdc_set_warm_orbitals~ and ~cpmdc_set_need_forces~ from ~rwfopt_utils~ |
+| ~opencpmd_converged_state.patch~ | ~src/updwf_utils.mod.F90~ | the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces |
+| ~opencpmd_mp_comm_set.patch~ | ~src/mp_interface.mod.F90~ | ~cpmd_embed_c_api.F90~ does not compile: ~cpmdc_bind_calculator~ imports ~mp_comm_set~, the flag that stops ~mp_start~ from resetting ~mp_comm_world~ to ~MPI_COMM_WORLD~ |
+| ~opencpmd_kpoints_inputfile.patch~ | ~src/rkpnt_utils.mod.F90~ | the k-point report reads the host's ~argv[1]~ as the input file name and stops with ~STOP 12345~ when it is missing or longer than 80 characters |
+| ~opencpmd_stopgm_return.patch~ | ~src/error_handling.mod.F90~ | a CPMD stop inside an evaluation takes the ~my_stopall~ path, which OpenCPMD writes to end the run |
+
+The warm-orbitals patch adds three public routines to ~rwfopt_utils~,
+~cpmdc_set_warm_orbitals~, ~cpmdc_set_need_forces~, and
+~cpmdc_reset_warm_orbitals~.
+It keeps a copy of ~c0~ after each converged call on every rank, restores it
+after ~initrun~ on the next call, and sets ~tfor~ when ~cpmdc~ requests
+forces.
+The stop patch calls ~cpmdc_embed_catch~ and ~cpmdc_note_stop~, which
+~libcpmdc~ provides; ~cpmdc~ then reports the stop as a failed call (see
+[[file:troubleshooting.org][troubleshooting]]).
+
+~tests/test_opencpmd_patch_integrity.py~ checks that the patches are portable
+unified diffs against the files named above.
+All six apply in sequence to OpenCPMD commit ~062582b~, some with an offset or
+fuzz reported by ~patch~.
+
+* Build a patched tree
+Start from an OpenCPMD source checkout and apply the patches before the first
+build:
+
+#+begin_src bash
+git clone https://github.com/OpenCPMD/CPMD.git opencpmd
+cd opencpmd
+for p in keep_fion warm_orbitals converged_state mp_comm_set \
+         kpoints_inputfile stopgm_return; do
+  patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
+done
+#+end_src
+
+Pick a configuration from ~./configure.sh -help~ that matches your compilers,
+for example ~LINUX-X86_64-GFORTRAN-MPI~.
+Copy it under a new name in ~configure/~ and add ~-fPIC~ to both ~FFLAGS~ and
+~CFLAGS~.
+~libcpmdc~ is a shared library; a member of ~libcpmd.a~ compiled without
+~-fPIC~ fails the link with a ~R_X86_64_PC32~ relocation error.
+Then configure into a separate build directory and build:
+
+#+begin_src bash
+./configure.sh -DEST=/path/to/opencpmd-build LINUX-X86_64-GFORTRAN-MPI-PIC
+make -C /path/to/opencpmd-build -j 8
+ls /path/to/opencpmd-build/lib/libcpmd.a /path/to/opencpmd-build/obj/timetag.o
+#+end_src
+
+~/path/to/opencpmd-build~ is the ~cpmd_root~ passed to Meson.
+The ~cpmdc~ build reads ~lib/libcpmd.a~, the module files in ~obj/~, and the
+headers in ~src/~.
+
+* Patch a tree that is already built
+When the tree was built before the patches were applied, patch the source and
+rebuild only the affected members:
+
+#+begin_src bash
+cd /path/to/opencpmd-source
+for p in keep_fion warm_orbitals converged_state mp_comm_set \
+         kpoints_inputfile stopgm_return; do
+  patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
+done
+/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
+#+end_src
+
+~rebuild_opencpmd_embed.sh~ recompiles ~error_handling.mod.o~,
+~scex_utils.mod.o~, ~mp_interface.mod.o~, ~rwfopt_utils.mod.o~,
+~updwf_utils.mod.o~, and ~rkpnt_utils.mod.o~ with one Make job, then replaces
+those members with ~ar r~ and runs ~ranlib~.
+It runs one job because gfortran stores a copy of ~Scex_t~ inside
+~rwfopt_utils.mod~: a parallel rebuild can leave the two module files naming
+different components.
+It calls ~ar~ directly because the generated Makefile sets ~AR~ without an
+operation letter, so its archive rule does not replace members.
+~MAKE~ and ~AR~ in the environment override the programs it runs.
+
+* Link and check
+#+begin_src bash
+meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build
+meson compile -C build-cpmd
+nm -D build-cpmd/libcpmdc.so | grep -c ' T cpmdc_'
+#+end_src
+
+The last command counts the exported ~cpmdc_*~ symbols.
+The first evaluation needs the pseudopotential directory in
+~CPMDC_PSEUDO_DIR~; the [[file:../tutorials/first-energy.org][first energy
+tutorial]] runs one.
+Stress tensors, which ~PotentialResult.stress~ carries for periodic cells, need
+no extra patch: ~cpmdc~ sets ~cntl%tpres~ before the SCF and copies
+~paiu/omega~ afterwards.

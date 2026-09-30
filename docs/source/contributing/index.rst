@@ -211,12 +211,18 @@ Documentation
 
 Documentation source lives under ``docs/orgmode`` (authoritative prose),
 with light/dark logos in ``docs/source/_static/`` and
-``branding/logo/``. Build docs (exports Org → RST, Doxygen XML, Sphinx
+``branding/logo/``. Build docs (exports Org to RST, Doxygen XML, Sphinx
 HTML with Antics analytics):
 
 .. code:: bash
 
    pixi run -e docs docbld
+
+Link between pages with Org file links,
+``[[file:../howto/mpi.org][text]]``. The export runs
+``docs/org-links.lua`` through pandoc, which turns each relative
+``.org`` link into a Sphinx ``:doc:`` reference, so the same link works
+on the forge and in the built site.
 
 Regenerate RST after editing Org sources:
 

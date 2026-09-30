@@ -45,8 +45,8 @@ then pass ``ForceInput`` per step. The result-carrier call,
 ``PotentialResult`` message used by ``rgpot`` RPC clients.
 
 The first accepted session evaluation fixes atom count and ordered
-atomic numbers. Later steps may change coordinates, units, and the 3x3
-cell; topology changes require a new session.
+atomic numbers. Later steps may change coordinates, units, and the 3 by
+3 cell; topology changes require a new session.
 
 Start Here
 ==========
@@ -54,25 +54,37 @@ Start Here
 .. list-table::
    :header-rows: 1
 
-   * - You are
+   * - You want to
      - Start with
      - Page
-   * - Building the project for the first time
+   * - See an energy and forces come out of the C API
+     - Build the default library, then link OpenCPMD
+     - :doc:`First energy and forces <tutorials/first-energy>`
+   * - Relax a structure from eOn
+     - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
+     - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
+   * - Build and test the project
      - Run the default Meson suite and learn what it covers
-     - :doc:`Quickstart <tutorials/quickstart>`
-   * - Calling cpmdc from a host process
-     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
-     - :doc:`Embedding cpmdc <howto/embedding>`
-   * - Constructing ``CPMDParams``
+     - :doc:`Quickstart <tutorials/quickstart>` and :doc:`Install and build <howto/install>`
+   * - Link a real OpenCPMD archive
+     - Apply the patches in ``tools/`` and build with ``-fPIC``
+     - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
+   * - Turn a CPMD deck into a message
      - Pick typed section fields before raw deck text
-     - :doc:`CPMD option mapping <reference/cpmd-options>`
-   * - Linking a real OpenCPMD archive
-     - Check the C/Fortran layer boundary and runtime data ownership
-     - :doc:`Architecture <reference/architecture>`
-   * - Checking exported C symbols
-     - Inspect generated declarations and feature structs
-     - :doc:`API reference <api/index>`
-   * - Editing docs
+     - :doc:`Write a CPMDParams message <howto/write-cpmdparams>`
+   * - Call cpmdc from a host process
+     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
+     - :doc:`Embedding cpmdc <howto/embedding>` and :doc:`C ABI reference <reference/c-abi>`
+   * - Run on many ranks
+     - Bind calculator groups and share the parent rank's result
+     - :doc:`Run under mpirun <howto/mpi>`
+   * - Find out why a call failed or an energy is off
+     - Write the deck with ``CPMDC_DECK_OUT``
+     - :doc:`Troubleshooting <howto/troubleshooting>`
+   * - Understand what happens inside a call
+     - Layers, the in-process route, orbitals between calls
+     - :doc:`Architecture <explanation/architecture>`
+   * - Edit these docs
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
 
@@ -116,7 +128,7 @@ Use ``params.*`` IDs when a typed schema field owns the value. Use
 ``catalog.cpmd.*`` rows for recognized ``&CPMD`` keywords and inline
 option spellings that render through an existing text field. Use
 ``catalog.section.*`` rows to check whole-section support. The complete
-table lives in `CPMD option mapping <reference/cpmd-options.org>`__.
+table lives in :doc:`CPMD option mapping <reference/cpmd-options>`.
 
 Runtime Contracts
 =================
@@ -148,21 +160,44 @@ An OpenCPMD archive build links the same C ABI surface against
    :maxdepth: 2
    :caption: Tutorials
 
+   tutorials/first-energy
+   tutorials/eon-rgpot
    tutorials/quickstart
 
 .. toctree::
    :maxdepth: 2
    :caption: How-To Guides
 
+   howto/install
+   howto/opencpmd-archive
+   howto/write-cpmdparams
    howto/embedding
+   howto/mpi
+   howto/wavefunction-optimiser
+   howto/debug-deck
+   howto/troubleshooting
 
 .. toctree::
    :maxdepth: 2
    :caption: Reference
 
-   reference/architecture
+   reference/c-abi
+   reference/environment
+   reference/cpmdparams-schema
    reference/cpmd-options
+   reference/feature-inventory
+   reference/surface-map
+   reference/glossary
    api/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Explanation
+
+   explanation/architecture
+   explanation/routes
+   explanation/wavefunction-state
+   explanation/mpi-model
 
 .. toctree::
    :maxdepth: 2

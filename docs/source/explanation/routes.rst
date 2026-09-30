@@ -1,0 +1,128 @@
+A host can reach CPMD in two ways. The file route writes a deck, starts
+``cpmd.x`` for each force call, and reads the energy and forces back
+from CPMD's output files. The in-process route loads ``libcpmdc`` once
+and calls it; CPMD runs inside the host, and geometry and forces move as
+C arrays. Both run the same OpenCPMD source on the same input. They
+differ in what a call costs, in how the wavefunction of one call reaches
+the next, and in what can go wrong.
+
+The numbers on this page come from one study: a 7-atom Si3N4 cluster,
+BLYP at 70 Ry in a 14 Angstrom cube, Kleinman-Bylander pseudopotentials,
+orbital convergence 1e-5, driven by eOn. The file route was eOn's
+``ext_pot`` potential with a wrapper around ``mpirun cpmd.x``; the
+in-process route was eOn's ``RGPOT`` potential with ``cpmdc``. Each CPMD
+instance ran on 16 MPI ranks unless a row says otherwise.
+
+What one call costs
+===================
+
++------------------------------+---------------------------------------+
+| Route                        | Per call                              |
++==============================+=======================================+
+| file                         | 3.7 s fixed, plus 0.54 s per SCF      |
+|                              | iteration (least-squares fit over 20  |
+|                              | calls)                                |
++------------------------------+---------------------------------------+
+| file, geometry unchanged     | 4.3 s for a single SCF iteration      |
++------------------------------+---------------------------------------+
+| in-process, ODIIS            | 0.64 s per SCF step, no fixed part    |
+|                              | after the first call                  |
++------------------------------+---------------------------------------+
+| in-process, ``PCG MINIMIZE`` | 1.26 s per SCF step                   |
++------------------------------+---------------------------------------+
+
+The fixed 3.7 s of the file route is the price of a new process:
+``mpirun`` start, CPMD's setup of the plane-wave basis and the
+pseudopotentials, and reading a 23 MB ``RESTART.1`` before the first SCF
+iteration. The in-process route pays that setup once per session and
+then only the SCF. A file-route call cannot get cheaper than its fixed
+part, whatever the geometry.
+
+How the wavefunction travels
+============================
+
+The file route starts each call from a saved ``RESTART.1``. In the
+study, every converged call stored its restart file in a pool with its
+positions, and a new call loaded the one whose geometry was nearest. The
+in-process route keeps the orbitals of the previous call in memory on
+every rank and starts the next SCF from them.
+
+The two policies behave differently in a nudged elastic band. There eOn
+gives each image its own file-route potential, so the nearest pooled
+geometry is usually the same image one band step earlier, a few
+hundredths of an Angstrom away. The in-process client evaluates the
+images one after another, so each call starts from the previous image, a
+neighbour along the path.
+
+================================= ================== ================
+OCI-NEB run, same settings        File route         In-process route
+================================= ================== ================
+force calls                       364                363
+SCF iterations per call           13.5               30.6
+CPMD instances at once            7, of 6 ranks each 1, of 16 ranks
+wall time from first to last band 3798 s             12908 s
+effective wall time per call      10 s               35 s
+barrier                           0.243388 eV        0.243459 eV
+================================= ================== ================
+
+The barriers agree to 0.07 meV, and the call counts to one call. The
+in-process run lost on two counts that the per-call table does not show:
+its warm start came from a neighbouring image, and its images ran in
+series on one CPMD instance while the file route ran seven at once. It
+also used ``PCG MINIMIZE`` on every call, at about two energy
+evaluations per SCF step. A single-image search suffers less from the
+warm-start difference: a dimer search on the in-process route took 212
+calls at 15.5 s per call and 17.2 SCF iterations per call.
+
+Two changes close most of the gap, and ``cpmdc`` already provides the
+first: calculator groups (``cpmdc_bind_calculator``) run one CPMD
+instance per image side by side, and ODIIS instead of ``PCG MINIMIZE``
+halves the cost of a warm SCF step (see
+:doc:`choosing the optimiser <../howto/wavefunction-optimiser>`).
+
+What each route has to guard against
+====================================
+
++----------------------+----------------------+----------------------------------+
+| Hazard               | File route           | In-process route                 |
++======================+======================+==================================+
+| two calls sharing    | real: each potential | none: no deck or result files    |
+| file names in one    | object needs its own | are read                         |
+| directory            | directory            |                                  |
++----------------------+----------------------+----------------------------------+
+| reading a stale      | real: remove it      | none: forces come from           |
+| ``GEOMETRY`` as this | before each run      | ``coor%fion``                    |
+| call's forces        |                      |                                  |
++----------------------+----------------------+----------------------------------+
+| an unconverged SCF   | real: check for      | reported as a failed call        |
+| that still prints    | ``NO CONVERGENCE``   |                                  |
+| ``TOTAL ENERGY``     |                      |                                  |
++----------------------+----------------------+----------------------------------+
+| a shared restart     | real: tolerate a     | none                             |
+| pool pruned by       | vanished entry       |                                  |
+| another client       |                      |                                  |
++----------------------+----------------------+----------------------------------+
+| a CPMD stop          | ``cpmd.x`` ends and  | ``stopgm`` returns and the call  |
+|                      | the wrapper sees a   | fails, with                      |
+|                      | failed run           | ``opencpmd_stopgm_return.patch`` |
++----------------------+----------------------+----------------------------------+
+| rank consistency     | none: the host runs  | the host must take the parent    |
+| under ``mpirun``     | as one process       | rank's result and finalize MPI   |
++----------------------+----------------------+----------------------------------+
+| the method deck      | written by the host, | rendered from ``CPMDParams``;    |
+|                      | whole                | defaults apply to what the       |
+|                      |                      | message leaves out               |
++----------------------+----------------------+----------------------------------+
+
+The file route can be made safe; it cannot be made cheap. The in-process
+route removes the fixed cost and the file hazards, and moves the burden
+to getting the message and the MPI handling right.
+
+Both routes give the same answers
+=================================
+
+Every energy compared across the two routes and the two optimisers
+agreed within the orbital convergence tolerance. A 4-rank in-process
+single point of the cluster's reference geometry gave -1396.269515581643
+eV on all four ranks. The optimiser and the warm-start policy change the
+path to the converged wavefunction, not the converged state.

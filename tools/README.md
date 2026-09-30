@@ -25,9 +25,12 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 # rebuild libcpmdc against the updated archive
 ```
 
-The helper addresses the generated module objects and archive as explicit Make
-targets. OpenCPMD build trees contain a directory named `lib`, so `make lib`
-can consider that target satisfied without refreshing `lib/libcpmd.a`.
+The helper rebuilds the module objects with one Make job, then replaces
+those members with `ar r`. OpenCPMD build trees contain a directory named
+`lib`, and the generated Makefile may set `AR` to the archiver with no
+operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
+`FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
+shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
 
 Cold embed path also requires at runtime:
 

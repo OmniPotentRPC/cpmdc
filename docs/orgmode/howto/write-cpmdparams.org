@@ -1,0 +1,131 @@
+#+TITLE: Write a CPMDParams message
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Goal
+Turn a CPMD input deck into a ~CPMDParams~ message file that
+~cpmdc_session_create()~, ~rgpot~, or eOn's ~params_path~ can load.
+The message carries method setup only.
+Coordinates, species, and the cell of each step travel in ~ForceInput~.
+
+* Write the message as Cap'n Proto text
+Cap'n Proto text is the shortest way to write a message by hand, and the
+~capnp~ tool encodes it without any code.
+This message describes a closed-shell Si and N cluster in a 14 Angstrom cube,
+BLYP at 70 Ry, with Kleinman-Bylander pseudopotentials:
+
+#+begin_src capnp
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true,
+               convergenceOrbitals = 1.0e-5,
+               maxIter = 400,
+               odiisVectors = 10,
+               centerMoleculeOff = true ) ),
+    ( system = ( symmetry = 1, angstrom = true, cutOffRy = 70.0,
+                 cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( dft = ( functional = "BLYP", gcCutoff = 1.0e-7, newCode = true ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2,
+          kleinmanBylander = true ),
+        ( element = "N", path = "N_MT_BLYP.psp", lmax = 1, loc = 1,
+          kleinmanBylander = true )
+      ] ) )
+  ]
+)
+#+end_src
+
+Save it as ~cluster.params.txt~ and encode it against the schema in the
+~cpmdc~ checkout:
+
+#+begin_src bash
+capnp encode schema/Potentials.capnp CPMDParams \
+  < cluster.params.txt > cluster.params.bin
+#+end_src
+
+~capnp encode~ writes the unpacked flat stream that every ~cpmdc~ entry point
+reads.
+It rejects a field name that is not in the schema, so a typo fails here and
+not inside CPMD.
+
+* Map deck lines to fields
+Each deck line has one preferred carrier.
+Look for a typed field first; the [[file:../reference/cpmd-options.org][option
+mapping]] lists every one of them with its feature ID.
+
+| Deck line | Section | Field |
+|-----------+---------+-------|
+| ~OPTIMIZE WAVEFUNCTION~ | ~cpmd~ | ~optimizeWavefunction = true~ |
+| ~CONVERGENCE ORBITALS~ / ~1.0d-5~ | ~cpmd~ | ~convergenceOrbitals = 1.0e-5~ |
+| ~MAXITER~ / ~400~ | ~cpmd~ | ~maxIter = 400~ |
+| ~ODIIS~ / ~10~ | ~cpmd~ | ~odiisVectors = 10~ |
+| ~PCG MINIMIZE~ | ~cpmd~ | ~directives = [ ( keyword = "PCG MINIMIZE", args = [] ) ]~ |
+| ~CENTER MOLECULE OFF~ | ~cpmd~ | ~centerMoleculeOff = true~ |
+| ~SYMMETRY~ / ~1~ | ~system~ | ~symmetry = 1~ |
+| ~CELL~ / ~14.0 1.0 1.0 0.0 0.0 0.0~ | ~system~ | ~cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0]~ |
+| ~POISSON SOLVER HOCKNEY~ | ~system~ | ~poissonSolver = "HOCKNEY"~ |
+| ~CUTOFF~ / ~70~ | ~system~ | ~cutOffRy = 70.0~ |
+| ~FUNCTIONAL BLYP~ | ~dft~ | ~functional = "BLYP"~ |
+| ~NEWCODE~ | ~dft~ | ~newCode = true~ |
+| ~GC-CUTOFF~ / ~1.0d-7~ | ~dft~ | ~gcCutoff = 1.0e-7~ |
+| ~*Si_MT_BLYP.psp KLEINMAN-BYLANDER~ / ~LMAX=D LOC=D~ | ~atoms~ | ~( element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true )~ |
+
+~lmax~, ~loc~, and ~skip~ take the channel as an integer: 0 renders ~S~, 1
+~P~, 2 ~D~, 3 ~F~.
+A keyword without a typed field goes into that section's ~directives~ list:
+~keyword~ is the line, and each entry of ~args~ becomes one indented line
+below it.
+
+* Defaults that change the physics
+Four defaults decide what CPMD computes when the message leaves them out.
+
+| Left out | What ~cpmdc~ renders | Consequence |
+|----------+----------------------+-------------|
+| the ~system~ section | ~SYMMETRY 0~, ~ANGSTROM~, ~CUTOFF~ from ~cutOffRy~, no ~CELL~ | an isolated cluster; the cell comes from ~ForceInput.box~ |
+| ~symmetry~ and ~poissonSolver~ | ~SYMMETRY 0~ plus ~POISSON SOLVER HOCKNEY~ | the Hockney isolated-system solver, even for a periodic box |
+| ~maxIter~ | no ~MAXITER~ line; the OpenCPMD path then inserts ~MAXITER 40~ into the first deck | an SCF that needs more than 40 steps fails the call |
+| ~kleinmanBylander~ | the pseudopotential line without ~KLEINMAN-BYLANDER~ | Gauss-Hermite integration of the nonlocal projectors, a different energy |
+
+Set each of them on purpose.
+~ForceInput.box~ supplies ~CELL~ only when the deck has no ~CELL~ line.
+
+* Check the rendered deck
+~CPMDC_DECK_OUT~ writes the deck ~cpmdc~ renders from the message, so the
+check needs no OpenCPMD:
+
+#+begin_src bash
+CPMDC_DECK_OUT=cluster.inp build/example_host_step \
+  cluster.params.bin step.bin
+cat cluster.inp
+#+end_src
+
+~step.bin~ is any encoded ~ForceInput~; the default build evaluates it with the
+reference evaluator after the deck is written.
+Compare ~cluster.inp~ line by line against the deck you started from.
+On the OpenCPMD path a second deck, the one CPMD parses with the geometry
+merged in, overwrites the first; the [[file:debug-deck.org][deck debugging
+how-to]] shows both.
+
+* Where the geometry-dependent lines go
+The OpenCPMD path writes ~&ATOMS~ itself from each step's atomic numbers and
+positions.
+It takes the pseudopotential file, ~LMAX~, and ~LOC~ for each element from a
+built-in table:
+
+| Element | File | Channels |
+|---------+------+----------|
+| H | ~H_CVB_BLYP.psp~ | ~LMAX=S~ |
+| C | ~C_MT_BLYP.psp~ | ~LMAX=P~ |
+| N | ~N_MT_BLYP.psp~ | ~LMAX=P~ |
+| O | ~O_MT_BLYP.psp~ | ~LMAX=P~ |
+| Si | ~Si_MT_BLYP.psp~ | ~LMAX=D LOC=D~ |
+| Ge | ~Ge_MT_BLYP.psp~ | ~LMAX=P~ |
+
+~KLEINMAN-BYLANDER~ is added to every pseudopotential line when the rendered
+method deck contains that word, which ~kleinmanBylander = true~ on any entry
+does.
+An element outside the table fails the first evaluation.
+A method deck whose ~&ATOMS~ block already has coordinate lines, for example
+from ~inputBlocks~, is passed to CPMD unchanged; each step then overwrites
+only the positions.

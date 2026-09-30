@@ -109,6 +109,7 @@ For a complete mapping table, see
 | Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
 | Periodic-cell stress (Hartree/Bohr\u00b3) | `cpmdc_last_stress` |
 | Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
+| The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
 | MPI rank groups (one calculator per group) | `cpmdc_bind_calculator` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
@@ -300,7 +301,7 @@ completed OpenCPMD archive build:
 
 ```bash
 export CPMD_ROOT=/path/to/OpenCPMD/CPMD
-export CPMDC_PSEUDO_DIR=/path/to/CPMD-Regtests/tests/PP_LIBRARY
+export CPMDC_PSEUDO_DIR=/path/to/Regtests/tests/PP_LIBRARY
 
 meson setup build-cpmd \
   -Dwith_cpmd=true \
@@ -314,22 +315,40 @@ meson test -C build-cpmd --print-errorlogs
 library-style pseudopotential names such as `O_MT_BLYP.psp`, set
 `CPMDC_PSEUDO_DIR` or provide absolute paths in `atoms.pseudopotentials`.
 
-To see the deck CPMD parses, set `CPMDC_DECK_OUT=/path/to/deck.inp`. cpmdc
-writes each deck it hands to CPMD there, and a later deck overwrites an
-earlier one.
+To see the deck cpmdc renders from `CPMDParams`, set
+`CPMDC_DECK_OUT=/path/to/deck.inp`. Each configuration overwrites the file.
+The OpenCPMD path then rebuilds `&ATOMS` from the step and adds `CELL` and
+`MAXITER` when the deck lacks them; see
+[Debug an input with CPMDC_DECK_OUT](docs/orgmode/howto/debug-deck.org).
 
 ## Documentation
 
 Read the docs in this order:
 
+- [First energy and forces](docs/orgmode/tutorials/first-energy.org): a C
+  host from the default build to a real OpenCPMD energy
+- [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org): a minimisation
+  driven by eOn with a `CPMDParams` file
 - [Quickstart](docs/orgmode/tutorials/quickstart.org): build, tests, and common
   environment failures
-- [Embedding cpmdc](docs/orgmode/howto/embedding.org): C ABI call flow,
-  sessions, result buffers, units
-- [CPMD option mapping](docs/orgmode/reference/cpmd-options.org): schema fields
-  and feature IDs for rendered CPMD controls
-- [Architecture](docs/orgmode/reference/architecture.org): layer boundaries and
-  OpenCPMD archive link path
+- How-tos: [install and build](docs/orgmode/howto/install.org),
+  [OpenCPMD archive](docs/orgmode/howto/opencpmd-archive.org),
+  [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
+  [embedding cpmdc](docs/orgmode/howto/embedding.org),
+  [run under mpirun](docs/orgmode/howto/mpi.org),
+  [choose the wavefunction optimiser](docs/orgmode/howto/wavefunction-optimiser.org),
+  [debug a deck](docs/orgmode/howto/debug-deck.org),
+  [troubleshooting](docs/orgmode/howto/troubleshooting.org)
+- Reference: [C ABI](docs/orgmode/reference/c-abi.org),
+  [environment variables](docs/orgmode/reference/environment.org),
+  [CPMDParams fields](docs/orgmode/reference/cpmdparams-schema.org),
+  [CPMD option mapping](docs/orgmode/reference/cpmd-options.org),
+  [feature inventory](docs/orgmode/reference/feature-inventory.org),
+  [glossary](docs/orgmode/reference/glossary.org)
+- Explanation: [architecture](docs/orgmode/explanation/architecture.org),
+  [file route against in-process route](docs/orgmode/explanation/routes.org),
+  [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
+  [MPI model](docs/orgmode/explanation/mpi-model.org)
 
 Build the documentation site with:
 
