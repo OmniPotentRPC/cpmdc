@@ -72,8 +72,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_bind_calculator
   PUBLIC :: cpmdc_embed_reset_state
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
-  ! cpmdc_embed_compose_cold_deck: BIND(C) in HAS_CPMD / stub branches (not listed
-  ! in PUBLIC — gfortran rejects forward PUBLIC when the body is ifdef-gated).
+  PUBLIC :: cpmdc_embed_compose_cold_deck
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -980,617 +979,7 @@ CONTAINS
     ok = 1
   END SUBROUTINE
 
-#if !defined(CPMDC_HAS_CPMD)
-  SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
-    TYPE(embed_knobs) :: knobs
-    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    REAL(c_double), INTENT(OUT) :: energy_h
-    REAL(c_double), INTENT(OUT) :: grad(*)
-    INTEGER(c_int), INTENT(OUT) :: ok
-    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
-    REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
-    INTEGER :: i, j, idx
-    knobs = knobs_of(image)
-    ok = 0_c_int
-    energy_h = 0.0_c_double
-    IF (n_atoms <= 0 .OR. n_atoms > HUGE(i) / 3) RETURN
-    k = 1.0e-3_real64 * MAX(0.1_real64, knobs%cutoff_ry / 70.0_real64)
-    deck_scale = REAL(MAX(1, LEN_TRIM(knobs%functional) + LEN_TRIM(knobs%input_deck) + &
-         LEN_TRIM(knobs%cpmd_root)), KIND=real64)
-    energy_h = REAL(1.0e-8_real64 * deck_scale + &
-         1.0e-6_real64 * REAL(knobs%charge + knobs%mult, KIND=real64), KIND=c_double)
-    DO i = 1, n_atoms
-      z_scale = REAL(MAX(1, INT(z(i))), KIND=real64)
-      r_bohr = 0.0_real64
-      DO j = 1, 3
-        idx = 3 * (i - 1) + j
-        coord_bohr = REAL(pos(idx), KIND=real64) / bohr_to_ang
-        r_bohr = r_bohr + coord_bohr * coord_bohr
-        grad(idx) = REAL(k * z_scale * coord_bohr, KIND=c_double)
-      END DO
-      energy_h = energy_h + REAL(0.5_real64 * k * z_scale * r_bohr, KIND=c_double)
-    END DO
-    IF (has_cell /= 0) THEN
-      DO i = 1, 9
-        energy_h = energy_h + REAL(1.0e-10_real64 * &
-             REAL(cell(i), KIND=real64) * REAL(cell(i), KIND=real64), KIND=c_double)
-      END DO
-    END IF
-    ok = 1_c_int
-    ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
-    CALL snapshot_total_only(image, energy_h)
-    DO i = 1, n_atoms * 3
-      IF (i > 4096) EXIT
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
-    image%prop%valid = 1_c_int
-    ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
-    ! volume, so PotentialResult.stress is exercised without OpenCPMD.
-    ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
-    ! the tensor on a periodic cell as well.
-    image%stress%values = 0.0_c_double
-    image%stress%valid = 0_c_int
-    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
-         .NOT. reference_deck_isolated(knobs%input_deck)) THEN
-      IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
-           image%stress%valid = 1_c_int
-    END IF
-  END SUBROUTINE
-
-  LOGICAL FUNCTION reference_stress_wanted()
-    CHARACTER(LEN=32) :: v
-    INTEGER :: st
-    reference_stress_wanted = .TRUE.
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
-    IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
-  END FUNCTION
-
-  ! Symmetry 0, a missing symmetry line, CLUSTER, or an isolated-molecule
-  ! keyword is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
-  ! symmetry code is a periodic cell.
-  LOGICAL FUNCTION reference_deck_isolated(deck)
-    CHARACTER(LEN=*), INTENT(IN) :: deck
-    INTEGER :: p, n, sym, saw
-    reference_deck_isolated = .TRUE.
-    n = LEN_TRIM(deck)
-    IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
-    IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
-    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
-    p = 1
-    DO WHILE (p <= n - 7)
-      IF (deck(p:p+7) == 'SYMMETRY') THEN
-        IF (p >= 7) THEN
-          IF (deck(p-6:p-1) == 'CHECK ') THEN
-            p = p + 1
-            CYCLE
-          END IF
-        END IF
-        p = p + 8
-        saw = 0
-        sym = 0
-        DO WHILE (p <= n)
-          IF (deck(p:p) >= '0' .AND. deck(p:p) <= '9') THEN
-            saw = 1
-            sym = sym * 10 + IACHAR(deck(p:p)) - IACHAR('0')
-            p = p + 1
-          ELSE IF (saw == 1) THEN
-            EXIT
-          ELSE
-            p = p + 1
-          END IF
-        END DO
-        IF (saw == 1 .AND. sym > 0) reference_deck_isolated = .FALSE.
-        RETURN
-      END IF
-      p = p + 1
-    END DO
-  END FUNCTION
-
-  INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)
-    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    REAL(c_double), INTENT(IN) :: cell(*)
-    REAL(c_double), INTENT(IN) :: energy_h
-    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
-    REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
-    INTEGER :: i
-    reference_pef_fill_stress = 0
-    inv_b = 1.0_real64 / bohr_to_ang
-    DO i = 1, 3
-      a(i) = REAL(cell(i), KIND=real64) * inv_b
-      b(i) = REAL(cell(3 + i), KIND=real64) * inv_b
-      c(i) = REAL(cell(6 + i), KIND=real64) * inv_b
-    END DO
-    vol = ABS(a(1) * (b(2) * c(3) - b(3) * c(2)) + &
-         a(2) * (b(3) * c(1) - b(1) * c(3)) + &
-         a(3) * (b(1) * c(2) - b(2) * c(1)))
-    IF (vol <= 1.0e-12_real64) RETURN
-    sig = REAL(energy_h, KIND=real64) / vol
-    image%stress%values(1) = REAL(sig, KIND=c_double)
-    image%stress%values(5) = REAL(sig, KIND=c_double)
-    image%stress%values(9) = REAL(sig, KIND=c_double)
-    reference_pef_fill_stress = 1
-  END FUNCTION
-
-  ! True only when &ATOMS has PP stars AND at least one coordinate triple
-  ! before its &END. Params often render *PP.psp stubs without coords; those
-  ! must take the method+geometry merge path so ForceInput positions inject.
-  LOGICAL FUNCTION deck_has_real_atoms_local(d)
-    CHARACTER(LEN=*), INTENT(IN) :: d
-    INTEGER :: ia, star, n, iend, ls, le
-    deck_has_real_atoms_local = .FALSE.
-    ia = INDEX(d, '&ATOMS')
-    IF (ia <= 0) ia = INDEX(d, '&atoms')
-    IF (ia <= 0) RETURN
-    star = INDEX(d(ia:), '*')
-    IF (star <= 0) RETURN
-    iend = INDEX(d(ia:), '&END')
-    IF (iend <= 0) iend = INDEX(d(ia:), '&end')
-    IF (iend > 0) THEN
-      n = ia + iend - 2
-    ELSE
-      n = LEN_TRIM(d)
-    END IF
-    ! A coordinate line has three or more numeric tokens. '*file' lines
-    ! and option lines (LMAX=, LOC=, ...) never count.
-    ls = ia
-    DO WHILE (ls <= n)
-      le = INDEX(d(ls:n), NEW_LINE('A'))
-      IF (le == 0) THEN
-        le = n
-      ELSE
-        le = ls + le - 2
-      END IF
-      IF (coord_line(d(ls:le))) THEN
-        deck_has_real_atoms_local = .TRUE.
-        RETURN
-      END IF
-      ls = le + 2
-    END DO
-  CONTAINS
-    LOGICAL FUNCTION coord_line(line)
-      CHARACTER(LEN=*), INTENT(IN) :: line
-      INTEGER :: j, ntok
-      LOGICAL :: in_tok, tok_ok, tok_digit
-      CHARACTER(LEN=1) :: ch
-      coord_line = .FALSE.
-      IF (INDEX(line, '*') > 0 .OR. INDEX(line, '=') > 0) RETURN
-      ntok = 0
-      in_tok = .FALSE.
-      tok_ok = .TRUE.
-      tok_digit = .FALSE.
-      DO j = 1, LEN(line) + 1
-        IF (j <= LEN(line)) THEN
-          ch = line(j:j)
-        ELSE
-          ch = ' '
-        END IF
-        IF (ch == ' ' .OR. ch == CHAR(9) .OR. ch == ',') THEN
-          IF (in_tok .AND. tok_ok .AND. tok_digit) ntok = ntok + 1
-          in_tok = .FALSE.
-          tok_ok = .TRUE.
-          tok_digit = .FALSE.
-        ELSE
-          in_tok = .TRUE.
-          IF (ch >= '0' .AND. ch <= '9') THEN
-            tok_digit = .TRUE.
-          ELSE IF (INDEX('.+-eEdD', ch) == 0) THEN
-            tok_ok = .FALSE.
-          END IF
-        END IF
-      END DO
-      coord_line = ntok >= 3
-    END FUNCTION
-  END FUNCTION
-
-  LOGICAL FUNCTION deck_has_method_sections_local(d)
-    CHARACTER(LEN=*), INTENT(IN) :: d
-    deck_has_method_sections_local = &
-        INDEX(d, '&DFT') > 0 .OR. INDEX(d, '&dft') > 0 .OR. &
-        INDEX(d, '&SYSTEM') > 0 .OR. INDEX(d, '&system') > 0 .OR. &
-        INDEX(d, '&CPMD') > 0 .OR. INDEX(d, '&cpmd') > 0
-  END FUNCTION
-
-  SUBROUTINE embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
-      deck, nlen, ierr, knobs)
-    TYPE(embed_knobs), INTENT(IN) :: knobs
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
-    INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, mlen, failed, stat
-    LOGICAL :: seen(0:120)
-    CHARACTER(LEN=600) :: star
-    CHARACTER(LEN=256) :: opt
-    CHARACTER(LEN=128) :: line
-    CHARACTER(LEN=:), ALLOCATABLE :: method
-    ierr = 1
-    nlen = 0
-    deck = ''
-    failed = 0
-    IF (.NOT. ALLOCATED(knobs%input_deck)) RETURN
-    CALL strip_atoms_alloc(knobs%input_deck, method, mlen, stat)
-    IF (stat /= 0 .OR. mlen < 1) RETURN
-    deck = method(1:mlen)
-    nlen = mlen
-    IF (deck(nlen:nlen) /= NEW_LINE('A')) &
-        CALL append_local(NEW_LINE('A'))
-    CALL append_local('&ATOMS'//NEW_LINE('A'))
-    seen = .FALSE.
-    DO i = 1, n_atoms
-      zz = INT(z(i))
-      IF (zz < 0 .OR. zz > 120) THEN
-        CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
-        ierr = 2
-        RETURN
-      END IF
-      IF (seen(zz)) CYCLE
-      seen(zz) = .TRUE.
-      CALL embed_pp_lines_for_z(knobs%input_deck, zz, star, opt, pok)
-      IF (pok == 0) THEN
-        ierr = 2
-        RETURN
-      END IF
-      CALL append_local(TRIM(star)//NEW_LINE('A'))
-      CALL append_local(TRIM(opt)//NEW_LINE('A'))
-      count = 0
-      DO j = 1, n_atoms
-        IF (INT(z(j)) == zz) count = count + 1
-      END DO
-      WRITE(line, '(A,I4)') '   ', count
-      CALL append_local(TRIM(line)//NEW_LINE('A'))
-      DO j = 1, n_atoms
-        IF (INT(z(j)) /= zz) CYCLE
-        WRITE(line, '(3F14.6)') pos(3*(j-1)+1), pos(3*(j-1)+2), pos(3*(j-1)+3)
-        CALL append_local(TRIM(line)//NEW_LINE('A'))
-      END DO
-    END DO
-    CALL append_local('&END'//NEW_LINE('A'))
-    IF (failed /= 0) RETURN
-    IF (has_cell < 0) RETURN
-    IF (cell(1) < -1.0e300_c_double) RETURN
-    ierr = 0
-  CONTAINS
-    SUBROUTINE append_local(s)
-      CHARACTER(LEN=*), INTENT(IN) :: s
-      INTEGER :: st
-      IF (failed /= 0) RETURN
-      CALL append_grow(deck, nlen, s, st)
-      IF (st /= 0) failed = 1
-    END SUBROUTINE
-  END SUBROUTINE
-
-  SUBROUTINE embed_compose_cold_deck_local(n_atoms, pos, z, cell, has_cell, &
-      deck, nlen, ierr, knobs)
-    TYPE(embed_knobs), INTENT(IN) :: knobs
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
-    INTEGER, INTENT(OUT) :: nlen, ierr
-    nlen = 0
-    ierr = 1
-    deck = ''
-    IF (ALLOCATED(knobs%input_deck)) THEN
-      IF (LEN_TRIM(knobs%input_deck) > 0) THEN
-        IF (deck_has_real_atoms_local(knobs%input_deck)) THEN
-          nlen = LEN_TRIM(knobs%input_deck)
-          deck = knobs%input_deck(1:nlen)
-          ierr = 0
-        ELSE IF (deck_has_method_sections_local(knobs%input_deck)) THEN
-          CALL embed_method_deck_plus_atoms_local(n_atoms, pos, z, cell, has_cell, &
-               deck, nlen, ierr, knobs)
-        END IF
-      END IF
-    END IF
-  END SUBROUTINE
-
-  FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, deck_out, deck_cap, deck_len, image_c) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_compose_cold_deck_image')
-    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
-    REAL(c_double), INTENT(IN) :: positions_ang(*)
-    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
-    REAL(c_double), INTENT(IN) :: cell_ang(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
-    CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
-    INTEGER(c_int), INTENT(OUT) :: deck_len
-    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
-    TYPE(cpmdc_embed_image), POINTER :: image
-    INTEGER(c_int) :: ok
-    CHARACTER(LEN=:), ALLOCATABLE :: deck
-    INTEGER :: nlen, ierr, i
-    TYPE(embed_knobs) :: knobs
-    ok = 0_c_int
-    deck_len = 0_c_int
-    IF (deck_cap < 2) RETURN
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
-    CALL C_F_POINTER(image_c, image)
-    knobs = knobs_of(image)
-    CALL embed_compose_cold_deck_local(INT(n_atoms), positions_ang, &
-         atomic_numbers, cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
-    ! One byte stays for the trailing NUL. A short buffer is an error.
-    IF (nlen >= INT(deck_cap)) RETURN
-    DO i = 1, nlen
-      deck_out(i) = deck(i:i)
-    END DO
-    deck_out(nlen + 1) = c_null_char
-    deck_len = INT(nlen, KIND=c_int)
-    ok = 1_c_int
-  END FUNCTION
-#endif
-
-#if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
-    USE ddip, ONLY: pdipole
-    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    INTEGER, INTENT(IN) :: n_atoms
-    REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i, ncopy
-    image%prop%valid = 1_c_int
-    image%prop%dipole_count = 3_c_size_t
-    DO i = 1, 3
-      image%prop%dipole(i) = REAL(pdipole(i), KIND=c_double)
-    END DO
-    image%prop%polarizability_count = 9_c_size_t
-    DO i = 1, 9
-      image%prop%polarizability(i) = 0.0_c_double
-    END DO
-    ncopy = n_atoms * 3
-    IF (ncopy > 4096) ncopy = 4096
-    IF (ncopy < 0) ncopy = 0
-    DO i = 1, ncopy
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
-  END SUBROUTINE
-
-  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
-    USE cpmdc_embed_host_iface, ONLY: cpmdc_species_order_map, cpmdc_note_embed_failure
-    USE coor, ONLY: tau0
-    USE ions, ONLY: ions0, ions1
-    USE cnst, ONLY: fbohr
-    INTEGER, INTENT(IN) :: n_atoms
-    REAL(c_double), INTENT(IN) :: pos(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    INTEGER(c_int), INTENT(OUT) :: origin(*)
-    INTEGER, INTENT(OUT) :: ierr
-    INTEGER :: is, ia, k, slot, j, astat
-    INTEGER(c_int), ALLOCATABLE :: species_z(:), species_n(:)
-    ierr = 1
-    IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp < 1) THEN
-      CALL cpmdc_note_embed_failure( &
-           'CPMD species tables are not initialized'//c_null_char)
-      RETURN
-    END IF
-    ALLOCATE(species_z(ions1%nsp), species_n(ions1%nsp), STAT=astat)
-    IF (astat /= 0) THEN
-      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
-      RETURN
-    END IF
-    DO is = 1, ions1%nsp
-      species_z(is) = INT(ions0%iatyp(is), KIND=c_int)
-      species_n(is) = INT(ions0%na(is), KIND=c_int)
-    END DO
-    ! CPMD stores one contiguous block per species. ForceInput may list the
-    ! same element in more than one run; origin maps each block slot back.
-    IF (cpmdc_species_order_map(INT(n_atoms, KIND=c_int), z, &
-        INT(ions1%nsp, KIND=c_int), species_z, species_n, origin) /= 0_c_int) THEN
-      CALL cpmdc_note_embed_failure( &
-           'atomic numbers do not match the CPMD species blocks'//c_null_char)
-      RETURN
-    END IF
-    slot = 0
-    DO is = 1, ions1%nsp
-      DO ia = 1, ions0%na(is)
-        slot = slot + 1
-        j = INT(origin(slot)) + 1
-        DO k = 1, 3
-          tau0(k, ia, is) = REAL(pos(3*(j-1)+k), KIND=real64) * fbohr
-        END DO
-      END DO
-    END DO
-    ierr = 0
-  END SUBROUTINE
-
-  SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
-    USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
-        cpmdc_note_embed_failure
-    USE wfopts_utils, ONLY: wfopts
-    USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces
-    USE phfac_utils, ONLY: phfac
-    USE ener, ONLY: ener_com, chrg, ener_c, ener_d
-    USE coor, ONLY: tau0, fion, taup
-    USE ions, ONLY: ions0, ions1
-    USE store_types, ONLY: cprint, iprint_force, restart1
-    USE system, ONLY: cnti, cntl, parm
-    USE benc, ONLY: ibench
-    USE strs, ONLY: paiu
-    USE isos, ONLY: isos1
-    USE ropt, ONLY: ropt_mod
-    USE parac, ONLY: paral
-    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    INTEGER, INTENT(IN) :: n_atoms
-    REAL(c_double), INTENT(IN) :: pos(*)
-    INTEGER(c_int), INTENT(IN) :: z(*)
-    REAL(c_double), INTENT(OUT) :: energy_h
-    REAL(c_double), INTENT(OUT) :: grad(*)
-    INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
-    INTEGER(c_int), ALLOCATABLE :: origin(:)
-    REAL(c_double), ALLOCATABLE :: species_grad(:)
-    REAL(real64) :: omega
-    LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
-    INTEGER :: inwfun_deck, ibench_deck
-    INTERFACE
-      FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
-        IMPORT :: c_int
-        INTEGER(c_int) :: code
-      END FUNCTION cpmdc_stop_code
-    END INTERFACE
-    ok = 0_c_int
-    energy_h = 0.0_c_double
-    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
-    nmax = n_atoms * 3
-    DO idx = 1, nmax
-      grad(idx) = 0.0_c_double
-    END DO
-    image%stress%valid = 0_c_int
-    image%stress%values = 0.0_c_double
-    ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
-    IF (astat /= 0) THEN
-      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
-      RETURN
-    END IF
-    CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
-    IF (ierr /= 0) RETURN
-    ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
-    ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
-    ! section 3 when RESTART COORDINATES or RESTART ALL is in the deck.
-    ! The wavefunction section stays under the deck: RESTART WAVEFUNCTION
-    ! still fills c0 on a cold entry. Plane-wave velocities stay unread
-    ! for a wavefunction optimisation, which is setirec's BOMD rule.
-    restart1%rco = .FALSE.
-    restart1%rvel = .FALSE.
-    restart1%rgeo = .FALSE.
-    CALL phfac(tau0)
-    IF (ALLOCATED(fion)) DEALLOCATE(fion)
-    IF (ALLOCATED(taup)) DEALLOCATE(taup)
-    cprint%tprint = .TRUE.
-    cprint%iprint(iprint_force) = 1
-    ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
-    ! tfor; iprint_force alone was not enough on the memfd embed path.
-    CALL embed_set_need_forces(.TRUE.)
-    ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
-    ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
-    ! allocated for periodic cells in initclust — SEGV on cluster decks.
-    stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
-    IF (stress_computed) cntl%tpres = .TRUE.
-    ! Store a converged c0 for the next call. Restore does nothing until
-    ! that store exists, and an unconverged SCF leaves the previous
-    ! converged copy in place, so a later SCF is still a warm start.
-    ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
-    ! initrun builds starting orbitals before the stored c0 replaces them.
-    ! Once a converged copy exists (a warm call), the simple atomic
-    ! superposition (inwfun 3: loadc, one orthogonalisation, no force
-    ! evaluation) stands in for the Lanczos guess and for the random start,
-    ! both of which run a full SCF step on orbitals that are then discarded.
-    ! zhwwf writes RESTART.1 and LATEST on every converged call; ibench(1)
-    ! makes it return at once. The in-process host keeps c0 in memory, so a
-    ! warm call needs no file; the cold call still writes one.
-    inwfun_deck = cnti%inwfun
-    ibench_deck = ibench(1)
-    IF (image%cfg_warm_steps > 0) THEN
-      cnti%inwfun = 3
-      ibench(1) = 1
-    END IF
-    CALL embed_set_warm_orbitals(.TRUE.)
-    CALL wfopts
-    ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
-    ! does not replace the stored c0. Continue once with PCG MINIMIZE from
-    ! the previous converged copy, which still counts as a warm start.
-    ! A stopgm in the first pass leaves the CPMD state undefined, so it
-    ! does not start this continuation.
-    IF (.NOT. ropt_mod%convwf .AND. cntl%diis .AND. &
-        cpmdc_stop_code() == 0_c_int) THEN
-      was_diis = cntl%diis
-      was_pcg = cntl%pcg
-      was_pcgmin = cntl%pcgmin
-      was_prec = cntl%prec
-      cntl%diis = .FALSE.
-      cntl%pcg = .TRUE.
-      cntl%pcgmin = .TRUE.
-      cntl%prec = .TRUE.
-      ropt_mod%spcg = .TRUE.
-      IF (paral%io_parent) WRITE(6, '(A)') &
-          ' cpmdc: ODIIS did not converge; continuing with PCG MINIMIZE'
-      CALL embed_set_warm_orbitals(.TRUE.)
-      IF (ALLOCATED(fion)) DEALLOCATE(fion)
-      IF (ALLOCATED(taup)) DEALLOCATE(taup)
-      CALL wfopts
-      cntl%diis = was_diis
-      cntl%pcg = was_pcg
-      cntl%pcgmin = was_pcgmin
-      cntl%prec = was_prec
-    END IF
-    cnti%inwfun = inwfun_deck
-    ibench(1) = ibench_deck
-    energy_h = REAL(ener_com%etot, KIND=c_double)
-    image%energy%etot = energy_h
-    image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
-    image%energy%epseu = REAL(ener_com%epseu, KIND=c_double)
-    image%energy%enl = REAL(ener_com%enl, KIND=c_double)
-    image%energy%eht = REAL(ener_com%eht, KIND=c_double)
-    image%energy%exc = REAL(ener_com%exc, KIND=c_double)
-    image%energy%valid = 1_c_int
-    image%charge%csumg = REAL(chrg%csumg, KIND=c_double)
-    image%charge%csumr = REAL(chrg%csumr, KIND=c_double)
-    image%charge%csums = REAL(chrg%csums, KIND=c_double)
-    image%charge%csumsabs = REAL(chrg%csumsabs, KIND=c_double)
-    image%charge%valid = 1_c_int
-    image%multi%values(1) = REAL(ener_c%etot_a, KIND=c_double)
-    image%multi%values(2) = REAL(ener_c%etot_2, KIND=c_double)
-    image%multi%values(3) = REAL(ener_c%etot_ab, KIND=c_double)
-    image%multi%values(4) = REAL(ener_d%etot_b, KIND=c_double)
-    image%multi%values(5) = REAL(ener_d%ecas, KIND=c_double)
-    image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
-    image%multi%count = 6_c_size_t
-    image%multi%valid = 1_c_int
-    ! ENERGY-file row. EKINC stays zero off an MD step.
-    image%md%values = 0.0_c_double
-    image%md%values(1) = energy_h
-    image%md%values(2) = image%energy%ekin
-    image%md%values(3) = image%energy%epseu
-    image%md%values(4) = image%energy%enl
-    image%md%values(5) = image%energy%eht
-    image%md%values(6) = image%energy%exc
-    image%md%count = 12_c_size_t
-    image%md%valid = 1_c_int
-    species_grad = 0.0_c_double
-    IF (ALLOCATED(fion)) THEN
-      IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
-        slot = 0
-        DO is = 1, ions1%nsp
-          DO ia = 1, ions0%na(is)
-            IF (ia > SIZE(fion, 2)) EXIT
-            slot = slot + 1
-            IF (slot > n_atoms) EXIT
-            DO k = 1, 3
-              species_grad(3 * (slot - 1) + k) = REAL(-fion(k, ia, is), KIND=c_double)
-            END DO
-          END DO
-        END DO
-        CALL cpmdc_scatter_species_gradient(INT(n_atoms, KIND=c_int), origin, &
-             species_grad, grad)
-      END IF
-    END IF
-    ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
-    ! true stress is paiu/omega (see totstr/wrstress). Row-major for Cap'n Proto.
-    ! totstr runs only when cntl%tpres was set above. A positive omega is the
-    ! cell volume, including an isolated box whose paiu was not computed.
-    omega = parm%omega
-    IF (stress_computed .AND. omega > 1.0e-30_real64) THEN
-      DO i = 1, 3
-        DO j = 1, 3
-          image%stress%values(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
-        END DO
-      END DO
-      image%stress%valid = 1_c_int
-    END IF
-    CALL snapshot_prop_from_modules(image, n_atoms, grad)
-    ! rwfopt computes the ionic forces only for converged orbitals: an SCF
-    ! that ran out of MAXITER leaves fion zero, which a caller would read as
-    ! a stationary point. Report it as a failure instead.
-    IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
-  END SUBROUTINE
-
-
+  ! One cold-deck procedure for the stub and the engine.
   ! Cold: OpenCPMD parsers via anonymous memfd deck (no disk write). Warm: C arrays only.
   SUBROUTINE embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr, knobs)
     TYPE(embed_knobs), INTENT(IN) :: knobs
@@ -1687,19 +1076,8 @@ CONTAINS
     END SUBROUTINE
   END SUBROUTINE
 
-  ! True only when &ATOMS has PP stars AND at least one coordinate triple
-  ! before its &END. C render *PP.psp stubs without coords must NOT block
-  ! method+geometry merge from ForceInput positions.
-  ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
-  ! takes only energy and forces does not need totstr.
-  LOGICAL FUNCTION embed_stress_wanted()
-    CHARACTER(LEN=16) :: v
-    INTEGER :: st
-    embed_stress_wanted = .TRUE.
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
-    IF (st == 0 .AND. TRIM(v) == '0') embed_stress_wanted = .FALSE.
-  END FUNCTION
-
+  ! True only when &ATOMS has a pseudopotential star and one coordinate triple
+  ! before its &END. A star with no coordinates is not a geometry.
   LOGICAL FUNCTION deck_has_real_atoms(d)
     CHARACTER(LEN=*), INTENT(IN) :: d
     INTEGER :: ia, star, n, iend, ls, le
@@ -2010,6 +1388,454 @@ CONTAINS
     END IF
   END SUBROUTINE
 
+  FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
+      cell_ang, has_cell, deck_out, deck_cap, deck_len, image_c) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_compose_cold_deck_image')
+    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+    REAL(c_double), INTENT(IN) :: positions_ang(*)
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
+    CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
+    INTEGER(c_int), INTENT(OUT) :: deck_len
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+    INTEGER(c_int) :: ok
+    CHARACTER(LEN=:), ALLOCATABLE :: deck
+    INTEGER :: nlen, ierr, i
+    TYPE(embed_knobs) :: knobs
+    ok = 0_c_int
+    deck_len = 0_c_int
+    IF (deck_cap < 2) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    knobs = knobs_of(image)
+    CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
+         cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
+    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
+    ! One byte stays for the trailing NUL. A short buffer is an error.
+    IF (nlen >= INT(deck_cap)) RETURN
+    DO i = 1, nlen
+      deck_out(i) = deck(i:i)
+    END DO
+    deck_out(nlen + 1) = c_null_char
+    deck_len = INT(nlen, KIND=c_int)
+    ok = 1_c_int
+  END FUNCTION
+
+#if !defined(CPMDC_HAS_CPMD)
+  SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    TYPE(embed_knobs) :: knobs
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
+    REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
+    INTEGER :: i, j, idx
+    knobs = knobs_of(image)
+    ok = 0_c_int
+    energy_h = 0.0_c_double
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(i) / 3) RETURN
+    k = 1.0e-3_real64 * MAX(0.1_real64, knobs%cutoff_ry / 70.0_real64)
+    deck_scale = REAL(MAX(1, LEN_TRIM(knobs%functional) + LEN_TRIM(knobs%input_deck) + &
+         LEN_TRIM(knobs%cpmd_root)), KIND=real64)
+    energy_h = REAL(1.0e-8_real64 * deck_scale + &
+         1.0e-6_real64 * REAL(knobs%charge + knobs%mult, KIND=real64), KIND=c_double)
+    DO i = 1, n_atoms
+      z_scale = REAL(MAX(1, INT(z(i))), KIND=real64)
+      r_bohr = 0.0_real64
+      DO j = 1, 3
+        idx = 3 * (i - 1) + j
+        coord_bohr = REAL(pos(idx), KIND=real64) / bohr_to_ang
+        r_bohr = r_bohr + coord_bohr * coord_bohr
+        grad(idx) = REAL(k * z_scale * coord_bohr, KIND=c_double)
+      END DO
+      energy_h = energy_h + REAL(0.5_real64 * k * z_scale * r_bohr, KIND=c_double)
+    END DO
+    IF (has_cell /= 0) THEN
+      DO i = 1, 9
+        energy_h = energy_h + REAL(1.0e-10_real64 * &
+             REAL(cell(i), KIND=real64) * REAL(cell(i), KIND=real64), KIND=c_double)
+      END DO
+    END IF
+    ok = 1_c_int
+    ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
+    CALL snapshot_total_only(image, energy_h)
+    DO i = 1, n_atoms * 3
+      IF (i > 4096) EXIT
+      image%prop%hessian(i) = grad(i)
+    END DO
+    image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
+    image%prop%valid = 1_c_int
+    ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
+    ! volume, so PotentialResult.stress is exercised without OpenCPMD.
+    ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
+    ! the tensor on a periodic cell as well.
+    image%stress%values = 0.0_c_double
+    image%stress%valid = 0_c_int
+    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
+         .NOT. reference_deck_isolated(knobs%input_deck)) THEN
+      IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
+           image%stress%valid = 1_c_int
+    END IF
+  END SUBROUTINE
+
+  LOGICAL FUNCTION reference_stress_wanted()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st
+    reference_stress_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
+  END FUNCTION
+
+  ! Symmetry 0, a missing symmetry line, CLUSTER, or an isolated-molecule
+  ! keyword is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
+  ! symmetry code is a periodic cell.
+  LOGICAL FUNCTION reference_deck_isolated(deck)
+    CHARACTER(LEN=*), INTENT(IN) :: deck
+    INTEGER :: p, n, sym, saw
+    reference_deck_isolated = .TRUE.
+    n = LEN_TRIM(deck)
+    IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
+    IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
+    IF (INDEX(deck, ' CLUSTER') > 0) RETURN
+    p = 1
+    DO WHILE (p <= n - 7)
+      IF (deck(p:p+7) == 'SYMMETRY') THEN
+        IF (p >= 7) THEN
+          IF (deck(p-6:p-1) == 'CHECK ') THEN
+            p = p + 1
+            CYCLE
+          END IF
+        END IF
+        p = p + 8
+        saw = 0
+        sym = 0
+        DO WHILE (p <= n)
+          IF (deck(p:p) >= '0' .AND. deck(p:p) <= '9') THEN
+            saw = 1
+            sym = sym * 10 + IACHAR(deck(p:p)) - IACHAR('0')
+            p = p + 1
+          ELSE IF (saw == 1) THEN
+            EXIT
+          ELSE
+            p = p + 1
+          END IF
+        END DO
+        IF (saw == 1 .AND. sym > 0) reference_deck_isolated = .FALSE.
+        RETURN
+      END IF
+      p = p + 1
+    END DO
+  END FUNCTION
+
+  INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    REAL(c_double), INTENT(IN) :: cell(*)
+    REAL(c_double), INTENT(IN) :: energy_h
+    REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
+    REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
+    INTEGER :: i
+    reference_pef_fill_stress = 0
+    inv_b = 1.0_real64 / bohr_to_ang
+    DO i = 1, 3
+      a(i) = REAL(cell(i), KIND=real64) * inv_b
+      b(i) = REAL(cell(3 + i), KIND=real64) * inv_b
+      c(i) = REAL(cell(6 + i), KIND=real64) * inv_b
+    END DO
+    vol = ABS(a(1) * (b(2) * c(3) - b(3) * c(2)) + &
+         a(2) * (b(3) * c(1) - b(1) * c(3)) + &
+         a(3) * (b(1) * c(2) - b(2) * c(1)))
+    IF (vol <= 1.0e-12_real64) RETURN
+    sig = REAL(energy_h, KIND=real64) / vol
+    image%stress%values(1) = REAL(sig, KIND=c_double)
+    image%stress%values(5) = REAL(sig, KIND=c_double)
+    image%stress%values(9) = REAL(sig, KIND=c_double)
+    reference_pef_fill_stress = 1
+  END FUNCTION
+
+#endif
+
+#if defined(CPMDC_HAS_CPMD)
+  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
+    USE ddip, ONLY: pdipole
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: grad(*)
+    INTEGER :: i, ncopy
+    image%prop%valid = 1_c_int
+    image%prop%dipole_count = 3_c_size_t
+    DO i = 1, 3
+      image%prop%dipole(i) = REAL(pdipole(i), KIND=c_double)
+    END DO
+    image%prop%polarizability_count = 9_c_size_t
+    DO i = 1, 9
+      image%prop%polarizability(i) = 0.0_c_double
+    END DO
+    ncopy = n_atoms * 3
+    IF (ncopy > 4096) ncopy = 4096
+    IF (ncopy < 0) ncopy = 0
+    DO i = 1, ncopy
+      image%prop%hessian(i) = grad(i)
+    END DO
+    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
+  END SUBROUTINE
+
+  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_species_order_map, cpmdc_note_embed_failure
+    USE coor, ONLY: tau0
+    USE ions, ONLY: ions0, ions1
+    USE cnst, ONLY: fbohr
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER(c_int), INTENT(OUT) :: origin(*)
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: is, ia, k, slot, j, astat
+    INTEGER(c_int), ALLOCATABLE :: species_z(:), species_n(:)
+    ierr = 1
+    IF (.NOT. ALLOCATED(tau0) .OR. ions1%nsp < 1) THEN
+      CALL cpmdc_note_embed_failure( &
+           'CPMD species tables are not initialized'//c_null_char)
+      RETURN
+    END IF
+    ALLOCATE(species_z(ions1%nsp), species_n(ions1%nsp), STAT=astat)
+    IF (astat /= 0) THEN
+      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+      RETURN
+    END IF
+    DO is = 1, ions1%nsp
+      species_z(is) = INT(ions0%iatyp(is), KIND=c_int)
+      species_n(is) = INT(ions0%na(is), KIND=c_int)
+    END DO
+    ! CPMD stores one contiguous block per species. ForceInput may list the
+    ! same element in more than one run; origin maps each block slot back.
+    IF (cpmdc_species_order_map(INT(n_atoms, KIND=c_int), z, &
+        INT(ions1%nsp, KIND=c_int), species_z, species_n, origin) /= 0_c_int) THEN
+      CALL cpmdc_note_embed_failure( &
+           'atomic numbers do not match the CPMD species blocks'//c_null_char)
+      RETURN
+    END IF
+    slot = 0
+    DO is = 1, ions1%nsp
+      DO ia = 1, ions0%na(is)
+        slot = slot + 1
+        j = INT(origin(slot)) + 1
+        DO k = 1, 3
+          tau0(k, ia, is) = REAL(pos(3*(j-1)+k), KIND=real64) * fbohr
+        END DO
+      END DO
+    END DO
+    ierr = 0
+  END SUBROUTINE
+
+  SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
+        cpmdc_note_embed_failure
+    USE wfopts_utils, ONLY: wfopts
+    USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces
+    USE phfac_utils, ONLY: phfac
+    USE ener, ONLY: ener_com, chrg, ener_c, ener_d
+    USE coor, ONLY: tau0, fion, taup
+    USE ions, ONLY: ions0, ions1
+    USE store_types, ONLY: cprint, iprint_force, restart1
+    USE system, ONLY: cnti, cntl, parm
+    USE benc, ONLY: ibench
+    USE strs, ONLY: paiu
+    USE isos, ONLY: isos1
+    USE ropt, ONLY: ropt_mod
+    USE parac, ONLY: paral
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
+    INTEGER(c_int), ALLOCATABLE :: origin(:)
+    REAL(c_double), ALLOCATABLE :: species_grad(:)
+    REAL(real64) :: omega
+    LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
+    INTEGER :: inwfun_deck, ibench_deck
+    INTERFACE
+      FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
+        IMPORT :: c_int
+        INTEGER(c_int) :: code
+      END FUNCTION cpmdc_stop_code
+    END INTERFACE
+    ok = 0_c_int
+    energy_h = 0.0_c_double
+    IF (n_atoms <= 0 .OR. n_atoms > HUGE(nmax) / 3) RETURN
+    nmax = n_atoms * 3
+    DO idx = 1, nmax
+      grad(idx) = 0.0_c_double
+    END DO
+    image%stress%valid = 0_c_int
+    image%stress%values = 0.0_c_double
+    ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
+    IF (astat /= 0) THEN
+      CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+      RETURN
+    END IF
+    CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
+    IF (ierr /= 0) RETURN
+    ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
+    ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
+    ! section 3 when RESTART COORDINATES or RESTART ALL is in the deck.
+    ! The wavefunction section stays under the deck: RESTART WAVEFUNCTION
+    ! still fills c0 on a cold entry. Plane-wave velocities stay unread
+    ! for a wavefunction optimisation, which is setirec's BOMD rule.
+    restart1%rco = .FALSE.
+    restart1%rvel = .FALSE.
+    restart1%rgeo = .FALSE.
+    CALL phfac(tau0)
+    IF (ALLOCATED(fion)) DEALLOCATE(fion)
+    IF (ALLOCATED(taup)) DEALLOCATE(taup)
+    cprint%tprint = .TRUE.
+    cprint%iprint(iprint_force) = 1
+    ! BOMD/PEF: nuclear forces after WFN optim. OpenCPMD zeros fion unless
+    ! tfor; iprint_force alone was not enough on the memfd embed path.
+    CALL embed_set_need_forces(.TRUE.)
+    ! PEF stress: totstr fills paiu when cntl%tpres. Skip isolated/Hockney
+    ! (tclust): rinitwf does tpres then newcell then gf_periodic but scg is only
+    ! allocated for periodic cells in initclust — SEGV on cluster decks.
+    stress_computed = .NOT. isos1%tclust .AND. embed_stress_wanted()
+    IF (stress_computed) cntl%tpres = .TRUE.
+    ! Store a converged c0 for the next call. Restore does nothing until
+    ! that store exists, and an unconverged SCF leaves the previous
+    ! converged copy in place, so a later SCF is still a warm start.
+    ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
+    ! initrun builds starting orbitals before the stored c0 replaces them.
+    ! Once a converged copy exists (a warm call), the simple atomic
+    ! superposition (inwfun 3: loadc, one orthogonalisation, no force
+    ! evaluation) stands in for the Lanczos guess and for the random start,
+    ! both of which run a full SCF step on orbitals that are then discarded.
+    ! zhwwf writes RESTART.1 and LATEST on every converged call; ibench(1)
+    ! makes it return at once. The in-process host keeps c0 in memory, so a
+    ! warm call needs no file; the cold call still writes one.
+    inwfun_deck = cnti%inwfun
+    ibench_deck = ibench(1)
+    IF (image%cfg_warm_steps > 0) THEN
+      cnti%inwfun = 3
+      ibench(1) = 1
+    END IF
+    CALL embed_set_warm_orbitals(.TRUE.)
+    CALL wfopts
+    ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
+    ! does not replace the stored c0. Continue once with PCG MINIMIZE from
+    ! the previous converged copy, which still counts as a warm start.
+    ! A stopgm in the first pass leaves the CPMD state undefined, so it
+    ! does not start this continuation.
+    IF (.NOT. ropt_mod%convwf .AND. cntl%diis .AND. &
+        cpmdc_stop_code() == 0_c_int) THEN
+      was_diis = cntl%diis
+      was_pcg = cntl%pcg
+      was_pcgmin = cntl%pcgmin
+      was_prec = cntl%prec
+      cntl%diis = .FALSE.
+      cntl%pcg = .TRUE.
+      cntl%pcgmin = .TRUE.
+      cntl%prec = .TRUE.
+      ropt_mod%spcg = .TRUE.
+      IF (paral%io_parent) WRITE(6, '(A)') &
+          ' cpmdc: ODIIS did not converge; continuing with PCG MINIMIZE'
+      CALL embed_set_warm_orbitals(.TRUE.)
+      IF (ALLOCATED(fion)) DEALLOCATE(fion)
+      IF (ALLOCATED(taup)) DEALLOCATE(taup)
+      CALL wfopts
+      cntl%diis = was_diis
+      cntl%pcg = was_pcg
+      cntl%pcgmin = was_pcgmin
+      cntl%prec = was_prec
+    END IF
+    cnti%inwfun = inwfun_deck
+    ibench(1) = ibench_deck
+    energy_h = REAL(ener_com%etot, KIND=c_double)
+    image%energy%etot = energy_h
+    image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
+    image%energy%epseu = REAL(ener_com%epseu, KIND=c_double)
+    image%energy%enl = REAL(ener_com%enl, KIND=c_double)
+    image%energy%eht = REAL(ener_com%eht, KIND=c_double)
+    image%energy%exc = REAL(ener_com%exc, KIND=c_double)
+    image%energy%valid = 1_c_int
+    image%charge%csumg = REAL(chrg%csumg, KIND=c_double)
+    image%charge%csumr = REAL(chrg%csumr, KIND=c_double)
+    image%charge%csums = REAL(chrg%csums, KIND=c_double)
+    image%charge%csumsabs = REAL(chrg%csumsabs, KIND=c_double)
+    image%charge%valid = 1_c_int
+    image%multi%values(1) = REAL(ener_c%etot_a, KIND=c_double)
+    image%multi%values(2) = REAL(ener_c%etot_2, KIND=c_double)
+    image%multi%values(3) = REAL(ener_c%etot_ab, KIND=c_double)
+    image%multi%values(4) = REAL(ener_d%etot_b, KIND=c_double)
+    image%multi%values(5) = REAL(ener_d%ecas, KIND=c_double)
+    image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
+    image%multi%count = 6_c_size_t
+    image%multi%valid = 1_c_int
+    ! ENERGY-file row. EKINC stays zero off an MD step.
+    image%md%values = 0.0_c_double
+    image%md%values(1) = energy_h
+    image%md%values(2) = image%energy%ekin
+    image%md%values(3) = image%energy%epseu
+    image%md%values(4) = image%energy%enl
+    image%md%values(5) = image%energy%eht
+    image%md%values(6) = image%energy%exc
+    image%md%count = 12_c_size_t
+    image%md%valid = 1_c_int
+    species_grad = 0.0_c_double
+    IF (ALLOCATED(fion)) THEN
+      IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
+        slot = 0
+        DO is = 1, ions1%nsp
+          DO ia = 1, ions0%na(is)
+            IF (ia > SIZE(fion, 2)) EXIT
+            slot = slot + 1
+            IF (slot > n_atoms) EXIT
+            DO k = 1, 3
+              species_grad(3 * (slot - 1) + k) = REAL(-fion(k, ia, is), KIND=c_double)
+            END DO
+          END DO
+        END DO
+        CALL cpmdc_scatter_species_gradient(INT(n_atoms, KIND=c_int), origin, &
+             species_grad, grad)
+      END IF
+    END IF
+    ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
+    ! true stress is paiu/omega (see totstr/wrstress). Row-major for Cap'n Proto.
+    ! totstr runs only when cntl%tpres was set above. A positive omega is the
+    ! cell volume, including an isolated box whose paiu was not computed.
+    omega = parm%omega
+    IF (stress_computed .AND. omega > 1.0e-30_real64) THEN
+      DO i = 1, 3
+        DO j = 1, 3
+          image%stress%values(3 * (i - 1) + j) = REAL(paiu(i, j) / omega, KIND=c_double)
+        END DO
+      END DO
+      image%stress%valid = 1_c_int
+    END IF
+    CALL snapshot_prop_from_modules(image, n_atoms, grad)
+    ! rwfopt computes the ionic forces only for converged orbitals: an SCF
+    ! that ran out of MAXITER leaves fion zero, which a caller would read as
+    ! a stationary point. Report it as a failure instead.
+    IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
+  END SUBROUTINE
+
+
+  ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
+  ! takes only energy and forces does not need totstr.
+  LOGICAL FUNCTION embed_stress_wanted()
+    CHARACTER(LEN=16) :: v
+    INTEGER :: st
+    embed_stress_wanted = .TRUE.
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_STRESS', v, STATUS=st)
+    IF (st == 0 .AND. TRIM(v) == '0') embed_stress_wanted = .FALSE.
+  END FUNCTION
+
   LOGICAL FUNCTION warm_cell_matches(image, cell, has_cell)
     TYPE(cpmdc_embed_image), INTENT(IN) :: image
     REAL(c_double), INTENT(IN) :: cell(*)
@@ -2301,40 +2127,5 @@ CONTAINS
     END IF
   END SUBROUTINE
 
-  FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, deck_out, deck_cap, deck_len, image_c) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_compose_cold_deck_image')
-    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
-    REAL(c_double), INTENT(IN) :: positions_ang(*)
-    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
-    REAL(c_double), INTENT(IN) :: cell_ang(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
-    CHARACTER(KIND=c_char), INTENT(OUT) :: deck_out(*)
-    INTEGER(c_int), INTENT(IN), VALUE :: deck_cap
-    INTEGER(c_int), INTENT(OUT) :: deck_len
-    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
-    TYPE(cpmdc_embed_image), POINTER :: image
-    INTEGER(c_int) :: ok
-    CHARACTER(LEN=:), ALLOCATABLE :: deck
-    INTEGER :: nlen, ierr, i
-    TYPE(embed_knobs) :: knobs
-    ok = 0_c_int
-    deck_len = 0_c_int
-    IF (deck_cap < 2) RETURN
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
-    CALL C_F_POINTER(image_c, image)
-    knobs = knobs_of(image)
-    CALL embed_compose_cold_deck(INT(n_atoms), positions_ang, atomic_numbers, &
-         cell_ang, INT(has_cell), deck, nlen, ierr, knobs)
-    IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
-    ! One byte stays for the trailing NUL. A short buffer is an error.
-    IF (nlen >= INT(deck_cap)) RETURN
-    DO i = 1, nlen
-      deck_out(i) = deck(i:i)
-    END DO
-    deck_out(nlen + 1) = c_null_char
-    deck_len = INT(nlen, KIND=c_int)
-    ok = 1_c_int
-  END FUNCTION
 #endif
 END MODULE cpmd_embed_c_api
