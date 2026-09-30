@@ -1628,11 +1628,11 @@ CONTAINS
     END DO
     IF (image%cfg_warm_steps > 0 .AND. warm_cell_matches(image, cell, has_cell)) THEN
       IF (.NOT. embed_use_output_dir(image)) THEN
-        CALL cpmdc_restore_host_cwd()
+        ierr = cpmdc_restore_host_cwd()
         RETURN
       END IF
       CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
-      CALL cpmdc_restore_host_cwd()
+      ierr = cpmdc_restore_host_cwd()
       IF (ok /= 0_c_int) image%cfg_warm_steps = image%cfg_warm_steps + 1
       RETURN
     END IF
@@ -1699,7 +1699,7 @@ CONTAINS
     ! Pseudopotential files are in memory. LATEST and GEOMETRY ignore FILEPATH
     ! and follow the working directory, so leave the library before any write.
     IF (.NOT. embed_use_output_dir(image)) THEN
-      CALL cpmdc_restore_host_cwd()
+      ierr = cpmdc_restore_host_cwd()
       RETURN
     END IF
     CALL vdwin
