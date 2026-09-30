@@ -1,8 +1,8 @@
 diff --git a/src/error_handling.mod.F90 b/src/error_handling.mod.F90
-index b8482b4..a9f1aed 100644
+index b8482b4..6422197 100644
 --- a/src/error_handling.mod.F90
 +++ b/src/error_handling.mod.F90
-@@ -1,11 +1,34 @@
+@@ -1,11 +1,30 @@
  MODULE error_handling
    USE parac,                           ONLY: parai
 +  USE, INTRINSIC :: iso_c_binding,     ONLY: c_funptr, c_null_funptr, &
@@ -15,16 +15,12 @@ index b8482b4..a9f1aed 100644
    PUBLIC :: stopgm
 +
 +  ! A program that embeds CPMD may install a C function here. stopgm calls
-+  ! it with the stop code (999) after writing LocalError-*.log. A nonzero
-+  ! return makes stopgm return to its caller instead of stopping every rank.
-+  ! The caller then continues past a failed check: the wavefunction, fion and
-+  ! module state of the current call are undefined, and the host must discard
-+  ! its results and set CPMD up again before the next call. stopgm runs only on
-+  ! the ranks that hit the error. A rank that returns while others wait in an
-+  ! MPI call leaves them waiting, so a host with more than one rank must stop
-+  ! or abort the others itself. The function must return; unwinding across
-+  ! the Fortran frames that called stopgm is undefined. Null by default, so
-+  ! cpmd.x stops as it always has.
++  ! it with the stop code (999) before it prints the call stack. A nonzero
++  ! return makes stopgm close the log and return to its caller. The
++  ! wavefunction, forces and module state of that call are undefined, so the
++  ! host discards them and sets CPMD up again. The function must return.
++  ! Unwinding across the Fortran frames that called stopgm is undefined.
++  ! Null by default, so cpmd.x stops as it always has.
 +  TYPE(c_funptr), BIND(C, NAME='cpmd_stopgm_hook'), PUBLIC :: stopgm_hook = c_null_funptr
 +
 +  ABSTRACT INTERFACE
@@ -37,7 +33,7 @@ index b8482b4..a9f1aed 100644
  CONTAINS
    ! ==================================================================
    SUBROUTINE stopgm(a,b,line,file)
-@@ -19,6 +42,7 @@ CONTAINS
+@@ -19,6 +38,7 @@ CONTAINS
  
      CHARACTER(100)                           :: buff, file_name
      EXTERNAL                                 :: tistopgm
@@ -45,14 +41,22 @@ index b8482b4..a9f1aed 100644
      INTEGER                                  :: i_level, i_thread, nc
  
  ! ==--------------------------------------------------------------==
-@@ -48,6 +72,10 @@ CONTAINS
-     CLOSE(file_unit)
- 
-     nc=999
+@@ -44,10 +64,16 @@ CONTAINS
+     WRITE(file_unit,'(A,A)')&
+          '               in procedure: ',TRIM(ADJUSTL(a))
+     WRITE(file_unit,'(A,A)') ' error message: ',TRIM(ADJUSTL(b))
++    nc=999
 +    IF (c_associated(stopgm_hook)) THEN
 +      CALL c_f_procpointer(stopgm_hook, hook)
-+      IF (hook(INT(nc, c_int)) /= 0) RETURN
++      IF (hook(INT(nc, c_int)) /= 0) THEN
++        CLOSE(file_unit)
++        RETURN
++      END IF
 +    END IF
+     CALL tistopgm(file_unit)
+     CLOSE(file_unit)
+-
+-    nc=999
      CALL my_stopall(nc)
      ! ==--------------------------------------------------------------==
    END SUBROUTINE stopgm
