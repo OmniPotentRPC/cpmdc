@@ -23,6 +23,10 @@ int capn_deflate(struct capn_stream* s) {
 		if (!s->avail_out)
 			return CAPN_NEED_MORE;
 
+		/* C11 6.5.3.2: a null cursor is not a buffer. */
+		if (!s->next_in || !s->next_out)
+			return CAPN_MISALIGNED;
+
 		if (s->raw > 0) {
 			sz = min(s->raw, min(s->avail_in, s->avail_out));
 			memcpy(s->next_out, s->next_in, sz);
