@@ -49,9 +49,11 @@ A failed store allocation calls ~stopgm~.
 ~cpmdc~ sets ~embed_warm_orbitals~ on every SCF, including the first.
 Restore does nothing until a converged copy exists, so the first call still
 starts from CPMD's guess and stores ~c0~ only if that SCF converges.
-On a later call, ~rwfopt~ first runs ~initrun~, which sets up the iteration
-state and scratch arrays as for any SCF, and then overwrites the generated
-starting orbitals with the saved copy when its shape still matches.
+On a later call, ~rwfopt~ copies the saved ~c0~ in before ~initrun~.
+~rinitwf~ then returns after the phase factors, so it does not build a
+guess, and the density ~initrun~ builds comes from those orbitals.
+A restart read inside ~initrun~ can replace ~c0~, so ~rwfopt~ copies the
+saved orbitals in again after ~initrun~ when the shape still matches.
 A different shape calls ~stopgm~ and names ~embed_reset_warm_orbitals~.
 ~cpmdc~ makes that call when the functional, the deck, the cutoff, the cell,
 the charge, the multiplicity, the atom count, or the elemental composition

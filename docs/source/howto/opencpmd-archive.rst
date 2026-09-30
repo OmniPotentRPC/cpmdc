@@ -7,7 +7,7 @@ process. A stock OpenCPMD archive does not work inside a host:
 ``libcpmdc`` imports routines that only the patches add, the shared link
 stops on code built without ``-fPIC``, and the unpatched SCF driver
 drops the forces and the orbitals that ``cpmdc`` reads after each call.
-Six patches in ``tools/`` and one compiler flag fix those.
+The patches in ``tools/`` and one compiler flag fix those.
 ``opencpmd_c_mem_addrs.patch`` makes ``cGetMemAddrs`` return the address
 as ``size_t``. GCC 14 rejects the stock return of a pointer from that
 function.
@@ -18,6 +18,10 @@ Patches and what each one is for
 +--------------------------------------+--------------------------------+-----------------------------+
 | Patch                                | File patched                   | Without it                  |
 +======================================+================================+=============================+
+| ``opencpmd_embed_rinitwf.patch``     | ``src/rinitwf_driver.mod.F90`` | a warm call still builds    |
+|                                      |                                | the wavefunction guess and  |
+|                                      |                                | then discards it            |
++--------------------------------------+--------------------------------+-----------------------------+
 | ``opencpmd_embed_geometry.patch``    | ``src/embed_ctrl.mod.F90``,    | ``initrun`` still writes    |
 |                                      | ``src/initrun_driver.mod.F90``,| ``GEOMETRY``, and           |
 |                                      | ``src/SOURCES``                | ``rwfopt`` has no           |
@@ -71,10 +75,14 @@ is the ``cpmd.x`` behaviour. ``rwfopt`` leaves ``fion`` allocated only when
 ``embed_need_forces`` is true, and frees a surviving ``fion`` before its
 own ``ALLOCATE``. It saves ``c0`` only when ``embed_warm_orbitals`` is
 true and the SCF converged. An unconverged pass leaves the previous copy.
-A failed store allocation calls ``stopgm``. On the next call it restores
-that copy after ``initrun`` when the shape still matches, and a different
-shape calls ``stopgm``. It sets ``tfor`` when ``embed_need_forces`` is
-true. The stop patch publishes ``cpmd_stopgm_hook``, a C function
+A failed store allocation calls ``stopgm``. On the next call it copies
+that ``c0`` in before ``initrun``. ``rinitwf`` then returns after the
+phase factors when ``embed_have_orbitals`` is true, so the guess does
+not run. A restart read inside ``initrun`` can replace ``c0``, so the
+same copy is applied again after ``initrun`` when the shape still
+matches, and a different shape calls ``stopgm``. ``rwfopt`` sets
+``tfor`` when ``embed_need_forces`` is true. The stop patch publishes
+``cpmd_stopgm_hook``, a C function
 pointer. ``stopgm`` calls it with the stop code passed by value, after
 writing ``LocalError-*.log``. A nonzero return makes ``stopgm`` return to
 its caller, and a null pointer makes ``stopgm`` call ``my_stopall``. The
@@ -101,8 +109,11 @@ inside ``SIZE(tname%trace_names)``.
 
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are
 portable unified diffs against the files named above. Apply
-``opencpmd_embed_geometry.patch`` first: ``rwfopt`` reads
-``embed_ctrl``. The other five are the commits on
+``opencpmd_embed_rinitwf.patch`` before the rwfopt patch.
+``rwfopt`` reads ``embed_have_orbitals`` from ``rinitwf_driver``. Apply
+``opencpmd_embed_geometry.patch`` before that rwfopt patch as well:
+``rwfopt`` reads ``embed_ctrl``. The rwfopt, converged-state, k-point,
+stop, and timer patches are the commits on
 `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
 (branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to
 OpenCPMD commit ``062582b``. Apply ``opencpmd_c_mem_addrs.patch`` with
@@ -118,8 +129,9 @@ first build:
 
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
-   for p in embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+   for p in embed_rinitwf embed_geometry embed_rwfopt \
+            converged_state kpoints_inputfile stopgm_return tistopgm \
+            c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
@@ -158,16 +170,18 @@ source and rebuild only the affected members:
 .. code:: bash
 
    cd /path/to/opencpmd-source
-   for p in embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+   for p in embed_rinitwf embed_geometry embed_rwfopt \
+            converged_state kpoints_inputfile stopgm_return tistopgm \
+            c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 
 ``rebuild_opencpmd_embed.sh`` recompiles ``error_handling.mod.o``,
-``scex_utils.mod.o``, ``rwfopt_utils.mod.o``,
-``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, and ``timer.mod.o`` with one Make job, then
-replaces those members with ``ar r`` and runs ``ranlib``. It runs one
+``scex_utils.mod.o``, ``rinitwf_driver.mod.o``, ``rwfopt_utils.mod.o``,
+``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, and ``timer.mod.o`` with
+one Make job, then replaces those members with ``ar r`` and runs
+``ranlib``. It runs one
 job because gfortran stores a copy of ``Scex_t`` inside
 ``rwfopt_utils.mod``: a parallel rebuild can leave the two module files
 naming different components. It calls ``ar`` directly because the
