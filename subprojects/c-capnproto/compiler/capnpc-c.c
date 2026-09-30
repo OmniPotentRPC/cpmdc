@@ -435,6 +435,9 @@ static const char *xor_member(struct field *f) {
 
 static const char *ptr_member(struct field *f, const char *var) {
 	static struct str buf = STR_INIT;
+	/* C11 6.5.3.2: a null field is not a member. */
+	if (!f || !var)
+		return "";
 	if (!strcmp(f->v.tname, "capn_ptr")) {
 		return var;
 	} else if (var[0] == '*') {
