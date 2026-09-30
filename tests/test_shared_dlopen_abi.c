@@ -11,6 +11,13 @@ typedef size_t (*cpmdc_feature_count_fn)(void);
 typedef const CPMDCFeatureEntry *(*cpmdc_feature_table_fn)(void);
 typedef const CPMDCFeatureEntry *(*cpmdc_feature_find_fn)(const char *);
 
+/* 1 only when this binary is the OpenCPMD link. The reference build is 0. */
+#if defined(CPMDC_HAS_CPMD)
+#define CPMDC_AVAILABLE_WHEN_LINKED 1
+#else
+#define CPMDC_AVAILABLE_WHEN_LINKED 0
+#endif
+
 static void *required_symbol(void *handle, const char *name) {
   dlerror();
   void *sym = dlsym(handle, name);
@@ -128,8 +135,9 @@ int main(int argc, char **argv) {
     dlclose(handle);
     return 1;
   }
-  if (available() != 1) {
-    fprintf(stderr, "shared cpmdc engine should report available\n");
+  int ready = available();
+  if (ready != CPMDC_AVAILABLE_WHEN_LINKED) {
+    fprintf(stderr, "cpmdc_available() returned %d\n", ready);
     dlclose(handle);
     return 1;
   }

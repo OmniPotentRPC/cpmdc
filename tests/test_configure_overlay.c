@@ -50,10 +50,6 @@ static unsigned char *read_file(const char *path, size_t *size) {
 
 static void test_overlay_session_evaluates(void **state) {
   (void)state;
-  if (!cpmdc_available()) {
-    print_message("[  SKIP   ] embed shell not available\n");
-    skip();
-  }
   size_t config_size = 0, step_size = 0;
   unsigned char *config = read_file(g_overlay, &config_size);
   unsigned char *step = read_file(g_step, &step_size);

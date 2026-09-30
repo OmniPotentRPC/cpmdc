@@ -8,7 +8,7 @@ The build has two modes, selected by the Meson option ~with_cpmd~:
 
 | Mode | Option | Evaluator behind the C ABI | ~cpmdc_available()~ |
 |------+--------+----------------------------+---------------------|
-| Default | ~-Dwith_cpmd=false~ | deterministic reference evaluator, no OpenCPMD | 1 |
+| Default | ~-Dwith_cpmd=false~ | deterministic reference evaluator, no OpenCPMD | 0 |
 | OpenCPMD | ~-Dwith_cpmd=true -Dcpmd_root=DIR~ | OpenCPMD linked from ~DIR/lib/libcpmd.a~ | 1 |
 
 Both modes export the same symbols.

@@ -141,11 +141,10 @@ Library status
 |                                        | ``CPMDC_ABI_VERSION`` (0) and    |
 |                                        | the shared-library soversion     |
 +----------------------------------------+----------------------------------+
-| ``int cpmdc_available(void)``          | 1 when an evaluator is ready:    |
-|                                        | the reference evaluator in the   |
-|                                        | default build, OpenCPMD in an    |
-|                                        | OpenCPMD build; 0 in the stub    |
-|                                        | and after ``cpmdc_finalize()``   |
+| ``int cpmdc_available(void)``          | 1 when OpenCPMD is linked,       |
+|                                        | ready, and not finalized; 0 on   |
+|                                        | the reference build; 0 after     |
+|                                        | finalize and from the link stub  |
 +----------------------------------------+----------------------------------+
 | ``void cpmdc_finalize(void)``          | marks the runtime finalized;     |
 |                                        | later evaluations fail with      |
