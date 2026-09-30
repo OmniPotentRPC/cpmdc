@@ -159,9 +159,12 @@ if has_cpmd
   ]
   cpmd_embed_link += [cpmd_lib]
   cpmd_mpi_dep = [dependency('mpi', language: 'fortran', required: true)]
-  # LAPACK/BLAS as used by typical CPMD serial builds
+  # foss puts BLAS behind FlexiBLAS. OpenBLAS is the backend that module loads.
+  flexiblas = cc.find_library('flexiblas', required: false)
   openblas = cc.find_library('openblas', required: false)
-  if openblas.found()
+  if flexiblas.found()
+    cpmd_embed_link += [flexiblas]
+  elif openblas.found()
     cpmd_embed_link += [openblas]
   else
     lapack = cc.find_library('lapack', required: false)
@@ -198,7 +201,7 @@ cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
 if has_cpmd
-  cpmd_archive_math_libs = (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas']) \
+  cpmd_archive_math_libs = (flexiblas.found() ? ['-lflexiblas'] : (openblas.found() ? ['-lopenblas'] : ['-llapack', '-lblas'])) \
       + (fftw3_omp.found() ? ['-lfftw3_omp'] : []) \
       + (fftw3.found() ? ['-lfftw3'] : []) \
       + (gomp.found() ? ['-lgomp'] : []) \
