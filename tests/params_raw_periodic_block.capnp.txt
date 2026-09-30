@@ -1,0 +1,10 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  charge = 0,
+  multiplicity = 1,
+  task = "gradient",
+  inputBlocks = [
+    "&CPMD\n OPTIMIZE WAVEFUNCTION\n NEWCODE\n GC-CUTOFF\n  1.0E-07\n&END\n&SYSTEM\n SYMMETRY\n  1\n ANGSTROM\n CUTOFF\n  70.0\n&END\n&DFT\n FUNCTIONAL BLYP\n&END\n&ATOMS\n*Si_MT_BLYP.psp KLEINMAN-BYLANDER\n LMAX=D LOC=D\n   1\n  0.000000  0.000000  0.000000\n*N_MT_BLYP.psp KLEINMAN-BYLANDER\n LMAX=P LOC=P\n   1\n  1.700000  0.000000  0.000000\n&END\n"
+  ]
+)

@@ -1,0 +1,43 @@
+#INFO#
+#INFO# Linux x86_64, gfortran, MPI, position-independent code.
+#INFO# Compilers are mpif90 and gcc on PATH.
+#INFO# LIBS is -lopenblas. That library has to export the LAPACK symbols.
+#INFO#
+
+     IRAT=2
+     FC='mpif90'
+     CC='gcc'
+     LD='mpif90'
+     CPP=''
+     CPPFLAGS='-D__Linux -D__GNU -D__PARALLEL -D__HAS_FFT_DEFAULT    '
+     FFLAGS_GROMOS='-ffixed-form $(FFLAGS)'
+     FFLAGS_GROMOS_MODULES=' $(FFLAGS)'
+     AR='/usr/bin/ar ruv'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC'
+       CFLAGS='-g -O0 -Wall -fPIC'
+     else
+       FFLAGS='-O2 -Wall -fPIC'
+       CFLAGS='-O2 -Wall -fPIC'
+     fi
+     if [ $omp ]; then
+       FFLAGS=${FFLAGS}' -fopenmp'
+       OMP3_DISABLED=`{ ${FC} -v; } 2>&1 | ${GREP} version | ${AWK} '{ print ( $3 < "4.7.0" ) ? "true" : "false" }'`
+       LIBS='-lopenblas'
+     else
+       LIBS='-lopenblas'
+     fi
+     # mp_bcast_byte broadcasts the bytes of its first argument.
+     # One procedure calls it with several derived types. gfortran 10
+     # and later accept those calls with this flag.
+     probe="${TMPDIR:-/tmp}/cpmdc-allow-$$"
+     if echo "      end" | ${FC} -fallow-argument-mismatch -c -o "${probe}.o" -x f95 - >/dev/null 2>&1; then
+       FFLAGS=${FFLAGS}' -fallow-argument-mismatch'
+     fi
+     rm -f "${probe}.o"
+     LFLAGS=' '${LIBS}
+     if [ $coverage ]; then
+       FFLAGS=${FFLAGS}' --coverage'
+       LFLAGS='--coverage '${LFLAGS}
+     fi

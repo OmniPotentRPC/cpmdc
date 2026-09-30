@@ -11,6 +11,13 @@
 
 #include <cmocka.h>
 
+/* 1 only when this binary is the OpenCPMD link. The reference build is 0. */
+#if defined(CPMDC_HAS_CPMD)
+#define CPMDC_AVAILABLE_WHEN_LINKED 1
+#else
+#define CPMDC_AVAILABLE_WHEN_LINKED 0
+#endif
+
 static const char *g_params = NULL;
 static const char *g_step = NULL;
 static const char *g_step_b = NULL;
@@ -76,7 +83,7 @@ static void test_session_socket_contract(void **state) {
   unsigned char *out = (unsigned char *)malloc(need);
   assert_non_null(out);
   out_size = 0;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   CPMDCResult eval = cpmdc_session_calculate_result(session, step, step_size,
                                                     out, need, &out_size);
   assert_int_equal(eval.ok, 1);
@@ -137,7 +144,7 @@ static void test_session_set_params_owns_socket_deck(void **state) {
   assert_non_null(params);
   assert_non_null(alt);
   assert_non_null(step);
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
 
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);
@@ -174,7 +181,7 @@ static void test_interleaved_sessions_reapply_params(void **state) {
   assert_non_null(params);
   assert_non_null(alt);
   assert_non_null(step);
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
 
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);

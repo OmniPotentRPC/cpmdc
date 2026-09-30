@@ -456,7 +456,7 @@ const char *cpmdc_last_error(void);
  */
 int cpmdc_abi_version(void);
 
-/** @brief 1 when the embedded OpenCPMD runtime is available. */
+/** @brief 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub. */
 int cpmdc_available(void);
 
 /** @brief Finalize an owned embedded CPMD runtime. */

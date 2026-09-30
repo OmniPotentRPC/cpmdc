@@ -222,7 +222,7 @@ cpmdc_embed_shell = static_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args,
+  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
   install: false,
@@ -233,7 +233,7 @@ cpmdc_shared = shared_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args,
+  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
@@ -548,7 +548,7 @@ if get_option('with_tests')
       'tests/test_session_socket.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     args: [
       runtime_params_bin.full_path(),
@@ -593,7 +593,7 @@ if get_option('with_tests')
       'tests/test_embed_shell.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: inc,
-      c_args: common_c_args,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     suite: ['embed'],
   )
@@ -604,7 +604,7 @@ if get_option('with_tests')
       'tests/test_shared_dlopen_abi.c',
       dependencies: [dl_dep],
       include_directories: inc,
-      c_args: common_c_args,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     args: [cpmdc_shared.full_path()],
     depends: [cpmdc_shared],
@@ -671,6 +671,12 @@ if get_option('with_tests')
     'params_escape_bin',
     input: 'tests/params_escape_generic.capnp.txt',
     output: 'params_escape_generic.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  params_raw_periodic_bin = custom_target(
+    'params_raw_periodic_bin',
+    input: 'tests/params_raw_periodic_block.capnp.txt',
+    output: 'params_raw_periodic_block.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
   energy_components_exe = executable(
@@ -930,6 +936,20 @@ test(
     depends: [params_escape_bin],
     suite: ['params'],
   )
+  test(
+    'raw-periodic-block',
+    executable(
+      'test_raw_periodic_block',
+      ['tests/test_raw_periodic_block.c', 'src/cpmdc_features.c'],
+      dependencies: [cmocka_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args,
+    ),
+    args: [params_raw_periodic_bin.full_path()],
+    depends: [params_raw_periodic_bin],
+    suite: ['params'],
+  )
   pp_dir_test_args = []
   pp_dir_test_deps = []
   if has_cpmd
@@ -1148,7 +1168,7 @@ test(
       'tests/test_capnp_fortran_apply.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     args: [
       effective_top_params_bin.full_path(),
@@ -1176,7 +1196,7 @@ test(
       'tests/test_long_method_deck.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
       include_directories: [inc] + cpmdc_params_includes,
-      c_args: common_c_args + capnp_generated_c_args,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     suite: ['cmocka', 'params'],
   )

@@ -18,6 +18,13 @@
 
 #include <cmocka.h>
 
+/* 1 only when this binary is the OpenCPMD link. The reference build is 0. */
+#if defined(CPMDC_HAS_CPMD)
+#define CPMDC_AVAILABLE_WHEN_LINKED 1
+#else
+#define CPMDC_AVAILABLE_WHEN_LINKED 0
+#endif
+
 /* Real bind(C) getter from cpmdc_embed_apply_params.f90 */
 int cpmdc_embed_get_config(char *functional, int functional_len,
                            double *cutoff_ry, int *charge, int *mult,
@@ -81,7 +88,7 @@ static void read_applied(char *functional, size_t fsz, double *cutoff,
 
 static void test_set_params_applies_top_level_via_fortran(void **state) {
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   size_t n = 0;
   unsigned char *msg = read_file(g_top, &n);
   assert_non_null(msg);
@@ -103,7 +110,7 @@ static void test_set_params_applies_top_level_via_fortran(void **state) {
 
 static void test_set_params_applies_section_overrides_via_fortran(void **state) {
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   size_t n = 0;
   unsigned char *msg = read_file(g_sections, &n);
   assert_non_null(msg);
@@ -124,7 +131,7 @@ static void test_set_params_applies_section_overrides_via_fortran(void **state) 
 
 static void test_session_create_applies_parser_fixture(void **state) {
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   size_t n = 0;
   unsigned char *msg = read_file(g_parser, &n);
   assert_non_null(msg);
@@ -153,7 +160,7 @@ static void test_session_create_applies_parser_fixture(void **state) {
  * in applied deck via shipped render. */
 static void test_set_params_stores_typed_section_deck(void **state) {
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   assert_non_null(g_atoms_extras);
   size_t n = 0;
   unsigned char *msg = read_file(g_atoms_extras, &n);
@@ -221,7 +228,7 @@ static void test_set_params_stores_typed_section_deck(void **state) {
  * text; cold compose strips empty &ATOMS placeholder and merges geometry. */
 static void test_set_params_method_only_keeps_dft_section(void **state) {
   (void)state;
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   assert_non_null(g_method_only);
   size_t n = 0;
   unsigned char *msg = read_file(g_method_only, &n);
@@ -382,7 +389,7 @@ static void test_compose_uses_message_pseudopotentials(void **state) {
   const char *hydrogen;
   const char *carbon;
 
-  assert_int_equal(cpmdc_available(), 1);
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   assert_non_null(g_atoms_message);
   msg = read_file(g_atoms_message, &n);
   assert_non_null(msg);

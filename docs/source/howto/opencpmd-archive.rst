@@ -7,7 +7,10 @@ process. A stock OpenCPMD archive does not work inside a host:
 ``libcpmdc`` imports routines that only the patches add, the shared link
 stops on code built without ``-fPIC``, and the unpatched SCF driver
 drops the forces and the orbitals that ``cpmdc`` reads after each call.
-Five patches in ``tools/`` and one compiler flag fix those.
+Six patches in ``tools/`` and one compiler flag fix those.
+``opencpmd_c_mem_addrs.patch`` makes ``cGetMemAddrs`` return the address
+as ``size_t``. GCC 14 rejects the stock return of a pointer from that
+function.
 
 Patches and what each one is for
 ================================
@@ -15,6 +18,11 @@ Patches and what each one is for
 +--------------------------------------+--------------------------------+-----------------------------+
 | Patch                                | File patched                   | Without it                  |
 +======================================+================================+=============================+
+| ``opencpmd_embed_geometry.patch``    | ``src/embed_ctrl.mod.F90``,    | ``initrun`` still writes    |
+|                                      | ``src/initrun_driver.mod.F90``,| ``GEOMETRY``, and           |
+|                                      | ``src/SOURCES``                | ``rwfopt`` has no           |
+|                                      |                                | ``embed_ctrl`` to read      |
++--------------------------------------+--------------------------------+-----------------------------+
 | ``opencpmd_embed_rwfopt.patch``      | ``src/rwfopt_utils.mod.F90``   | ``rwfopt`` drops ``fion``   |
 |                                      |                                | and starts every SCF from   |
 |                                      |                                | a fresh guess, and the      |
@@ -50,6 +58,10 @@ Patches and what each one is for
 |                                      |                                | is still ``HUGE(0)``,       |
 |                                      |                                | so the process faults       |
 |                                      |                                | before ``LocalError``       |
++--------------------------------------+--------------------------------+-----------------------------+
+| ``opencpmd_c_mem_addrs.patch``       | ``src/c_mem_utils.c``          | ``cGetMemAddrs`` returns a  |
+|                                      |                                | ``size_t`` pointer. GCC 14  |
+|                                      |                                | stops on that conversion    |
 +--------------------------------------+--------------------------------+-----------------------------+
 
 The rwfopt patch publishes ``embed_set_warm_orbitals``,
@@ -88,10 +100,13 @@ instead of writing ``LocalError``. The walk runs only when the depth is
 inside ``SIZE(tname%trace_names)``.
 
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are
-portable unified diffs against the files named above. All five are the
-commits on `OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
+portable unified diffs against the files named above. Apply
+``opencpmd_embed_geometry.patch`` first: ``rwfopt`` reads
+``embed_ctrl``. The other five are the commits on
+`OpenCPMD pull request 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__
 (branch ``embedding-hooks``, ``43cf4e7``) and apply in sequence to
-OpenCPMD commit ``062582b``.
+OpenCPMD commit ``062582b``. Apply ``opencpmd_c_mem_addrs.patch`` with
+them. ``cuda_get_address`` stores the ``size_t`` that function returns.
 
 Build a patched tree
 ====================
@@ -103,21 +118,29 @@ first build:
 
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
-   for p in embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm; do
+   for p in embed_geometry embed_rwfopt converged_state \
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
-Pick a configuration from ``./configure.sh -help`` that matches your
-compilers, for example ``LINUX-X86_64-GFORTRAN-MPI``. Copy it under a
-new name in ``configure/`` and add ``-fPIC`` to both ``FFLAGS`` and
-``CFLAGS``. ``libcpmdc`` is a shared library; a member of ``libcpmd.a``
-compiled without ``-fPIC`` fails the link with a ``R_X86_64_PC32``
-relocation error. Then configure into a separate build directory and
-build:
+The OpenCPMD sample ``LINUX-X86_64-GFORTRAN-MPI`` sets ``LIBS`` to one
+person's library path. Copying that file and adding ``-fPIC`` leaves
+the path in the build. ``cpmdc`` ships
+``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` for the command below. It calls
+``mpif90`` and ``gcc`` from ``PATH``, adds ``-fPIC`` to ``FFLAGS`` and
+``CFLAGS``, and sets ``LIBS`` to ``-lopenblas``. When ``mpif90`` accepts
+it, ``FFLAGS`` also gains ``-fallow-argument-mismatch``.
+``mp_bcast_byte`` broadcasts the bytes of its first argument, and one
+procedure calls it with several derived types. gfortran 10 and later
+stop on those calls without the flag. That OpenBLAS build has to
+export the LAPACK symbols. ``libcpmdc`` is a shared library; a
+member of ``libcpmd.a`` compiled without ``-fPIC`` fails the link with
+a ``R_X86_64_PC32`` relocation error. Copy the shipped file into the
+clone, then configure and build:
 
 .. code:: bash
 
+   cp /path/to/cpmdc/tools/LINUX-X86_64-GFORTRAN-MPI-PIC configure/
    ./configure.sh -DEST=/path/to/opencpmd-build LINUX-X86_64-GFORTRAN-MPI-PIC
    make -C /path/to/opencpmd-build -j 8
    ls /path/to/opencpmd-build/lib/libcpmd.a /path/to/opencpmd-build/obj/timetag.o
@@ -135,8 +158,8 @@ source and rebuild only the affected members:
 .. code:: bash
 
    cd /path/to/opencpmd-source
-   for p in embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm; do
+   for p in embed_geometry embed_rwfopt converged_state \
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
