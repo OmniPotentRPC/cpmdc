@@ -115,9 +115,9 @@ text fixtures encoded by the ``capnp`` CLI (``tests/encode_capnp.py``).
 
 The standalone stub target is different from the default shared engine:
 ``libcpmdc_stub.a`` only provides linkable symbols and reports
-``cpmdc_available() == 0``. The default shared ``libcpmdc`` reports
-availability through the reference evaluator and can run the session
-tests.
+``cpmdc_available() == 0``. The default shared ``libcpmdc`` also returns
+``cpmdc_available() == 0``, because that call means OpenCPMD is linked.
+Session tests still run on the reference evaluator.
 
 What To Read After The First Run
 ================================

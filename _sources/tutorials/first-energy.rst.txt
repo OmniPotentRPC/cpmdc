@@ -184,11 +184,15 @@ which brings in the Fortran runtime that ``libcpmdc`` needs:
 
 .. code:: text
 
-   cpmdc/0.2.0 available=1
+   cpmdc/0.2.0 available=0
    energy_h=0.95870366
    force[0] =  -0.053992  -0.053992  -0.055259
    force[1] =  -0.006749  -0.007771  -0.006116
    force[2] =  -0.006749  -0.005727  -0.006116
+
+``available=0`` means this library is not linked to OpenCPMD. The energy
+in that transcript is the reference spring, a harmonic function of the
+positions, and it is not a plane-wave total energy.
 
 ``cpmdc_session_calculate_forces()`` returns the energy in Hartree and
 the forces in Hartree/Bohr, whatever units the ``ForceInput`` names; the

@@ -562,8 +562,12 @@ a different energy</p></td>
 </tbody>
 </table>
 </div>
-<p>Set each of them on purpose. <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> supplies <code class="docutils literal notranslate"><span class="pre">CELL</span></code> only
-when the deck has no <code class="docutils literal notranslate"><span class="pre">CELL</span></code> line.</p>
+<p>Set each of them on purpose. A raw <code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code> entry or a <code class="docutils literal notranslate"><span class="pre">raw</span></code>
+section that already opens <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> is that section. The default writer does not open the same
+name again, so a periodic <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code> block is not followed by
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>. <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code>
+supplies <code class="docutils literal notranslate"><span class="pre">CELL</span></code> only when the deck has no <code class="docutils literal notranslate"><span class="pre">CELL</span></code> line.</p>
 </section>
 <section id="check-the-rendered-deck">
 <h1>Check the rendered deck<a class="headerlink" href="#check-the-rendered-deck" title="Link to this heading">¶</a></h1>

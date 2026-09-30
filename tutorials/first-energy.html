@@ -547,13 +547,16 @@ which brings in the Fortran runtime that <code class="docutils literal notransla
 </span><span data-line="4">./first_forces<span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.2.0 available=1
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.2.0 available=0
 </span><span data-line="2">energy_h=0.95870366
 </span><span data-line="3">force[0] =  -0.053992  -0.053992  -0.055259
 </span><span data-line="4">force[1] =  -0.006749  -0.007771  -0.006116
 </span><span data-line="5">force[2] =  -0.006749  -0.005727  -0.006116
 </span></pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">available=0</span></code> means this library is not linked to OpenCPMD. The energy
+in that transcript is the reference spring, a harmonic function of the
+positions, and it is not a plane-wave total energy.</p>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces()</span></code> returns the energy in Hartree and
 the forces in Hartree/Bohr, whatever units the <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code> names; the
 units of the message apply to the serialized <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> path.</p>

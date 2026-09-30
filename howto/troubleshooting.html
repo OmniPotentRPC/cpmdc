@@ -571,8 +571,8 @@ tree.</p>
 <section id="link-fails-with-r-x86-64-pc32-against-libcpmd-a">
 <h2>Link fails with <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> against <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code><a class="headerlink" href="#link-fails-with-r-x86-64-pc32-against-libcpmd-a" title="Link to this heading">¶</a></h2>
 <p><strong>Cause:</strong> OpenCPMD was compiled without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>.</p>
-<p><strong>Fix:</strong> add <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code> of the OpenCPMD
-configuration and rebuild the archive.</p>
+<p><strong>Fix:</strong> use <code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code>, which adds
+<code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>, and rebuild the archive.</p>
 </section>
 <section id="cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals">
 <h2><code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> fails to compile on <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code><a class="headerlink" href="#cpmd-embed-c-api-f90-fails-to-compile-on-embed-set-warm-orbitals" title="Link to this heading">¶</a></h2>

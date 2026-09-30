@@ -536,9 +536,9 @@ evaluator</p>
 text fixtures encoded by the <code class="docutils literal notranslate"><span class="pre">capnp</span></code> CLI (<code class="docutils literal notranslate"><span class="pre">tests/encode_capnp.py</span></code>).</p>
 <p>The standalone stub target is different from the default shared engine:
 <code class="docutils literal notranslate"><span class="pre">libcpmdc_stub.a</span></code> only provides linkable symbols and reports
-<code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>. The default shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> reports
-availability through the reference evaluator and can run the session
-tests.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>. The default shared <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> also returns
+<code class="docutils literal notranslate"><span class="pre">cpmdc_available()</span> <span class="pre">==</span> <span class="pre">0</span></code>, because that call means OpenCPMD is linked.
+Session tests still run on the reference evaluator.</p>
 </section>
 <section id="what-to-read-after-the-first-run">
 <h1>What To Read After The First Run<a class="headerlink" href="#what-to-read-after-the-first-run" title="Link to this heading">¶</a></h1>

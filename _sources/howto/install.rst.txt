@@ -9,7 +9,7 @@ option ``with_cpmd``:
 | Mode     | Option                               | Evaluator behind the  | ``cpmdc_available()`` |
 |          |                                      | C ABI                 |                       |
 +==========+======================================+=======================+=======================+
-| Default  | ``-Dwith_cpmd=false``                | deterministic         | 1                     |
+| Default  | ``-Dwith_cpmd=false``                | deterministic         | 0                     |
 |          |                                      | reference evaluator,  |                       |
 |          |                                      | no OpenCPMD           |                       |
 +----------+--------------------------------------+-----------------------+-----------------------+

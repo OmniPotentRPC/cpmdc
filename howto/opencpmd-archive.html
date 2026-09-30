@@ -391,7 +391,10 @@ process. A stock OpenCPMD archive does not work inside a host:
 <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> imports routines that only the patches add, the shared link
 stops on code built without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, and the unpatched SCF driver
 drops the forces and the orbitals that <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads after each call.
-Six patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.</p>
+Six patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.
+<code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> makes <code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> return the address
+as <code class="docutils literal notranslate"><span class="pre">size_t</span></code>. GCC 14 rejects the stock return of a pointer from that
+function.</p>
 </section>
 <section id="patches-and-what-each-one-is-for">
 <h1>Patches and what each one is for<a class="headerlink" href="#patches-and-what-each-one-is-for" title="Link to this heading">¶</a></h1>
@@ -456,6 +459,12 @@ while the depth is still
 <code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the process faults
 before <code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/c_mem_utils.c</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> returns a
+<code class="docutils literal notranslate"><span class="pre">size_t</span></code> pointer, and GCC 14
+stops on that conversion</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -500,11 +509,13 @@ until <code class="docutils literal notranslate"><span class="pre">tistart</span
 faults instead of writing <code class="docutils literal notranslate"><span class="pre">LocalError</span></code>. The walk runs only when the
 depth is inside <code class="docutils literal notranslate"><span class="pre">SIZE(tname%trace_names)</span></code>.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_patch_integrity.py</span></code> checks that the patches are
-portable unified diffs against the files named above. All five are the
-commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request
+portable unified diffs against the files named above. Apply
+<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code> first: <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads
+<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. The other five are the commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request
 9</a> (branch
 <code class="docutils literal notranslate"><span class="pre">embedding-hooks</span></code>, <code class="docutils literal notranslate"><span class="pre">43cf4e7</span></code>) and apply in sequence to OpenCPMD
-commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>.</p>
+commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>. Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> with them.
+<code class="docutils literal notranslate"><span class="pre">cuda_get_address</span></code> stores the <code class="docutils literal notranslate"><span class="pre">size_t</span></code> that function returns.</p>
 </section>
 <section id="build-a-patched-tree">
 <h1>Build a patched tree<a class="headerlink" href="#build-a-patched-tree" title="Link to this heading">¶</a></h1>
@@ -512,22 +523,30 @@ commit <code class="docutils literal notranslate"><span class="pre">062582b</spa
 first build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/OpenCPMD/CPMD.git<span class="w"> </span>opencpmd
 </span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>opencpmd
-</span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="5"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="6"><span class="k">done</span>
 </span></pre></div>
 </div>
-<p>Pick a configuration from <code class="docutils literal notranslate"><span class="pre">./configure.sh</span> <span class="pre">-help</span></code> that matches your
-compilers, for example <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code>. Copy it under a
-new name in <code class="docutils literal notranslate"><span class="pre">configure/</span></code> and add <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to both <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and
-<code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>. <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared library; a member of <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code>
-compiled without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> fails the link with a <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code>
-relocation error. Then configure into a separate build directory and
-build:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">./configure.sh<span class="w"> </span>-DEST<span class="o">=</span>/path/to/opencpmd-build<span class="w"> </span>LINUX-X86_64-GFORTRAN-MPI-PIC
-</span><span data-line="2">make<span class="w"> </span>-C<span class="w"> </span>/path/to/opencpmd-build<span class="w"> </span>-j<span class="w"> </span><span class="m">8</span>
-</span><span data-line="3">ls<span class="w"> </span>/path/to/opencpmd-build/lib/libcpmd.a<span class="w"> </span>/path/to/opencpmd-build/obj/timetag.o
+<p>The OpenCPMD sample <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code> sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to one
+person’s library path. Copying that file and adding <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> leaves the
+path in the build. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> ships
+<code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> for the command below. It calls
+<code class="docutils literal notranslate"><span class="pre">mpif90</span></code> and <code class="docutils literal notranslate"><span class="pre">gcc</span></code> from <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, adds <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> to <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>, and sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to <code class="docutils literal notranslate"><span class="pre">-lopenblas</span></code>. When <code class="docutils literal notranslate"><span class="pre">mpif90</span></code> accepts
+it, <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> also gains <code class="docutils literal notranslate"><span class="pre">-fallow-argument-mismatch</span></code>.
+<code class="docutils literal notranslate"><span class="pre">mp_bcast_byte</span></code> broadcasts the bytes of its first argument, and one
+procedure calls it with several derived types. gfortran 10 and later
+stop on those calls without the flag. That OpenBLAS build has to export
+the LAPACK symbols. <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared library; a member of
+<code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code> compiled without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> fails the link with a
+<code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> relocation error. Copy the shipped file into the
+clone, then configure and build:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cp<span class="w"> </span>/path/to/cpmdc/tools/LINUX-X86_64-GFORTRAN-MPI-PIC<span class="w"> </span>configure/
+</span><span data-line="2">./configure.sh<span class="w"> </span>-DEST<span class="o">=</span>/path/to/opencpmd-build<span class="w"> </span>LINUX-X86_64-GFORTRAN-MPI-PIC
+</span><span data-line="3">make<span class="w"> </span>-C<span class="w"> </span>/path/to/opencpmd-build<span class="w"> </span>-j<span class="w"> </span><span class="m">8</span>
+</span><span data-line="4">ls<span class="w"> </span>/path/to/opencpmd-build/lib/libcpmd.a<span class="w"> </span>/path/to/opencpmd-build/obj/timetag.o
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">/path/to/opencpmd-build</span></code> is the <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> passed to Meson. The
@@ -539,8 +558,8 @@ and the headers in <code class="docutils literal notranslate"><span class="pre">
 <p>When the tree was built before the patches were applied, patch the
 source and rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
-</span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
-</span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="4"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="5"><span class="k">done</span>
 </span><span data-line="6">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build

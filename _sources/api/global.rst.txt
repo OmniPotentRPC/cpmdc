@@ -571,7 +571,7 @@ Compare against the CPMDC_ABI_VERSION the consumer compiled with.
 
 	int cpmdc_available(void)
 
-1 when the embedded OpenCPMD runtime is available.
+1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub.
 
 .. index:: pair: function; cpmdc_finalize
 .. _doxid-cpmdc_8h_1afae0c7a27c94036223f7a0cf60488f56:

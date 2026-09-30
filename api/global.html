@@ -619,7 +619,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 <p>Numeric ABI generation of the compiled library.</p>
 <p>Compare against the CPMDC_ABI_VERSION the consumer compiled with.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a25f2bc651370d207f2049574e7073e0d"><span id="index-35"></span>int cpmdc_available(void)</pre>
-<p>1 when the embedded OpenCPMD runtime is available.</p>
+<p>1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1afae0c7a27c94036223f7a0cf60488f56"><span id="index-36"></span>void cpmdc_finalize(void)</pre>
 <p>Finalize an owned embedded CPMD runtime.</p>
 <pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a0d2884a4f1288d9f5e76ec4abb505246"><span id="index-37"></span>int cpmdc_last_energy_components(<a class="reference internal" href="struct_CPMDCEnergyComponents.html#doxid-struct-c-p-m-d-c-energy-components"><span class="std std-ref">CPMDCEnergyComponents</span></a>* out)</pre>

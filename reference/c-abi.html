@@ -607,11 +607,10 @@ project version</p></td>
 the shared-library soversion</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_available(void)</span></code></p></td>
-<td><p>1 when an evaluator is ready:
-the reference evaluator in the
-default build, OpenCPMD in an
-OpenCPMD build; 0 in the stub
-and after <code class="docutils literal notranslate"><span class="pre">cpmdc_finalize()</span></code></p></td>
+<td><p>1 when OpenCPMD is linked,
+ready, and not finalized; 0 on
+the reference build; 0 after
+finalize and from the link stub</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">void</span> <span class="pre">cpmdc_finalize(void)</span></code></p></td>
 <td><p>marks the runtime finalized;
