@@ -6,11 +6,18 @@
 #include <string.h>
 #include <sys/stat.h>
 
+static size_t bounded_len(const char *src, size_t cap) {
+  size_t n = 0;
+  while (n < cap && src[n] != '\0')
+    n++;
+  return n;
+}
+
 static int copy_trimmed_dir(const char *src, char *dst, size_t cap) {
   size_t n;
   if (!src || !dst || cap < 2)
     return -1;
-  n = strnlen(src, cap);
+  n = bounded_len(src, cap);
   if (n == 0 || n >= cap)
     return -1;
   memcpy(dst, src, n);
