@@ -211,7 +211,7 @@ cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep],
+  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: common_c_args + capnp_generated_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
