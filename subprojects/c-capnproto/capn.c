@@ -795,6 +795,9 @@ static void write_double_far(char *d, struct capn_segment *s, char *tgt) {
 
 static int write_ptr(struct capn_segment *s, char *d, capn_ptr p) {
 	/* note p.seg can be NULL if its a ptr to static data */
+	/* C11 6.5.3.2: a null segment is not a pointer store. */
+	if (!s)
+		return -1;
 	/* C11 6.5.6: do not step a null pointer, or step before the segment. */
 	char *pdata = p.data;
 
