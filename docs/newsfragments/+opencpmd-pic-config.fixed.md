@@ -1,1 +1,1 @@
-The archive how-to copies `tools/LINUX-X86_64-GFORTRAN-MPI-PIC` into a fresh OpenCPMD tree before `configure.sh`. That file adds `-fPIC` and links `-lopenblas`.
+The archive how-to applies `opencpmd_embed_geometry.patch` before `opencpmd_embed_rwfopt.patch`, then copies `tools/LINUX-X86_64-GFORTRAN-MPI-PIC` into the clone before `configure.sh`. That file adds `-fPIC` and links `-lopenblas`.
