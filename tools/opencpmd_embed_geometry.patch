@@ -1,0 +1,54 @@
+diff --git c/src/SOURCES w/src/SOURCES
+index 3dfa594..67500c6 100644
+--- c/src/SOURCES
++++ w/src/SOURCES
+@@ -81,7 +81,7 @@ SRC_XC  = # moved to modules section
+ #----------------------------------------------------------------------------
+ 
+ 
+-SRC_MODULES = kinds.mod.F90 machine.mod.F90 timer.mod.F90 error_handling.mod.F90 para_global.mod.F90 \
++SRC_MODULES = kinds.mod.F90 embed_ctrl.mod.F90 machine.mod.F90 timer.mod.F90 error_handling.mod.F90 para_global.mod.F90 \
+            mp_interface.mod.F90 mp_multiple_comm_init.mod.F90 system.mod.F90 system_utils.mod.F90 reshaper.mod.F90 \
+            mm_parallel.mod.F90 if_parallel.mod.F90 md_driver.mod.F90 \
+            control_utils.mod.F90 dftin_utils.mod.F90 sysin_utils.mod.F90 setsc_utils.mod.F90 detsp_utils.mod.F90 \
+diff --git c/src/embed_ctrl.mod.F90 w/src/embed_ctrl.mod.F90
+new file mode 100644
+index 0000000..ec0d497
+--- /dev/null
++++ w/src/embed_ctrl.mod.F90
+@@ -0,0 +1,12 @@
++MODULE embed_ctrl
++
++  IMPLICIT NONE
++
++  PRIVATE
++
++  ! cpmd.x leaves this true. rwfopt skips zhwwf, and rwfopt and initrun
++  ! skip geofile, when a host sets it false. wrgeof still prints
++  ! coordinates on the output.
++  LOGICAL, PUBLIC, SAVE :: embed_write_files = .TRUE.
++
++END MODULE embed_ctrl
+diff --git c/src/initrun_driver.mod.F90 w/src/initrun_driver.mod.F90
+index 6ce8ff5..a02e8a6 100644
+--- c/src/initrun_driver.mod.F90
++++ w/src/initrun_driver.mod.F90
+@@ -14,6 +14,7 @@ MODULE initrun_driver
+                                              velp
+   USE copot_utils,                     ONLY: copot
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_write_files
+   USE error_handling,                  ONLY: stopgm
+   USE fint,                            ONLY: fint1
+   USE geofile_utils,                   ONLY: geofile
+@@ -311,7 +312,9 @@ CONTAINS
+                   __LINE__,__FILE__)
+           ENDIF
+ 
+-          CALL geofile(tau0,velp,'WRITE')
++          ! embed_write_files is true for cpmd.x. A host that keeps the
++          ! geometry itself sets it false and this write is skipped.
++          IF (embed_write_files) CALL geofile(tau0,velp,'WRITE')
+        ENDIF
+     ENDIF
+     ! Initialization of density and potential

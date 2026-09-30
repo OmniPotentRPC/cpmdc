@@ -8,12 +8,13 @@ A stock OpenCPMD archive does not work inside a host: ~libcpmdc~ imports
 routines that only the patches add, the shared link stops on code built
 without ~-fPIC~, and the unpatched SCF driver drops the forces and the
 orbitals that ~cpmdc~ reads after each call.
-Five patches in ~tools/~ and one compiler flag fix those.
+Six patches in ~tools/~ and one compiler flag fix those.
 
 * Patches and what each one is for
 
 | Patch | File patched | Without it |
 |-------+--------------+------------|
+| ~opencpmd_embed_geometry.patch~ | ~src/embed_ctrl.mod.F90~, ~src/initrun_driver.mod.F90~, ~src/SOURCES~ | ~initrun~ still writes ~GEOMETRY~ after ~embed_set_write_files(.FALSE.)~, and ~rwfopt~ has no ~embed_ctrl~ to read |
 | ~opencpmd_embed_rwfopt.patch~ | ~src/rwfopt_utils.mod.F90~ | ~rwfopt~ deallocates ~fion~ on return and starts every SCF from a fresh guess, and ~cpmd_embed_c_api.F90~ does not compile |
 | ~opencpmd_converged_state.patch~ | ~src/updwf_utils.mod.F90~ | the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces; steepest descent with ~iproj <= 1~ also needs its ~gemax~ reset before the convergence check |
 | ~opencpmd_kpoints_inputfile.patch~ | ~src/rkpnt_utils.mod.F90~ | the k-point report reads the host's ~argv[1]~ as the input file name and stops with ~STOP 12345~ when it is missing or longer than 80 characters |
@@ -21,7 +22,12 @@ Five patches in ~tools/~ and one compiler flag fix those.
 | ~opencpmd_tistopgm.patch~ | ~src/timer.mod.F90~ | ~tistopgm~ indexes ~trace_depth~ before ~tistart~, while the depth is still ~HUGE(0)~, and the process faults before ~LocalError~ |
 
 The rwfopt patch publishes ~embed_set_warm_orbitals~,
-~embed_set_need_forces~, and ~embed_reset_warm_orbitals~.
+~embed_set_need_forces~, ~embed_reset_warm_orbitals~, and
+~embed_set_write_files~.
+The geometry patch adds ~embed_ctrl~, which holds ~embed_write_files~
+(default true). Setting it false skips ~geofile~ in ~initrun~ and the
+~zhwwf~ and ~geofile~ writes in ~rwfopt~. ~wrgeof~ still prints coordinates.
+~embed_set_warm_orbitals(.FALSE.)~ frees the saved orbitals.
 ~embed_warm_orbitals~ and ~embed_need_forces~ default to false, which is the
 ~cpmd.x~ behaviour.
 ~rwfopt~ leaves ~fion~ allocated only when ~embed_need_forces~ is true, and

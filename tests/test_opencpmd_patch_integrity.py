@@ -9,6 +9,11 @@ from pathlib import Path
 
 
 PATCHES = {
+    "opencpmd_embed_geometry.patch": (
+        "src/SOURCES",
+        "src/embed_ctrl.mod.F90",
+        "src/initrun_driver.mod.F90",
+    ),
     "opencpmd_embed_rwfopt.patch": "src/rwfopt_utils.mod.F90",
     "opencpmd_converged_state.patch": "src/updwf_utils.mod.F90",
     "opencpmd_kpoints_inputfile.patch": "src/rkpnt_utils.mod.F90",
@@ -20,7 +25,7 @@ PATCHES = {
 INSERT_ONLY = {"opencpmd_stopgm_return.patch"}
 
 
-def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
+def patch_numstat(repo: Path, patch: Path) -> list[tuple[int, int, str]]:
     result = subprocess.run(
         ["git", "apply", "--numstat", str(patch)],
         cwd=repo,
@@ -29,10 +34,15 @@ def patch_numstat(repo: Path, patch: Path) -> tuple[int, int, str]:
         text=True,
     )
     rows = [line.split("\t", 2) for line in result.stdout.splitlines() if line]
-    if len(rows) != 1 or len(rows[0]) != 3:
-        raise AssertionError(f"{patch.name}: expected one numstat row, got {rows!r}")
-    added, removed, target = rows[0]
-    return int(added), int(removed), target
+    parsed: list[tuple[int, int, str]] = []
+    for row in rows:
+        if len(row) != 3:
+            raise AssertionError(f"{patch.name}: bad numstat row {row!r}")
+        added, removed, target = row
+        parsed.append((int(added), int(removed), target))
+    if not parsed:
+        raise AssertionError(f"{patch.name}: empty numstat")
+    return parsed
 
 
 def assert_embed_rwfopt(patch: Path) -> None:
@@ -41,6 +51,8 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "PUBLIC :: embed_set_warm_orbitals",
         "PUBLIC :: embed_set_need_forces",
         "PUBLIC :: embed_reset_warm_orbitals",
+        "PUBLIC :: embed_set_write_files",
+        "CALL embed_reset_warm_orbitals",
         "IF (embed_warm_orbitals .AND. ropt_mod%convwf) CALL embed_save_orbitals(c0)",
         "IF (.NOT.embed_need_forces) THEN",
         "IF (ALLOCATED(fion)) DEALLOCATE(fion)",
@@ -116,7 +128,10 @@ def main() -> int:
     repo = Path(sys.argv[1]).resolve()
     for name, expected_target in PATCHES.items():
         patch = repo / "tools" / name
-        added, removed, target = patch_numstat(repo, patch)
+        rows = patch_numstat(repo, patch)
+        added = sum(row[0] for row in rows)
+        removed = sum(row[1] for row in rows)
+        targets = tuple(row[2] for row in rows)
         if added <= 0:
             raise AssertionError(f"{name}: patch must add embed integration code")
         if name in INSERT_ONLY:
@@ -129,6 +144,9 @@ def main() -> int:
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
             assert_embed_rwfopt(patch)
+        elif name == "opencpmd_embed_geometry.patch":
+            if "embed_write_files" not in patch.read_text(encoding="utf-8"):
+                raise AssertionError(f"{name}: missing embed_write_files")
         elif name == "opencpmd_converged_state.patch":
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
@@ -139,9 +157,10 @@ def main() -> int:
             assert_tistopgm(patch)
         elif removed <= 0:
             raise AssertionError(f"{name}: patch must replace upstream code")
-        if target != expected_target:
+        expected = expected_target if isinstance(expected_target, tuple) else (expected_target,)
+        if targets != expected:
             raise AssertionError(
-                f"{name}: target {target!r}, expected {expected_target!r}"
+                f"{name}: targets {targets!r}, expected {expected!r}"
             )
     print(f"OK: {len(PATCHES)} portable OpenCPMD patches")
     return 0
