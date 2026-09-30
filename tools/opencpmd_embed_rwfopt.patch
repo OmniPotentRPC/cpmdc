@@ -1,8 +1,7 @@
 diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
-index 4fada5b..02c5f3a 100644
 --- c/src/rwfopt_utils.mod.F90
 +++ w/src/rwfopt_utils.mod.F90
-@@ -21,6 +21,7 @@ MODULE rwfopt_utils
+@@ -21,6 +21,7 @@
    USE dynit_utils,                     ONLY: dynit
    USE efld
    USE ehrenfest_utils,                 ONLY: ehrenfest
@@ -10,7 +9,17 @@ index 4fada5b..02c5f3a 100644
    USE elct
    USE enbandpri_utils,                 ONLY: enbandpri
    USE ener
-@@ -106,10 +107,128 @@ MODULE rwfopt_utils
+@@ -65,7 +66,8 @@
+   USE rhoofr_utils,                    ONLY: rhoofr
+   USE rhopri_utils,                    ONLY: give_scr_rhopri,&
+                                              rhopri
+-  USE rinitwf_driver,                  ONLY: rinitwf
++  USE rinitwf_driver,                  ONLY: embed_have_orbitals,&
++                                             rinitwf
+   USE ropt
+   USE rscpot_utils,                    ONLY: give_scr_rscpot,&
+                                              rscpot
+@@ -106,11 +108,130 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -22,10 +31,12 @@ index 4fada5b..02c5f3a 100644
 +  !     after a converged rwfopt. An unconverged call leaves fion zero.
 +  !     The next rwfopt frees a surviving fion.
 +  !   embed_warm_orbitals: start the next rwfopt from orbitals saved after
-+  !     convwf was set, instead of the generated guess. The first SCF
-+  !     iteration builds the density from those orbitals. An unconverged
-+  !     pass keeps a partial copy only while no converged copy exists, and
-+  !     rwfopt restores that copy when the caller switches to PCG MINIMIZE.
++  !     convwf was set. rinitwf leaves that c0 in place, and the first SCF
++  !     iteration builds the density from it. The first call has no stored
++  !     copy and still builds the guess. embed_have_orbitals lives in
++  !     rinitwf_driver. An unconverged pass keeps a partial copy only while
++  !     no converged copy exists, and rwfopt restores that copy when the
++  !     caller switches to PCG MINIMIZE.
 +  !     embed_set_warm_orbitals(.FALSE.) frees the saved orbitals, as does
 +  !     embed_reset_warm_orbitals. Call that after a caught stopgm or when
 +  !     the system changes.
@@ -38,7 +49,6 @@ index 4fada5b..02c5f3a 100644
 +  PUBLIC :: embed_set_write_files
 +  LOGICAL, SAVE :: embed_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_need_forces = .FALSE.
-+  LOGICAL, SAVE :: embed_have_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_have_partial = .FALSE.
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_c0_store(:,:,:)
 +  INTEGER, SAVE :: embed_store_s1 = 0, embed_store_s2 = 0, embed_store_s3 = 0
@@ -46,7 +56,7 @@ index 4fada5b..02c5f3a 100644
  
  CONTAINS
  
-+  ! ==================================================================
+   ! ==================================================================
 +  SUBROUTINE embed_set_warm_orbitals(flag)
 +    ! ==--------------------------------------------------------------==
 +    LOGICAL, INTENT(IN) :: flag
@@ -136,10 +146,11 @@ index 4fada5b..02c5f3a 100644
 +  END SUBROUTINE embed_restore_orbitals
 +
 +
-   ! ==================================================================
++  ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
-@@ -180,7 +299,7 @@ CONTAINS
+     COMPLEX(real_8), INTENT(inout)           :: c0(:,:,:), c2(:,:), sc0(:,:,:)
+@@ -180,7 +301,7 @@
      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
           __LINE__,__FILE__)
      ! ==--------------------------------------------------------------==
@@ -148,7 +159,7 @@ index 4fada5b..02c5f3a 100644
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -196,6 +315,8 @@ CONTAINS
+@@ -196,6 +317,8 @@
         ALLOCATE(taup(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
@@ -157,23 +168,28 @@ index 4fada5b..02c5f3a 100644
         ALLOCATE(fion(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
-@@ -305,7 +426,15 @@ CONTAINS
+@@ -305,7 +428,20 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
 +    ! initrun initializes iteration state and scratch arrays for every SCF.
-+    ! Warm mode replaces only the generated starting orbitals with saved c0.
++    ! The stored c0 is copied first. rinitwf then returns after phfac, so
++    ! the guess does not run, and the density initrun builds comes from
++    ! those orbitals. A restart read inside initrun can replace c0, so the
++    ! same copy is applied again. A converged copy wins. The partial copy
++    ! is the unconverged ODIIS c0 from the pass that just returned, and
++    ! only the PCG MINIMIZE continuation (diis off) may start from it.
++    IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
++        (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
++        CALL embed_restore_orbitals(c0)
      CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
-+    ! A converged copy wins. The partial copy is the unconverged ODIIS c0
-+    ! from the pass that just returned, and only the PCG MINIMIZE continuation
-+    ! (diis off) may start from it. A later DIIS call keeps the old rule.
 +    IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
 +        (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
 +        CALL embed_restore_orbitals(c0)
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -460,7 +589,7 @@ CONTAINS
+@@ -460,7 +596,7 @@
                          infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf).AND.MOD(cdfti,store1%isctore).EQ.0)&
                          THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -182,7 +198,7 @@ index 4fada5b..02c5f3a 100644
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     IF (ropt_mod%convwf) THEN
-@@ -476,7 +605,7 @@ CONTAINS
+@@ -476,7 +612,7 @@
                  IF (convtest) THEN
                     IF (.NOT.cntl%bsymm.AND.MOD(cdfti,store1%isctore).NE.0)THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -191,7 +207,7 @@ index 4fada5b..02c5f3a 100644
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     ropt_mod%convwf=.TRUE.
-@@ -551,7 +680,7 @@ CONTAINS
+@@ -551,7 +687,7 @@
                  IF (.NOT.cntl%bsymm.AND.&
                       (MOD(infi,store1%istore).EQ.0.OR.infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf))THEN
                     CALL mm_dim(mm_go_mm,statusdummy)
@@ -200,7 +216,7 @@ index 4fada5b..02c5f3a 100644
                     CALL mm_dim(mm_revert,statusdummy)
                  ENDIF
                  IF (ropt_mod%convwf) THEN
-@@ -863,7 +992,7 @@ CONTAINS
+@@ -863,7 +999,7 @@
      IF (cntl%tpspec) THEN
         IF (rout1%rhoout) CALL rhopri(c0,tau0,rhoe,psi(:,1),crge%n,nkpt%nkpnt)
         CALL mm_dim(mm_go_mm,statusdummy)
@@ -209,7 +225,7 @@ index 4fada5b..02c5f3a 100644
      ENDIF
      ! EHR]
      !
-@@ -882,7 +1011,7 @@ CONTAINS
+@@ -882,7 +1018,7 @@
         CALL prcplngs(cplion,cplcfg,.TRUE.)
         IF (tfor.AND.tcplfd.OR.tcpllr) THEN
            IF (tcplfd) irec(irec_phes) = 1
@@ -218,13 +234,13 @@ index 4fada5b..02c5f3a 100644
         ENDIF
         DEALLOCATE(cplion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -913,16 +1042,32 @@ CONTAINS
+@@ -913,16 +1049,32 @@
      IF (paral%parent) THEN
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
 -       CALL geofile(tau0,fion,'WRITE')
 +       IF (embed_write_files) CALL geofile(tau0,fion,'WRITE')
-     ENDIF
++    ENDIF
 +    ! Every rank keeps its own slice of c0 for the next warm start. Only
 +    ! converged orbitals replace a stored start. With no converged copy yet,
 +    ! keep this pass so a PCG MINIMIZE continuation does not rebuild the
@@ -237,7 +253,7 @@ index 4fada5b..02c5f3a 100644
 +      CALL embed_save_orbitals(c0)
 +      embed_have_orbitals = .FALSE.
 +      embed_have_partial = .TRUE.
-+    ENDIF
+     ENDIF
      ! CB: TAUP,FION handled by BS_WFO
      IF (.NOT.cntl%bsymm) THEN
         DEALLOCATE(taup,STAT=ierr)

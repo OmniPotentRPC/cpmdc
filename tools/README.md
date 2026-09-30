@@ -6,8 +6,9 @@ linking `libcpmdc`.
 
 | Patch | Purpose |
 | --- | --- |
+| `opencpmd_embed_rinitwf.patch` | Publish `embed_have_orbitals`. When that flag is true, `rinitwf` returns after `phfac` and, when `corel%tinlc`, `copot`. The atomic, random, and primitive guesses do not run. `cpmd.x` never sets the flag. Apply this before the rwfopt patch |
 | `opencpmd_embed_geometry.patch` | Add `embed_ctrl` and `embed_write_files` (default `.TRUE.`). `embed_set_write_files(.FALSE.)` skips the `geofile` `GEOMETRY` write in `initrun` as well as the `zhwwf` and `geofile` writes in `rwfopt`. `wrgeof` still prints coordinates. Apply this before the rwfopt patch |
-| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, `embed_reset_warm_orbitals`, and `embed_set_write_files`. Leave `fion` allocated only when `embed_need_forces` is true. An unconverged call leaves `fion` zero. Save `c0` when `embed_warm_orbitals` is true and the SCF converged. An unconverged pass keeps a partial copy only while no converged copy exists, and only a PCG MINIMIZE continuation restores it. `embed_set_warm_orbitals(.FALSE.)` frees the saved copy. A shape mismatch on restore calls `stopgm` |
+| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, `embed_reset_warm_orbitals`, and `embed_set_write_files`. Leave `fion` allocated only when `embed_need_forces` is true. An unconverged call leaves `fion` zero. Save `c0` when `embed_warm_orbitals` is true and the SCF converged. Copy that `c0` in before `initrun` and again after it. An unconverged pass keeps a partial copy only while no converged copy exists, and only a PCG MINIMIZE continuation restores it. `embed_set_warm_orbitals(.FALSE.)` frees the saved copy. A shape mismatch on restore calls `stopgm` |
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`. DIIS/PCG/steepest-descent updates run only while the pre-update gradient is unconverged. Steepest descent with `iproj <= 1` raises `gemax` before that check |
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
 | `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The wavefunction and forces of that call are undefined, the next call sets CPMD up again, and more than one rank aborts the others. A null hook leaves `cpmd.x` calling `my_stopall` |
@@ -17,6 +18,7 @@ linking `libcpmdc`.
 
 ```bash
 # from the OpenCPMD/CPMD tree used as -Dcpmd_root=
+patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_rinitwf.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_geometry.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_rwfopt.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_converged_state.patch

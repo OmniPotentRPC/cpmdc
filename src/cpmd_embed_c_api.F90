@@ -1736,11 +1736,10 @@ CONTAINS
     ! that store exists, and an unconverged SCF leaves the previous
     ! converged copy in place, so a later SCF is still a warm start.
     ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
-    ! initrun builds starting orbitals before the stored c0 replaces them.
-    ! Once a converged copy exists (a warm call), the simple atomic
-    ! superposition (inwfun 3: loadc, one orthogonalisation, no force
-    ! evaluation) stands in for the Lanczos guess and for the random start,
-    ! both of which run a full SCF step on orbitals that are then discarded.
+    ! When that copy is stored, rinitwf returns after the phase factors
+    ! and does not build a guess. inwfun 3 is the start when the copy is
+    ! absent: loadc, one orthogonalisation, and no force evaluation.
+    ! That stands in for the Lanczos guess and for the random start.
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
     ! The cheap guess is for a process that already holds c0. A new

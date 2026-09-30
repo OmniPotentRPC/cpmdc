@@ -17,9 +17,12 @@ fi
 # scex_utils.mod before rwfopt_utils reads it. A parallel rebuild leaves
 # the two module files naming different vtable components, and the next
 # USE rwfopt_utils stops.
+# rwfopt_utils reads embed_have_orbitals from rinitwf_driver, so that
+# module is compiled first.
 objects=(
   error_handling.mod.o
   scex_utils.mod.o
+  rinitwf_driver.mod.o
   rwfopt_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o

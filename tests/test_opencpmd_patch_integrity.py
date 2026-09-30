@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 PATCHES = {
+    "opencpmd_embed_rinitwf.patch": "src/rinitwf_driver.mod.F90",
     "opencpmd_embed_geometry.patch": (
         "src/SOURCES",
         "src/embed_ctrl.mod.F90",
@@ -46,6 +47,23 @@ def patch_numstat(repo: Path, patch: Path) -> list[tuple[int, int, str]]:
     return parsed
 
 
+def assert_embed_rinitwf(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "LOGICAL, SAVE, PUBLIC :: embed_have_orbitals = .FALSE.",
+        "CALL phfac(tau0)",
+        "IF (corel%tinlc) CALL copot(rhoe,psi,.FALSE.)",
+        "CALL tihalt(procedureN,isub)",
+        "RETURN",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+    if "cntl%embed_warm_orbitals" in text:
+        raise AssertionError(
+            f"{patch.name}: must not use cntl%embed_warm_orbitals"
+        )
+
+
 def assert_embed_rwfopt(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     for needle in (
@@ -62,9 +80,32 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "CALL stopgm('embed_save_orbitals', 'allocation problem'",
         "CALL stopgm('embed_restore_orbitals'",
         "saved orbitals do not match c0; call embed_reset_warm_orbitals",
+        "USE rinitwf_driver,                  ONLY: embed_have_orbitals",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
+    if "LOGICAL, SAVE :: embed_have_orbitals" in text:
+        raise AssertionError(
+            f"{patch.name}: embed_have_orbitals must live in rinitwf_driver"
+        )
+    lines = text.splitlines()
+    init_at = [
+        i
+        for i, line in enumerate(lines)
+        if line.startswith(" ")
+        and "CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)" in line
+    ]
+    restore_at = [
+        i
+        for i, line in enumerate(lines)
+        if line.startswith("+") and "CALL embed_restore_orbitals(c0)" in line
+    ]
+    if len(init_at) != 1 or len(restore_at) != 2 or not (
+        restore_at[0] < init_at[0] < restore_at[1]
+    ):
+        raise AssertionError(
+            f"{patch.name}: stored c0 must be restored before and after initrun"
+        )
     for symbol in (
         "cpmdc_set_warm_orbitals",
         "cpmdc_set_need_forces",
@@ -143,6 +184,12 @@ def main() -> int:
                     f"{name}: hook patch must only add lines, removed {removed}"
                 )
             assert_stopgm_hook(patch)
+        elif name == "opencpmd_embed_rinitwf.patch":
+            if removed != 0:
+                raise AssertionError(
+                    f"{name}: guess skip must only add lines, removed {removed}"
+                )
+            assert_embed_rinitwf(patch)
         elif name == "opencpmd_embed_rwfopt.patch":
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
