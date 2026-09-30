@@ -530,8 +530,13 @@ static void set_member(struct str *func, struct field *f, const char *ptr, const
 }
 
 static void get_member(struct str *func, struct field *f, const char *ptr, const char *tab, const char *var) {
-	const char *xor = xor_member(f);
-	const char *pvar = ptr_member(f, var);
+	const char *xor;
+	const char *pvar;
+	/* C11 6.5.3.2: a null field is not a member read. */
+	if (!func || !f || !ptr || !var)
+		return;
+	xor = xor_member(f);
+	pvar = ptr_member(f, var);
 
 	if (f->v.t.which == Type__void)
 		return;
