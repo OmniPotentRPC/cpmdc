@@ -225,6 +225,10 @@ capn_write_mem(struct capn *c, uint8_t *p, size_t sz, int packed)
 	if (sz < datasz)
 		return -1;
 
+	/* C11 6.5.3.2: a null buffer is not a store. */
+	if (!p)
+		return -1;
+
 	header[0] = capn_flip32(c->segnum - 1);
 	header[headerlen-1] = 0;
 	for (i = 0, seg = root.seg; i < c->segnum; i++, seg = seg->next) {
