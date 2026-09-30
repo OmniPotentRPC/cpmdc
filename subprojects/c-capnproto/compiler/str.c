@@ -112,10 +112,16 @@ int str_addf(struct str *v, const char* format, ...) {
 }
 
 char *strf(struct str *v, const char* format, ...) {
+	/* C11 6.5.3.2: a null buffer is not a format write. */
+	if (!v || !format)
+		return NULL;
+	str_reset(v);
+
 	va_list ap;
 	va_start(ap, format);
-	str_reset(v);
 	str_vaddf(v, format, ap);
+	va_end(ap);
+
 	return v->str;
 }
 
