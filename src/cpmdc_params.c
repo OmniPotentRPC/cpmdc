@@ -14,7 +14,9 @@ _Static_assert(offsetof(CPMDCChargeIntegrals, csumsabs) -
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const capn_text empty_text = {0, "", NULL};
@@ -106,16 +108,25 @@ static int text_has_word_ci(capn_text text, const char *word) {
   return 0;
 }
 
+/* Set when an append does not fit. Distinct from a rejected deck field. */
+static _Thread_local int g_deck_overflow;
+
 static int append_fmt(char *dst, size_t dst_size, size_t *used, const char *fmt,
                       ...) {
-  if (!dst || !used || *used >= dst_size)
+  if (!dst || !used || *used >= dst_size) {
+    g_deck_overflow = 1;
     return -1;
+  }
   va_list ap;
   va_start(ap, fmt);
   int n = vsnprintf(dst + *used, dst_size - *used, fmt, ap);
   va_end(ap);
-  if (n < 0 || (size_t)n >= dst_size - *used)
+  if (n < 0)
     return -1;
+  if ((size_t)n >= dst_size - *used) {
+    g_deck_overflow = 1;
+    return -1;
+  }
   *used += (size_t)n;
   return 0;
 }
@@ -129,8 +140,10 @@ static int append_capn_text(char *dst, size_t dst_size, size_t *used,
   if (!text.str || text.len <= 0)
     return 0;
   /* INT30-C: used + len wraps when used is near SIZE_MAX. One byte stays for NUL. */
-  if (*used >= dst_size || (size_t)text.len > dst_size - *used - 1)
+  if (*used >= dst_size || (size_t)text.len > dst_size - *used - 1) {
+    g_deck_overflow = 1;
     return -1;
+  }
   memcpy(dst + *used, text.str, (size_t)text.len);
   *used += (size_t)text.len;
   dst[*used] = '\0';
@@ -4386,9 +4399,41 @@ int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
   return cpmdc_params_render_input_deck_ov(params, NULL, dst, dst_size);
 }
 
+int cpmdc_params_render_input_deck_alloc(CPMDParams_ptr params,
+                                         const CPMDCScalarOverrides *overrides,
+                                         char **deck) {
+  size_t cap = 4096u;
+  char *buf = NULL;
+  if (!deck)
+    return -1;
+  *deck = NULL;
+  if (params.p.type == CAPN_NULL)
+    return -1;
+  for (int attempt = 0; attempt < 24; ++attempt) {
+    char *next = (char *)realloc(buf, cap);
+    if (!next) {
+      free(buf);
+      return -1;
+    }
+    buf = next;
+    if (cpmdc_params_render_input_deck_ov(params, overrides, buf, cap) == 0) {
+      *deck = buf;
+      return 0;
+    }
+    if (!g_deck_overflow || cap > (SIZE_MAX / 2u)) {
+      free(buf);
+      return -1;
+    }
+    cap *= 2u;
+  }
+  free(buf);
+  return -1;
+}
+
 int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
                                       const CPMDCScalarOverrides *overrides,
                                       char *dst, size_t dst_size) {
+  g_deck_overflow = 0;
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0)
     return -1;
   dst[0] = '\0';
@@ -4797,6 +4842,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
     CPMDParams_ptr params, const CPMDCScalarOverrides *overrides, int n_atoms,
     const double *positions_ang, const int *atomic_numbers,
     const double *cell_ang, int has_cell, char *dst, size_t dst_size) {
+  g_deck_overflow = 0;
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0 || n_atoms <= 0 ||
       !positions_ang || !atomic_numbers)
     return -1;
