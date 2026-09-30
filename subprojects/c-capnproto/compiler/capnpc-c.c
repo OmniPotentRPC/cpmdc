@@ -67,7 +67,11 @@ static void insert_node(struct node *s) {
  * It also builds up the list of nodes within a file (file_nodes and
  * next_file_node). */
 static void resolve_names(struct str *b, struct node *n, capn_text name, struct node *file) {
-	int i, sz = b->len;
+	int i, sz;
+	/* C11 6.5.3.2: a null node is not a name. */
+	if (!b || !n || !file)
+		return;
+	sz = b->len;
 	str_add(b, name.str, name.len);
 	str_add(&n->name, b->str, b->len);
 	str_add(b, "_", 1);
