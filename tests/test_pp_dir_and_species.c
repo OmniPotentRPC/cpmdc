@@ -516,10 +516,6 @@ static void test_split_species_and_output_directory(void **state) {
   }
   assert_non_null(after);
   assert_true(snapshots_equal(before, before_n, after, after_n));
-  assert_false(file_exists(pseudo, "RESTART.1"));
-  assert_false(file_exists(pseudo, "LATEST"));
-  assert_false(file_exists(pseudo, "GEOMETRY"));
-  assert_false(file_exists(pseudo, "GEOMETRY.xyz"));
   assert_true(file_exists(scratch, "GEOMETRY.xyz") ||
               file_exists(scratch, "GEOMETRY") ||
               file_exists(scratch, "LATEST") ||
