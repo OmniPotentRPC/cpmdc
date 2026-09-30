@@ -682,7 +682,13 @@ static const char *field_name(struct field *f) {
 
 static void union_block(struct strings *s, struct field *f) {
 	static struct str buf = STR_INIT;
+	/* C11 6.5.3.2: a null block is not a union body. */
+	if (!s || !s->var.str)
+		return;
 	str_add(&s->ftab, "\t", -1);
+	/* C11 7.21.6.1: a null tab is not a %s argument. */
+	if (!s->ftab.str)
+		return;
 	set_member(&s->set, f, "p.p", s->ftab.str, strf(&buf, "%s%s", s->var.str, field_name(f)));
 	get_member(&s->get, f, "p.p", s->ftab.str, strf(&buf, "%s%s", s->var.str, field_name(f)));
 	str_addf(&s->set, "%sbreak;\n", s->ftab.str);
