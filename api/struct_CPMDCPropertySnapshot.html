@@ -291,7 +291,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -400,13 +403,13 @@ data-aria-dark="Switch to auto color mode">
 struct CPMDCPropertySnapshot {
     // fields
 
-    int <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1ab26d1b54dbe94a3381bd01ef061f2c87">valid</span>;
-    size_t <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1a219308dd9232cb5340fc99466db536a5">hessian_count</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1af26b4dd2e4fbde6ebf3605d6eb778f2e">hessian</span>[4096];
-    size_t <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1af22f800017ca74f8ac3d58766c0c7d7e">dipole_count</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1a29b033740147bb25af1b397e20bc7aa9">dipole</span>[3];
-    size_t <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1aa375aea8f4d2476b4d3e8857e1c1e128">polarizability_count</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-property-snapshot-1a0165ad7c4fe23bd81b91210082cf75cd">polarizability</span>[9];
+    int <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1ab26d1b54dbe94a3381bd01ef061f2c87"><span class="std std-ref">valid</span></a>;
+    size_t <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1a219308dd9232cb5340fc99466db536a5"><span class="std std-ref">hessian_count</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1af26b4dd2e4fbde6ebf3605d6eb778f2e"><span class="std std-ref">hessian</span></a>[4096];
+    size_t <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1af22f800017ca74f8ac3d58766c0c7d7e"><span class="std std-ref">dipole_count</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1a29b033740147bb25af1b397e20bc7aa9"><span class="std std-ref">dipole</span></a>[3];
+    size_t <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1aa375aea8f4d2476b4d3e8857e1c1e128"><span class="std std-ref">polarizability_count</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-property-snapshot-1a0165ad7c4fe23bd81b91210082cf75cd"><span class="std std-ref">polarizability</span></a>[9];
 };</pre>
 </section>
 <section id="detailed-documentation">
@@ -417,6 +420,23 @@ struct CPMDCPropertySnapshot {
 <li><p>polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9</p></li>
 <li><p>hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs dedicated PROP/Hessian run; gradient is always available after force eval)</p></li>
 </ul>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1ab26d1b54dbe94a3381bd01ef061f2c87"><span id="index-1"></span>int valid</pre>
+<p>Non-zero when the snapshot was written.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a219308dd9232cb5340fc99466db536a5"><span id="index-2"></span>size_t hessian_count</pre>
+<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">hessian</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1af26b4dd2e4fbde6ebf3605d6eb778f2e"><span id="index-3"></span>double hessian[4096]</pre>
+<p>Nuclear gradient dE/dR, packed as <code class="docutils literal notranslate"><span class="pre">natoms</span> <span class="pre">*</span> <span class="pre">3</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1af22f800017ca74f8ac3d58766c0c7d7e"><span id="index-4"></span>size_t dipole_count</pre>
+<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">dipole</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a29b033740147bb25af1b397e20bc7aa9"><span id="index-5"></span>double dipole[3]</pre>
+<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">ddippdipole</span></code> in atomic units, or zeros for a reference PEF.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1aa375aea8f4d2476b4d3e8857e1c1e128"><span id="index-6"></span>size_t polarizability_count</pre>
+<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">polarizability</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-property-snapshot-1a0165ad7c4fe23bd81b91210082cf75cd"><span id="index-7"></span>double polarizability[9]</pre>
+<p>Polarizability when PROP is available; otherwise zeros.</p>
+</section>
 </section>
 </section>
 

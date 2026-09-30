@@ -763,17 +763,7 @@ Pointer to the matching table entry, or ``NULL`` when the feature ID is not pres
 
 Read a RESTART image from a memory buffer.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- err
-
-		- Receives a diagnostic when the read fails. May be NULL.
+``err`` receives a diagnostic when the read fails and may be NULL.
 
 
 
@@ -791,17 +781,7 @@ The image, or NULL on failure.
 
 Read a RESTART image from a filesystem path.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- err
-
-		- Receives a diagnostic when the read fails. May be NULL.
+``err`` receives a diagnostic when the read fails and may be NULL.
 
 
 
@@ -849,22 +829,7 @@ Section 1 header text, or NULL when the image has none.
 
 Report one section's record count.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- section
-
-		- 1-based section index.
-
-	*
-		- count
-
-		- The section's own record count (the integer in its header), 0 when the section is empty.
+``section`` is 1-based. ``count`` is the integer in the section header, or 0 when the section is empty.
 
 
 
@@ -898,17 +863,7 @@ Read the cell description.
 
 Read the species counts.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- na_per_species
-
-		- Points at the image's own array. Valid until the image is freed or rewritten.
+``na_per_species`` points at the image's own array until the image is freed or rewritten.
 
 
 
@@ -936,17 +891,7 @@ Number of coordinate triples in section 4, or 0 when that section is empty.
 
 Copy coordinates in Bohr.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- xyz
-
-		- Receives ``ncoords * 3`` doubles.
+``xyz`` receives ``ncoords * 3`` doubles.
 
 
 
@@ -964,17 +909,7 @@ Copy coordinates in Bohr.
 
 Copy velocities in Bohr.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- xyz
-
-		- Receives ``ncoords * 3`` doubles.
+``xyz`` receives ``ncoords * 3`` doubles.
 
 
 
@@ -992,17 +927,7 @@ Copy velocities in Bohr.
 
 Copy the initial geometry in Bohr.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- xyz
-
-		- Receives ``ncoords * 3`` doubles.
+``xyz`` receives ``ncoords * 3`` doubles.
 
 
 
@@ -1020,17 +945,7 @@ Copy the initial geometry in Bohr.
 
 Replace coordinates, leaving every other record unchanged.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- xyz
-
-		- ``n3`` doubles, ``ncoords * 3``.
+``xyz`` holds ``n3`` doubles, ``ncoords * 3``.
 
 
 
@@ -1114,22 +1029,7 @@ Read the electronic-state counts.
 
 Write the image to a newly allocated buffer.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- bytes
-
-		- Receives a buffer the caller frees.
-
-	*
-		- err
-
-		- Receives a diagnostic when the write fails. May be NULL.
+``bytes`` receives a buffer the caller frees. ``err`` receives a diagnostic when the write fails and may be NULL.
 
 
 
@@ -1147,17 +1047,7 @@ Write the image to a newly allocated buffer.
 
 Write the image to a filesystem path.
 
-
-
-.. rubric:: Parameters:
-
-.. list-table::
-	:widths: 20 80
-
-	*
-		- err
-
-		- Receives a diagnostic when the write fails. May be NULL.
+``err`` receives a diagnostic when the write fails and may be NULL.
 
 
 

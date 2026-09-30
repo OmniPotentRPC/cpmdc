@@ -289,7 +289,14 @@ data-aria-dark="Switch to auto color mode">
     <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
       <i class="i-lucide close"></i>
     </button>
-    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
   <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
     <iconify-icon icon="simple-icons:github"></iconify-icon>
@@ -388,18 +395,38 @@ data-aria-dark="Switch to auto color mode">
 <span id="doxid-struct-c-p-m-d-c-charge-integrals"></span><span id="index-0"></span><h1>struct CPMDCChargeIntegrals<a class="headerlink" href="#struct-cpmdcchargeintegrals" title="Link to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg_t</span></code> density integrals (post-SCF module state).</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg_t</span></code> density integrals (post-SCF module state). <a class="reference internal" href="#details-struct-c-p-m-d-c-charge-integrals"><span class="std std-ref">More…</span></a></p>
 <pre class="highlight doxyrest-overview-code-block literal-block">#include <cpmdc.h>
 
 struct CPMDCChargeIntegrals {
     // fields
 
-    int <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-charge-integrals-1a0d192c660b5e55121b4a0e001da82bc9">valid</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-charge-integrals-1ac1647c1b8130835da878b36698acc333">csumg</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-charge-integrals-1afae80503e8a13771e129b991a900690a">csumr</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-charge-integrals-1acb1e9588b5b90337f3fd1ac786bb6800">csums</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-charge-integrals-1a7b2d031dcf7ede95440c7ad96cb80b17">csumsabs</span>;
+    int <a class="reference internal" href="#doxid-struct-c-p-m-d-c-charge-integrals-1a0d192c660b5e55121b4a0e001da82bc9"><span class="std std-ref">valid</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-charge-integrals-1ac1647c1b8130835da878b36698acc333"><span class="std std-ref">csumg</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-charge-integrals-1afae80503e8a13771e129b991a900690a"><span class="std std-ref">csumr</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-charge-integrals-1acb1e9588b5b90337f3fd1ac786bb6800"><span class="std std-ref">csums</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-charge-integrals-1a7b2d031dcf7ede95440c7ad96cb80b17"><span class="std std-ref">csumsabs</span></a>;
 };</pre>
+</section>
+<section id="detailed-documentation">
+<span id="details-struct-c-p-m-d-c-charge-integrals"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
+<p>OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg_t</span></code> density integrals (post-SCF module state).</p>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-charge-integrals-1a0d192c660b5e55121b4a0e001da82bc9"><span id="index-1"></span>int valid</pre>
+<p>Non-zero when the snapshot was written.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-charge-integrals-1ac1647c1b8130835da878b36698acc333"><span id="index-2"></span>double csumg</pre>
+<p><code class="docutils literal notranslate"><span class="pre">csumg</span></code> from OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg</span></code>, electrons.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-charge-integrals-1afae80503e8a13771e129b991a900690a"><span id="index-3"></span>double csumr</pre>
+<p><code class="docutils literal notranslate"><span class="pre">csumr</span></code> from OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg</span></code>, electrons.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-charge-integrals-1acb1e9588b5b90337f3fd1ac786bb6800"><span id="index-4"></span>double csums</pre>
+<p><code class="docutils literal notranslate"><span class="pre">csums</span></code> from OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg</span></code>, electrons.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-charge-integrals-1a7b2d031dcf7ede95440c7ad96cb80b17"><span id="index-5"></span>double csumsabs</pre>
+<p><code class="docutils literal notranslate"><span class="pre">csumsabs</span></code> from OpenCPMD <code class="docutils literal notranslate"><span class="pre">chrg</span></code>, electrons.</p>
+</section>
+</section>
 </section>
 
         </article><button class="back-to-top" type="button">

@@ -21,8 +21,8 @@ Cartesian stress tensor after a successful PEF evaluation. :ref:`More...<details
 	struct CPMDCStressTensor {
 		// fields
 	
-		int :target:`valid<doxid-struct_c_p_m_d_c_stress_tensor_1a040d79094dfec598b51035b87f1ceb1d>`;
-		double :target:`values<doxid-struct_c_p_m_d_c_stress_tensor_1a7061f78949c193ef5285436a368780b3>`[9];
+		int :ref:`valid<doxid-struct_c_p_m_d_c_stress_tensor_1a040d79094dfec598b51035b87f1ceb1d>`;
+		double :ref:`values<doxid-struct_c_p_m_d_c_stress_tensor_1a7061f78949c193ef5285436a368780b3>`[9];
 	};
 .. _details-struct_c_p_m_d_c_stress_tensor:
 
@@ -32,4 +32,27 @@ Detailed Documentation
 Cartesian stress tensor after a successful PEF evaluation.
 
 Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). ``valid`` is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves ``valid`` unset. Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
+
+Fields
+------
+
+.. index:: pair: variable; valid
+.. _doxid-struct_c_p_m_d_c_stress_tensor_1a040d79094dfec598b51035b87f1ceb1d:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int valid
+
+Non-zero only when stress was computed for a periodic cell.
+
+.. index:: pair: variable; values
+.. _doxid-struct_c_p_m_d_c_stress_tensor_1a7061f78949c193ef5285436a368780b3:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double values[9]
+
+Row-major ``[xx, xy, xz, yx, yy, yz, zx, zy, zz]``, Hartree/Bohr^3.
 

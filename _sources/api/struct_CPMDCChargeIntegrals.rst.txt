@@ -7,7 +7,10 @@ struct CPMDCChargeIntegrals
 .. toctree::
 	:hidden:
 
-OpenCPMD ``chrg_t`` density integrals (post-SCF module state).
+Overview
+~~~~~~~~
+
+OpenCPMD ``chrg_t`` density integrals (post-SCF module state). :ref:`More...<details-struct_c_p_m_d_c_charge_integrals>`
 
 
 .. ref-code-block:: cpp
@@ -18,9 +21,69 @@ OpenCPMD ``chrg_t`` density integrals (post-SCF module state).
 	struct CPMDCChargeIntegrals {
 		// fields
 	
-		int :target:`valid<doxid-struct_c_p_m_d_c_charge_integrals_1a0d192c660b5e55121b4a0e001da82bc9>`;
-		double :target:`csumg<doxid-struct_c_p_m_d_c_charge_integrals_1ac1647c1b8130835da878b36698acc333>`;
-		double :target:`csumr<doxid-struct_c_p_m_d_c_charge_integrals_1afae80503e8a13771e129b991a900690a>`;
-		double :target:`csums<doxid-struct_c_p_m_d_c_charge_integrals_1acb1e9588b5b90337f3fd1ac786bb6800>`;
-		double :target:`csumsabs<doxid-struct_c_p_m_d_c_charge_integrals_1a7b2d031dcf7ede95440c7ad96cb80b17>`;
+		int :ref:`valid<doxid-struct_c_p_m_d_c_charge_integrals_1a0d192c660b5e55121b4a0e001da82bc9>`;
+		double :ref:`csumg<doxid-struct_c_p_m_d_c_charge_integrals_1ac1647c1b8130835da878b36698acc333>`;
+		double :ref:`csumr<doxid-struct_c_p_m_d_c_charge_integrals_1afae80503e8a13771e129b991a900690a>`;
+		double :ref:`csums<doxid-struct_c_p_m_d_c_charge_integrals_1acb1e9588b5b90337f3fd1ac786bb6800>`;
+		double :ref:`csumsabs<doxid-struct_c_p_m_d_c_charge_integrals_1a7b2d031dcf7ede95440c7ad96cb80b17>`;
 	};
+.. _details-struct_c_p_m_d_c_charge_integrals:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+OpenCPMD ``chrg_t`` density integrals (post-SCF module state).
+
+Fields
+------
+
+.. index:: pair: variable; valid
+.. _doxid-struct_c_p_m_d_c_charge_integrals_1a0d192c660b5e55121b4a0e001da82bc9:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int valid
+
+Non-zero when the snapshot was written.
+
+.. index:: pair: variable; csumg
+.. _doxid-struct_c_p_m_d_c_charge_integrals_1ac1647c1b8130835da878b36698acc333:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double csumg
+
+``csumg`` from OpenCPMD ``chrg``, electrons.
+
+.. index:: pair: variable; csumr
+.. _doxid-struct_c_p_m_d_c_charge_integrals_1afae80503e8a13771e129b991a900690a:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double csumr
+
+``csumr`` from OpenCPMD ``chrg``, electrons.
+
+.. index:: pair: variable; csums
+.. _doxid-struct_c_p_m_d_c_charge_integrals_1acb1e9588b5b90337f3fd1ac786bb6800:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double csums
+
+``csums`` from OpenCPMD ``chrg``, electrons.
+
+.. index:: pair: variable; csumsabs
+.. _doxid-struct_c_p_m_d_c_charge_integrals_1a7b2d031dcf7ede95440c7ad96cb80b17:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double csumsabs
+
+``csumsabs`` from OpenCPMD ``chrg``, electrons.
+

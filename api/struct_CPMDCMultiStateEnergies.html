@@ -291,7 +291,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -400,15 +403,24 @@ data-aria-dark="Switch to auto color mode">
 struct CPMDCMultiStateEnergies {
     // fields
 
-    int <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-multi-state-energies-1a0d67163f5e59c14f9202d36570556d50">valid</span>;
-    size_t <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-multi-state-energies-1aec6f9826107ef87accfbf42f6ea42e08">count</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-multi-state-energies-1aaff5c48a1ff24c43903c0b7dbfbbaae5">values</span>[64];
+    int <a class="reference internal" href="#doxid-struct-c-p-m-d-c-multi-state-energies-1a0d67163f5e59c14f9202d36570556d50"><span class="std std-ref">valid</span></a>;
+    size_t <a class="reference internal" href="#doxid-struct-c-p-m-d-c-multi-state-energies-1aec6f9826107ef87accfbf42f6ea42e08"><span class="std std-ref">count</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-multi-state-energies-1aaff5c48a1ff24c43903c0b7dbfbbaae5"><span class="std std-ref">values</span></a>[64];
 };</pre>
 </section>
 <section id="detailed-documentation">
 <span id="details-struct-c-p-m-d-c-multi-state-energies"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
 <p>Flattened CAS22-class multi-state catalog (<code class="docutils literal notranslate"><span class="pre">ener_c</span></code> + <code class="docutils literal notranslate"><span class="pre">ener_d</span></code>).</p>
 <p>Layout is backend-defined; <code class="docutils literal notranslate"><span class="pre">count</span></code> is the number of doubles copied into <code class="docutils literal notranslate"><span class="pre">values</span></code> (caller provides capacity). Returns -1 when no snapshot.</p>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-multi-state-energies-1a0d67163f5e59c14f9202d36570556d50"><span id="index-1"></span>int valid</pre>
+<p>Non-zero when the snapshot was written.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-multi-state-energies-1aec6f9826107ef87accfbf42f6ea42e08"><span id="index-2"></span>size_t count</pre>
+<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">values</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-multi-state-energies-1aaff5c48a1ff24c43903c0b7dbfbbaae5"><span id="index-3"></span>double values[64]</pre>
+<p><code class="docutils literal notranslate"><span class="pre">ener_c</span></code> and <code class="docutils literal notranslate"><span class="pre">ener_d</span></code> values, Hartree.</p>
+</section>
 </section>
 </section>
 

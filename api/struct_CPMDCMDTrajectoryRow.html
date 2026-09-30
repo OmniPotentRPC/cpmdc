@@ -291,7 +291,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -400,15 +403,24 @@ data-aria-dark="Switch to auto color mode">
 struct CPMDCMDTrajectoryRow {
     // fields
 
-    int <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ae8e42435497115257eb51b14aa4b7702">valid</span>;
-    size_t <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ad2d5cdd0881a4ab7988b448339eb6f8f">count</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1aba443c14d800f6c189cabec43a447708">values</span>[32];
+    int <a class="reference internal" href="#doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ae8e42435497115257eb51b14aa4b7702"><span class="std std-ref">valid</span></a>;
+    size_t <a class="reference internal" href="#doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ad2d5cdd0881a4ab7988b448339eb6f8f"><span class="std std-ref">count</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-m-d-trajectory-row-1aba443c14d800f6c189cabec43a447708"><span class="std std-ref">values</span></a>[32];
 };</pre>
 </section>
 <section id="detailed-documentation">
 <span id="details-struct-c-p-m-d-c-m-d-trajectory-row"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
 <p>One ENERGY-file-equivalent trajectory row (Hartree).</p>
 <p>Layout (count &gt;= 12 after a successful eval): [0] etot [1] ekin [2] epseu [3] enl [4] eht [5] exc [6] ehep [7] ehee [8] ehii [9] esr [10] eself [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)</p>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ae8e42435497115257eb51b14aa4b7702"><span id="index-1"></span>int valid</pre>
+<p>Non-zero when the snapshot was written.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1ad2d5cdd0881a4ab7988b448339eb6f8f"><span id="index-2"></span>size_t count</pre>
+<p>Number of doubles copied into <code class="docutils literal notranslate"><span class="pre">values</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-m-d-trajectory-row-1aba443c14d800f6c189cabec43a447708"><span id="index-3"></span>double values[32]</pre>
+<p>Trajectory terms in the order given above, Hartree.</p>
+</section>
 </section>
 </section>
 

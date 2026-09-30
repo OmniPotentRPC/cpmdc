@@ -291,7 +291,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -400,14 +403,21 @@ data-aria-dark="Switch to auto color mode">
 struct CPMDCStressTensor {
     // fields
 
-    int <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-stress-tensor-1a040d79094dfec598b51035b87f1ceb1d">valid</span>;
-    double <span class="doxyrest-code-target target" id="doxid-struct-c-p-m-d-c-stress-tensor-1a7061f78949c193ef5285436a368780b3">values</span>[9];
+    int <a class="reference internal" href="#doxid-struct-c-p-m-d-c-stress-tensor-1a040d79094dfec598b51035b87f1ceb1d"><span class="std std-ref">valid</span></a>;
+    double <a class="reference internal" href="#doxid-struct-c-p-m-d-c-stress-tensor-1a7061f78949c193ef5285436a368780b3"><span class="std std-ref">values</span></a>[9];
 };</pre>
 </section>
 <section id="detailed-documentation">
 <span id="details-struct-c-p-m-d-c-stress-tensor"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
 <p>Cartesian stress tensor after a successful PEF evaluation.</p>
 <p>Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code> after <code class="docutils literal notranslate"><span class="pre">totstr</span></code> when <code class="docutils literal notranslate"><span class="pre">cntltpres</span></code>). <code class="docutils literal notranslate"><span class="pre">valid</span></code> is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves <code class="docutils literal notranslate"><span class="pre">valid</span></code> unset. Returns 0 when <code class="docutils literal notranslate"><span class="pre">out-&gt;valid</span></code> is set; -1 when stress was not computed.</p>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-stress-tensor-1a040d79094dfec598b51035b87f1ceb1d"><span id="index-1"></span>int valid</pre>
+<p>Non-zero only when stress was computed for a periodic cell.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-struct-c-p-m-d-c-stress-tensor-1a7061f78949c193ef5285436a368780b3"><span id="index-2"></span>double values[9]</pre>
+<p>Row-major <code class="docutils literal notranslate"><span class="pre">[xx,</span> <span class="pre">xy,</span> <span class="pre">xz,</span> <span class="pre">yx,</span> <span class="pre">yy,</span> <span class="pre">yz,</span> <span class="pre">zx,</span> <span class="pre">zy,</span> <span class="pre">zz]</span></code>, Hartree/Bohr^3.</p>
+</section>
 </section>
 </section>
 

@@ -21,9 +21,9 @@ One ENERGY-file-equivalent trajectory row (Hartree). :ref:`More...<details-struc
 	struct CPMDCMDTrajectoryRow {
 		// fields
 	
-		int :target:`valid<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ae8e42435497115257eb51b14aa4b7702>`;
-		size_t :target:`count<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ad2d5cdd0881a4ab7988b448339eb6f8f>`;
-		double :target:`values<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1aba443c14d800f6c189cabec43a447708>`[32];
+		int :ref:`valid<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ae8e42435497115257eb51b14aa4b7702>`;
+		size_t :ref:`count<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ad2d5cdd0881a4ab7988b448339eb6f8f>`;
+		double :ref:`values<doxid-struct_c_p_m_d_c_m_d_trajectory_row_1aba443c14d800f6c189cabec43a447708>`[32];
 	};
 .. _details-struct_c_p_m_d_c_m_d_trajectory_row:
 
@@ -33,4 +33,37 @@ Detailed Documentation
 One ENERGY-file-equivalent trajectory row (Hartree).
 
 Layout (count >= 12 after a successful eval): [0] etot [1] ekin [2] epseu [3] enl [4] eht [5] exc [6] ehep [7] ehee [8] ehii [9] esr [10] eself [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)
+
+Fields
+------
+
+.. index:: pair: variable; valid
+.. _doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ae8e42435497115257eb51b14aa4b7702:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int valid
+
+Non-zero when the snapshot was written.
+
+.. index:: pair: variable; count
+.. _doxid-struct_c_p_m_d_c_m_d_trajectory_row_1ad2d5cdd0881a4ab7988b448339eb6f8f:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	size_t count
+
+Number of doubles copied into ``values``.
+
+.. index:: pair: variable; values
+.. _doxid-struct_c_p_m_d_c_m_d_trajectory_row_1aba443c14d800f6c189cabec43a447708:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double values[32]
+
+Trajectory terms in the order given above, Hartree.
 
