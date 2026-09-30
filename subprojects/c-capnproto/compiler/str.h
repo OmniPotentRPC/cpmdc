@@ -37,7 +37,12 @@ static void str_reset(struct str *v) {
 }
 
 static void str_setlen(struct str *v, int sz) {
+	/* C11 6.5.3.2: a null buffer is not a length store. */
+	if (!v)
+		return;
 	str_reserve(v, sz);
+	if (!v->str)
+		return;
 	v->str[sz] = '\0';
 	v->len = sz;
 }
