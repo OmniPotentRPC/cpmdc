@@ -22,11 +22,16 @@ the stored cell within 1e-8 Angstrom, and when both calls agree on having a
 box at all.
 A failed warm call leaves the counter where it was, so the next call is warm
 again; a failed cold call clears the stored results.
+A ~stopgm~ during the call is not that failure: the result is invalid,
+~cpmdc~ drops the stored orbitals and the warm cell, and the next call runs
+setup again.
 
 * Where the orbitals are kept
-~opencpmd_warm_orbitals.patch~ adds a module-level copy of ~c0~ to
+~opencpmd_embed_rwfopt.patch~ adds a module-level copy of ~c0~ to
 ~rwfopt_utils~.
-At the end of each ~rwfopt~, every rank saves its own slice of ~c0~.
+At the end of ~rwfopt~, every rank saves its own slice of ~c0~ when
+~embed_warm_orbitals~ is true.
+A failed store allocation calls ~stopgm~.
 On a warm call, ~rwfopt~ first runs ~initrun~, which sets up the iteration
 state and scratch arrays as for any SCF, and then overwrites the generated
 starting orbitals with the saved copy when its dimensions still match.
@@ -40,6 +45,8 @@ convergence, so the orbitals left behind after the last iteration have moved
 one step past the ones that produced the reported energy and forces.
 The patch checks convergence first and updates only unconverged orbitals, so
 the saved ~c0~ is the state that ~forcedr~ used.
+Steepest descent with ~iproj <= 1~ sets ~gemax~ above the threshold before
+that check: those steps do not converge on ~gemax~.
 
 * What clears the orbitals
 
@@ -49,6 +56,7 @@ the saved ~c0~ is the state that ~forcedr~ used.
 | ~cpmdc_session_set_params()~ or ~cpmdc_session_configure()~ | a new method invalidates the orbitals |
 | evaluating a different session in the same process | the stored copy is process-wide; the other session re-applies its configuration and starts cold |
 | any global call (~cpmdc_set_params()~, ~cpmdc_energy*()~) or a one-shot call (~cpmdc_calculate_result()~) | each applies its message afresh |
+| ~stopgm~ returns through ~cpmd_stopgm_hook~ | the call continued past a failed check, so the stored orbitals are not a result |
 
 A topology change is refused outright rather than treated as cold: the atom
 count and the ordered atomic numbers belong to the session.

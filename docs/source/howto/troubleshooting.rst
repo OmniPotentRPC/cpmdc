@@ -92,15 +92,16 @@ rather than ``MAXITER``.
 
 **Cause:** CPMD called ``stopgm``, its fatal-error routine, inside the
 call. With ``opencpmd_stopgm_return.patch`` in the archive, ``stopgm``
-records the stop and returns while an evaluation runs, and ``cpmdc``
-returns ``ok == 0`` instead of ending the host. CPMD writes its reason
+calls ``cpmd_stopgm_hook``. While an evaluation is armed the catch records
+the stop code and returns 1, so ``stopgm`` returns to its caller, and
+``cpmdc`` returns ``ok == 0`` instead of ending the host. CPMD writes its reason
 to a ``LocalError-*.log`` file in the working directory of that moment.
 That is ``permanentDir``, or ``scratchDir`` when no permanent directory
 is set, or the host working directory.
 
-**Fix:** read the ``LocalError`` file in that directory. ``cpmdc`` does
-not reset CPMD's module state after a stop, so restart the host process
-before trusting another result from it.
+**Fix:** read the ``LocalError`` file in that directory. The stopped call
+has no result. ``cpmdc`` drops the stored orbitals and the warm cell, and
+the next call on the same session sets CPMD up again.
 
 ``topology change requires a new session``
 ------------------------------------------
@@ -136,7 +137,7 @@ Forces
 Forces are all zero with a finite energy
 ----------------------------------------
 
-**Cause:** the OpenCPMD archive lacks ``opencpmd_keep_fion.patch``, so
+**Cause:** the OpenCPMD archive lacks ``opencpmd_embed_rwfopt.patch``, so
 ``fion`` is deallocated before ``cpmdc`` reads it.
 
 **Fix:** apply the patches in ``tools/`` and rebuild the archive (see
@@ -180,13 +181,12 @@ Link fails with ``R_X86_64_PC32`` against ``libcpmd.a``
 **Fix:** add ``-fPIC`` to ``FFLAGS`` and ``CFLAGS`` of the OpenCPMD
 configuration and rebuild the archive.
 
-``cpmd_embed_c_api.F90`` fails to compile on ``cpmdc_set_warm_orbitals`` or ``mp_comm_set``
--------------------------------------------------------------------------------------------
+``cpmd_embed_c_api.F90`` fails to compile on ``embed_set_warm_orbitals``
+---------------------------------------------------------------------
 
 **Cause:** the archive's module files come from an unpatched tree.
 
-**Fix:** apply ``opencpmd_warm_orbitals.patch`` and
-``opencpmd_mp_comm_set.patch``, then rebuild with
+**Fix:** apply ``opencpmd_embed_rwfopt.patch``, then rebuild with
 ``tools/rebuild_opencpmd_embed.sh``.
 
 CPMD cannot find ``O_MT_BLYP.psp``
@@ -213,11 +213,12 @@ working directory after it has read the pseudopotentials. With neither
 field set, the files are written in the host working directory. The
 pseudopotential directory is not used for these files.
 
-A long method deck loses its end
---------------------------------
+A preview buffer is shorter than the method deck
+------------------------------------------------
 
-**Cause:** the OpenCPMD path stores the rendered method deck in a
-4096-character buffer; text past that is dropped.
+**Cause:** the embed path keeps the rendered method deck at the length
+of that text. A preview or a config read whose buffer is shorter than
+the text returns an error and does not write a shortened deck.
 
-**Fix:** move long literal blocks into typed fields, or check the deck
-size in ``CPMDC_DECK_OUT`` (``wc -c``).
+**Fix:** size the caller buffer from the rendered text, or read the full
+deck from ``CPMDC_DECK_OUT``.

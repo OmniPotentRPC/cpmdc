@@ -39,6 +39,11 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
                                       const CPMDCScalarOverrides *overrides,
                                       char *dst, size_t dst_size);
 
+/** Render into a new allocation sized to the text. Caller frees *deck. */
+int cpmdc_params_render_input_deck_alloc(CPMDParams_ptr params,
+                                         const CPMDCScalarOverrides *overrides,
+                                         char **deck);
+
 int cpmdc_params_render_deck_with_geometry_ov(
     CPMDParams_ptr params, const CPMDCScalarOverrides *overrides, int n_atoms,
     const double *positions_ang, const int *atomic_numbers,
