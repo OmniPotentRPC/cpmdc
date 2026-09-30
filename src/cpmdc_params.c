@@ -4467,6 +4467,62 @@ int cpmdc_params_render_input_deck_alloc(CPMDParams_ptr params,
   return -1;
 }
 
+/* A raw block that already opens a section is that section. The name is
+ * compared case-insensitively and must end at a non-letter, so &DFT does
+ * not match &DFTFOO. */
+static int raw_section_name_is(const char *s, size_t n, const char *name) {
+  size_t nlen = strlen(name);
+  if (!s || n < nlen + 1 || s[0] != '&')
+    return 0;
+  for (size_t i = 0; i < nlen; ++i) {
+    char c = s[1 + i];
+    if (c >= 'a' && c <= 'z')
+      c = (char)(c - 'a' + 'A');
+    if (c != name[i])
+      return 0;
+  }
+  if (nlen + 1 < n) {
+    char c = s[nlen + 1];
+    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+      return 0;
+  }
+  return 1;
+}
+
+static void note_raw_sections(const char *s, size_t n, int *has_system,
+                              int *has_cpmd, int *has_dft, int *has_atoms) {
+  size_t i = 0;
+  if (!s)
+    return;
+  while (i < n) {
+    size_t line = i;
+    while (line < n && (s[line] == ' ' || s[line] == '\t'))
+      line++;
+    if (line < n && s[line] == '&') {
+      const char *at = s + line;
+      size_t left = n - line;
+      if (raw_section_name_is(at, left, "SYSTEM"))
+        *has_system = 1;
+      else if (raw_section_name_is(at, left, "CPMD"))
+        *has_cpmd = 1;
+      else if (raw_section_name_is(at, left, "DFT"))
+        *has_dft = 1;
+      else if (raw_section_name_is(at, left, "ATOMS"))
+        *has_atoms = 1;
+    }
+    while (i < n && s[i] != '\n')
+      i++;
+    if (i < n)
+      i++;
+  }
+}
+
+static void note_capn_sections(capn_text block, int *has_system, int *has_cpmd,
+                               int *has_dft, int *has_atoms) {
+  note_raw_sections(block.str, block.len, has_system, has_cpmd, has_dft,
+                    has_atoms);
+}
+
 int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
                                       const CPMDCScalarOverrides *overrides,
                                       char *dst, size_t dst_size) {
@@ -4517,6 +4573,10 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   }
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(view.inputBlocks, i, empty_text);
+    note_capn_sections(block, &has_system, &has_cpmd, &has_dft, &has_atoms);
+  }
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
@@ -4647,6 +4707,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       break;
     }
     case CPMDInputSection_raw:
+      note_capn_sections(sec.raw, &has_system, &has_cpmd, &has_dft, &has_atoms);
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
       if (append_text(dst, dst_size, &used, "\n\n") != 0)
@@ -4926,6 +4987,10 @@ int cpmdc_params_render_deck_with_geometry_ov(
   }
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(view.inputBlocks, i, empty_text);
+    note_capn_sections(block, &has_system, &has_cpmd, &has_dft, &has_atoms);
+  }
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
@@ -5060,6 +5125,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
       break;
     }
     case CPMDInputSection_raw:
+      note_capn_sections(sec.raw, &has_system, &has_cpmd, &has_dft, &has_atoms);
       if (append_capn_text(dst, dst_size, &used, sec.raw) != 0)
         return -1;
       if (append_text(dst, dst_size, &used, "\n\n") != 0)

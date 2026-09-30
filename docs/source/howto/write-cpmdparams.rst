@@ -125,8 +125,14 @@ out.
 |                      |                            | a different energy   |
 +----------------------+----------------------------+----------------------+
 
-Set each of them on purpose. ``ForceInput.box`` supplies ``CELL`` only
-when the deck has no ``CELL`` line.
+Set each of them on purpose.
+A raw ``inputBlocks`` entry or a ``raw`` section that already opens
+``&CPMD``, ``&SYSTEM``, ``&DFT``, or ``&ATOMS`` is that section.
+The default writer does not open the same name again, so a periodic
+``SYMMETRY 1`` block is not followed by ``SYMMETRY 0`` and
+``POISSON SOLVER HOCKNEY``.
+``ForceInput.box`` supplies ``CELL`` only when the deck has no ``CELL``
+line.
 
 Check the rendered deck
 =======================
