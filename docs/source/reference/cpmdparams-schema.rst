@@ -244,8 +244,10 @@ Field                     Default    Deck
 The ``atoms`` section also carries ``constraints``, ``isotopes``,
 ``velocities``, ``dummyAtoms``, ``changeBonds``, ``generate``, and
 ``directives``. Coordinates never go here. On the OpenCPMD path, the
-``&ATOMS`` block CPMD reads is rebuilt from each step's geometry with a
-built-in pseudopotential table; see
+``&ATOMS`` block CPMD reads is rebuilt from each step's geometry.
+Entries in ``pseudopotentials`` supply the file, ``LMAX``, ``LOC``, and
+``KLEINMAN-BYLANDER`` for the elements they name. Elements left out of
+that list use a built-in table for H, C, N, O, Si, and Ge; see
 :doc:`writing a CPMDParams message <../howto/write-cpmdparams>`.
 
 ``ForceInput``

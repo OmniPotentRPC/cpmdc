@@ -317,8 +317,9 @@ library-style pseudopotential names such as `O_MT_BLYP.psp`, set
 
 To see the deck cpmdc renders from `CPMDParams`, set
 `CPMDC_DECK_OUT=/path/to/deck.inp`. Each configuration overwrites the file.
-The OpenCPMD path then rebuilds `&ATOMS` from the step and adds `CELL` and
-`MAXITER` when the deck lacks them; see
+The OpenCPMD path then rebuilds `&ATOMS` from the step, using each listed
+pseudopotential entry for the file, `LMAX`, `LOC`, and `KLEINMAN-BYLANDER`,
+and adds `CELL` and `MAXITER` when the deck lacks them; see
 [Debug an input with CPMDC_DECK_OUT](docs/orgmode/howto/debug-deck.org).
 
 ## Documentation

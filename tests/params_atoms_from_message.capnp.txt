@@ -1,0 +1,19 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  title = "KLEINMAN-BYLANDER is not a per-species flag",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true,
+               convergenceOrbitals = 1.0e-5,
+               maxIter = 40 ) ),
+    ( system = ( symmetry = 0, angstrom = true, cutOffRy = 70.0,
+                 cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( dft = ( functional = "BLYP", newCode = true ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "Si", path = "custom_silicon.psp", lmax = 2, loc = 0,
+          kleinmanBylander = false, raggio = 1.5 ),
+        ( element = "N", path = "custom_nitrogen.psp", lmax = 1, loc = 1,
+          kleinmanBylander = true, skip = 0 )
+      ] ) )
+  ]
+)
