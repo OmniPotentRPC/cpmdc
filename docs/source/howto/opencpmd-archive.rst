@@ -108,16 +108,20 @@ first build:
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
-Pick a configuration from ``./configure.sh -help`` that matches your
-compilers, for example ``LINUX-X86_64-GFORTRAN-MPI``. Copy it under a
-new name in ``configure/`` and add ``-fPIC`` to both ``FFLAGS`` and
-``CFLAGS``. ``libcpmdc`` is a shared library; a member of ``libcpmd.a``
-compiled without ``-fPIC`` fails the link with a ``R_X86_64_PC32``
-relocation error. Then configure into a separate build directory and
-build:
+The OpenCPMD sample ``LINUX-X86_64-GFORTRAN-MPI`` sets ``LIBS`` to one
+person's library path. Copying that file and adding ``-fPIC`` leaves
+the path in the build. ``cpmdc`` ships
+``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` for the command below. It calls
+``mpif90`` and ``gcc`` from ``PATH``, adds ``-fPIC`` to ``FFLAGS`` and
+``CFLAGS``, and sets ``LIBS`` to ``-lopenblas``. That OpenBLAS build
+has to export the LAPACK symbols. ``libcpmdc`` is a shared library; a
+member of ``libcpmd.a`` compiled without ``-fPIC`` fails the link with
+a ``R_X86_64_PC32`` relocation error. Copy the shipped file into the
+clone, then configure and build:
 
 .. code:: bash
 
+   cp /path/to/cpmdc/tools/LINUX-X86_64-GFORTRAN-MPI-PIC configure/
    ./configure.sh -DEST=/path/to/opencpmd-build LINUX-X86_64-GFORTRAN-MPI-PIC
    make -C /path/to/opencpmd-build -j 8
    ls /path/to/opencpmd-build/lib/libcpmd.a /path/to/opencpmd-build/obj/timetag.o
