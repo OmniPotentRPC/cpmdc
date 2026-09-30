@@ -391,6 +391,9 @@ CAPN_INLINE uint64_t capn_read64(capn_ptr p, int off) {
 	return off+8 <= p.datasz ? capn_flip64(*(uint64_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write64(capn_ptr p, int off, uint64_t val) {
+	/* C11 6.5.3.2: a null data pointer is not a 64-bit store. */
+	if (!p.data)
+		return -1;
 	if (off+8 <= p.datasz) {
 		*(uint64_t*) (p.data+off) = capn_flip64(val);
 		return 0;
