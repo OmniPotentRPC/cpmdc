@@ -37,7 +37,7 @@ typedef struct cpmdc_restart cpmdc_restart;
 /**
  * @brief Read a RESTART image from a memory buffer.
  *
- * @param err Receives a diagnostic when the read fails. May be NULL.
+ * `err` receives a diagnostic when the read fails and may be NULL.
  * @return The image, or NULL on failure.
  */
 cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
@@ -46,7 +46,7 @@ cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
 /**
  * @brief Read a RESTART image from a filesystem path.
  *
- * @param err Receives a diagnostic when the read fails. May be NULL.
+ * `err` receives a diagnostic when the read fails and may be NULL.
  * @return The image, or NULL on failure.
  */
 cpmdc_restart *cpmdc_restart_read_path(const char *path, char *err,
@@ -64,9 +64,8 @@ const char *cpmdc_restart_header(const cpmdc_restart *file);
 /**
  * @brief Report one section's record count.
  *
- * @param section 1-based section index.
- * @param count The section's own record count (the integer in its header),
- *        0 when the section is empty.
+ * `section` is 1-based. `count` is the integer in the section header,
+ * or 0 when the section is empty.
  * @return 0 when the section is present.
  */
 int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count);
@@ -82,8 +81,8 @@ int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
 /**
  * @brief Read the species counts.
  *
- * @param na_per_species Points at the image's own array. Valid until the
- *        image is freed or rewritten.
+ * `na_per_species` points at the image's own array until the image is
+ * freed or rewritten.
  * @return 0 when the species section is present.
  */
 int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
@@ -95,7 +94,7 @@ int cpmdc_restart_ncoords(const cpmdc_restart *file);
 /**
  * @brief Copy coordinates in Bohr.
  *
- * @param xyz Receives `ncoords * 3` doubles.
+ * `xyz` receives `ncoords * 3` doubles.
  * @return 0 on success.
  */
 int cpmdc_restart_coordinates(const cpmdc_restart *file, double *xyz, int n3);
@@ -103,7 +102,7 @@ int cpmdc_restart_coordinates(const cpmdc_restart *file, double *xyz, int n3);
 /**
  * @brief Copy velocities in Bohr.
  *
- * @param xyz Receives `ncoords * 3` doubles.
+ * `xyz` receives `ncoords * 3` doubles.
  * @return 0 on success.
  */
 int cpmdc_restart_velocities(const cpmdc_restart *file, double *xyz, int n3);
@@ -111,7 +110,7 @@ int cpmdc_restart_velocities(const cpmdc_restart *file, double *xyz, int n3);
 /**
  * @brief Copy the initial geometry in Bohr.
  *
- * @param xyz Receives `ncoords * 3` doubles.
+ * `xyz` receives `ncoords * 3` doubles.
  * @return 0 on success.
  */
 int cpmdc_restart_initial_coordinates(const cpmdc_restart *file, double *xyz,
@@ -120,7 +119,7 @@ int cpmdc_restart_initial_coordinates(const cpmdc_restart *file, double *xyz,
 /**
  * @brief Replace coordinates, leaving every other record unchanged.
  *
- * @param xyz `n3` doubles, `ncoords * 3`.
+ * `xyz` holds `n3` doubles, `ncoords * 3`.
  * @return 0 on success.
  */
 int cpmdc_restart_set_coordinates(cpmdc_restart *file, const double *xyz,
@@ -164,8 +163,8 @@ int cpmdc_restart_states(const cpmdc_restart *file, int *n, int *nkpts,
 /**
  * @brief Write the image to a newly allocated buffer.
  *
- * @param bytes Receives a buffer the caller frees.
- * @param err Receives a diagnostic when the write fails. May be NULL.
+ * `bytes` receives a buffer the caller frees. `err` receives a diagnostic
+ * when the write fails and may be NULL.
  * @return 0 on success.
  */
 int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes,
@@ -174,7 +173,7 @@ int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes,
 /**
  * @brief Write the image to a filesystem path.
  *
- * @param err Receives a diagnostic when the write fails. May be NULL.
+ * `err` receives a diagnostic when the write fails and may be NULL.
  * @return 0 on success.
  */
 int cpmdc_restart_write_path(const cpmdc_restart *file, const char *path,

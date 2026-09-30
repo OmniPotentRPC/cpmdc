@@ -51,29 +51,53 @@ typedef struct CPMDCResult {
 typedef struct CPMDCEnergyComponents {
   /** Non-zero when the snapshot was written by a successful evaluation. */
   int valid;
+  /** `etot`, Hartree. */
   double etot;
+  /** `ekin`, Hartree. */
   double ekin;
+  /** `epseu`, Hartree. */
   double epseu;
+  /** `enl`, Hartree. */
   double enl;
+  /** `eht`, Hartree. */
   double eht;
+  /** `ehep`, Hartree. */
   double ehep;
+  /** `ehee`, Hartree. */
   double ehee;
+  /** `ehii`, Hartree. */
   double ehii;
+  /** `exc`, Hartree. */
   double exc;
+  /** `vxc`, Hartree. */
   double vxc;
+  /** `egc`, Hartree. */
   double egc;
+  /** `esr`, Hartree. */
   double esr;
+  /** `eeig`, Hartree. */
   double eeig;
+  /** `eband`, Hartree. */
   double eband;
+  /** `entropy`, Hartree. */
   double entropy;
+  /** `eself`, Hartree. */
   double eself;
+  /** `ecnstr`, Hartree. */
   double ecnstr;
+  /** `amu`, Hartree. */
   double amu;
+  /** `ebogo`, Hartree. */
   double ebogo;
+  /** `eext`, Hartree. */
   double eext;
+  /** `etddft`, Hartree. */
   double etddft;
+  /** `ehsic`, Hartree. */
   double ehsic;
+  /** `erestr`, Hartree. */
   double erestr;
+  /** `eefield`, Hartree. */
   double eefield;
 } CPMDCEnergyComponents;
 
@@ -81,10 +105,15 @@ typedef struct CPMDCEnergyComponents {
  * @brief OpenCPMD `chrg_t` density integrals (post-SCF module state).
  */
 typedef struct CPMDCChargeIntegrals {
+  /** Non-zero when the snapshot was written. */
   int valid;
+  /** `csumg` from OpenCPMD `chrg`, electrons. */
   double csumg;
+  /** `csumr` from OpenCPMD `chrg`, electrons. */
   double csumr;
+  /** `csums` from OpenCPMD `chrg`, electrons. */
   double csums;
+  /** `csumsabs` from OpenCPMD `chrg`, electrons. */
   double csumsabs;
 } CPMDCChargeIntegrals;
 
@@ -95,8 +124,11 @@ typedef struct CPMDCChargeIntegrals {
  * `values` (caller provides capacity). Returns -1 when no snapshot.
  */
 typedef struct CPMDCMultiStateEnergies {
+  /** Non-zero when the snapshot was written. */
   int valid;
+  /** Number of doubles copied into `values`. */
   size_t count;
+  /** `ener_c` and `ener_d` values, Hartree. */
   double values[64];
 } CPMDCMultiStateEnergies;
 
@@ -109,8 +141,11 @@ typedef struct CPMDCMultiStateEnergies {
  *   [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)
  */
 typedef struct CPMDCMDTrajectoryRow {
+  /** Non-zero when the snapshot was written. */
   int valid;
+  /** Number of doubles copied into `values`. */
   size_t count;
+  /** Trajectory terms in the order given above, Hartree. */
   double values[32];
 } CPMDCMDTrajectoryRow;
 
@@ -123,12 +158,19 @@ typedef struct CPMDCMDTrajectoryRow {
  *   dedicated PROP/Hessian run; gradient is always available after force eval)
  */
 typedef struct CPMDCPropertySnapshot {
+  /** Non-zero when the snapshot was written. */
   int valid;
+  /** Number of doubles copied into `hessian`. */
   size_t hessian_count;
+  /** Nuclear gradient dE/dR, packed as `natoms * 3`. */
   double hessian[4096];
+  /** Number of doubles copied into `dipole`. */
   size_t dipole_count;
+  /** OpenCPMD `ddip%pdipole` in atomic units, or zeros for a reference PEF. */
   double dipole[3];
+  /** Number of doubles copied into `polarizability`. */
   size_t polarizability_count;
+  /** Polarizability when PROP is available; otherwise zeros. */
   double polarizability[9];
 } CPMDCPropertySnapshot;
 
@@ -142,7 +184,9 @@ typedef struct CPMDCPropertySnapshot {
  * unset. Returns 0 when `out->valid` is set; -1 when stress was not computed.
  */
 typedef struct CPMDCStressTensor {
+  /** Non-zero only when stress was computed for a periodic cell. */
   int valid;
+  /** Row-major `[xx, xy, xz, yx, yy, yz, zx, zy, zz]`, Hartree/Bohr^3. */
   double values[9];
 } CPMDCStressTensor;
 
