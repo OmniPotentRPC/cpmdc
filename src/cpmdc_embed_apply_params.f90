@@ -97,22 +97,35 @@ contains
     character(len=64) :: functional_l
     real(real64) :: cutoff_l
     integer :: charge_l, mult_l
-    character(len=4096) :: deck_l
+    character(len=:), allocatable :: deck_l
     character(len=1024) :: root_l
+    integer :: ndeck, stat
 
     rc = -1_c_int
     functional_l = 'BLYP'
     cutoff_l = 70.0_real64
     charge_l = 0
     mult_l = 1
-    deck_l = ' '
     root_l = ' '
+    ! The caller buffer has to hold the text and a trailing NUL.
+    if (input_deck_len < 0 .or. deck_cap <= input_deck_len) return
     if (input_deck_len > 0) then
-      n = min(int(input_deck_len), len(deck_l))
-      do ib = 1, n
-        if (input_deck(ib) == c_null_char) exit
+      ndeck = int(input_deck_len)
+      allocate(character(len=ndeck) :: deck_l, stat=stat)
+      if (stat /= 0) return
+      do ib = 1, ndeck
+        if (input_deck(ib) == c_null_char) then
+          if (ib == 1) then
+            deck_l = ''
+          else
+            deck_l = deck_l(1:ib - 1)
+          end if
+          exit
+        end if
         deck_l(ib:ib) = input_deck(ib)
       end do
+    else
+      deck_l = ''
     end if
     if (.not. c_associated(params_capnp) .or. params_capnp_size <= 0) return
     if (params_capnp_size > int(huge(n), kind=c_size_t)) return
@@ -187,6 +200,7 @@ contains
 
     call capnp_message_free(msg)
     deallocate (bytes)
+    if (len_trim(deck_l) >= int(deck_cap)) return
     call f_to_c_chars(functional_l, functional_out, functional_cap)
     cutoff_out = real(cutoff_l, c_double)
     charge_out = int(charge_l, c_int)
