@@ -1549,6 +1549,16 @@ CONTAINS
     image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
     image%multi%count = 6_c_size_t
     image%multi%valid = 1_c_int
+    ! ENERGY-file row. EKINC stays zero off an MD step.
+    image%md%values = 0.0_c_double
+    image%md%values(1) = energy_h
+    image%md%values(2) = image%energy%ekin
+    image%md%values(3) = image%energy%epseu
+    image%md%values(4) = image%energy%enl
+    image%md%values(5) = image%energy%eht
+    image%md%values(6) = image%energy%exc
+    image%md%count = 12_c_size_t
+    image%md%valid = 1_c_int
     species_grad = 0.0_c_double
     IF (ALLOCATED(fion)) THEN
       IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
