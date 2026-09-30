@@ -1,0 +1,1 @@
+The installed-package consumer test configures its nested build with the C and Fortran compilers of the outer build, so a compiler launcher in the host's `CC` no longer breaks the nested `meson setup`.

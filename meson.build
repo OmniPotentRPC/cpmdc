@@ -1286,6 +1286,8 @@ test(
         meson_prog.full_path(),
         '--cc',
         cc.cmd_array().length() > 1 ? cc.cmd_array()[1] : cc.cmd_array()[0],
+        '--fc',
+        fc.cmd_array().length() > 1 ? fc.cmd_array()[1] : fc.cmd_array()[0],
         '--pkg-config',
         pkg_config_prog.full_path(),
       ],
