@@ -39,6 +39,9 @@ those members with `ar r`. OpenCPMD build trees contain a directory named
 operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
 `FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
 shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
+`tools/LINUX-X86_64-GFORTRAN-MPI-PIC` is the configuration the archive
+how-to copies into `configure/` before `configure.sh`. It adds `-fPIC`
+and links `-lopenblas`.
 
 Cold embed path also requires at runtime:
 
