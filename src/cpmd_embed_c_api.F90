@@ -1435,6 +1435,7 @@ CONTAINS
     USE ions, ONLY: ions0, ions1
     USE store_types, ONLY: cprint, iprint_force, restart1
     USE system, ONLY: cnti, cntl, parm
+    USE benc, ONLY: ibench
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
     USE ropt, ONLY: ropt_mod
@@ -1451,6 +1452,7 @@ CONTAINS
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
+    INTEGER :: inwfun_deck, ibench_deck
     INTERFACE
       FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
         IMPORT :: c_int
@@ -1499,6 +1501,20 @@ CONTAINS
     ! that store exists, and an unconverged SCF leaves the previous
     ! converged copy in place, so a later SCF is still a warm start.
     ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
+    ! initrun builds starting orbitals before the stored c0 replaces them.
+    ! Once a converged copy exists (a warm call), the simple atomic
+    ! superposition (inwfun 3: loadc, one orthogonalisation, no force
+    ! evaluation) stands in for the Lanczos guess and for the random start,
+    ! both of which run a full SCF step on orbitals that are then discarded.
+    ! zhwwf writes RESTART.1 and LATEST on every converged call; ibench(1)
+    ! makes it return at once. The in-process host keeps c0 in memory, so a
+    ! warm call needs no file; the cold call still writes one.
+    inwfun_deck = cnti%inwfun
+    ibench_deck = ibench(1)
+    IF (image%cfg_warm_steps > 0) THEN
+      cnti%inwfun = 3
+      ibench(1) = 1
+    END IF
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
     ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
@@ -1528,6 +1544,8 @@ CONTAINS
       cntl%pcgmin = was_pcgmin
       cntl%prec = was_prec
     END IF
+    cnti%inwfun = inwfun_deck
+    ibench(1) = ibench_deck
     energy_h = REAL(ener_com%etot, KIND=c_double)
     image%energy%etot = energy_h
     image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)

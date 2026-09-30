@@ -1,0 +1,1 @@
+A warm in-process call starts `initrun` from the simple atomic superposition (`inwfun` 3) instead of the Lanczos atomic guess, and writes no RESTART.1 or LATEST; both cost a full force evaluation or a wavefunction dump that the stored orbitals then replace. The cold call keeps both.
