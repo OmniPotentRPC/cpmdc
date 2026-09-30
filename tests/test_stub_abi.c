@@ -31,6 +31,8 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_last_md_trajectory_row",
     "abi.cpmdc_session_last_property_snapshot",
     "abi.cpmdc_session_last_stress",
+    "abi.cpmdc_last_wavefunction_optimiser",
+    "abi.cpmdc_session_last_wavefunction_optimiser",
     "abi.cpmdc_session_calculate_forces",
     "abi.cpmdc_session_calculate_result",
     "abi.cpmdc_calculate_result",
@@ -184,6 +186,14 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   memset(&stress, 0, sizeof(stress));
   assert_int_equal(cpmdc_last_stress(&stress), -1);
   assert_int_equal(stress.valid, 0);
+  expect_stub_entry("cpmdc_calculate_result_from_config");
+  CPMDCWavefunctionOptimiser opt;
+  memset(&opt, 0x5a, sizeof(opt));
+  assert_int_equal(cpmdc_last_wavefunction_optimiser(&opt), -1);
+  assert_int_equal(opt.valid, 0);
+  assert_int_equal(opt.name[0], '\0');
+  assert_int_equal(cpmdc_session_last_wavefunction_optimiser(NULL, &opt), -1);
+  assert_int_equal(opt.valid, 0);
   expect_stub_entry("cpmdc_calculate_result_from_config");
 }
 

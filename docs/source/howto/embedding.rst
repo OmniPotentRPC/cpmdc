@@ -393,8 +393,10 @@ Warm calls (same process, same session, same cell, new ``ForceInput``
 positions):
 
 #. First force call: cold setup once, from the in-memory deck. The SCF
-   sets ``embed_set_warm_orbitals`` so a converged ``c0`` is stored.
-   Restore does nothing until that copy exists.
+   uses ``PCG MINIMIZE`` even when the deck names another optimiser,
+   then restores the deck's flags. It sets ``embed_set_warm_orbitals``
+   so a converged ``c0`` is stored. Restore does nothing until that copy
+   exists.
 #. Later calls: update ``tau0`` from C arrays, ``phfac``, full SCF from
    the retained orbitals, no second setup. An unconverged ODIIS pass does
    not replace the stored ``c0``. The same call then continues once with

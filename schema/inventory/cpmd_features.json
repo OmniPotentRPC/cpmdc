@@ -319,6 +319,8 @@
   "cpmdc_session_last_md_trajectory_row",
   "cpmdc_session_last_property_snapshot",
   "cpmdc_session_last_stress",
+  "cpmdc_last_wavefunction_optimiser",
+  "cpmdc_session_last_wavefunction_optimiser",
   "cpmdc_feature_count",
   "cpmdc_feature_table",
   "cpmdc_feature_find"
@@ -11041,6 +11043,20 @@
    "feature_id": "abi.cpmdc_session_last_stress",
    "kind": "abi",
    "name": "cpmdc_session_last_stress",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_last_wavefunction_optimiser",
+   "kind": "abi",
+   "name": "cpmdc_last_wavefunction_optimiser",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_last_wavefunction_optimiser",
+   "kind": "abi",
+   "name": "cpmdc_session_last_wavefunction_optimiser",
    "stub_applicable": true,
    "embed_applicable": true
   }

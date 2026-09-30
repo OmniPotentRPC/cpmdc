@@ -65,15 +65,21 @@ Set only one optimiser in a message. Check the rendered ``&CPMD``
 section with ``CPMDC_DECK_OUT`` (see
 :doc:`debugging a deck <debug-deck>`).
 
-When to keep PCG
-================
+Cold and warm calls
+===================
 
-``cpmdc`` applies one deck to every call of a session, so the optimiser
-chosen for the warm calls also runs the cold first call from atomic
-orbitals. Keep ``PCG MINIMIZE`` for a system whose ODIIS calls stop at
-``MAXITER``: each such call is reported as a failure (see
-:doc:`troubleshooting <troubleshooting>`), and the optimiser choice does
-not change the converged state, only the path to it.
+A call that does not restore stored orbitals runs ``PCG MINIMIZE``,
+whichever optimiser the deck names. ODIIS from an atomic guess can
+converge to a higher electronic state than ``PCG MINIMIZE`` on the same
+geometry. The deck's flags are restored after that pass, so the next
+call on the same basis uses the optimiser in the deck.
+``cpmdc_session_last_wavefunction_optimiser`` reports the spelling that
+produced the call (``PCG MINIMIZE``, ``ODIIS``, ``PCG``, ``DIIS``,
+``STEEPEST DESCENT``, or ``DEFAULT``). An ODIIS pass that exhausts
+``MAXITER`` still continues once with ``PCG MINIMIZE`` and reports that
+spelling. Keep ``PCG MINIMIZE`` in the deck for a system whose warm
+ODIIS calls stop at ``MAXITER``: each such call is reported as a failure
+(see :doc:`troubleshooting <troubleshooting>`).
 
 Always set MAXITER
 ==================

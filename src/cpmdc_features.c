@@ -1326,6 +1326,8 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_session_last_md_trajectory_row", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_last_property_snapshot", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_last_stress", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_last_wavefunction_optimiser", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_last_wavefunction_optimiser", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_count", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_table", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_feature_find", CPMDC_FEATURE_ABI, 1, 1},

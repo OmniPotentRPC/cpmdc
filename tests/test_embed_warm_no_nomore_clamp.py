@@ -76,7 +76,40 @@ def test_calculator_once_flag_and_stop_reset() -> None:
     assert "image%cfg_warm_steps = 0" in scf_body
 
 
+def test_cold_start_uses_pcg_minimize() -> None:
+    text = EMBED.read_text(encoding="utf-8", errors="replace")
+    match = re.search(
+        r"SUBROUTINE embed_eval_energy_grad.*?END SUBROUTINE",
+        text,
+        re.S | re.I,
+    )
+    assert match, "embed_eval_energy_grad not found"
+    body = match.group(0)
+    first = body.index("CALL wfopts")
+    pre = body[:first]
+    post = body[first:]
+    assert "image%cfg_warm_steps <= 0_c_int" in pre
+    assert "cntl%diis = .FALSE." in pre
+    assert "cntl%pcg = .TRUE." in pre
+    assert "cntl%pcgmin = .TRUE." in pre
+    assert "used_opt = 'PCG MINIMIZE'" in pre
+    assert "cold start; using PCG MINIMIZE" in pre
+    assert "wf_optimiser_label" in pre
+    assert "continuing with PCG MINIMIZE" in post
+    assert "used_opt = 'PCG MINIMIZE'" in post
+    assert "IF (cold_start) THEN" in post
+    assert "ropt_mod%spcg = was_spcg" in post
+    assert "CALL note_wf_optimiser" in post
+    assert body.count("CALL wfopts") == 2
+    assert "FUNCTION wf_optimiser_label" in text
+    assert "label = 'ODIIS'" in text
+    assert "label = 'PCG MINIMIZE'" in text
+    assert "deck_contains_token(image, 'ODIIS')" in text
+    assert "CHARACTER(KIND=c_char) :: name(32)" in text
+
+
 if __name__ == "__main__":
     test_no_warm_nomore_iter_clamp()
     test_calculator_once_flag_and_stop_reset()
+    test_cold_start_uses_pcg_minimize()
     print("ok")

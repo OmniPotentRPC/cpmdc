@@ -309,3 +309,17 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
     memset(out, 0, sizeof(*out));
   return -1;
 }
+
+int cpmdc_last_wavefunction_optimiser(CPMDCWavefunctionOptimiser *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_wavefunction_optimiser(const CPMDCSession *session,
+                                              CPMDCWavefunctionOptimiser *out) {
+  (void)session;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}

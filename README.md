@@ -108,8 +108,9 @@ For a complete mapping table, see
 | PotentialConfig setup | `cpmdc_configure`, `cpmdc_session_create_from_config`, `cpmdc_session_configure` |
 | Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
 | Periodic-cell stress (Hartree/Bohr\u00b3) | `cpmdc_last_stress` |
+| Wavefunction optimiser of the last SCF | `cpmdc_last_wavefunction_optimiser`, `cpmdc_session_last_wavefunction_optimiser` |
 | Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
-| The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
+| The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot`, `cpmdc_session_last_wavefunction_optimiser` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
 | MPI rank groups (one calculator per group) | `cpmdc_bind_calculator` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |

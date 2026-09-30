@@ -146,6 +146,21 @@ typedef struct CPMDCStressTensor {
   double values[9];
 } CPMDCStressTensor;
 
+/**
+ * @brief Wavefunction optimiser that produced the last SCF.
+ *
+ * `name` is NUL-terminated. Spellings are the deck keywords the pass
+ * actually ran: "PCG MINIMIZE", "PCG", "ODIIS", "DIIS",
+ * "STEEPEST DESCENT", or "DEFAULT". A call that does not restore stored
+ * orbitals reports "PCG MINIMIZE". A warm call reports the deck
+ * optimiser. An ODIIS pass that continues with PCG MINIMIZE reports
+ * "PCG MINIMIZE". `valid` is set only after that pass runs.
+ */
+typedef struct CPMDCWavefunctionOptimiser {
+  int valid;
+  char name[32];
+} CPMDCWavefunctionOptimiser;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
 
@@ -444,6 +459,17 @@ int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
 int cpmdc_last_stress(CPMDCStressTensor *out);
 int cpmdc_session_last_stress(const CPMDCSession *session,
                               CPMDCStressTensor *out);
+
+/**
+ * @brief Copy the optimiser that produced the last SCF.
+ *
+ * Same session rule as the other snapshots. Returns 0 when `out->valid`
+ * is set, -1 when no SCF has stored one or `out` is null. Does not write
+ * `cpmdc_last_error()`.
+ */
+int cpmdc_last_wavefunction_optimiser(CPMDCWavefunctionOptimiser *out);
+int cpmdc_session_last_wavefunction_optimiser(
+    const CPMDCSession *session, CPMDCWavefunctionOptimiser *out);
 
 #ifdef __cplusplus
 }

@@ -95,7 +95,10 @@ It rewrites only the coordinate records and copies the wavefunction records
 unchanged; the deck then needs ~RESTART WAVEFUNCTION~.
 
 * The optimiser on a warm start
-A warm start changes how far the SCF has to go, not how it gets there.
+A call that does not restore stored orbitals runs ~PCG MINIMIZE~, whichever
+optimiser the deck names, and then restores the deck's flags.
+A warm start uses the optimiser in the deck.
+That changes how far the SCF has to go, not the positions it starts from.
 CPMD's optimiser choice then decides the cost: ODIIS reuses its history of
 residuals, while ~PCG MINIMIZE~ runs a line minimisation per step.
 On the Si3N4 cluster of the [[file:routes.org][route comparison]], the same minimisation

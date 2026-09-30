@@ -1651,6 +1651,23 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
   return out->valid ? 0 : -1;
 }
 
+int cpmdc_last_wavefunction_optimiser(CPMDCWavefunctionOptimiser *out) {
+  if (!out)
+    return -1;
+  *out = active_image()->wf_optimiser;
+  out->name[sizeof(out->name) - 1] = '\0';
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_session_last_wavefunction_optimiser(const CPMDCSession *session,
+                                              CPMDCWavefunctionOptimiser *out) {
+  if (!session || !out)
+    return -1;
+  *out = session->image.wf_optimiser;
+  out->name[sizeof(out->name) - 1] = '\0';
+  return out->valid ? 0 : -1;
+}
+
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
   if (!out)
     return -1;

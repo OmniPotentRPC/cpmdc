@@ -100,6 +100,14 @@ int main(int argc, char **argv) {
   printf("potential_result_size_bytes=%zu\n", potential_result_size);
   printf("message=%s\n", result.message[0] ? result.message : "ok");
 
+  CPMDCWavefunctionOptimiser optimiser;
+  if (cpmdc_session_last_wavefunction_optimiser(session, &optimiser) == 0 &&
+      optimiser.valid) {
+    printf("wavefunction_optimiser=%s\n", optimiser.name);
+  } else {
+    printf("wavefunction_optimiser=\n");
+  }
+
   CPMDCEnergyComponents components;
   if (cpmdc_last_energy_components(&components) == 0 && components.valid) {
     printf("ener_com_etot=%.12f\n", components.etot);

@@ -166,9 +166,8 @@ entry point. When the call returns ``CPMDCResult``, the text matches
 ``message``, including a missing pseudopotential directory. Snapshot
 readers (``cpmdc_last_stress()`` and the other ``cpmdc_last_*`` /
 ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot
-is absent or the output pointer is null.
-``cpmdc_capabilities_result()`` does not write it either; its -1 is the
-size query.
+is absent or the output pointer is null. ``cpmdc_capabilities_result()``
+does not write it either; its -1 is the size query.
 
 MPI
 ===
@@ -342,21 +341,23 @@ that ran last: the active session, or the global state after a global
 call. The ``session`` form reads that session's own last result, also
 after another session has run.
 
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| Plain                                                                 | Per session                                                                                     |
-+=======================================================================+=================================================================================================+
-| ``int cpmdc_last_energy_components(CPMDCEnergyComponents *out)``      | ``int cpmdc_session_last_energy_components(const CPMDCSession *s, CPMDCEnergyComponents *out)`` |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| ``int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out)``        | ``cpmdc_session_last_charge_integrals``                                                         |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| ``int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)`` | ``cpmdc_session_last_multi_state_energies``                                                     |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| ``int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)``       | ``cpmdc_session_last_md_trajectory_row``                                                        |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| ``int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)``      | ``cpmdc_session_last_property_snapshot``                                                        |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
-| ``int cpmdc_last_stress(CPMDCStressTensor *out)``                     | ``cpmdc_session_last_stress``                                                                   |
-+-----------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| Plain                                                                      | Per session                                                                                     |
++============================================================================+=================================================================================================+
+| ``int cpmdc_last_energy_components(CPMDCEnergyComponents *out)``           | ``int cpmdc_session_last_energy_components(const CPMDCSession *s, CPMDCEnergyComponents *out)`` |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out)``             | ``cpmdc_session_last_charge_integrals``                                                         |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)``      | ``cpmdc_session_last_multi_state_energies``                                                     |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)``            | ``cpmdc_session_last_md_trajectory_row``                                                        |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)``           | ``cpmdc_session_last_property_snapshot``                                                        |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_stress(CPMDCStressTensor *out)``                          | ``cpmdc_session_last_stress``                                                                   |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
+| ``int cpmdc_last_wavefunction_optimiser(CPMDCWavefunctionOptimiser *out)`` | ``cpmdc_session_last_wavefunction_optimiser``                                                   |
++----------------------------------------------------------------------------+-------------------------------------------------------------------------------------------------+
 
 The stress snapshot is valid only when the tensor was computed for a
 periodic cell: OpenCPMD ran ``totstr`` (``cntl%tpres``, which requires a
@@ -366,6 +367,14 @@ volume. An isolated cell (symmetry 0, ``CLUSTER``, or an
 isolated-molecule keyword, including Hockney) leaves ``valid`` unset
 even when the box volume is positive. ``CPMDC_STRESS=0`` leaves it unset
 on a periodic cell as well.
+
+The wavefunction-optimiser snapshot names the pass that produced the
+call. A call with no stored orbitals reports ``PCG MINIMIZE``. A warm
+call reports the deck optimiser (``ODIIS`` when the deck contains that
+keyword and DIIS ran, otherwise ``PCG MINIMIZE``, ``PCG``, ``DIIS``,
+``STEEPEST DESCENT``, or ``DEFAULT``). An ODIIS pass that continues with
+``PCG MINIMIZE`` reports ``PCG MINIMIZE``. ``valid`` stays unset until
+an SCF pass runs.
 
 Discovery
 =========

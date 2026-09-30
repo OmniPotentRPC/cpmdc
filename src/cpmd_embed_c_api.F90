@@ -113,6 +113,12 @@ MODULE cpmd_embed_c_api
     INTEGER(c_int) :: valid
     REAL(c_double) :: values(9)
   END TYPE
+  ! name is 32 bytes with the trailing NUL. Same layout as
+  ! CPMDCWavefunctionOptimiser.
+  TYPE, BIND(C) :: cpmdc_wf_optimiser
+    INTEGER(c_int) :: valid
+    CHARACTER(KIND=c_char) :: name(32)
+  END TYPE
   TYPE, BIND(C) :: cpmdc_embed_image
     TYPE(cpmdc_energy_components) :: energy
     TYPE(cpmdc_charge_integrals) :: charge
@@ -133,6 +139,7 @@ MODULE cpmd_embed_c_api
     INTEGER(c_int) :: input_deck_len
     CHARACTER(KIND=c_char) :: cpmd_root(1024)
     CHARACTER(KIND=c_char) :: output_dir(1024)
+    TYPE(cpmdc_wf_optimiser) :: wf_optimiser
   END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
@@ -319,6 +326,8 @@ CONTAINS
     image%warm_cell_set = 0_c_int
     image%warm_has_cell = 0_c_int
     image%warm_cell = 0.0_c_double
+    image%wf_optimiser%valid = 0_c_int
+    image%wf_optimiser%name = c_null_char
 #if defined(CPMDC_HAS_CPMD)
     CALL embed_reset_warm_orbitals()
     CALL clear_embed_basis_latch()
@@ -1424,6 +1433,60 @@ CONTAINS
     ierr = 0
   END SUBROUTINE
 
+  FUNCTION deck_contains_token(image, token) RESULT(found)
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    CHARACTER(LEN=*), INTENT(IN) :: token
+    LOGICAL :: found
+    CHARACTER(KIND=c_char), POINTER :: bytes(:)
+    INTEGER :: n, m, i, j
+    found = .FALSE.
+    n = INT(image%input_deck_len)
+    m = LEN(token)
+    IF (.NOT. C_ASSOCIATED(image%input_deck) .OR. n < m .OR. m < 1) RETURN
+    CALL C_F_POINTER(image%input_deck, bytes, [n])
+    DO i = 1, n - m + 1
+      found = .TRUE.
+      DO j = 1, m
+        IF (bytes(i + j - 1) /= token(j:j)) THEN
+          found = .FALSE.
+          EXIT
+        END IF
+      END DO
+      IF (found) RETURN
+    END DO
+  END FUNCTION
+
+  FUNCTION wf_optimiser_label(image) RESULT(label)
+    USE system, ONLY: cntl
+    TYPE(cpmdc_embed_image), INTENT(IN) :: image
+    CHARACTER(LEN=32) :: label
+    IF (cntl%pcg .AND. cntl%pcgmin) THEN
+      label = 'PCG MINIMIZE'
+    ELSE IF (cntl%pcg) THEN
+      label = 'PCG'
+    ELSE IF (cntl%tsde) THEN
+      label = 'STEEPEST DESCENT'
+    ELSE IF (cntl%diis .AND. deck_contains_token(image, 'ODIIS')) THEN
+      label = 'ODIIS'
+    ELSE IF (cntl%diis) THEN
+      label = 'DIIS'
+    ELSE
+      label = 'DEFAULT'
+    END IF
+  END FUNCTION
+
+  SUBROUTINE note_wf_optimiser(image, text)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    CHARACTER(LEN=*), INTENT(IN) :: text
+    INTEGER :: i
+    DO i = 1, SIZE(image%wf_optimiser%name)
+      image%wf_optimiser%name(i) = c_null_char
+    END DO
+    CALL copy_f_to_cchars(text, image%wf_optimiser%name, &
+         SIZE(image%wf_optimiser%name))
+    image%wf_optimiser%valid = 1_c_int
+  END SUBROUTINE
+
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
         cpmdc_note_embed_failure
@@ -1450,7 +1513,9 @@ CONTAINS
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
-    LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
+    LOGICAL :: stress_computed, cold_start
+    LOGICAL :: was_diis, was_pcg, was_pcgmin, was_prec, was_spcg
+    CHARACTER(LEN=32) :: used_opt
     INTERFACE
       FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
         IMPORT :: c_int
@@ -1499,13 +1564,37 @@ CONTAINS
     ! that store exists, and an unconverged SCF leaves the previous
     ! converged copy in place, so a later SCF is still a warm start.
     ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
+    ! cfg_warm_steps == 0 means this pass does not restore stored orbitals.
+    ! ODIIS from that guess can finish in a higher state, so the pass uses
+    ! PCG MINIMIZE. The deck flags are put back for the next warm call.
+    cold_start = image%cfg_warm_steps <= 0_c_int
+    IF (cold_start) THEN
+      was_diis = cntl%diis
+      was_pcg = cntl%pcg
+      was_pcgmin = cntl%pcgmin
+      was_prec = cntl%prec
+      was_spcg = ropt_mod%spcg
+      cntl%diis = .FALSE.
+      cntl%pcg = .TRUE.
+      cntl%pcgmin = .TRUE.
+      cntl%prec = .TRUE.
+      ropt_mod%spcg = .TRUE.
+      used_opt = 'PCG MINIMIZE'
+      IF (.NOT. (was_pcg .AND. was_pcgmin .AND. .NOT. was_diis)) THEN
+        IF (paral%io_parent) WRITE(6, '(A)') &
+            ' cpmdc: cold start; using PCG MINIMIZE'
+      END IF
+    ELSE
+      used_opt = wf_optimiser_label(image)
+    END IF
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
     ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
     ! does not replace the stored c0. Continue once with PCG MINIMIZE from
     ! the previous converged copy, which still counts as a warm start.
     ! A stopgm in the first pass leaves the CPMD state undefined, so it
-    ! does not start this continuation.
+    ! does not start this continuation. A cold pass already cleared diis,
+    ! so this continuation belongs to a warm ODIIS call.
     IF (.NOT. ropt_mod%convwf .AND. cntl%diis .AND. &
         cpmdc_stop_code() == 0_c_int) THEN
       was_diis = cntl%diis
@@ -1523,11 +1612,20 @@ CONTAINS
       IF (ALLOCATED(fion)) DEALLOCATE(fion)
       IF (ALLOCATED(taup)) DEALLOCATE(taup)
       CALL wfopts
+      used_opt = 'PCG MINIMIZE'
       cntl%diis = was_diis
       cntl%pcg = was_pcg
       cntl%pcgmin = was_pcgmin
       cntl%prec = was_prec
     END IF
+    IF (cold_start) THEN
+      cntl%diis = was_diis
+      cntl%pcg = was_pcg
+      cntl%pcgmin = was_pcgmin
+      cntl%prec = was_prec
+      ropt_mod%spcg = was_spcg
+    END IF
+    CALL note_wf_optimiser(image, used_opt)
     energy_h = REAL(ener_com%etot, KIND=c_double)
     image%energy%etot = energy_h
     image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)

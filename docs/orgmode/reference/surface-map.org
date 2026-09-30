@@ -62,11 +62,13 @@ row.
 | ~cpmdc_session_last_md_trajectory_row~ | result snapshot | Y | Y | Y | Y |
 | ~cpmdc_session_last_property_snapshot~ | result snapshot | Y | Y | Y | Y |
 | ~cpmdc_session_last_stress~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_last_wavefunction_optimiser~ | result snapshot | Y | Y | Y | Y |
+| ~cpmdc_session_last_wavefunction_optimiser~ | result snapshot | Y | Y | Y | Y |
 | ~cpmdc_feature_count~ | discovery | Y | Y | Y | Y |
 | ~cpmdc_feature_table~ | discovery | Y | Y | Y | Y |
 | ~cpmdc_feature_find~ | discovery | Y | Y | Y | Y |
 
-40 symbols in ~abi_symbols~, 40 with every column present.
+42 symbols in ~abi_symbols~, 42 with every column present.
 
 * Parser sections
 The 25 sections OpenCPMD reads with ~inscan('&SECTION')~, recorded in

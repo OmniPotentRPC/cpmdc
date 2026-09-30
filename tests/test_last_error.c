@@ -197,6 +197,13 @@ static void test_readers_do_not_write_last_error(void **state) {
   memset(&stress, 0x5a, sizeof(stress));
   assert_int_equal(cpmdc_last_stress(&stress), -1);
   expect_has("CPMDParams buffer is empty");
+  CPMDCWavefunctionOptimiser opt;
+  memset(&opt, 0x5a, sizeof(opt));
+  assert_int_equal(cpmdc_last_wavefunction_optimiser(&opt), -1);
+  assert_int_equal(opt.valid, 0);
+  expect_has("CPMDParams buffer is empty");
+  assert_int_equal(cpmdc_session_last_wavefunction_optimiser(NULL, &opt), -1);
+  expect_has("CPMDParams buffer is empty");
   CPMDCEnergyComponents energy;
   assert_int_equal(cpmdc_last_energy_components(&energy), -1);
   expect_has("CPMDParams buffer is empty");

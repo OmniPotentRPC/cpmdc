@@ -49,6 +49,8 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_session_last_md_trajectory_row",
     "cpmdc_session_last_property_snapshot",
     "cpmdc_session_last_stress",
+    "cpmdc_last_wavefunction_optimiser",
+    "cpmdc_session_last_wavefunction_optimiser",
     "cpmdc_session_calculate_forces",
     "cpmdc_session_calculate_result",
     "cpmdc_calculate_result",

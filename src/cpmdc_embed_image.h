@@ -27,4 +27,6 @@ typedef struct CPMDCEmbedImage {
   char cpmd_root[1024];
   /* permanentDir, else scratchDir. Empty: host working directory. */
   char output_dir[1024];
+  /* Optimiser that produced the last SCF. 32-byte name includes the NUL. */
+  CPMDCWavefunctionOptimiser wf_optimiser;
 } CPMDCEmbedImage;

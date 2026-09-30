@@ -123,6 +123,12 @@ feature row.
 | ``cpmdc_session_last_stress``                   | result        | Y      | Y     | Y    | Y           |
 |                                                 | snapshot      |        |       |      |             |
 +-------------------------------------------------+---------------+--------+-------+------+-------------+
+| ``cpmdc_last_wavefunction_optimiser``           | result        | Y      | Y     | Y    | Y           |
+|                                                 | snapshot      |        |       |      |             |
++-------------------------------------------------+---------------+--------+-------+------+-------------+
+| ``cpmdc_session_last_wavefunction_optimiser``   | result        | Y      | Y     | Y    | Y           |
+|                                                 | snapshot      |        |       |      |             |
++-------------------------------------------------+---------------+--------+-------+------+-------------+
 | ``cpmdc_feature_count``                         | discovery     | Y      | Y     | Y    | Y           |
 +-------------------------------------------------+---------------+--------+-------+------+-------------+
 | ``cpmdc_feature_table``                         | discovery     | Y      | Y     | Y    | Y           |
@@ -130,7 +136,7 @@ feature row.
 | ``cpmdc_feature_find``                          | discovery     | Y      | Y     | Y    | Y           |
 +-------------------------------------------------+---------------+--------+-------+------+-------------+
 
-40 symbols in ``abi_symbols``, 40 with every column present.
+42 symbols in ``abi_symbols``, 42 with every column present.
 
 Parser sections
 ===============
