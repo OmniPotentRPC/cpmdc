@@ -267,8 +267,10 @@ The first successful step fixes the atom count and the ordered atomic
 numbers. A later step with a different topology fails with
 ``topology change requires a new session`` before CPMD runs.
 Coordinates, the cell, and units may change between steps. A session
-evaluated after another session in the same process re-applies its
-configuration and starts cold (see
+evaluated after another session in the same process reuses the stored
+orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
+and elemental composition match. A different method or composition runs
+setup on the next evaluation (see
 :doc:`wavefunction state <../explanation/wavefunction-state>`).
 
 Session array steps
@@ -330,8 +332,9 @@ One-shot message calls
 |                                                                                                                                                                          | message is invalid or too large  |
 +--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
 
-Each one-shot call is a cold start. Use a session for more than one
-step.
+A one-shot call reuses the stored orbitals when its basis matches the
+previous call in the process. The first call of the process is cold.
+Use a session for more than one step.
 
 Results of the last evaluation
 ==============================

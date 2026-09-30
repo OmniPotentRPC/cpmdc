@@ -179,4 +179,4 @@ W
 
 Warm call
    An evaluation that reuses CPMD's setup and starts the SCF from the
-   orbitals of the previous call of the same session.
+   orbitals of a previous successful call in the same process.

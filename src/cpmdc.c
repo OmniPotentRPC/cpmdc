@@ -23,6 +23,7 @@ int cpmdc_stop_code(void);
 int cpmdc_embed_init(void);
 int cpmdc_embed_available(void);
 int cpmdc_embed_reset_state(CPMDCEmbedImage *image);
+int cpmdc_embed_detach_image(CPMDCEmbedImage *image);
 int cpmdc_embed_set_config(const char *functional, int functional_len,
                            double cutoff_ry, int charge, int multiplicity,
                            const char *input_deck, int input_deck_len,
@@ -328,7 +329,10 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
     }
   }
   image->output_dir[0] = '\0';
-  if (cpmdc_embed_reset_state(image) == 0)
+  /* Same method on a new session keeps the process copy of c0. A
+   * different basis drops it on the next force call. A stopgm still
+   * clears that copy immediately. */
+  if (cpmdc_embed_detach_image(image) == 0)
     return -1;
   int deck_len = 0;
   if (!input_deck || fit_c_int(strlen(input_deck), &deck_len) != 0)

@@ -288,17 +288,17 @@ all zeros even though the energy is finite. ~rwfopt~ frees a surviving ~fion~
 before its own ~ALLOCATE~, so the bridge's ~IF (ALLOCATED(fion))~ guard is
 optional.
 
-Warm calls (same process, same session, same cell, new ~ForceInput~
-positions):
+Warm calls (same process, same cell, same method, same elemental
+composition, new ~ForceInput~ positions):
 
-1. First force call: cold setup once, from the in-memory deck. The SCF sets
-   ~embed_set_warm_orbitals~ so a converged ~c0~ is stored. Restore does
-   nothing until that copy exists.
-2. Later calls: update ~tau0~ from C arrays, ~phfac~, full SCF from the
-   retained orbitals, no second setup. An unconverged ODIIS pass does not
-   replace the stored ~c0~. The same call then continues once with ~PCG
-   MINIMIZE~ from that previous converged copy, and the call still counts
-   as warm.
+1. First force call of the process: cold setup once, from the in-memory deck.
+   The SCF sets ~embed_set_warm_orbitals~ so a converged ~c0~ is stored.
+   Restore does nothing until that copy exists.
+2. Later calls, including a new session and a reordering of the same atomic
+   numbers: update ~tau0~ from C arrays, ~phfac~, full SCF from the retained
+   orbitals, no second setup. An unconverged ODIIS pass does not replace the
+   stored ~c0~. The same call then continues once with ~PCG MINIMIZE~ from
+   that previous converged copy, and the call still counts as warm.
 3. Every call requests forces through ~embed_set_need_forces~ and keeps the
    deck's ~MAXITER~; ~tests/test_embed_warm_no_nomore_clamp.py~ and
    ~tests/test_embed_bomd_force_export.py~ guard both.

@@ -273,6 +273,9 @@ A library force call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``,
 or ``GEOMETRY.xyz``. The pseudopotential directory is unchanged. To evaluate many geometries,
 call ``cpmdc_session_calculate_forces()`` again on the same session:
 every call after the first starts from the orbitals of the previous one.
+A new session with the same functional, deck, cell, and elemental
+composition starts from those orbitals too, including when the atomic
+numbers are reordered.
 The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
 minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each
 SCF over several ranks.

@@ -138,14 +138,20 @@ MODULE cpmd_embed_c_api
   ! mp_start assigns mp_comm_world only when it calls MPI_Init.
   ! The flag records that this process already split a calculator.
   LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
-  ! The saved c0 matches one cutoff, cell and state count. A later call
-  ! with a different basis clears it before rwfopt can restore it.
+  ! The saved c0 matches one cutoff, cell, charge, multiplicity,
+  ! functional, deck, and elemental composition. A later call with a
+  ! different basis clears it before rwfopt can restore it.
   LOGICAL, SAVE :: embed_basis_latched = .FALSE.
   REAL(c_double), SAVE :: embed_saved_cutoff = -1.0_c_double
   INTEGER, SAVE :: embed_saved_charge = -999
   INTEGER, SAVE :: embed_saved_mult = -999
   INTEGER, SAVE :: embed_saved_natoms = -1
   INTEGER, ALLOCATABLE, SAVE :: embed_saved_z(:)
+  CHARACTER(LEN=64), SAVE :: embed_saved_functional = ''
+  CHARACTER(LEN=:), ALLOCATABLE, SAVE :: embed_saved_deck
+  INTEGER, SAVE :: embed_saved_has_cell = 0
+  INTEGER, SAVE :: embed_saved_cell_set = 0
+  REAL(c_double), SAVE :: embed_saved_cell(9) = 0.0_c_double
 #endif
 
   TYPE :: embed_knobs
@@ -322,6 +328,24 @@ CONTAINS
     CALL embed_reset_warm_orbitals()
     CALL clear_embed_basis_latch()
 #endif
+    ok = 1_c_int
+  END FUNCTION
+
+  ! A new image has no warm counter of its own. The process copy of c0
+  ! stays until a force call sees a different basis.
+  FUNCTION cpmdc_embed_detach_image(image_c) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_detach_image')
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+    INTEGER(c_int) :: ok
+    ok = 0_c_int
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+    image%cfg_warm_steps = 0_c_int
+    image%warm_cell_set = 0_c_int
+    image%warm_has_cell = 0_c_int
+    image%warm_cell = 0.0_c_double
     ok = 1_c_int
   END FUNCTION
 
@@ -1723,7 +1747,9 @@ CONTAINS
     ! both of which run a full SCF step on orbitals that are then discarded.
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
-    IF (image%cfg_warm_steps > 0) THEN
+    ! The cheap guess is for a process that already holds c0. A new
+    ! session's counter is 0; the latch says the basis still matches.
+    IF (image%cfg_warm_steps > 0 .OR. embed_basis_latched) THEN
       cnti%inwfun = 3
       ibench(1) = 1
     END IF
@@ -1864,9 +1890,13 @@ CONTAINS
     INTEGER :: i
     image%warm_has_cell = has_cell
     image%warm_cell_set = 1
+    embed_saved_has_cell = has_cell
+    embed_saved_cell_set = 1
+    embed_saved_cell = 0.0_c_double
     IF (has_cell == 0) RETURN
     DO i = 1, 9
       image%warm_cell(i) = cell(i)
+      embed_saved_cell(i) = cell(i)
     END DO
   END SUBROUTINE
 
@@ -1888,7 +1918,12 @@ CONTAINS
     embed_saved_charge = -999
     embed_saved_mult = -999
     embed_saved_natoms = -1
+    embed_saved_functional = ''
+    embed_saved_has_cell = 0
+    embed_saved_cell_set = 0
+    embed_saved_cell = 0.0_c_double
     IF (ALLOCATED(embed_saved_z)) DEALLOCATE(embed_saved_z)
+    IF (ALLOCATED(embed_saved_deck)) DEALLOCATE(embed_saved_deck)
   END SUBROUTINE
 
   SUBROUTINE latch_embed_basis(n_atoms, z, knobs)
@@ -1911,8 +1946,36 @@ CONTAINS
     embed_saved_charge = knobs%charge
     embed_saved_mult = knobs%mult
     embed_saved_natoms = n_atoms
+    embed_saved_functional = knobs%functional
+    IF (ALLOCATED(embed_saved_deck)) DEALLOCATE(embed_saved_deck)
+    embed_saved_deck = ''
+    IF (ALLOCATED(knobs%input_deck)) embed_saved_deck = knobs%input_deck
     embed_basis_latched = .TRUE.
   END SUBROUTINE
+
+  LOGICAL FUNCTION same_element_counts(n_atoms, z)
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    INTEGER :: counts(118), i, zz
+    same_element_counts = .FALSE.
+    IF (.NOT. ALLOCATED(embed_saved_z)) RETURN
+    IF (SIZE(embed_saved_z) /= n_atoms) RETURN
+    counts = 0
+    DO i = 1, n_atoms
+      zz = embed_saved_z(i)
+      IF (zz < 1 .OR. zz > 118) RETURN
+      counts(zz) = counts(zz) + 1
+    END DO
+    DO i = 1, n_atoms
+      zz = INT(z(i))
+      IF (zz < 1 .OR. zz > 118) RETURN
+      counts(zz) = counts(zz) - 1
+    END DO
+    DO i = 1, 118
+      IF (counts(i) /= 0) RETURN
+    END DO
+    same_element_counts = .TRUE.
+  END FUNCTION
 
   LOGICAL FUNCTION embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)
     TYPE(cpmdc_embed_image), INTENT(IN) :: image
@@ -1925,18 +1988,39 @@ CONTAINS
     embed_basis_changed = .FALSE.
     IF (.NOT. embed_basis_latched) RETURN
     cutoff = REAL(knobs%cutoff_ry, KIND=c_double)
-    IF (.NOT. warm_cell_matches(image, cell, has_cell)) embed_basis_changed = .TRUE.
-    IF (ABS(cutoff - embed_saved_cutoff) > 1.0e-8_c_double) embed_basis_changed = .TRUE.
+    ! A detached image has no cell of its own. The cell stored with the
+    ! orbitals is the one a new session has to match. c0 is plane-wave
+    ! coefficients, so the count of each element is the composition.
+    IF (image%warm_cell_set /= 0) THEN
+      IF (.NOT. warm_cell_matches(image, cell, has_cell)) &
+          embed_basis_changed = .TRUE.
+    ELSE IF (embed_saved_cell_set == 0) THEN
+      embed_basis_changed = .TRUE.
+    ELSE IF (has_cell /= embed_saved_has_cell) THEN
+      embed_basis_changed = .TRUE.
+    ELSE IF (has_cell /= 0) THEN
+      DO i = 1, 9
+        IF (ABS(cell(i) - embed_saved_cell(i)) > 1.0e-8_c_double) &
+            embed_basis_changed = .TRUE.
+      END DO
+    END IF
+    IF (ABS(cutoff - embed_saved_cutoff) > 1.0e-8_c_double) &
+        embed_basis_changed = .TRUE.
     IF (knobs%charge /= embed_saved_charge) embed_basis_changed = .TRUE.
     IF (knobs%mult /= embed_saved_mult) embed_basis_changed = .TRUE.
-    IF (n_atoms /= embed_saved_natoms) embed_basis_changed = .TRUE.
-    IF (.NOT. ALLOCATED(embed_saved_z) .OR. SIZE(embed_saved_z) /= n_atoms) THEN
+    IF (TRIM(knobs%functional) /= TRIM(embed_saved_functional)) &
+        embed_basis_changed = .TRUE.
+    IF (.NOT. ALLOCATED(embed_saved_deck)) THEN
+      IF (ALLOCATED(knobs%input_deck)) THEN
+        IF (LEN_TRIM(knobs%input_deck) > 0) embed_basis_changed = .TRUE.
+      END IF
+    ELSE IF (.NOT. ALLOCATED(knobs%input_deck)) THEN
+      IF (LEN_TRIM(embed_saved_deck) > 0) embed_basis_changed = .TRUE.
+    ELSE IF (knobs%input_deck /= embed_saved_deck) THEN
       embed_basis_changed = .TRUE.
-      RETURN
     END IF
-    DO i = 1, n_atoms
-      IF (INT(z(i)) /= embed_saved_z(i)) embed_basis_changed = .TRUE.
-    END DO
+    IF (n_atoms /= embed_saved_natoms) embed_basis_changed = .TRUE.
+    IF (.NOT. same_element_counts(n_atoms, z)) embed_basis_changed = .TRUE.
   END FUNCTION
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
@@ -2000,16 +2084,13 @@ CONTAINS
     DO idx = 1, nmax
       grad(idx) = 0.0_c_double
     END DO
-    ! Saved orbitals match one cutoff, cell and state count. A shape
-    ! mismatch in embed_restore_orbitals calls stopgm, so drop the copy
-    ! before rwfopt when the deck changes any of those.
+    ! Saved orbitals match one method, cell, and elemental composition.
+    ! A shape mismatch in embed_restore_orbitals calls stopgm, so drop
+    ! the copy before rwfopt when any of those change. A new session and
+    ! a reordering of the same atomic numbers are not a new basis.
     knobs = knobs_of(image)
-    IF (embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)) THEN
-      CALL embed_reset_warm_orbitals()
-      CALL clear_embed_basis_latch()
-      image%cfg_warm_steps = 0
-    END IF
-    IF (image%cfg_warm_steps > 0 .AND. warm_cell_matches(image, cell, has_cell)) THEN
+    IF (embed_basis_latched .AND. &
+        .NOT. embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)) THEN
       IF (.NOT. embed_use_output_dir(image)) THEN
         ierr = cpmdc_restore_host_cwd()
         RETURN
@@ -2020,15 +2101,16 @@ CONTAINS
       ! The next call on this basis is still warm.
       IF (ok /= 0_c_int) THEN
         image%cfg_warm_steps = image%cfg_warm_steps + 1
+        CALL latch_warm_cell(image, cell, has_cell)
         CALL latch_embed_basis(n_atoms, z, knobs)
         IF (.NOT. embed_basis_latched) image%cfg_warm_steps = 0
       END IF
       RETURN
     END IF
-    IF (image%cfg_warm_steps > 0) THEN
-      image%cfg_warm_steps = 0
+    IF (embed_basis_latched) THEN
       CALL embed_reset_warm_orbitals()
       CALL clear_embed_basis_latch()
+      image%cfg_warm_steps = 0
     END IF
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.

@@ -113,7 +113,9 @@ returned from.
 and the ordered atomic numbers. A later step with a different count or
 order is refused before CPMD runs.
 
-**Fix:** create a new ``CPMDCSession`` for the new composition.
+**Fix:** create a new ``CPMDCSession``. A reordering of the same
+elements keeps the stored orbitals. A different elemental composition
+runs setup.
 
 ``PotentialResult buffer too small``
 ------------------------------------

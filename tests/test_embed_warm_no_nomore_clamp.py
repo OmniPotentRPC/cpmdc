@@ -32,6 +32,7 @@ def test_no_warm_nomore_iter_clamp() -> None:
     assert "cntl%pcgmin = .TRUE." in body
     assert "cpmdc_stop_code() == 0_c_int" in body
     assert "embed_reset_warm_orbitals" not in body
+    assert "embed_basis_latched" in body
 
 
 def test_calculator_once_flag_and_stop_reset() -> None:
@@ -78,7 +79,40 @@ def test_calculator_once_flag_and_stop_reset() -> None:
     assert "image%cfg_warm_steps = 0" in scf_body
 
 
+def test_new_session_keeps_matching_orbitals() -> None:
+    embed = EMBED.read_text(encoding="utf-8", errors="replace")
+    host = (ROOT / "src" / "cpmdc.c").read_text(encoding="utf-8", errors="replace")
+    apply = re.search(
+        r"static int embed_apply_from_wire\(.*?^\}",
+        host,
+        re.S | re.M,
+    )
+    assert apply, "embed_apply_from_wire not found"
+    apply_body = apply.group(0)
+    assert "cpmdc_embed_detach_image" in apply_body
+    assert "cpmdc_embed_reset_state" not in apply_body
+    basis = re.search(
+        r"LOGICAL FUNCTION embed_basis_changed.*?END FUNCTION",
+        embed,
+        re.S,
+    )
+    assert basis, "embed_basis_changed not found"
+    basis_body = basis.group(0)
+    assert "same_element_counts" in basis_body
+    assert "embed_saved_functional" in basis_body
+    assert "embed_saved_deck" in basis_body
+    assert "embed_saved_cell" in basis_body
+    assert "embed_saved_z(i)" not in basis_body
+    assert "FUNCTION cpmdc_embed_detach_image" in embed
+    assert "CALL embed_reset_warm_orbitals" not in re.search(
+        r"FUNCTION cpmdc_embed_detach_image.*?END FUNCTION",
+        embed,
+        re.S,
+    ).group(0)
+
+
 if __name__ == "__main__":
     test_no_warm_nomore_iter_clamp()
     test_calculator_once_flag_and_stop_reset()
+    test_new_session_keeps_matching_orbitals()
     print("ok")

@@ -7,29 +7,31 @@ This page follows ``c0`` from call to call.
 Cold and warm calls
 ===================
 
-Each session keeps a counter of successful warm-capable calls and the
-cell of the call that started them.
+The process keeps the converged orbitals, the cell, and the method that
+produced them. Each session keeps a counter of its own successful calls.
 
-+------+-------------------------------+-------------------------------+
-| Call | Condition                     | What runs                     |
-+======+===============================+===============================+
-| cold | first call, a changed cell,   | the full CPMD setup on the    |
-|      | cutoff, or state count, or a  | composed deck, then the SCF   |
-|      | re-configured session         | from CPMD's initial guess, or |
-|      |                               | from ``RESTART`` when the     |
-|      |                               | deck has                      |
-|      |                               | ``RESTART WAVEFUNCTION``      |
-+------+-------------------------------+-------------------------------+
-| warm | a previous success with the   | new positions into ``tau0``,  |
-|      | same cell, cutoff, and state  | ``phfac``, then the SCF from  |
-|      | count                         | the stored ``c0``             |
-+------+-------------------------------+-------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 46 46
+
+   * - Call
+     - Condition
+     - What runs
+   * - cold
+     - first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition
+     - the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from ``RESTART`` when the deck has ``RESTART WAVEFUNCTION``
+   * - warm
+     - a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers
+     - new positions into ``tau0``, ``phfac``, then the SCF from the stored ``c0``
 
 A cell counts as unchanged when every component of ``ForceInput.box``
 matches the stored cell within 1e-8 Angstrom, and when both calls agree
-on having a box at all. The cutoff matches within 1e-8 Rydberg. The
-state count follows the number of atoms, their atomic numbers, the
-charge, and the multiplicity. A failed warm call leaves the counter
+on having a box at all. A new session has no cell of its own yet, so
+that comparison uses the cell stored with the orbitals. The cutoff
+matches within 1e-8 Rydberg. The elemental composition is the count of
+each atomic number. Reordering the same atoms keeps that composition.
+The charge and the multiplicity belong to the same match. A failed warm
+call leaves the counter
 where it was, so the next call is warm again; a failed cold call clears
 the stored results. An SCF that does not converge does not replace the
 stored orbitals. When ODIIS exhausts ``MAXITER``, the same call
@@ -57,7 +59,9 @@ sets up the iteration state and scratch arrays as for any SCF, and then
 overwrites the generated starting orbitals with the saved copy when its
 shape still matches. A different shape calls ``stopgm`` and names
 ``embed_reset_warm_orbitals``. ``cpmdc`` makes that call when the
-cutoff, the cell, or the state count changes, before ``rwfopt`` runs.
+functional, the deck, the cutoff, the cell, the charge, the
+multiplicity, the atom count, or the elemental composition changes,
+before ``rwfopt`` runs.
 The SCF then runs to the orbital convergence threshold with the full
 ``MAXITER`` budget of the deck; a warm call is a complete SCF from a
 better start, not a shortened one.
@@ -74,41 +78,32 @@ before that check: those steps do not converge on ``gemax``.
 What clears the orbitals
 ========================
 
-+----------------------------------+----------------------------------+
-| Event                            | Why                              |
-+==================================+==================================+
-| a cell change                    | the plane-wave basis depends on  |
-|                                  | the cell, so the stored          |
-|                                  | coefficients no longer fit       |
-+----------------------------------+----------------------------------+
-| a cutoff change                  | the plane-wave basis changes, so |
-|                                  | the stored coefficients no       |
-|                                  | longer fit                       |
-+----------------------------------+----------------------------------+
-| a change of atom count, atomic   | those inputs set the number of   |
-| numbers, charge, or              | states, and a restored ``c0`` of |
-| multiplicity                     | another shape calls ``stopgm``   |
-+----------------------------------+----------------------------------+
-| ``cpmdc_session_set_params()``   | a new method invalidates the     |
-| or ``cpmdc_session_configure()`` | orbitals                         |
-+----------------------------------+----------------------------------+
-| evaluating a different session   | the stored copy is process-wide; |
-| in the same process              | the other session re-applies its |
-|                                  | configuration and starts cold    |
-+----------------------------------+----------------------------------+
-| any global call                  | each applies its message afresh  |
-| (``cpmdc_set_params()``,         |                                  |
-| ``cpmdc_energy*()``) or a        |                                  |
-| one-shot call                    |                                  |
-| (``cpmdc_calculate_result()``)   |                                  |
-+----------------------------------+----------------------------------+
-| ``stopgm`` returns through       | the call continued past a failed |
-| ``cpmd_stopgm_hook``             | check, so the stored orbitals    |
-|                                  | are not a result                 |
-+----------------------------------+----------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - Event
+     - Why
+   * - a cell change
+     - the plane-wave basis depends on the cell, so the stored coefficients no longer fit
+   * - a cutoff change
+     - the plane-wave basis changes, so the stored coefficients no longer fit
+   * - a change of atom count or elemental composition, or of charge or multiplicity
+     - those inputs set the number of states, and a restored ``c0`` of another shape calls ``stopgm``
+   * - ``cpmdc_session_set_params()`` or ``cpmdc_session_configure()`` when the functional, cutoff, charge, multiplicity, or deck differs
+     - the next evaluation drops the orbitals; the call itself keeps them
+   * - a new session with the same functional, deck, cutoff, cell, charge, multiplicity, and elemental composition
+     - reuses the stored orbitals and skips setup
+   * - a new session whose functional, deck, cutoff, cell, charge, multiplicity, or elemental composition differs
+     - the next evaluation drops the stored orbitals and runs setup
+   * - a one-shot or global call (``cpmdc_set_params()``, ``cpmdc_energy*()``, ``cpmdc_calculate_result()``) whose basis differs from the stored one
+     - that call runs setup; a matching basis reuses the orbitals
+   * - ``stopgm`` returns through ``cpmd_stopgm_hook``
+     - the call continued past a failed check, so the stored orbitals are not a result
 
 A topology change is refused outright rather than treated as cold: the
-atom count and the ordered atomic numbers belong to the session.
+atom count and the ordered atomic numbers belong to the session. A new
+session with those atoms in another order keeps the stored orbitals.
 
 The RESTART file
 ================

@@ -64,9 +64,10 @@ One session per calculator
 
 CPMD's module state and the stored orbitals live in the process, one set
 per rank. A calculator therefore evaluates one ``CPMDCSession``. A
-second session in the same process is possible, but switching between
-them re-applies the configuration and clears the stored orbitals each
-time, which turns every call into a cold start. Independent calculations
+second session in the same process keeps the stored orbitals when the
+functional, deck, cutoff, cell, charge, multiplicity, and elemental
+composition match. Switching to a different method or composition drops
+them on the next evaluation. Independent calculations
 belong on separate calculators: one per image of a nudged elastic band,
 one per end of a dimer.
 
