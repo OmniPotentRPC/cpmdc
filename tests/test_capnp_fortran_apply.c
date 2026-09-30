@@ -2,6 +2,8 @@
  * Drive the shipped set_params / session_create path and observe embed knobs
  * via cpmdc_embed_get_config (capnp-fortran apply-from-bytes).
  */
+#define _POSIX_C_SOURCE 200809L
+
 #include "cpmdc.h"
 #include "cpmdc_params.h"
 
@@ -12,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cmocka.h>
 
@@ -31,6 +34,7 @@ static const char *g_sections = NULL;
 static const char *g_parser = NULL;
 static const char *g_atoms_extras = NULL;
 static const char *g_method_only = NULL;
+static const char *g_atoms_message = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -283,9 +287,164 @@ static void test_set_params_method_only_keeps_dft_section(void **state) {
   free(msg);
 }
 
+static int line_equals(const char *deck, const char *exact) {
+  size_t n;
+  const char *p;
+  if (!deck || !exact)
+    return 0;
+  n = strlen(exact);
+  p = deck;
+  while (*p) {
+    if (strncmp(p, exact, n) == 0 && (p[n] == '\n' || p[n] == '\0'))
+      return 1;
+    p = strchr(p, '\n');
+    if (!p)
+      break;
+    p++;
+  }
+  return 0;
+}
+
+#define require_line(deck, exact)                                              \
+  do {                                                                         \
+    if (!line_equals((deck), (exact)))                                         \
+      fail_msg("missing line [%s] in deck:\n%s", (exact), (deck));             \
+  } while (0)
+
+/* Compose while Fortran's error unit is a temporary file. */
+static int compose_capture_stderr(int n_atoms, const double *pos, const int *z,
+                                  const double *cell, char *deck, int cap,
+                                  int *dlen, char *err, size_t errcap) {
+  char path[] = "/tmp/cpmdc-pp-errXXXXXX";
+  int fd;
+  int saved;
+  int rc;
+  FILE *fp;
+  size_t nread;
+  fd = mkstemp(path);
+  if (fd < 0)
+    return -1;
+  unlink(path);
+  fflush(stderr);
+  saved = dup(fileno(stderr));
+  if (saved < 0) {
+    close(fd);
+    return -1;
+  }
+  if (dup2(fd, fileno(stderr)) < 0) {
+    close(saved);
+    close(fd);
+    return -1;
+  }
+  rc = cpmdc_embed_compose_cold_deck(n_atoms, pos, z, cell, 0, deck, cap, dlen);
+  fflush(stderr);
+  if (dup2(saved, fileno(stderr)) < 0) {
+    close(saved);
+    close(fd);
+    return -1;
+  }
+  close(saved);
+  if (lseek(fd, 0, SEEK_SET) < 0) {
+    close(fd);
+    return -1;
+  }
+  fp = fdopen(fd, "r");
+  if (!fp) {
+    close(fd);
+    return -1;
+  }
+  nread = fread(err, 1, errcap - 1, fp);
+  err[nread] = '\0';
+  fclose(fp);
+  return rc;
+}
+
+/* Listed elements keep file, LMAX, LOC, and per-species KLEINMAN-BYLANDER.
+ * Unlisted table elements fall back without inheriting that flag. */
+static void test_compose_uses_message_pseudopotentials(void **state) {
+  (void)state;
+  double pos[12] = {0.1, 0.2, 0.3, 1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2};
+  int z[4] = {14, 7, 1, 6};
+  int missing[1] = {26};
+  double missing_pos[3] = {0.0, 0.0, 0.0};
+  double cell[9] = {0};
+  char cold[16384];
+  char err[1024];
+  int cold_len = 0;
+  int rc;
+  size_t n = 0;
+  unsigned char *msg;
+  char functional[64], deck[CPMDC_BLOCKS], root[1024];
+  double cutoff = 0.0;
+  int charge = 0, mult = 0;
+  const char *si;
+  const char *nitrogen;
+  const char *hydrogen;
+  const char *carbon;
+
+  assert_int_equal(cpmdc_available(), 1);
+  assert_non_null(g_atoms_message);
+  msg = read_file(g_atoms_message, &n);
+  assert_non_null(msg);
+  assert_int_equal(cpmdc_set_params(msg, n), 0);
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root, sizeof(root));
+  require_line(deck, "!SPECIES Si");
+  require_line(deck, "!SPECIES N");
+  require_line(deck, "*custom_silicon.psp");
+  require_line(deck, "*custom_nitrogen.psp KLEINMAN-BYLANDER");
+  require_line(deck, " LMAX=D LOC=S RAGGIO=1.500000");
+  require_line(deck, " LMAX=P LOC=P SKIP=S");
+  assert_null(strstr(deck, "H_CVB_BLYP.psp"));
+  assert_non_null(strstr(deck, "KLEINMAN-BYLANDER"));
+
+  memset(cold, 0, sizeof(cold));
+  assert_int_equal(cpmdc_embed_compose_cold_deck(4, pos, z, cell, 0, cold,
+                                                 (int)sizeof(cold), &cold_len),
+                   1);
+  assert_true(cold_len > 0);
+  require_line(cold, "*custom_silicon.psp");
+  require_line(cold, " LMAX=D LOC=S RAGGIO=1.500000");
+  require_line(cold, "*custom_nitrogen.psp KLEINMAN-BYLANDER");
+  require_line(cold, " LMAX=P LOC=P SKIP=S");
+  require_line(cold, "*H_CVB_BLYP.psp");
+  require_line(cold, " LMAX=S");
+  require_line(cold, "*C_MT_BLYP.psp");
+  require_line(cold, " LMAX=P");
+  assert_null(strstr(cold, "*H_CVB_BLYP.psp KLEINMAN-BYLANDER"));
+  assert_null(strstr(cold, "*C_MT_BLYP.psp KLEINMAN-BYLANDER"));
+  assert_null(strstr(cold, "Si_MT_BLYP.psp"));
+  assert_null(strstr(cold, "N_MT_BLYP.psp"));
+  assert_non_null(strstr(cold, "NEWCODE"));
+  assert_null(strstr(cold, "OLDCODE"));
+  assert_non_null(strstr(cold, "0.100000"));
+  si = strstr(cold, "*custom_silicon.psp");
+  nitrogen = strstr(cold, "*custom_nitrogen.psp");
+  hydrogen = strstr(cold, "*H_CVB_BLYP.psp");
+  carbon = strstr(cold, "*C_MT_BLYP.psp");
+  assert_non_null(si);
+  assert_non_null(nitrogen);
+  assert_non_null(hydrogen);
+  assert_non_null(carbon);
+  assert_true(si < nitrogen && nitrogen < hydrogen && hydrogen < carbon);
+
+  memset(cold, 0, sizeof(cold));
+  memset(err, 0, sizeof(err));
+  cold_len = 0;
+  rc = compose_capture_stderr(1, missing_pos, missing, cell, cold,
+                              (int)sizeof(cold), &cold_len, err, sizeof(err));
+  assert_int_equal(rc, 0);
+  if (!strstr(err, "atomic number 26"))
+    fail_msg("missing atomic number in error [%s]", err);
+  free(msg);
+}
+
 int main(int argc, char **argv) {
-  if (argc != 6) {
-    fprintf(stderr, "usage: %s top.bin sections.bin parser.bin atoms_extras.bin method_only.bin\n", argv[0]);
+  if (argc != 7) {
+    fprintf(stderr,
+            "usage: %s top.bin sections.bin parser.bin atoms_extras.bin "
+            "method_only.bin atoms_message.bin\n",
+            argv[0]);
     return 2;
   }
   g_top = argv[1];
@@ -293,12 +452,14 @@ int main(int argc, char **argv) {
   g_parser = argv[3];
   g_atoms_extras = argv[4];
   g_method_only = argv[5];
+  g_atoms_message = argv[6];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_set_params_applies_top_level_via_fortran),
       cmocka_unit_test(test_set_params_applies_section_overrides_via_fortran),
       cmocka_unit_test(test_session_create_applies_parser_fixture),
       cmocka_unit_test(test_set_params_stores_typed_section_deck),
       cmocka_unit_test(test_set_params_method_only_keeps_dft_section),
+      cmocka_unit_test(test_compose_uses_message_pseudopotentials),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

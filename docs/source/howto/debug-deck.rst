@@ -39,14 +39,18 @@ steps:
 
 #. If the method deck has an ``&ATOMS`` block with coordinate lines, it
    is used as it is. Otherwise every ``&ATOMS`` block is dropped and a
-   new one is written from the step's atomic numbers and positions, with
-   the pseudopotential file and channels from the built-in element table
-   (see :doc:`writing a CPMDParams message <write-cpmdparams>`). When
-   the method deck has no ``&CPMD``, ``&SYSTEM``, or ``&DFT`` section at
-   all, a minimal isolated deck replaces it: ``OPTIMIZE WAVEFUNCTION``,
-   ``CONVERGENCE ORBITALS 1.0d-5``, ``MAXITER 40``, ``SYMMETRY 0``,
-   ``POISSON SOLVER HOCKNEY``, and the functional, cutoff, charge, and
-   multiplicity of the message.
+   new one is written from the step's atomic numbers and positions. A
+   ``!SPECIES SYM`` comment in the method deck selects that element's
+   file, ``LMAX``, ``LOC``, and, when the ``*file`` line has it,
+   ``KLEINMAN-BYLANDER``. An element with no such comment uses the
+   built-in table (see :doc:`writing a CPMDParams message
+   <write-cpmdparams>`). An element in neither fails before CPMD starts,
+   and the error names the atomic number. When the method deck has no
+   ``&CPMD``, ``&SYSTEM``, or ``&DFT`` section at all, a minimal
+   isolated deck replaces it: ``OPTIMIZE WAVEFUNCTION``, ``CONVERGENCE
+   ORBITALS 1.0d-5``, ``MAXITER 40``, ``SYMMETRY 0``, ``POISSON SOLVER
+   HOCKNEY``, and the functional, cutoff, charge, and multiplicity of
+   the message.
 #. If the deck has no ``CELL`` keyword, a ``CELL`` line from
    ``ForceInput.box`` is inserted after ``ANGSTROM`` in ``&SYSTEM``, or
    a 12 Angstrom cube when the step has no box.

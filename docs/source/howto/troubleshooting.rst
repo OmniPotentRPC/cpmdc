@@ -71,9 +71,10 @@ starts:
 | both unset or name a missing     |                                  |
 | directory                        |                                  |
 +----------------------------------+----------------------------------+
-| an element outside H, C, N, O,   | the built-in pseudopotential     |
-| Si, and Ge                       | table has no entry, so no deck   |
-|                                  | is composed                      |
+| an element absent from the       | no pseudopotential in the        |
+| message and outside H, C,        | message or the built-in          |
+| N, O, Si, and Ge                 | table; the error names the       |
+|                                  | atomic number                    |
 +----------------------------------+----------------------------------+
 | atoms of one element are not     | positions are copied species by  |
 | contiguous in ``ForceInput``, or | species into CPMD's ``tau0``,    |
