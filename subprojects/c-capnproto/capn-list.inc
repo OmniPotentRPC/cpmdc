@@ -96,6 +96,9 @@ int CAT(capn_getv,SZ) (LIST_T l, int off, UINT_T *to, int sz) {
 			/* INT32-C: the index times eight must fit in a signed int. */
 			if (byte_off > (uint64_t)INT_MAX)
 				return -1;
+			/* C11 6.5.3.2: a null buffer is not a copy. */
+			if (!to || !p.data)
+				return -1;
 			char *d = struct_ptr(p.seg, p.data + (size_t)byte_off, SZ/8);
 			if (d) {
 				to[i] = FLIP(*(UINT_T*)d);
