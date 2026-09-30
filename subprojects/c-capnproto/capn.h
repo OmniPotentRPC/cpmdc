@@ -337,6 +337,9 @@ CAPN_INLINE uint8_t capn_read8(capn_ptr p, int off) {
 	return off+1 <= p.datasz ? capn_flip8(*(uint8_t*) (p.data+off)) : 0;
 }
 CAPN_INLINE int capn_write8(capn_ptr p, int off, uint8_t val) {
+	/* C11 6.5.3.2: a null data pointer is not a byte store. */
+	if (!p.data)
+		return -1;
 	if (off+1 <= p.datasz) {
 		*(uint8_t*) (p.data+off) = capn_flip8(val);
 		return 0;
