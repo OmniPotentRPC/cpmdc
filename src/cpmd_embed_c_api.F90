@@ -71,15 +71,17 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_bind_calculator
   PUBLIC :: cpmdc_embed_adopt_comm, cpmdc_embed_adopted_fcomm
-  PUBLIC :: cpmdc_embed_reset_state
+  PUBLIC :: cpmdc_embed_reset_state, cpmdc_embed_teardown
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
-  ! OpenCPMD sets itself up once per process. Its setup routines allocate
-  ! module arrays without a matching teardown, and tistart executes STOP
-  ! (exit status 0) on its second call, so a second cold setup is refused.
+  ! OpenCPMD's tistart runs once per process: a second call prints
+  ! CALLED ONCE and executes STOP, which exits the host with status 0.
+  LOGICAL, SAVE :: timer_started = .FALSE.
+  ! True from the start of a cold setup until cpmdc_embed_teardown frees
+  ! what that setup allocated. A second cold setup tears the first down.
   LOGICAL, SAVE :: cpmd_set_up = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
@@ -371,7 +373,26 @@ CONTAINS
     CALL embed_reset_warm_orbitals()
     CALL clear_embed_basis_latch()
 #endif
+    ok = cpmdc_embed_teardown()
+  END FUNCTION
+
+  ! Frees the module arrays, communicators and first-call state of the
+  ! OpenCPMD setup in this process (tools/opencpmd_embed_teardown.patch),
+  ! so the next force call sets CPMD up from its deck again, for any
+  ! basis. Without a setup it does nothing. The timers stay: tistart
+  ! runs once per process.
+  FUNCTION cpmdc_embed_teardown() RESULT(ok) BIND(C, NAME='cpmdc_embed_teardown')
+#if defined(CPMDC_HAS_CPMD)
+    USE embed_teardown, ONLY: embed_teardown_state
+#endif
+    INTEGER(c_int) :: ok
     ok = 1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    IF (.NOT. cpmd_set_up) RETURN
+    CALL embed_teardown_state()
+    CALL clear_embed_basis_latch()
+    cpmd_set_up = .FALSE.
+#endif
   END FUNCTION
 
   ! A new image has no warm counter of its own. The process copy of c0
@@ -2183,11 +2204,10 @@ CONTAINS
     ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
     !    multiplicity.
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
+    ! A basis change or a call after a CPMD stop: free the first setup
+    ! before this one allocates the same module arrays again.
     IF (cpmd_set_up) THEN
-      CALL cpmdc_note_embed_failure('OpenCPMD is already set up in this '// &
-           'process; a new basis or a call after a CPMD stop needs a new '// &
-           'process'//c_null_char)
-      RETURN
+      IF (cpmdc_embed_teardown() == 0_c_int) RETURN
     END IF
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)
@@ -2221,7 +2241,10 @@ CONTAINS
       RETURN
     END IF
     cpmd_set_up = .TRUE.
-    CALL tistart(tcpu0, twall0)
+    IF (.NOT. timer_started) THEN
+      CALL tistart(tcpu0, twall0)
+      timer_started = .TRUE.
+    END IF
     CALL init_fileopen
     CALL startpa
     CALL New(bicanonicalCpmdInputConfig)
