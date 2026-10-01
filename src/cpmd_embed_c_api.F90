@@ -77,9 +77,10 @@ MODULE cpmd_embed_c_api
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
-  ! OpenCPMD's tistart runs once per process: a second call prints
-  ! CALLED ONCE and executes STOP, which exits the host with status 0.
-  LOGICAL, SAVE :: timer_started = .FALSE.
+  ! OpenCPMD sets itself up once per process. Its setup routines allocate
+  ! module arrays without a matching teardown, and tistart executes STOP
+  ! (exit status 0) on its second call, so a second cold setup is refused.
+  LOGICAL, SAVE :: cpmd_set_up = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
@@ -2182,6 +2183,12 @@ CONTAINS
     ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
     !    multiplicity.
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
+    IF (cpmd_set_up) THEN
+      CALL cpmdc_note_embed_failure('OpenCPMD is already set up in this '// &
+           'process; a new basis or a call after a CPMD stop needs a new '// &
+           'process'//c_null_char)
+      RETURN
+    END IF
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
@@ -2213,12 +2220,8 @@ CONTAINS
            'cannot enter the pseudopotential directory'//c_null_char)
       RETURN
     END IF
-    ! A later cold setup (a new basis, or the call after a stopgm) keeps
-    ! the timers of the first one.
-    IF (.NOT. timer_started) THEN
-      CALL tistart(tcpu0, twall0)
-      timer_started = .TRUE.
-    END IF
+    cpmd_set_up = .TRUE.
+    CALL tistart(tcpu0, twall0)
     CALL init_fileopen
     CALL startpa
     CALL New(bicanonicalCpmdInputConfig)

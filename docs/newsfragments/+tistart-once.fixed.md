@@ -1,1 +1,0 @@
-A second cold setup in one process, after a basis change or a failed call, no longer stops the host. OpenCPMD's `tistart` executes `STOP` when called twice, which ended the process with status 0 in the middle of the call; the embed now starts the timers once per process.

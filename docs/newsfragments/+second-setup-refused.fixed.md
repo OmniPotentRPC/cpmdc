@@ -1,0 +1,1 @@
+A call that needs a second OpenCPMD setup in one process, for a new basis or after a CPMD stop, fails with an error instead of ending the host. OpenCPMD's `tistart` executes `STOP` on its second call, which exited the process with status 0 in the middle of the call, and its setup routines allocate module arrays that nothing frees.
