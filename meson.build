@@ -395,6 +395,18 @@ if get_option('with_tests')
     output: 'params_effective_config_sections.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  effective_xc_top_params_bin = custom_target(
+    'effective_xc_top_params_bin',
+    input: 'tests/params_effective_config_xc_top.capnp.txt',
+    output: 'params_effective_config_xc_top.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  effective_xc_section_params_bin = custom_target(
+    'effective_xc_section_params_bin',
+    input: 'tests/params_effective_config_xc_sections.capnp.txt',
+    output: 'params_effective_config_xc_sections.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   atoms_silicon_params_bin = custom_target(
     'atoms_silicon_params_bin',
     input: 'tests/params_atoms_silicon.capnp.txt',
@@ -511,13 +523,13 @@ if get_option('with_tests')
       c_args: common_c_args + capnp_generated_c_args,
     ),
     args: [
-      effective_top_params_bin.full_path(),
-      effective_section_params_bin.full_path(),
+      effective_xc_top_params_bin.full_path(),
+      effective_xc_section_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
     ],
     depends: [
-      effective_top_params_bin,
-      effective_section_params_bin,
+      effective_xc_top_params_bin,
+      effective_xc_section_params_bin,
       force_input_step_a_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],

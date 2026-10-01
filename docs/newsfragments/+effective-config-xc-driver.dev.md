@@ -1,0 +1,1 @@
+The effective-config fixtures run PBE0 through the XC driver (`USE_XC_DRIVER`, `FUNCTIONAL HYB_GGA_XC_PBE0`). OpenCPMD refuses old-code PBE0 with LSD, since its VWN correlation has no LSD form; cpmd.x converges the driver deck at -14.72424 Ha.
