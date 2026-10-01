@@ -1,0 +1,2153 @@
+diff --git a/src/SOURCES b/src/SOURCES
+index 67500c6..afbd5ec 100644
+--- a/src/SOURCES
++++ b/src/SOURCES
+@@ -269,4 +269,4 @@ SRC_MODULES = kinds.mod.F90 embed_ctrl.mod.F90 machine.mod.F90 timer.mod.F90 err
+            bicanonicalCpmd.mod.F90 bicanonicalConfig.mod.F90 bicanonicalInputReader.mod.F90 bicanonicalCalculationConfig.mod.F90 bicanonicalCalculation.mod.F90 \
+           pi_prpt_utils.mod.F90 pi_npt_cpmd_utils.mod.F90 pi_stress_utils.mod.F90 pi_npt_bomd_utils.mod.F90 \
+           nvml_interfaces.mod.F90 nvml_types.mod.F90 nvml_utils.mod.F90 mts_utils.mod.F90 interface_utils.mod.F90 \
+-          dftd3_driver.mod.F90 
++          dftd3_driver.mod.F90 embed_teardown.mod.F90 
+diff --git a/src/broyden_utils.mod.F90 b/src/broyden_utils.mod.F90
+index fa8a062..ab206f0 100644
+--- a/src/broyden_utils.mod.F90
++++ b/src/broyden_utils.mod.F90
+@@ -1,6 +1,7 @@
+ MODULE broyden_utils
+   USE broy,                            ONLY: broy1
+   USE dotp_utils,                      ONLY: dotp
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE geq0mod,                         ONLY: geq0
+   USE kinds,                           ONLY: real_8
+@@ -54,10 +55,20 @@ CONTAINS
+     INTEGER                                  :: i, ierr, ig, info, isub, j, &
+                                                 k, lbroyden
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: aux, sn
+     REAL(real_8), ALLOCATABLE                :: a(:,:), b(:,:), c(:), GAMMA(:)
+     REAL(real_8), ALLOCATABLE, SAVE          :: w(:,:)
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(deltaf)) DEALLOCATE(deltaf)
++       IF (ALLOCATED(fm1)) DEALLOCATE(fm1)
++       IF (ALLOCATED(u)) DEALLOCATE(u)
++       IF (ALLOCATED(w)) DEALLOCATE(w)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('   BROYDEN',isub)
+     IF (it.GT.broy1%ibreset) THEN
+        IF (paral%io_parent)&
+diff --git a/src/calc_alm_utils.mod.F90 b/src/calc_alm_utils.mod.F90
+index 70c8c4a..8cc6cb3 100644
+--- a/src/calc_alm_utils.mod.F90
++++ b/src/calc_alm_utils.mod.F90
+@@ -1,6 +1,7 @@
+ MODULE calc_alm_utils
+   USE cppt,                            ONLY: twnl
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fint,                            ONLY: afnl,&
+                                              alm,&
+@@ -56,12 +57,18 @@ CONTAINS
+     INTEGER :: i1, i2, ia, ia1, ierr, ig, ik, ikpt, is, is1, isa, isa1, isub, &
+       iv, kbeg, kend, kinc, ncnl, nkpoint, nli, nlm1, nlmx2, nni, nnl
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: tlsdtrue
+     REAL(real_8)                             :: dummy
+ 
+ ! dummy parameter for calling _swap functions
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (ifirst.EQ.0) THEN
+        ! Allocate Array ALM and CNL
+        ifirst=1
+diff --git a/src/chksym_utils.mod.F90 b/src/chksym_utils.mod.F90
+index afd8b54..d86377e 100644
+--- a/src/chksym_utils.mod.F90
++++ b/src/chksym_utils.mod.F90
+@@ -1,4 +1,5 @@
+ MODULE chksym_utils
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE ions,                            ONLY: ions0,&
+                                              ions1
+@@ -51,9 +52,15 @@ CONTAINS
+                                                 temp(3,3)
+     REAL(real_8), ALLOCATABLE                :: rx(:,:), tvec0(:,:), &
+                                                 xkapa(:,:)
++                                                INTEGER, SAVE                            :: embed_seen = 0
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('   GIVESYM',isub)
+     ! ==--------------------------------------------------------------==
+     ! == Allocations of arrays                                        ==
+@@ -232,6 +239,7 @@ CONTAINS
+                                                 j, k, lxau, nsym
+     INTEGER, ALLOCATABLE                     :: irt0(:), isc(:), ityp(:)
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: nodupli, oksym, sym(120), &
+                                                 tsymmor2
+     REAL(real_8)                             :: aa(3,3), bb(3,3), cm(3), &
+@@ -241,6 +249,11 @@ CONTAINS
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (symmi%indpg.EQ.0) RETURN
+     ! ==--------------------------------------------------------------==
+     deltasym2=1.e-4_real_8*symmr%deltasym
+@@ -784,12 +797,18 @@ CONTAINS
+                                                 imax, ir, is, k, lxau, nsym
+     INTEGER, ALLOCATABLE                     :: irt0(:), isc(:), ityp(:)
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: sym(120)
+     REAL(real_8)                             :: cm(3), disp, ft(3), vs
+     REAL(real_8), ALLOCATABLE                :: rau(:,:), xau(:,:)
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (.NOT.symmt%tsymm) RETURN
+     IF (symmi%indpg.EQ.0) RETURN
+     IF (paral%io_parent)&
+diff --git a/src/detdof_utils.mod.F90 b/src/detdof_utils.mod.F90
+index a9b7eb6..e8f34b3 100644
+--- a/src/detdof_utils.mod.F90
++++ b/src/detdof_utils.mod.F90
+@@ -11,6 +11,7 @@ MODULE detdof_utils
+        xlagr, ylagr
+   USE dum2_utils,                      ONLY: dum2,&
+                                              dumpr
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE glemod,                          ONLY: tglepc
+   USE ions,                            ONLY: ions0,&
+@@ -61,12 +62,18 @@ CONTAINS
+                                                 ifix, iif, is, ityp, k, l, &
+                                                 l1, l2, l3, nfix
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: cval, dummy
+     REAL(real_8), ALLOCATABLE                :: dxpar(:,:,:)
+ 
+ ! ==--------------------------------------------------------------==
+ ! Only call this routine once
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (ifirst.NE.0) RETURN
+     ifirst=1
+     ! ==--------------------------------------------------------------==
+diff --git a/src/drhov_utils.mod.F90 b/src/drhov_utils.mod.F90
+index 6e158b9..f92e4a2 100644
+--- a/src/drhov_utils.mod.F90
++++ b/src/drhov_utils.mod.F90
+@@ -20,6 +20,7 @@ SUBROUTINE drhov(nstate,qg,ctmp)
+   ! ==--------------------------------------------------------------==
+   ! ==    THIS ROUTINE CALCULATES THE DERIVATIVE VANDERBILT DENSITY ==
+   ! ==--------------------------------------------------------------==
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+   USE error_handling, ONLY: stopgm
+   USE timer, ONLY: tiset, tihalt
+@@ -47,12 +48,19 @@ SUBROUTINE drhov(nstate,qg,ctmp)
+   INTEGER                                    :: i, ia, ierr, ig, ii, is, isa, &
+                                                 isa0, isub, iv, jv, kk
+   INTEGER, SAVE                              :: ifirst = 0
++  INTEGER, SAVE                            :: embed_seen = 0
+   REAL(real_8)                               :: dsum, sum, &
+                                                 dsum_up, dsum_down, &
+                                                 sum_up, sum_down
+   REAL(real_8), ALLOCATABLE, SAVE            :: spline(:)
+   COMPLEX(real_8), POINTER                   :: dqg_2d(:,:)
+ 
++  ! After embed_teardown_state, run as the first call in a process.
++  IF (embed_seen /= embed_teardowns) THEN
++     IF (ALLOCATED(spline)) DEALLOCATE(spline)
++     ifirst = 0
++     embed_seen = embed_teardowns
++  ENDIF
+   CALL tiset('     DRHOV',isub)
+   ! ==--------------------------------------------------------------==
+   IF (cntl%tfdist) CALL stopgm('DRHOV','TFDIST NOT IMPLEMENTED',& 
+diff --git a/src/ehpsi_utils.mod.F90 b/src/ehpsi_utils.mod.F90
+index d30cff3..a4a51ba 100644
+--- a/src/ehpsi_utils.mod.F90
++++ b/src/ehpsi_utils.mod.F90
+@@ -2,6 +2,7 @@ MODULE ehpsi_utils
+   USE cppt,                            ONLY: hg,&
+                                              indzs,&
+                                              nzhs
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: ngrm
+   USE fftmain_utils,                   ONLY: fwfftn,&
+@@ -457,9 +458,15 @@ CONTAINS
+ 
+     INTEGER                                  :: i
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (fint4%ntabtrot.LE.1) THEN
+        RETURN
+     ENDIF
+@@ -490,9 +497,15 @@ CONTAINS
+ 
+     INTEGER                                  :: i
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (fint5%ntabbetap.LE.1) RETURN
+     IF (ifirst.EQ.0) THEN
+        fint5%ibetap=1
+diff --git a/src/embed_ctrl.mod.F90 b/src/embed_ctrl.mod.F90
+index ec0d497..80ca9e6 100644
+--- a/src/embed_ctrl.mod.F90
++++ b/src/embed_ctrl.mod.F90
+@@ -9,4 +9,10 @@ MODULE embed_ctrl
+   ! coordinates on the output.
+   LOGICAL, PUBLIC, SAVE :: embed_write_files = .TRUE.
+ 
++  ! embed_teardown_state adds one after it frees the setup arrays. A
++  ! routine that does work on its first call only keeps the count it
++  ! last saw, and does that work again when the count has moved.
++  ! cpmd.x never tears down, so the count stays 0.
++  INTEGER, PUBLIC, SAVE :: embed_teardowns = 0
++
+ END MODULE embed_ctrl
+diff --git a/src/embed_teardown.mod.F90 b/src/embed_teardown.mod.F90
+new file mode 100644
+index 0000000..2f0ab5e
+--- /dev/null
++++ b/src/embed_teardown.mod.F90
+@@ -0,0 +1,1020 @@
++MODULE embed_teardown
++  ! Frees and resets what a CPMD setup leaves behind, so that one process
++  ! can set CPMD up again for another basis, or after a stopgm that
++  ! returned through cpmd_stopgm_hook. cpmd.x never calls it.
++  !
++  ! embed_teardown_state deallocates every PUBLIC module ALLOCATABLE,
++  ! frees the communicators set_cp_grp built, and moves embed_teardowns.
++  ! The routines of the wavefunction optimisation path that do work on
++  ! their first call only (phfac, setbasis, hf_init, addfftnset, the
++  ! density mixers, the symmetry setup, ...) then do it again, and free
++  ! the SAVE arrays they kept. The next setup starts as the first one in
++  ! the process did. The timer state that tistart set is kept: tistart
++  ! stops CPMD on a second call, so a host calls it once per process.
++  ! First-call state in response, TDDFT, path-integral and metadynamics
++  ! routines is not reset.
++  !
++  ! The deallocation list holds every ALLOCATABLE module variable, and
++  ! every ALLOCATABLE component of a module variable of derived type,
++  ! that a USE reaches, in the modules of SRC_MODULES except embed_ctrl,
++  ! error_handling, timer, time, rwfopt_utils (embed_reset_warm_orbitals
++  ! frees its copy of c0) and the CUDA device tables. dftd3c keeps its
++  ! arrays: the DFT-D3 library declares them PRIVATE.
++  USE atwf,                            ONLY: dmovrmix,&
++                                             natsave,&
++                                             tmovr
++  USE bicanonicalCpmd,                 ONLY: biCanonicalEnsembleDo
++  USE cp_xc_utils,                     ONLY: cp_xc
++  USE embed_ctrl,                      ONLY: embed_teardowns
++  USE ener,                            ONLY: tenergy_ok
++  USE hfxmod,                          ONLY: ipoolhfx
++  USE kinds,                           ONLY: real_8
++  USE mp_interface,                    ONLY: mp_comm_free,&
++                                             mp_comm_null,&
++                                             mp_comm_world
++  USE parac,                           ONLY: parai
++  USE rwfopt_utils,                    ONLY: embed_reset_warm_orbitals
++  USE scex_utils,                      ONLY: scex_ID_scaled
++  USE swap,                            ONLY: iswfirst
++  USE vdwcmod,                         ONLY: tdftd3noc
++
++  IMPLICIT NONE
++
++  PRIVATE
++
++  PUBLIC :: embed_teardown_state
++
++  ! startpa writes this into parai%allgrp before set_cp_grp builds it.
++  INTEGER, PARAMETER :: allgrp_unset = -123456789
++
++CONTAINS
++
++  ! ==================================================================
++  SUBROUTINE embed_teardown_state
++    ! ==--------------------------------------------------------------==
++    CALL embed_reset_warm_orbitals()
++    CALL free_cp_groups()
++    CALL free_module_arrays()
++    ! Module variables with an initial value that a run changes and no
++    ! setup routine writes again.
++    dmovrmix = HUGE(0.0_real_8)
++    natsave = HUGE(0)
++    tmovr = .FALSE.
++    tenergy_ok = .FALSE.
++    iswfirst = 0
++    ipoolhfx = HUGE(0)
++    scex_ID_scaled = 0
++    biCanonicalEnsembleDo = .FALSE.
++    tdftd3noc = .FALSE.
++    NULLIFY(cp_xc)
++    embed_teardowns = embed_teardowns + 1
++    ! ==--------------------------------------------------------------==
++  END SUBROUTINE embed_teardown_state
++  ! ==================================================================
++  SUBROUTINE free_cp_groups
++    ! ==--------------------------------------------------------------==
++    ! mp_cart builds allgrp and cp_inter_grp from mp_comm_world on every
++    ! setup. A setup that stopped before set_cp_grp left them unset.
++    IF (cp_group_set(parai%allgrp)) CALL mp_comm_free(parai%allgrp)
++    IF (cp_group_set(parai%cp_inter_grp)) CALL mp_comm_free(parai%cp_inter_grp)
++    parai%allgrp = mp_comm_null
++    parai%cp_inter_grp = mp_comm_null
++    ! ==--------------------------------------------------------------==
++  END SUBROUTINE free_cp_groups
++  ! ==================================================================
++  LOGICAL FUNCTION cp_group_set(comm)
++    INTEGER, INTENT(in)                      :: comm
++
++    ! parai holds HUGE(0) until startpa runs.
++    cp_group_set = comm /= mp_comm_null .AND. comm /= mp_comm_world &
++         .AND. comm /= allgrp_unset .AND. comm /= HUGE(0)
++  END FUNCTION cp_group_set
++  ! ==================================================================
++  SUBROUTINE free_module_arrays
++    ! ==--------------------------------------------------------------==
++    BLOCK
++      USE system, ONLY: iatpe, iatpt, ipept, kpbeg, mapgp, nassel, nkpbl, &
++           parap, paraw
++      IF (ALLOCATED(nkpbl)) DEALLOCATE(nkpbl)
++      IF (ALLOCATED(kpbeg)) DEALLOCATE(kpbeg)
++      IF (ALLOCATED(parap%nrxpl)) DEALLOCATE(parap%nrxpl)
++      IF (ALLOCATED(parap%nrzpl)) DEALLOCATE(parap%nrzpl)
++      IF (ALLOCATED(parap%sparm)) DEALLOCATE(parap%sparm)
++      IF (ALLOCATED(parap%nst12)) DEALLOCATE(parap%nst12)
++      IF (ALLOCATED(parap%pgroup)) DEALLOCATE(parap%pgroup)
++      IF (ALLOCATED(parap%nlink)) DEALLOCATE(parap%nlink)
++      IF (ALLOCATED(paraw%nwa12)) DEALLOCATE(paraw%nwa12)
++      IF (ALLOCATED(mapgp)) DEALLOCATE(mapgp)
++      IF (ALLOCATED(ipept)) DEALLOCATE(ipept)
++      IF (ALLOCATED(iatpt)) DEALLOCATE(iatpt)
++      IF (ALLOCATED(iatpe)) DEALLOCATE(iatpe)
++      IF (ALLOCATED(nassel)) DEALLOCATE(nassel)
++    END BLOCK
++    BLOCK
++      USE atom, ONLY: gnl, rps, rv, rw, vr
++      IF (ALLOCATED(gnl)) DEALLOCATE(gnl)
++      IF (ALLOCATED(rps)) DEALLOCATE(rps)
++      IF (ALLOCATED(rw)) DEALLOCATE(rw)
++      IF (ALLOCATED(rv)) DEALLOCATE(rv)
++      IF (ALLOCATED(vr)) DEALLOCATE(vr)
++    END BLOCK
++    BLOCK
++      USE atwf, ONLY: atchg, atrg, atrg_epr, atwfr, atwfr_epr, cat, catom, &
++           catord, xsmat, xxmat, zsmat, zxmat
++      IF (ALLOCATED(cat)) DEALLOCATE(cat)
++      IF (ALLOCATED(xxmat)) DEALLOCATE(xxmat)
++      IF (ALLOCATED(xsmat)) DEALLOCATE(xsmat)
++      IF (ALLOCATED(catom)) DEALLOCATE(catom)
++      IF (ALLOCATED(zxmat)) DEALLOCATE(zxmat)
++      IF (ALLOCATED(zsmat)) DEALLOCATE(zsmat)
++      IF (ALLOCATED(atrg)) DEALLOCATE(atrg)
++      IF (ALLOCATED(atwfr)) DEALLOCATE(atwfr)
++      IF (ALLOCATED(atchg)) DEALLOCATE(atchg)
++      IF (ALLOCATED(atrg_epr)) DEALLOCATE(atrg_epr)
++      IF (ALLOCATED(atwfr_epr)) DEALLOCATE(atwfr_epr)
++      IF (ALLOCATED(catord)) DEALLOCATE(catord)
++    END BLOCK
++    BLOCK
++      USE aavan, ONLY: indv
++      IF (ALLOCATED(indv)) DEALLOCATE(indv)
++    END BLOCK
++    BLOCK
++      USE coor, ONLY: fion, lvelini, tau0, taup, velp
++      IF (ALLOCATED(tau0)) DEALLOCATE(tau0)
++      IF (ALLOCATED(taup)) DEALLOCATE(taup)
++      IF (ALLOCATED(fion)) DEALLOCATE(fion)
++      IF (ALLOCATED(velp)) DEALLOCATE(velp)
++      IF (ALLOCATED(lvelini)) DEALLOCATE(lvelini)
++    END BLOCK
++    BLOCK
++      USE cotr, ONLY: anorm, askel, boad, cnpar, cnsval, cnsval_dest, csigm, &
++           dtm, fc, fcstr, fv, grate, gsrate, hess, kshove, lskcor, lskptr, &
++           mm_askel, ntcnst, ntrest, pmall, pxpar, resc, resfdiff, resfor, &
++           resm, respar, respos, resv, resval, resval_dest, rskel, rsmass, &
++           xlagr, ylagr
++      IF (ALLOCATED(boad)) DEALLOCATE(boad)
++      IF (ALLOCATED(lskcor)) DEALLOCATE(lskcor)
++      IF (ALLOCATED(ntcnst)) DEALLOCATE(ntcnst)
++      IF (ALLOCATED(lskptr)) DEALLOCATE(lskptr)
++      IF (ALLOCATED(mm_askel)) DEALLOCATE(mm_askel)
++      IF (ALLOCATED(hess)) DEALLOCATE(hess)
++      IF (ALLOCATED(dtm)) DEALLOCATE(dtm)
++      IF (ALLOCATED(pmall)) DEALLOCATE(pmall)
++      IF (ALLOCATED(kshove)) DEALLOCATE(kshove)
++      IF (ALLOCATED(cnsval)) DEALLOCATE(cnsval)
++      IF (ALLOCATED(cnpar)) DEALLOCATE(cnpar)
++      IF (ALLOCATED(anorm)) DEALLOCATE(anorm)
++      IF (ALLOCATED(askel)) DEALLOCATE(askel)
++      IF (ALLOCATED(grate)) DEALLOCATE(grate)
++      IF (ALLOCATED(cnsval_dest)) DEALLOCATE(cnsval_dest)
++      IF (ALLOCATED(fcstr)) DEALLOCATE(fcstr)
++      IF (ALLOCATED(fc)) DEALLOCATE(fc)
++      IF (ALLOCATED(fv)) DEALLOCATE(fv)
++      IF (ALLOCATED(csigm)) DEALLOCATE(csigm)
++      IF (ALLOCATED(xlagr)) DEALLOCATE(xlagr)
++      IF (ALLOCATED(ylagr)) DEALLOCATE(ylagr)
++      IF (ALLOCATED(ntrest)) DEALLOCATE(ntrest)
++      IF (ALLOCATED(resval)) DEALLOCATE(resval)
++      IF (ALLOCATED(resfor)) DEALLOCATE(resfor)
++      IF (ALLOCATED(gsrate)) DEALLOCATE(gsrate)
++      IF (ALLOCATED(resval_dest)) DEALLOCATE(resval_dest)
++      IF (ALLOCATED(rskel)) DEALLOCATE(rskel)
++      IF (ALLOCATED(resc)) DEALLOCATE(resc)
++      IF (ALLOCATED(resv)) DEALLOCATE(resv)
++      IF (ALLOCATED(respos)) DEALLOCATE(respos)
++      IF (ALLOCATED(resfdiff)) DEALLOCATE(resfdiff)
++      IF (ALLOCATED(resm)) DEALLOCATE(resm)
++      IF (ALLOCATED(rsmass)) DEALLOCATE(rsmass)
++      IF (ALLOCATED(respar)) DEALLOCATE(respar)
++      IF (ALLOCATED(pxpar)) DEALLOCATE(pxpar)
++    END BLOCK
++    BLOCK
++      USE cppt, ONLY: gk, gl, hg, hgpot, hipz, igl, indz, indzs, inyh, isptr, &
++           nzh, nzhs, qrad, rhops, scg, twnl, twnls, vps, ylmb
++      IF (ALLOCATED(nzh)) DEALLOCATE(nzh)
++      IF (ALLOCATED(nzhs)) DEALLOCATE(nzhs)
++      IF (ALLOCATED(indz)) DEALLOCATE(indz)
++      IF (ALLOCATED(indzs)) DEALLOCATE(indzs)
++      IF (ALLOCATED(inyh)) DEALLOCATE(inyh)
++      IF (ALLOCATED(igl)) DEALLOCATE(igl)
++      IF (ALLOCATED(isptr)) DEALLOCATE(isptr)
++      IF (ALLOCATED(hg)) DEALLOCATE(hg)
++      IF (ALLOCATED(gk)) DEALLOCATE(gk)
++      IF (ALLOCATED(gl)) DEALLOCATE(gl)
++      IF (ALLOCATED(vps)) DEALLOCATE(vps)
++      IF (ALLOCATED(rhops)) DEALLOCATE(rhops)
++      IF (ALLOCATED(twnl)) DEALLOCATE(twnl)
++      IF (ALLOCATED(qrad)) DEALLOCATE(qrad)
++      IF (ALLOCATED(twnls)) DEALLOCATE(twnls)
++      IF (ALLOCATED(ylmb)) DEALLOCATE(ylmb)
++      IF (ALLOCATED(hgpot)) DEALLOCATE(hgpot)
++      IF (ALLOCATED(hipz)) DEALLOCATE(hipz)
++      IF (ALLOCATED(scg)) DEALLOCATE(scg)
++    END BLOCK
++    BLOCK
++      USE cvan, ONLY: deeq, dvan, nelev, qq
++      IF (ALLOCATED(nelev)) DEALLOCATE(nelev)
++      IF (ALLOCATED(qq)) DEALLOCATE(qq)
++      IF (ALLOCATED(dvan)) DEALLOCATE(dvan)
++      IF (ALLOCATED(deeq)) DEALLOCATE(deeq)
++    END BLOCK
++    BLOCK
++      USE elct, ONLY: crge
++      IF (ALLOCATED(crge%f)) DEALLOCATE(crge%f)
++    END BLOCK
++    BLOCK
++      USE empf, ONLY: c, ibind, zan
++      IF (ALLOCATED(zan)) DEALLOCATE(zan)
++      IF (ALLOCATED(c)) DEALLOCATE(c)
++      IF (ALLOCATED(ibind)) DEALLOCATE(ibind)
++    END BLOCK
++    BLOCK
++      USE fft, ONLY: inzfp, inzhp, inzsp, lrxpl, lrxpool, mg, ms, msp, msqf, &
++           msqfpool, msqs, msqspool, mxy, mz, nzffp, nzfsp, sp5, sp8, sp9, &
++           spm, xf, yf
++      IF (ALLOCATED(mg)) DEALLOCATE(mg)
++      IF (ALLOCATED(ms)) DEALLOCATE(ms)
++      IF (ALLOCATED(mz)) DEALLOCATE(mz)
++#if !defined(_HAS_CUDA)
++      IF (ALLOCATED(xf)) DEALLOCATE(xf)
++#endif
++#if !defined(_HAS_CUDA)
++      IF (ALLOCATED(yf)) DEALLOCATE(yf)
++#endif
++      IF (ALLOCATED(mxy)) DEALLOCATE(mxy)
++      IF (ALLOCATED(msp)) DEALLOCATE(msp)
++      IF (ALLOCATED(lrxpl)) DEALLOCATE(lrxpl)
++      IF (ALLOCATED(sp5)) DEALLOCATE(sp5)
++      IF (ALLOCATED(sp8)) DEALLOCATE(sp8)
++      IF (ALLOCATED(sp9)) DEALLOCATE(sp9)
++      IF (ALLOCATED(msqs)) DEALLOCATE(msqs)
++      IF (ALLOCATED(msqf)) DEALLOCATE(msqf)
++      IF (ALLOCATED(lrxpool)) DEALLOCATE(lrxpool)
++      IF (ALLOCATED(spm)) DEALLOCATE(spm)
++      IF (ALLOCATED(msqspool)) DEALLOCATE(msqspool)
++      IF (ALLOCATED(msqfpool)) DEALLOCATE(msqfpool)
++      IF (ALLOCATED(nzffp)) DEALLOCATE(nzffp)
++      IF (ALLOCATED(nzfsp)) DEALLOCATE(nzfsp)
++      IF (ALLOCATED(inzfp)) DEALLOCATE(inzfp)
++      IF (ALLOCATED(inzsp)) DEALLOCATE(inzsp)
++      IF (ALLOCATED(inzhp)) DEALLOCATE(inzhp)
++    END BLOCK
++    BLOCK
++      USE harm, ONLY: dcgt, dsgtw, dtan2c, dtan2w, freq, wdsgt, xmu
++      IF (ALLOCATED(freq)) DEALLOCATE(freq)
++      IF (ALLOCATED(dcgt)) DEALLOCATE(dcgt)
++      IF (ALLOCATED(dsgtw)) DEALLOCATE(dsgtw)
++      IF (ALLOCATED(wdsgt)) DEALLOCATE(wdsgt)
++      IF (ALLOCATED(dtan2w)) DEALLOCATE(dtan2w)
++      IF (ALLOCATED(dtan2c)) DEALLOCATE(dtan2c)
++      IF (ALLOCATED(xmu)) DEALLOCATE(xmu)
++    END BLOCK
++    BLOCK
++      USE ions, ONLY: al, bl, rcl
++      IF (ALLOCATED(al)) DEALLOCATE(al)
++      IF (ALLOCATED(bl)) DEALLOCATE(bl)
++      IF (ALLOCATED(rcl)) DEALLOCATE(rcl)
++    END BLOCK
++    BLOCK
++      USE kpnt, ONLY: eikr, hgkm, hgkp, kcnorm, kgemax, rk, wk
++      IF (ALLOCATED(rk)) DEALLOCATE(rk)
++      IF (ALLOCATED(wk)) DEALLOCATE(wk)
++      IF (ALLOCATED(hgkp)) DEALLOCATE(hgkp)
++      IF (ALLOCATED(hgkm)) DEALLOCATE(hgkm)
++      IF (ALLOCATED(kgemax)) DEALLOCATE(kgemax)
++      IF (ALLOCATED(kcnorm)) DEALLOCATE(kcnorm)
++      IF (ALLOCATED(eikr)) DEALLOCATE(eikr)
++    END BLOCK
++    BLOCK
++      USE lodp, ONLY: exd, focc, nsdip, trmom
++      IF (ALLOCATED(nsdip)) DEALLOCATE(nsdip)
++      IF (ALLOCATED(focc)) DEALLOCATE(focc)
++      IF (ALLOCATED(exd)) DEALLOCATE(exd)
++      IF (ALLOCATED(trmom)) DEALLOCATE(trmom)
++    END BLOCK
++    BLOCK
++      USE nlcc, ONLY: corecg, drhoc, rcgrid, rhoc, rhocspl, roct, vnlcc, vnlt
++      IF (ALLOCATED(rcgrid)) DEALLOCATE(rcgrid)
++      IF (ALLOCATED(corecg)) DEALLOCATE(corecg)
++      IF (ALLOCATED(rhoc)) DEALLOCATE(rhoc)
++      IF (ALLOCATED(drhoc)) DEALLOCATE(drhoc)
++      IF (ALLOCATED(rhocspl)) DEALLOCATE(rhocspl)
++      IF (ALLOCATED(vnlcc)) DEALLOCATE(vnlcc)
++      IF (ALLOCATED(vnlt)) DEALLOCATE(vnlt)
++      IF (ALLOCATED(roct)) DEALLOCATE(roct)
++    END BLOCK
++    BLOCK
++      USE nlps, ONLY: nghcom, nghtol, rgh, wgh, wsg
++      IF (ALLOCATED(wsg)) DEALLOCATE(wsg)
++      IF (ALLOCATED(rgh)) DEALLOCATE(rgh)
++      IF (ALLOCATED(wgh)) DEALLOCATE(wgh)
++      IF (ALLOCATED(nghtol)) DEALLOCATE(nghtol)
++      IF (ALLOCATED(nghcom)) DEALLOCATE(nghcom)
++    END BLOCK
++    BLOCK
++      USE nose, ONLY: cafescl, cafesini, cafesinr, cafesnse, cafestmp, &
++           chainer, dofsl, eta, etadot, etap, etap1, etap1dot, etapdot, &
++           etapm, etapmdot, etc, etcdot, gkt, gkt1, lctmemb, lctrng, lcttab, &
++           loctpin, loctt0, mapdof, ndfnt, nlctmbm, qnosp, qnospc, qnospm, &
++           tempwr, wnosep2r, wnosepr
++      IF (ALLOCATED(tempwr)) DEALLOCATE(tempwr)
++      IF (ALLOCATED(wnosepr)) DEALLOCATE(wnosepr)
++      IF (ALLOCATED(wnosep2r)) DEALLOCATE(wnosep2r)
++      IF (ALLOCATED(chainer)) DEALLOCATE(chainer)
++      IF (ALLOCATED(cafescl)) DEALLOCATE(cafescl)
++      IF (ALLOCATED(cafesini)) DEALLOCATE(cafesini)
++      IF (ALLOCATED(cafestmp)) DEALLOCATE(cafestmp)
++      IF (ALLOCATED(cafesnse)) DEALLOCATE(cafesnse)
++      IF (ALLOCATED(cafesinr)) DEALLOCATE(cafesinr)
++      IF (ALLOCATED(lctrng)) DEALLOCATE(lctrng)
++      IF (ALLOCATED(lcttab)) DEALLOCATE(lcttab)
++      IF (ALLOCATED(lctmemb)) DEALLOCATE(lctmemb)
++      IF (ALLOCATED(nlctmbm)) DEALLOCATE(nlctmbm)
++      IF (ALLOCATED(loctpin)) DEALLOCATE(loctpin)
++      IF (ALLOCATED(dofsl)) DEALLOCATE(dofsl)
++      IF (ALLOCATED(loctt0)) DEALLOCATE(loctt0)
++      IF (ALLOCATED(eta)) DEALLOCATE(eta)
++      IF (ALLOCATED(etadot)) DEALLOCATE(etadot)
++      IF (ALLOCATED(etap1)) DEALLOCATE(etap1)
++      IF (ALLOCATED(etap1dot)) DEALLOCATE(etap1dot)
++      IF (ALLOCATED(gkt)) DEALLOCATE(gkt)
++      IF (ALLOCATED(qnospm)) DEALLOCATE(qnospm)
++      IF (ALLOCATED(qnosp)) DEALLOCATE(qnosp)
++      IF (ALLOCATED(qnospc)) DEALLOCATE(qnospc)
++      IF (ALLOCATED(etap)) DEALLOCATE(etap)
++      IF (ALLOCATED(etapdot)) DEALLOCATE(etapdot)
++      IF (ALLOCATED(etapm)) DEALLOCATE(etapm)
++      IF (ALLOCATED(etapmdot)) DEALLOCATE(etapmdot)
++      IF (ALLOCATED(etc)) DEALLOCATE(etc)
++      IF (ALLOCATED(etcdot)) DEALLOCATE(etcdot)
++      IF (ALLOCATED(gkt1)) DEALLOCATE(gkt1)
++      IF (ALLOCATED(ndfnt)) DEALLOCATE(ndfnt)
++      IF (ALLOCATED(mapdof)) DEALLOCATE(mapdof)
++    END BLOCK
++    BLOCK
++      USE prden, ONLY: mwfn
++      IF (ALLOCATED(mwfn)) DEALLOCATE(mwfn)
++    END BLOCK
++    BLOCK
++      USE prop, ONLY: icubeorb, rho_save_efg, rho_save_epr, z_11
++      IF (ALLOCATED(icubeorb)) DEALLOCATE(icubeorb)
++      IF (ALLOCATED(z_11)) DEALLOCATE(z_11)
++      IF (ALLOCATED(rho_save_epr)) DEALLOCATE(rho_save_epr)
++      IF (ALLOCATED(rho_save_efg)) DEALLOCATE(rho_save_efg)
++    END BLOCK
++    BLOCK
++      USE qspl, ONLY: ggng, ggnh, twns, voo
++      IF (ALLOCATED(voo)) DEALLOCATE(voo)
++      IF (ALLOCATED(twns)) DEALLOCATE(twns)
++      IF (ALLOCATED(ggnh)) DEALLOCATE(ggnh)
++      IF (ALLOCATED(ggng)) DEALLOCATE(ggng)
++    END BLOCK
++    BLOCK
++      USE rswfmod, ONLY: rswf
++      IF (ALLOCATED(rswf)) DEALLOCATE(rswf)
++    END BLOCK
++    BLOCK
++      USE sfac, ONLY: ddfnl, ei1, ei2, ei3, eigr, eigrb, fnlgp
++      IF (ALLOCATED(ddfnl)) DEALLOCATE(ddfnl)
++      IF (ALLOCATED(fnlgp)) DEALLOCATE(fnlgp)
++      IF (ALLOCATED(eigr)) DEALLOCATE(eigr)
++      IF (ALLOCATED(eigrb)) DEALLOCATE(eigrb)
++      IF (ALLOCATED(ei1)) DEALLOCATE(ei1)
++      IF (ALLOCATED(ei2)) DEALLOCATE(ei2)
++      IF (ALLOCATED(ei3)) DEALLOCATE(ei3)
++    END BLOCK
++    BLOCK
++      USE str2, ONLY: becs, betaa, dqg, drhovg, gagk, gagkm, gagkp, qrada, &
++           sfion, stau0, svelp
++      IF (ALLOCATED(drhovg)) DEALLOCATE(drhovg)
++      IF (ALLOCATED(dqg)) DEALLOCATE(dqg)
++      IF (ALLOCATED(becs)) DEALLOCATE(becs)
++      IF (ALLOCATED(betaa)) DEALLOCATE(betaa)
++      IF (ALLOCATED(qrada)) DEALLOCATE(qrada)
++      IF (ALLOCATED(gagk)) DEALLOCATE(gagk)
++      IF (ALLOCATED(sfion)) DEALLOCATE(sfion)
++      IF (ALLOCATED(stau0)) DEALLOCATE(stau0)
++      IF (ALLOCATED(svelp)) DEALLOCATE(svelp)
++      IF (ALLOCATED(gagkp)) DEALLOCATE(gagkp)
++      IF (ALLOCATED(gagkm)) DEALLOCATE(gagkm)
++    END BLOCK
++    BLOCK
++      USE tbxc, ONLY: eexc, vvxc
++      IF (ALLOCATED(eexc)) DEALLOCATE(eexc)
++      IF (ALLOCATED(vvxc)) DEALLOCATE(vvxc)
++    END BLOCK
++    BLOCK
++      USE vdbp, ONLY: betar, dion, qfunc, qqq, qrl, r, rab, rsatom, rscore, &
++           ru, rucore, vdb_pawf, vdb_r
++      IF (ALLOCATED(rscore)) DEALLOCATE(rscore)
++      IF (ALLOCATED(dion)) DEALLOCATE(dion)
++      IF (ALLOCATED(betar)) DEALLOCATE(betar)
++      IF (ALLOCATED(qqq)) DEALLOCATE(qqq)
++      IF (ALLOCATED(qfunc)) DEALLOCATE(qfunc)
++      IF (ALLOCATED(qrl)) DEALLOCATE(qrl)
++      IF (ALLOCATED(r)) DEALLOCATE(r)
++      IF (ALLOCATED(rucore)) DEALLOCATE(rucore)
++      IF (ALLOCATED(ru)) DEALLOCATE(ru)
++      IF (ALLOCATED(rab)) DEALLOCATE(rab)
++      IF (ALLOCATED(rsatom)) DEALLOCATE(rsatom)
++      IF (ALLOCATED(vdb_pawf)) DEALLOCATE(vdb_pawf)
++      IF (ALLOCATED(vdb_r)) DEALLOCATE(vdb_r)
++    END BLOCK
++    BLOCK
++      USE symm, ONLY: indshel, irt, irtvec, isymu, isyshel, tvec
++      IF (ALLOCATED(irt)) DEALLOCATE(irt)
++      IF (ALLOCATED(isymu)) DEALLOCATE(isymu)
++      IF (ALLOCATED(irtvec)) DEALLOCATE(irtvec)
++      IF (ALLOCATED(tvec)) DEALLOCATE(tvec)
++      IF (ALLOCATED(indshel)) DEALLOCATE(indshel)
++      IF (ALLOCATED(isyshel)) DEALLOCATE(isyshel)
++    END BLOCK
++    BLOCK
++      USE poin, ONLY: cstate, potr, ptau, rtau
++      IF (ALLOCATED(potr)) DEALLOCATE(potr)
++      IF (ALLOCATED(cstate)) DEALLOCATE(cstate)
++      IF (ALLOCATED(ptau)) DEALLOCATE(ptau)
++      IF (ALLOCATED(rtau)) DEALLOCATE(rtau)
++    END BLOCK
++    BLOCK
++      USE fint, ONLY: afnl, alm, biln, cnl, emk2, nlptr
++      IF (ALLOCATED(emk2)) DEALLOCATE(emk2)
++      IF (ALLOCATED(alm)) DEALLOCATE(alm)
++      IF (ALLOCATED(afnl)) DEALLOCATE(afnl)
++      IF (ALLOCATED(biln)) DEALLOCATE(biln)
++      IF (ALLOCATED(nlptr)) DEALLOCATE(nlptr)
++      IF (ALLOCATED(cnl)) DEALLOCATE(cnl)
++    END BLOCK
++    BLOCK
++      USE extpotmod, ONLY: extpot
++      IF (ALLOCATED(extpot)) DEALLOCATE(extpot)
++    END BLOCK
++    BLOCK
++      USE pimd, ONLY: fcorr, fionks, ifcorr, ircorr, pc_grp, pi_egle, &
++           pi_glec, pi_glep, pi_gles, pi_glet, rcor, rcora, rcorr, rgyr, &
++           rgyra, rsus, rsusa, tnm, tnmi, trep, trepnm
++      IF (ALLOCATED(pc_grp)) DEALLOCATE(pc_grp)
++      IF (ALLOCATED(trep)) DEALLOCATE(trep)
++      IF (ALLOCATED(trepnm)) DEALLOCATE(trepnm)
++      IF (ALLOCATED(fionks)) DEALLOCATE(fionks)
++      IF (ALLOCATED(tnm)) DEALLOCATE(tnm)
++      IF (ALLOCATED(tnmi)) DEALLOCATE(tnmi)
++      IF (ALLOCATED(rgyr)) DEALLOCATE(rgyr)
++      IF (ALLOCATED(rgyra)) DEALLOCATE(rgyra)
++      IF (ALLOCATED(rsus)) DEALLOCATE(rsus)
++      IF (ALLOCATED(rsusa)) DEALLOCATE(rsusa)
++      IF (ALLOCATED(rcor)) DEALLOCATE(rcor)
++      IF (ALLOCATED(rcora)) DEALLOCATE(rcora)
++      IF (ALLOCATED(ircorr)) DEALLOCATE(ircorr)
++      IF (ALLOCATED(ifcorr)) DEALLOCATE(ifcorr)
++      IF (ALLOCATED(rcorr)) DEALLOCATE(rcorr)
++      IF (ALLOCATED(fcorr)) DEALLOCATE(fcorr)
++      IF (ALLOCATED(pi_egle)) DEALLOCATE(pi_egle)
++      IF (ALLOCATED(pi_glec)) DEALLOCATE(pi_glec)
++      IF (ALLOCATED(pi_gles)) DEALLOCATE(pi_gles)
++      IF (ALLOCATED(pi_glet)) DEALLOCATE(pi_glet)
++      IF (ALLOCATED(pi_glep)) DEALLOCATE(pi_glep)
++    END BLOCK
++    BLOCK
++      USE clas, ONLY: clasc, clasc0, clasf, clasfold, clasv, cltyp, delclasc, &
++           pr12, rcr12
++      IF (ALLOCATED(clasc)) DEALLOCATE(clasc)
++      IF (ALLOCATED(clasv)) DEALLOCATE(clasv)
++      IF (ALLOCATED(clasf)) DEALLOCATE(clasf)
++      IF (ALLOCATED(clasc0)) DEALLOCATE(clasc0)
++      IF (ALLOCATED(delclasc)) DEALLOCATE(delclasc)
++      IF (ALLOCATED(clasfold)) DEALLOCATE(clasfold)
++      IF (ALLOCATED(cltyp)) DEALLOCATE(cltyp)
++      IF (ALLOCATED(pr12)) DEALLOCATE(pr12)
++      IF (ALLOCATED(rcr12)) DEALLOCATE(rcr12)
++    END BLOCK
++    BLOCK
++      USE pola, ONLY: zeff, zeffav
++      IF (ALLOCATED(zeff)) DEALLOCATE(zeff)
++      IF (ALLOCATED(zeffav)) DEALLOCATE(zeffav)
++    END BLOCK
++    BLOCK
++      USE condu, ONLY: condavg, condavg2, conduct, conduct2, normcon
++      IF (ALLOCATED(normcon)) DEALLOCATE(normcon)
++      IF (ALLOCATED(conduct)) DEALLOCATE(conduct)
++      IF (ALLOCATED(conduct2)) DEALLOCATE(conduct2)
++      IF (ALLOCATED(condavg)) DEALLOCATE(condavg)
++      IF (ALLOCATED(condavg2)) DEALLOCATE(condavg2)
++    END BLOCK
++    BLOCK
++      USE swap, ONLY: isidisw, iswacce, iswcur, iswend, iswmem, iswpos, &
++           iswrec, iswres, iswsize, iunitsw
++      IF (ALLOCATED(iunitsw)) DEALLOCATE(iunitsw)
++      IF (ALLOCATED(isidisw)) DEALLOCATE(isidisw)
++      IF (ALLOCATED(iswres)) DEALLOCATE(iswres)
++      IF (ALLOCATED(iswmem)) DEALLOCATE(iswmem)
++      IF (ALLOCATED(iswpos)) DEALLOCATE(iswpos)
++      IF (ALLOCATED(iswsize)) DEALLOCATE(iswsize)
++      IF (ALLOCATED(iswacce)) DEALLOCATE(iswacce)
++      IF (ALLOCATED(iswcur)) DEALLOCATE(iswcur)
++      IF (ALLOCATED(iswend)) DEALLOCATE(iswend)
++      IF (ALLOCATED(iswrec)) DEALLOCATE(iswrec)
++    END BLOCK
++    BLOCK
++      USE sphe, ONLY: maskgw, ngwkps
++      IF (ALLOCATED(ngwkps)) DEALLOCATE(ngwkps)
++      IF (ALLOCATED(maskgw)) DEALLOCATE(maskgw)
++    END BLOCK
++    BLOCK
++      USE fcas, ONLY: fion_a, fion_ab
++      IF (ALLOCATED(fion_a)) DEALLOCATE(fion_a)
++      IF (ALLOCATED(fion_ab)) DEALLOCATE(fion_ab)
++    END BLOCK
++    BLOCK
++      USE symm4, ONLY: isishel, ninshel
++      IF (ALLOCATED(ninshel)) DEALLOCATE(ninshel)
++      IF (ALLOCATED(isishel)) DEALLOCATE(isishel)
++    END BLOCK
++    BLOCK
++      USE wann, ONLY: sw_list
++      IF (ALLOCATED(sw_list)) DEALLOCATE(sw_list)
++    END BLOCK
++    BLOCK
++      USE andp, ONLY: rin0, rmix, rout0
++      IF (ALLOCATED(rin0)) DEALLOCATE(rin0)
++      IF (ALLOCATED(rout0)) DEALLOCATE(rout0)
++      IF (ALLOCATED(rmix)) DEALLOCATE(rmix)
++    END BLOCK
++    BLOCK
++      USE response_pmod, ONLY: bdxvecx, bdxvecy, bdxvecz, btheta, bvecx, &
++           bvecy, bvecz, c0real, chi, ddfnl_ddk, ddtwnl_ddk, dfnl00, dfnl_dk, &
++           dtwnl_dk, e2_nl_c0, ekpert, emono, fkpert, fnl00, h0_11, h1_00, &
++           h1_10, h2_00, hamilk, lower_left, lower_left_value, nf, rrk, &
++           s_star, shift_matrix, statemax, statemin, twnl_m, twnl_p, &
++           voa_data, vofrho0, wanniercenters, wc_array1, wc_array2, &
++           wc_velocity, wghtf, wwk
++      IF (ALLOCATED(vofrho0)) DEALLOCATE(vofrho0)
++      IF (ALLOCATED(c0real)) DEALLOCATE(c0real)
++      IF (ALLOCATED(wc_array1)) DEALLOCATE(wc_array1)
++      IF (ALLOCATED(wc_array2)) DEALLOCATE(wc_array2)
++      IF (ALLOCATED(wc_velocity)) DEALLOCATE(wc_velocity)
++      IF (ALLOCATED(btheta)) DEALLOCATE(btheta)
++      IF (ALLOCATED(bvecx)) DEALLOCATE(bvecx)
++      IF (ALLOCATED(bvecy)) DEALLOCATE(bvecy)
++      IF (ALLOCATED(bvecz)) DEALLOCATE(bvecz)
++      IF (ALLOCATED(bdxvecx)) DEALLOCATE(bdxvecx)
++      IF (ALLOCATED(bdxvecy)) DEALLOCATE(bdxvecy)
++      IF (ALLOCATED(bdxvecz)) DEALLOCATE(bdxvecz)
++      IF (ALLOCATED(emono)) DEALLOCATE(emono)
++      IF (ALLOCATED(statemin)) DEALLOCATE(statemin)
++      IF (ALLOCATED(statemax)) DEALLOCATE(statemax)
++      IF (ALLOCATED(s_star)) DEALLOCATE(s_star)
++      IF (ALLOCATED(fnl00)) DEALLOCATE(fnl00)
++      IF (ALLOCATED(dfnl00)) DEALLOCATE(dfnl00)
++      IF (ALLOCATED(rrk)) DEALLOCATE(rrk)
++      IF (ALLOCATED(wwk)) DEALLOCATE(wwk)
++      IF (ALLOCATED(dtwnl_dk)) DEALLOCATE(dtwnl_dk)
++      IF (ALLOCATED(ddtwnl_ddk)) DEALLOCATE(ddtwnl_ddk)
++      IF (ALLOCATED(twnl_p)) DEALLOCATE(twnl_p)
++      IF (ALLOCATED(twnl_m)) DEALLOCATE(twnl_m)
++      IF (ALLOCATED(dfnl_dk)) DEALLOCATE(dfnl_dk)
++      IF (ALLOCATED(ddfnl_ddk)) DEALLOCATE(ddfnl_ddk)
++      IF (ALLOCATED(e2_nl_c0)) DEALLOCATE(e2_nl_c0)
++      IF (ALLOCATED(ekpert)) DEALLOCATE(ekpert)
++      IF (ALLOCATED(fkpert)) DEALLOCATE(fkpert)
++      IF (ALLOCATED(hamilk)) DEALLOCATE(hamilk)
++      IF (ALLOCATED(h1_00)) DEALLOCATE(h1_00)
++      IF (ALLOCATED(h2_00)) DEALLOCATE(h2_00)
++      IF (ALLOCATED(h1_10)) DEALLOCATE(h1_10)
++      IF (ALLOCATED(h0_11)) DEALLOCATE(h0_11)
++      IF (ALLOCATED(wanniercenters)) DEALLOCATE(wanniercenters)
++      IF (ALLOCATED(lower_left)) DEALLOCATE(lower_left)
++      IF (ALLOCATED(lower_left_value)) DEALLOCATE(lower_left_value)
++      IF (ALLOCATED(shift_matrix)) DEALLOCATE(shift_matrix)
++      IF (ALLOCATED(chi)) DEALLOCATE(chi)
++      IF (ALLOCATED(nf)) DEALLOCATE(nf)
++      IF (ALLOCATED(wghtf)) DEALLOCATE(wghtf)
++      IF (ALLOCATED(voa_data%atomlist)) DEALLOCATE(voa_data%atomlist)
++      IF (ALLOCATED(voa_data%rotmat)) DEALLOCATE(voa_data%rotmat)
++      IF (ALLOCATED(voa_data%apt_pf)) DEALLOCATE(voa_data%apt_pf)
++      IF (ALLOCATED(voa_data%apt_vf)) DEALLOCATE(voa_data%apt_vf)
++      IF (ALLOCATED(voa_data%aat_cog)) DEALLOCATE(voa_data%aat_cog)
++      IF (ALLOCATED(voa_data%aat_dog)) DEALLOCATE(voa_data%aat_dog)
++      IF (ALLOCATED(voa_data%amat_nl)) DEALLOCATE(voa_data%amat_nl)
++      IF (ALLOCATED(voa_data%p_vf)) DEALLOCATE(voa_data%p_vf)
++      IF (ALLOCATED(voa_data%m_vf)) DEALLOCATE(voa_data%m_vf)
++      IF (ALLOCATED(voa_data%r_wc)) DEALLOCATE(voa_data%r_wc)
++      IF (ALLOCATED(voa_data%rc0)) DEALLOCATE(voa_data%rc0)
++      IF (ALLOCATED(voa_data%rc1)) DEALLOCATE(voa_data%rc1)
++      IF (ALLOCATED(voa_data%h1psi0)) DEALLOCATE(voa_data%h1psi0)
++      IF (ALLOCATED(voa_data%vnlc0)) DEALLOCATE(voa_data%vnlc0)
++      IF (ALLOCATED(voa_data%pic0)) DEALLOCATE(voa_data%pic0)
++      IF (ALLOCATED(voa_data%ric0)) DEALLOCATE(voa_data%ric0)
++      IF (ALLOCATED(voa_data%vnlric0)) DEALLOCATE(voa_data%vnlric0)
++      IF (ALLOCATED(voa_data%rxpic0)) DEALLOCATE(voa_data%rxpic0)
++      IF (ALLOCATED(voa_data%c1src)) DEALLOCATE(voa_data%c1src)
++    END BLOCK
++    BLOCK
++      USE linres, ONLY: c1k, c_sh, cdotlct, ck, clrv, ireor, shsigma, &
++           shsigmaf, urot, v_sh, wcent, xfmqc
++      IF (ALLOCATED(clrv)) DEALLOCATE(clrv)
++      IF (ALLOCATED(urot)) DEALLOCATE(urot)
++      IF (ALLOCATED(wcent)) DEALLOCATE(wcent)
++      IF (ALLOCATED(ireor)) DEALLOCATE(ireor)
++      IF (ALLOCATED(ck)) DEALLOCATE(ck)
++      IF (ALLOCATED(c1k)) DEALLOCATE(c1k)
++      IF (ALLOCATED(c_sh)) DEALLOCATE(c_sh)
++      IF (ALLOCATED(cdotlct)) DEALLOCATE(cdotlct)
++      IF (ALLOCATED(shsigma)) DEALLOCATE(shsigma)
++      IF (ALLOCATED(shsigmaf)) DEALLOCATE(shsigmaf)
++      IF (ALLOCATED(v_sh)) DEALLOCATE(v_sh)
++      IF (ALLOCATED(xfmqc%sigma)) DEALLOCATE(xfmqc%sigma)
++      IF (ALLOCATED(xfmqc%eigv)) DEALLOCATE(xfmqc%eigv)
++      IF (ALLOCATED(xfmqc%nacv)) DEALLOCATE(xfmqc%nacv)
++      IF (ALLOCATED(xfmqc%qmoment)) DEALLOCATE(xfmqc%qmoment)
++      IF (ALLOCATED(xfmqc%tauall)) DEALLOCATE(xfmqc%tauall)
++      IF (ALLOCATED(xfmqc%w_ij)) DEALLOCATE(xfmqc%w_ij)
++      IF (ALLOCATED(xfmqc%k_li)) DEALLOCATE(xfmqc%k_li)
++      IF (ALLOCATED(xfmqc%f_nli)) DEALLOCATE(xfmqc%f_nli)
++      IF (ALLOCATED(xfmqc%bf_nli)) DEALLOCATE(xfmqc%bf_nli)
++      IF (ALLOCATED(xfmqc%r0_ni)) DEALLOCATE(xfmqc%r0_ni)
++      IF (ALLOCATED(xfmqc%d0_ni)) DEALLOCATE(xfmqc%d0_ni)
++      IF (ALLOCATED(xfmqc%bw0_nkli)) DEALLOCATE(xfmqc%bw0_nkli)
++      IF (ALLOCATED(xfmqc%fion_state)) DEALLOCATE(xfmqc%fion_state)
++      IF (ALLOCATED(xfmqc%bfion_state)) DEALLOCATE(xfmqc%bfion_state)
++      IF (ALLOCATED(xfmqc%fa_ni)) DEALLOCATE(xfmqc%fa_ni)
++      IF (ALLOCATED(xfmqc%bfa_ni)) DEALLOCATE(xfmqc%bfa_ni)
++      IF (ALLOCATED(xfmqc%brho_l)) DEALLOCATE(xfmqc%brho_l)
++      IF (ALLOCATED(xfmqc%cf)) DEALLOCATE(xfmqc%cf)
++      IF (ALLOCATED(xfmqc%bcf)) DEALLOCATE(xfmqc%bcf)
++    END BLOCK
++    BLOCK
++      USE shop, ONLY: fs0, fs1
++      IF (ALLOCATED(fs0)) DEALLOCATE(fs0)
++      IF (ALLOCATED(fs1)) DEALLOCATE(fs1)
++    END BLOCK
++    BLOCK
++      USE kdp, ONLY: akdp, akdp2, auxdiag, bkdp, brkdp, ckdp, ekdp, fkdp, &
++           pkdp, rauxdiag, wkdp, xkdp, xlambda, xlambda0
++      IF (ALLOCATED(wkdp)) DEALLOCATE(wkdp)
++      IF (ALLOCATED(xkdp)) DEALLOCATE(xkdp)
++      IF (ALLOCATED(pkdp)) DEALLOCATE(pkdp)
++      IF (ALLOCATED(ekdp)) DEALLOCATE(ekdp)
++      IF (ALLOCATED(fkdp)) DEALLOCATE(fkdp)
++      IF (ALLOCATED(rauxdiag)) DEALLOCATE(rauxdiag)
++      IF (ALLOCATED(xlambda0)) DEALLOCATE(xlambda0)
++      IF (ALLOCATED(ckdp)) DEALLOCATE(ckdp)
++      IF (ALLOCATED(akdp)) DEALLOCATE(akdp)
++      IF (ALLOCATED(bkdp)) DEALLOCATE(bkdp)
++      IF (ALLOCATED(brkdp)) DEALLOCATE(brkdp)
++      IF (ALLOCATED(xlambda)) DEALLOCATE(xlambda)
++      IF (ALLOCATED(akdp2)) DEALLOCATE(akdp2)
++      IF (ALLOCATED(auxdiag)) DEALLOCATE(auxdiag)
++    END BLOCK
++    BLOCK
++      USE xinr, ONLY: correct, direct, hess_1, zprec
++      IF (ALLOCATED(direct)) DEALLOCATE(direct)
++      IF (ALLOCATED(correct)) DEALLOCATE(correct)
++      IF (ALLOCATED(zprec)) DEALLOCATE(zprec)
++      IF (ALLOCATED(hess_1)) DEALLOCATE(hess_1)
++    END BLOCK
++    BLOCK
++      USE implhv, ONLY: rs_v, sd0, xma
++      IF (ALLOCATED(sd0)) DEALLOCATE(sd0)
++      IF (ALLOCATED(rs_v)) DEALLOCATE(rs_v)
++      IF (ALLOCATED(xma)) DEALLOCATE(xma)
++    END BLOCK
++    BLOCK
++      USE mm_dimmod, ONLY: cpat, cpsp, gratom, inc_l, mm_charge, nam, naq, &
++           nat_cpmd, nat_grm
++      IF (ALLOCATED(naq)) DEALLOCATE(naq)
++      IF (ALLOCATED(nam)) DEALLOCATE(nam)
++      IF (ALLOCATED(cpat)) DEALLOCATE(cpat)
++      IF (ALLOCATED(cpsp)) DEALLOCATE(cpsp)
++      IF (ALLOCATED(nat_cpmd)) DEALLOCATE(nat_cpmd)
++      IF (ALLOCATED(nat_grm)) DEALLOCATE(nat_grm)
++      IF (ALLOCATED(gratom)) DEALLOCATE(gratom)
++      IF (ALLOCATED(mm_charge)) DEALLOCATE(mm_charge)
++      IF (ALLOCATED(inc_l)) DEALLOCATE(inc_l)
++    END BLOCK
++    BLOCK
++      USE mm_input, ONLY: gqmmm
++      IF (ALLOCATED(gqmmm%gr_atom)) DEALLOCATE(gqmmm%gr_atom)
++      IF (ALLOCATED(gqmmm%gr_nasp)) DEALLOCATE(gqmmm%gr_nasp)
++      IF (ALLOCATED(gqmmm%is_dummy)) DEALLOCATE(gqmmm%is_dummy)
++    END BLOCK
++    BLOCK
++      USE mm_ion_dens, ONLY: mm_rhops
++      IF (ALLOCATED(mm_rhops)) DEALLOCATE(mm_rhops)
++    END BLOCK
++    BLOCK
++      USE vdwcmod, ONLY: boadwf, dftd3i, icontfragw, icontfragwi, &
++           idvdw, ifragdata, ifragw, ivdw, iwfcref, jvdw, nfrags, npt12, &
++           radfrag, rwann, rwfc, spr, swann, taufrag, tauref, trwanncx, &
++           twannupx, vdwbe, vdwrm, vdwst, wwfcref
++      IF (ALLOCATED(idvdw)) DEALLOCATE(idvdw)
++      IF (ALLOCATED(ivdw)) DEALLOCATE(ivdw)
++      IF (ALLOCATED(jvdw)) DEALLOCATE(jvdw)
++      IF (ALLOCATED(vdwst)) DEALLOCATE(vdwst)
++      IF (ALLOCATED(vdwrm)) DEALLOCATE(vdwrm)
++      IF (ALLOCATED(vdwbe)) DEALLOCATE(vdwbe)
++      IF (ALLOCATED(dftd3i%minc6list)) DEALLOCATE(dftd3i%minc6list)
++      IF (ALLOCATED(dftd3i%maxc6list)) DEALLOCATE(dftd3i%maxc6list)
++      IF (ALLOCATED(ifragdata)) DEALLOCATE(ifragdata)
++      IF (ALLOCATED(boadwf)) DEALLOCATE(boadwf)
++      IF (ALLOCATED(icontfragw)) DEALLOCATE(icontfragw)
++      IF (ALLOCATED(icontfragwi)) DEALLOCATE(icontfragwi)
++      IF (ALLOCATED(iwfcref)) DEALLOCATE(iwfcref)
++      IF (ALLOCATED(ifragw)) DEALLOCATE(ifragw)
++      IF (ALLOCATED(nfrags)) DEALLOCATE(nfrags)
++      IF (ALLOCATED(rwfc)) DEALLOCATE(rwfc)
++      IF (ALLOCATED(spr)) DEALLOCATE(spr)
++      IF (ALLOCATED(radfrag)) DEALLOCATE(radfrag)
++      IF (ALLOCATED(tauref)) DEALLOCATE(tauref)
++      IF (ALLOCATED(taufrag)) DEALLOCATE(taufrag)
++      IF (ALLOCATED(rwann)) DEALLOCATE(rwann)
++      IF (ALLOCATED(swann)) DEALLOCATE(swann)
++      IF (ALLOCATED(wwfcref)) DEALLOCATE(wwfcref)
++      IF (ALLOCATED(twannupx)) DEALLOCATE(twannupx)
++      IF (ALLOCATED(trwanncx)) DEALLOCATE(trwanncx)
++      IF (ALLOCATED(npt12)) DEALLOCATE(npt12)
++    END BLOCK
++    BLOCK
++      USE tpot, ONLY: eigref, eigval, foccp
++      IF (ALLOCATED(eigval)) DEALLOCATE(eigval)
++      IF (ALLOCATED(foccp)) DEALLOCATE(foccp)
++      IF (ALLOCATED(eigref)) DEALLOCATE(eigref)
++    END BLOCK
++    BLOCK
++      USE g_loc, ONLY: gloc_list, ind_st, ist_list, lag_mul, omega_n
++      IF (ALLOCATED(gloc_list)) DEALLOCATE(gloc_list)
++      IF (ALLOCATED(lag_mul)) DEALLOCATE(lag_mul)
++      IF (ALLOCATED(omega_n)) DEALLOCATE(omega_n)
++      IF (ALLOCATED(ist_list)) DEALLOCATE(ist_list)
++      IF (ALLOCATED(ind_st)) DEALLOCATE(ind_st)
++    END BLOCK
++    BLOCK
++      USE cnst_dyn, ONLY: atcvar, cnst_val, cscl_fac, cscl_val, cv_dyn, &
++           cv_dyn_0, cv_ist, cv_mass, cv_min2, cv_min_tol, cv_path, &
++           cv_tol_ext, cv_vel, cvpar, det_celvar, det_colvar, det_ht, &
++           dof_incv, ekincv_walk, fhills, hhm, hlhm, hllh_val, hllw_val, &
++           ht_ist, ht_path, hthm, hvm0, hwm, iangcv, iatcnga, iatcngb, &
++           iatdlmn, ibound, icv_cell, icv_rmsd_ab, icv_spin, initial_value, &
++           iqatdlmn, kharm, lha_sys, natcngb, ncvsys, ra, rcc0, rccnga, &
++           skiphill, specindex, tad_scf, tycvar, vbound, vharm_walk
++      IF (ALLOCATED(cscl_fac)) DEALLOCATE(cscl_fac)
++      IF (ALLOCATED(cnst_val)) DEALLOCATE(cnst_val)
++      IF (ALLOCATED(cscl_val)) DEALLOCATE(cscl_val)
++      IF (ALLOCATED(hllw_val)) DEALLOCATE(hllw_val)
++      IF (ALLOCATED(hllh_val)) DEALLOCATE(hllh_val)
++      IF (ALLOCATED(vbound)) DEALLOCATE(vbound)
++      IF (ALLOCATED(ibound)) DEALLOCATE(ibound)
++      IF (ALLOCATED(tad_scf)) DEALLOCATE(tad_scf)
++      IF (ALLOCATED(tycvar)) DEALLOCATE(tycvar)
++      IF (ALLOCATED(atcvar)) DEALLOCATE(atcvar)
++      IF (ALLOCATED(iangcv)) DEALLOCATE(iangcv)
++      IF (ALLOCATED(iatdlmn)) DEALLOCATE(iatdlmn)
++      IF (ALLOCATED(specindex)) DEALLOCATE(specindex)
++      IF (ALLOCATED(iqatdlmn)) DEALLOCATE(iqatdlmn)
++      IF (ALLOCATED(fhills)) DEALLOCATE(fhills)
++      IF (ALLOCATED(dof_incv)) DEALLOCATE(dof_incv)
++      IF (ALLOCATED(cv_ist)) DEALLOCATE(cv_ist)
++      IF (ALLOCATED(det_colvar)) DEALLOCATE(det_colvar)
++      IF (ALLOCATED(cvpar)) DEALLOCATE(cvpar)
++      IF (ALLOCATED(cv_path)) DEALLOCATE(cv_path)
++      IF (ALLOCATED(cv_dyn)) DEALLOCATE(cv_dyn)
++      IF (ALLOCATED(cv_vel)) DEALLOCATE(cv_vel)
++      IF (ALLOCATED(cv_dyn_0)) DEALLOCATE(cv_dyn_0)
++      IF (ALLOCATED(cv_mass)) DEALLOCATE(cv_mass)
++      IF (ALLOCATED(kharm)) DEALLOCATE(kharm)
++      IF (ALLOCATED(ra)) DEALLOCATE(ra)
++      IF (ALLOCATED(ekincv_walk)) DEALLOCATE(ekincv_walk)
++      IF (ALLOCATED(vharm_walk)) DEALLOCATE(vharm_walk)
++      IF (ALLOCATED(initial_value)) DEALLOCATE(initial_value)
++      IF (ALLOCATED(skiphill)) DEALLOCATE(skiphill)
++      IF (ALLOCATED(cv_min_tol)) DEALLOCATE(cv_min_tol)
++      IF (ALLOCATED(cv_min2)) DEALLOCATE(cv_min2)
++      IF (ALLOCATED(cv_tol_ext)) DEALLOCATE(cv_tol_ext)
++      IF (ALLOCATED(ht_ist)) DEALLOCATE(ht_ist)
++      IF (ALLOCATED(det_ht)) DEALLOCATE(det_ht)
++      IF (ALLOCATED(ht_path)) DEALLOCATE(ht_path)
++      IF (ALLOCATED(ncvsys)) DEALLOCATE(ncvsys)
++      IF (ALLOCATED(lha_sys)) DEALLOCATE(lha_sys)
++      IF (ALLOCATED(hwm)) DEALLOCATE(hwm)
++      IF (ALLOCATED(hhm)) DEALLOCATE(hhm)
++      IF (ALLOCATED(hlhm)) DEALLOCATE(hlhm)
++      IF (ALLOCATED(hthm)) DEALLOCATE(hthm)
++      IF (ALLOCATED(hvm0)) DEALLOCATE(hvm0)
++      IF (ALLOCATED(rcc0)) DEALLOCATE(rcc0)
++      IF (ALLOCATED(icv_spin)) DEALLOCATE(icv_spin)
++      IF (ALLOCATED(icv_cell)) DEALLOCATE(icv_cell)
++      IF (ALLOCATED(det_celvar)) DEALLOCATE(det_celvar)
++      IF (ALLOCATED(icv_rmsd_ab)) DEALLOCATE(icv_rmsd_ab)
++      IF (ALLOCATED(iatcnga)) DEALLOCATE(iatcnga)
++      IF (ALLOCATED(iatcngb)) DEALLOCATE(iatcngb)
++      IF (ALLOCATED(natcngb)) DEALLOCATE(natcngb)
++      IF (ALLOCATED(rccnga)) DEALLOCATE(rccnga)
++    END BLOCK
++    BLOCK
++      USE hfxmod, ONLY: wcentx
++      IF (ALLOCATED(wcentx)) DEALLOCATE(wcentx)
++    END BLOCK
++    BLOCK
++      USE bsympnt, ONLY: fnbs
++      IF (ALLOCATED(fnbs)) DEALLOCATE(fnbs)
++    END BLOCK
++    BLOCK
++      USE tauf, ONLY: tau, vtau
++      IF (ALLOCATED(tau)) DEALLOCATE(tau)
++      IF (ALLOCATED(vtau)) DEALLOCATE(vtau)
++    END BLOCK
++    BLOCK
++      USE cores, ONLY: core_atwfr, core_c0, core_cat
++      IF (ALLOCATED(core_atwfr)) DEALLOCATE(core_atwfr)
++      IF (ALLOCATED(core_cat)) DEALLOCATE(core_cat)
++      IF (ALLOCATED(core_c0)) DEALLOCATE(core_c0)
++    END BLOCK
++    BLOCK
++      USE mfep, ONLY: irest, lcvsp
++      IF (ALLOCATED(irest)) DEALLOCATE(irest)
++      IF (ALLOCATED(lcvsp)) DEALLOCATE(lcvsp)
++    END BLOCK
++    BLOCK
++      USE cdftmod, ONLY: atchg2, rhol, wa, wd, wder, wdiff
++      IF (ALLOCATED(wa)) DEALLOCATE(wa)
++      IF (ALLOCATED(wd)) DEALLOCATE(wd)
++      IF (ALLOCATED(wdiff)) DEALLOCATE(wdiff)
++      IF (ALLOCATED(rhol)) DEALLOCATE(rhol)
++      IF (ALLOCATED(wder)) DEALLOCATE(wder)
++      IF (ALLOCATED(atchg2)) DEALLOCATE(atchg2)
++    END BLOCK
++    BLOCK
++      USE transmemod, ONLY: fullp, fullw, gindex, minyh, w
++      IF (ALLOCATED(gindex)) DEALLOCATE(gindex)
++      IF (ALLOCATED(minyh)) DEALLOCATE(minyh)
++      IF (ALLOCATED(fullw)) DEALLOCATE(fullw)
++      IF (ALLOCATED(fullp)) DEALLOCATE(fullp)
++      IF (ALLOCATED(w)) DEALLOCATE(w)
++    END BLOCK
++    BLOCK
++      USE prng, ONLY: pi_prng_com
++      IF (ALLOCATED(pi_prng_com)) DEALLOCATE(pi_prng_com)
++    END BLOCK
++    BLOCK
++      USE glemod, ONLY: glea, glec, glep, gles, glet
++      IF (ALLOCATED(glea)) DEALLOCATE(glea)
++      IF (ALLOCATED(glec)) DEALLOCATE(glec)
++      IF (ALLOCATED(gles)) DEALLOCATE(gles)
++      IF (ALLOCATED(glet)) DEALLOCATE(glet)
++      IF (ALLOCATED(glep)) DEALLOCATE(glep)
++    END BLOCK
++    BLOCK
++      USE td_input, ONLY: bei1, bei2, bei3, bpot, cpos, cz, cz1, cz2, czm, &
++           czp, f_bohmtraj, rpos, spos
++      IF (ALLOCATED(cz)) DEALLOCATE(cz)
++      IF (ALLOCATED(cz1)) DEALLOCATE(cz1)
++      IF (ALLOCATED(cz2)) DEALLOCATE(cz2)
++      IF (ALLOCATED(czm)) DEALLOCATE(czm)
++      IF (ALLOCATED(czp)) DEALLOCATE(czp)
++      IF (ALLOCATED(bei1)) DEALLOCATE(bei1)
++      IF (ALLOCATED(bei2)) DEALLOCATE(bei2)
++      IF (ALLOCATED(bei3)) DEALLOCATE(bei3)
++      IF (ALLOCATED(rpos)) DEALLOCATE(rpos)
++      IF (ALLOCATED(cpos)) DEALLOCATE(cpos)
++      IF (ALLOCATED(spos)) DEALLOCATE(spos)
++      IF (ALLOCATED(f_bohmtraj)) DEALLOCATE(f_bohmtraj)
++      IF (ALLOCATED(bpot)) DEALLOCATE(bpot)
++    END BLOCK
++    BLOCK
++      USE cp_grp_utils, ONLY: cp_grp_get_cp_rank
++      IF (ALLOCATED(cp_grp_get_cp_rank)) DEALLOCATE(cp_grp_get_cp_rank)
++    END BLOCK
++    BLOCK
++      USE lscal, ONLY: eigval, eigvec, elestk, gx, hesscr, icore, map_p, &
++           oldeig, oldev, oldg, oldgx, oldhss, ooldg, step, vmode, wlbfgs, &
++           wprfo
++      IF (ALLOCATED(wlbfgs)) DEALLOCATE(wlbfgs)
++      IF (ALLOCATED(icore)) DEALLOCATE(icore)
++      IF (ALLOCATED(map_p)) DEALLOCATE(map_p)
++      IF (ALLOCATED(wprfo)) DEALLOCATE(wprfo)
++      IF (ALLOCATED(hesscr)) DEALLOCATE(hesscr)
++      IF (ALLOCATED(oldhss)) DEALLOCATE(oldhss)
++      IF (ALLOCATED(vmode)) DEALLOCATE(vmode)
++      IF (ALLOCATED(gx)) DEALLOCATE(gx)
++      IF (ALLOCATED(oldgx)) DEALLOCATE(oldgx)
++      IF (ALLOCATED(oldg)) DEALLOCATE(oldg)
++      IF (ALLOCATED(ooldg)) DEALLOCATE(ooldg)
++      IF (ALLOCATED(eigval)) DEALLOCATE(eigval)
++      IF (ALLOCATED(step)) DEALLOCATE(step)
++      IF (ALLOCATED(oldeig)) DEALLOCATE(oldeig)
++      IF (ALLOCATED(eigvec)) DEALLOCATE(eigvec)
++      IF (ALLOCATED(oldev)) DEALLOCATE(oldev)
++      IF (ALLOCATED(elestk)) DEALLOCATE(elestk)
++    END BLOCK
++    BLOCK
++      USE ksmatmod, ONLY: eig_vec, z
++      IF (ALLOCATED(z)) DEALLOCATE(z)
++      IF (ALLOCATED(eig_vec)) DEALLOCATE(eig_vec)
++    END BLOCK
++    BLOCK
++      USE cplngsmod, ONLY: cplcfg, cplion, csurf, iatfd, isurf
++      IF (ALLOCATED(isurf)) DEALLOCATE(isurf)
++      IF (ALLOCATED(iatfd)) DEALLOCATE(iatfd)
++      IF (ALLOCATED(csurf)) DEALLOCATE(csurf)
++      IF (ALLOCATED(cplion)) DEALLOCATE(cplion)
++      IF (ALLOCATED(cplcfg)) DEALLOCATE(cplcfg)
++    END BLOCK
++    BLOCK
++      USE shop_rest_2, ONLY: c0old, c0old2
++      IF (ALLOCATED(c0old)) DEALLOCATE(c0old)
++      IF (ALLOCATED(c0old2)) DEALLOCATE(c0old2)
++    END BLOCK
++    BLOCK
++      USE mm_extrap, ONLY: cold, cold_high
++      IF (ALLOCATED(cold)) DEALLOCATE(cold)
++      IF (ALLOCATED(cold_high)) DEALLOCATE(cold_high)
++    END BLOCK
++    BLOCK
++      USE mols, ONLY: msnum, mstat
++      IF (ALLOCATED(msnum)) DEALLOCATE(msnum)
++      IF (ALLOCATED(mstat)) DEALLOCATE(mstat)
++    END BLOCK
++    BLOCK
++      USE locpot, ONLY: vpotx3a, vpotx3b
++      IF (ALLOCATED(vpotx3a)) DEALLOCATE(vpotx3a)
++      IF (ALLOCATED(vpotx3b)) DEALLOCATE(vpotx3b)
++    END BLOCK
++    BLOCK
++      USE readmod, ONLY: israndom
++      IF (ALLOCATED(israndom)) DEALLOCATE(israndom)
++    END BLOCK
++    BLOCK
++      USE soc_types, ONLY: c01, cs1, ct1, ene_sin, ene_tri, norm_s, norm_t, &
++           soc_mem, tausoc
++      IF (ALLOCATED(tausoc)) DEALLOCATE(tausoc)
++      IF (ALLOCATED(norm_s)) DEALLOCATE(norm_s)
++      IF (ALLOCATED(norm_t)) DEALLOCATE(norm_t)
++      IF (ALLOCATED(ene_tri)) DEALLOCATE(ene_tri)
++      IF (ALLOCATED(ene_sin)) DEALLOCATE(ene_sin)
++      IF (ALLOCATED(soc_mem)) DEALLOCATE(soc_mem)
++      IF (ALLOCATED(c01)) DEALLOCATE(c01)
++      IF (ALLOCATED(cs1)) DEALLOCATE(cs1)
++      IF (ALLOCATED(ct1)) DEALLOCATE(ct1)
++    END BLOCK
++    BLOCK
++      USE nabdy_types, ONLY: nabdyfric, nabdyvec
++      IF (ALLOCATED(nabdyvec%nacoor)) DEALLOCATE(nabdyvec%nacoor)
++      IF (ALLOCATED(nabdyvec%nacoorp)) DEALLOCATE(nabdyvec%nacoorp)
++      IF (ALLOCATED(nabdyvec%namom)) DEALLOCATE(nabdyvec%namom)
++      IF (ALLOCATED(nabdyvec%nafor)) DEALLOCATE(nabdyvec%nafor)
++      IF (ALLOCATED(nabdyvec%naampl)) DEALLOCATE(nabdyvec%naampl)
++      IF (ALLOCATED(nabdyvec%naomega)) DEALLOCATE(nabdyvec%naomega)
++      IF (ALLOCATED(nabdyvec%naampl_temp)) DEALLOCATE(nabdyvec%naampl_temp)
++      IF (ALLOCATED(nabdyvec%naact)) DEALLOCATE(nabdyvec%naact)
++      IF (ALLOCATED(nabdyvec%ddnaact)) DEALLOCATE(nabdyvec%ddnaact)
++      IF (ALLOCATED(nabdyvec%nanormalf)) DEALLOCATE(nabdyvec%nanormalf)
++      IF (ALLOCATED(nabdyvec%gridshep)) DEALLOCATE(nabdyvec%gridshep)
++      IF (ALLOCATED(nabdyvec%ddelta)) DEALLOCATE(nabdyvec%ddelta)
++      IF (ALLOCATED(nabdyvec%naqp_pat)) DEALLOCATE(nabdyvec%naqp_pat)
++      IF (ALLOCATED(nabdyvec%natotqp)) DEALLOCATE(nabdyvec%natotqp)
++      IF (ALLOCATED(nabdyvec%natotcl)) DEALLOCATE(nabdyvec%natotcl)
++      IF (ALLOCATED(nabdyvec%natotk)) DEALLOCATE(nabdyvec%natotk)
++      IF (ALLOCATED(nabdyvec%naampfe)) DEALLOCATE(nabdyvec%naampfe)
++      IF (ALLOCATED(nabdyvec%past_namom)) DEALLOCATE(nabdyvec%past_namom)
++      IF (ALLOCATED(nabdyvec%past_naact)) DEALLOCATE(nabdyvec%past_naact)
++      IF (ALLOCATED(nabdyvec%past_dds)) DEALLOCATE(nabdyvec%past_dds)
++      IF (ALLOCATED(nabdyfric%nabdy_mean)) DEALLOCATE(nabdyfric%nabdy_mean)
++      IF (ALLOCATED(nabdyfric%nabdy_dx)) DEALLOCATE(nabdyfric%nabdy_dx)
++      IF (ALLOCATED(nabdyfric%nabdy_dx2)) DEALLOCATE(nabdyfric%nabdy_dx2)
++      IF (ALLOCATED(nabdyfric%nabdy_dp)) DEALLOCATE(nabdyfric%nabdy_dp)
++      IF (ALLOCATED(nabdyfric%nabdy_dp2)) DEALLOCATE(nabdyfric%nabdy_dp2)
++      IF (ALLOCATED(nabdyfric%dispx_ref)) DEALLOCATE(nabdyfric%dispx_ref)
++      IF (ALLOCATED(nabdyfric%dispp_ref)) DEALLOCATE(nabdyfric%dispp_ref)
++    END BLOCK
++    BLOCK
++      USE hubbardu, ONLY: atrg_u, atwfr_u, c2u0, cat_u, fion_om, fomi, &
++           mycatom, mycatom0, om
++      IF (ALLOCATED(om)) DEALLOCATE(om)
++      IF (ALLOCATED(fomi)) DEALLOCATE(fomi)
++      IF (ALLOCATED(mycatom)) DEALLOCATE(mycatom)
++      IF (ALLOCATED(mycatom0)) DEALLOCATE(mycatom0)
++      IF (ALLOCATED(c2u0)) DEALLOCATE(c2u0)
++      IF (ALLOCATED(fion_om)) DEALLOCATE(fion_om)
++      IF (ALLOCATED(atrg_u)) DEALLOCATE(atrg_u)
++      IF (ALLOCATED(atwfr_u)) DEALLOCATE(atwfr_u)
++      IF (ALLOCATED(cat_u)) DEALLOCATE(cat_u)
++    END BLOCK
++    BLOCK
++      USE hubbardu_utils, ONLY: c0xca, is_u_at, is_u_sp
++      IF (ALLOCATED(is_u_sp)) DEALLOCATE(is_u_sp)
++      IF (ALLOCATED(is_u_at)) DEALLOCATE(is_u_at)
++      IF (ALLOCATED(c0xca)) DEALLOCATE(c0xca)
++    END BLOCK
++    BLOCK
++      USE pw_hfx_resp_types, ONLY: hfx_lin2, hfx_resp
++      IF (ALLOCATED(hfx_resp%v_ab)) DEALLOCATE(hfx_resp%v_ab)
++      IF (ALLOCATED(hfx_lin2%c2)) DEALLOCATE(hfx_lin2%c2)
++      IF (ALLOCATED(hfx_lin2%xi)) DEALLOCATE(hfx_lin2%xi)
++      IF (ALLOCATED(hfx_lin2%m)) DEALLOCATE(hfx_lin2%m)
++      IF (ALLOCATED(hfx_lin2%l)) DEALLOCATE(hfx_lin2%l)
++    END BLOCK
++    ! ==--------------------------------------------------------------==
++  END SUBROUTINE free_module_arrays
++  ! ==================================================================
++
++END MODULE embed_teardown
+diff --git a/src/fftnew_utils.mod.F90 b/src/fftnew_utils.mod.F90
+index f14d2b5..8a36068 100644
+--- a/src/fftnew_utils.mod.F90
++++ b/src/fftnew_utils.mod.F90
+@@ -12,6 +12,7 @@ MODULE fftnew_utils
+                                              nzhs
+   USE cuda_types,                      ONLY: cuda_memory_t
+   USE cuda_utils,                      ONLY: cuda_memcpy_host_to_device
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: &
+        fftpool, fftpoolsize, fpoolv, inzf, inzfp, inzh, inzhp, inzs, inzsp, &
+@@ -229,11 +230,17 @@ CONTAINS
+     INTEGER                                  :: i, ierr, ig, j, k, l, lh1, &
+                                                 lh2, lh3, nh1, nh2, nh3
+     INTEGER, SAVE                            :: icount = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: aa1, aa2, aa3, rr, xpaim, &
+                                                 xplanes, xpnow
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       icount = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (icount.EQ.0) THEN
+        lmsqmax=nhrm
+        CALL zeroing(lrxpool)!,2*fftpoolsize*(maxcpu+1))
+diff --git a/src/forcedr_driver.mod.F90 b/src/forcedr_driver.mod.F90
+index 77e3ea6..c463820 100644
+--- a/src/forcedr_driver.mod.F90
++++ b/src/forcedr_driver.mod.F90
+@@ -5,6 +5,7 @@ MODULE forcedr_driver
+                                              gsrate,&
+                                              resval,&
+                                              resval_dest
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE forces_driver,                   ONLY: forces
+   USE kinds,                           ONLY: real_8
+@@ -59,9 +60,17 @@ CONTAINS
+     COMPLEX(real_8), POINTER                 :: c0_ptr(:,:,:)
+     INTEGER                                  :: i, ierr, ipx, isub, numx
+     INTEGER, SAVE                            :: icon = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: oldstatus, statusdummy
+     REAL(real_8), ALLOCATABLE, SAVE          :: xmat1(:,:), xmat2(:)
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(xmat1)) DEALLOCATE(xmat1)
++       IF (ALLOCATED(xmat2)) DEALLOCATE(xmat2)
++       icon = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     CALL mm_dim(mm_go_mm,oldstatus)
+     CALL zeroing(fion)!,3*maxsys%nax*maxsys%nsx)
+diff --git a/src/hfx_utils.mod.F90 b/src/hfx_utils.mod.F90
+index c0ec8d1..ca0b3f0 100644
+--- a/src/hfx_utils.mod.F90
++++ b/src/hfx_utils.mod.F90
+@@ -4,6 +4,7 @@ MODULE hfx_utils
+   USE cnst,                            ONLY: uimag
+   USE cppt,                            ONLY: scgx
+   USE dotp_utils,                      ONLY: dotp
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: inzf,&
+                                              inzs,&
+@@ -114,7 +115,15 @@ CONTAINS
+       DIMENSION(:, :)                        :: acc_vals, max_vals
+     REAL(real_8), ALLOCATABLE, &
+       DIMENSION(:, :), SAVE                  :: int_vals
++      INTEGER, SAVE                            :: embed_seen = 0
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(int_vals)) DEALLOCATE(int_vals)
++       int_count = 0
++       prev_geo_id = -HUGE(0)
++       embed_seen = embed_teardowns
++    ENDIF
+     ehfx=0._real_8
+     vhfx=0._real_8
+     IF (func1%mhfx.EQ.0) RETURN
+diff --git a/src/initclust_utils.mod.F90 b/src/initclust_utils.mod.F90
+index c029e7b..c37999a 100644
+--- a/src/initclust_utils.mod.F90
++++ b/src/initclust_utils.mod.F90
+@@ -12,6 +12,7 @@ MODULE initclust_utils
+                                              cp_xc_kernel, &
+                                              cp_xc_mts_low_func
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: llr1
+   USE fftnew_utils,                    ONLY: addfftnset,&
+@@ -126,12 +127,24 @@ CONTAINS
+     INTEGER                                  :: mts_low_func_msrx, mts_low_func_mhfx
+     INTEGER                                  :: mhfx, msrx
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
++    LOGICAL, SAVE                            :: embed_own_rswfx = .FALSE., &
++                                                embed_own_scgx = .FALSE.
+     REAL(real_8)                             :: rmem, rstate
+     REAL(real_8)                             :: functional_srxa
+     REAL(real_8)                             :: kernel_srxa
+     REAL(real_8)                             :: mts_low_func_srxa
+     REAL(real_8)                             :: srxa, cam_alpha, cam_beta
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ifirst /= 0 .AND. embed_own_scgx) DEALLOCATE(scgx)
++       IF (ifirst /= 0 .AND. embed_own_rswfx) DEALLOCATE(rswfx)
++       embed_own_scgx = .FALSE.
++       embed_own_rswfx = .FALSE.
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     !
+     ! 31.08.17 M.P.Bircher@LCBC/EPFL
+     ! Manually test compatiblity of HFX in cp_xc_kernel and _functional
+@@ -296,6 +309,13 @@ CONTAINS
+           ENDIF
+           CALL setfftn(0)
+        ENDIF
++       ! scgx is a pointer: it either aliases scg or holds its own array.
++       IF (ALLOCATED(scg)) THEN
++          embed_own_scgx = .NOT. ASSOCIATED(scgx, scg)
++       ELSE
++          embed_own_scgx = ASSOCIATED(scgx)
++       ENDIF
++       embed_own_rswfx = cntl%krwfn
+     ENDIF
+     ifirst = 1
+ 
+diff --git a/src/k_odiis_utils.mod.F90 b/src/k_odiis_utils.mod.F90
+index 9f9385c..57d4fea 100644
+--- a/src/k_odiis_utils.mod.F90
++++ b/src/k_odiis_utils.mod.F90
+@@ -17,6 +17,7 @@ END MODULE k_odiis_utils
+ SUBROUTINE k_odiis(c0,c2,vpp,ik,nstate,pme,gde,svar2,&
+      reinit,calcrho)
+   ! ==--------------------------------------------------------------==
++  USE embed_ctrl, ONLY: embed_teardowns
+   USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+   USE error_handling, ONLY: stopgm
+   USE timer, ONLY: tiset, tihalt
+@@ -43,6 +44,7 @@ SUBROUTINE k_odiis(c0,c2,vpp,ik,nstate,pme,gde,svar2,&
+   INTEGER                                    :: i, ierr, ig, isub, j, k, nowm
+   INTEGER, SAVE                              :: ifirst = 0, istate = 0, &
+                                                 ndiis, nowv, nsize
++                                                INTEGER, SAVE                            :: embed_seen = 0
+   REAL(real_8)                               :: bc(maxdis+1,maxdis+1), ddot, &
+                                                 de1, ff, g1, g2, raim, ratio, &
+                                                 ration, vc(maxdis+1)
+@@ -51,6 +53,17 @@ SUBROUTINE k_odiis(c0,c2,vpp,ik,nstate,pme,gde,svar2,&
+                                                 grmax(:,:)
+   REAL(real_8), SAVE                         :: eold
+ 
++  ! After embed_teardown_state, run as the first call in a process.
++  IF (embed_seen /= embed_teardowns) THEN
++     IF (ALLOCATED(diism)) DEALLOCATE(diism)
++     IF (ALLOCATED(gamma)) DEALLOCATE(gamma)
++     IF (ALLOCATED(gimax)) DEALLOCATE(gimax)
++     IF (ALLOCATED(gnorm)) DEALLOCATE(gnorm)
++     IF (ALLOCATED(grmax)) DEALLOCATE(grmax)
++     istate = 0
++     ifirst = 0
++     embed_seen = embed_teardowns
++  ENDIF
+   CALL tiset(procedureN,isub)
+ 
+   IF (ifirst .EQ. 0 ) THEN
+diff --git a/src/k_pcgrad_utils.mod.F90 b/src/k_pcgrad_utils.mod.F90
+index 661e9c7..11cd5f4 100644
+--- a/src/k_pcgrad_utils.mod.F90
++++ b/src/k_pcgrad_utils.mod.F90
+@@ -1,6 +1,7 @@
+ MODULE k_pcgrad_utils
+   USE dotp_utils,                      ONLY: dotp
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE ener,                            ONLY: ener_com
+   USE error_handling,                  ONLY: stopgm
+   USE kinds,                           ONLY: real_8
+@@ -54,10 +55,20 @@ CONTAINS
+     INTEGER                                  :: i, ierr, ihist, isub, nocc
+     INTEGER, ALLOCATABLE, SAVE               :: istep(:)
+     INTEGER, SAVE                            :: ifirst = 0 
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: ddot, detot, gamma, ggnorm
+     REAL(real_8), ALLOCATABLE, SAVE          :: ehist(:,:), fhist(:,:), &
+                                                 ghist(:,:)
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(istep)) DEALLOCATE(istep)
++       IF (ALLOCATED(ehist)) DEALLOCATE(ehist)
++       IF (ALLOCATED(fhist)) DEALLOCATE(fhist)
++       IF (ALLOCATED(ghist)) DEALLOCATE(ghist)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('  K_PCGRAD',isub)
+     ! ==--------------------------------------------------------------==
+     ! ==--------------------------------------------------------------==
+diff --git a/src/mixing_g_utils.mod.F90 b/src/mixing_g_utils.mod.F90
+index b6e0a2a..8937167 100644
+--- a/src/mixing_g_utils.mod.F90
++++ b/src/mixing_g_utils.mod.F90
+@@ -10,6 +10,7 @@ MODULE mixing_g_utils
+   USE cppt,                            ONLY: hg,&
+                                              indz,&
+                                              nzh
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fftmain_utils,                   ONLY: fwfftn,&
+                                              invfftn
+@@ -54,7 +55,16 @@ CONTAINS
+                                                 rgoutm1(:,:)
+     INTEGER                                  :: ierr, ig, ilsd, ir, itb, nngx
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(rginm1)) DEALLOCATE(rginm1)
++       IF (ALLOCATED(rgmix)) DEALLOCATE(rgmix)
++       IF (ALLOCATED(rgoutm1)) DEALLOCATE(rgoutm1)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL setfftn(0)
+     IF (andr3%nrdiismax.GT.0) CALL stopgm('MIXING_G',&
+          'DIIS MIXING NOT PROGRAMMED',& 
+diff --git a/src/mixing_r_utils.mod.F90 b/src/mixing_r_utils.mod.F90
+index 4fc2e5d..4b61823 100644
+--- a/src/mixing_r_utils.mod.F90
++++ b/src/mixing_r_utils.mod.F90
+@@ -3,6 +3,7 @@ MODULE mixing_r_utils
+                                              change_xmix
+   USE andr,                            ONLY: andr2,&
+                                              andr3
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE kinds,                           ONLY: real_8
+   USE rhodiis_utils,                   ONLY: change_nrdiis,&
+@@ -36,6 +37,7 @@ CONTAINS
+ 
+     INTEGER                                  :: ierr, nnx
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8), ALLOCATABLE                :: dm(:,:), vb(:)
+     REAL(real_8), ALLOCATABLE, SAVE          :: dmat(:,:,:)
+     REAL(real_8), ALLOCATABLE, SAVE, TARGET  :: driter(:,:), riter(:,:)
+@@ -44,6 +46,15 @@ CONTAINS
+ ! ==--------------------------------------------------------------==
+ ! Test SCR
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ifirst /= 0 .AND. .NOT. ALLOCATED(riter)) DEALLOCATE(rinm1, routm1)
++       IF (ALLOCATED(dmat)) DEALLOCATE(dmat)
++       IF (ALLOCATED(riter)) DEALLOCATE(riter)
++       IF (ALLOCATED(driter)) DEALLOCATE(driter)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     ALLOCATE(vb(andr3%nrdiismax+1),STAT=ierr)
+     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+          __LINE__,__FILE__)
+diff --git a/src/moverho_utils.mod.F90 b/src/moverho_utils.mod.F90
+index 92cf2d8..7e1e46b 100644
+--- a/src/moverho_utils.mod.F90
++++ b/src/moverho_utils.mod.F90
+@@ -7,6 +7,7 @@ MODULE moverho_utils
+                                              indz,&
+                                              inyh,&
+                                              nzh
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft_maxfft,                      ONLY: maxfftn
+   USE fftmain_utils,                   ONLY: fwfftn,&
+@@ -72,12 +73,19 @@ CONTAINS
+                                                 isa0, isub, j, k, nh1, nh2, &
+                                                 nh3, nn, nnx
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: ar, rstmp, rsum, rsum1, sa1, &
+                                                 sa2, sa3, vol
+     REAL(real_8), ALLOCATABLE, SAVE          :: datom(:,:,:)
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(datom)) DEALLOCATE(datom)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('   MOVERHO',isub)
+     CALL setfftn(0)
+     ! ==--------------------------------------------------------------==
+diff --git a/src/nlccset_utils.mod.F90 b/src/nlccset_utils.mod.F90
+index 371af92..b8c08bd 100644
+--- a/src/nlccset_utils.mod.F90
++++ b/src/nlccset_utils.mod.F90
+@@ -3,6 +3,7 @@ MODULE nlccset_utils
+   USE cnst,                            ONLY: fpi,&
+                                              pi
+   USE cppt,                            ONLY: hg
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fitpack_utils,                   ONLY: curv1,&
+                                              curv2
+@@ -55,11 +56,17 @@ CONTAINS
+ 
+     INTEGER                                  :: ierr, ig, il, ir, is, isub, m
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: arg, cpi, tmp, vol, xg
+     REAL(real_8), ALLOCATABLE                :: work(:)
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('   NLCCSET',isub)
+     ! ==--------------------------------------------------------------==
+     IF (ifirst.EQ.0) THEN
+diff --git a/src/numpw_utils.mod.F90 b/src/numpw_utils.mod.F90
+index b891b54..c3fbac2 100644
+--- a/src/numpw_utils.mod.F90
++++ b/src/numpw_utils.mod.F90
+@@ -1,6 +1,7 @@
+ MODULE numpw_utils
+   USE cell,                            ONLY: cell_com
+   USE cnst,                            ONLY: pi
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fftchk_utils,                    ONLY: fftchk
+   USE fint,                            ONLY: fint1
+@@ -173,10 +174,16 @@ CONTAINS
+ 
+     INTEGER                                  :: mnr1, mnr2, mnr3
+     INTEGER, SAVE                            :: ibetapf = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: aa1, aa2, aa3
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ibetapf = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     gvec_com%gcutw=energy/dual00%cdual
+     ! GCUT has to be bigger than GCUTWMAX
+     gvec_com%gcut=MAX(energy,gcutwmax)
+diff --git a/src/phfac_utils.mod.F90 b/src/phfac_utils.mod.F90
+index 02aff5c..070d25b 100644
+--- a/src/phfac_utils.mod.F90
++++ b/src/phfac_utils.mod.F90
+@@ -4,6 +4,7 @@
+ 
+ MODULE phfac_utils
+   USE cppt,                            ONLY: inyh
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE gvec,                            ONLY: gvec_com
+   USE ions,                            ONLY: ions0,&
+@@ -55,11 +56,20 @@ CONTAINS
+                                                 ikpt, is, isa, isub, j, k, &
+                                                 nh1, nh2, nh3
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
++    LOGICAL, SAVE                            :: embed_own_eigkr = .FALSE.
+     REAL(real_8)                             :: ar1, ar2, ar3, sum, sum1, &
+                                                 sum2, sum3
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ifirst /= 0 .AND. embed_own_eigkr) DEALLOCATE(eigkr)
++       embed_own_eigkr = .FALSE.
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (spar%nr1s.LT.3) THEN
+        CALL stopgm('PHFAC',' PHFAC: NR1 TOO SMALL ',& 
+             __LINE__,__FILE__)
+@@ -91,6 +101,7 @@ CONTAINS
+           ALLOCATE(eigkr(nkpt%ngwk,ions1%nat,nkpt%nkpnt),STAT=ierr)
+           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+                __LINE__,__FILE__)
++          embed_own_eigkr = .TRUE.
+        ENDIF
+        ALLOCATE(ei1(natx,(2*spar%nr1s-1)),STAT=ierr)
+        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+diff --git a/src/pw_hfx.mod.F90 b/src/pw_hfx.mod.F90
+index 12f5f44..c01436a 100644
+--- a/src/pw_hfx.mod.F90
++++ b/src/pw_hfx.mod.F90
+@@ -8,6 +8,7 @@ MODULE pw_hfx
+   USE cp_grp_utils,                    ONLY: cp_grp_redist
+   USE cppt,                            ONLY: scgx
+   USE dotp_utils,                      ONLY: dotp
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: inzf,&
+                                              inzs,&
+@@ -190,10 +191,20 @@ CONTAINS
+     TYPE(iterator_t)                         :: iter
+     TYPE(list_t)                             :: c_list, r_list
+     TYPE(pp_t)                               :: pp
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+     ! KPT replace NGW -> NGWK (maybe not C2....)
+     ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(thresh%int_vals)) DEALLOCATE(thresh%int_vals)
++       IF (ALLOCATED(tick_blks)) DEALLOCATE(tick_blks)
++       thresh%int_local_count = 0
++       nbr_rwfn_precomputed = 0
++       nbr_integrals = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     ehfx = 0.0_real_8
+     vhfx = 0.0_real_8
+ 
+@@ -614,7 +625,13 @@ CONTAINS
+ 
+     INTEGER                                  :: geo_iter, ierr
+     INTEGER, SAVE                            :: prev_geo_id = -HUGE(0)
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       prev_geo_id = -HUGE(0)
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (hfxc3%twscr) THEN
+ 
+ 
+diff --git a/src/qvan2_utils.mod.F90 b/src/qvan2_utils.mod.F90
+index 04acba0..767165d 100644
+--- a/src/qvan2_utils.mod.F90
++++ b/src/qvan2_utils.mod.F90
+@@ -8,6 +8,7 @@ MODULE qvan2_utils
+                                              qrad,&
+                                              ylmb
+   USE cvan,                            ONLY: nelev
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fitpack_utils,                   ONLY: curv2
+   USE kinds,                           ONLY: real_8
+@@ -43,11 +44,18 @@ CONTAINS
+     INTEGER                                  :: i, ierr, ig, istep, ivl, ivs, &
+                                                 jvl, jvs, l, lp
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: sigi, sigr, vol
+     REAL(real_8), ALLOCATABLE, SAVE          :: spline(:)
+ 
+ ! ==-----------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(spline)) DEALLOCATE(spline)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (ifirst.EQ.0) THEN
+        ifirst=1
+        IF (qspl1%qspline) THEN
+diff --git a/src/recpnew_utils.mod.F90 b/src/recpnew_utils.mod.F90
+index 7565f7f..96174ec 100644
+--- a/src/recpnew_utils.mod.F90
++++ b/src/recpnew_utils.mod.F90
+@@ -10,6 +10,7 @@ MODULE recpnew_utils
+                                              vr
+   USE cp_xc_utils,                     ONLY: cp_xc_functional_env
+   USE dpot,                            ONLY: dpot_mod
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fitpack_utils,                   ONLY: curv1,&
+                                              curv2
+@@ -92,6 +93,7 @@ CONTAINS
+                                                 it, iv, j, k, l, lenecp, lp, &
+                                                 lread, m, meshv
+     INTEGER, SAVE                            :: ivan1 = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: erread, exists, tsca
+     REAL(real_8)                             :: dal, dxc, excf, &
+                                                 hmat(mpro*mpro), s1, xctest
+@@ -100,6 +102,11 @@ CONTAINS
+ ! ==--------------------------------------------------------------==
+ ! Allocation of local variables
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ivan1 = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     ALLOCATE(rr(maxsys%mmaxx),STAT=ierr)
+     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+          __LINE__,__FILE__)
+diff --git a/src/rhodiis_utils.mod.F90 b/src/rhodiis_utils.mod.F90
+index 231724e..a4e1190 100644
+--- a/src/rhodiis_utils.mod.F90
++++ b/src/rhodiis_utils.mod.F90
+@@ -1,5 +1,6 @@
+ MODULE rhodiis_utils
+   USE andr,                            ONLY: andr3
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE kinds,                           ONLY: real_8
+   USE mp_interface,                    ONLY: mp_sum
+   USE odiis_utils,                     ONLY: solve
+@@ -36,12 +37,18 @@ CONTAINS
+ 
+     INTEGER                                  :: i, j, niter, nsize
+     INTEGER, DIMENSION(2), SAVE              :: ncall = (/0,0/)
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8)                             :: fac
+     REAL(real_8), EXTERNAL                   :: ddot
+ 
+ ! ==--------------------------------------------------------------==
+ ! We can reinitialize (for cntl%md).
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ncall = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (nrdiis.EQ.0.OR.np.EQ.0) THEN
+        ncall(ilsd) = 0
+        RETURN
+@@ -98,9 +105,15 @@ CONTAINS
+ 
+     INTEGER                                  :: i
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (andr3%ntabnrdiis.LE.1) RETURN
+     IF (ifirst.EQ.0) THEN
+        andr3%inrdiis=1
+diff --git a/src/rnlsmd_utils.mod.F90 b/src/rnlsmd_utils.mod.F90
+index 8977497..edcd8bb 100644
+--- a/src/rnlsmd_utils.mod.F90
++++ b/src/rnlsmd_utils.mod.F90
+@@ -1,5 +1,6 @@
+ MODULE rnlsmd_utils
+   USE cppt,                            ONLY: twnl
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE geq0mod,                         ONLY: geq0
+   USE ions,                            ONLY: ions0,&
+@@ -46,8 +47,15 @@ CONTAINS
+     INTEGER                                  :: i, ierr, is, isa0, isub, iv, &
+                                                 l, nstat
+     INTEGER, SAVE                            :: ilfnlx = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8), ALLOCATABLE, SAVE          :: fnlx(:)
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(fnlx)) DEALLOCATE(fnlx)
++       ilfnlx = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (tkpts%tkpnt) CALL stopgm('RNLSMD','TSDIST NOT IMPLEMENTED',& 
+          __LINE__,__FILE__)
+     ! ==--------------------------------------------------------------==
+diff --git a/src/rpiiint_utils.mod.F90 b/src/rpiiint_utils.mod.F90
+index e747579..543c20c 100644
+--- a/src/rpiiint_utils.mod.F90
++++ b/src/rpiiint_utils.mod.F90
+@@ -2,6 +2,7 @@ MODULE rpiiint_utils
+   USE cnst,                            ONLY: pi
+   USE eam,                             ONLY: tieam
+   USE eam_pot_utils,                   ONLY: eam_pot
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE ions,                            ONLY: ions0,&
+                                              ions1
+   USE kinds,                           ONLY: real_8
+@@ -44,6 +45,7 @@ CONTAINS
+     INTEGER                                  :: iat, inf, ishft, isub, ix, &
+                                                 iy, iz, j, k, l, lax, m
+     INTEGER, SAVE                            :: iflag = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: tzero
+     REAL(real_8) :: addesr, addpre, arg, erre2, esrtzero, rckj, repand, rlm, &
+       rxlm1, rxlm2, rxlm3, tfion1, tfion2, tfion3, tfion4, tfion5, tfion6, &
+@@ -53,6 +55,11 @@ CONTAINS
+     INTEGER :: ixyz,IALL,iesri,iesrj,iesrk
+ #endif 
+     ! ==--------------------------------------------------------------==
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       iflag = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (iflag.EQ.0.AND.paral%parent)  THEN
+        IF (paral%io_parent)&
+             WRITE(6,'(A,T52,I2,A,I2,A,I2,A)')&
+diff --git a/src/rwswap_utils.mod.F90 b/src/rwswap_utils.mod.F90
+index e7a8d6a..294071a 100644
+--- a/src/rwswap_utils.mod.F90
++++ b/src/rwswap_utils.mod.F90
+@@ -278,6 +278,7 @@ SUBROUTINE kpt_noswap(ikpt,iflag,tag)
+   ! == IFLAG=1 WRITE                                                ==
+   ! ==       0 READ                                                 ==
+   ! ==--------------------------------------------------------------==
++  USE embed_ctrl, ONLY: embed_teardowns
+   USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+   USE error_handling, ONLY: stopgm
+   USE timer, ONLY: tiset, tihalt
+@@ -300,7 +301,19 @@ SUBROUTINE kpt_noswap(ikpt,iflag,tag)
+   INTEGER, ALLOCATABLE, SAVE                 :: lalm(:), leigkr(:), lemk2(:), &
+                                                 lhgkm(:), lhgkp(:), ltwnl(:)
+   INTEGER, SAVE                              :: i_first = 0
++  INTEGER, SAVE                            :: embed_seen = 0
+ 
++  ! After embed_teardown_state, run as the first call in a process.
++  IF (embed_seen /= embed_teardowns) THEN
++     IF (ALLOCATED(lalm)) DEALLOCATE(lalm)
++     IF (ALLOCATED(leigkr)) DEALLOCATE(leigkr)
++     IF (ALLOCATED(lemk2)) DEALLOCATE(lemk2)
++     IF (ALLOCATED(lhgkm)) DEALLOCATE(lhgkm)
++     IF (ALLOCATED(lhgkp)) DEALLOCATE(lhgkp)
++     IF (ALLOCATED(ltwnl)) DEALLOCATE(ltwnl)
++     i_first = 0
++     embed_seen = embed_teardowns
++  ENDIF
+   i1=LEN(tag)
+   line=tag(1:i1)
+   IF (i_first.EQ.0) THEN
+diff --git a/src/setbasis_utils.mod.F90 b/src/setbasis_utils.mod.F90
+index 86d3045..a16a302 100644
+--- a/src/setbasis_utils.mod.F90
++++ b/src/setbasis_utils.mod.F90
+@@ -14,6 +14,7 @@ MODULE setbasis_utils
+   USE cppt,                            ONLY: gk,&
+                                              hg,&
+                                              inyh
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fitpack_utils,                   ONLY: curv1,&
+                                              curv2
+@@ -90,11 +91,17 @@ CONTAINS
+                                                 ierr, iogroup, iosource, ir, &
+                                                 is, isub, l, m, ms, n, ne(4,7)
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: ionode
+     REAL(real_8)                             :: dclog, valch, zc
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF (ifirst.NE.0) RETURN
+     ! ==--------------------------------------------------------------==
+     CALL tiset(procedureN,isub)
+diff --git a/src/symtrz_utils.mod.F90 b/src/symtrz_utils.mod.F90
+index 9cb260a..09622ab 100644
+--- a/src/symtrz_utils.mod.F90
++++ b/src/symtrz_utils.mod.F90
+@@ -7,6 +7,7 @@ MODULE symtrz_utils
+                                              inyh,&
+                                              isptr,&
+                                              nzh
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft_maxfft,                      ONLY: maxfft
+   USE fftmain_utils,                   ONLY: fwfftn,&
+@@ -706,10 +707,16 @@ CONTAINS
+          igl1,igl2,igl3,ig1,ig2,ig3,isub,ish,nshl,kshell,&
+          lbuildshell,ierr
+     INTEGER, SAVE :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+     REAL(real_8), ALLOCATABLE :: scr(:)
+     CHARACTER(*),PARAMETER::procedureN='buildshell'
+     ! ==--------------------------------------------------------------==
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     IF ( (symmi%indpg.EQ.0).OR.(symmi%nrot.EQ.1.AND.symmi%ntvec.LE.1) ) RETURN
+     ! 63 because we use integer*8
+     IF (symmi%nrot.GT.63) CALL stopgm('BUILDSHELL',&
+diff --git a/src/tauofr_utils.mod.F90 b/src/tauofr_utils.mod.F90
+index edbee57..6617123 100644
+--- a/src/tauofr_utils.mod.F90
++++ b/src/tauofr_utils.mod.F90
+@@ -5,6 +5,7 @@ MODULE tauofr_utils
+                                              indzs,&
+                                              nzhs
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft_maxfft,                      ONLY: maxfft
+   USE fftmain_utils,                   ONLY: invfftn
+@@ -56,7 +57,13 @@ CONTAINS
+ 
+     INTEGER                                  :: ierr, is, is1, is2, isub, isub2
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     ! ==--------------------------------------------------------------==
+     IF (pslo_com%tivan) CALL stopgm(procedureN,"USPP NOT IMPLEMENTED",& 
+diff --git a/src/testex_utils.mod.F90 b/src/testex_utils.mod.F90
+index 8639544..a454064 100644
+--- a/src/testex_utils.mod.F90
++++ b/src/testex_utils.mod.F90
+@@ -1,4 +1,5 @@
+ MODULE testex_utils
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fileopenmod,                     ONLY: fo_stat_max
+   USE kinds,                           ONLY: default_path_length
+@@ -40,12 +41,18 @@ CONTAINS
+     LOGICAL                                  :: exist, opened, t_io_node, &
+                                                 test1
+     LOGICAL, SAVE                            :: test2 = .FALSE.
++    INTEGER, SAVE                            :: embed_seen = 0
+ 
+ #ifdef __ES 
+     CHARACTER(len=130) :: exit_fpath ! PATH TO EXIT FILE ON ES
+     COMMON/fpath/ exit_fpath
+ #endif 
+     ! ==--------------------------------------------------------------==
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       test2 = .FALSE.
++       embed_seen = embed_teardowns
++    ENDIF
+     ! AK: 2007-07-02 
+     ! with processor groups we cannot sync across the SUPERGROUP 
+     ! as this will create a deadlock when using BO-PIMD or MW MTD.
+diff --git a/src/updrho_utils.mod.F90 b/src/updrho_utils.mod.F90
+index a5f79c4..2a11469 100644
+--- a/src/updrho_utils.mod.F90
++++ b/src/updrho_utils.mod.F90
+@@ -19,6 +19,7 @@ MODULE updrho_utils
+                                              epot
+   USE elct,                            ONLY: crge
+   USE elct2,                           ONLY: tfixo
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE ener,                            ONLY: ener_com
+   USE error_handling,                  ONLY: stopgm
+   USE fint,                            ONLY: fint1,&
+@@ -138,6 +139,7 @@ CONTAINS
+     INTEGER :: i, ib, idamax, ierr, ig, ik, ikind, ikk, ikpt, imax, isub, &
+       kbeg, kend, kinc, nconv, nkpoint, nnx, nnxs, noccup, nwfc
+     INTEGER, SAVE                            :: ifirst = 0, netot
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: tadjmu, trefine
+     REAL(real_8)                             :: detot, eband1, eband2, eeig1, &
+                                                 eeig2, ehfx, entropy1, &
+@@ -147,6 +149,11 @@ CONTAINS
+     REAL(real_8), EXTERNAL                   :: dasum
+     REAL(real_8), SAVE                       :: ddrho, etot0
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     IF (cntl%tlsd .OR. func1%mhfx.NE.0) THEN
+        ALLOCATE(cgs(nkpt%ngwk,nstate),STAT=ierr)
+diff --git a/src/vdw_utils.mod.F90 b/src/vdw_utils.mod.F90
+index ec60b26..db7c791 100644
+--- a/src/vdw_utils.mod.F90
++++ b/src/vdw_utils.mod.F90
+@@ -4,6 +4,7 @@ MODULE vdw_utils
+   USE adat,                            ONLY: covrad
+   USE cnst,                            ONLY: fbohr
+   USE dftd3_driver,                    ONLY: dftd3
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fileopen_utils,                  ONLY: fileclose,&
+                                              fileopen
+@@ -216,6 +217,7 @@ CONTAINS
+                                                 in, ip, ipx, is, isub, jcfr, &
+                                                 l, m, numx, nx, ny, nz
+     INTEGER, SAVE                            :: ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     REAL(real_8) :: c6, c6fac, c6vdw, datauf, distn, distn6, dr1, dr2, dr3, &
+       dxmax, dxnorm, efac, ffac, reps = 1.0_real_8, rlp(3), seffi, seffi3, &
+       seffi32, seffj, seffj3, seffj32, si3, si3d2, sj3, temp1, temp2, temp3, &
+@@ -225,6 +227,12 @@ CONTAINS
+ 
+ ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(c6all)) DEALLOCATE(c6all)
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     vdwr%evdw=0.0_real_8
+     CALL zeroing(vdwr%devdw)!,6)
+diff --git a/src/vpsi_utils.mod.F90 b/src/vpsi_utils.mod.F90
+index 4bd2e80..4730f0d 100644
+--- a/src/vpsi_utils.mod.F90
++++ b/src/vpsi_utils.mod.F90
+@@ -35,6 +35,7 @@ MODULE vpsi_utils
+   USE dg,                              ONLY: ipooldg,&
+                                              tdgcomm
+   USE efld,                            ONLY: extf
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE fft,                             ONLY: inzf,&
+                                              jgw,&
+@@ -148,6 +149,7 @@ CONTAINS
+       leadx, lspin, n_max_threads, n_nested_threads, n_streams_per_task, &
+       njump, nnrx, nostat, nrxyz1s, nrxyz2, stream_idx
+     INTEGER, SAVE                            :: dgfirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL :: copy_data_to_device, copy_data_to_device_inv, &
+       copy_data_to_host, lg_vpotx3a, lg_vpotx3b, ready, wfcopy
+     REAL(real_8)                             :: chksum, csmult, fi, fip1, g2, &
+@@ -166,6 +168,12 @@ CONTAINS
+     !$ INTEGER :: max_level_orig
+     ! ==--------------------------------------------------------------==
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (dgfirst /= 0) DEALLOCATE(vpotdg)
++       dgfirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     __NVTX_TIMER_START ( procedureN )
+     __NVTX_TIMER_START ( procedureN//'_a' )

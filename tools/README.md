@@ -14,6 +14,7 @@ linking `libcpmdc`.
 | `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The wavefunction and forces of that call are undefined, the next call sets CPMD up again, and more than one rank aborts the others. A null hook leaves `cpmd.x` calling `my_stopall` |
 | `opencpmd_tistopgm.patch` | `tistopgm` prints the call stack only when `trace_depth` lies inside `trace_names`. Before `tistart` the depth is `HUGE(0)`, and the unguarded walk faults instead of writing `LocalError` |
 | `opencpmd_c_mem_addrs.patch` | `cGetMemAddrs` returns the pointer as `size_t`. `cuda_get_address` stores that integer. GCC 14 rejects the stock return of a `size_t` pointer |
+| `opencpmd_embed_teardown.patch` | Add `embed_teardown_state` (module `embed_teardown`) and the counter `embed_teardowns` in `embed_ctrl`. The routine frees the saved orbitals, the communicators of `set_cp_grp`, and every `ALLOCATABLE` module variable and component a `USE` reaches, outside the timer, stop and CUDA device modules, then moves the counter. 37 routines that keep first-call state behind a `SAVE` flag (`phfac`, `setbasis`, `hf_init`, `addfftnset`, the density mixers, the symmetry setup, ...) free their `SAVE` arrays and run as a first call again when the counter moved, so one process can set CPMD up again for another basis or after a `stopgm`. `tistart` keeps its state. Apply this last |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 ```bash
@@ -26,6 +27,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_kpoints_inputfile.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_c_mem_addrs.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_teardown.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```

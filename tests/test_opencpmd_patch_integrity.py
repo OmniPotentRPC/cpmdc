@@ -21,6 +21,43 @@ PATCHES = {
     "opencpmd_stopgm_return.patch": "src/error_handling.mod.F90",
     "opencpmd_tistopgm.patch": "src/timer.mod.F90",
     "opencpmd_c_mem_addrs.patch": "src/c_mem_utils.c",
+    "opencpmd_embed_teardown.patch": (
+        "src/SOURCES",
+        "src/broyden_utils.mod.F90",
+        "src/calc_alm_utils.mod.F90",
+        "src/chksym_utils.mod.F90",
+        "src/detdof_utils.mod.F90",
+        "src/drhov_utils.mod.F90",
+        "src/ehpsi_utils.mod.F90",
+        "src/embed_ctrl.mod.F90",
+        "src/embed_teardown.mod.F90",
+        "src/fftnew_utils.mod.F90",
+        "src/forcedr_driver.mod.F90",
+        "src/hfx_utils.mod.F90",
+        "src/initclust_utils.mod.F90",
+        "src/k_odiis_utils.mod.F90",
+        "src/k_pcgrad_utils.mod.F90",
+        "src/mixing_g_utils.mod.F90",
+        "src/mixing_r_utils.mod.F90",
+        "src/moverho_utils.mod.F90",
+        "src/nlccset_utils.mod.F90",
+        "src/numpw_utils.mod.F90",
+        "src/phfac_utils.mod.F90",
+        "src/pw_hfx.mod.F90",
+        "src/qvan2_utils.mod.F90",
+        "src/recpnew_utils.mod.F90",
+        "src/rhodiis_utils.mod.F90",
+        "src/rnlsmd_utils.mod.F90",
+        "src/rpiiint_utils.mod.F90",
+        "src/rwswap_utils.mod.F90",
+        "src/setbasis_utils.mod.F90",
+        "src/symtrz_utils.mod.F90",
+        "src/tauofr_utils.mod.F90",
+        "src/testex_utils.mod.F90",
+        "src/updrho_utils.mod.F90",
+        "src/vdw_utils.mod.F90",
+        "src/vpsi_utils.mod.F90",
+    ),
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -168,6 +205,31 @@ def assert_stopgm_hook(patch: Path) -> None:
             )
 
 
+def assert_embed_teardown(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "INTEGER, PUBLIC, SAVE :: embed_teardowns = 0",
+        "PUBLIC :: embed_teardown_state",
+        "CALL embed_reset_warm_orbitals()",
+        "CALL free_cp_groups()",
+        "embed_teardowns = embed_teardowns + 1",
+        "embed_teardown.mod.F90",
+        "IF (ALLOCATED(crge%f)) DEALLOCATE(crge%f)",
+        "IF (ALLOCATED(eigr)) DEALLOCATE(eigr)",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+    # Each guarded routine resets its first-call state once per teardown.
+    guards = text.count("+    IF (embed_seen /= embed_teardowns) THEN") + text.count(
+        "+  IF (embed_seen /= embed_teardowns) THEN"
+    )
+    if guards < 30:
+        raise AssertionError(f"{patch.name}: {guards} first-call guards, expected 30 or more")
+    # tistart executes STOP on a second call; the teardown keeps its state.
+    if "USE timer" in text.split("+MODULE embed_teardown", 1)[1].split("END MODULE", 1)[0]:
+        raise AssertionError(f"{patch.name}: embed_teardown must not touch the timers")
+
+
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
     for name, expected_target in PATCHES.items():
@@ -205,6 +267,8 @@ def main() -> int:
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
             assert_tistopgm(patch)
+        elif name == "opencpmd_embed_teardown.patch":
+            assert_embed_teardown(patch)
         elif name == "opencpmd_c_mem_addrs.patch":
             text = patch.read_text(encoding="utf-8")
             if "return (size_t) pp;" not in text:

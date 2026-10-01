@@ -30,7 +30,8 @@ def main() -> int:
         )
         fake_make.chmod(0o755)
 
-        # One member per vendored patch, plus scex_utils for module order.
+        # One member per patched OpenCPMD source file, plus scex_utils for
+        # module order.
         members = [
             "error_handling.mod.o",
             "scex_utils.mod.o",
@@ -42,6 +43,39 @@ def main() -> int:
             "rkpnt_utils.mod.o",
             "timer.mod.o",
             "c_mem_utils.o",
+            "broyden_utils.mod.o",
+            "calc_alm_utils.mod.o",
+            "chksym_utils.mod.o",
+            "detdof_utils.mod.o",
+            "drhov_utils.mod.o",
+            "ehpsi_utils.mod.o",
+            "fftnew_utils.mod.o",
+            "forcedr_driver.mod.o",
+            "hfx_utils.mod.o",
+            "initclust_utils.mod.o",
+            "k_odiis_utils.mod.o",
+            "k_pcgrad_utils.mod.o",
+            "mixing_g_utils.mod.o",
+            "mixing_r_utils.mod.o",
+            "moverho_utils.mod.o",
+            "nlccset_utils.mod.o",
+            "numpw_utils.mod.o",
+            "phfac_utils.mod.o",
+            "pw_hfx.mod.o",
+            "qvan2_utils.mod.o",
+            "recpnew_utils.mod.o",
+            "rhodiis_utils.mod.o",
+            "rnlsmd_utils.mod.o",
+            "rpiiint_utils.mod.o",
+            "rwswap_utils.mod.o",
+            "setbasis_utils.mod.o",
+            "symtrz_utils.mod.o",
+            "tauofr_utils.mod.o",
+            "testex_utils.mod.o",
+            "updrho_utils.mod.o",
+            "vdw_utils.mod.o",
+            "vpsi_utils.mod.o",
+            "embed_teardown.mod.o",
         ]
         for name in members:
             (root / "obj" / name).write_bytes(b"\0")
