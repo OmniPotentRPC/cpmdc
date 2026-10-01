@@ -1,1 +1,0 @@
-The Cap'n Proto renderer writes `MULTIPLICITY` into `&SYSTEM`, from the system section or else from the top-level `multiplicity`, and a multiplicity above 1 named only in the system section turns on `LSD`. The deck had no `MULTIPLICITY` line, so a triplet request ran as the OpenCPMD default spin state.

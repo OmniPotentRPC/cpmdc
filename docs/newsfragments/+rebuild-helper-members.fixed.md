@@ -1,1 +1,0 @@
-`tools/rebuild_opencpmd_embed.sh` rebuilds and re-archives one object per vendored OpenCPMD patch: `embed_ctrl.mod.o`, `initrun_driver.mod.o`, and `c_mem_utils.o` join the list beside `rinitwf_driver.mod.o`.

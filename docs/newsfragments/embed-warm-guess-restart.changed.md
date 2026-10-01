@@ -1,1 +1,0 @@
-A warm in-process call that holds a converged orbital copy returns from the wavefunction setup after the phase factors and does not build a starting guess. It writes no RESTART.1 or LATEST. The cold call still builds the guess.

@@ -1,1 +1,0 @@
-The OpenCPMD path takes each listed element's pseudopotential file, LMAX, LOC, and KLEINMAN-BYLANDER from the CPMDParams message. KLEINMAN-BYLANDER is written on that element's *file line. Elements the message does not list still use the built-in table (H, C, N, O, Si, Ge). Any other element fails with its atomic number.

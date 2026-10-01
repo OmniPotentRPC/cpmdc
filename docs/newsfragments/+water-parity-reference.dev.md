@@ -1,1 +1,0 @@
-The water parity test compares against -17.13449267 Ha, the energy that cpmd.x and the embed both give for the deck the water fixture renders (agreement to 1e-8). The old reference, -17.04926427 Ha, matched no rendering of that deck.

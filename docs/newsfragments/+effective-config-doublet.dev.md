@@ -1,1 +1,0 @@
-The effective-config XC fixtures ask for a doublet. Their HO molecule with charge +2 has 5 valence electrons, so the triplet they named cannot exist; it ran only because the renderer never wrote `MULTIPLICITY`.
