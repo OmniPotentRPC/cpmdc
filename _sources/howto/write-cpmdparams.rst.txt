@@ -109,10 +109,12 @@ out.
 |                      | from ``cutOffRy``, no      | ``ForceInput.box``   |
 |                      | ``CELL``                   |                      |
 +----------------------+----------------------------+----------------------+
-| ``symmetry`` and     | ``SYMMETRY 0`` plus        | the Hockney          |
-| ``poissonSolver``    | ``POISSON SOLVER HOCKNEY`` | isolated-system      |
-|                      |                            | solver, even for a   |
-|                      |                            | periodic box         |
+| ``symmetry`` and     | ``SYMMETRY 0`` plus        | an isolated-system   |
+| ``poissonSolver``    | ``POISSON SOLVER HOCKNEY`` | solver, even for a   |
+|                      | (``TUCKERMAN`` when the    | periodic box;        |
+|                      | functional is a hybrid)    | OpenCPMD has no      |
+|                      |                            | Hockney exact        |
+|                      |                            | exchange             |
 +----------------------+----------------------------+----------------------+
 | ``maxIter``          | no ``MAXITER`` line; the   | an SCF that needs    |
 |                      | OpenCPMD path then inserts | more than 40 steps   |

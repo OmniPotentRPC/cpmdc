@@ -579,16 +579,18 @@ source and rebuild only the affected members:</p>
 </span><span data-line="6">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build
 </span></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code> with
-one Make job, then replaces those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs
-<code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code>
-inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can leave the two module
-files naming different components. It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the
-generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an operation letter, so its
-archive rule does not replace members. <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">AR</span></code> in the
-environment override the programs it runs.</p>
+<p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of each vendored
+patch, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code> for the
+module order, with one Make job, then replaces those members with
+<code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran stores a
+copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can
+leave the two module files naming different components. It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code>
+directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an operation
+letter, so its archive rule does not replace members. <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and
+<code class="docutils literal notranslate"><span class="pre">AR</span></code> in the environment override the programs it runs.</p>
 </section>
 <section id="link-and-check">
 <h1>Link and check<a class="headerlink" href="#link-and-check" title="Link to this heading">¶</a></h1>

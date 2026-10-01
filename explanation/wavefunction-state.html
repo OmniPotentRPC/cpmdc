@@ -554,6 +554,11 @@ reordering of those atomic numbers stays on the session. A new session
 with that composition keeps the stored orbitals. An evaluation whose
 positions match the previous successful call on that session, including
 that reordering, returns the stored energy and forces.</p>
+<p>OpenCPMD runs its setup once per process. Its setup routines allocate
+module arrays that nothing frees, and <code class="docutils literal notranslate"><span class="pre">tistart</span></code> executes <code class="docutils literal notranslate"><span class="pre">STOP</span></code> on a
+second call. An evaluation that needs a second setup, for a basis that
+differs from the first or after a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>, fails with an error that
+says so, and the host starts a new process for it.</p>
 </section>
 <section id="the-restart-file">
 <h1>The RESTART file<a class="headerlink" href="#the-restart-file" title="Link to this heading">¶</a></h1>

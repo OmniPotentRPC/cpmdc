@@ -536,11 +536,15 @@ the cell comes from
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">symmetry</span></code> and
 <code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> plus
-<code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code></p></td>
-<td><p>the Hockney
-isolated-system
+<code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>
+(<code class="docutils literal notranslate"><span class="pre">TUCKERMAN</span></code> when the
+functional is a hybrid)</p></td>
+<td><p>an isolated-system
 solver, even for a
-periodic box</p></td>
+periodic box;
+OpenCPMD has no
+Hockney exact
+exchange</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">maxIter</span></code></p></td>
 <td><p>no <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> line; the

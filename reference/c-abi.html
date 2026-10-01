@@ -717,9 +717,12 @@ synthesized <code class="docutils literal notranslate"><span class="pre">CPMDPar
 <code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result()</span></code> lists: <code class="docutils literal notranslate"><span class="pre">xcFunctionals</span></code>, <code class="docutils literal notranslate"><span class="pre">basisSet</span></code>,
 <code class="docutils literal notranslate"><span class="pre">planewaveCutoffEv</span></code>, <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">spinMultiplicity</span></code>,
 <code class="docutils literal notranslate"><span class="pre">scfEnergyToleranceEv</span></code>, <code class="docutils literal notranslate"><span class="pre">scfMaxIterations</span></code>, <code class="docutils literal notranslate"><span class="pre">kMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">smearing</span></code>,
-<code class="docutils literal notranslate"><span class="pre">vanDerWaalsMethod</span></code>, and <code class="docutils literal notranslate"><span class="pre">vanDerWaalsS6</span></code>. Setting both the arm and
-the overlay is rejected, and so is an overlay field without a CPMD
-lowering, <code class="docutils literal notranslate"><span class="pre">relativityMethod</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">vanDerWaalsMethod</span></code>, and <code class="docutils literal notranslate"><span class="pre">vanDerWaalsS6</span></code>. <code class="docutils literal notranslate"><span class="pre">scfEnergyToleranceEv</span></code>
+fills both values of <code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code>: the orbital threshold and
+the total-energy change between steps, which ends a smeared
+(free-energy) SCF once the energy settles. Setting both the arm and the
+overlay is rejected, and so is an overlay field without a CPMD lowering,
+<code class="docutils literal notranslate"><span class="pre">relativityMethod</span></code>.</p>
 </section>
 <section id="global-array-calls">
 <h1>Global array calls<a class="headerlink" href="#global-array-calls" title="Link to this heading">¶</a></h1>

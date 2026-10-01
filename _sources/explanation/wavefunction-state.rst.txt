@@ -134,6 +134,12 @@ with that composition keeps the stored orbitals. An evaluation whose
 positions match the previous successful call on that session, including
 that reordering, returns the stored energy and forces.
 
+OpenCPMD runs its setup once per process. Its setup routines allocate
+module arrays that nothing frees, and ``tistart`` executes ``STOP`` on a
+second call. An evaluation that needs a second setup, for a basis that
+differs from the first or after a ``stopgm``, fails with an error that
+says so, and the host starts a new process for it.
+
 The RESTART file
 ================
 
