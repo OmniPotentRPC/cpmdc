@@ -472,6 +472,18 @@ before <code class="docutils literal notranslate"><span class="pre">LocalError</
 <code class="docutils literal notranslate"><span class="pre">size_t</span></code> pointer, and GCC 14
 stops on that conversion</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_teardown.mod.F90</span></code>,
+<code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>,
+<code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code>, and 32 modules
+with first-call state</p></td>
+<td><p>a second setup in one process,
+after a basis change or a
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code>, stops in <code class="docutils literal notranslate"><span class="pre">ratom</span></code> with
+<code class="docutils literal notranslate"><span class="pre">allocation</span> <span class="pre">problem</span></code> or faults,
+because the arrays of the first
+setup are still allocated</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -519,6 +531,22 @@ until <code class="docutils literal notranslate"><span class="pre">tistart</span
 <code class="docutils literal notranslate"><span class="pre">trace_names</span></code> from that value, so a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>
 faults instead of writing <code class="docutils literal notranslate"><span class="pre">LocalError</span></code>. The walk runs only when the
 depth is inside <code class="docutils literal notranslate"><span class="pre">SIZE(tname%trace_names)</span></code>.</p>
+<p>The teardown patch adds the module <code class="docutils literal notranslate"><span class="pre">embed_teardown</span></code> and its routine
+<code class="docutils literal notranslate"><span class="pre">embed_teardown_state</span></code>, which <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_teardown</span></code> calls. It frees
+the saved orbitals, the communicators <code class="docutils literal notranslate"><span class="pre">set_cp_grp</span></code> built, and every
+<code class="docutils literal notranslate"><span class="pre">ALLOCATABLE</span></code> module variable and module-variable component that a
+<code class="docutils literal notranslate"><span class="pre">USE</span></code> reaches, outside the timer, stop, and CUDA device modules. It
+then adds one to <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> in <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. 37 routines in
+those 32 modules keep work on the setup and wavefunction optimisation
+path for their first call behind a <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> flag: <code class="docutils literal notranslate"><span class="pre">phfac</span></code>,
+<code class="docutils literal notranslate"><span class="pre">setbasis</span></code>, <code class="docutils literal notranslate"><span class="pre">hf_init</span></code>, <code class="docutils literal notranslate"><span class="pre">addfftnset</span></code>, the density mixers, the
+symmetry setup, the Vanderbilt and core-charge splines, and others. Each
+one compares the count it last saw with <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code>, and on a
+change frees its own <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> arrays and runs as the first call again.
+The next setup then gives the energies of a fresh process. <code class="docutils literal notranslate"><span class="pre">tistart</span></code>
+keeps its state: it executes <code class="docutils literal notranslate"><span class="pre">STOP</span></code> on a second call, so the embed
+calls it once per process. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never tears down, and
+<code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> stays 0 there.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_patch_integrity.py</span></code> checks that the patches are
 portable unified diffs against the files named above. Apply
 <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code> before the rwfopt patch. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>
@@ -529,6 +557,9 @@ stop, and timer patches are the commits on <a class="reference external" href="h
 9</a> (branch
 <code class="docutils literal notranslate"><span class="pre">embedding-hooks</span></code>, <code class="docutils literal notranslate"><span class="pre">43cf4e7</span></code>) and apply in sequence to OpenCPMD
 commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>. Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> with them.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code> last: it adds to the
+<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> of the geometry patch and calls
+<code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code> from the rwfopt patch.
 <code class="docutils literal notranslate"><span class="pre">cuda_get_address</span></code> stores the <code class="docutils literal notranslate"><span class="pre">size_t</span></code> that function returns.</p>
 </section>
 <section id="build-a-patched-tree">
@@ -538,9 +569,10 @@ first build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/OpenCPMD/CPMD.git<span class="w"> </span>opencpmd
 </span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>opencpmd
 </span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-</span><span data-line="5"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
-</span><span data-line="6"><span class="k">done</span>
+</span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">         </span>embed_teardown<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="6"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
+</span><span data-line="7"><span class="k">done</span>
 </span></pre></div>
 </div>
 <p>The OpenCPMD sample <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code> sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to one
@@ -573,24 +605,26 @@ and the headers in <code class="docutils literal notranslate"><span class="pre">
 source and rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
 </span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
-</span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-</span><span data-line="4"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
-</span><span data-line="5"><span class="k">done</span>
-</span><span data-line="6">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build
+</span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">         </span>embed_teardown<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="5"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
+</span><span data-line="6"><span class="k">done</span>
+</span><span data-line="7">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of each vendored
 patch, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>,
 <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>,
 <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code> for the
-module order, with one Make job, then replaces those members with
-<code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran stores a
-copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can
-leave the two module files naming different components. It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code>
-directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an operation
-letter, so its archive rule does not replace members. <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and
-<code class="docutils literal notranslate"><span class="pre">AR</span></code> in the environment override the programs it runs.</p>
+<code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, the 32 modules of the teardown
+patch, and <code class="docutils literal notranslate"><span class="pre">embed_teardown.mod.o</span></code> after them, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code>
+for the module order, with one Make job, then replaces those members
+with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran
+stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel
+rebuild can leave the two module files naming different components. It
+calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without
+an operation letter, so its archive rule does not replace members.
+<code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">AR</span></code> in the environment override the programs it runs.</p>
 </section>
 <section id="link-and-check">
 <h1>Link and check<a class="headerlink" href="#link-and-check" title="Link to this heading">¶</a></h1>

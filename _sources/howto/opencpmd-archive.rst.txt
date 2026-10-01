@@ -64,6 +64,13 @@ Patches and what each one is for
 |                                      |                                 | ``size_t`` pointer, and GCC 14      |
 |                                      |                                 | stops on that conversion            |
 +--------------------------------------+---------------------------------+-------------------------------------+
+| ``opencpmd_embed_teardown.patch``    | ``src/embed_teardown.mod.F90``, | a second setup in one process,      |
+|                                      | ``src/embed_ctrl.mod.F90``,     | after a basis change or a           |
+|                                      | ``src/SOURCES``, and 32 modules | ``stopgm``, stops in ``ratom`` with |
+|                                      | with first-call state           | ``allocation problem`` or faults,   |
+|                                      |                                 | because the arrays of the first     |
+|                                      |                                 | setup are still allocated           |
++--------------------------------------+---------------------------------+-------------------------------------+
 
 The rwfopt patch publishes ``embed_set_warm_orbitals``,
 ``embed_set_need_forces``, ``embed_reset_warm_orbitals``, and
@@ -110,6 +117,23 @@ until ``tistart``, and without the guard the call-stack walk indexes
 faults instead of writing ``LocalError``. The walk runs only when the
 depth is inside ``SIZE(tname%trace_names)``.
 
+The teardown patch adds the module ``embed_teardown`` and its routine
+``embed_teardown_state``, which ``cpmdc_embed_teardown`` calls. It frees
+the saved orbitals, the communicators ``set_cp_grp`` built, and every
+``ALLOCATABLE`` module variable and module-variable component that a
+``USE`` reaches, outside the timer, stop, and CUDA device modules. It
+then adds one to ``embed_teardowns`` in ``embed_ctrl``. 37 routines in
+those 32 modules keep work on the setup and wavefunction optimisation
+path for their first call behind a ``SAVE`` flag: ``phfac``,
+``setbasis``, ``hf_init``, ``addfftnset``, the density mixers, the
+symmetry setup, the Vanderbilt and core-charge splines, and others. Each
+one compares the count it last saw with ``embed_teardowns``, and on a
+change frees its own ``SAVE`` arrays and runs as the first call again.
+The next setup then gives the energies of a fresh process. ``tistart``
+keeps its state: it executes ``STOP`` on a second call, so the embed
+calls it once per process. ``cpmd.x`` never tears down, and
+``embed_teardowns`` stays 0 there.
+
 ``tests/test_opencpmd_patch_integrity.py`` checks that the patches are
 portable unified diffs against the files named above. Apply
 ``opencpmd_embed_rinitwf.patch`` before the rwfopt patch. ``rwfopt``
@@ -120,6 +144,9 @@ stop, and timer patches are the commits on `OpenCPMD pull request
 9 <https://github.com/OpenCPMD/CPMD/pull/9>`__ (branch
 ``embedding-hooks``, ``43cf4e7``) and apply in sequence to OpenCPMD
 commit ``062582b``. Apply ``opencpmd_c_mem_addrs.patch`` with them.
+Apply ``opencpmd_embed_teardown.patch`` last: it adds to the
+``embed_ctrl`` of the geometry patch and calls
+``embed_reset_warm_orbitals`` from the rwfopt patch.
 ``cuda_get_address`` stores the ``size_t`` that function returns.
 
 Build a patched tree
@@ -133,7 +160,8 @@ first build:
    git clone https://github.com/OpenCPMD/CPMD.git opencpmd
    cd opencpmd
    for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
+            embed_teardown; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
@@ -173,7 +201,8 @@ source and rebuild only the affected members:
 
    cd /path/to/opencpmd-source
    for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
-            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
+            embed_teardown; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
@@ -182,14 +211,15 @@ source and rebuild only the affected members:
 patch, ``error_handling.mod.o``, ``embed_ctrl.mod.o``,
 ``rinitwf_driver.mod.o``, ``initrun_driver.mod.o``,
 ``rwfopt_utils.mod.o``, ``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``,
-``timer.mod.o``, and ``c_mem_utils.o``, and ``scex_utils.mod.o`` for the
-module order, with one Make job, then replaces those members with
-``ar r`` and runs ``ranlib``. It runs one job because gfortran stores a
-copy of ``Scex_t`` inside ``rwfopt_utils.mod``: a parallel rebuild can
-leave the two module files naming different components. It calls ``ar``
-directly because the generated Makefile sets ``AR`` without an operation
-letter, so its archive rule does not replace members. ``MAKE`` and
-``AR`` in the environment override the programs it runs.
+``timer.mod.o``, ``c_mem_utils.o``, the 32 modules of the teardown
+patch, and ``embed_teardown.mod.o`` after them, and ``scex_utils.mod.o``
+for the module order, with one Make job, then replaces those members
+with ``ar r`` and runs ``ranlib``. It runs one job because gfortran
+stores a copy of ``Scex_t`` inside ``rwfopt_utils.mod``: a parallel
+rebuild can leave the two module files naming different components. It
+calls ``ar`` directly because the generated Makefile sets ``AR`` without
+an operation letter, so its archive rule does not replace members.
+``MAKE`` and ``AR`` in the environment override the programs it runs.
 
 Link and check
 ==============
