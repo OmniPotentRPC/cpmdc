@@ -1005,6 +1005,38 @@ test(
       suite: ['e2e', 'water'],
       timeout: 600,
     )
+
+    silylamine_params_bin = custom_target(
+      'silylamine_params_bin',
+      input: 'tests/silylamine_blyp_params.capnp.txt',
+      output: 'silylamine_blyp_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    water_pbe0_hockney_params_bin = custom_target(
+      'water_pbe0_hockney_params_bin',
+      input: 'tests/water_pbe0_hockney_params.capnp.txt',
+      output: 'water_pbe0_hockney_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    test(
+      'embed-teardown',
+      executable(
+        'test_embed_teardown',
+        'tests/test_embed_teardown.c',
+        dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+        include_directories: [inc],
+        c_args: common_c_args,
+      ),
+      args: [
+        water_params_bin.full_path(),
+        silylamine_params_bin.full_path(),
+        water_pbe0_hockney_params_bin.full_path(),
+      ],
+      depends: [water_params_bin, silylamine_params_bin,
+                water_pbe0_hockney_params_bin],
+      suite: ['e2e', 'cmocka'],
+      timeout: 900,
+    )
   endif
 
 

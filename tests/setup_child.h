@@ -1,11 +1,12 @@
 /**
  * One OpenCPMD setup per child process.
  *
- * OpenCPMD sets itself up once per process, and cpmdc refuses a second
- * setup (a new basis, or a call after a CPMD stop). A test that needs
- * several bases runs each one through run_setup_child: the child runs the
- * calls of that basis, fills a plain result struct, writes it to a pipe,
- * and exits. The parent reads the struct back and makes the assertions.
+ * A child process sets OpenCPMD up from nothing, which gives a test the
+ * energy of a fresh process for one basis. run_setup_child runs the calls
+ * of that basis in a child, which fills a plain result struct, writes it to
+ * a pipe, and exits. The parent reads the struct back and makes the
+ * assertions. cpmdc can also tear a setup down and set CPMD up again in one
+ * process (test_embed_teardown compares the two).
  */
 #ifndef CPMDC_TESTS_SETUP_CHILD_H
 #define CPMDC_TESTS_SETUP_CHILD_H
