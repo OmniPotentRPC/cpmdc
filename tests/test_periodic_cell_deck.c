@@ -152,6 +152,7 @@ int main(int argc, char **argv) {
     g_failed = 1;
   } else {
     require_has(deck, "CELL VECTORS", "tilted render");
+    require_has(deck, "0.5", "tilted render");
     require_absent(deck, "SYMMETRY", "tilted render");
     require_absent(deck, "HOCKNEY", "tilted render");
   }
@@ -192,6 +193,7 @@ int main(int argc, char **argv) {
   memset(deck, 0, sizeof(deck));
   if (compose_case(tilt, 1, deck, (int)sizeof(deck)) == 0) {
     require_has(deck, "CELL VECTORS", "tilted compose");
+    require_has(deck, "0.5", "tilted compose");
     require_absent(deck, "SYMMETRY", "tilted compose");
     require_absent(deck, "HOCKNEY", "tilted compose");
   }
