@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 
 #include <errno.h>
@@ -10,6 +11,8 @@
 #include <string.h>
 
 #include <cmocka.h>
+
+#include "setup_child.h"
 
 /* 1 only when this binary is the OpenCPMD link. The reference build is 0. */
 #if defined(CPMDC_HAS_CPMD)
@@ -53,6 +56,51 @@ static unsigned char *read_file(const char *path, size_t *size) {
   return buf;
 }
 
+/* OpenCPMD sets itself up once per process. Each basis below (a cell, a
+ * cutoff, a functional) runs its calls in a child process on the parent's
+ * sessions, and the parent makes the assertions. */
+#define MAX_CALLS 3
+
+struct call {
+  CPMDCSession *session;
+  const unsigned char *step;
+  size_t step_size;
+  size_t capacity;
+};
+
+struct calls_ctx {
+  int n;
+  struct call calls[MAX_CALLS];
+};
+
+struct call_out {
+  CPMDCResult result;
+  size_t out_size;
+};
+
+struct calls_out {
+  struct call_out calls[MAX_CALLS];
+};
+
+static void calls_child(void *vctx, void *vout) {
+  struct calls_ctx *ctx = (struct calls_ctx *)vctx;
+  struct calls_out *o = (struct calls_out *)vout;
+  for (int i = 0; i < ctx->n; ++i) {
+    const struct call *c = &ctx->calls[i];
+    unsigned char *out = (unsigned char *)malloc(c->capacity);
+    if (!out) {
+      snprintf(o->calls[i].result.message,
+               sizeof(o->calls[i].result.message), "out of memory");
+      return;
+    }
+    o->calls[i].out_size = 0;
+    o->calls[i].result = cpmdc_session_calculate_result(
+        c->session, c->step, c->step_size, out, c->capacity,
+        &o->calls[i].out_size);
+    free(out);
+  }
+}
+
 static void test_session_socket_contract(void **state) {
   (void)state;
   size_t params_size = 0, step_size = 0, step_b_size = 0, species_size = 0;
@@ -71,68 +119,62 @@ static void test_session_socket_contract(void **state) {
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);
 
-  size_t out_size = 0;
-  unsigned char tiny[8] = {0};
-  CPMDCResult small = cpmdc_session_calculate_result(session, step, step_size,
-                                                     tiny, sizeof(tiny),
-                                                     &out_size);
+  /* Step A: a buffer that is too small, then the evaluation. */
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
+  struct calls_ctx ca = {2, {{session, step, step_size, 8},
+                             {session, step, step_size, need}}};
+  struct calls_out oa;
+  RUN_SETUP_CHILD(calls_child, &ca, &oa);
+
+  CPMDCResult small = oa.calls[0].result;
   assert_int_equal(small.ok, 0);
-  assert_int_equal(out_size, need);
+  assert_int_equal(oa.calls[0].out_size, need);
   assert_non_null(strstr(small.message, "too small"));
 
-  unsigned char *out = (unsigned char *)malloc(need);
-  assert_non_null(out);
-  out_size = 0;
-  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
-  CPMDCResult eval = cpmdc_session_calculate_result(session, step, step_size,
-                                                    out, need, &out_size);
+  CPMDCResult eval = oa.calls[1].result;
   assert_int_equal(eval.ok, 1);
-  assert_true(out_size > 0);
+  assert_true(oa.calls[1].out_size > 0);
   assert_true(isfinite(eval.energy_h));
   double step_energy = eval.energy_h;
 
+  /* Step B has another cell. */
   size_t need_b =
       cpmdc_potential_result_size_for_force_input(step_b, step_b_size);
   assert_int_equal(need_b, need);
-  out_size = 0;
-  CPMDCResult eval_b = cpmdc_session_calculate_result(
-      session, step_b, step_b_size, out, need, &out_size);
+  struct calls_ctx cb = {1, {{session, step_b, step_b_size, need}}};
+  struct calls_out ob;
+  RUN_SETUP_CHILD(calls_child, &cb, &ob);
+  CPMDCResult eval_b = ob.calls[0].result;
   assert_int_equal(eval_b.ok, 1);
   assert_true(isfinite(eval_b.energy_h));
   assert_true(fabs(eval_b.energy_h - step_energy) > 1.0e-8);
 
-  out_size = 0;
-  CPMDCResult repeated = cpmdc_session_calculate_result(
-      session, step, step_size, out, need, &out_size);
+  /* Step A again, then a topology change on the same live session. */
+  struct calls_ctx cr = {2, {{session, step, step_size, need},
+                             {session, step_species, species_size, need}}};
+  struct calls_out orr;
+  RUN_SETUP_CHILD(calls_child, &cr, &orr);
+  CPMDCResult repeated = orr.calls[0].result;
   assert_int_equal(repeated.ok, 1);
   assert_float_equal(repeated.energy_h, step_energy, 1.0e-12);
 
-  out_size = 0;
-  CPMDCResult bad = cpmdc_session_calculate_result(
-      session, step_species, species_size, out, need, &out_size);
+  CPMDCResult bad = orr.calls[1].result;
   assert_int_equal(bad.ok, 0);
   assert_non_null(strstr(bad.message, "topology"));
 
   cpmdc_session_destroy(session);
-  free(out);
   free(params);
   free(step);
   free(step_b);
   free(step_species);
 }
 
-static double eval_energy_or_fail(CPMDCSession *session,
-                                  const unsigned char *step,
-                                  size_t step_size, unsigned char *out,
-                                  size_t out_capacity) {
-  size_t out_size = 0;
-  CPMDCResult result = cpmdc_session_calculate_result(
-      session, step, step_size, out, out_capacity, &out_size);
-  if (!result.ok)
-    fail_msg("session calculate failed: %s", result.message);
-  assert_true(out_size > 0);
-  assert_true(isfinite(result.energy_h));
-  return result.energy_h;
+static double energy_or_fail(const struct call_out *c) {
+  if (!c->result.ok)
+    fail_msg("session calculate failed: %s", c->result.message);
+  assert_true(c->out_size > 0);
+  assert_true(isfinite(c->result.energy_h));
+  return c->result.energy_h;
 }
 
 static void test_session_set_params_owns_socket_deck(void **state) {
@@ -148,25 +190,26 @@ static void test_session_set_params_owns_socket_deck(void **state) {
 
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);
-  unsigned char *out = (unsigned char *)malloc(need);
-  assert_non_null(out);
 
   CPMDCSession *updated = cpmdc_session_create(params, params_size);
   assert_non_null(updated);
   assert_int_equal(cpmdc_session_set_params(updated, alt, alt_size), 0);
-  double updated_energy =
-      eval_energy_or_fail(updated, step, step_size, out, need);
 
   CPMDCSession *direct_alt = cpmdc_session_create(alt, alt_size);
   assert_non_null(direct_alt);
-  double direct_alt_energy =
-      eval_energy_or_fail(direct_alt, step, step_size, out, need);
+
+  /* Both sessions carry the alternate deck: one basis, one child. */
+  struct calls_ctx c = {2, {{updated, step, step_size, need},
+                            {direct_alt, step, step_size, need}}};
+  struct calls_out o;
+  RUN_SETUP_CHILD(calls_child, &c, &o);
+  double updated_energy = energy_or_fail(&o.calls[0]);
+  double direct_alt_energy = energy_or_fail(&o.calls[1]);
 
   assert_float_equal(updated_energy, direct_alt_energy, 1.0e-12);
 
   cpmdc_session_destroy(direct_alt);
   cpmdc_session_destroy(updated);
-  free(out);
   free(params);
   free(alt);
   free(step);
@@ -185,28 +228,32 @@ static void test_interleaved_sessions_reapply_params(void **state) {
 
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);
-  unsigned char *out = (unsigned char *)malloc(need);
-  assert_non_null(out);
 
+  /* session_b is configured last, so session_a reapplies its own params on
+   * its next call. */
   CPMDCSession *session_a = cpmdc_session_create(params, params_size);
   CPMDCSession *session_b = cpmdc_session_create(alt, alt_size);
   assert_non_null(session_a);
   assert_non_null(session_b);
-  (void)eval_energy_or_fail(session_b, step, step_size, out, need);
-  double interleaved_a =
-      eval_energy_or_fail(session_a, step, step_size, out, need);
+  struct calls_ctx cb = {1, {{session_b, step, step_size, need}}};
+  struct calls_out ob;
+  RUN_SETUP_CHILD(calls_child, &cb, &ob);
+  (void)energy_or_fail(&ob.calls[0]);
 
   CPMDCSession *fresh_a = cpmdc_session_create(params, params_size);
   assert_non_null(fresh_a);
-  double fresh_a_energy =
-      eval_energy_or_fail(fresh_a, step, step_size, out, need);
+  struct calls_ctx ca = {2, {{session_a, step, step_size, need},
+                             {fresh_a, step, step_size, need}}};
+  struct calls_out oa;
+  RUN_SETUP_CHILD(calls_child, &ca, &oa);
+  double interleaved_a = energy_or_fail(&oa.calls[0]);
+  double fresh_a_energy = energy_or_fail(&oa.calls[1]);
 
   assert_float_equal(interleaved_a, fresh_a_energy, 1.0e-12);
 
   cpmdc_session_destroy(fresh_a);
   cpmdc_session_destroy(session_b);
   cpmdc_session_destroy(session_a);
-  free(out);
   free(params);
   free(alt);
   free(step);

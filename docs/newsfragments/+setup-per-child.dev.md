@@ -1,0 +1,1 @@
+The session-socket, e2e-single-point, e2e-set-directives-session, e2e-optimizer-session, stress-isolated and effective-config tests run each OpenCPMD setup in a child process and assert on the results it hands back. They exited with status 0 at the second in-process setup, through OpenCPMD's `tistart` STOP, so their later assertions never ran against OpenCPMD.

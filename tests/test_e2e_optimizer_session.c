@@ -2,6 +2,7 @@
  * Sustained multi-step evaluation (optimizer / MD style): one CPMDCSession,
  * many ForceInput geometries, fixed topology, changing coordinates/cell.
  */
+#define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 
 #include <errno.h>
@@ -14,6 +15,8 @@
 #include <string.h>
 
 #include <cmocka.h>
+
+#include "setup_child.h"
 
 static const char *g_params = NULL;
 static const char *g_step_a = NULL;
@@ -57,6 +60,55 @@ static CPMDCResult eval_step(CPMDCSession *session, const unsigned char *step,
                                         out_size);
 }
 
+/* Geometry A and geometry B have different cells, and the alternate
+ * topology has a different composition: each is a new basis and so an
+ * OpenCPMD setup of its own. Every setup runs in a child process on the
+ * parent's session; the parent makes the assertions. */
+struct opt_ctx {
+  CPMDCSession *session;
+  const unsigned char *step;
+  size_t step_size;
+  size_t need;
+  /* Second call on the same session and basis, or NULL. */
+  const unsigned char *then_step;
+  size_t then_size;
+};
+
+struct opt_out {
+  CPMDCResult r;
+  size_t out_size;
+  CPMDCResult then;
+  size_t then_out_size;
+};
+
+static void eval_child(void *vctx, void *vout) {
+  struct opt_ctx *ctx = (struct opt_ctx *)vctx;
+  struct opt_out *o = (struct opt_out *)vout;
+  unsigned char *out = (unsigned char *)malloc(ctx->need);
+  if (!out) {
+    snprintf(o->r.message, sizeof(o->r.message), "out of memory");
+    return;
+  }
+  o->r = eval_step(ctx->session, ctx->step, ctx->step_size, out, ctx->need,
+                   &o->out_size);
+  if (ctx->then_step)
+    o->then = eval_step(ctx->session, ctx->then_step, ctx->then_size, out,
+                        ctx->need, &o->then_out_size);
+  free(out);
+}
+
+struct forces_out {
+  CPMDCResult rf;
+  double forces[6];
+};
+
+static void forces_child(void *vctx, void *vout) {
+  struct opt_ctx *ctx = (struct opt_ctx *)vctx;
+  struct forces_out *o = (struct forces_out *)vout;
+  o->rf = cpmdc_session_calculate_forces(ctx->session, ctx->step,
+                                         ctx->step_size, o->forces, 6);
+}
+
 static void test_optimizer_style_session_loop(void **state) {
   (void)state;
   if (!cpmdc_available()) {
@@ -84,41 +136,42 @@ static void test_optimizer_style_session_loop(void **state) {
   assert_int_equal(need_a, need_b);
   assert_true(need_a > 0);
 
-  unsigned char *out = (unsigned char *)malloc(need_a);
-  assert_non_null(out);
-
-  size_t out_size = 0;
-  CPMDCResult r0 = eval_step(session, step_a, a_size, out, need_a, &out_size);
+  struct opt_out o0, o1, o2;
+  struct opt_ctx c0 = {session, step_a, a_size, need_a, NULL, 0};
+  RUN_SETUP_CHILD(eval_child, &c0, &o0);
+  CPMDCResult r0 = o0.r;
   assert_int_equal(r0.ok, 1);
   assert_true(isfinite(r0.energy_h));
   double e0 = r0.energy_h;
 
-  /* Second optimizer step: stretched O–H / different cell (step_ev fixture). */
-  out_size = 0;
-  CPMDCResult r1 = eval_step(session, step_b, b_size, out, need_a, &out_size);
+  /* Second optimizer step: stretched O-H / different cell (step_ev fixture). */
+  struct opt_ctx c1 = {session, step_b, b_size, need_a, NULL, 0};
+  RUN_SETUP_CHILD(eval_child, &c1, &o1);
+  CPMDCResult r1 = o1.r;
   assert_int_equal(r1.ok, 1);
   assert_true(isfinite(r1.energy_h));
   assert_true(fabs(r1.energy_h - e0) > 1.0e-8);
 
-  /* Third step returns to geometry A; energy matches first step (same PEF). */
-  out_size = 0;
-  CPMDCResult r2 = eval_step(session, step_a, a_size, out, need_a, &out_size);
+  /* Third step returns to geometry A; energy matches first step (same PEF).
+   * The topology change follows on the same live session. */
+  struct opt_ctx c2 = {session, step_a, a_size, need_a, step_sp, sp_size};
+  RUN_SETUP_CHILD(eval_child, &c2, &o2);
+  CPMDCResult r2 = o2.r;
   assert_int_equal(r2.ok, 1);
   assert_float_equal(r2.energy_h, e0, 1e-6);
 
   /* Forces path on the live session (optimizer gradient-style). */
-  double forces[6] = {0};
-  CPMDCResult rf = cpmdc_session_calculate_forces(session, step_b, b_size,
-                                                  forces, 6);
+  struct forces_out of;
+  struct opt_ctx cf = {session, step_b, b_size, need_a, NULL, 0};
+  RUN_SETUP_CHILD(forces_child, &cf, &of);
+  CPMDCResult rf = of.rf;
   assert_int_equal(rf.ok, 1);
   assert_float_equal(rf.energy_h, r1.energy_h, 1e-6);
   /* Force on oxygen z should be non-zero (atom at z=0.96 angstrom). */
-  assert_true(isfinite(forces[5]));
+  assert_true(isfinite(of.forces[5]));
 
   /* Topology change must fail without creating a new session. */
-  out_size = 0;
-  CPMDCResult bad =
-      eval_step(session, step_sp, sp_size, out, need_a, &out_size);
+  CPMDCResult bad = o2.then;
   assert_int_equal(bad.ok, 0);
   assert_non_null(strstr(bad.message, "topology"));
 
@@ -128,17 +181,14 @@ static void test_optimizer_style_session_loop(void **state) {
   size_t need_sp =
       cpmdc_potential_result_size_for_force_input(step_sp, sp_size);
   assert_true(need_sp > 0);
-  unsigned char *out2 = (unsigned char *)malloc(need_sp);
-  assert_non_null(out2);
-  size_t out2_size = 0;
-  CPMDCResult ok_sp =
-      eval_step(session2, step_sp, sp_size, out2, need_sp, &out2_size);
+  struct opt_out osp;
+  struct opt_ctx csp = {session2, step_sp, sp_size, need_sp, NULL, 0};
+  RUN_SETUP_CHILD(eval_child, &csp, &osp);
+  CPMDCResult ok_sp = osp.r;
   assert_int_equal(ok_sp.ok, 1);
 
   cpmdc_session_destroy(session2);
   cpmdc_session_destroy(session);
-  free(out2);
-  free(out);
   free(params);
   free(step_a);
   free(step_b);

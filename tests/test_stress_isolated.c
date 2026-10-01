@@ -12,6 +12,8 @@
 
 #include <cmocka.h>
 
+#include "setup_child.h"
+
 #include "schema/Potentials.capnp.h"
 #include <capn.h>
 
@@ -48,8 +50,36 @@ static unsigned char *read_file(const char *path, size_t *size) {
   return buf;
 }
 
+struct stress_ctx {
+  CPMDCSession *session;
+  const unsigned char *step;
+  size_t step_size;
+  size_t need;
+};
+
+struct stress_out {
+  CPMDCResult r;
+  size_t wrote;
+  unsigned char out[4096];
+  int rc;
+  CPMDCStressTensor stress;
+  int session_rc;
+  CPMDCStressTensor session_stress;
+};
+
+static void stress_child(void *vctx, void *vout) {
+  struct stress_ctx *ctx = (struct stress_ctx *)vctx;
+  struct stress_out *o = (struct stress_out *)vout;
+  o->r = cpmdc_session_calculate_result(ctx->session, ctx->step,
+                                        ctx->step_size, o->out, ctx->need,
+                                        &o->wrote);
+  o->rc = cpmdc_last_stress(&o->stress);
+  o->session_rc = cpmdc_session_last_stress(ctx->session, &o->session_stress);
+}
+
 /* Returns the cpmdc_last_stress status. *wire_stress is 1 when the
- * PotentialResult carries a 9-vector. */
+ * PotentialResult carries a 9-vector. Each deck is its own OpenCPMD setup,
+ * so the evaluation runs in a child of its own. */
 static int eval_stress(const char *params_path, int *wire_stress,
                        CPMDCStressTensor *stress) {
   size_t ps = 0, ss = 0;
@@ -62,23 +92,23 @@ static int eval_stress(const char *params_path, int *wire_stress,
   assert_int_equal(cpmdc_last_error()[0], '\0');
   size_t need = cpmdc_potential_result_size_for_force_input(step, ss);
   assert_true(need > 0);
-  unsigned char *out = (unsigned char *)malloc(need);
-  assert_non_null(out);
-  size_t wrote = 0;
-  CPMDCResult r =
-      cpmdc_session_calculate_result(session, step, ss, out, need, &wrote);
+  static struct stress_out o;
+  assert_true(need <= sizeof(o.out));
+  struct stress_ctx ctx = {session, step, ss, need};
+  RUN_SETUP_CHILD(stress_child, &ctx, &o);
+  CPMDCResult r = o.r;
+  size_t wrote = o.wrote;
   assert_int_equal(r.ok, 1);
 
-  memset(stress, 0, sizeof(*stress));
-  int rc = cpmdc_last_stress(stress);
-  CPMDCStressTensor session_stress;
-  memset(&session_stress, 0, sizeof(session_stress));
-  int session_rc = cpmdc_session_last_stress(session, &session_stress);
+  *stress = o.stress;
+  int rc = o.rc;
+  CPMDCStressTensor session_stress = o.session_stress;
+  int session_rc = o.session_rc;
   assert_int_equal(session_rc, rc);
   assert_int_equal(session_stress.valid, stress->valid);
 
   struct capn arena;
-  assert_int_equal(capn_init_mem(&arena, out, (int)wrote, 0), 0);
+  assert_int_equal(capn_init_mem(&arena, o.out, (int)wrote, 0), 0);
   PotentialResult_ptr pr;
   pr.p = capn_getp(capn_root(&arena), 0, 1);
   struct PotentialResult view;
@@ -91,7 +121,6 @@ static int eval_stress(const char *params_path, int *wire_stress,
   *wire_stress = nstress == 9;
   capn_free(&arena);
   cpmdc_session_destroy(session);
-  free(out);
   free(step);
   free(params);
   return rc;
