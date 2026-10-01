@@ -1,0 +1,1 @@
+An OpenCPMD stop in the deck setup of an energy and gradient call, such as `HFX not implemented for HOCKNEY`, ends the call with an error before the SCF. The SCF ran on the half-initialized state and could crash the host.

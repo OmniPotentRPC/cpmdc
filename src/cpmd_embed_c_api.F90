@@ -1742,6 +1742,10 @@ CONTAINS
     END DO
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
+    ! A stopgm in the deck setup of this call returned here with the CPMD
+    ! state undefined (HF_INIT, for one, leaves the HFX arrays unset), and
+    ! an SCF on that state can fault. The caller reports the stop.
+    IF (cpmdc_stop_code() /= 0_c_int) RETURN
     ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
     IF (astat /= 0) THEN
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
