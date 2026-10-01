@@ -624,11 +624,30 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       struct CPMDCpmdSection cpmd_sec;
       memset(&cpmd_sec, 0, sizeof(cpmd_sec));
       cpmd_sec.optimizeWavefunction = 1;
-      /* CPMD's primary SCF criterion is CONVERGENCE ORBITALS (a.u.). */
-      cpmd_sec.convergenceOrbitals =
-          c.scfEnergyToleranceEv > 0.0
-              ? c.scfEnergyToleranceEv / CPMDC_HARTREE_EV
-              : 1.0e-6;
+      /* CPMD's primary SCF criterion is CONVERGENCE ORBITALS (a.u.). Its
+       * optional second value is the total-energy change between SCF
+       * steps; the free-energy (Lanczos) SCF stops on either one. The
+       * energy tolerance goes to both, so a smeared SCF stops once the
+       * energy settles even while the density still moves. */
+      char conv_args[64];
+      if (c.scfEnergyToleranceEv > 0.0) {
+        double tol = c.scfEnergyToleranceEv / CPMDC_HARTREE_EV;
+        snprintf(conv_args, sizeof(conv_args), "%.10g %.10g", tol, tol);
+        capn_ptr args = capn_new_ptr_list(root.seg, 1);
+        capn_text arg_text = {(int)strlen(conv_args), conv_args, NULL};
+        capn_set_text(args, 0, arg_text);
+        struct CPMDDirective conv;
+        memset(&conv, 0, sizeof(conv));
+        conv.keyword.str = "CONVERGENCE ORBITALS";
+        conv.keyword.len = (int)strlen(conv.keyword.str);
+        conv.args = args;
+        CPMDDirective_list directives = new_CPMDDirective_list(root.seg, 1);
+        set_CPMDDirective(&conv, directives, 0);
+        cpmd_sec.directives = directives;
+        cpmd_sec.convergenceOrbitals = 0.0;
+      } else {
+        cpmd_sec.convergenceOrbitals = 1.0e-6;
+      }
       cpmd_sec.maxIter = c.scfMaxIterations;
       if (smear_temperature_k > 0.0) {
         cpmd_sec.freeEnergy = 1;

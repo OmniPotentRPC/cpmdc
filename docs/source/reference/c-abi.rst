@@ -226,7 +226,10 @@ synthesized ``CPMDParams``. The fields it lowers are the ones
 ``cpmdc_capabilities_result()`` lists: ``xcFunctionals``, ``basisSet``,
 ``planewaveCutoffEv``, ``charge``, ``spinMultiplicity``,
 ``scfEnergyToleranceEv``, ``scfMaxIterations``, ``kMesh``, ``smearing``,
-``vanDerWaalsMethod``, and ``vanDerWaalsS6``. Setting both the arm and
+``vanDerWaalsMethod``, and ``vanDerWaalsS6``. ``scfEnergyToleranceEv``
+fills both values of ``CONVERGENCE ORBITALS``: the orbital threshold and
+the total-energy change between steps, which ends a smeared (free-energy)
+SCF once the energy settles. Setting both the arm and
 the overlay is rejected, and so is an overlay field without a CPMD
 lowering, ``relativityMethod``.
 

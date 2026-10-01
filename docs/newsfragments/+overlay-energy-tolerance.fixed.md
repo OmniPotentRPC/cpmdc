@@ -1,0 +1,1 @@
+A `common` overlay's `scfEnergyToleranceEv` reaches `CONVERGENCE ORBITALS` as the total-energy change as well as the orbital threshold, so a smeared SCF stops once its energy settles within the tolerance.
