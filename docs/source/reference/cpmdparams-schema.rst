@@ -203,7 +203,8 @@ geometry: the host owns them.
 | ``cutOffRy``                | 70.0     | ``CUTOFF``                                          |
 +-----------------------------+----------+-----------------------------------------------------+
 | ``poissonSolver``,          | empty    | ``POISSON SOLVER``; ``SYMMETRY 0`` without one adds |
-| ``poissonParameter``        |          | ``HOCKNEY``                                         |
+| ``poissonParameter``        |          | ``HOCKNEY``, or ``TUCKERMAN`` for a hybrid          |
+|                             |          | functional                                          |
 +-----------------------------+----------+-----------------------------------------------------+
 | ``charge``,                 | 0, 1     | ``CHARGE``, ``MULTIPLICITY``                        |
 | ``multiplicity``            |          |                                                     |

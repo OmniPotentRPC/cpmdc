@@ -81,7 +81,7 @@ the host owns them.
 | ~cell~ | empty | ~CELL~: six values ~a, b/a, c/a, cos(alpha), cos(beta), cos(gamma)~, or nine with ~cellVectors~ |
 | ~cellAbsolute~, ~cellDegree~, ~cellVectors~ | off | ~CELL ABSOLUTE~, ~DEGREE~, ~VECTORS~ |
 | ~cutOffRy~ | 70.0 | ~CUTOFF~ |
-| ~poissonSolver~, ~poissonParameter~ | empty | ~POISSON SOLVER~; ~SYMMETRY 0~ without one adds ~HOCKNEY~ |
+| ~poissonSolver~, ~poissonParameter~ | empty | ~POISSON SOLVER~; ~SYMMETRY 0~ without one adds ~HOCKNEY~, or ~TUCKERMAN~ for a hybrid functional |
 | ~charge~, ~multiplicity~ | 0, 1 | ~CHARGE~, ~MULTIPLICITY~ |
 | ~kpointsMonkhorstPack~ | empty | ~KPOINTS MONKHORST-PACK~ |
 
