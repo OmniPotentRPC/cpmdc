@@ -1,0 +1,1 @@
+A positive-volume cell with no isolated keyword is written with cubic or orthorhombic symmetry, or with cell vectors when the box is tilted, while a zero box and a deck that already asks for an isolated system stay on symmetry 0 with the Hockney solver.

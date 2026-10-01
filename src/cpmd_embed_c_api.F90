@@ -999,6 +999,49 @@ CONTAINS
     ok = 1
   END SUBROUTINE
 
+  ! 0 is an isolated box. 1 is cubic, 8 orthorhombic.
+  ! -2 is a tilted cell: CELL VECTORS and no SYMMETRY line.
+  ! The cubic test matches OpenCPMD's 1e-5 check on b/a and c/a.
+  REAL(real64) FUNCTION cell_box_determinant(cell)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    REAL(real64) :: c1, c2, c3, c4, c5, c6, c7, c8, c9
+    c1 = REAL(cell(1), KIND=real64)
+    c2 = REAL(cell(2), KIND=real64)
+    c3 = REAL(cell(3), KIND=real64)
+    c4 = REAL(cell(4), KIND=real64)
+    c5 = REAL(cell(5), KIND=real64)
+    c6 = REAL(cell(6), KIND=real64)
+    c7 = REAL(cell(7), KIND=real64)
+    c8 = REAL(cell(8), KIND=real64)
+    c9 = REAL(cell(9), KIND=real64)
+    cell_box_determinant = c1 * (c5 * c9 - c6 * c8) - &
+         c2 * (c4 * c9 - c6 * c7) + &
+         c3 * (c4 * c8 - c5 * c7)
+  END FUNCTION
+
+  INTEGER FUNCTION periodic_symmetry_code(cell, has_cell)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    REAL(real64) :: b_over_a, c_over_a, off
+    periodic_symmetry_code = 0
+    IF (has_cell == 0) RETURN
+    IF (ABS(cell_box_determinant(cell)) <= 1.0e-8_real64) RETURN
+    off = ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
+         ABS(cell(7)) + ABS(cell(8))
+    IF (off > 1.0e-8_real64 .OR. cell(1) == 0.0_c_double) THEN
+      periodic_symmetry_code = -2
+      RETURN
+    END IF
+    b_over_a = REAL(cell(5), KIND=real64) / REAL(cell(1), KIND=real64)
+    c_over_a = REAL(cell(9), KIND=real64) / REAL(cell(1), KIND=real64)
+    IF (ABS(b_over_a - 1.0_real64) + ABS(c_over_a - 1.0_real64) < &
+        1.0e-5_real64) THEN
+      periodic_symmetry_code = 1
+    ELSE
+      periodic_symmetry_code = 8
+    END IF
+  END FUNCTION
+
   ! One cold-deck procedure for the stub and the engine.
   ! Cold: OpenCPMD parsers via anonymous memfd deck (no disk write). Warm: C arrays only.
   SUBROUTINE embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, ierr, knobs)
@@ -1008,7 +1051,7 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, failed
+    INTEGER :: i, j, zz, count, pok, failed, icode
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=600) :: star
     CHARACTER(LEN=256) :: opt
@@ -1027,9 +1070,14 @@ CONTAINS
     CALL append('  40'//NEW_LINE('A'))
     CALL append(' CENTER MOLECULE OFF'//NEW_LINE('A'))
     CALL append('&END'//NEW_LINE('A'))
+    icode = periodic_symmetry_code(cell, has_cell)
     CALL append('&SYSTEM'//NEW_LINE('A'))
-    CALL append(' SYMMETRY'//NEW_LINE('A'))
-    CALL append('  0'//NEW_LINE('A'))
+    IF (icode == 0 .OR. icode == 1 .OR. icode == 8) THEN
+      CALL append(' SYMMETRY'//NEW_LINE('A'))
+      IF (icode == 0) CALL append('  0'//NEW_LINE('A'))
+      IF (icode == 1) CALL append('  1'//NEW_LINE('A'))
+      IF (icode == 8) CALL append('  8'//NEW_LINE('A'))
+    END IF
     CALL append(' ANGSTROM'//NEW_LINE('A'))
     CALL format_cell_lines(cell, has_cell, celltxt, celln)
     CALL append(celltxt(1:celln))
@@ -1046,7 +1094,7 @@ CONTAINS
       WRITE(line, '(A,I6)') '  ', knobs%mult
       CALL append(TRIM(line)//NEW_LINE('A'))
     END IF
-    CALL append(' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
+    IF (icode == 0) CALL append(' POISSON SOLVER HOCKNEY'//NEW_LINE('A'))
     CALL append('&END'//NEW_LINE('A'))
     CALL append('&DFT'//NEW_LINE('A'))
     CALL append(' OLDCODE'//NEW_LINE('A'))
@@ -1373,6 +1421,110 @@ CONTAINS
     nlen = newn
   END SUBROUTINE
 
+  ! True when a SYMMETRY keyword is present and it is not CHECK SYMMETRY.
+  LOGICAL FUNCTION deck_names_symmetry(deck, nlen)
+    CHARACTER(LEN=*), INTENT(IN) :: deck
+    INTEGER, INTENT(IN) :: nlen
+    INTEGER :: p
+    deck_names_symmetry = .FALSE.
+    IF (nlen < 8) RETURN
+    p = 1
+    DO WHILE (p <= nlen - 7)
+      IF (deck(p:p+7) == 'SYMMETRY') THEN
+        IF (p >= 7) THEN
+          IF (deck(p-6:p-1) == 'CHECK ') THEN
+            p = p + 1
+            CYCLE
+          END IF
+        END IF
+        deck_names_symmetry = .TRUE.
+        RETURN
+      END IF
+      p = p + 1
+    END DO
+  END FUNCTION
+
+  ! A deck with no symmetry line takes cubic, orthorhombic, or isolated
+  ! symmetry from the box. An explicit symmetry, Poisson solver, cluster,
+  ! or isolated-molecule keyword stays as written. CELL VECTORS is the
+  ! tilted cell and gets no SYMMETRY line.
+  SUBROUTINE inject_periodicity_if_unset(deck, nlen, cell, has_cell, ierr)
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: isys, ins_at, code, iend
+    CHARACTER(LEN=32) :: symtxt
+    CHARACTER(LEN=32) :: hock
+    ierr = 0
+    IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
+    IF (INDEX(deck(1:nlen), 'POISSON SOLVER') > 0) RETURN
+    IF (INDEX(deck(1:nlen), ' CLUSTER') > 0) RETURN
+    IF (INDEX(deck(1:nlen), ' ISOLATED MOLECULE') > 0) RETURN
+    IF (INDEX(deck(1:nlen), ' MOLECULE ISOLATED') > 0) RETURN
+    IF (deck_names_symmetry(deck, nlen)) RETURN
+    IF (INDEX(deck(1:nlen), 'CELL VECTORS') > 0) RETURN
+    code = periodic_symmetry_code(cell, has_cell)
+    IF (code < 0) RETURN
+    isys = INDEX(deck(1:nlen), '&SYSTEM')
+    IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
+    IF (isys <= 0) RETURN
+    ins_at = isys
+    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+      ins_at = ins_at + 1
+    END DO
+    IF (ins_at <= nlen) ins_at = ins_at + 1
+    IF (code == 0) THEN
+      symtxt = ' SYMMETRY'//NEW_LINE('A')//'  0'//NEW_LINE('A')
+    ELSE IF (code == 1) THEN
+      symtxt = ' SYMMETRY'//NEW_LINE('A')//'  1'//NEW_LINE('A')
+    ELSE IF (code == 8) THEN
+      symtxt = ' SYMMETRY'//NEW_LINE('A')//'  8'//NEW_LINE('A')
+    ELSE
+      RETURN
+    END IF
+    CALL insert_at(ins_at, symtxt)
+    IF (ierr /= 0 .OR. code /= 0) RETURN
+    iend = INDEX(deck(isys:nlen), '&END')
+    IF (iend == 0) iend = INDEX(deck(isys:nlen), '&end')
+    IF (iend <= 0) RETURN
+    iend = isys + iend - 1
+    hock = ' POISSON SOLVER HOCKNEY'//NEW_LINE('A')
+    CALL insert_at(iend, hock)
+  CONTAINS
+    SUBROUTINE insert_at(at, text)
+      INTEGER, INTENT(IN) :: at
+      CHARACTER(LEN=*), INTENT(IN) :: text
+      CHARACTER(LEN=:), ALLOCATABLE :: tmp
+      INTEGER :: m, k, stat, newn
+      m = LEN_TRIM(text)
+      IF (m < 1) RETURN
+      IF (at < 1 .OR. at > nlen + 1) THEN
+        ierr = 1
+        RETURN
+      END IF
+      IF (m > HUGE(newn) - nlen) THEN
+        ierr = 1
+        RETURN
+      END IF
+      newn = nlen + m
+      ALLOCATE(CHARACTER(LEN=newn) :: tmp, STAT=stat)
+      IF (stat /= 0) THEN
+        ierr = 1
+        RETURN
+      END IF
+      IF (at > 1) tmp(1:at-1) = deck(1:at-1)
+      tmp(at:at+m-1) = text(1:m)
+      IF (at <= nlen) THEN
+        k = nlen - at + 1
+        tmp(at+m:at+m+k-1) = deck(at:nlen)
+      END IF
+      CALL MOVE_ALLOC(tmp, deck)
+      nlen = newn
+    END SUBROUTINE
+  END SUBROUTINE
+
   ! Shared cold-deck assembly used by SCF and by compose preview for tests.
   SUBROUTINE embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, &
       nlen, ierr, knobs)
@@ -1404,6 +1556,8 @@ CONTAINS
     END IF
     IF (ierr == 0 .AND. nlen > 0) THEN
       CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      IF (ierr == 0) CALL inject_periodicity_if_unset(deck, nlen, cell, &
+           has_cell, ierr)
       IF (ierr == 0) CALL inject_maxiter_if_missing(deck, nlen, ierr)
     END IF
   END SUBROUTINE
@@ -1499,7 +1653,7 @@ CONTAINS
     image%stress%values = 0.0_c_double
     image%stress%valid = 0_c_int
     IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
-         .NOT. reference_deck_isolated(knobs%input_deck)) THEN
+         .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
       IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
            image%stress%valid = 1_c_int
     END IF
@@ -1513,14 +1667,18 @@ CONTAINS
     IF (st == 0 .AND. TRIM(v) == '0') reference_stress_wanted = .FALSE.
   END FUNCTION
 
-  ! Symmetry 0, a missing symmetry line, CLUSTER, or an isolated-molecule
-  ! keyword is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
-  ! symmetry code is a periodic cell.
-  LOGICAL FUNCTION reference_deck_isolated(deck)
+  ! Symmetry 0, a Poisson solver, CLUSTER, or an isolated-molecule keyword
+  ! is a cluster. CHECK SYMMETRY is not the symmetry code. A positive
+  ! symmetry code is periodic. With no symmetry line, a positive-volume
+  ! cell is periodic and a zero box stays a cluster.
+  LOGICAL FUNCTION reference_deck_isolated(deck, cell, has_cell)
     CHARACTER(LEN=*), INTENT(IN) :: deck
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(IN) :: has_cell
     INTEGER :: p, n, sym, saw
     reference_deck_isolated = .TRUE.
     n = LEN_TRIM(deck)
+    IF (INDEX(deck, 'POISSON SOLVER') > 0) RETURN
     IF (INDEX(deck, ' ISOLATED MOLECULE') > 0) RETURN
     IF (INDEX(deck, ' MOLECULE ISOLATED') > 0) RETURN
     IF (INDEX(deck, ' CLUSTER') > 0) RETURN
@@ -1552,6 +1710,8 @@ CONTAINS
       END IF
       p = p + 1
     END DO
+    IF (periodic_symmetry_code(cell, has_cell) /= 0) &
+        reference_deck_isolated = .FALSE.
   END FUNCTION
 
   INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)

@@ -950,6 +950,25 @@ test(
     depends: [params_raw_periodic_bin],
     suite: ['params'],
   )
+  params_scalar_blyp_bin = custom_target(
+    'params_scalar_blyp_bin',
+    input: 'tests/params_scalar_blyp.capnp.txt',
+    output: 'params_scalar_blyp.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'periodic-cell-deck',
+    executable(
+      'test_periodic_cell_deck',
+      'tests/test_periodic_cell_deck.c',
+      dependencies: [cpmdc_embed_shell_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [params_scalar_blyp_bin.full_path()],
+    depends: [params_scalar_blyp_bin],
+    suite: ['params'],
+  )
   pp_dir_test_args = []
   pp_dir_test_deps = []
   if has_cpmd

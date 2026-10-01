@@ -599,16 +599,60 @@ static int append_kpoints_block_options(char *dst, size_t dst_size,
   return 0;
 }
 
+static double cell_determinant(const double *c) {
+  return c[0] * (c[4] * c[8] - c[5] * c[7]) -
+         c[1] * (c[3] * c[8] - c[5] * c[6]) +
+         c[2] * (c[3] * c[7] - c[4] * c[6]);
+}
+
+static int cell_is_diagonal(const double *c) {
+  return fabs(c[1]) + fabs(c[2]) + fabs(c[3]) + fabs(c[5]) + fabs(c[6]) +
+             fabs(c[7]) <=
+         1e-8;
+}
+
+/* 0 keeps an isolated deck. 1 is cubic, 8 orthorhombic.
+   -2 is a tilted cell: CELL VECTORS and no SYMMETRY line.
+   The cubic test matches OpenCPMD's 1e-5 check on b/a and c/a. */
+static int periodic_symmetry_from_cell(const double *cell, int ncell) {
+  double b_over_a;
+  double c_over_a;
+  if (!cell || ncell != 9 || fabs(cell_determinant(cell)) <= 1e-8)
+    return 0;
+  if (!cell_is_diagonal(cell) || cell[0] == 0.0)
+    return -2;
+  b_over_a = cell[4] / cell[0];
+  c_over_a = cell[8] / cell[0];
+  if (fabs(b_over_a - 1.0) + fabs(c_over_a - 1.0) < 1e-5)
+    return 1;
+  return 8;
+}
+
+/* A set directive that names an isolated system keeps symmetry 0. */
+static int caller_asked_isolated(struct RenderSetList *sets) {
+  if (!sets)
+    return 0;
+  if (set_directives_have_prefix(sets, "SYSTEM", "POISSON SOLVER") == 1)
+    return 1;
+  if (set_directives_have_prefix(sets, "SYSTEM", "CLUSTER") == 1)
+    return 1;
+  if (set_directives_have_prefix(sets, "SYSTEM", "ISOLATED") == 1)
+    return 1;
+  return 0;
+}
+
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
-    int override_ncell, struct RenderSetList *sets) {
+    int override_ncell, struct RenderSetList *sets, int emit_symmetry,
+    int force_vectors) {
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
   int charge = sys->charge != 0 ? sys->charge : default_charge;
   double cutoff = sys->cutOffRy > 0.0 ? sys->cutOffRy : default_cutoff;
-  if (append_fmt(dst, dst_size, used, " SYMMETRY\n  %d\n", symmetry) != 0)
+  if (emit_symmetry &&
+      append_fmt(dst, dst_size, used, " SYMMETRY\n  %d\n", symmetry) != 0)
     return -1;
   if (sys->angstrom) {
     if (append_text(dst, dst_size, used, " ANGSTROM\n") != 0)
@@ -625,7 +669,7 @@ static int render_system_section_with_cell(
     return -1;
   if (override_ncell == 9 && cell_override) {
     if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell, 0,
-                         0, 0) != 0)
+                         0, force_vectors) != 0)
       return -1;
   } else if (ncell == 6 || ncell == 9) {
     double cell[9] = {0};
@@ -1287,7 +1331,7 @@ static int render_system_section_with_cell(
       set_directives_have_prefix(sets, "SYSTEM", "POISSON SOLVER");
   if (set_has_poisson < 0)
     return -1;
-  if (symmetry == 0 && !field_has_poisson && !has_poisson &&
+  if (emit_symmetry && symmetry == 0 && !field_has_poisson && !has_poisson &&
       !set_has_poisson) {
     if (append_text(dst, dst_size, used, " POISSON SOLVER HOCKNEY\n") != 0)
       return -1;
@@ -1306,7 +1350,7 @@ static int render_system_section(char *dst, size_t dst_size, size_t *used,
                                  struct RenderSetList *sets) {
   return render_system_section_with_cell(dst, dst_size, used, sys,
                                          default_cutoff, default_charge, NULL, 0,
-                                         sets);
+                                         sets, 1, 0);
 }
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
@@ -4753,14 +4797,16 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   }
   if (!has_system) {
     struct CPMDSystemSection def;
+    int emit_symmetry = caller_asked_isolated(&sets) ? 1 : 0;
     memset(&def, 0, sizeof(def));
     def.symmetry = 0;
     def.angstrom = 1;
     def.cutOffRy = cutoff;
     def.charge = charge;
     def.multiplicity = mult;
-    if (render_system_section(dst, dst_size, &used, &def, cutoff, charge,
-                              &sets) != 0)
+    if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
+                                        charge, NULL, 0, &sets, emit_symmetry,
+                                        0) != 0)
       return -1;
   }
   if (!has_dft) {
@@ -5028,7 +5074,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
       has_system = 1;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
-              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets) != 0)
+              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets, 1, 0) != 0)
         return -1;
       break;
     }
@@ -5171,15 +5217,27 @@ int cpmdc_params_render_deck_with_geometry_ov(
   }
   if (!has_system) {
     struct CPMDSystemSection def;
+    const double *box = has_cell ? cell_ang : NULL;
+    int nbox = has_cell ? 9 : 0;
+    int sym = periodic_symmetry_from_cell(box, nbox);
+    int emit_symmetry = 1;
+    int force_vectors = 0;
+    if (caller_asked_isolated(&sets) || !has_cell || sym == 0) {
+      sym = 0;
+    } else if (sym < 0) {
+      emit_symmetry = 0;
+      force_vectors = 1;
+      sym = 0;
+    }
     memset(&def, 0, sizeof(def));
-    def.symmetry = 0;
+    def.symmetry = sym;
     def.angstrom = 1;
     def.cutOffRy = cutoff;
     def.charge = charge;
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
-                                        charge, has_cell ? cell_ang : NULL,
-                                        has_cell ? 9 : 0, &sets) != 0)
+                                        charge, box, nbox, &sets, emit_symmetry,
+                                        force_vectors) != 0)
       return -1;
   }
   if (!has_dft) {
@@ -5195,7 +5253,6 @@ int cpmdc_params_render_deck_with_geometry_ov(
   }
   if (render_remaining_set_sections(dst, dst_size, &used, &sets) != 0)
     return -1;
-  (void)has_cell;
   return 0;
 }
 

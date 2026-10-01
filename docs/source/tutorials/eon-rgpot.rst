@@ -19,9 +19,12 @@ You need an ``eonclient`` built with RGPOT support whose ``[RgpotPot]``
 section reads ``params_path``; eOn lists the key under ``RgpotPot`` in
 ``eon/config.yaml``. Without ``params_path``, eOn builds ``CPMDParams``
 from four scalar keys (``functional``, ``cutoff_ry``, ``charge``,
-``multiplicity``), and ``cpmdc`` renders its isolated default deck from
-them: ``SYMMETRY 0`` with the Hockney Poisson solver and none of the
-message's sections.
+``multiplicity``). A positive cell is then periodic: symmetry 1 when the
+edges are equal, symmetry 8 when they are not, and ``CELL VECTORS`` with
+no symmetry line when the box is tilted. A zero cell stays ``SYMMETRY 0``
+with the Hockney solver. To keep a molecule isolated, the message has to
+ask for it. This run uses ``water.params.bin``, which sets
+``poissonSolver = "HOCKNEY"``, and stays isolated.
 
 Prepare the run directory
 =========================

@@ -68,8 +68,12 @@ lists every typed field with its feature ID and deck spelling.
 
 A section missing from ``inputSections`` gets a default: ``&CPMD`` with
 ``OPTIMIZE WAVEFUNCTION`` and ``CONVERGENCE ORBITALS`` 1e-6, ``&SYSTEM``
-with ``SYMMETRY 0``, ``ANGSTROM``, and the top-level cutoff, charge, and
-multiplicity, and ``&DFT`` with the top-level functional.
+with ``ANGSTROM`` and the top-level cutoff, charge, and multiplicity, and
+``&DFT`` with the top-level functional. That deck has no ``SYMMETRY``
+line. A force call with a positive volume writes symmetry 1 for a cube,
+symmetry 8 for unequal orthogonal edges, or ``CELL VECTORS`` with no
+symmetry line when the box is tilted. A zero box stays ``SYMMETRY 0``
+and adds ``POISSON SOLVER HOCKNEY``.
 
 ``CPMDInputSection``
 ====================

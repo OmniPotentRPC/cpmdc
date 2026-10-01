@@ -20,18 +20,20 @@ which renders the keyword on the file line.
 In ~inputBlocks~ or ~raw~ text, write it on the ~*file~ line yourself.
 
 ** The system is treated as isolated
-*Cause:* a message without a ~system~ section renders ~SYMMETRY 0~ with no
-~CELL~, and ~SYMMETRY 0~ without a Poisson solver adds
-~POISSON SOLVER HOCKNEY~.
-That is the isolated-cluster setup, with the cell taken from
-~ForceInput.box~ (or a 12 Angstrom cube without a box).
-A host that fills only the top-level scalars, ~functional~, ~cutOffRy~,
-~charge~, and ~multiplicity~, gets this deck.
+*Cause:* the deck that runs has ~SYMMETRY 0~, ~CLUSTER~, an isolated-molecule
+keyword, ~POISSON SOLVER HOCKNEY~, or a zero box.
+A typed ~system~ section that leaves ~symmetry~ at 0 still adds the Hockney
+solver, including when the box has a positive volume.
+A message with no ~system~ section takes its symmetry from the box on the
+force call.
 
-*Fix:* write a ~system~ section with ~symmetry~ and ~cell~, and
-~poissonSolver~ when the system is isolated on purpose.
+*Fix:* write ~symmetry~ and ~cell~ when the system is periodic, and
+~poissonSolver~ when it is isolated on purpose.
 In eOn, pass the whole message through ~[RgpotPot] params_path~ instead of the
 scalar keys (see [[file:../tutorials/eon-rgpot.org][the eOn tutorial]]).
+A scalar message with a positive cell is periodic.
+Put ~poissonSolver = "HOCKNEY"~ or ~symmetry = 0~ in the message when the
+molecule is isolated.
 
 ** The energy changes when only the cell changes
 *Cause:* a cell that differs from the previous call's cell makes the next call

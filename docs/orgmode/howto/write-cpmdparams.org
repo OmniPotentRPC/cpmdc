@@ -82,7 +82,7 @@ Four defaults decide what CPMD computes when the message leaves them out.
 
 | Left out | What ~cpmdc~ renders | Consequence |
 |----------+----------------------+-------------|
-| the ~system~ section | ~SYMMETRY 0~, ~ANGSTROM~, ~CUTOFF~ from ~cutOffRy~, no ~CELL~ | an isolated cluster; the cell comes from ~ForceInput.box~ |
+| the ~system~ section | ~ANGSTROM~ and ~CUTOFF~ from ~cutOffRy~, no ~SYMMETRY~ line and no ~CELL~ | the force call chooses the symmetry from the box: 1 for a cube, 8 for unequal orthogonal edges, ~CELL VECTORS~ with no symmetry line when the box is tilted; a zero box is ~SYMMETRY 0~ with the Hockney solver |
 | ~symmetry~ and ~poissonSolver~ | ~SYMMETRY 0~ plus ~POISSON SOLVER HOCKNEY~ | the Hockney isolated-system solver, even for a periodic box |
 | ~maxIter~ | no ~MAXITER~ line; the OpenCPMD path then inserts ~MAXITER 40~ into the first deck | an SCF that needs more than 40 steps fails the call |
 | ~kleinmanBylander~ | the pseudopotential line without ~KLEINMAN-BYLANDER~ | Gauss-Hermite integration of the nonlocal projectors, a different energy |

@@ -101,29 +101,23 @@ Defaults that change the physics
 Four defaults decide what CPMD computes when the message leaves them
 out.
 
-+----------------------+----------------------------+----------------------+
-| Left out             | What ``cpmdc`` renders     | Consequence          |
-+======================+============================+======================+
-| the ``system``       | ``SYMMETRY 0``,            | an isolated cluster; |
-| section              | ``ANGSTROM``, ``CUTOFF``   | the cell comes from  |
-|                      | from ``cutOffRy``, no      | ``ForceInput.box``   |
-|                      | ``CELL``                   |                      |
-+----------------------+----------------------------+----------------------+
-| ``symmetry`` and     | ``SYMMETRY 0`` plus        | the Hockney          |
-| ``poissonSolver``    | ``POISSON SOLVER HOCKNEY`` | isolated-system      |
-|                      |                            | solver, even for a   |
-|                      |                            | periodic box         |
-+----------------------+----------------------------+----------------------+
-| ``maxIter``          | no ``MAXITER`` line; the   | an SCF that needs    |
-|                      | OpenCPMD path then inserts | more than 40 steps   |
-|                      | ``MAXITER 40`` into the    | fails the call       |
-|                      | first deck                 |                      |
-+----------------------+----------------------------+----------------------+
-| ``kleinmanBylander`` | the pseudopotential line   | Gauss-Hermite        |
-|                      | without                    | integration of the   |
-|                      | ``KLEINMAN-BYLANDER``      | nonlocal projectors, |
-|                      |                            | a different energy   |
-+----------------------+----------------------------+----------------------+
++----------------------------+--------------------------------------------------------------+--------------------------------------------------------------+
+| Left out                   | What ``cpmdc`` renders                                       | Consequence                                                  |
++============================+==============================================================+==============================================================+
+| the ``system`` section     | ``ANGSTROM`` and ``CUTOFF`` from ``cutOffRy``, no            | the force call chooses the symmetry from the box: 1 for a    |
+|                            | ``SYMMETRY`` line and no ``CELL``                            | cube, 8 for unequal orthogonal edges, ``CELL VECTORS`` with  |
+|                            |                                                              | no symmetry line when the box is tilted; a zero box is       |
+|                            |                                                              | ``SYMMETRY 0`` with the Hockney solver                       |
++----------------------------+--------------------------------------------------------------+--------------------------------------------------------------+
+| ``symmetry`` and           | ``SYMMETRY 0`` plus ``POISSON SOLVER HOCKNEY``               | the Hockney isolated-system solver, even for a periodic box  |
+| ``poissonSolver``          |                                                              |                                                              |
++----------------------------+--------------------------------------------------------------+--------------------------------------------------------------+
+| ``maxIter``                | no ``MAXITER`` line; the OpenCPMD path then inserts          | an SCF that needs more than 40 steps fails the call          |
+|                            | ``MAXITER 40`` into the first deck                           |                                                              |
++----------------------------+--------------------------------------------------------------+--------------------------------------------------------------+
+| ``kleinmanBylander``       | the pseudopotential line without ``KLEINMAN-BYLANDER``       | Gauss-Hermite integration of the nonlocal projectors, a      |
+|                            |                                                              | different energy                                             |
++----------------------------+--------------------------------------------------------------+--------------------------------------------------------------+
 
 Set each of them on purpose.
 A raw ``inputBlocks`` entry or a ``raw`` section that already opens

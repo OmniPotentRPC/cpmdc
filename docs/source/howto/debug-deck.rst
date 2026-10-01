@@ -46,14 +46,23 @@ steps:
    built-in table (see :doc:`writing a CPMDParams message
    <write-cpmdparams>`). An element in neither fails before CPMD starts,
    and the error names the atomic number. When the method deck has no
-   ``&CPMD``, ``&SYSTEM``, or ``&DFT`` section at all, a minimal
-   isolated deck replaces it: ``OPTIMIZE WAVEFUNCTION``, ``CONVERGENCE
-   ORBITALS 1.0d-5``, ``MAXITER 40``, ``SYMMETRY 0``, ``POISSON SOLVER
-   HOCKNEY``, and the functional, cutoff, charge, and multiplicity of
-   the message.
+   ``&CPMD``, ``&SYSTEM``, or ``&DFT`` section at all, a minimal deck
+   replaces it: ``OPTIMIZE WAVEFUNCTION``, ``CONVERGENCE ORBITALS
+   1.0d-5``, ``MAXITER 40``, ``ANGSTROM``, and the functional, cutoff,
+   charge, and multiplicity of the message. The symmetry comes from the
+   step's box. A cube is ``SYMMETRY 1``. Unequal orthogonal edges are
+   ``SYMMETRY 8``. A tilted box is ``CELL VECTORS`` with no ``SYMMETRY``
+   line. A missing or zero box is ``SYMMETRY 0`` with ``POISSON SOLVER
+   HOCKNEY``.
 #. If the deck has no ``CELL`` keyword, a ``CELL`` line from
    ``ForceInput.box`` is inserted after ``ANGSTROM`` in ``&SYSTEM``, or
-   a 12 Angstrom cube when the step has no box.
+   a 12 Angstrom cube when the step has no box. A tilted box is written
+   as ``CELL VECTORS``.
+#. If the deck names no ``SYMMETRY``, no ``POISSON SOLVER``, no
+   ``CLUSTER``, and no isolated-molecule keyword, the same symmetry
+   choice is written into ``&SYSTEM``. An explicit symmetry line, Hockney
+   solver, ``CLUSTER``, or isolated-molecule keyword is left as written.
+   ``CELL VECTORS`` is not given a ``SYMMETRY`` line.
 #. If the deck has no ``MAXITER`` keyword, ``MAXITER 40`` is inserted
    after ``&CPMD``.
 
@@ -61,7 +70,7 @@ The method text is kept in full, including a block longer than a few
 thousand characters. A preview buffer shorter than the composed deck
 returns an error and does not keep a shortened copy.
 
-So read ``method.inp`` with those three edits in mind. The ``&ATOMS``
+So read ``method.inp`` with those edits in mind. The ``&ATOMS``
 block in the file lists the pseudopotential lines with a placeholder
 atom count of 0; the coordinates come from each step.
 
@@ -72,8 +81,10 @@ Checks worth making on the file
 | Look for                         | Why                                                    |
 +==================================+========================================================+
 | ``SYMMETRY`` and                 | ``SYMMETRY 0`` with ``POISSON SOLVER HOCKNEY`` is an   |
-| ``POISSON SOLVER`` in            | isolated system; a message without a ``system``        |
-| ``&SYSTEM``                      | section renders exactly that                           |
+| ``POISSON SOLVER`` in ``&SYSTEM``| isolated system: a zero box, or a deck that asked for  |
+|                                  | isolation. A positive-volume box with no such keyword  |
+|                                  | is symmetry 1, symmetry 8, or ``CELL VECTORS`` with no |
+|                                  | symmetry line                                          |
 +----------------------------------+--------------------------------------------------------+
 | ``CELL``                         | present means the message fixes the cell; absent means |
 |                                  | each step's box supplies it                            |

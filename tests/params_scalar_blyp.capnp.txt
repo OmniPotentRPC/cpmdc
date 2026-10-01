@@ -1,0 +1,5 @@
+(
+  functional = "BLYP",
+  cutOffRy = 70.0,
+  multiplicity = 1
+)

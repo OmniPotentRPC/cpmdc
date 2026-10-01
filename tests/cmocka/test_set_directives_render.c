@@ -91,6 +91,8 @@ static void test_set_sections_render_into_target_sections(void **state) {
   assert_deck_has(deck, "&SYSTEM");
   assert_deck_has(deck, "POISSON SOLVER HOCKNEY");
   assert_int_equal(count_occurrences(deck, "POISSON SOLVER"), 1);
+  assert_deck_has(deck, " SYMMETRY\n  0\n");
+  assert_int_equal(count_occurrences(deck, " SYMMETRY\n"), 1);
   assert_deck_has(deck, "&DFT");
   assert_deck_has(deck, "GC-CUTOFF");
   assert_deck_has(deck, "  1.0e-7");
@@ -109,6 +111,8 @@ static void test_set_sections_render_into_target_sections(void **state) {
   assert_deck_has(geometry_deck, "MAXSTEP");
   assert_deck_has(geometry_deck, "POISSON SOLVER HOCKNEY");
   assert_int_equal(count_occurrences(geometry_deck, "POISSON SOLVER"), 1);
+  assert_deck_has(geometry_deck, " SYMMETRY\n  0\n");
+  assert_null(strstr(geometry_deck, " SYMMETRY\n  1\n"));
   assert_deck_has(geometry_deck, "GC-CUTOFF");
   assert_known_sections_are_unique(geometry_deck);
 

@@ -45,21 +45,32 @@ CPMD parses from it in three steps:
    An element in neither fails before CPMD starts, and the error names the
    atomic number.
    When the method deck has no ~&CPMD~, ~&SYSTEM~, or ~&DFT~ section at all,
-   a minimal isolated deck replaces it: ~OPTIMIZE WAVEFUNCTION~,
-   ~CONVERGENCE ORBITALS 1.0d-5~, ~MAXITER 40~, ~SYMMETRY 0~,
-   ~POISSON SOLVER HOCKNEY~, and the functional, cutoff, charge, and
-   multiplicity of the message.
+   a minimal deck replaces it: ~OPTIMIZE WAVEFUNCTION~,
+   ~CONVERGENCE ORBITALS 1.0d-5~, ~MAXITER 40~, ~ANGSTROM~, and the
+   functional, cutoff, charge, and multiplicity of the message.
+   The symmetry comes from the step's box.
+   A cube is ~SYMMETRY 1~.
+   Unequal orthogonal edges are ~SYMMETRY 8~.
+   A tilted box is ~CELL VECTORS~ with no ~SYMMETRY~ line.
+   A missing or zero box is ~SYMMETRY 0~ with ~POISSON SOLVER HOCKNEY~.
 2. If the deck has no ~CELL~ keyword, a ~CELL~ line from ~ForceInput.box~ is
    inserted after ~ANGSTROM~ in ~&SYSTEM~, or a 12 Angstrom cube when the step
    has no box.
-3. If the deck has no ~MAXITER~ keyword, ~MAXITER 40~ is inserted after
+   A tilted box is written as ~CELL VECTORS~.
+3. If the deck names no ~SYMMETRY~, no ~POISSON SOLVER~, no ~CLUSTER~, and no
+   isolated-molecule keyword, the same symmetry choice is written into
+   ~&SYSTEM~.
+   An explicit symmetry line, Hockney solver, ~CLUSTER~, or isolated-molecule
+   keyword is left as written.
+   ~CELL VECTORS~ is not given a ~SYMMETRY~ line.
+4. If the deck has no ~MAXITER~ keyword, ~MAXITER 40~ is inserted after
    ~&CPMD~.
 
 The method text is kept in full, including a block longer than a few thousand
 characters. A preview buffer shorter than the composed deck returns an error
 and does not keep a shortened copy.
 
-So read ~method.inp~ with those three edits in mind.
+So read ~method.inp~ with those edits in mind.
 The ~&ATOMS~ block in the file lists the pseudopotential lines with a
 placeholder atom count of 0; the coordinates come from each step.
 
@@ -67,7 +78,7 @@ placeholder atom count of 0; the coordinates come from each step.
 
 | Look for | Why |
 |----------+-----|
-| ~SYMMETRY~ and ~POISSON SOLVER~ in ~&SYSTEM~ | ~SYMMETRY 0~ with ~POISSON SOLVER HOCKNEY~ is an isolated system; a message without a ~system~ section renders exactly that |
+| ~SYMMETRY~ and ~POISSON SOLVER~ in ~&SYSTEM~ | ~SYMMETRY 0~ with ~POISSON SOLVER HOCKNEY~ is an isolated system: a zero box, or a deck that asked for isolation. A positive-volume box with no such keyword is symmetry 1, symmetry 8, or ~CELL VECTORS~ with no symmetry line |
 | ~CELL~ | present means the message fixes the cell; absent means each step's box supplies it |
 | ~KLEINMAN-BYLANDER~ on the ~*file~ line | on the ~LMAX~ line CPMD ignores it and integrates the projectors by Gauss-Hermite |
 | ~MAXITER~ | absent means the OpenCPMD path caps the SCF at 40 steps |
