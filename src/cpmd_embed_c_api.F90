@@ -77,6 +77,9 @@ MODULE cpmd_embed_c_api
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
+  ! OpenCPMD's tistart runs once per process: a second call prints
+  ! CALLED ONCE and executes STOP, which exits the host with status 0.
+  LOGICAL, SAVE :: timer_started = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
@@ -2210,7 +2213,12 @@ CONTAINS
            'cannot enter the pseudopotential directory'//c_null_char)
       RETURN
     END IF
-    CALL tistart(tcpu0, twall0)
+    ! A later cold setup (a new basis, or the call after a stopgm) keeps
+    ! the timers of the first one.
+    IF (.NOT. timer_started) THEN
+      CALL tistart(tcpu0, twall0)
+      timer_started = .TRUE.
+    END IF
     CALL init_fileopen
     CALL startpa
     CALL New(bicanonicalCpmdInputConfig)
