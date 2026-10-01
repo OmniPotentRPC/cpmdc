@@ -8,7 +8,7 @@
     ( dft = ( functional = "HYB_GGA_XC_PBE0", lsd = true,
         directives = [ ( keyword = "USE_XC_DRIVER" ) ] ) ),
     ( system = ( symmetry = 0, angstrom = true, cutOffRy = 80.0,
-        charge = 2, multiplicity = 3,
+        charge = 2, multiplicity = 2,
         cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
     ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-6 ) ),
     ( atoms = ( pseudopotentials = [
