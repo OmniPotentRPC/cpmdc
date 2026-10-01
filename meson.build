@@ -1156,6 +1156,18 @@ test(
     output: 'params_system_bad_occupation.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_system_multiplicity_section_bin = custom_target(
+    'params_system_multiplicity_section_bin',
+    input: 'tests/params_system_multiplicity_section.capnp.txt',
+    output: 'params_system_multiplicity_section.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  params_system_multiplicity_top_bin = custom_target(
+    'params_system_multiplicity_top_bin',
+    input: 'tests/params_system_multiplicity_top.capnp.txt',
+    output: 'params_system_multiplicity_top.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   params_atoms_extras_bin = custom_target(
     'params_atoms_extras_bin',
     input: 'tests/params_atoms_extras.capnp.txt',
@@ -1259,6 +1271,8 @@ test(
       params_system_cell_vectors_bin,
       params_system_bad_occupation_bin,
       params_atoms_extras_bin,
+      params_system_multiplicity_section_bin,
+      params_system_multiplicity_top_bin,
     ],
     suite: ['params', 'inventory'],
   )

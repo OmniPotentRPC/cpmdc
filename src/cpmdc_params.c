@@ -638,6 +638,23 @@ static int deck_needs_cluster_hfx(CPMDInputSection_list sections, int nsec,
                                                     strlen(functional));
 }
 
+/* The deck's multiplicity is the &SYSTEM section's when it names one above
+ * a singlet, else the top-level one. */
+static int deck_multiplicity(CPMDInputSection_list sections, int nsec,
+                             int multiplicity) {
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, sections, i);
+    if (sec.which != CPMDInputSection_system)
+      continue;
+    struct CPMDSystemSection body;
+    read_CPMDSystemSection(&body, sec.system);
+    if (body.multiplicity > 1)
+      return body.multiplicity;
+  }
+  return multiplicity;
+}
+
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
@@ -821,6 +838,11 @@ static int render_system_section_with_cell(
   }
   if (charge != 0) {
     if (append_fmt(dst, dst_size, used, " CHARGE\n  %d\n", charge) != 0)
+      return -1;
+  }
+  if (sys->multiplicity > 1) {
+    if (append_fmt(dst, dst_size, used, " MULTIPLICITY\n  %d\n",
+                   sys->multiplicity) != 0)
       return -1;
   }
   if (sys->nSup > 0) {
@@ -4621,6 +4643,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -4652,6 +4675,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
+      if (body.multiplicity <= 1)
+        body.multiplicity = mult;
       if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
                                 cluster_hfx, &sets) != 0)
         return -1;
@@ -5037,6 +5062,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -5071,6 +5097,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
+      if (body.multiplicity <= 1)
+        body.multiplicity = mult;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
               has_cell ? cell_ang : NULL, has_cell ? 9 : 0, cluster_hfx,
