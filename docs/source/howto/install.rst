@@ -95,6 +95,38 @@ available:
 
    meson subprojects download
 
+Install Pixi
+============
+
+Pixi reads ``pixi.toml`` and installs Meson, the compilers, Cap'n Proto,
+and Open MPI into one environment. A login node does not have the
+``pixi`` command until you install it. The installer writes the binary
+to ``~/.pixi/bin`` and adds that directory to your shell startup file.
+It does not need a root account. The shell you are typing in does not
+reread that file, so add the directory to ``PATH`` for this session:
+
+.. code:: bash
+
+   curl -fsSL https://pixi.sh/install.sh | sh
+   export PATH="$HOME/.pixi/bin:$PATH"
+   hash -r
+   pixi --version
+
+``pixi --version`` prints a version line. A later login finds ``pixi``
+from the startup file. Run the installer on the login node. Put the
+checkout on a filesystem the compute node can read. Leave the machine to
+the compile. A CPMD job beside this build on a small node runs out of
+memory.
+
+Two libraries follow, and both use this Pixi environment.
+``pixi run test-stub`` builds the default library. Its evaluator is a
+reference spring, and ``cpmdc_available()`` is 0. The second library
+links an OpenCPMD archive. Build that archive from a ``pixi shell`` in
+the checkout, so ``mpicc`` and ``mpif90`` are this environment's Open
+MPI. A ``cpmd.x`` you already have is a separate program. It is not
+``cpmd_root``. The ``mpirun`` that starts it is the MPI that ``ldd``
+prints for that binary.
+
 Build the default library
 =========================
 
@@ -143,13 +175,45 @@ Build against OpenCPMD
 ======================
 
 The OpenCPMD archive needs the patches in ``tools/`` and
-position-independent code; the :doc:`archive how-to <opencpmd-archive>`
-covers that build. With the archive in place:
+position-independent code. The :doc:`archive how-to <opencpmd-archive>`
+says what each patch changes. From a checkout of this repository, open
+the Pixi shell so ``mpicc``, ``mpif90``, and OpenBLAS are the ones that
+shell puts on ``PATH``. ``CPMDC`` is that checkout. ``cpmd_root`` is the
+``-DEST`` directory, the one that holds ``lib/libcpmd.a``.
 
 .. code:: bash
 
-   export CPMD_ROOT=/path/to/opencpmd-build
-   meson setup build-cpmd \
+   pixi shell
+
+Inside that shell:
+
+.. code:: bash
+
+   export CPMDC=$PWD
+   git clone https://github.com/OpenCPMD/CPMD.git "$CPMDC/../opencpmd"
+   cd "$CPMDC/../opencpmd"
+   for p in embed_geometry embed_rwfopt converged_state \
+            kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+     patch -p1 < "$CPMDC/tools/opencpmd_$p.patch"
+   done
+   cp "$CPMDC/tools/LINUX-X86_64-GFORTRAN-MPI-PIC" configure/
+   ./configure.sh -DEST="$CPMDC/../opencpmd-build" LINUX-X86_64-GFORTRAN-MPI-PIC
+   make -C "$CPMDC/../opencpmd-build" -j 8
+   make -C "$CPMDC/../opencpmd-build/obj" -f "$CPMDC/../opencpmd-build/Makefile" timetag.o
+   ls "$CPMDC/../opencpmd-build/lib/libcpmd.a" \
+      "$CPMDC/../opencpmd-build/obj/timetag.o"
+
+``ls`` prints both paths. The machine file calls ``mpif90`` and ``gcc``
+from ``PATH``, adds ``-fPIC``, and sets ``LIBS`` to ``-lopenblas``.
+Apply ``opencpmd_embed_geometry.patch`` first. The loop above does.
+
+Stay in that shell and link ``cpmdc`` with the same wrappers:
+
+.. code:: bash
+
+   export CPMD_ROOT="$CPMDC/../opencpmd-build"
+   cd "$CPMDC"
+   CC=mpicc FC=mpif90 meson setup build-cpmd \
      -Dwith_cpmd=true \
      -Dcpmd_root="$CPMD_ROOT" \
      -Dwith_tests=true
@@ -158,13 +222,10 @@ covers that build. With the archive in place:
 
 The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS
 when OpenBLAS is absent), FFTW3 when found, ``libgfortran``, and
-``libquadmath``. When OpenCPMD was built with MPI compiler wrappers,
-configure with the same wrappers so both sides agree on one MPI:
-
-.. code:: bash
-
-   CC=mpicc FC=mpif90 meson setup build-cpmd \
-     -Dwith_cpmd=true -Dcpmd_root="$CPMD_ROOT"
+``libquadmath``. When OpenCPMD was built with OpenMP and FFTW3, pass
+those libraries in ``LDFLAGS``, for example
+``-fopenmp -lfftw3_omp -lfftw3``, in front of ``meson setup``.
+``cpmdc_available()`` on this library is 1.
 
 Install
 =======

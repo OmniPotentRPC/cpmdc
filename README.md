@@ -38,7 +38,22 @@ session, accepts one `ForceInput` per step, and writes the same
 
 The default build does not require an OpenCPMD checkout. It builds the public C
 ABI, Cap'n Proto readers, CPMD deck renderer, feature table, shared library, and
-a deterministic reference evaluator used by the tests.
+a deterministic reference evaluator used by the tests. It does not run
+`cpmd.x`. `cpmdc_available()` on that library is 0.
+
+Install Pixi on a login node that does not have it. The installer writes
+`~/.pixi/bin/pixi` and adds that directory to the shell startup file. It does
+not need a root account. The current shell does not reread that file:
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | sh
+export PATH="$HOME/.pixi/bin:$PATH"
+hash -r
+pixi --version
+```
+
+`pixi --version` prints a version line. Then either of these builds the
+default library. A healthy run ends with `Fail: 0`.
 
 ```bash
 meson setup build -Dwith_tests=true
@@ -46,11 +61,14 @@ meson compile -C build
 meson test -C build --print-errorlogs
 ```
 
-With Pixi, the same default stub-library check is:
-
 ```bash
 pixi run test-stub
 ```
+
+The second library links an OpenCPMD archive, `lib/libcpmd.a`, built from a
+`pixi shell` in this checkout so `mpicc` is that environment's Open MPI. The
+[install page](docs/orgmode/howto/install.org) is that build. An existing
+`cpmd.x` is not `cpmd_root`.
 
 A healthy default run passes the parser, ABI, feature inventory, session,
 result-buffer, unit-conversion, and reference evaluator tests.

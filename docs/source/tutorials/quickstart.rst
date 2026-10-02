@@ -4,11 +4,27 @@ Default Build
 The default build is the first check for this repository. The build
 compiles the parser, generated Cap'n Proto readers, shared ``libcpmdc``,
 feature table, session runtime, and deterministic reference evaluator.
-No OpenCPMD checkout is needed.
+No OpenCPMD checkout is needed. This build does not run ``cpmd.x``, and
+``cpmdc_available()`` is 0.
 
-Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:
+Install Pixi when the login node has no ``pixi`` command. The installer
+writes ``~/.pixi/bin/pixi`` and adds that directory to your shell
+startup file. It does not need a root account. This shell does not
+reread that file:
+
+.. code:: bash
+
+   curl -fsSL https://pixi.sh/install.sh | sh
+   export PATH="$HOME/.pixi/bin:$PATH"
+   hash -r
+   pixi --version
+
+``pixi --version`` prints a version line. The checked-in environment
+then builds the default library. A healthy run ends with ``Fail: 0``.
+The OpenCPMD-linked library is the second build on the
+:doc:`install page <../howto/install>`. Its ``cpmd_root`` is an OpenCPMD
+archive, ``lib/libcpmd.a``, built with the ``mpicc`` from this same Pixi
+environment.
 
 .. code:: bash
 

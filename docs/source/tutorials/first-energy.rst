@@ -7,7 +7,23 @@ a build that links OpenCPMD, where the same program returns a BLYP
 Build the default library
 =========================
 
-Clone the repository and build it with the checked-in Pixi environment:
+Install Pixi, then clone the repository and build it with the checked-in
+environment. A login node does not have the ``pixi`` command. The
+installer writes ``~/.pixi/bin/pixi`` and adds that directory to your
+shell startup file. It does not need a root account. This shell does not
+reread that file:
+
+.. code:: bash
+
+   curl -fsSL https://pixi.sh/install.sh | sh
+   export PATH="$HOME/.pixi/bin:$PATH"
+   hash -r
+   pixi --version
+
+``pixi --version`` prints a version line. A later login finds ``pixi``
+without the ``export``. Run the installer on the login node. Leave the
+machine to the compile. A CPMD job beside this build on a small node
+runs out of memory.
 
 .. code:: bash
 
@@ -19,7 +35,8 @@ Clone the repository and build it with the checked-in Pixi environment:
 The last lines of the test run report ``Fail: 0``. The build directory
 ``build/`` now holds ``libcpmdc.so`` and the example program
 ``example_host_step``. ``CPMDC`` remembers the checkout for the commands
-below.
+below. This build does not run ``cpmd.x``. The energy ``0.958703657646``
+later on this page is the reference spring.
 
 Describe the method and the geometry
 ====================================
@@ -203,20 +220,42 @@ Switch to OpenCPMD
 
 The same program and the same two messages now run against real CPMD.
 Three things change: the library, the pseudopotential files, and one
-environment variable.
+environment variable. Stay in the Pixi shell opened above, so ``mpicc``
+and ``mpif90`` are that environment's Open MPI. A ``cpmd.x`` you already
+have is not this build. ``cpmd_root`` is the directory that contains
+``lib/libcpmd.a``. The eOn file route is what launches an existing
+``cpmd.x``.
 
-#. Build a patched OpenCPMD archive with ``-fPIC``, as the
-   :doc:`archive how-to <../howto/opencpmd-archive>` describes, into
-   ``/path/to/opencpmd-build``.
+#. Build a patched OpenCPMD archive with ``-fPIC``. The
+   :doc:`archive how-to <../howto/opencpmd-archive>` says what each
+   patch changes. Apply ``opencpmd_embed_geometry.patch`` first. The
+   loop does.
 
-#. Link ``cpmdc`` against it, with the MPI compiler wrappers that built
-   OpenCPMD:
+   .. code:: bash
+
+      git clone https://github.com/OpenCPMD/CPMD.git "$CPMDC/../opencpmd"
+      cd "$CPMDC/../opencpmd"
+      for p in embed_geometry embed_rwfopt converged_state \
+               kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+        patch -p1 < "$CPMDC/tools/opencpmd_$p.patch"
+      done
+      cp "$CPMDC/tools/LINUX-X86_64-GFORTRAN-MPI-PIC" configure/
+      ./configure.sh -DEST="$CPMDC/../opencpmd-build" LINUX-X86_64-GFORTRAN-MPI-PIC
+      make -C "$CPMDC/../opencpmd-build" -j 8
+      make -C "$CPMDC/../opencpmd-build/obj" -f "$CPMDC/../opencpmd-build/Makefile" timetag.o
+      ls "$CPMDC/../opencpmd-build/lib/libcpmd.a" \
+         "$CPMDC/../opencpmd-build/obj/timetag.o"
+
+   ``ls`` prints both files. The machine file calls ``mpif90`` and
+   ``gcc`` from ``PATH`` and links OpenBLAS.
+
+#. Link ``cpmdc`` against that archive, with the same MPI wrappers:
 
    .. code:: bash
 
       cd "$CPMDC"
       CC=mpicc FC=mpif90 meson setup build-cpmd \
-        -Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build -Dwith_tests=false
+        -Dwith_cpmd=true -Dcpmd_root="$CPMDC/../opencpmd-build" -Dwith_tests=false
       meson compile -C build-cpmd
       cd ../cpmdc-tutorial
 
@@ -274,12 +313,12 @@ What you built
   OpenCPMD.
 
 A library force call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``,
-or ``GEOMETRY.xyz``. The pseudopotential directory is unchanged. To evaluate many geometries,
-call ``cpmdc_session_calculate_forces()`` again on the same session:
-every call after the first starts from the orbitals of the previous one.
-A new session with the same functional, deck, cell, and elemental
-composition starts from those orbitals too, including when the atomic
-numbers are reordered.
-The :doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
+or ``GEOMETRY.xyz``. The pseudopotential directory is unchanged. To
+evaluate many geometries, call ``cpmdc_session_calculate_forces()``
+again on the same session: every call after the first starts from the
+orbitals of the previous one. A new session with the same functional,
+deck, cell, and elemental composition starts from those orbitals too,
+including when the atomic numbers are reordered. The
+:doc:`eOn tutorial <eon-rgpot>` drives exactly that loop from a
 minimiser, and :doc:`running under mpirun <../howto/mpi>` spreads each
 SCF over several ranks.
