@@ -82,38 +82,47 @@ Install the client
 
 The first tutorial installed Pixi and built ``libcpmdc.so`` against
 OpenCPMD. ``eonclient`` is a second checkout, and it has to load that
-same Open MPI. ``dev-lite`` carries the compiler, Meson, Cap'n Proto,
-and Open MPI. ``--libdir=lib`` puts ``libeonclib.so`` on the client's
-run path. ``-Drgpot:with_mpi=enabled`` builds calculator groups. Leave
-eOn's own ``with_mpi`` off. That switch is the client and server, not
-the calculator groups.
+same Open MPI. That ``mpicc`` is the one in the Pixi shell from the
+first tutorial. eOn's ``dev-lite`` environment does not install Open
+MPI. Configuring the client there does not use this wrapper.
+``--libdir=lib`` puts ``libeonclib.so`` on the client's run path.
+``-Drgpot:with_mpi=enabled`` builds calculator groups. Leave eOn's own
+``with_mpi`` off. That switch is the client and server, not the
+calculator groups.
 
-If ``pixi`` is missing, install it as the first tutorial does. Then:
+The eOn build runs ``cargo`` and looks up Eigen. This shell has neither
+until they are added to the manifest that opened it. If ``pixi`` is
+missing, install it as the first tutorial does. Stay with that manifest:
 
 .. code:: bash
 
-   git clone -b develop https://github.com/TheochemUI/eOn.git
-   cd eOn
-   pixi shell -e dev-lite
+   pixi add --manifest-path "$CPMDC/pixi.toml" rust eigen
+   pixi shell --manifest-path "$CPMDC/pixi.toml"
 
 Inside that shell:
 
 .. code:: bash
 
+   command -v mpicc
+   command -v cargo
+   git clone -b develop https://github.com/TheochemUI/eOn.git ../eOn
+   cd ../eOn
    meson setup bbdir --prefix="$CONDA_PREFIX" --libdir=lib --buildtype=release \
      --force-fallback-for=nlohmann_json \
      -Drgpot:with_mpi=enabled
    meson compile -C bbdir
    meson install -C bbdir
    eonclient --version
-   command -v mpicc
    ldd "$CPMDC/build-cpmd/libcpmdc.so" | grep libmpi
 
 ``eonclient --version`` prints a version, a short hash, and a compile
 time. ``command -v mpicc`` is the wrapper that built both this client
-and ``libcpmdc.so``. The ``libmpi`` line should sit under that Pixi
-environment. A ``cpmd.x`` linked against a different MPI still runs when
-eOn starts it as another process. It does not load into this client.
+and ``libcpmdc.so``. ``command -v cargo`` is the Rust compiler the eOn
+build runs. The ``libmpi`` line should sit under this Pixi environment,
+the one ``mpicc`` belongs to. A ``cpmd.x`` linked against a different
+MPI still runs when eOn starts it as another process. It does not load
+into this client. ``pixi add`` records ``rust`` and ``eigen`` in the
+cpmdc manifest.
 
 Run the minimisation
 ====================
