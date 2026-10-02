@@ -86,6 +86,10 @@ Configuring the client there does not use this wrapper.
 ~-Drgpot:with_mpi=enabled~ builds calculator groups.
 Leave eOn's own ~with_mpi~ off.
 That switch is the client and server, not the calculator groups.
+conda-forge eon 3.5.0 installs ~eonclient~ without Open MPI.
+That package does not install ~libcpmdc.so~.
+A value of ~ranks_per_image~ above 0 throws on that client.
+This tutorial still builds the client in this shell, after ~pixi add rust eigen~.
 
 The eOn build runs ~cargo~ and looks up Eigen.
 This shell has neither until they are added to the manifest that opened it.
@@ -94,6 +98,11 @@ Stay with that manifest:
 
 #+begin_src bash
 pixi add --manifest-path "$CPMDC/pixi.toml" rust eigen
+#+end_src
+
+Open that shell:
+
+#+begin_src bash
 pixi shell --manifest-path "$CPMDC/pixi.toml"
 #+end_src
 
