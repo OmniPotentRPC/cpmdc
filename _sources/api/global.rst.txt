@@ -71,6 +71,7 @@ Overview
 	:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* :ref:`cpmdc_session_create_from_config<doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>`(const void* config_capnp, size_t config_capnp_size_bytes);
 	int :ref:`cpmdc_session_configure<doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, const void* config_capnp, size_t config_capnp_size_bytes);
 	void :ref:`cpmdc_session_destroy<doxid-cpmdc_8h_1a6d07b0b1700b5352f1ce33f396a9f578>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session);
+	int :ref:`cpmdc_session_select_orbitals<doxid-cpmdc_8h_1accf0bce90122cb45d3c3c0b6c9c4e801>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, long long key);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_energy_gradient<doxid-cpmdc_8h_1a6d79318bc9f2eae253d4906376123570>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* grad_h_bohr);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_energy<doxid-cpmdc_8h_1a3c36a0c86b25223e47eb139ec2d89a33>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, int n_atoms, const double* positions_ang, const int* atomic_numbers);
 	:ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>` :ref:`cpmdc_session_energy_forces<doxid-cpmdc_8h_1ab94170b806559374915fb2510fd46d6b>`(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, int n_atoms, const double* positions_ang, const int* atomic_numbers, double* forces_h_bohr);
@@ -441,6 +442,24 @@ Accepted only before the session evaluates; resolution matches ``:ref:`cpmdc_con
 
 Release a persistent evaluation session.
 
+.. index:: pair: function; cpmdc_session_select_orbitals
+.. _doxid-cpmdc_8h_1accf0bce90122cb45d3c3c0b6c9c4e801:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_session_select_orbitals(:ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, long long key)
+
+Name the calculation the next evaluations of this session belong to.
+
+The process stores the converged orbitals of one SCF. With a key named, those orbitals are kept per key: an evaluation under a key starts from the orbitals the last converged evaluation under the same key left, and a key that has none yet starts from the orbitals already stored. A host that runs several calculations on one calculator, the images of a band or the beads of a ring polymer, names each by a stable key, so each starts from its own previous geometry instead of from its neighbour's. Every rank of a calculator names the same key before the same evaluation. A basis change clears every key's orbitals. A session that never names a key keeps one stored copy.
+
+
+
+.. rubric:: Returns:
+
+0, or -1 when ``session`` is ``NULL``.
+
 .. index:: pair: function; cpmdc_session_energy_gradient
 .. _doxid-cpmdc_8h_1a6d79318bc9f2eae253d4906376123570:
 
@@ -573,7 +592,7 @@ Compiled library version string.
 
 Diagnostic for the most recent public call on this thread that reports failure through this string.
 
-Written by ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1af51ea5fe4538337ebd01bf1e421fe275>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>```, the session variants, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
+Written by ``:ref:`cpmdc_set_params() <doxid-cpmdc_8h_1a22da50d15419dadce4925c88100a1c23>```, ``:ref:`cpmdc_configure() <doxid-cpmdc_8h_1a63e0e322b316e71ce331fb8bd720a278>```, ``:ref:`cpmdc_bind_calculator() <doxid-cpmdc_8h_1a7e3d1f5e69de7f1bc8218d7e5b7c8953>```, ``:ref:`cpmdc_adopt_calculator_comm() <doxid-cpmdc_8h_1af51ea5fe4538337ebd01bf1e421fe275>```, ``:ref:`cpmdc_session_create() <doxid-cpmdc_8h_1a08b6b5b994b9754e6c853d3dd46c7745>```, ``:ref:`cpmdc_session_set_params() <doxid-cpmdc_8h_1a0ffb70752daab4a244e5ffd58eaa6db5>```, ``:ref:`cpmdc_session_select_orbitals() <doxid-cpmdc_8h_1accf0bce90122cb45d3c3c0b6c9c4e801>```, ``:ref:`cpmdc_session_create_from_config() <doxid-cpmdc_8h_1a42fcd68eb0fc7a563dba31de8aae65d4>```, ``:ref:`cpmdc_session_configure() <doxid-cpmdc_8h_1a9390ba94fbc7816b7badeeaedbbffb55>```, ``:ref:`cpmdc_potential_result_size_for_force_input() <doxid-cpmdc_8h_1a50c58b775c95334c2842f3d07c247408>```, and every evaluation entry point (``:ref:`cpmdc_energy() <doxid-cpmdc_8h_1a6e17756faffc4d181352a5953991f584>```, ``:ref:`cpmdc_energy_gradient() <doxid-cpmdc_8h_1a525b75c1e47dd8595be42d2175f9f64f>```, ``:ref:`cpmdc_energy_forces() <doxid-cpmdc_8h_1ad653481360bf399295aed47e14cef118>```, the session variants, and the calculate-result calls). When the call returns ``:ref:`CPMDCResult <doxid-struct_c_p_m_d_c_result>```, the text matches ``message``, including a missing pseudopotential directory. Empty after a successful call.
 
 Snapshot readers (``:ref:`cpmdc_last_stress() <doxid-cpmdc_8h_1ad1997ec438a489fa8321c36bcf5ec0b7>``` and the other ``cpmdc_last_*`` / ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot is absent or the output pointer is null. ``:ref:`cpmdc_adopted_comm() <doxid-cpmdc_8h_1a88b631a01e268dfef527641fb8b3ce32>``` and ``:ref:`cpmdc_capabilities_result() <doxid-cpmdc_8h_1a1b9502d082856395b03a28318cff24a7>``` do not write it either. A capabilities return of -1 is the size query.
 

@@ -255,6 +255,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#both-routes-give-the-same-answers">Both routes give the same answers</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#orbitals-per-key">Orbitals per key</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -509,105 +510,112 @@ feature row.</p>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals</span></code></p></td>
+<td><p>setup</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+<td><p>Y</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_gradient</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_energy_forces</span></code></p></td>
 <td><p>step, arrays</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_forces</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result_from_config</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_calculate_result_from_config</span></code></p></td>
 <td><p>step, message</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input</span></code></p></td>
 <td><p>result size</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_capabilities_result</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_version</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_version</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_abi_version</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_abi_version</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_configure</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_configure</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure</span></code></p></td>
 <td><p>setup</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -615,21 +623,21 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_available</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_available</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_finalize</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_finalize</span></code></p></td>
 <td><p>lifecycle</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_energy_components</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -637,7 +645,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_property_snapshot</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_property_snapshot</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -645,7 +653,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_stress</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -653,7 +661,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_md_trajectory_row</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_md_trajectory_row</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -661,7 +669,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_multi_state_energies</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_multi_state_energies</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -669,7 +677,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_charge_integrals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_charge_integrals</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -677,7 +685,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_energy_components</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_energy_components</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -685,7 +693,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charge_integrals</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_charge_integrals</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -693,7 +701,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_multi_state_energies</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_multi_state_energies</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -701,7 +709,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_md_trajectory_row</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_md_trajectory_row</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -709,7 +717,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_property_snapshot</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_property_snapshot</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -717,7 +725,7 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_stress</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_session_last_stress</span></code></p></td>
 <td><p>result
 snapshot</p></td>
 <td><p>Y</p></td>
@@ -725,21 +733,21 @@ snapshot</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_count</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_count</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_table</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdc_feature_find</span></code></p></td>
 <td><p>discovery</p></td>
 <td><p>Y</p></td>
 <td><p>Y</p></td>

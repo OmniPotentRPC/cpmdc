@@ -159,8 +159,8 @@ Library status
 ``cpmdc_last_error()`` is written by ``cpmdc_set_params()``,
 ``cpmdc_configure()``, ``cpmdc_bind_calculator()``,
 ``cpmdc_adopt_calculator_comm()``, ``cpmdc_session_create()``,
-``cpmdc_session_set_params()``, ``cpmdc_session_create_from_config()``,
-``cpmdc_session_configure()``,
+``cpmdc_session_set_params()``, ``cpmdc_session_select_orbitals()``,
+``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``,
 ``cpmdc_potential_result_size_for_force_input()``, and every evaluation
 entry point. When the call returns ``CPMDCResult``, the text matches
 ``message``, including a missing pseudopotential directory. Snapshot
@@ -278,6 +278,11 @@ Sessions
 +-------------------------------------------------------------------------------------+----------------------------------+
 | ``void cpmdc_session_destroy(CPMDCSession *s)``                                     | free the session; ``NULL`` is    |
 |                                                                                     | accepted                         |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)``               | the next evaluations start from  |
+|                                                                                     | the orbitals stored under        |
+|                                                                                     | ``key``; -1 for a ``NULL``       |
+|                                                                                     | session                          |
 +-------------------------------------------------------------------------------------+----------------------------------+
 
 The first successful step fixes the atom count and the elemental

@@ -255,6 +255,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#both-routes-give-the-same-answers">Both routes give the same answers</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#orbitals-per-key">Orbitals per key</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -630,8 +631,8 @@ a success</p></td>
 <p><code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> is written by <code class="docutils literal notranslate"><span class="pre">cpmdc_set_params()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_configure()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_set_params()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_select_orbitals()</span></code>,
+<code class="docutils literal notranslate"><span class="pre">cpmdc_session_create_from_config()</span></code>, <code class="docutils literal notranslate"><span class="pre">cpmdc_session_configure()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">cpmdc_potential_result_size_for_force_input()</span></code>, and every evaluation
 entry point. When the call returns <code class="docutils literal notranslate"><span class="pre">CPMDCResult</span></code>, the text matches
 <code class="docutils literal notranslate"><span class="pre">message</span></code>, including a missing pseudopotential directory. Snapshot
@@ -782,6 +783,12 @@ topology</p></td>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">void</span> <span class="pre">cpmdc_session_destroy(CPMDCSession</span> <span class="pre">*s)</span></code></p></td>
 <td><p>free the session; <code class="docutils literal notranslate"><span class="pre">NULL</span></code> is
 accepted</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_session_select_orbitals(CPMDCSession</span> <span class="pre">*s,</span> <span class="pre">long</span> <span class="pre">long</span> <span class="pre">key)</span></code></p></td>
+<td><p>the next evaluations start from
+the orbitals stored under
+<code class="docutils literal notranslate"><span class="pre">key</span></code>; -1 for a <code class="docutils literal notranslate"><span class="pre">NULL</span></code>
+session</p></td>
 </tr>
 </tbody>
 </table>

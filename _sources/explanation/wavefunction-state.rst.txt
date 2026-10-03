@@ -81,6 +81,26 @@ orbitals, so the saved ``c0`` is the state that ``forcedr`` used.
 Steepest descent with ``iproj <= 1`` sets ``gemax`` above the threshold
 before that check: those steps do not converge on ``gemax``.
 
+Orbitals per key
+================
+
+One calculator often evaluates several calculations in turn: the images
+of a band on fewer calculators than images, or the beads of a ring
+polymer. With one stored copy, each SCF starts from the orbitals of
+whichever calculation ran last on that calculator, which for a ring is a
+neighbouring bead rather than the same bead one step earlier.
+``cpmdc_session_select_orbitals()`` names the calculation the next
+evaluations belong to. ``opencpmd_embed_rwfopt.patch`` keeps a table of
+stored ``c0`` copies, one per key, beside the store ``rwfopt`` restores
+from. Selecting another key parks the converged ``c0`` under the key
+being left and moves the copy parked under the new key into the store; a
+key with nothing parked starts from the copy already in the store, the
+nearest calculation the calculator has. A partial copy from an
+unconverged pass is not parked. Every rank of a calculator selects the
+same key, and each rank parks its own slice of ``c0``. A basis change
+frees the table with the store, since every copy in it has the shape of
+the old basis. A session that never selects a key keeps one stored copy.
+
 What clears the orbitals
 ========================
 
