@@ -19,7 +19,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE ropt
    USE rscpot_utils,                    ONLY: give_scr_rscpot,&
                                               rscpot
-@@ -106,11 +108,130 @@
+@@ -106,11 +108,255 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -47,6 +47,26 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  PUBLIC :: embed_set_need_forces
 +  PUBLIC :: embed_reset_warm_orbitals
 +  PUBLIC :: embed_set_write_files
++  !   embed_select_orbital_slot(key): the stored c0 belongs to one key, a
++  !     calculation the caller names (an image of a band, a bead of a
++  !     ring). Selecting another key parks the converged c0 under the
++  !     current key and restores the one parked under the new key. A key
++  !     with nothing parked starts from the c0 already stored. Every slot
++  !     has the shape of the stored c0: embed_reset_warm_orbitals frees
++  !     them all, so a basis change cannot restore one of another shape.
++  !     cpmd.x never calls it, and a caller that never selects a key keeps
++  !     one stored c0.
++  PUBLIC :: embed_select_orbital_slot
++  PUBLIC :: embed_orbital_slot_count
++  INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
++  TYPE :: embed_orbital_slot
++    INTEGER(embed_key_kind) :: key = 0
++    LOGICAL :: used = .FALSE.
++    COMPLEX(real_8), ALLOCATABLE :: c0(:,:,:)
++  END TYPE embed_orbital_slot
++  TYPE(embed_orbital_slot), ALLOCATABLE, SAVE :: embed_slots(:)
++  LOGICAL, SAVE :: embed_have_key = .FALSE.
++  INTEGER(embed_key_kind), SAVE :: embed_current_key = 0
 +  LOGICAL, SAVE :: embed_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_need_forces = .FALSE.
 +  LOGICAL, SAVE :: embed_have_partial = .FALSE.
@@ -98,7 +118,112 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_store_s1 = 0
 +    embed_store_s2 = 0
 +    embed_store_s3 = 0
++    ! Parked orbitals have the shape of the store they came from. The key
++    ! the caller selected stays selected.
++    IF (ALLOCATED(embed_slots)) THEN
++      DEALLOCATE(embed_slots,STAT=ierr)
++      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++           __LINE__,__FILE__)
++    ENDIF
 +  END SUBROUTINE embed_reset_warm_orbitals
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_orbital_slot_count()
++    ! ==--------------------------------------------------------------==
++    ! Keys with parked orbitals, the selected key excluded.
++    INTEGER :: i
++    embed_orbital_slot_count = 0
++    IF (.NOT. ALLOCATED(embed_slots)) RETURN
++    DO i = 1, SIZE(embed_slots)
++      IF (embed_slots(i)%used .AND. ALLOCATED(embed_slots(i)%c0)) &
++           embed_orbital_slot_count = embed_orbital_slot_count + 1
++    ENDDO
++  END FUNCTION embed_orbital_slot_count
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_slot_index(key, create)
++    ! ==--------------------------------------------------------------==
++    ! Index of key in embed_slots, 0 when absent and create is false.
++    INTEGER(embed_key_kind), INTENT(IN) :: key
++    LOGICAL, INTENT(IN) :: create
++    CHARACTER(*), PARAMETER :: procedureN = 'embed_slot_index'
++    TYPE(embed_orbital_slot), ALLOCATABLE :: grown(:)
++    INTEGER :: i, n, ierr
++    embed_slot_index = 0
++    n = 0
++    IF (ALLOCATED(embed_slots)) n = SIZE(embed_slots)
++    DO i = 1, n
++      IF (embed_slots(i)%used .AND. embed_slots(i)%key == key) THEN
++        embed_slot_index = i
++        RETURN
++      ENDIF
++    ENDDO
++    IF (.NOT. create) RETURN
++    DO i = 1, n
++      IF (.NOT. embed_slots(i)%used) THEN
++        embed_slots(i)%used = .TRUE.
++        embed_slots(i)%key = key
++        embed_slot_index = i
++        RETURN
++      ENDIF
++    ENDDO
++    ALLOCATE(grown(MAX(8, 2*n)),STAT=ierr)
++    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++         __LINE__,__FILE__)
++    DO i = 1, n
++      grown(i)%used = embed_slots(i)%used
++      grown(i)%key = embed_slots(i)%key
++      IF (ALLOCATED(embed_slots(i)%c0)) &
++           CALL MOVE_ALLOC(embed_slots(i)%c0, grown(i)%c0)
++    ENDDO
++    CALL MOVE_ALLOC(grown, embed_slots)
++    embed_slots(n+1)%used = .TRUE.
++    embed_slots(n+1)%key = key
++    embed_slot_index = n + 1
++  END FUNCTION embed_slot_index
++
++  ! ==================================================================
++  SUBROUTINE embed_select_orbital_slot(key)
++    ! ==--------------------------------------------------------------==
++    INTEGER(embed_key_kind), INTENT(IN) :: key
++    CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
++    INTEGER :: i, ierr
++    IF (embed_have_key .AND. key == embed_current_key) RETURN
++    ! Park the converged c0 of the key being left. A partial copy is not
++    ! a result and stays with the store.
++    IF (embed_have_key .AND. embed_have_orbitals .AND. &
++        ALLOCATED(embed_c0_store)) THEN
++      i = embed_slot_index(embed_current_key, .TRUE.)
++      IF (ALLOCATED(embed_slots(i)%c0)) THEN
++        DEALLOCATE(embed_slots(i)%c0,STAT=ierr)
++        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++             __LINE__,__FILE__)
++      ENDIF
++      ALLOCATE(embed_slots(i)%c0(embed_store_s1, embed_store_s2, &
++           embed_store_s3),STAT=ierr)
++      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++           __LINE__,__FILE__)
++      embed_slots(i)%c0 = embed_c0_store
++    ENDIF
++    embed_have_key = .TRUE.
++    embed_current_key = key
++    ! Restore what the new key parked. Without one, the store keeps the
++    ! orbitals of the key just left as this key's start.
++    i = embed_slot_index(key, .FALSE.)
++    IF (i == 0) RETURN
++    IF (.NOT. ALLOCATED(embed_slots(i)%c0)) RETURN
++    IF (ALLOCATED(embed_c0_store)) THEN
++      DEALLOCATE(embed_c0_store,STAT=ierr)
++      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++           __LINE__,__FILE__)
++    ENDIF
++    CALL MOVE_ALLOC(embed_slots(i)%c0, embed_c0_store)
++    embed_store_s1 = SIZE(embed_c0_store, 1)
++    embed_store_s2 = SIZE(embed_c0_store, 2)
++    embed_store_s3 = SIZE(embed_c0_store, 3)
++    embed_have_orbitals = .TRUE.
++    embed_have_partial = .FALSE.
++  END SUBROUTINE embed_select_orbital_slot
 +
 +  ! ==================================================================
 +  SUBROUTINE embed_save_orbitals(c0)
@@ -150,7 +275,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
      COMPLEX(real_8), INTENT(inout)           :: c0(:,:,:), c2(:,:), sc0(:,:,:)
-@@ -180,7 +301,7 @@
+@@ -180,7 +426,7 @@
      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
           __LINE__,__FILE__)
      ! ==--------------------------------------------------------------==
@@ -159,7 +284,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -196,6 +317,8 @@
+@@ -196,6 +442,8 @@
         ALLOCATE(taup(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
@@ -168,7 +293,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ALLOCATE(fion(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
-@@ -305,7 +428,20 @@
+@@ -305,7 +553,20 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
@@ -189,7 +314,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -460,7 +596,7 @@
+@@ -460,7 +721,7 @@
                          infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf).AND.MOD(cdfti,store1%isctore).EQ.0)&
                          THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -198,7 +323,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     IF (ropt_mod%convwf) THEN
-@@ -476,7 +612,7 @@
+@@ -476,7 +737,7 @@
                  IF (convtest) THEN
                     IF (.NOT.cntl%bsymm.AND.MOD(cdfti,store1%isctore).NE.0)THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -207,7 +332,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     ropt_mod%convwf=.TRUE.
-@@ -551,7 +687,7 @@
+@@ -551,7 +812,7 @@
                  IF (.NOT.cntl%bsymm.AND.&
                       (MOD(infi,store1%istore).EQ.0.OR.infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf))THEN
                     CALL mm_dim(mm_go_mm,statusdummy)
@@ -216,7 +341,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                     CALL mm_dim(mm_revert,statusdummy)
                  ENDIF
                  IF (ropt_mod%convwf) THEN
-@@ -863,7 +999,7 @@
+@@ -863,7 +1124,7 @@
      IF (cntl%tpspec) THEN
         IF (rout1%rhoout) CALL rhopri(c0,tau0,rhoe,psi(:,1),crge%n,nkpt%nkpnt)
         CALL mm_dim(mm_go_mm,statusdummy)
@@ -225,7 +350,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      ENDIF
      ! EHR]
      !
-@@ -882,7 +1018,7 @@
+@@ -882,7 +1143,7 @@
         CALL prcplngs(cplion,cplcfg,.TRUE.)
         IF (tfor.AND.tcplfd.OR.tcpllr) THEN
            IF (tcplfd) irec(irec_phes) = 1
@@ -234,7 +359,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ENDIF
         DEALLOCATE(cplion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -913,16 +1049,32 @@
+@@ -913,16 +1174,32 @@
      IF (paral%parent) THEN
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)

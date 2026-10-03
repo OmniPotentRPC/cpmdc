@@ -1,0 +1,1 @@
+`cpmdc_session_select_orbitals()` keeps the converged orbitals per key, so a calculator that evaluates several images of a band or beads of a ring polymer in turn starts each SCF from that image's or bead's own previous orbitals. `tools/opencpmd_embed_rwfopt.patch` adds the per-key table (`embed_select_orbital_slot`) to OpenCPMD; a basis change frees every key's orbitals.

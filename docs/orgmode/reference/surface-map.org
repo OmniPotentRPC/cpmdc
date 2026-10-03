@@ -35,6 +35,7 @@ row.
 | ~cpmdc_session_create~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_set_params~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_destroy~ | lifecycle | Y | Y | Y | Y |
+| ~cpmdc_session_select_orbitals~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_energy_gradient~ | step, arrays | Y | Y | Y | Y |
 | ~cpmdc_session_energy~ | step, arrays | Y | Y | Y | Y |
 | ~cpmdc_session_energy_forces~ | step, arrays | Y | Y | Y | Y |

@@ -159,49 +159,53 @@ Library status
 ``cpmdc_last_error()`` is written by ``cpmdc_set_params()``,
 ``cpmdc_configure()``, ``cpmdc_bind_calculator()``,
 ``cpmdc_adopt_calculator_comm()``, ``cpmdc_session_create()``,
-``cpmdc_session_set_params()``,
+``cpmdc_session_set_params()``, ``cpmdc_session_select_orbitals()``,
 ``cpmdc_session_create_from_config()``, ``cpmdc_session_configure()``,
 ``cpmdc_potential_result_size_for_force_input()``, and every evaluation
 entry point. When the call returns ``CPMDCResult``, the text matches
 ``message``, including a missing pseudopotential directory. Snapshot
 readers (``cpmdc_last_stress()`` and the other ``cpmdc_last_*`` /
 ``cpmdc_session_last_*`` getters) do not write it: -1 means the snapshot
-is absent or the output pointer is null.
-``cpmdc_adopted_comm()`` and ``cpmdc_capabilities_result()`` do not write
-it either. A capabilities return of -1 is the size query.
+is absent or the output pointer is null. ``cpmdc_adopted_comm()`` and
+``cpmdc_capabilities_result()`` do not write it either. A capabilities
+return of -1 is the size query.
 
 MPI
 ===
 
-+---------------------------------------------------+----------------------------------+
-| Function                                          | Behaviour                        |
-+===================================================+==================================+
-| ``int cpmdc_bind_calculator(int ranks_per_calc)`` | collective on                    |
-|                                                   | ``MPI_COMM_WORLD``; initialises  |
-|                                                   | MPI when needed and splits the   |
-|                                                   | world into calculators of        |
-|                                                   | ``ranks_per_calc`` consecutive   |
-|                                                   | ranks; ``ranks_per_calc <= 0``   |
-|                                                   | keeps one calculator; returns    |
-|                                                   | this rank's calculator index, or |
-|                                                   | -1 when the world size is not a  |
-|                                                   | multiple or the library has no   |
-|                                                   | CPMD backend; a second call      |
-|                                                   | returns the same index           |
-+---------------------------------------------------+----------------------------------+
++------------------------------------------------------------------------------------------+----------------------------------+
+| Function                                                                                 | Behaviour                        |
++==========================================================================================+==================================+
+| ``int cpmdc_bind_calculator(int ranks_per_calc)``                                        | collective on                    |
+|                                                                                          | ``MPI_COMM_WORLD``; initialises  |
+|                                                                                          | MPI when needed and splits the   |
+|                                                                                          | world into calculators of        |
+|                                                                                          | ``ranks_per_calc`` consecutive   |
+|                                                                                          | ranks; ``ranks_per_calc <= 0``   |
+|                                                                                          | keeps one calculator; returns    |
+|                                                                                          | this rank's calculator index, or |
+|                                                                                          | -1 when the world size is not a  |
+|                                                                                          | multiple or the library has no   |
+|                                                                                          | CPMD backend; a second call      |
+|                                                                                          | returns the same index           |
++------------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)`` | stores the caller's communicator |
+|                                                                                          | as ``mp_comm_world``; does not   |
+|                                                                                          | call ``MPI_Init`` or             |
+|                                                                                          | ``MPI_Comm_split``; returns the  |
+|                                                                                          | calculator index, or -1 when the |
+|                                                                                          | communicator is null, the world  |
+|                                                                                          | does not divide, or the library  |
+|                                                                                          | has no CPMD backend              |
++------------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_adopted_comm(void *out, size_t nbytes)``                                     | copies ``mp_comm_world`` into    |
+|                                                                                          | ``out``; returns 0, or -1 when   |
+|                                                                                          | no communicator is stored; does  |
+|                                                                                          | not write ``cpmdc_last_error()`` |
++------------------------------------------------------------------------------------------+----------------------------------+
 
-``cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)``
-stores the caller's communicator as ``mp_comm_world``.
-It does not call ``MPI_Init`` or ``MPI_Comm_split``.
-It returns the calculator index, or -1 when the communicator is null, the
-world does not divide, or the library has no CPMD backend.
-``cpmdc_adopted_comm(void *out, size_t nbytes)`` copies ``mp_comm_world``
-into ``out`` and returns 0, or -1 when no communicator is stored.
-It does not write ``cpmdc_last_error()``.
-
-Call ``cpmdc_bind_calculator`` once on every rank before the first
-evaluation when the host has not already split.
-See :doc:`running under mpirun <../howto/mpi>`.
+Call it once on every rank before the first evaluation. See
+:doc:`running under mpirun <../howto/mpi>`.
 
 Configuration without a session
 ===============================
@@ -228,10 +232,10 @@ synthesized ``CPMDParams``. The fields it lowers are the ones
 ``scfEnergyToleranceEv``, ``scfMaxIterations``, ``kMesh``, ``smearing``,
 ``vanDerWaalsMethod``, and ``vanDerWaalsS6``. ``scfEnergyToleranceEv``
 fills both values of ``CONVERGENCE ORBITALS``: the orbital threshold and
-the total-energy change between steps, which ends a smeared (free-energy)
-SCF once the energy settles. Setting both the arm and
-the overlay is rejected, and so is an overlay field without a CPMD
-lowering, ``relativityMethod``.
+the total-energy change between steps, which ends a smeared
+(free-energy) SCF once the energy settles. Setting both the arm and the
+overlay is rejected, and so is an overlay field without a CPMD lowering,
+``relativityMethod``.
 
 Global array calls
 ==================
@@ -274,6 +278,11 @@ Sessions
 +-------------------------------------------------------------------------------------+----------------------------------+
 | ``void cpmdc_session_destroy(CPMDCSession *s)``                                     | free the session; ``NULL`` is    |
 |                                                                                     | accepted                         |
++-------------------------------------------------------------------------------------+----------------------------------+
+| ``int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)``               | the next evaluations start from  |
+|                                                                                     | the orbitals stored under        |
+|                                                                                     | ``key``; -1 for a ``NULL``       |
+|                                                                                     | session                          |
 +-------------------------------------------------------------------------------------+----------------------------------+
 
 The first successful step fixes the atom count and the elemental
@@ -348,8 +357,8 @@ One-shot message calls
 +--------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------+
 
 A one-shot call reuses the stored orbitals when its basis matches the
-previous call in the process. The first call of the process is cold.
-Use a session for more than one step.
+previous call in the process. The first call of the process is cold. Use
+a session for more than one step.
 
 Results of the last evaluation
 ==============================

@@ -292,6 +292,7 @@
   "cpmdc_session_create",
   "cpmdc_session_set_params",
   "cpmdc_session_destroy",
+  "cpmdc_session_select_orbitals",
   "cpmdc_session_energy_gradient",
   "cpmdc_session_energy",
   "cpmdc_session_energy_forces",
@@ -10833,6 +10834,13 @@
    "feature_id": "abi.cpmdc_session_destroy",
    "kind": "abi",
    "name": "cpmdc_session_destroy",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_select_orbitals",
+   "kind": "abi",
+   "name": "cpmdc_session_select_orbitals",
    "stub_applicable": true,
    "embed_applicable": true
   },

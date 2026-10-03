@@ -61,6 +61,7 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             int has_cell, double *energy_h,
                             double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
+void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
 int cpmdc_embed_adopt_comm(int fcomm, int ranks_per_calc);
@@ -129,6 +130,10 @@ struct CPMDCSession {
   double cached_cell_ang[9];
   /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
+  /** Non-zero once cpmdc_session_select_orbitals() named a key. */
+  int has_orbital_key;
+  /** The calculation whose stored orbitals the next SCF starts from. */
+  long long orbital_key;
   /** Result of the last evaluation of this session. */
   CPMDCEmbedImage image;
 };
@@ -1498,6 +1503,8 @@ static CPMDCResult session_energy_gradient_cell(
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
+  if (session->has_orbital_key)
+    cpmdc_embed_select_orbitals(session->orbital_key);
   {
     CPMDCResult evaluated = energy_gradient_cell_with_params(
         session->params_bytes, session->params_size,
@@ -1514,6 +1521,17 @@ static CPMDCResult session_energy_gradient_cell(
     }
     return evaluated;
   }
+}
+
+int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
+  if (!session) {
+    cpmdc_store_error("null session");
+    return -1;
+  }
+  session->has_orbital_key = 1;
+  session->orbital_key = key;
+  cpmdc_store_error("");
+  return 0;
 }
 
 CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,

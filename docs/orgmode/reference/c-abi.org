@@ -89,7 +89,8 @@ optimisation.
 
 ~cpmdc_last_error()~ is written by ~cpmdc_set_params()~, ~cpmdc_configure()~,
 ~cpmdc_bind_calculator()~, ~cpmdc_adopt_calculator_comm()~, ~cpmdc_session_create()~,
-~cpmdc_session_set_params()~, ~cpmdc_session_create_from_config()~,
+~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
+~cpmdc_session_create_from_config()~,
 ~cpmdc_session_configure()~, ~cpmdc_potential_result_size_for_force_input()~,
 and every evaluation entry point.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
@@ -154,6 +155,7 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters; -1 once the session has accepted a topology |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
+| ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | the next evaluations start from the orbitals stored under ~key~; -1 for a ~NULL~ session |
 
 The first successful step fixes the atom count and the elemental composition.
 A later step with a different count or composition fails with ~topology change

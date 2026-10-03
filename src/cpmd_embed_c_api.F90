@@ -74,6 +74,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_reset_state, cpmdc_embed_teardown
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
+  PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
@@ -411,6 +412,36 @@ CONTAINS
     image%warm_has_cell = 0_c_int
     image%warm_cell = 0.0_c_double
     ok = 1_c_int
+  END FUNCTION
+
+  ! The stored c0 follows the key the caller names: the next SCF starts
+  ! from the orbitals the last converged call under that key left. A key
+  ! with none starts from the orbitals already stored. Every rank of the
+  ! calculator selects the same key before the same call.
+  SUBROUTINE cpmdc_embed_select_orbitals(key) &
+      BIND(C, NAME='cpmdc_embed_select_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_select_orbital_slot
+#endif
+    INTEGER(c_long_long), INTENT(IN), VALUE :: key
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
+#else
+    IF (key == 0_c_long_long) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! Keys with parked orbitals in this process, the selected key excluded.
+  FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &
+      BIND(C, NAME='cpmdc_embed_orbital_slots')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_orbital_slot_count
+#endif
+    INTEGER(c_int) :: n
+    n = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    n = INT(embed_orbital_slot_count(), KIND=c_int)
+#endif
   END FUNCTION
 
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')

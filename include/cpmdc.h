@@ -335,6 +335,24 @@ int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
 void cpmdc_session_destroy(CPMDCSession *session);
 
 /**
+ * @brief Name the calculation the next evaluations of this session belong to.
+ *
+ * The process stores the converged orbitals of one SCF. With a key named,
+ * those orbitals are kept per key: an evaluation under a key starts from
+ * the orbitals the last converged evaluation under the same key left, and
+ * a key that has none yet starts from the orbitals already stored. A host
+ * that runs several calculations on one calculator, the images of a band
+ * or the beads of a ring polymer, names each by a stable key, so each
+ * starts from its own previous geometry instead of from its neighbour's.
+ * Every rank of a calculator names the same key before the same
+ * evaluation. A basis change clears every key's orbitals. A session that
+ * never names a key keeps one stored copy.
+ *
+ * @return 0, or -1 when `session` is `NULL`.
+ */
+int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
+
+/**
  * @brief Compute energy and nuclear gradient with session-owned parameters.
  *
  * Positions are Angstrom. The gradient buffer must have `n_atoms * 3` doubles
@@ -460,7 +478,8 @@ const char *cpmdc_version(void);
  * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
  * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
  * `cpmdc_session_create()`,
- * `cpmdc_session_set_params()`, `cpmdc_session_create_from_config()`,
+ * `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,
+ * `cpmdc_session_create_from_config()`,
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,
  * `cpmdc_energy_gradient()`, `cpmdc_energy_forces()`, the session variants,

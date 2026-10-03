@@ -18,6 +18,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_create",
     "abi.cpmdc_session_set_params",
     "abi.cpmdc_session_destroy",
+    "abi.cpmdc_session_select_orbitals",
     "abi.cpmdc_session_energy_gradient",
     "abi.cpmdc_session_energy",
     "abi.cpmdc_session_energy_forces",
@@ -77,6 +78,7 @@ static void test_stub_reports_unavailable(void **state) {
   assert_null(cpmdc_session_create(NULL, 0));
   assert_int_not_equal(cpmdc_session_set_params(NULL, NULL, 0), 0);
   cpmdc_session_destroy(NULL);
+  assert_int_equal(cpmdc_session_select_orbitals(NULL, 0), -1);
   CPMDCResult session_energy = cpmdc_session_energy(NULL, 0, NULL, NULL);
   assert_int_equal(session_energy.ok, 0);
   CPMDCResult session_gradient =

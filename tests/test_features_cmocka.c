@@ -451,6 +451,7 @@ static void test_abi(void **state) {
       "abi.cpmdc_session_create",
       "abi.cpmdc_session_set_params",
       "abi.cpmdc_session_destroy",
+      "abi.cpmdc_session_select_orbitals",
       "abi.cpmdc_session_energy_gradient",
       "abi.cpmdc_session_energy",
       "abi.cpmdc_session_energy_forces",

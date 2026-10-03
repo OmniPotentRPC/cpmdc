@@ -10,19 +10,25 @@ Cold and warm calls
 The process keeps the converged orbitals, the cell, and the method that
 produced them. Each session keeps a counter of its own successful calls.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 8 46 46
-
-   * - Call
-     - Condition
-     - What runs
-   * - cold
-     - first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition
-     - the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from ``RESTART`` when the deck has ``RESTART WAVEFUNCTION``
-   * - warm
-     - a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers
-     - new positions into ``tau0``, ``phfac``, then the SCF from the stored ``c0``
++------+-------------------------------+-------------------------------+
+| Call | Condition                     | What runs                     |
++======+===============================+===============================+
+| cold | first call of the process, or | the full CPMD setup on the    |
+|      | a changed functional, deck,   | composed deck, then the SCF   |
+|      | cell, cutoff, charge,         | from CPMD's initial guess, or |
+|      | multiplicity, atom count, or  | from ``RESTART`` when the     |
+|      | elemental composition         | deck has                      |
+|      |                               | ``RESTART WAVEFUNCTION``      |
++------+-------------------------------+-------------------------------+
+| warm | a previous success in this    | new positions into ``tau0``,  |
+|      | process kept the same         | ``phfac``, then the SCF from  |
+|      | functional, deck, cell,       | the stored ``c0``             |
+|      | cutoff, charge, multiplicity, |                               |
+|      | and elemental composition,    |                               |
+|      | including a new session or a  |                               |
+|      | reordering of those atomic    |                               |
+|      | numbers                       |                               |
++------+-------------------------------+-------------------------------+
 
 A cell counts as unchanged when every component of ``ForceInput.box``
 matches the stored cell within 1e-8 Angstrom, and when both calls agree
@@ -31,17 +37,16 @@ that comparison uses the cell stored with the orbitals. The cutoff
 matches within 1e-8 Rydberg. The elemental composition is the count of
 each atomic number. Reordering the same atoms keeps that composition.
 The charge and the multiplicity belong to the same match. A failed warm
-call leaves the counter
-where it was, so the next call is warm again; a failed cold call clears
-the stored results. An SCF that does not converge does not replace the
-stored orbitals. When ODIIS exhausts ``MAXITER``, the same call
-continues once with ``PCG MINIMIZE``. That pass restores the previous
-converged ``c0`` when a converged copy is already stored, and it still
-counts as warm. A ``stopgm`` during the call is not that failure: the
-wavefunction, forces, and module state of the call are undefined,
-``cpmdc`` drops the stored orbitals and the warm cell, and the next call
-runs setup again. With more than one MPI rank, ``cpmdc`` aborts the
-other ranks.
+call leaves the counter where it was, so the next call is warm again; a
+failed cold call clears the stored results. An SCF that does not
+converge does not replace the stored orbitals. When ODIIS exhausts
+``MAXITER``, the same call continues once with ``PCG MINIMIZE``. That
+pass restores the previous converged ``c0`` when a converged copy is
+already stored, and it still counts as warm. A ``stopgm`` during the
+call is not that failure: the wavefunction, forces, and module state of
+the call are undefined, ``cpmdc`` drops the stored orbitals and the warm
+cell, and the next call runs setup again. With more than one MPI rank,
+``cpmdc`` aborts the other ranks.
 
 Where the orbitals are kept
 ===========================
@@ -54,19 +59,18 @@ previous copy in place. A failed store allocation calls ``stopgm``.
 ``cpmdc`` sets ``embed_warm_orbitals`` on every SCF, including the
 first. Restore does nothing until a converged copy exists, so the first
 call still starts from CPMD's guess and stores ``c0`` only if that SCF
-converges. On a later call, ``rwfopt`` copies the saved ``c0`` in
-before ``initrun``. ``rinitwf`` then returns after the phase factors,
-so it does not build a guess, and the density ``initrun`` builds comes
-from those orbitals. A restart read inside ``initrun`` can replace
-``c0``, so ``rwfopt`` copies the saved orbitals in again after
-``initrun`` when the shape still matches. A different shape calls
-``stopgm`` and names ``embed_reset_warm_orbitals``. ``cpmdc`` makes
-that call when the functional, the deck, the cutoff, the cell, the
-charge, the multiplicity, the atom count, or the elemental composition
-changes, before ``rwfopt`` runs.
-The SCF then runs to the orbital convergence threshold with the full
-``MAXITER`` budget of the deck; a warm call is a complete SCF from a
-better start, not a shortened one.
+converges. On a later call, ``rwfopt`` copies the saved ``c0`` in before
+``initrun``. ``rinitwf`` then returns after the phase factors, so it
+does not build a guess, and the density ``initrun`` builds comes from
+those orbitals. A restart read inside ``initrun`` can replace ``c0``, so
+``rwfopt`` copies the saved orbitals in again after ``initrun`` when the
+shape still matches. A different shape calls ``stopgm`` and names
+``embed_reset_warm_orbitals``. ``cpmdc`` makes that call when the
+functional, the deck, the cutoff, the cell, the charge, the
+multiplicity, the atom count, or the elemental composition changes,
+before ``rwfopt`` runs. The SCF then runs to the orbital convergence
+threshold with the full ``MAXITER`` budget of the deck; a warm call is a
+complete SCF from a better start, not a shortened one.
 
 ``opencpmd_converged_state.patch`` makes the saved copy trustworthy. In
 stock OpenCPMD, ``updwf`` applies an optimiser step to ``c0`` before it
@@ -77,31 +81,71 @@ orbitals, so the saved ``c0`` is the state that ``forcedr`` used.
 Steepest descent with ``iproj <= 1`` sets ``gemax`` above the threshold
 before that check: those steps do not converge on ``gemax``.
 
+Orbitals per key
+================
+
+One calculator often evaluates several calculations in turn: the images
+of a band on fewer calculators than images, or the beads of a ring
+polymer. With one stored copy, each SCF starts from the orbitals of
+whichever calculation ran last on that calculator, which for a ring is a
+neighbouring bead rather than the same bead one step earlier.
+``cpmdc_session_select_orbitals()`` names the calculation the next
+evaluations belong to. ``opencpmd_embed_rwfopt.patch`` keeps a table of
+stored ``c0`` copies, one per key, beside the store ``rwfopt`` restores
+from. Selecting another key parks the converged ``c0`` under the key
+being left and moves the copy parked under the new key into the store; a
+key with nothing parked starts from the copy already in the store, the
+nearest calculation the calculator has. A partial copy from an
+unconverged pass is not parked. Every rank of a calculator selects the
+same key, and each rank parks its own slice of ``c0``. A basis change
+frees the table with the store, since every copy in it has the shape of
+the old basis. A session that never selects a key keeps one stored copy.
+
 What clears the orbitals
 ========================
 
-.. list-table::
-   :header-rows: 1
-   :widths: 50 50
-
-   * - Event
-     - Why
-   * - a cell change
-     - the plane-wave basis depends on the cell, so the stored coefficients no longer fit
-   * - a cutoff change
-     - the plane-wave basis changes, so the stored coefficients no longer fit
-   * - a change of atom count or elemental composition, or of charge or multiplicity
-     - those inputs set the number of states, and a restored ``c0`` of another shape calls ``stopgm``
-   * - ``cpmdc_session_set_params()`` or ``cpmdc_session_configure()`` when the functional, cutoff, charge, multiplicity, or deck differs
-     - the next evaluation drops the orbitals; the call itself keeps them
-   * - a new session with the same functional, deck, cutoff, cell, charge, multiplicity, and elemental composition
-     - reuses the stored orbitals and skips setup
-   * - a new session whose functional, deck, cutoff, cell, charge, multiplicity, or elemental composition differs
-     - the next evaluation drops the stored orbitals and runs setup
-   * - a one-shot or global call (``cpmdc_set_params()``, ``cpmdc_energy*()``, ``cpmdc_calculate_result()``) whose basis differs from the stored one
-     - that call runs setup; a matching basis reuses the orbitals
-   * - ``stopgm`` returns through ``cpmd_stopgm_hook``
-     - the call continued past a failed check, so the stored orbitals are not a result
++----------------------------------+----------------------------------+
+| Event                            | Why                              |
++==================================+==================================+
+| a cell change                    | the plane-wave basis depends on  |
+|                                  | the cell, so the stored          |
+|                                  | coefficients no longer fit       |
++----------------------------------+----------------------------------+
+| a cutoff change                  | the plane-wave basis changes, so |
+|                                  | the stored coefficients no       |
+|                                  | longer fit                       |
++----------------------------------+----------------------------------+
+| a change of atom count or        | those inputs set the number of   |
+| elemental composition, or of     | states, and a restored ``c0`` of |
+| charge or multiplicity           | another shape calls ``stopgm``   |
++----------------------------------+----------------------------------+
+| ``cpmdc_session_set_params()``   | the next evaluation drops the    |
+| or ``cpmdc_session_configure()`` | orbitals; the call itself keeps  |
+| when the functional, cutoff,     | them                             |
+| charge, multiplicity, or deck    |                                  |
+| differs                          |                                  |
++----------------------------------+----------------------------------+
+| a new session with the same      | reuses the stored orbitals and   |
+| functional, deck, cutoff, cell,  | skips setup                      |
+| charge, multiplicity, and        |                                  |
+| elemental composition            |                                  |
++----------------------------------+----------------------------------+
+| a new session whose functional,  | the next evaluation drops the    |
+| deck, cutoff, cell, charge,      | stored orbitals and runs setup   |
+| multiplicity, or elemental       |                                  |
+| composition differs              |                                  |
++----------------------------------+----------------------------------+
+| a one-shot or global call        | that call runs setup; a matching |
+| (``cpmdc_set_params()``,         | basis reuses the orbitals        |
+| ``cpmdc_energy*()``,             |                                  |
+| ``cpmdc_calculate_result()``)    |                                  |
+| whose basis differs from the     |                                  |
+| stored one                       |                                  |
++----------------------------------+----------------------------------+
+| ``stopgm`` returns through       | the call continued past a failed |
+| ``cpmd_stopgm_hook``             | check, so the stored orbitals    |
+|                                  | are not a result                 |
++----------------------------------+----------------------------------+
 
 A topology change is refused outright rather than treated as cold: the
 atom count and the elemental composition belong to the session. A
@@ -125,8 +169,8 @@ The RESTART file
 A library force call writes no ``RESTART.1``, ``LATEST``, ``GEOMETRY``,
 or ``GEOMETRY.xyz``. The orbitals for the next call stay in memory.
 ``cpmd.x`` writes those files. A cold library call reads a ``RESTART.1``
-only when the deck asks for ``RESTART WAVEFUNCTION``. ``cpmdc`` turns off
-CPMD's restart of coordinates, velocities, and the stored geometry
+only when the deck asks for ``RESTART WAVEFUNCTION``. ``cpmdc`` turns
+off CPMD's restart of coordinates, velocities, and the stored geometry
 before every SCF. The host owns the geometry, and a
 ``RESTART COORDINATES`` in the deck would otherwise overwrite the step's
 positions.
