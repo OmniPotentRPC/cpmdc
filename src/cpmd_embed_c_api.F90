@@ -1414,12 +1414,12 @@ CONTAINS
       ! An internal write to one CHARACTER variable has one record; a '/'
       ! edit descriptor would end the write. The rows are joined by
       ! NEW_LINE instead.
-      WRITE(text, '(2A,3F16.8,A,3F16.8,A,3F16.8,A)') ' CELL VECTORS', &
+      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
            NEW_LINE('A'), cell(1), cell(2), cell(3), NEW_LINE('A'), &
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
+      WRITE(text, '(A,3F20.12,A)') ' CELL'//NEW_LINE('A')//'  ', &
            cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)

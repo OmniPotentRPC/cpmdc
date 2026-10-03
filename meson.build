@@ -1275,6 +1275,18 @@ test(
     suite: ['cmocka', 'params'],
   )
 
+  test(
+    'cold-deck-cell',
+    executable(
+      'test_cold_deck_cell',
+      'tests/test_cold_deck_cell.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc],
+      c_args: common_c_args,
+    ),
+    suite: ['cmocka', 'params'],
+  )
+
   potential_config_common_cpmd_bin = custom_target(
     'potential_config_common_cpmd_bin',
     input: 'tests/potential_config_common_cpmd.capnp.txt',
