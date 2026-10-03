@@ -1411,8 +1411,12 @@ CONTAINS
           ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
     END IF
     IF (.NOT. diagonal) THEN
-      WRITE(text, '(A,/,3F16.8,/,3F16.8,/,3F16.8,A)') ' CELL VECTORS', &
-           cell(1), cell(2), cell(3), cell(4), cell(5), cell(6), &
+      ! An internal write to one CHARACTER variable has one record; a '/'
+      ! edit descriptor would end the write. The rows are joined by
+      ! NEW_LINE instead.
+      WRITE(text, '(2A,3F16.8,A,3F16.8,A,3F16.8,A)') ' CELL VECTORS', &
+           NEW_LINE('A'), cell(1), cell(2), cell(3), NEW_LINE('A'), &
+           cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
       WRITE(text, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
