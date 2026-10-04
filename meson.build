@@ -1159,6 +1159,31 @@ test(
       timeout: 600,
     )
 
+    si3n4_box_params_bin = custom_target(
+      'si3n4_box_params_bin',
+      input: 'tests/si3n4_box_params.capnp.txt',
+      output: 'si3n4_box_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    si3n4_box145_bin = custom_target(
+      'si3n4_box145_bin',
+      input: 'tests/force_input_si3n4_box145.capnp.txt',
+      output: 'force_input_si3n4_box145.bin',
+      command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+    )
+    test(
+      'box-cell-energy',
+      executable(
+        'test_box_cell_energy',
+        'tests/test_box_cell_energy.c',
+        dependencies: [cpmdc_embed_shell_dep, math_dep],
+      ),
+      args: [si3n4_box_params_bin.full_path(), si3n4_box145_bin.full_path()],
+      depends: [si3n4_box_params_bin, si3n4_box145_bin],
+      suite: ['e2e'],
+      timeout: 900,
+    )
+
     silylamine_params_bin = custom_target(
       'silylamine_params_bin',
       input: 'tests/silylamine_blyp_params.capnp.txt',
@@ -1419,12 +1444,20 @@ test(
       'test_cold_deck_cell',
       'tests/test_cold_deck_cell.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
-      include_directories: [inc],
+      include_directories: [inc, include_directories('src')],
       c_args: common_c_args,
     ),
     suite: ['cmocka', 'params'],
   )
 
+  # The overlay deck has no ANGSTROM, and its box is 10 Bohr: the cell the
+  # deck evaluated before the box was the cell.
+  force_input_overlay_step_bin = custom_target(
+    'force_input_overlay_step_bin',
+    input: 'tests/force_input_overlay_step.capnp.txt',
+    output: 'force_input_overlay_step.bin',
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
   potential_config_common_cpmd_bin = custom_target(
     'potential_config_common_cpmd_bin',
     input: 'tests/potential_config_common_cpmd.capnp.txt',
@@ -1486,7 +1519,7 @@ test(
     args: [
       potential_config_common_cpmd_bin,
       potential_config_common_cpmd_reject_bin,
-      force_input_step_a_bin,
+      force_input_overlay_step_bin,
     ],
     suite: ['params', 'capnp'],
   )

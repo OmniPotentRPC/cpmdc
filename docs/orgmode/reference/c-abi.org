@@ -30,7 +30,18 @@ Energy: ~hartree~, ~ha~, ~au~, ~a.u.~, ~ev~, ~electronvolt~, ~ry~, ~rydberg~,
 ~kj/mol~, ~kjmol~, ~kcal/mol~, ~kcalmol~.
 The schema defaults are ~angstrom~ and ~eV~.
 ~ForceInput.box~ is empty or nine values, a row-major 3 by 3 cell in
-~lengthUnit~.
+~lengthUnit~, one lattice vector per row.
+The caller's box is the cell.
+A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
+~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another
+orthorhombic box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with
+off-diagonal components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD
+refuses beside it.
+An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and
+takes only an orthorhombic box; another box fails the call.
+Without ~ANGSTROM~ the box goes in as Bohr.
+An all-zero box is a system without a cell: the deck's ~CELL~ stays, or a
+12 Angstrom cube when the deck has none.
 The ~hasCharge~, ~charge~, ~hasMultiplicity~, and ~multiplicity~ fields of
 ~ForceInput~ are not read by ~cpmdc~.
 

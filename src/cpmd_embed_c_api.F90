@@ -1508,9 +1508,168 @@ CONTAINS
            ierr, knobs)
     END IF
     IF (ierr == 0 .AND. nlen > 0) THEN
-      CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      ! The caller's box is the cell. A deck CELL is replaced by it. An
+      ! all-zero box is a system without a cell (eOn's non-periodic
+      ! convention), so the deck's CELL, or the default, stays.
+      IF (has_cell /= 0 .AND. ANY(ABS(cell(1:9)) > 0.0_c_double)) THEN
+        CALL impose_box_cell(deck, nlen, cell, ierr)
+      ELSE
+        CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      END IF
       IF (ierr == 0) CALL inject_maxiter_if_missing(deck, nlen, ierr)
     END IF
+  END SUBROUTINE
+
+  ! The box of the call (Angstrom, rows are lattice vectors) is the cell
+  ! CPMD uses, whatever CELL the deck states. Every CELL line of &SYSTEM
+  ! and its data lines go, and so does SYMMETRY with its value line; then
+  ! the box goes back in before the &END of &SYSTEM:
+  !   isolated deck (SYMMETRY 0 or ISOLATED): SYMMETRY 0 and CELL, for a
+  !     diagonal box only; CPMD's isolated solvers need an orthorhombic
+  !     cell, so another box is refused (ierr 3).
+  !   diagonal box: SYMMETRY 1 when the deck said cubic and a = b = c,
+  !     otherwise SYMMETRY 8, with CELL a b/a c/a.
+  !   other box: CELL VECTORS and no SYMMETRY, which CPMD refuses beside it.
+  ! Without ANGSTROM in &SYSTEM the deck reads lengths in Bohr, so the box
+  ! is written in Bohr (CPMD's fbohr, 1/0.529177210859).
+  SUBROUTINE impose_box_cell(deck, nlen, cell, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(OUT) :: ierr
+    REAL(real64), PARAMETER :: ang_per_bohr = 0.529177210859_real64
+    CHARACTER(LEN=:), ALLOCATABLE :: out
+    CHARACTER(LEN=80) :: head, tok, symtok
+    CHARACTER(LEN=600) :: text
+    REAL(real64) :: c(9), scale
+    INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k
+    LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, diagonal, done
+    ierr = 0
+    IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
+    ! First pass: units and the deck's symmetry, inside &SYSTEM only.
+    in_sys = .FALSE.
+    angstrom = .FALSE.
+    cubic_deck = .FALSE.
+    isolated_deck = .FALSE.
+    skip = 0
+    osym = 0
+    ls = 1
+    DO WHILE (ls <= nlen)
+      le = ls
+      DO WHILE (le <= nlen)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      CALL embed_upper_copy(deck(ls:MIN(le - 1, nlen)), head)
+      pos = 1
+      CALL embed_next_tok(head, pos, tok)
+      IF (osym == 1) THEN
+        ! The value line of SYMMETRY.
+        CALL embed_ltrim(head, symtok)
+        isolated_deck = symtok(1:1) == '0' .OR. INDEX(symtok, 'ISOLATED') > 0
+        cubic_deck = (symtok(1:1) == '1' .AND. LEN_TRIM(symtok) == 1) .OR. &
+            (INDEX(symtok, 'CUBIC') > 0 .AND. INDEX(symtok, 'FACE') == 0 &
+             .AND. INDEX(symtok, 'BODY') == 0)
+        osym = 2
+      ELSE IF (tok(1:7) == '&SYSTEM') THEN
+        in_sys = .TRUE.
+      ELSE IF (in_sys .AND. tok(1:4) == '&END') THEN
+        in_sys = .FALSE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'ANGSTROM') THEN
+        angstrom = .TRUE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY' .AND. osym == 0) THEN
+        osym = 1
+      END IF
+      ls = le + 1
+    END DO
+    DO k = 1, 9
+      c(k) = REAL(cell(k), KIND=real64)
+    END DO
+    diagonal = ABS(c(2)) + ABS(c(3)) + ABS(c(4)) + ABS(c(6)) + ABS(c(7)) + &
+        ABS(c(8)) <= 1.0e-8_real64
+    IF (isolated_deck .AND. .NOT. diagonal) THEN
+      CALL cpmdc_note_embed_failure('an isolated deck (SYMMETRY 0) needs ' // &
+           'an orthorhombic box; the ForceInput box has off-diagonal ' // &
+           'components' // c_null_char)
+      ierr = 3
+      RETURN
+    END IF
+    scale = 1.0_real64
+    IF (.NOT. angstrom) scale = 1.0_real64 / ang_per_bohr
+    c = c * scale
+    IF (diagonal) THEN
+      IF (c(1) <= 0.0_real64 .OR. c(5) <= 0.0_real64 .OR. c(9) <= 0.0_real64) THEN
+        CALL cpmdc_note_embed_failure('the ForceInput box has a ' // &
+             'non-positive diagonal' // c_null_char)
+        ierr = 3
+        RETURN
+      END IF
+      IF (isolated_deck) THEN
+        k = 0
+      ELSE IF (cubic_deck .AND. ABS(c(5) - c(1)) <= 1.0e-10_real64 * c(1) &
+               .AND. ABS(c(9) - c(1)) <= 1.0e-10_real64 * c(1)) THEN
+        k = 1
+      ELSE
+        k = 8
+      END IF
+      WRITE(text, '(A,A,I0,A,A,A,3F20.12,A,A)') ' SYMMETRY', NEW_LINE('A'), &
+           k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), c(1), c(5) / c(1), &
+           c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
+    ELSE
+      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
+           NEW_LINE('A'), c(1), c(2), c(3), NEW_LINE('A'), &
+           c(4), c(5), c(6), NEW_LINE('A'), c(7), c(8), c(9), NEW_LINE('A')
+    END IF
+    ntext = LEN_TRIM(text)
+    IF (text(ntext:ntext) /= NEW_LINE('A')) THEN
+      ntext = ntext + 1
+      text(ntext:ntext) = NEW_LINE('A')
+    END IF
+    ! Second pass: copy every line but CELL and SYMMETRY of &SYSTEM, and
+    ! put the box in before its &END.
+    out = ''
+    in_sys = .FALSE.
+    done = .FALSE.
+    skip = 0
+    sys_end = 0
+    ls = 1
+    DO WHILE (ls <= nlen)
+      le = ls
+      DO WHILE (le <= nlen)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      nxt = MIN(le, nlen)
+      CALL embed_upper_copy(deck(ls:MIN(le - 1, nlen)), head)
+      pos = 1
+      CALL embed_next_tok(head, pos, tok)
+      IF (skip > 0) THEN
+        skip = skip - 1
+      ELSE IF (tok(1:7) == '&SYSTEM') THEN
+        in_sys = .TRUE.
+        out = out // deck(ls:nxt)
+      ELSE IF (in_sys .AND. tok(1:4) == '&END') THEN
+        in_sys = .FALSE.
+        out = out // text(1:ntext) // deck(ls:nxt)
+        done = .TRUE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'CELL') THEN
+        skip = 1
+        IF (INDEX(head, 'VECTORS') > 0) skip = 3
+      ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY') THEN
+        skip = 1
+      ELSE
+        out = out // deck(ls:nxt)
+      END IF
+      ls = le + 1
+    END DO
+    IF (.NOT. done) THEN
+      ! No &SYSTEM section to carry the cell: leave the deck as it was.
+      RETURN
+    END IF
+    sys_end = LEN(out)
+    CALL MOVE_ALLOC(out, deck)
+    nlen = sys_end
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &

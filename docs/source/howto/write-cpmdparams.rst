@@ -127,14 +127,21 @@ out.
 |                      |                            | a different energy   |
 +----------------------+----------------------------+----------------------+
 
-Set each of them on purpose.
-A raw ``inputBlocks`` entry or a ``raw`` section that already opens
-``&CPMD``, ``&SYSTEM``, ``&DFT``, or ``&ATOMS`` is that section.
-The default writer does not open the same name again, so a periodic
-``SYMMETRY 1`` block is not followed by ``SYMMETRY 0`` and
-``POISSON SOLVER HOCKNEY``.
-``ForceInput.box`` supplies ``CELL`` only when the deck has no ``CELL``
-line.
+Set each of them on purpose. A raw ``inputBlocks`` entry or a ``raw``
+section that already opens ``&CPMD``, ``&SYSTEM``, ``&DFT``, or
+``&ATOMS`` is that section. The default writer does not open the same
+name again, so a periodic ``SYMMETRY 1`` block is not followed by
+``SYMMETRY 0`` and ``POISSON SOLVER HOCKNEY``. The caller's box is the
+cell. A non-zero ``ForceInput.box`` replaces every ``CELL`` line of
+``&SYSTEM`` and its ``SYMMETRY``: a cubic deck and a cubic box keep
+``SYMMETRY 1``, another orthorhombic box gets ``SYMMETRY 8`` and
+``CELL a b/a c/a``, and a box with off-diagonal components gets
+``CELL VECTORS`` without ``SYMMETRY``, which CPMD refuses beside it. An
+isolated deck (``SYMMETRY 0``, the default deck) keeps ``SYMMETRY 0``
+and takes only an orthorhombic box; another box fails the call. Without
+``ANGSTROM`` the box goes in as Bohr. An all-zero box is a system
+without a cell: the deck's ``CELL`` stays, or a 12 Angstrom cube when
+the deck has none.
 
 Check the rendered deck
 =======================
@@ -181,6 +188,5 @@ Ge      ``Ge_MT_BLYP.psp`` ``LMAX=P``
 
 An element in neither the message nor the table fails the evaluation.
 The message names the atomic number. A method deck whose ``&ATOMS``
-block already has coordinate lines, for example from ``inputBlocks``,
-is passed to CPMD unchanged; each step then overwrites only the
-positions.
+block already has coordinate lines, for example from ``inputBlocks``, is
+passed to CPMD unchanged; each step then overwrites only the positions.
