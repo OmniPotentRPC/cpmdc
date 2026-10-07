@@ -1,0 +1,63 @@
+# a-SiN two-level system, Born-Oppenheimer point. Same keys as the isomer 1 file.
+title = "a-SiN two-level system"
+functional = "BLYP"
+cutoff_ry = 70.0
+charge = 1
+multiplicity = 1
+task = "gradient"
+
+[dft]
+gc_cutoff = 1.0e-6
+
+[wavefunction]
+optimize = true
+convergence_orbitals = 1.0e-5
+max_iter = 400
+
+[[wavefunction.directives]]
+keyword = "PRINT FORCES ON"
+
+[[wavefunction.directives]]
+keyword = "MEMORY BIG ON"
+
+[[wavefunction.directives]]
+keyword = "VDW CORRECTION ON"
+
+[cell]
+symmetry = 8
+angstrom = true
+vectors = [9.984, 2.0, 1.5, 0.0, 0.0, 0.0]
+
+[[cell.directives]]
+keyword = "POISSON hockney TUCKERMAN"
+
+[dispersion]
+grimme = "D2"
+
+[[pseudopotentials]]
+element = "Si"
+file = "Si_MT_BLYP.psp"
+lmax = 1
+loc = 1
+kleinman_bylander = true
+
+[[pseudopotentials]]
+element = "N"
+file = "N_MT_BLYP.psp"
+lmax = 1
+loc = 1
+kleinman_bylander = true
+
+[[pseudopotentials]]
+element = "O"
+file = "O_SPRIK_BLYP.psp"
+lmax = 1
+loc = 1
+kleinman_bylander = true
+
+[[pseudopotentials]]
+element = "H"
+file = "H_MT_BLYP.psp"
+lmax = 0
+loc = 0
+kleinman_bylander = true
