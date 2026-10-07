@@ -561,7 +561,15 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g %.10g %.10g %.10g\n",
                       a, b, c, ab, ac, bc);
   }
-  if (!vectors && fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
+  if (vectors) {
+    for (int row = 0; row < 3; ++row) {
+      if (append_fmt(dst, dst_size, used, " %.10g %.10g %.10g\n",
+                     cell[3 * row], cell[3 * row + 1], cell[3 * row + 2]) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  if (fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
       fabs(cell[3]) < 1e-12 && fabs(cell[5]) < 1e-12 &&
       fabs(cell[6]) < 1e-12 && fabs(cell[7]) < 1e-12 && cell[0] != 0.0) {
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g 0 0 0\n",
@@ -5074,7 +5082,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
       has_system = 1;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
-              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets, 1, 0) != 0)
+              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets, 1,
+              has_cell ? 1 : 0) != 0)
         return -1;
       break;
     }
