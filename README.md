@@ -70,7 +70,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tests/` | encoded fixtures and C/cmocka contract tests |
 | `docs/orgmode/` | authoritative documentation sources |
 
-Generated Sphinx sources live under `docs/source/`.
+The docs build writes generated RST under `docs/source/`. Those files are not committed.
 
 ## Main API Choices
 
@@ -363,7 +363,7 @@ Build the documentation site with:
 pixi run -e docs docbld
 ```
 
-After editing Org sources, regenerate checked-in RST with:
+After editing Org sources, regenerate RST with:
 
 ```bash
 pixi run -e docs mkrst
