@@ -132,6 +132,25 @@ def main() -> int:
     require("isa-allow.toml" in workflow, "ci.yml does not pass isa-allow.toml", failures)
     require("workflow_dispatch" in workflow, "ci.yml has no workflow_dispatch trigger", failures)
     require("ubuntu-24.04-arm" in workflow, "ci.yml has no ubuntu-24.04-arm job", failures)
+    require(
+        "tests/distro_cmocka_prefix.h" in workflow,
+        "ci.yml does not include the distro cmocka prefix header",
+        failures,
+    )
+    require("-include setjmp.h" not in workflow, "ci.yml includes setjmp.h before _GNU_SOURCE", failures)
+    prefix = root / "tests/distro_cmocka_prefix.h"
+    require(prefix.is_file(), "missing tests/distro_cmocka_prefix.h", failures)
+    if prefix.is_file():
+        prefix_text = prefix.read_text(encoding="utf-8")
+        require(
+            prefix_text.find("_GNU_SOURCE") < prefix_text.find("setjmp.h"),
+            "distro cmocka prefix does not define _GNU_SOURCE before setjmp.h",
+            failures,
+        )
+        require("stdarg.h" in prefix_text, "distro cmocka prefix does not include stdarg.h", failures)
+    mpi_launch = (root / "tests/run_mpi_test.py").read_text(encoding="utf-8")
+    require("--mca" in mpi_launch and "^patcher" in mpi_launch, "MPI launcher does not disable the memory patcher", failures)
+    require("^ucx" in mpi_launch, "MPI launcher does not exclude UCX under ASan", failures)
 
     golden = root / "tests/golden/isa-hashes.toml"
     require(golden.is_file(), "missing tests/golden/isa-hashes.toml", failures)
