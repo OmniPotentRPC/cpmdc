@@ -107,10 +107,11 @@ A capabilities return of -1 is the size query.
 | Function | Behaviour |
 |----------+-----------|
 | ~int cpmdc_bind_calculator(int ranks_per_calc)~ | collective on ~MPI_COMM_WORLD~; initialises MPI when needed and splits the world into calculators of ~ranks_per_calc~ consecutive ranks; ~ranks_per_calc <= 0~ keeps one calculator; returns this rank's calculator index, or -1 when the world size is not a multiple or the library has no CPMD backend; a second call returns the same index |
-| ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | stores the caller's communicator as ~mp_comm_world~; does not call ~MPI_Init~ or ~MPI_Comm_split~; returns the calculator index, or -1 when the communicator is null, the world does not divide, or the library has no CPMD backend |
-| ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies ~mp_comm_world~ into ~out~; returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
+| ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no ~CPMDCSession~ exists, and if any rank has a live session every rank returns -1; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
+| ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies the stored calculator communicator into ~out~ (on an OpenCPMD build, ~mp_comm_world~); returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
 
-Call it once on every rank before the first evaluation.
+~cpmdc_bind_calculator()~ runs once per process, before the first evaluation.
+~cpmdc_adopt_calculator_comm()~ may run again after every session has been destroyed.
 See [[file:../howto/mpi.org][running under mpirun]].
 
 * Configuration without a session

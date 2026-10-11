@@ -102,17 +102,27 @@ if need_capnp_c
   )
 endif
 
+mpi_c_dep = dependency('mpi', language: 'c', required: false)
+stub_c_args = common_c_args + capnp_generated_c_args
+stub_deps = []
+if mpi_c_dep.found()
+  stub_c_args += ['-DCPMDC_HAVE_MPI=1']
+  stub_deps += [mpi_c_dep]
+endif
+
 cpmdc_stub = static_library(
   'cpmdc_stub',
-  ['src/cpmdc_stub.c', 'src/cpmdc_features.c'],
+  ['src/cpmdc_stub.c', 'src/cpmdc_features.c', 'src/cpmdc_adopt.c'],
   include_directories: inc,
-  c_args: common_c_args + capnp_generated_c_args,
+  c_args: stub_c_args,
+  dependencies: stub_deps,
   install: false,
 )
 
 cpmdc_stub_dep = declare_dependency(
   link_with: cpmdc_stub,
   include_directories: inc,
+  dependencies: stub_deps,
 )
 
 # ISO_C embed without libcpmd: deterministic reference PEF for tests and dlopen users.
@@ -160,7 +170,7 @@ if has_cpmd
   cpmd_embed_link += [cpmd_lib]
   cpmd_mpi_dep = [
     dependency('mpi', language: 'fortran', required: true),
-    dependency('mpi', language: 'c', required: true),
+    mpi_c_dep.found() ? mpi_c_dep : dependency('mpi', language: 'c', required: true),
   ]
   # foss puts BLAS behind FlexiBLAS. OpenBLAS is the backend that module loads.
   flexiblas = cc.find_library('flexiblas', required: false)
@@ -196,10 +206,17 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
-cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
+cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
                       'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
+cpmd_embed_c_args = common_c_args + capnp_generated_c_args
+if has_cpmd
+  cpmd_embed_c_args += ['-DCPMDC_HAS_CPMD=1', '-DCPMDC_HAVE_MPI=1']
+elif mpi_c_dep.found()
+  cpmd_embed_c_args += ['-DCPMDC_HAVE_MPI=1']
+  cpmd_mpi_dep += [mpi_c_dep]
+endif
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
@@ -225,7 +242,7 @@ cpmdc_embed_shell = static_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+  c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
   install: false,
@@ -236,7 +253,7 @@ cpmdc_shared = shared_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+  c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
@@ -432,6 +449,46 @@ if get_option('with_tests')
     ),
     suite: ['stub'],
   )
+  if mpi_c_dep.found()
+    run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
+    adopt_comm_stub = executable(
+      'test_adopt_comm_stub',
+      'tests/test_adopt_comm_mpi.c',
+      dependencies: [cpmdc_stub_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + ['-DCPMDC_TEST_STUB=1'],
+    )
+    test(
+      'adopt-comm-stub',
+      python,
+      args: [run_mpi_test, '4', adopt_comm_stub.full_path()],
+      depends: [adopt_comm_stub],
+      suite: ['stub', 'mpi'],
+      timeout: 180,
+      is_parallel: false,
+    )
+    adopt_comm_shell = executable(
+      'test_adopt_comm_shell',
+      'tests/test_adopt_comm_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'adopt-comm-shell',
+      python,
+      args: [
+        run_mpi_test,
+        '4',
+        adopt_comm_shell.full_path(),
+        cpmd_parser_params_bin.full_path(),
+      ],
+      depends: [adopt_comm_shell, cpmd_parser_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 180,
+      is_parallel: false,
+    )
+  endif
   test(
     'capabilities-cmocka',
     executable(
