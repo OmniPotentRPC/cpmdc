@@ -50,7 +50,8 @@ html_baseurl = "https://cpmdc.rgoswami.me/"
 # {lang}{version}{link}, so every page would be published under /en/.
 sitemap_url_scheme = "{link}"
 # Navbar falls back to html_logo when light_logo/dark_logo are unset.
-html_logo = "_static/cpmdc_notext_light.svg"
+# The badge reads on both headers; the wordmarks are the page hero.
+html_logo = "_static/icon.svg"
 
 html_theme_options = {
     "github_url": "https://github.com/OmniPotentRPC/cpmdc",
@@ -58,8 +59,8 @@ html_theme_options = {
     "dark_code": True,
     "globaltoc_expand_depth": 1,
     # Shibuya toggles .light-logo / .dark-logo with color mode.
-    "light_logo": "_static/cpmdc_notext_light.svg",
-    "dark_logo": "_static/cpmdc_notext.svg",
+    "light_logo": "_static/icon.svg",
+    "dark_logo": "_static/icon.svg",
     "nav_links": [
         {
             "title": "Ecosystem",
@@ -126,4 +127,4 @@ html_sidebars = {
 }
 
 html_css_files = ["custom.css"]
-html_favicon = "_static/mark.svg"
+html_favicon = "_static/favicons/favicon.svg"

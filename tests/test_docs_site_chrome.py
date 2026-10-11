@@ -30,8 +30,9 @@ def main() -> int:
 
     conf = (root / "docs/source/conf.py").read_text(encoding="utf-8")
     for needle in (
-        '"light_logo": "_static/cpmdc_notext_light.svg"',
-        '"dark_logo": "_static/cpmdc_notext.svg"',
+        '"light_logo": "_static/icon.svg"',
+        '"dark_logo": "_static/icon.svg"',
+        'html_favicon = "_static/favicons/favicon.svg"',
         "sidebars/localtoc.html",
         "sidebars/repo-stats.html",
         "sidebars/edit-this-page.html",
@@ -50,13 +51,43 @@ def main() -> int:
         failures.append("conf.py still points readcon at HaoZeke")
 
     for relative in (
-        "docs/source/_static/cpmdc_notext.svg",
-        "docs/source/_static/cpmdc_notext_light.svg",
-        "branding/logo/cpmdc_notext.svg",
-        "branding/logo/cpmdc_notext_light.svg",
+        "docs/source/_static/icon.svg",
+        "docs/source/_static/logo-light.svg",
+        "docs/source/_static/logo-dark.svg",
+        "docs/source/_static/logo-light.webp",
+        "docs/source/_static/logo-dark.webp",
+        "branding/logo/icon.svg",
+        "branding/logo/icon-16.svg",
+        "branding/logo/icon-32.svg",
+        "branding/logo/logo-light.svg",
+        "branding/logo/logo-dark.svg",
+        "branding/logo/logo-light.webp",
+        "branding/logo/logo-dark.webp",
+        "branding/logo/favicon/favicon.svg",
+        "docs/source/_static/favicons/favicon.svg",
+        "docs/source/_static/favicons/favicon-16x16.png",
+        "docs/source/_static/favicons/favicon-32x32.png",
+        "docs/source/_static/favicons/apple-touch-icon.png",
+        "docs/source/_static/favicons/android-chrome-192x192.png",
+        "docs/source/_static/favicons/android-chrome-512x512.png",
+        "docs/source/_static/favicons/site.webmanifest",
     ):
         if not (root / relative).is_file():
             failures.append(f"missing logo {relative}")
+
+    head = (root / "docs/source/_templates/partials/extra-head.html").read_text(
+        encoding="utf-8"
+    )
+    for needle in (
+        "favicon-16x16.png",
+        "favicon-32x32.png",
+        "android-chrome-192x192.png",
+        "android-chrome-512x512.png",
+        "apple-touch-icon.png",
+        "site.webmanifest",
+    ):
+        if needle not in head:
+            failures.append(f"extra-head.html missing {needle}")
 
     footer = (root / "docs/source/_templates/partials/site-foot.html").read_text(
         encoding="utf-8"
