@@ -1077,6 +1077,20 @@ test(
       suite: ['e2e', 'water'],
       timeout: 600,
     )
+    test(
+      'ener-com-identity',
+      executable(
+        'test_ener_com_identity',
+        'tests/test_ener_com_identity.c',
+        dependencies: [cpmdc_embed_shell_dep, math_dep],
+        include_directories: [inc],
+        c_args: common_c_args,
+      ),
+      args: [water_params_bin.full_path(), water_force_bin.full_path()],
+      depends: [water_params_bin, water_force_bin],
+      suite: ['e2e', 'water'],
+      timeout: 600,
+    )
 
     silylamine_params_bin = custom_target(
       'silylamine_params_bin',

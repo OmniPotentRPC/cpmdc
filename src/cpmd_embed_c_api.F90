@@ -226,28 +226,35 @@ CONTAINS
     image%stress%values = 0.0_c_double
   END SUBROUTINE
 
+  ! ENERGY-file row. Slot 12 is EKINC, the fictitious electronic kinetic
+  ! energy. The embed runs a wavefunction optimisation, not an MD step, so
+  ! that term is not computed and stays 0.
+  SUBROUTINE fill_md_row(image)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    image%md%values = 0.0_c_double
+    image%md%values(1) = image%energy%etot
+    image%md%values(2) = image%energy%ekin
+    image%md%values(3) = image%energy%epseu
+    image%md%values(4) = image%energy%enl
+    image%md%values(5) = image%energy%eht
+    image%md%values(6) = image%energy%exc
+    image%md%values(7) = image%energy%ehep
+    image%md%values(8) = image%energy%ehee
+    image%md%values(9) = image%energy%ehii
+    image%md%values(10) = image%energy%esr
+    image%md%values(11) = image%energy%eself
+    image%md%values(12) = 0.0_c_double
+    image%md%count = 12_c_size_t
+    image%md%valid = 1_c_int
+  END SUBROUTINE
+
   SUBROUTINE snapshot_total_only(image, energy_h)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     REAL(c_double), INTENT(IN) :: energy_h
-    INTEGER :: i
     CALL clear_last_energy_components(image)
     image%energy%etot = energy_h
     image%energy%valid = 1_c_int
-    ! PEF ENERGY-style row (EKINC=0 for non-MD reference evaluator).
-    image%md%values(1) = energy_h
-    image%md%values(2) = 0.0_c_double
-    image%md%values(3) = 0.0_c_double
-    image%md%values(4) = 0.0_c_double
-    image%md%values(5) = 0.0_c_double
-    image%md%values(6) = 0.0_c_double
-    image%md%values(7) = 0.0_c_double
-    image%md%values(8) = 0.0_c_double
-    image%md%values(9) = 0.0_c_double
-    image%md%values(10) = 0.0_c_double
-    image%md%values(11) = 0.0_c_double
-    image%md%values(12) = 0.0_c_double  ! EKINC (fictitious e- KE); zero off MD
-    image%md%count = 12_c_size_t
-    image%md%valid = 1_c_int
+    CALL fill_md_row(image)
     image%charge%valid = 1_c_int
     image%charge%csumg = 0.0_c_double
     image%charge%csumr = 0.0_c_double
@@ -258,13 +265,14 @@ CONTAINS
     image%multi%values(1) = energy_h
     image%multi%valid = 1_c_int
     image%prop%valid = 1_c_int
-    image%prop%dipole_count = 3_c_size_t
+    ! ddipo does not run on this path, and polarizability is never computed.
+    ! hessian stored the gradient; that copy is deprecated.
+    image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
-    image%prop%polarizability_count = 9_c_size_t
-    DO i = 1, 9
-      image%prop%polarizability(i) = 0.0_c_double
-    END DO
+    image%prop%polarizability_count = 0_c_size_t
+    image%prop%polarizability = 0.0_c_double
     image%prop%hessian_count = 0_c_size_t
+    image%prop%hessian = 0.0_c_double
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
   END SUBROUTINE
@@ -1589,14 +1597,10 @@ CONTAINS
       END DO
     END IF
     ok = 1_c_int
-    ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
+    ! Reference PEF: etot only. The other 23 ener_com slots stay 0.
+    ! hessian is deprecated and stays empty; the gradient is -forces
+    ! after the force-factor conversion on PotentialResult.
     CALL snapshot_total_only(image, energy_h)
-    DO i = 1, n_atoms * 3
-      IF (i > 4096) EXIT
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
-    image%prop%valid = 1_c_int
     ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
     ! volume, so PotentialResult.stress is exercised without OpenCPMD.
     ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
@@ -1687,28 +1691,20 @@ CONTAINS
 #endif
 
 #if defined(CPMDC_HAS_CPMD)
-  SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
-    USE ddip, ONLY: pdipole
+  SUBROUTINE snapshot_prop_from_modules(image)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    INTEGER, INTENT(IN) :: n_atoms
-    REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i, ncopy
     image%prop%valid = 1_c_int
-    image%prop%dipole_count = 3_c_size_t
-    DO i = 1, 3
-      image%prop%dipole(i) = REAL(pdipole(i), KIND=c_double)
-    END DO
-    image%prop%polarizability_count = 9_c_size_t
-    DO i = 1, 9
-      image%prop%polarizability(i) = 0.0_c_double
-    END DO
-    ncopy = n_atoms * 3
-    IF (ncopy > 4096) ncopy = 4096
-    IF (ncopy < 0) ncopy = 0
-    DO i = 1, ncopy
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
+    ! ddipo sets pdipole only from the MD and PROP drivers. This call is a
+    ! wavefunction optimisation, so the module value is stale and the
+    ! dipole list stays absent. Polarizability is never computed.
+    ! hessian used to hold the nuclear gradient. That array is deprecated;
+    ! PotentialResult.gradient carries the gradient.
+    image%prop%dipole_count = 0_c_size_t
+    image%prop%dipole = 0.0_c_double
+    image%prop%polarizability_count = 0_c_size_t
+    image%prop%polarizability = 0.0_c_double
+    image%prop%hessian_count = 0_c_size_t
+    image%prop%hessian = 0.0_c_double
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
@@ -1896,7 +1892,25 @@ CONTAINS
     image%energy%epseu = REAL(ener_com%epseu, KIND=c_double)
     image%energy%enl = REAL(ener_com%enl, KIND=c_double)
     image%energy%eht = REAL(ener_com%eht, KIND=c_double)
+    image%energy%ehep = REAL(ener_com%ehep, KIND=c_double)
+    image%energy%ehee = REAL(ener_com%ehee, KIND=c_double)
+    image%energy%ehii = REAL(ener_com%ehii, KIND=c_double)
     image%energy%exc = REAL(ener_com%exc, KIND=c_double)
+    image%energy%vxc = REAL(ener_com%vxc, KIND=c_double)
+    image%energy%egc = REAL(ener_com%egc, KIND=c_double)
+    image%energy%esr = REAL(ener_com%esr, KIND=c_double)
+    image%energy%eeig = REAL(ener_com%eeig, KIND=c_double)
+    image%energy%eband = REAL(ener_com%eband, KIND=c_double)
+    image%energy%entropy = REAL(ener_com%entropy, KIND=c_double)
+    image%energy%eself = REAL(ener_com%eself, KIND=c_double)
+    image%energy%ecnstr = REAL(ener_com%ecnstr, KIND=c_double)
+    image%energy%amu = REAL(ener_com%amu, KIND=c_double)
+    image%energy%ebogo = REAL(ener_com%ebogo, KIND=c_double)
+    image%energy%eext = REAL(ener_com%eext, KIND=c_double)
+    image%energy%etddft = REAL(ener_com%etddft, KIND=c_double)
+    image%energy%ehsic = REAL(ener_com%ehsic, KIND=c_double)
+    image%energy%erestr = REAL(ener_com%erestr, KIND=c_double)
+    image%energy%eefield = REAL(ener_com%eefield, KIND=c_double)
     image%energy%valid = 1_c_int
     image%charge%csumg = REAL(chrg%csumg, KIND=c_double)
     image%charge%csumr = REAL(chrg%csumr, KIND=c_double)
@@ -1911,16 +1925,7 @@ CONTAINS
     image%multi%values(6) = REAL(ener_d%etot_t, KIND=c_double)
     image%multi%count = 6_c_size_t
     image%multi%valid = 1_c_int
-    ! ENERGY-file row. EKINC stays zero off an MD step.
-    image%md%values = 0.0_c_double
-    image%md%values(1) = energy_h
-    image%md%values(2) = image%energy%ekin
-    image%md%values(3) = image%energy%epseu
-    image%md%values(4) = image%energy%enl
-    image%md%values(5) = image%energy%eht
-    image%md%values(6) = image%energy%exc
-    image%md%count = 12_c_size_t
-    image%md%valid = 1_c_int
+    CALL fill_md_row(image)
     species_grad = 0.0_c_double
     IF (ALLOCATED(fion)) THEN
       IF (SIZE(fion, 1) >= 3 .AND. SIZE(fion, 2) >= 1 .AND. SIZE(fion, 3) >= ions1%nsp) THEN
@@ -1952,7 +1957,7 @@ CONTAINS
       END DO
       image%stress%valid = 1_c_int
     END IF
-    CALL snapshot_prop_from_modules(image, n_atoms, grad)
+    CALL snapshot_prop_from_modules(image)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
     ! a stationary point. Report it as a failure instead.

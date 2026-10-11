@@ -5537,42 +5537,30 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     md_vals[3] = comps[3];
     md_vals[4] = comps[4];
     md_vals[5] = comps[8];
+    md_vals[6] = comps[5];
+    md_vals[7] = comps[6];
+    md_vals[8] = comps[7];
+    md_vals[9] = comps[11];
+    md_vals[10] = comps[15];
+    /* EKINC is not computed: the embed does not run an MD step. */
     md_vals[11] = 0.0;
   }
 
-  int prop_valid = 0, hess_count = 0, dip_count = 0, pol_count = 0;
-  double hess[4096];
+  int prop_valid = 0, dip_count = 0, pol_count = 0;
   double dip[3] = {0, 0, 0};
   double pol[9];
-  memset(hess, 0, sizeof(hess));
   memset(pol, 0, sizeof(pol));
   if (image && image->prop.valid) {
     prop_valid = 1;
-    hess_count = snapshot_count(image->prop.hessian_count, 4096);
     dip_count = snapshot_count(image->prop.dipole_count, 3);
     pol_count = snapshot_count(image->prop.polarizability_count, 9);
-    if (hess_count > 0)
-      memcpy(hess, image->prop.hessian, (size_t)hess_count * sizeof(double));
     if (dip_count > 0)
       memcpy(dip, image->prop.dipole, (size_t)dip_count * sizeof(double));
     if (pol_count > 0)
       memcpy(pol, image->prop.polarizability, (size_t)pol_count * sizeof(double));
   }
-  if (cvalid && !prop_valid) {
+  if (cvalid && !prop_valid)
     prop_valid = 1;
-    dip_count = 3;
-    pol_count = 9;
-  }
-  /* Nuclear gradient: prefer PROP snapshot; else negate forces (API forces = -grad). */
-  if (prop_valid && hess_count <= 0 && force_count > 0 && force_count <= 4096) {
-    for (size_t i = 0; i < force_count; ++i)
-      hess[i] = -forces[i];
-    hess_count = (int)force_count;
-  }
-  if (prop_valid && dip_count <= 0)
-    dip_count = 3;
-  if (prop_valid && pol_count <= 0)
-    pol_count = 9;
 
   capn_list64 comp_list = {CAPN_NULL};
   if (cvalid) {
@@ -5624,12 +5612,14 @@ int cpmdc_potential_result_write(double energy, const double *forces,
       for (int i = 0; i < pol_count; ++i)
         capn_set64(pol_list, i, capn_from_f64(pol[i]));
   }
+  /* forces already include the ForceInput force factor, and they are the
+   * negative gradient. hessian[] is deprecated and is not written. */
   capn_list64 grad_list = {CAPN_NULL};
-  if (prop_valid && hess_count > 0) {
-    grad_list = capn_new_list64(root.seg, hess_count);
+  if (prop_valid && force_count > 0) {
+    grad_list = capn_new_list64(root.seg, (int)force_count);
     if (grad_list.p.type != CAPN_NULL)
-      for (int i = 0; i < hess_count; ++i)
-        capn_set64(grad_list, i, capn_from_f64(hess[i]));
+      for (size_t i = 0; i < force_count; ++i)
+        capn_set64(grad_list, (int)i, capn_from_f64(-forces[i]));
   }
 
   int stress_valid = 0;
@@ -5684,4 +5674,3 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   *potential_result_size_bytes = (size_t)wrote;
   return 0;
 }
-

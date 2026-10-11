@@ -88,9 +88,9 @@ static void test_all_results_through_c_and_wire(void **state) {
   CPMDCPropertySnapshot prop;
   assert_int_equal(cpmdc_last_property_snapshot(&prop), 0);
   assert_int_equal(prop.valid, 1);
-  assert_int_equal(prop.dipole_count, 3);
-  assert_int_equal(prop.polarizability_count, 9);
-  assert_true(prop.hessian_count >= 3); /* PEF 2 atoms => 6 */
+  assert_int_equal(prop.dipole_count, 0);
+  assert_int_equal(prop.polarizability_count, 0);
+  assert_int_equal(prop.hessian_count, 0);
   printf("pod_prop dipole=%zu hess=%zu pol=%zu\n", prop.dipole_count,
          prop.hessian_count, prop.polarizability_count);
 
@@ -103,9 +103,11 @@ static void test_all_results_through_c_and_wire(void **state) {
 
   assert_int_equal(view.componentsValid, 1);
   assert_int_equal(capn_len(view.energyComponents), 24);
+  assert_true(fabs((&ec.etot)[0]) > 0.0);
   for (int i = 0; i < 24; ++i) {
     double w = capn_to_f64(capn_get64(view.energyComponents, i));
     double pod = (&ec.etot)[i];
+    assert_true(isfinite(pod));
     assert_true(fabs(w - pod) < 1e-12);
   }
 
@@ -124,16 +126,27 @@ static void test_all_results_through_c_and_wire(void **state) {
   assert_true(fabs(capn_to_f64(capn_get64(view.mdTrajectoryRow, 0)) - md.values[0]) <
               1e-12);
   assert_true(capn_to_f64(capn_get64(view.mdTrajectoryRow, 11)) == 0.0);
+  assert_true(fabs(md.values[6] - ec.ehep) < 1e-12);
+  assert_true(fabs(md.values[7] - ec.ehee) < 1e-12);
+  assert_true(fabs(md.values[8] - ec.ehii) < 1e-12);
+  assert_true(fabs(md.values[9] - ec.esr) < 1e-12);
+  assert_true(fabs(md.values[10] - ec.eself) < 1e-12);
 
-  assert_true(view.dipole.p.type != CAPN_NULL);
-  assert_int_equal(capn_len(view.dipole), 3);
-  assert_true(view.polarizability.p.type != CAPN_NULL);
-  assert_int_equal(capn_len(view.polarizability), 9);
+  /* An unread pointer comes back unresolved. After resolve it is absent. */
+  assert_int_equal(capn_len(view.dipole), 0);
+  capn_resolve(&view.dipole.p);
+  assert_int_equal(view.dipole.p.type, CAPN_NULL);
+  assert_int_equal(capn_len(view.polarizability), 0);
+  capn_resolve(&view.polarizability.p);
+  assert_int_equal(view.polarizability.p.type, CAPN_NULL);
   assert_true(view.gradient.p.type != CAPN_NULL);
-  assert_true((size_t)capn_len(view.gradient) == prop.hessian_count);
-  for (size_t i = 0; i < prop.hessian_count; ++i) {
-    double w = capn_to_f64(capn_get64(view.gradient, (int)i));
-    assert_true(fabs(w - prop.hessian[i]) < 1e-12);
+  assert_true(view.forces.p.type != CAPN_NULL);
+  assert_int_equal(capn_len(view.gradient), capn_len(view.forces));
+  for (int i = 0; i < capn_len(view.gradient); ++i) {
+    double g = capn_to_f64(capn_get64(view.gradient, i));
+    double f = capn_to_f64(capn_get64(view.forces, i));
+    /* forces already include the ForceInput force factor. */
+    assert_true(fabs(g + f) < 1e-12);
   }
   printf("wire_full components=%d charge=%d md=%d ms=%d grad_len=%d "
          "embedMdPropsSkipped_raw=%d\n",

@@ -59,14 +59,21 @@ Each snapshot struct starts with ~int valid~, set by a successful evaluation.
 | ~CPMDCChargeIntegrals~ | ~csumg~, ~csumr~, ~csums~, ~csumsabs~ from ~chrg~ | electrons |
 | ~CPMDCMultiStateEnergies~ | ~count~ doubles in ~values[64]~ from ~ener_c~ and ~ener_d~ | Hartree |
 | ~CPMDCMDTrajectoryRow~ | ~count~ doubles in ~values[32]~: ~etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC~ | Hartree |
-| ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units |
+| ~CPMDCPropertySnapshot~ | deprecated ~hessian[4096]~ (count 0), ~dipole[3]~, ~polarizability[9]~, each with a count | atomic units |
 | ~CPMDCStressTensor~ | row-major ~values[9]~, ~paiu/omega~ | Hartree/Bohr^3 |
 
-With OpenCPMD linked, ~CPMDCEnergyComponents~ fills ~etot~, ~ekin~,
-~epseu~, ~enl~, ~eht~, and ~exc~; the other fields stay zero.
-The reference evaluator fills ~etot~ only.
-~EKINC~, the fictitious electronic kinetic energy, is zero for a wavefunction
-optimisation.
+With OpenCPMD linked, ~CPMDCEnergyComponents~ copies all 24 ~ener_com~
+scalars, ~etot~ through ~eefield~.
+The reference evaluator fills ~etot~ only and leaves the other 23 at 0.
+Slots 6 to 10 of ~CPMDCMDTrajectoryRow~ are ~ehep~, ~ehee~, ~ehii~, ~esr~,
+and ~eself~ from that snapshot.
+Slot 11, ~EKINC~, stays 0: the embed runs a wavefunction optimisation, not
+an MD step, so the fictitious electronic kinetic energy is not computed.
+~hessian~ is deprecated and ~hessian_count~ stays 0.
+The nuclear gradient is ~PotentialResult.gradient~.
+~dipole_count~ stays 0 because ~ddipo~ does not run in this call, and
+~PotentialResult.dipole~ is left absent.
+~polarizability~ is never computed, so that list is absent too.
 
 ** ~CPMDCFeatureEntry~ and ~CPMDCFeatureKind~
 
@@ -193,9 +200,21 @@ when the deck has none.
 When ~capacity~ is too small it returns ~ok == 0~ with ~PotentialResult buffer
 too small~ and does not evaluate.
 The written ~PotentialResult~ carries ~energy~ and ~forces~ in the requested
-units, ~stress~, ~gradient~, ~dipole~, ~polarizability~, and the ~cpmdc~
-extension fields ~energyComponents~, ~chargeIntegrals~, ~multiStateEnergies~,
-and ~mdTrajectoryRow~ with their ~...Valid~ flags.
+units.
+~gradient~ uses the same conversion as ~forces~: Hartree/Bohr times the
+~ForceInput~ force factor, so the list is ~energyUnit~ per ~lengthUnit~.
+~forces~ are the negative of that gradient.
+~stress~ uses the stress factor.
+~dipole~ and ~polarizability~ are absent: ~ddipo~ does not run on this path,
+and polarizability is not computed.
+The extension fields ~energyComponents~, ~chargeIntegrals~,
+~multiStateEnergies~, and ~mdTrajectoryRow~ are written with their
+~...Valid~ flags.
+~energyComponents~ is the 24 ~ener_com~ scalars in Hartree.
+The shared schema comment on ~gradient~ still says ~energy/length units~.
+Tightening that sentence to name the ~ForceInput~ factor belongs in
+~OmniPotentRPC/potentials-schema~ after v1.15.1; this tree keeps the
+vendored ~schema/Potentials.capnp~ byte-identical to that release.
 
 * One-shot message calls
 

@@ -138,7 +138,8 @@ typedef struct CPMDCMultiStateEnergies {
  * Layout (count >= 12 after a successful eval):
  *   [0] etot  [1] ekin  [2] epseu  [3] enl  [4] eht  [5] exc
  *   [6] ehep  [7] ehee  [8] ehii   [9] esr  [10] eself
- *   [11] EKINC (fictitious electronic KE; 0 for BO/SCF-only wfopt, filled in MD)
+ *   [11] EKINC (fictitious electronic KE). The embed does not run an MD
+ *   step, so this slot stays 0.
  */
 typedef struct CPMDCMDTrajectoryRow {
   /** Non-zero when the snapshot was written. */
@@ -152,25 +153,28 @@ typedef struct CPMDCMDTrajectoryRow {
 /**
  * @brief PROP-style property snapshot after a successful evaluation.
  *
- * - dipole[3]: OpenCPMD `ddip%pdipole` (a.u.) when linked; PEF zeros
- * - polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
- * - hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs
- *   dedicated PROP/Hessian run; gradient is always available after force eval)
+ * - dipole[3]: present only when `ddipo` computed `pdipole` in this call.
+ *   The embed wavefunction optimisation does not call `ddipo`, so `dipole_count`
+ *   is 0 and `PotentialResult.dipole` is absent.
+ * - polarizability[9]: not computed. `polarizability_count` is 0 and
+ *   `PotentialResult.polarizability` is absent.
+ * - hessian[]: deprecated. It used to hold the nuclear gradient. `hessian_count`
+ *   is 0. The gradient is `PotentialResult.gradient`, in ForceInput units.
  */
 typedef struct CPMDCPropertySnapshot {
   /** Non-zero when the snapshot was written. */
   int valid;
-  /** Number of doubles copied into `hessian`. */
+  /** Deprecated. Always 0. The gradient is `PotentialResult.gradient`. */
   size_t hessian_count;
-  /** Nuclear gradient dE/dR, packed as `natoms * 3`. */
+  /** Deprecated. Not written. Use `PotentialResult.gradient`. */
   double hessian[4096];
-  /** Number of doubles copied into `dipole`. */
+  /** Number of doubles copied into `dipole`. 0 when `ddipo` did not run. */
   size_t dipole_count;
-  /** OpenCPMD `ddip%pdipole` in atomic units, or zeros for a reference PEF. */
+  /** OpenCPMD `ddip%pdipole` in atomic units, only after `ddipo` in this call. */
   double dipole[3];
-  /** Number of doubles copied into `polarizability`. */
+  /** Number of doubles copied into `polarizability`. 0: it is not computed. */
   size_t polarizability_count;
-  /** Polarizability when PROP is available; otherwise zeros. */
+  /** Not computed on the embed path. */
   double polarizability[9];
 } CPMDCPropertySnapshot;
 

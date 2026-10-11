@@ -79,6 +79,18 @@ static void test_last_energy_components_after_eval(void **state) {
   assert_true(isfinite(c.etot));
   assert_true(fabs(c.etot - r.energy_h) < 1e-12);
 
+  /* All 24 ener_com slots are copied. The reference PEF sets only etot. */
+  {
+    const double *slot = &c.etot;
+    assert_true(fabs(slot[0]) > 0.0);
+    for (int i = 0; i < 24; ++i)
+      assert_true(isfinite(slot[i]));
+#ifndef CPMDC_HAS_CPMD
+    for (int i = 1; i < 24; ++i)
+      assert_true(slot[i] == 0.0);
+#endif
+  }
+
   /* At least one non-total field is finite (always); live embed also non-zero PP/XC. */
   assert_true(isfinite(c.ekin) && isfinite(c.exc) && isfinite(c.eht) &&
               isfinite(c.epseu) && isfinite(c.enl));
