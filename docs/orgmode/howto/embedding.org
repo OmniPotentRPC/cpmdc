@@ -213,6 +213,43 @@ Elements the message omits use the built-in table for H, C, N, O, Si, and Ge.
 An element in neither is an error.
 See [[file:write-cpmdparams.org][writing a CPMDParams message]].
 
+* Atoms directives on the rebuild
+A deck that already has a coordinate triple under ~&ATOMS~ is kept as written.
+A method deck with no coordinate triple is rebuilt: ~embed_method_deck_plus_atoms~
+writes one species block per atomic number, in first-seen order, and fills
+coordinates from the step. That rebuild used to drop the rest of ~&ATOMS~.
+It now copies these directives, in the order they appear, and inserts them
+before the new ~&END~:
+
+- ~CONSTRAINTS~ through ~END CONSTRAINTS~
+- ~ISOTOPE~
+- ~DUMMY ATOMS~
+- ~CHANGE BONDS~
+- ~CONFINEMENT POTENTIAL~
+- ~ATOMIC CHARGES~
+- ~MOVIE TYPE~
+
+~VELOCITIES~ and ~METADYNAMICS~ stay on the host. The list is
+~cpmdc_atoms_dropped_directives~ in ~include/cpmdc_atoms_extras.h~.
+Coordinate lines and ~GENERATE COORDINATES~ are omitted, because the step
+owns the geometry. The same inputs produce the same bytes. Deck composition
+does not reduce across ranks.
+
+Bare integers on ~CONSTRAINTS~, ~DUMMY ATOMS~, and ~CHANGE BONDS~ lines are
+atom indices in the caller's order. They are rewritten into the
+species-grouped order. A line whose only token is one integer is a count and is not
+an index. A float, and a token that starts with ~+~ or ~-~, is left as
+written (~+1~ on ~CHANGE BONDS~ is a bond flag). An integer outside
+~1..n_atoms~ on those lines is an error, and the message names the directive.
+The rebuild does not fall through to a deck that silently drops the block.
+
+~ISOTOPE~, ~CONFINEMENT POTENTIAL~, ~ATOMIC CHARGES~, and ~MOVIE TYPE~ are
+one record per species in the order written. Their numbers are not atom
+indices, so the rebuild copies those lines unchanged. A ~TYPE2~, ~TYPE3~, or
+~TYPE4~ dummy line stores its atom count in the first integer of that line.
+That integer is remapped when it lies in ~1..n_atoms~. Put a count that must
+stay literal on its own line.
+
 Choose the least lossy structured carrier:
 
 | Need | Carrier | Feature ID to discover |

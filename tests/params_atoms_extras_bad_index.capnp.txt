@@ -1,0 +1,9 @@
+(
+  functional = "PBE",
+  inputSections = [
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = (
+        pseudopotentials = [
+          ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 ),
+          ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ) ],
+        constraints = [ ( kind = "FIX", atoms = [9, 1] ) ] ) ) ] )

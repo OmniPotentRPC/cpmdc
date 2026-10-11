@@ -207,7 +207,7 @@ if has_cpmd
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
+                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_atoms_extras.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
@@ -1278,6 +1278,18 @@ test(
     output: 'params_atoms_extras.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_atoms_extras_rebuild_bin = custom_target(
+    'params_atoms_extras_rebuild_bin',
+    input: 'tests/params_atoms_extras_rebuild.capnp.txt',
+    output: 'params_atoms_extras_rebuild.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  params_atoms_extras_bad_index_bin = custom_target(
+    'params_atoms_extras_bad_index_bin',
+    input: 'tests/params_atoms_extras_bad_index.capnp.txt',
+    output: 'params_atoms_extras_bad_index.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
 
   params_method_only_bin = custom_target(
     'params_method_only_bin',
@@ -1318,6 +1330,26 @@ test(
       params_atoms_from_message_bin,
     ],
     suite: ['cmocka', 'params', 'capnp-fortran'],
+  )
+
+  test(
+    'atoms-extras-rebuild',
+    executable(
+      'test_atoms_extras_rebuild',
+      'tests/test_atoms_extras_rebuild.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [
+      params_atoms_extras_rebuild_bin.full_path(),
+      params_atoms_extras_bad_index_bin.full_path(),
+    ],
+    depends: [
+      params_atoms_extras_rebuild_bin,
+      params_atoms_extras_bad_index_bin,
+    ],
+    suite: ['cmocka', 'params'],
   )
 
   test(

@@ -59,6 +59,16 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_int
       INTEGER(c_int) :: cpmdc_restore_host_cwd
     END FUNCTION
+    FUNCTION cpmdc_atoms_extras_keep(deck, deck_len, z, n_atoms, out, &
+        out_cap, out_len, err, err_cap) BIND(C, NAME='cpmdc_atoms_extras_keep')
+      IMPORT :: c_char, c_int
+      CHARACTER(KIND=c_char), INTENT(IN) :: deck(*)
+      INTEGER(c_int), INTENT(IN), VALUE :: deck_len, n_atoms, out_cap, err_cap
+      INTEGER(c_int), INTENT(IN) :: z(*)
+      CHARACTER(KIND=c_char), INTENT(OUT) :: out(*), err(*)
+      INTEGER(c_int), INTENT(OUT) :: out_len
+      INTEGER(c_int) :: cpmdc_atoms_extras_keep
+    END FUNCTION
   END INTERFACE
 END MODULE
 
@@ -1278,18 +1288,23 @@ CONTAINS
   ! Cap'n method deck (empty/missing &ATOMS) + geometry atoms from C arrays.
   SUBROUTINE embed_method_deck_plus_atoms(n_atoms, pos, z, cell, has_cell, &
       deck, nlen, ierr, knobs)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_atoms_extras_keep, &
+         cpmdc_note_embed_failure
     TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER, INTENT(IN) :: n_atoms, has_cell
     REAL(c_double), INTENT(IN) :: pos(*), cell(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
-    INTEGER :: i, j, zz, count, pok, mlen, failed, stat
+    INTEGER :: i, j, zz, count, pok, mlen, failed, stat, ndeck, cap
     LOGICAL :: seen(0:120)
     CHARACTER(LEN=600) :: star
     CHARACTER(LEN=256) :: opt
     CHARACTER(LEN=128) :: line
-    CHARACTER(LEN=:), ALLOCATABLE :: method
+    CHARACTER(LEN=:), ALLOCATABLE :: method, extras
+    CHARACTER(KIND=c_char), ALLOCATABLE :: deck_c(:), out_c(:)
+    CHARACTER(KIND=c_char) :: err_c(192)
+    INTEGER(c_int) :: out_len, rc
     ierr = 1
     nlen = 0
     failed = 0
@@ -1330,6 +1345,50 @@ CONTAINS
         CALL append(TRIM(line)//NEW_LINE('A'))
       END DO
     END DO
+    ! Non-coordinate directives from the caller's &ATOMS. Coordinates,
+    ! VELOCITIES, and METADYNAMICS stay with the host. ierr 3 does not
+    ! fall through to the minimal deck.
+    IF (failed /= 0) RETURN
+    ndeck = LEN(knobs%input_deck)
+    IF (ndeck > 0) THEN
+      cap = ndeck * 8 + 64
+      ALLOCATE(deck_c(ndeck), out_c(cap), STAT=stat)
+      IF (stat /= 0) THEN
+        CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+        ierr = 3
+        RETURN
+      END IF
+      DO i = 1, ndeck
+        deck_c(i) = knobs%input_deck(i:i)
+      END DO
+      err_c(:) = c_null_char
+      out_len = 0_c_int
+      rc = cpmdc_atoms_extras_keep(deck_c, INT(ndeck, KIND=c_int), z, &
+           INT(n_atoms, KIND=c_int), out_c, INT(cap, KIND=c_int), out_len, &
+           err_c, INT(SIZE(err_c), KIND=c_int))
+      IF (rc /= 0_c_int) THEN
+        CALL cpmdc_note_embed_failure(err_c)
+        ierr = 3
+        RETURN
+      END IF
+      IF (out_len > 0_c_int) THEN
+        ALLOCATE(CHARACTER(LEN=INT(out_len)) :: extras, STAT=stat)
+        IF (stat /= 0) THEN
+          CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+          ierr = 3
+          RETURN
+        END IF
+        DO i = 1, INT(out_len)
+          extras(i:i) = out_c(i)
+        END DO
+        CALL append(extras)
+        IF (failed /= 0) THEN
+          CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+          ierr = 3
+          RETURN
+        END IF
+      END IF
+    END IF
     CALL append('&END'//NEW_LINE('A'))
     ! Lattice is injected in embed_compose_cold_deck via inject_cell_if_missing.
     IF (failed /= 0) RETURN
@@ -1503,7 +1562,8 @@ CONTAINS
       END IF
     END IF
     ! ierr 2 is a missing pseudopotential. The minimal deck cannot supply one.
-    IF (ierr /= 0 .AND. ierr /= 2) THEN
+    ! ierr 3 is an atom index the rebuilt order does not contain.
+    IF (ierr /= 0 .AND. ierr /= 2 .AND. ierr /= 3) THEN
       CALL embed_build_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
            ierr, knobs)
     END IF
