@@ -4178,10 +4178,8 @@ static int render_tddft_section(char *dst, size_t dst_size, size_t *used,
     if (append_text(dst, dst_size, used, "\n") != 0)
       return -1;
   }
-  if (tddft->convergence > 0.0 &&
-      append_fmt(dst, dst_size, used, " CONVERGENCE\n  %g\n",
-                 tddft->convergence) != 0)
-    return -1;
+  /* OpenCPMD 062582b reads CONVERGENCE in &LINRES, not in &TDDFT.
+   * CPMDTddftSection.convergence stays on the struct and is not written. */
   if (append_directives(dst, dst_size, used, tddft->directives) != 0)
     return -1;
   if (append_set_directives_for_section(dst, dst_size, used, sets,
@@ -5684,4 +5682,3 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   *potential_result_size_bytes = (size_t)wrote;
   return 0;
 }
-

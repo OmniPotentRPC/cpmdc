@@ -77,6 +77,8 @@ them.
 | ~cpmd-typed-render-field-coverage~ | a typed ~cpmd~, ~system~, ~dft~, or ~atoms~ field is absent from the render fixtures and assertions |
 | ~cpmd-long-tail-section-coverage~ | a ~CPMDDirectiveSection~ arm is missing from the long-tail fixture, the render assertions, or the option reference |
 | ~cpmd-escape-hatch-coverage~ | ~inputBlocks~, ~generic~, ~set~, or ~raw~ lose schema, fixture, render, or docs coverage |
+| ~cpmd-inscan-token-fidelity~ | a typed ~render_*_section~ literal is not accepted by that section's readers in ~opencpmd_reader_tokens.json~, other than the ~P03 typed-carrier-fidelity~ carriers |
+| ~opencpmd-reader-tokens~ | the extractor attributes a comment, a ~WRITE~ string, or another section's keyword to the wrong section |
 
 Run them together:
 
@@ -92,6 +94,62 @@ CPMD_ROOT=/path/to/opencpmd meson test -C build feature-inventory -v
 
 A passing live probe prints ~probed /path/to/opencpmd: 25 inscan sections~.
 Without ~CPMD_ROOT~ the test prints a warning and skips that part.
+
+* Reader token snapshot
+~schema/inventory/opencpmd_reader_tokens.json~ holds the keyword literals
+OpenCPMD ~062582b7cfd832d36f88f504cd08e4ead42eb404~ tests in each input
+section.
+For every section the extractor finds the procedure that calls
+~inscan('&SECTION')~ and the readers that procedure calls.
+Fortran comments are removed first.
+A string counts only when ~keyword_contains~ or ~INDEX~ tests it on the
+input line (~line~, ~previous_line~, or ~next_words~), or when
+~index_of_delimiter~ tests that keyword.
+A comment, a ~WRITE~, or a keyword that belongs to another section stays
+out.
+Delegated readers such as constraints and metadynamics collective
+variables are nested under the section that calls them.
+The file records ~extractor_version~ and ~opencpmd_sha~.
+
+Refresh it from an OpenCPMD checkout:
+
+#+begin_src bash
+python3 tools/opencpmd_reader_tokens.py /path/to/OpenCPMD/CPMD \
+  -o schema/inventory/opencpmd_reader_tokens.json
+#+end_src
+
+~cpmd-inscan-token-fidelity~ reads that snapshot.
+It does not need an OpenCPMD tree.
+Each literal a typed ~render_*_section~ writes is checked against that
+section's readers.
+~keyword_contains~ must match whole words, and an ~and~ companion is
+required when the reader requires it.
+~INDEX~ matches a prefix of a word (~REPL~ matches ~REPLICA~).
+A line whose words are all literals that section tests is not reported.
+The typed carriers the owning reader would not accept stay expected
+failures with reason ~P03 typed-carrier-fidelity~:
+~&VDW~ ~GRIMME~, ~S6~, ~RADIUS~;
+~&RESP~ ~WEIGHT~, ~HYPERBOLIC~, ~BETA~;
+~&EXTE~ ~EFIELD~;
+~&VECTORS~ ~NEWORTHO~, ~OVERLAP~;
+~&PATH~ ~SPRING~;
+~&CPMD~ ~SHAKE~.
+Nothing else is an expected failure.
+~&TDDFT~ does not write ~CONVERGENCE~.
+OpenCPMD 062582b tests that keyword in ~&LINRES~, and
+~CPMDTddftSection.convergence~ stays on the struct.
+Point ~OPENCPMD_READER_TREE~ at a checkout to rebuild the snapshot and
+fail when it drifts:
+
+#+begin_src bash
+OPENCPMD_READER_TREE=/path/to/OpenCPMD/CPMD \
+  meson test -C build cpmd-inscan-token-fidelity -v
+#+end_src
+
+~opencpmd-reader-tokens~ checks the extractor on a small tree:
+~S6GRIMME~ is a ~&VDW~ literal, ~GRIMME~ is not, a keyword that exists
+only in a comment is not collected, and a ~&CPMD~ keyword is not attributed
+to ~&VECTORS~.
 
 * Add a row
 Adding a typed keyword touches the schema, the renderer, the C table, the

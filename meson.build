@@ -957,6 +957,14 @@ if get_option('with_tests')
     ],
     suite: ['params', 'inventory', 'embed'],
   )
+  test(
+    'opencpmd-reader-tokens',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_opencpmd_reader_tokens.py',
+    ],
+    suite: ['inventory'],
+  )
 
 test(
     'cpmd-escape-hatch-coverage',
