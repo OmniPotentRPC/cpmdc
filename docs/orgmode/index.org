@@ -75,6 +75,9 @@ composition requires a new session.
    * - Run on many ranks
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
+   * - Compare an OpenCPMD binary across ranks and threads
+     - Run the bench harness and read the measured tables
+     - :doc:`OpenCPMD rank and thread evidence <howto/opencpmd-invariance>`
    * - Find out why a call failed or an energy is off
      - Write the deck with ``CPMDC_DECK_OUT``
      - :doc:`Troubleshooting <howto/troubleshooting>`
@@ -145,6 +148,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/write-cpmdparams
    howto/embedding
    howto/mpi
+   howto/opencpmd-invariance
    howto/wavefunction-optimiser
    howto/debug-deck
    howto/troubleshooting

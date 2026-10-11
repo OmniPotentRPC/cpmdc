@@ -1,0 +1,23 @@
+#+TITLE: OpenCPMD rank and thread evidence
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* What this page is
+~bench/opencpmd_invariance/~ holds a harness that builds OpenCPMD
+~062582b7cfd832d36f88f504cd08e4ead42eb404~ and compares ~cpmd.x~ across MPI
+ranks and OpenMP threads.
+The numbers are measurements of that OpenCPMD revision.
+They are not a statement about ~cpmdc~.
+
+* Reproduce
+The inputs, the evidence patch, and the driver live in the bench directory.
+Build notes, the compiler flags, and the result tables are in
+~bench/opencpmd_invariance/README.org~.
+
+#+begin_src bash
+bench/opencpmd_invariance/build_opencpmd.sh stock
+python3 bench/opencpmd_invariance/run_grid.py --variants stock
+python3 bench/opencpmd_invariance/analyze.py
+#+end_src
+
+The patch is evidence only, not for upstream as is.
+Behavior is selected by ~src/evidence_flags.h~ in the build tree.

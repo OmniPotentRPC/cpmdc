@@ -16,7 +16,7 @@ exclude = """(?x)(
 [[repos]]
 repo = "builtin"
 hooks = [
-  { id = "trailing-whitespace" },
+  { id = "trailing-whitespace", exclude = "^bench/opencpmd_invariance/patches/evidence\\.patch$" },
   { id = "end-of-file-fixer" },
   { id = "check-yaml" },
   { id = "check-toml" },

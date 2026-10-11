@@ -1,0 +1,3700 @@
+Evidence only, not for upstream as is.
+OpenCPMD 062582b7cfd832d36f88f504cd08e4ead42eb404.
+The harness selects behavior with src/evidence_flags.h.
+
+diff -ruN a/src/debfor_utils.mod.F90 b/src/debfor_utils.mod.F90
+--- a/src/debfor_utils.mod.F90	2026-10-11 10:21:57.855578340 +0000
++++ b/src/debfor_utils.mod.F90	2026-10-11 11:17:19.493645929 +0000
+@@ -19,6 +19,8 @@
+   USE error_handling,                  ONLY: stopgm
+   USE fint,                            ONLY: fint1
+   USE forcedr_driver,                  ONLY: forcedr
++  USE evidence_dump,                   ONLY: evidence_write_results
++  USE totstr_utils,                    ONLY: totstr
+   USE forcedr_utils,                   ONLY: give_scr_forcedr
+   USE forcep_utils,                    ONLY: rhoe_psi_size
+   USE initrun_driver,                  ONLY: initrun
+@@ -250,9 +252,12 @@
+             rhoe,psi,&
+             nstate,.TRUE.,.TRUE.,cntl%tpres,infi,thl,nhpsi)
+     ELSE
++       ropt_mod%calste=cntl%tpres
+        CALL forcedr(c0(:,:,1),c2,sc0,rhoe,psi,tau0,fion,eigv,&
+             nstate,1,.TRUE.,.TRUE.)
++       IF (cntl%tpres) CALL totstr
+     ENDIF
++    CALL evidence_write_results(fion)
+     CALL dscal(3*maxsys%nax*maxsys%nsx,-1.0_real_8,fion(1,1,1),1)
+     time2=m_walltime()
+     tcpu=(time2-time1)*0.001_real_8
+@@ -459,6 +464,7 @@
+                                                 linitrun, lortho, lrhoofr, &
+                                                 lrnlsm, lsymmat, ltddft, &
+                                                 lupdate, nstate
++    LOGICAL                                  :: ev_calste
+ 
+     nstate=crge%n
+     lcopot=0
+@@ -481,7 +487,10 @@
+        CALL give_scr_updrho(lupdate,tag,nstate,.TRUE.,cntl%tpres)
+     ELSE
+        CALL give_scr_updwf(lupdate,tag,nstate,.FALSE.)
++       ev_calste=ropt_mod%calste
++       ropt_mod%calste=ropt_mod%calste.OR.cntl%tpres
+        CALL give_scr_forcedr(lforces,tag,nstate,.TRUE.,.TRUE.)
++       ropt_mod%calste=ev_calste
+     ENDIF
+     IF (.NOT.restart1%rvib) CALL give_scr_ortho(lortho,tag,nstate)
+     IF (.NOT.(symmi%indpg.EQ.0.OR.symmi%nrot.EQ.1))&
+diff -ruN a/src/dotp_utils.mod.F90 b/src/dotp_utils.mod.F90
+--- a/src/dotp_utils.mod.F90	2026-10-11 10:21:57.863578691 +0000
++++ b/src/dotp_utils.mod.F90	2026-10-11 11:17:19.493645929 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE dotp_utils
+ 
+   USE error_handling,                  ONLY: stopgm
+@@ -48,7 +49,20 @@
+        dotp=2.0_real_8*( REAL(a(1),KIND=real_8)*REAL(b(1),KIND=real_8) + AIMAG(a(1))*AIMAG(b(1)))
+     ENDIF
+     IF (n.GT.1) THEN
++#if defined(CPMDC_EVIDENCE_GORDER)
++       BLOCK
++         INTEGER :: ev_k
++         REAL(real_8) :: ev_d
++         ev_d=0.0_real_8
++         DO ev_k=2,n
++            ev_d=ev_d+REAL(a(ev_k),KIND=real_8)*REAL(b(ev_k),KIND=real_8)+&
++                 AIMAG(a(ev_k))*AIMAG(b(ev_k))
++         ENDDO
++         dotp=dotp+2.0_real_8*ev_d
++       END BLOCK
++#else
+        dotp=dotp+2.0_real_8*ddot(2*n-2,a(2),1,b(2),1)
++#endif
+     ENDIF
+   END FUNCTION dotp_c
+ 
+@@ -93,8 +107,20 @@
+      ENDDO
+      dotp=dotp+ddo+ddo
+ #else
++#if defined(CPMDC_EVIDENCE_GORDER)
++     BLOCK
++       INTEGER :: ev_k
++       REAL(real_8) :: ev_d
++       ev_d=0.0_real_8
++       DO ev_k=3,2*n
++          ev_d=ev_d+a(ev_k)*b(ev_k)
++       ENDDO
++       dotp=dotp+ev_d+ev_d
++     END BLOCK
++#else
+      dotp=dotp+2.0_real_8*ddot(2*n-2,a(3),1,b(3),1)
+ #endif
++#endif
+   ENDIF
+   ! ==--------------------------------------------------------------==
+   RETURN
+diff -ruN a/src/evidence_dump.mod.F90 b/src/evidence_dump.mod.F90
+--- a/src/evidence_dump.mod.F90	1970-01-01 00:00:00.000000000 +0000
++++ b/src/evidence_dump.mod.F90	2026-10-11 11:17:19.489645948 +0000
+@@ -0,0 +1,131 @@
++! Evidence only, not for upstream as is.
++! Writes raw f64 results when CPMDC_EVIDENCE_BIN is set.
++! fion is the nuclear gradient (printed as GRADIENTS (-FORCES)).
++! The file stores the physical force, which is -fion.
++! Stress is paiu, column major.
++
++module evidence_dump
++  use ener, only: ener_com
++  use ions, only: ions0, ions1
++  use kinds, only: real_8
++  use norm, only: cnorm, gemax
++  use parac, only: parai, paral
++  use strs, only: paiu
++  use system, only: ncpw, parm, parap
++  implicit none
++  public :: evidence_write_results
++contains
++
++  subroutine evidence_write_results(fion)
++    real(real_8), intent(in) :: fion(:, :, :)
++    character(len=1024) :: path
++    character(len=16) :: nm
++    character(len=16), parameter :: names(24) = (/ &
++         'etot            ', 'ekin            ', 'epseu           ', &
++         'enl             ', 'eht             ', 'ehep            ', &
++         'ehee            ', 'ehii            ', 'exc             ', &
++         'vxc             ', 'egc             ', 'esr             ', &
++         'eself           ', 'eeig            ', 'eband           ', &
++         'entropy         ', 'eext            ', 'ehsic           ', &
++         'ecnstr          ', 'erestr          ', 'eefield         ', &
++         'ebogo           ', 'amu             ', 'etddft          ' /)
++    real(real_8) :: values(24)
++    integer :: iu, is, ia, k, r, length, stat, nforce
++    integer(4) :: i4
++    logical :: opened
++
++    call get_environment_variable('CPMDC_EVIDENCE_BIN', path, length, stat)
++    if (stat /= 0 .or. length <= 0) return
++    if (.not. paral%io_parent) return
++
++    values(1) = ener_com%etot
++    values(2) = ener_com%ekin
++    values(3) = ener_com%epseu
++    values(4) = ener_com%enl
++    values(5) = ener_com%eht
++    values(6) = ener_com%ehep
++    values(7) = ener_com%ehee
++    values(8) = ener_com%ehii
++    values(9) = ener_com%exc
++    values(10) = ener_com%vxc
++    values(11) = ener_com%egc
++    values(12) = ener_com%esr
++    values(13) = ener_com%eself
++    values(14) = ener_com%eeig
++    values(15) = ener_com%eband
++    values(16) = ener_com%entropy
++    values(17) = ener_com%eext
++    values(18) = ener_com%ehsic
++    values(19) = ener_com%ecnstr
++    values(20) = ener_com%erestr
++    values(21) = ener_com%eefield
++    values(22) = ener_com%ebogo
++    values(23) = ener_com%amu
++    values(24) = ener_com%etddft
++
++    nforce = 0
++    do is = 1, ions1%nsp
++      nforce = nforce + ions0%na(is) * 3
++    end do
++
++    open(newunit=iu, file=trim(path(1:length)), access='stream', &
++         form='unformatted', status='replace', iostat=stat)
++    if (stat /= 0) return
++    opened = .true.
++    i4 = int(z'45564431', 4)
++    write(iu) i4
++    i4 = 1_4
++    write(iu) i4
++    i4 = int(ions1%nat, 4)
++    write(iu) i4
++    i4 = 24_4
++    write(iu) i4
++    do k = 1, 24
++      nm = names(k)
++      write(iu) nm
++      write(iu) values(k)
++    end do
++    i4 = int(nforce, 4)
++    write(iu) i4
++    do is = 1, ions1%nsp
++      do ia = 1, ions0%na(is)
++        do k = 1, 3
++          write(iu) -fion(k, ia, is)
++        end do
++      end do
++    end do
++    i4 = 9_4
++    write(iu) i4
++    do ia = 1, 3
++      do is = 1, 3
++        write(iu) paiu(is, ia)
++      end do
++    end do
++    write(iu) parm%omega
++    write(iu) gemax
++    write(iu) cnorm
++    i4 = int(parai%nproc, 4)
++    write(iu) i4
++    if (allocated(parap%sparm) .and. allocated(parap%nrxpl)) then
++      do r = 0, parai%nproc - 1
++        i4 = int(parap%sparm(3, r), 4)
++        write(iu) i4
++        i4 = int(parap%nrxpl(r, 1), 4)
++        write(iu) i4
++        i4 = int(parap%nrxpl(r, 2), 4)
++        write(iu) i4
++      end do
++    else
++      do r = 0, parai%nproc - 1
++        i4 = int(ncpw%ngw, 4)
++        write(iu) i4
++        i4 = 0_4
++        write(iu) i4
++        write(iu) i4
++      end do
++    end if
++    close(iu)
++    if (.not. opened) return
++  end subroutine evidence_write_results
++
++end module evidence_dump
+diff -ruN a/src/evidence_flags.h b/src/evidence_flags.h
+--- a/src/evidence_flags.h	1970-01-01 00:00:00.000000000 +0000
++++ b/src/evidence_flags.h	2026-10-11 11:17:19.489645948 +0000
+@@ -0,0 +1,6 @@
++#ifndef CPMDC_EVIDENCE_FLAGS_H
++#define CPMDC_EVIDENCE_FLAGS_H
++/* Evidence-only switches. The harness build rewrites this file.
++   Absent macros leave the stock OpenCPMD operation in place.
++   This header is not an upstream interface. */
++#endif
+diff -ruN a/src/evidence_reduce.mod.F90 b/src/evidence_reduce.mod.F90
+--- a/src/evidence_reduce.mod.F90	1970-01-01 00:00:00.000000000 +0000
++++ b/src/evidence_reduce.mod.F90	2026-10-11 11:17:19.489645948 +0000
+@@ -0,0 +1,560 @@
++! Evidence only, not for upstream as is.
++! Rank-ordered gather and an int128 fixed-point MPI reduction for mp_sum.
++! The fixed point is x * 2^90. Values with magnitude in [2^-38, 2^37)
++! convert exactly. Subnormals, NaNs and infinities become zero.
++
++#include "evidence_flags.h"
++
++module evidence_reduce
++#ifdef __PARALLEL
++  use mpi
++#endif
++  implicit none
++  public :: evidence_allreduce_r8
++  public :: evidence_allreduce_r8_s
++  public :: evidence_allreduce_r8_inplace
++  public :: evidence_allreduce_c8
++  public :: evidence_allreduce_c8_s
++  public :: evidence_allreduce_c8_inplace
++  public :: evidence_reduce_r8
++  public :: evidence_reduce_r8_s
++  public :: evidence_reduce_c8
++  public :: evidence_reduce_c8_s
++  public :: evidence_gorder_sum
++  public :: evidence_pack_f64
++  public :: evidence_unpack_i128
++  integer, parameter :: evidence_i16 = selected_int_kind(38)
++  integer, parameter :: evidence_scale_bias = 985
++  integer, parameter :: evidence_tag = 44021
++contains
++
++  function evidence_pack_f64(x) result(q)
++    real(8), intent(in) :: x
++    integer(evidence_i16) :: q
++    integer(8) :: bits, frac
++    integer :: expb, sh, sgn
++    bits = transfer(x, 0_8)
++    sgn = int(shiftr(bits, 63))
++    expb = int(ibits(bits, 52, 11))
++    frac = ibits(bits, 0, 52)
++    q = 0_evidence_i16
++    if (expb == 0 .or. expb == 2047) return
++    frac = ior(frac, shiftl(1_8, 52))
++    sh = expb - evidence_scale_bias
++    if (sh >= 0) then
++      if (sh > 74) return
++      q = shiftl(int(frac, evidence_i16), sh)
++    else if (sh > -53) then
++      q = shiftr(int(frac, evidence_i16), -sh)
++    else
++      return
++    end if
++    if (sgn == 1) q = -q
++  end function evidence_pack_f64
++
++  function evidence_unpack_i128(q) result(x)
++    integer(evidence_i16), intent(in) :: q
++    real(8) :: x
++    integer(evidence_i16) :: aq, mant
++    integer(8) :: bits, frac
++    integer :: p, sh, expb, rb, sticky, sgn
++    if (q == 0_evidence_i16) then
++      x = 0.0d0
++      return
++    end if
++    sgn = 0
++    aq = q
++    if (q < 0_evidence_i16) then
++      sgn = 1
++      aq = -q
++    end if
++    p = 127 - leadz(aq)
++    sh = p - 52
++    if (sh >= 0) then
++      mant = shiftr(aq, sh)
++    else
++      mant = shiftl(aq, -sh)
++    end if
++    rb = 0
++    sticky = 0
++    if (sh > 0) then
++      rb = int(ibits(aq, sh - 1, 1))
++      if (sh > 1) then
++        if (iand(aq, shiftl(1_evidence_i16, sh - 1) - 1_evidence_i16) /= 0_evidence_i16) sticky = 1
++      end if
++    end if
++    if (rb == 1) then
++      if (sticky == 1 .or. iand(mant, 1_evidence_i16) == 1_evidence_i16) mant = mant + 1_evidence_i16
++    end if
++    if (mant >= shiftl(1_evidence_i16, 53)) then
++      mant = shiftr(mant, 1)
++      p = p + 1
++    end if
++    frac = int(iand(mant, shiftl(1_evidence_i16, 52) - 1_evidence_i16), 8)
++    expb = p - 90 + 1023
++    if (expb <= 0) then
++      x = 0.0d0
++      return
++    else if (expb >= 2047) then
++      bits = ior(shiftl(int(sgn, 8), 63), shiftl(2047_8, 52))
++      x = transfer(bits, x)
++      return
++    end if
++    bits = ior(shiftl(int(sgn, 8), 63), ior(shiftl(int(expb, 8), 52), frac))
++    x = transfer(bits, x)
++  end function evidence_unpack_i128
++
++#ifdef __PARALLEL
++  subroutine evidence_ensure_exact(dtype, op, ierr)
++    integer, intent(out) :: dtype, op, ierr
++    integer, save :: saved_dtype = -1, saved_op = -1
++    logical, save :: ready = .false.
++    external evidence_sum_i128
++    if (.not. ready) then
++      call mpi_type_contiguous(2, MPI_INTEGER8, saved_dtype, ierr)
++      if (ierr /= 0) return
++      call mpi_type_commit(saved_dtype, ierr)
++      if (ierr /= 0) return
++      call mpi_op_create(evidence_sum_i128, .true., saved_op, ierr)
++      if (ierr /= 0) return
++      ready = .true.
++    end if
++    dtype = saved_dtype
++    op = saved_op
++    ierr = 0
++  end subroutine evidence_ensure_exact
++
++  subroutine evidence_exact_allreduce_r8(sendbuf, recvbuf, n, comm, ierr)
++    real(8), intent(in) :: sendbuf(*)
++    real(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++    integer(evidence_i16), allocatable :: qs(:), qr(:)
++    integer :: dtype, op, i
++    if (n <= 0) then
++      ierr = 0
++      return
++    end if
++    call evidence_ensure_exact(dtype, op, ierr)
++    if (ierr /= 0) return
++    allocate(qs(n), qr(n))
++    do i = 1, n
++      qs(i) = evidence_pack_f64(sendbuf(i))
++    end do
++    call mpi_allreduce(qs, qr, n, dtype, op, comm, ierr)
++    if (ierr /= 0) return
++    do i = 1, n
++      recvbuf(i) = evidence_unpack_i128(qr(i))
++    end do
++  end subroutine evidence_exact_allreduce_r8
++
++  subroutine evidence_gather_allreduce_r8(sendbuf, recvbuf, n, comm, ierr)
++    real(8), intent(in) :: sendbuf(*)
++    real(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++    real(8), allocatable :: tmp(:)
++    integer :: me, np, r, i
++    integer :: stat(MPI_STATUS_SIZE)
++    call mpi_comm_rank(comm, me, ierr)
++    if (ierr /= 0) return
++    call mpi_comm_size(comm, np, ierr)
++    if (ierr /= 0) return
++    if (n <= 0) return
++    allocate(tmp(n))
++    if (me == 0) then
++      do i = 1, n
++        recvbuf(i) = sendbuf(i)
++      end do
++      do r = 1, np - 1
++        call mpi_recv(tmp, n, MPI_DOUBLE_PRECISION, r, evidence_tag, comm, stat, ierr)
++        if (ierr /= 0) return
++        do i = 1, n
++          recvbuf(i) = recvbuf(i) + tmp(i)
++        end do
++      end do
++    else
++      call mpi_send(sendbuf, n, MPI_DOUBLE_PRECISION, 0, evidence_tag, comm, ierr)
++      if (ierr /= 0) return
++    end if
++    call mpi_bcast(recvbuf, n, MPI_DOUBLE_PRECISION, 0, comm, ierr)
++  end subroutine evidence_gather_allreduce_r8
++
++  subroutine evidence_gather_reduce_r8(sendbuf, recvbuf, n, root, comm, ierr)
++    real(8), intent(in) :: sendbuf(*)
++    real(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, root, comm
++    integer, intent(out) :: ierr
++    real(8), allocatable :: tmp(:)
++    integer :: me, np, r, i
++    integer :: stat(MPI_STATUS_SIZE)
++    call mpi_comm_rank(comm, me, ierr)
++    if (ierr /= 0) return
++    call mpi_comm_size(comm, np, ierr)
++    if (ierr /= 0) return
++    if (n <= 0) return
++    allocate(tmp(n))
++    if (me == root) then
++      do i = 1, n
++        recvbuf(i) = sendbuf(i)
++      end do
++      do r = 0, np - 1
++        if (r == root) cycle
++        call mpi_recv(tmp, n, MPI_DOUBLE_PRECISION, r, evidence_tag, comm, stat, ierr)
++        if (ierr /= 0) return
++        do i = 1, n
++          recvbuf(i) = recvbuf(i) + tmp(i)
++        end do
++      end do
++    else
++      call mpi_send(sendbuf, n, MPI_DOUBLE_PRECISION, root, evidence_tag, comm, ierr)
++    end if
++  end subroutine evidence_gather_reduce_r8
++#endif
++
++  subroutine evidence_allreduce_r8(sendbuf, recvbuf, n, comm, ierr)
++    real(8), intent(in) :: sendbuf(*)
++    real(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++    integer :: i
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT)
++    call evidence_exact_allreduce_r8(sendbuf, recvbuf, n, comm, ierr)
++#elif defined(CPMDC_EVIDENCE_MP_GATHER)
++    call evidence_gather_allreduce_r8(sendbuf, recvbuf, n, comm, ierr)
++#else
++    call mpi_allreduce(sendbuf, recvbuf, n, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
++#endif
++#else
++    ierr = 0
++    do i = 1, n
++      recvbuf(i) = sendbuf(i)
++    end do
++#endif
++  end subroutine evidence_allreduce_r8
++
++  subroutine evidence_allreduce_r8_s(sendbuf, recvbuf, comm, ierr)
++    real(8), intent(in) :: sendbuf
++    real(8), intent(inout) :: recvbuf
++    integer, intent(in) :: comm
++    integer, intent(out) :: ierr
++    real(8) :: send1(1), recv1(1)
++    send1(1) = sendbuf
++    call evidence_allreduce_r8(send1, recv1, 1, comm, ierr)
++    recvbuf = recv1(1)
++  end subroutine evidence_allreduce_r8_s
++
++  subroutine evidence_allreduce_r8_inplace(buf, n, comm, ierr)
++    real(8), intent(inout) :: buf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT)
++    call evidence_exact_allreduce_r8(buf, buf, n, comm, ierr)
++#elif defined(CPMDC_EVIDENCE_MP_GATHER)
++    block
++      real(8), allocatable :: local(:)
++      integer :: i
++      allocate(local(max(n, 1)))
++      do i = 1, n
++        local(i) = buf(i)
++      end do
++      call evidence_gather_allreduce_r8(local, buf, n, comm, ierr)
++    end block
++#else
++    call mpi_allreduce(MPI_IN_PLACE, buf, n, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
++#endif
++#else
++    ierr = 0
++#endif
++  end subroutine evidence_allreduce_r8_inplace
++
++  subroutine evidence_copy_c8_to_r8(z, r, n)
++    complex(8), intent(in) :: z(*)
++    real(8), intent(out) :: r(*)
++    integer, intent(in) :: n
++    integer :: i
++    do i = 1, n
++      r(2 * i - 1) = real(z(i), 8)
++      r(2 * i) = aimag(z(i))
++    end do
++  end subroutine evidence_copy_c8_to_r8
++
++  subroutine evidence_copy_r8_to_c8(r, z, n)
++    real(8), intent(in) :: r(*)
++    complex(8), intent(out) :: z(*)
++    integer, intent(in) :: n
++    integer :: i
++    do i = 1, n
++      z(i) = cmplx(r(2 * i - 1), r(2 * i), 8)
++    end do
++  end subroutine evidence_copy_r8_to_c8
++
++  subroutine evidence_allreduce_c8(sendbuf, recvbuf, n, comm, ierr)
++    complex(8), intent(in) :: sendbuf(*)
++    complex(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++    integer :: i
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT) || defined(CPMDC_EVIDENCE_MP_GATHER)
++    block
++      real(8), allocatable :: sr(:), rr(:)
++      allocate(sr(max(2 * n, 1)), rr(max(2 * n, 1)))
++      call evidence_copy_c8_to_r8(sendbuf, sr, n)
++      call evidence_allreduce_r8(sr, rr, 2 * n, comm, ierr)
++      if (ierr == 0) call evidence_copy_r8_to_c8(rr, recvbuf, n)
++    end block
++#else
++    call mpi_allreduce(sendbuf, recvbuf, n, MPI_DOUBLE_COMPLEX, MPI_SUM, comm, ierr)
++#endif
++#else
++    ierr = 0
++    do i = 1, n
++      recvbuf(i) = sendbuf(i)
++    end do
++#endif
++  end subroutine evidence_allreduce_c8
++
++  subroutine evidence_allreduce_c8_s(sendbuf, recvbuf, comm, ierr)
++    complex(8), intent(in) :: sendbuf
++    complex(8), intent(inout) :: recvbuf
++    integer, intent(in) :: comm
++    integer, intent(out) :: ierr
++    complex(8) :: send1(1), recv1(1)
++    send1(1) = sendbuf
++    call evidence_allreduce_c8(send1, recv1, 1, comm, ierr)
++    recvbuf = recv1(1)
++  end subroutine evidence_allreduce_c8_s
++
++  subroutine evidence_allreduce_c8_inplace(buf, n, comm, ierr)
++    complex(8), intent(inout) :: buf(*)
++    integer, intent(in) :: n, comm
++    integer, intent(out) :: ierr
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT) || defined(CPMDC_EVIDENCE_MP_GATHER)
++    block
++      complex(8), allocatable :: local(:)
++      integer :: i
++      allocate(local(max(n, 1)))
++      do i = 1, n
++        local(i) = buf(i)
++      end do
++      call evidence_allreduce_c8(local, buf, n, comm, ierr)
++    end block
++#else
++    call mpi_allreduce(MPI_IN_PLACE, buf, n, MPI_DOUBLE_COMPLEX, MPI_SUM, comm, ierr)
++#endif
++#else
++    ierr = 0
++#endif
++  end subroutine evidence_allreduce_c8_inplace
++
++  subroutine evidence_reduce_r8(sendbuf, recvbuf, n, root, comm, ierr)
++    real(8), intent(in) :: sendbuf(*)
++    real(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, root, comm
++    integer, intent(out) :: ierr
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT)
++    block
++      real(8), allocatable :: tmp(:)
++      integer :: me, i
++      allocate(tmp(max(n, 1)))
++      call evidence_exact_allreduce_r8(sendbuf, tmp, n, comm, ierr)
++      call mpi_comm_rank(comm, me, ierr)
++      if (me == root) then
++        do i = 1, n
++          recvbuf(i) = tmp(i)
++        end do
++      end if
++    end block
++#elif defined(CPMDC_EVIDENCE_MP_GATHER)
++    call evidence_gather_reduce_r8(sendbuf, recvbuf, n, root, comm, ierr)
++#else
++    call mpi_reduce(sendbuf, recvbuf, n, MPI_DOUBLE_PRECISION, MPI_SUM, root, comm, ierr)
++#endif
++#else
++    integer :: i
++    ierr = 0
++    do i = 1, n
++      recvbuf(i) = sendbuf(i)
++    end do
++#endif
++  end subroutine evidence_reduce_r8
++
++  subroutine evidence_reduce_r8_s(sendbuf, recvbuf, root, comm, ierr)
++    real(8), intent(in) :: sendbuf
++    real(8), intent(inout) :: recvbuf
++    integer, intent(in) :: root, comm
++    integer, intent(out) :: ierr
++    real(8) :: send1(1), recv1(1)
++    send1(1) = sendbuf
++    call evidence_reduce_r8(send1, recv1, 1, root, comm, ierr)
++    recvbuf = recv1(1)
++  end subroutine evidence_reduce_r8_s
++
++  subroutine evidence_reduce_c8(sendbuf, recvbuf, n, root, comm, ierr)
++    complex(8), intent(in) :: sendbuf(*)
++    complex(8), intent(inout) :: recvbuf(*)
++    integer, intent(in) :: n, root, comm
++    integer, intent(out) :: ierr
++#ifdef __PARALLEL
++#if defined(CPMDC_EVIDENCE_MP_EXACT) || defined(CPMDC_EVIDENCE_MP_GATHER)
++    block
++      real(8), allocatable :: sr(:), rr(:)
++      integer :: me, i
++      allocate(sr(max(2 * n, 1)), rr(max(2 * n, 1)))
++      call evidence_copy_c8_to_r8(sendbuf, sr, n)
++      call evidence_reduce_r8(sr, rr, 2 * n, root, comm, ierr)
++      call mpi_comm_rank(comm, me, ierr)
++      if (me == root .and. ierr == 0) then
++        call evidence_copy_r8_to_c8(rr, recvbuf, n)
++      end if
++    end block
++#else
++    call mpi_reduce(sendbuf, recvbuf, n, MPI_DOUBLE_COMPLEX, MPI_SUM, root, comm, ierr)
++#endif
++#else
++    integer :: i
++    ierr = 0
++    do i = 1, n
++      recvbuf(i) = sendbuf(i)
++    end do
++#endif
++  end subroutine evidence_reduce_c8
++
++  subroutine evidence_reduce_c8_s(sendbuf, recvbuf, root, comm, ierr)
++    complex(8), intent(in) :: sendbuf
++    complex(8), intent(inout) :: recvbuf
++    integer, intent(in) :: root, comm
++    integer, intent(out) :: ierr
++    complex(8) :: send1(1), recv1(1)
++    send1(1) = sendbuf
++    call evidence_reduce_c8(send1, recv1, 1, root, comm, ierr)
++    recvbuf = recv1(1)
++  end subroutine evidence_reduce_c8_s
++
++  subroutine evidence_gorder_sum(n, key, val, comm, total)
++    integer, intent(in) :: n, comm
++    integer(8), intent(in) :: key(*)
++    real(8), intent(in) :: val(*)
++    real(8), intent(out) :: total
++#ifdef __PARALLEL
++    integer :: ierr, np, i, nt
++    integer, allocatable :: counts(:), displs(:)
++    integer(8), allocatable :: allkey(:)
++    real(8), allocatable :: allval(:)
++    integer, allocatable :: ord(:)
++    integer(8) :: ksend(1)
++    real(8) :: vsend(1)
++    call mpi_comm_size(comm, np, ierr)
++    if (ierr /= 0) then
++      total = 0.0d0
++      return
++    end if
++    allocate(counts(0:np - 1), displs(0:np - 1))
++    call mpi_allgather(n, 1, MPI_INTEGER, counts, 1, MPI_INTEGER, comm, ierr)
++    displs(0) = 0
++    do i = 1, np - 1
++      displs(i) = displs(i - 1) + counts(i - 1)
++    end do
++    nt = displs(np - 1) + counts(np - 1)
++    allocate(allkey(max(nt, 1)), allval(max(nt, 1)), ord(max(nt, 1)))
++    if (n > 0) then
++      call mpi_allgatherv(key, n, MPI_INTEGER8, allkey, counts, displs, MPI_INTEGER8, comm, ierr)
++      call mpi_allgatherv(val, n, MPI_DOUBLE_PRECISION, allval, counts, displs, MPI_DOUBLE_PRECISION, comm, ierr)
++    else
++      ksend(1) = 0_8
++      vsend(1) = 0.0d0
++      call mpi_allgatherv(ksend, 0, MPI_INTEGER8, allkey, counts, displs, MPI_INTEGER8, comm, ierr)
++      call mpi_allgatherv(vsend, 0, MPI_DOUBLE_PRECISION, allval, counts, displs, MPI_DOUBLE_PRECISION, comm, ierr)
++    end if
++    call evidence_order_keys(nt, allkey, ord)
++    total = 0.0d0
++    do i = 1, nt
++      total = total + allval(ord(i))
++    end do
++#else
++    integer :: i
++    integer, allocatable :: ord(:)
++    allocate(ord(max(n, 1)))
++    call evidence_order_keys(n, key, ord)
++    total = 0.0d0
++    do i = 1, n
++      total = total + val(ord(i))
++    end do
++#endif
++  end subroutine evidence_gorder_sum
++
++  subroutine evidence_order_keys(n, key, ord)
++    integer, intent(in) :: n
++    integer(8), intent(in) :: key(*)
++    integer, intent(out) :: ord(*)
++    integer :: i, nn, tmp
++    do i = 1, n
++      ord(i) = i
++    end do
++    if (n <= 1) return
++    do i = n / 2, 1, -1
++      tmp = ord(i)
++      call evidence_sift(key, ord, i, n, tmp)
++    end do
++    nn = n
++    do while (nn > 1)
++      tmp = ord(nn)
++      ord(nn) = ord(1)
++      nn = nn - 1
++      call evidence_sift(key, ord, 1, nn, tmp)
++    end do
++  end subroutine evidence_order_keys
++
++  subroutine evidence_sift(key, ord, lo, hi, tmp)
++    integer(8), intent(in) :: key(*)
++    integer, intent(inout) :: ord(*)
++    integer, intent(in) :: lo, hi, tmp
++    integer :: root, child
++    root = lo
++    do
++      child = root * 2
++      if (child > hi) exit
++      if (child < hi) then
++        if (evidence_key_before(key, ord(child + 1), ord(child))) child = child + 1
++      end if
++      if (.not. evidence_key_before(key, ord(child), tmp)) exit
++      ord(root) = ord(child)
++      root = child
++    end do
++    ord(root) = tmp
++  end subroutine evidence_sift
++
++  function evidence_key_before(key, ia, ib) result(yes)
++    integer(8), intent(in) :: key(*)
++    integer, intent(in) :: ia, ib
++    logical :: yes
++    if (key(ia) /= key(ib)) then
++      yes = key(ia) > key(ib)
++    else
++      yes = ia > ib
++    end if
++  end function evidence_key_before
++
++end module evidence_reduce
++
++#ifdef __PARALLEL
++subroutine evidence_sum_i128(invec, inoutvec, len, datatype)
++  use evidence_reduce, only: evidence_i16
++  implicit none
++  integer :: len, datatype
++  integer(8) :: invec(2, len), inoutvec(2, len)
++  integer(evidence_i16) :: a, b
++  integer :: i
++  do i = 1, len
++    a = transfer(invec(:, i), a)
++    b = transfer(inoutvec(:, i), b)
++    b = a + b
++    inoutvec(:, i) = transfer(b, inoutvec(:, i))
++  end do
++end subroutine evidence_sum_i128
++#endif
+diff -ruN a/src/gcener_utils.mod.F90 b/src/gcener_utils.mod.F90
+--- a/src/gcener_utils.mod.F90	2026-10-11 10:21:57.871579042 +0000
++++ b/src/gcener_utils.mod.F90	2026-10-11 11:17:19.853644220 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ 
+ #include "cpmd_global.h"
+ 
+@@ -650,6 +651,72 @@
+                                                 v2xsr, vtt
+ 
+     IF (.NOT.cntl%ttau) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         REAL(real_8), ALLOCATABLE :: ev_sgcx(:)
++         REAL(real_8), ALLOCATABLE :: ev_sgcc(:)
++         ev_nc=(fpar%nnr1)-(1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_sgcx(ev_nc), ev_sgcc(ev_nc))
++         ev_sgcx(:)=0.0_real_8
++         ev_sgcc(:)=0.0_real_8
++       !$omp parallel do schedule(static) &
++       !$omp  private(IR, RHO, SMOO, DSMOO, TEXP, GRHO, SX, SC, V1X, V2X, V1C, V2C, V1, V2, TAR, SXSR) &
++       !$omp  private(V1XSR, V2XSR, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++           DO ir=ev_lo,ev_hi
++          rho   = MAX(rhoe(ir),0.0_real_8)
++          IF (rho.GT.0.1_real_8*cntr%gceps) THEN
++             IF (rho.GT.4.0_real_8*cntr%gceps) THEN
++                smoo  = 1.0_real_8
++                dsmoo = 0.0_real_8
++             ELSE
++                texp=EXP(3.0_real_8*(1.0_real_8-rho/cntr%gceps))
++                smoo=1.0_real_8/(1.0_real_8+texp)
++                dsmoo=3.0_real_8/cntr%gceps * texp*smoo*smoo
++             ENDIF
++             grho    = grad(ir,1)
++             CALL gcxc(rho,grho,sx,sc,v1x,v2x,v1c,v2c)
++             IF (cntl%thybrid) THEN
++                ! wPBE stabbing, adding short-range GC
++                IF (func1%mgcsrx /= mgcsrx_is_skipped) THEN
++                   CALL pbexsr(rho,grho,sxsr,v1xsr,v2xsr,func2%srxa)
++                   SX=SX*func3%pxgc-func3%phfx*SXSR;
++                   V1X=V1X*func3%pxgc-func3%phfx*V1XSR;
++                   V2X=V2X*func3%pxgc-func3%phfx*V2XSR;
++                ELSE
++                   sx=sx*func3%pxgc
++                   v1x=v1x*func3%pxgc
++                   v2x=v2x*func3%pxgc
++                ENDIF
++                sc=sc*func3%pcgc
++                v1c=v1c*func3%pcgc
++                v2c=v2c*func3%pcgc
++             ENDIF
++             ev_sgcx(ev_c)  = ev_sgcx(ev_c) + smoo*sx
++             ev_sgcc(ev_c)  = ev_sgcc(ev_c) + smoo*sc
++             v1    = dsmoo*(sx+sc) + smoo*(v1x+v1c)
++             v2    = smoo*(v2x+v2c)
++          ELSE
++             v1    = 0.0_real_8
++             v2    = 0.0_real_8
++          ENDIF
++          v(ir) = v1
++          vtmp(ir) = v2
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           SGCX=SGCX+ev_sgcx(ev_c)
++           SGCC=SGCC+ev_sgcc(ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(IR,RHO,SMOO,DSMOO,TEXP,GRHO,SX,SC) &
+        !$omp             private(V1X,V2X,V1C,V2C,V1,V2,TAR) &
+        !$omp             private(SXSR,V1XSR,V2XSR) &
+@@ -702,6 +769,7 @@
+           v(ir) = v1
+           vtmp(ir) = v2
+        ENDDO
++#endif
+     ELSE
+        DO ir=1,fpar%nnr1
+           rho   = MAX(rhoe(ir),0.0_real_8)
+@@ -754,6 +822,102 @@
+     CALL tiset(procedureN,isub)
+     flops=0._real_8
+     IF (.NOT.cntl%ttau) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         REAL(real_8), ALLOCATABLE :: ev_sgcx(:)
++         REAL(real_8), ALLOCATABLE :: ev_sgcc(:)
++         ev_nc=(fpar%nnr1)-(1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_sgcx(ev_nc), ev_sgcc(ev_nc))
++         ev_sgcx(:)=0.0_real_8
++         ev_sgcc(:)=0.0_real_8
++       !$omp parallel do schedule(static) &
++       !$omp  private(IR, RHO, RHOA, RHOB, SMOO, DSMOO, TEXP, SX, SC, GRHOA, GRHOB, GRHOAB, V1XA, V1XB) &
++       !$omp  private(V2XA, V2XB, V1CA, V2CA, V1CB, V2CB, V2XAB, V2CAB, V1A, V2A, V1B, V2B, V2AB, TARA) &
++       !$omp  private(TARB, VTTA, VTTB, SXSR, V1XASR, V2XASR, V1XBSR, V2XBSR, V2XABSR, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++           DO ir=ev_lo,ev_hi
++          rhoa   = MAX(rhoe(ir,1),0.0_real_8)
++          rhob   = MAX(rhoe(ir,2),0.0_real_8)
++          rho    = rhoa+rhob
++          IF (rho.GT.0.1_real_8*cntr%gceps) THEN
++             IF (rho.GT.4.0_real_8*cntr%gceps) THEN
++                smoo  = 1.0_real_8
++                dsmoo = 0.0_real_8
++             ELSE
++                texp=EXP(3.0_real_8*(1.0_real_8-rho/cntr%gceps))
++                smoo=1.0_real_8/(1.0_real_8+texp)
++                dsmoo=3.0_real_8/cntr%gceps * texp*smoo*smoo
++             ENDIF
++             IF (rhoa.LT.0.1_real_8*cntr%gceps) rhoa=0.0_real_8
++             IF (rhob.LT.0.1_real_8*cntr%gceps) rhob=0.0_real_8
++             grhoa   = grad(ir,1)
++             grhob   = grad(ir,5)
++             grhoab  = grad(ir,2)*grad(ir,6)+grad(ir,3)*grad(ir,7)+&
++                  grad(ir,4)*grad(ir,8)
++             CALL gc_lsd(rhoa,rhob,grhoa,grhob,grhoab,sx,sc,v1xa,v2xa,&
++                  v1xb,v2xb,v1ca,v2ca,v1cb,v2cb,v2xab,v2cab)
++             IF (cntl%thybrid) THEN
++                ! wPBE stabbing, adding short-range GC
++                IF (func1%mgcsrx /= mgcsrx_is_skipped) THEN
++                   CALL pbexsr_lsd(rhoa,rhob,grhoa,grhob,sxsr,&
++                        v1xasr,v2xasr,v1xbsr,v2xbsr,v2xabsr,func2%srxa)
++                   sx=sx*func3%pxgc - func3%phfx*sxsr
++                   v1xa=v1xa*func3%pxgc - func3%phfx*v1xasr
++                   v2xa=v2xa*func3%pxgc - func3%phfx*v2xasr
++                   v1xb=v1xb*func3%pxgc - func3%phfx*v1xbsr
++                   v2xb=v2xb*func3%pxgc - func3%phfx*v2xbsr
++                   v2xab=v2xab*func3%pxgc - func3%phfx*v2xabsr
++                ELSE
++                   sx=sx*func3%pxgc
++                   v1xa=v1xa*func3%pxgc
++                   v2xa=v2xa*func3%pxgc
++                   v1xb=v1xb*func3%pxgc
++                   v2xb=v2xb*func3%pxgc
++                   v2xab=v2xab*func3%pxgc
++                ENDIF
++                sc=sc*func3%pcgc
++                v1ca=v1ca*func3%pcgc
++                v2ca=v2ca*func3%pcgc
++                v1cb=v1cb*func3%pcgc
++                v2cb=v2cb*func3%pcgc
++                v2cab=v2cab*func3%pcgc
++             ENDIF
++             ev_sgcx(ev_c)  = ev_sgcx(ev_c) + smoo*sx
++             ev_sgcc(ev_c)  = ev_sgcc(ev_c) + smoo*sc
++             v1a   = dsmoo*(sx+sc) + smoo*(v1xa+v1ca)
++             v2a   = smoo*(v2xa+v2ca)
++             v1b   = dsmoo*(sx+sc) + smoo*(v1xb+v1cb)
++             v2b   = smoo*(v2xb+v2cb)
++             v2ab  = smoo*(v2xab+v2cab)
++          ELSE
++             v1a   = 0.0_real_8
++             v1b   = 0.0_real_8
++             v2a   = 0.0_real_8
++             v2b   = 0.0_real_8
++             v2ab  = 0.0_real_8
++             vtta  = 0.0_real_8
++             vttb  = 0.0_real_8
++          ENDIF
++          v(ir,1) = v1a
++          v(ir,2) = v1b
++          vtmp(ir,1) = v2a
++          vtmp(ir,2) = v2b
++          vtmp(ir,3) = v2ab
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           SGCX=SGCX+ev_sgcx(ev_c)
++           SGCC=SGCC+ev_sgcc(ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(IR,RHO,RHOA,RHOB,SMOO,DSMOO,TEXP,SX,SC) &
+        !$omp       private(GRHOA,GRHOB,GRHOAB,V1XA,V1XB,V2XA,V2XB,V1CA,V2CA) &
+        !$omp       private(V1CB,V2CB,V2XAB,V2CAB,V1A,V2A,V1B,V2B,V2AB) &
+@@ -839,6 +1003,7 @@
+           vtmp(ir,2) = v2b
+           vtmp(ir,3) = v2ab
+        ENDDO
++#endif
+     ELSE
+        DO ir=1,fpar%nnr1
+           rhoa   = MAX(rhoe(ir,1),0.0_real_8)
+diff -ruN a/src/htrstr_utils.mod.F90 b/src/htrstr_utils.mod.F90
+--- a/src/htrstr_utils.mod.F90	2026-10-11 10:21:57.871579042 +0000
++++ b/src/htrstr_utils.mod.F90	2026-10-11 11:17:19.861644181 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE htrstr_utils
+   USE cnst,                            ONLY: fpi
+   USE cppt,                            ONLY: hg,&
+@@ -72,6 +73,76 @@
+     t6=(0.0_real_8,0.0_real_8)
+     IF (cntl%bigmem) THEN
+        IF (pslo_com%tivan) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_t1(:)
++            REAL(real_8), ALLOCATABLE :: ev_t2(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++            ev_nc=(ncpw%nhg)-(ig1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++            ev_t1(:)=0.0_real_8
++            ev_t2(:)=0.0_real_8
++            ev_t3(:)=(0.0_real_8,0.0_real_8)
++            ev_t4(:)=(0.0_real_8,0.0_real_8)
++            ev_t5(:)=(0.0_real_8,0.0_real_8)
++            ev_t6(:)=(0.0_real_8,0.0_real_8)
++          !$omp parallel do schedule(static) &
++          !$omp  private(IG, ISA, IA, IS, R2, RHOPR, &
++          !$omp  RHET, RHOG, RHOGS, FPIBG, CFPIBG) &
++          !$omp  private(CHGM1, FAC1, FAC2, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(ig1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++              DO ig=ev_lo,ev_hi
++             rhopr=(0.0_real_8,0.0_real_8)
++             DO isa=1,ions1%nat
++                ia=iatpt(1,isa)
++                is=iatpt(2,isa)
++                r2=raggio(is)*raggio(is)
++                rhopr=rhopr+rhops(is,ig)*r2*0.5_real_8*eigrb(ig,isa)
++             ENDDO
++             rhet=v(nzh(ig))
++             rhog=rhet+eirop(ig)
++             rhogs=CONJG(rhog)
++             fpibg=fpi/parm%tpiba2/hg(ig)
++             cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++             chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++             fac1=cfpibg*rhogs
++             fac2=fac1*(rhog*chgm1+rhopr)
++             ev_t1(ev_c)=ev_t1(ev_c)+(fac2*gagk(ig,1)+fac1*drhovg(ig,1))
++             ev_t2(ev_c)=ev_t2(ev_c)+(fac2*gagk(ig,2)+fac1*drhovg(ig,2))
++             ev_t3(ev_c)=ev_t3(ev_c)+(fac2*gagk(ig,3)+fac1*drhovg(ig,3))
++             ev_t4(ev_c)=ev_t4(ev_c)+(fac2*gagk(ig,4)+fac1*drhovg(ig,4))
++             ev_t5(ev_c)=ev_t5(ev_c)+(fac2*gagk(ig,5)+fac1*drhovg(ig,5))
++             ev_t6(ev_c)=ev_t6(ev_c)+(fac2*gagk(ig,6)+fac1*drhovg(ig,6))
++             IF (cntl%tlsd) THEN
++                ev_t1(ev_c)=ev_t1(ev_c)+(fac2*gagk(ig,1)+fac1*drhovg(ig,7))
++                ev_t2(ev_c)=ev_t2(ev_c)+(fac2*gagk(ig,2)+fac1*drhovg(ig,8))
++                ev_t3(ev_c)=ev_t3(ev_c)+(fac2*gagk(ig,3)+fac1*drhovg(ig,9))
++                ev_t4(ev_c)=ev_t4(ev_c)+(fac2*gagk(ig,4)+fac1*drhovg(ig,10))
++                ev_t5(ev_c)=ev_t5(ev_c)+(fac2*gagk(ig,5)+fac1*drhovg(ig,11))
++                ev_t6(ev_c)=ev_t6(ev_c)+(fac2*gagk(ig,6)+fac1*drhovg(ig,12))
++             ENDIF
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              T1=T1+ev_t1(ev_c)
++              T2=T2+ev_t2(ev_c)
++              T3=T3+ev_t3(ev_c)
++              T4=T4+ev_t4(ev_c)
++              T5=T5+ev_t5(ev_c)
++              T6=T6+ev_t6(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IG,ISA,IA,IS,R2,RHOPR, &
+           !$omp  RHET,RHOG,RHOGS,FPIBG,CFPIBG,CHGM1,FAC1,FAC2) &
+           !$omp  reduction(+:T1,T2,T3,T4,T5,T6)
+@@ -106,6 +177,7 @@
+                 t6=t6+(fac2*gagk(ig,6)+fac1*drhovg(ig,12))
+              ENDIF
+           ENDDO
++#endif
+           dehc(1)=dehc(1)+t1
+           dehc(2)=dehc(2)+t2
+           dehc(3)=dehc(3)+t3
+@@ -113,6 +185,67 @@
+           dehc(5)=dehc(5)+t5
+           dehc(6)=dehc(6)+t6
+        ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_t1(:)
++            REAL(real_8), ALLOCATABLE :: ev_t2(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++            ev_nc=(ncpw%nhg)-(ig1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++            ev_t1(:)=0.0_real_8
++            ev_t2(:)=0.0_real_8
++            ev_t3(:)=(0.0_real_8,0.0_real_8)
++            ev_t4(:)=(0.0_real_8,0.0_real_8)
++            ev_t5(:)=(0.0_real_8,0.0_real_8)
++            ev_t6(:)=(0.0_real_8,0.0_real_8)
++          !$omp parallel do schedule(static) &
++          !$omp  private(IG, ISA, IA, IS, R2, RHOPR, &
++          !$omp  RHET, RHOG, RHOGS, FPIBG, CFPIBG) &
++          !$omp  private(CHGM1, FAC2, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(ig1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++              DO ig=ev_lo,ev_hi
++             rhopr=(0.0_real_8,0.0_real_8)
++             DO isa=1,ions1%nat
++                ia=iatpt(1,isa)
++                is=iatpt(2,isa)
++                r2=raggio(is)*raggio(is)
++                rhopr=rhopr+rhops(is,ig)*r2*0.5_real_8*eigrb(ig,isa)
++             ENDDO
++             rhet=v(nzh(ig))
++             rhog=rhet+eirop(ig)
++             rhogs=CONJG(rhog)
++             fpibg=fpi/parm%tpiba2/hg(ig)
++             cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++             chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++             fac2=cfpibg*rhogs*(rhog*chgm1+rhopr)
++             ev_t1(ev_c)=ev_t1(ev_c)+fac2*gagk(ig,1)
++             ev_t2(ev_c)=ev_t2(ev_c)+fac2*gagk(ig,2)
++             ev_t3(ev_c)=ev_t3(ev_c)+fac2*gagk(ig,3)
++             ev_t4(ev_c)=ev_t4(ev_c)+fac2*gagk(ig,4)
++             ev_t5(ev_c)=ev_t5(ev_c)+fac2*gagk(ig,5)
++             ev_t6(ev_c)=ev_t6(ev_c)+fac2*gagk(ig,6)
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              T1=T1+ev_t1(ev_c)
++              T2=T2+ev_t2(ev_c)
++              T3=T3+ev_t3(ev_c)
++              T4=T4+ev_t4(ev_c)
++              T5=T5+ev_t5(ev_c)
++              T6=T6+ev_t6(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IG,ISA,IA,IS,R2,RHOPR, &
+           !$omp  RHET,RHOG,RHOGS,FPIBG,CFPIBG,CHGM1,FAC2) &
+           !$omp  reduction(+:T1,T2,T3,T4,T5,T6)
+@@ -138,6 +271,7 @@
+              t5=t5+fac2*gagk(ig,5)
+              t6=t6+fac2*gagk(ig,6)
+           ENDDO
++#endif
+           dehc(1)=dehc(1)+t1
+           dehc(2)=dehc(2)+t2
+           dehc(3)=dehc(3)+t3
+@@ -147,6 +281,81 @@
+        ENDIF
+     ELSE
+        IF (pslo_com%tivan) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_t1(:)
++            REAL(real_8), ALLOCATABLE :: ev_t2(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++            ev_nc=(ncpw%nhg)-(ig1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++            ev_t1(:)=0.0_real_8
++            ev_t2(:)=0.0_real_8
++            ev_t3(:)=(0.0_real_8,0.0_real_8)
++            ev_t4(:)=(0.0_real_8,0.0_real_8)
++            ev_t5(:)=(0.0_real_8,0.0_real_8)
++            ev_t6(:)=(0.0_real_8,0.0_real_8)
++          !$omp parallel do schedule(static) &
++          !$omp  private(IG, ISA, IA, IS, R2, EI123, ER, EI, ER2, RHOPR, &
++          !$omp  RHET, RHOG) &
++          !$omp  private(RHOGS, FPIBG, CFPIBG, CHGM1, FAC1, FAC2, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(ig1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++              DO ig=ev_lo,ev_hi
++             rhopr=(0.0_real_8,0.0_real_8)
++             DO isa=1,ions1%nat
++                ia=iatpt(1,isa)
++                is=iatpt(2,isa)
++                r2=raggio(is)*raggio(is)
++                ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
++                     ei3(isa,inyh(3,ig))
++                er=REAL(ei123)
++                ei=AIMAG(ei123)
++                er2=0.5_real_8*r2*rhops(is,ig)
++                rhopr=rhopr+CMPLX(er*er2,ei*er2,kind=real_8)
++             ENDDO
++             rhet=v(nzh(ig))
++             rhog=rhet+eirop(ig)
++             rhogs=CONJG(rhog)
++             fpibg=fpi/parm%tpiba2/hg(ig)
++             cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++             chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++             fac1=cfpibg*rhogs
++             fac2=fac1*(rhog*chgm1+rhopr)
++             ev_t1(ev_c)=ev_t1(ev_c)+(fac2*gagk(ig,1)+fac1*drhovg(ig,1))
++             ev_t2(ev_c)=ev_t2(ev_c)+(fac2*gagk(ig,2)+fac1*drhovg(ig,2))
++             ev_t3(ev_c)=ev_t3(ev_c)+(fac2*gagk(ig,3)+fac1*drhovg(ig,3))
++             ev_t4(ev_c)=ev_t4(ev_c)+(fac2*gagk(ig,4)+fac1*drhovg(ig,4))
++             ev_t5(ev_c)=ev_t5(ev_c)+(fac2*gagk(ig,5)+fac1*drhovg(ig,5))
++             ev_t6(ev_c)=ev_t6(ev_c)+(fac2*gagk(ig,6)+fac1*drhovg(ig,6))
++             IF (cntl%tlsd) THEN
++                ev_t1(ev_c)=ev_t1(ev_c)+(fac2*gagk(ig,1)+fac1*drhovg(ig,7))
++                ev_t2(ev_c)=ev_t2(ev_c)+(fac2*gagk(ig,2)+fac1*drhovg(ig,8))
++                ev_t3(ev_c)=ev_t3(ev_c)+(fac2*gagk(ig,3)+fac1*drhovg(ig,9))
++                ev_t4(ev_c)=ev_t4(ev_c)+(fac2*gagk(ig,4)+fac1*drhovg(ig,10))
++                ev_t5(ev_c)=ev_t5(ev_c)+(fac2*gagk(ig,5)+fac1*drhovg(ig,11))
++                ev_t6(ev_c)=ev_t6(ev_c)+(fac2*gagk(ig,6)+fac1*drhovg(ig,12))
++             ENDIF
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              T1=T1+ev_t1(ev_c)
++              T2=T2+ev_t2(ev_c)
++              T3=T3+ev_t3(ev_c)
++              T4=T4+ev_t4(ev_c)
++              T5=T5+ev_t5(ev_c)
++              T6=T6+ev_t6(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IG,ISA,IA,IS,R2,EI123,ER,EI,ER2,RHOPR, &
+           !$omp  RHET,RHOG,RHOGS,FPIBG,CFPIBG,CHGM1,FAC1,FAC2) &
+           !$omp  reduction(+:T1,T2,T3,T4,T5,T6)
+@@ -186,6 +395,7 @@
+                 t6=t6+(fac2*gagk(ig,6)+fac1*drhovg(ig,12))
+              ENDIF
+           ENDDO
++#endif
+           dehc(1)=dehc(1)+t1
+           dehc(2)=dehc(2)+t2
+           dehc(3)=dehc(3)+t3
+@@ -193,6 +403,72 @@
+           dehc(5)=dehc(5)+t5
+           dehc(6)=dehc(6)+t6
+        ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_t1(:)
++            REAL(real_8), ALLOCATABLE :: ev_t2(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++            COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++            ev_nc=(ncpw%nhg)-(ig1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++            ev_t1(:)=0.0_real_8
++            ev_t2(:)=0.0_real_8
++            ev_t3(:)=(0.0_real_8,0.0_real_8)
++            ev_t4(:)=(0.0_real_8,0.0_real_8)
++            ev_t5(:)=(0.0_real_8,0.0_real_8)
++            ev_t6(:)=(0.0_real_8,0.0_real_8)
++          !$omp parallel do schedule(static) &
++          !$omp  private(IG, ISA, IA, IS, R2, EI123, ER, EI, ER2, RHOPR, &
++          !$omp  RHET, RHOG) &
++          !$omp  private(RHOGS, FPIBG, CFPIBG, CHGM1, FAC2, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(ig1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++              DO ig=ev_lo,ev_hi
++             rhopr=(0.0_real_8,0.0_real_8)
++             DO isa=1,ions1%nat
++                ia=iatpt(1,isa)
++                is=iatpt(2,isa)
++                r2=raggio(is)*raggio(is)
++                ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
++                     ei3(isa,inyh(3,ig))
++                er=REAL(ei123)
++                ei=AIMAG(ei123)
++                er2=0.5_real_8*r2*rhops(is,ig)
++                rhopr=rhopr+CMPLX(er*er2,ei*er2,kind=real_8)
++             ENDDO
++             rhet=v(nzh(ig))
++             rhog=rhet+eirop(ig)
++             rhogs=CONJG(rhog)
++             fpibg=fpi/parm%tpiba2/hg(ig)
++             cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++             chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++             fac2=cfpibg*rhogs*(rhog*chgm1+rhopr)
++             ev_t1(ev_c)=ev_t1(ev_c)+fac2*gagk(ig,1)
++             ev_t2(ev_c)=ev_t2(ev_c)+fac2*gagk(ig,2)
++             ev_t3(ev_c)=ev_t3(ev_c)+fac2*gagk(ig,3)
++             ev_t4(ev_c)=ev_t4(ev_c)+fac2*gagk(ig,4)
++             ev_t5(ev_c)=ev_t5(ev_c)+fac2*gagk(ig,5)
++             ev_t6(ev_c)=ev_t6(ev_c)+fac2*gagk(ig,6)
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              T1=T1+ev_t1(ev_c)
++              T2=T2+ev_t2(ev_c)
++              T3=T3+ev_t3(ev_c)
++              T4=T4+ev_t4(ev_c)
++              T5=T5+ev_t5(ev_c)
++              T6=T6+ev_t6(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IG,ISA,IA,IS,R2,EI123,ER,EI,ER2,RHOPR, &
+           !$omp  RHET,RHOG,RHOGS,FPIBG,CFPIBG,CHGM1,FAC2) &
+           !$omp  reduction(+:T1,T2,T3,T4,T5,T6)
+@@ -223,6 +499,7 @@
+              t5=t5+fac2*gagk(ig,5)
+              t6=t6+fac2*gagk(ig,6)
+           ENDDO
++#endif
+           dehc(1)=dehc(1)+t1
+           dehc(2)=dehc(2)+t2
+           dehc(3)=dehc(3)+t3
+@@ -383,6 +660,57 @@
+     ENDIF
+ #else 
+     IF (cntl%bigmem) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         COMPLEX(real_8), ALLOCATABLE :: ev_dehc(:,:)
++         ev_nc=(ncpw%nhg)-(ig1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_dehc(SIZE(dehc,1),ev_nc))
++         ev_dehc=(0.0_real_8,0.0_real_8)
++       !$omp parallel do schedule(static) &
++       !$omp  private(ig, isa, is, ia, kk, rhopr, r2, &
++       !$omp rhet, rhog, rhogs, fpibg, cfpibg) &
++       !$omp  private(chgm1, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(ig1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++           DO ig=ev_lo,ev_hi
++          rhopr = (0.0_real_8,0.0_real_8)
++          isa=0
++          DO is=1,ions1%nsp
++             r2 = raggio(is)*raggio(is)
++             DO ia=1,ions0%na(is)
++                isa=isa+1
++                rhopr = rhopr + rhops(is,ig)*r2*0.5_real_8*eigrb(ig,isa)
++             ENDDO
++          ENDDO
++          rhet=v(nzh(ig))
++          rhog=rhet+eirop(ig)
++          rhogs=CONJG(rhog)
++          fpibg=fpi/parm%tpiba2/hg(ig)
++          cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++          chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++          DO kk=1,6
++             ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) +&
++                  cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)
++          ENDDO
++          IF (pslo_com%tivan) THEN
++             DO kk=1,6
++                ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) + cfpibg*rhogs*drhovg(ig,kk)
++                IF (cntl%tlsd) ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) + cfpibg*rhogs*drhovg(ig,6+kk)
++             ENDDO
++          ENDIF
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           dehc=dehc+ev_dehc(:,ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(ig,isa,is,ia,kk,rhopr,r2, &
+        !$omp rhet,rhog,rhogs,fpibg,cfpibg,chgm1) &
+        !$omp reduction(+:dehc)
+@@ -413,7 +741,64 @@
+              ENDDO
+           ENDIF
+        ENDDO
++#endif
+     ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         COMPLEX(real_8), ALLOCATABLE :: ev_dehc(:,:)
++         ev_nc=(ncpw%nhg)-(ig1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_dehc(SIZE(dehc,1),ev_nc))
++         ev_dehc=(0.0_real_8,0.0_real_8)
++       !$omp parallel do schedule(static) &
++       !$omp  private(ig, isa, is, ia, kk, rhopr, r2, ei123, er, ei, er2, &
++       !$omp rhet, rhog) &
++       !$omp  private(rhogs, fpibg, cfpibg, chgm1, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(ig1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++           DO ig=ev_lo,ev_hi
++          rhopr = (0.0_real_8,0.0_real_8)
++          isa=0
++          DO is=1,ions1%nsp
++             r2 = raggio(is)*raggio(is)
++             DO ia=1,ions0%na(is)
++                isa=isa+1
++                ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
++                     ei3(isa,inyh(3,ig))
++                er=REAL(ei123)
++                ei=AIMAG(ei123)
++                er2=0.5_real_8*r2*rhops(is,ig)
++                rhopr = rhopr + CMPLX(er*er2,ei*er2,kind=real_8)
++             ENDDO
++          ENDDO
++          rhet=v(nzh(ig))
++          rhog=rhet+eirop(ig)
++          rhogs=CONJG(rhog)
++          fpibg=fpi/parm%tpiba2/hg(ig)
++          cfpibg=CMPLX(fpibg,0._real_8,kind=real_8)
++          chgm1=CMPLX(1._real_8/hg(ig)/parm%tpiba2,0.0_real_8,kind=real_8)
++          DO kk=1,6
++             ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) +&
++                  cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)
++          ENDDO
++          IF (pslo_com%tivan) THEN
++             DO kk=1,6
++                ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) + cfpibg*rhogs*drhovg(ig,kk)
++                IF (cntl%tlsd) ev_dehc(kk,ev_c) = ev_dehc(kk,ev_c) + cfpibg*rhogs*drhovg(ig,6+kk)
++             ENDDO
++          ENDIF
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           dehc=dehc+ev_dehc(:,ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(ig,isa,is,ia,kk,rhopr,r2,ei123,er,ei,er2, &
+        !$omp rhet,rhog,rhogs,fpibg,cfpibg,chgm1) &
+        !$omp reduction(+:dehc)
+@@ -449,6 +834,7 @@
+              ENDDO
+           ENDIF
+        ENDDO
++#endif
+     ENDIF
+ #endif 
+     DO kk=1,6
+diff -ruN a/src/kin_energy_utils.mod.F90 b/src/kin_energy_utils.mod.F90
+--- a/src/kin_energy_utils.mod.F90	2026-10-11 10:21:57.875579217 +0000
++++ b/src/kin_energy_utils.mod.F90	2026-10-11 11:17:19.845644258 +0000
+@@ -1,5 +1,9 @@
++#include "evidence_flags.h"
+ MODULE kin_energy_utils
+-  USE cppt,                            ONLY: hg
++  USE cppt,                            ONLY: hg,&
++                                             inyh
++  USE evidence_reduce,                 ONLY: evidence_gorder_sum
++  USE parac,                           ONLY: parai
+   USE dotp_utils,                      ONLY: dotp
+   USE elct,                            ONLY: crge
+   USE ener,                            ONLY: ener_c,&
+@@ -61,6 +65,75 @@
+     ! Accumulate the charge and kinetic energy
+     rsum=0._real_8
+     xkin=0._real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    BLOCK
++      INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++      INTEGER, PARAMETER :: ev_cs=64
++      REAL(real_8), ALLOCATABLE :: ev_rsum(:)
++      REAL(real_8), ALLOCATABLE :: ev_xkin(:)
++      ev_nc=(nstate)-(1)+1
++      IF (ev_nc.LT.0) ev_nc=0
++      ev_nc=(ev_nc+ev_cs-1)/ev_cs
++      IF (ev_nc.LT.1) ev_nc=1
++      ALLOCATE(ev_rsum(ev_nc), ev_xkin(ev_nc))
++      ev_rsum(:)=0.0_real_8
++      ev_xkin(:)=0.0_real_8
++    !$omp parallel do schedule(static) &
++    !$omp  private(I, SK1, XSKIN, IS1, ARG, G2, IG, ev_lo, ev_hi)
++      DO ev_c=1,ev_nc
++        ev_lo=(1)+(ev_c-1)*ev_cs
++        ev_hi=MIN((1)+ev_c*ev_cs-1,(nstate))
++        DO i=ev_lo,ev_hi
++       IF (crge%f(i,1).NE.0._real_8) THEN! TODO check F(I,1) === F(I)
++          ev_rsum(ev_c)=ev_rsum(ev_c)+crge%f(i,1)*dotp(ncpw%ngw,c0(:,i),c0(:,i))
++          sk1=0.0_real_8
++          IF (prcp_com%akin.GT.deltakin) THEN
++             xskin=1._real_8/prcp_com%gskin
++             is1=1
++             IF (geq0) THEN
++                is1=2
++                arg=-prcp_com%gckin*xskin
++                g2=0.5_real_8*prcp_com%gakin*(1._real_8+cp_erf(arg))
++                sk1=sk1+REAL(g2*CONJG(c0(1,i))*c0(1,i))
++             ENDIF
++#if defined(__SR8000)
++             !poption parallel
++             !poption tlocal(ARG)
++             DO ig=is1,ngw
++                arg=(hg(ig)-prcp_com%gckin)*xskin
++                g2w(ig)=hg(ig)+prcp_com%gakin*(1._real_8+cp_erf(arg))
++             ENDDO
++#ifdef __SR8000
++             !poption parallel, tlocal(IG), psum(SK1)
++#endif 
++             DO ig=is1,ngw
++                sk1=sk1+REAL(g2w(ig)*CONJG(c0(ig,i))*c0(ig,i))
++             ENDDO
++#else
++             DO ig=is1,ncpw%ngw
++                arg=(hg(ig)-prcp_com%gckin)*xskin
++                g2=hg(ig)+prcp_com%gakin*(1._real_8+cp_erf(arg))
++                sk1=sk1+REAL(g2*CONJG(c0(ig,i))*c0(ig,i))
++             ENDDO
++#endif
++          ELSE
++#ifdef __SR8000
++             !poption parallel, tlocal(IG), psum(SK1)
++#endif 
++             DO ig=1,ncpw%ngw
++                sk1=sk1+REAL(hg(ig)*CONJG(c0(ig,i))*c0(ig,i))
++             ENDDO
++          ENDIF
++          ev_xkin(ev_c)=ev_xkin(ev_c)+crge%f(i,1)*sk1
++       ENDIF
++        ENDDO
++      ENDDO
++      DO ev_c=1,ev_nc
++        RSUM=RSUM+ev_rsum(ev_c)
++        XKIN=XKIN+ev_xkin(ev_c)
++      ENDDO
++    END BLOCK
++#else
+     !$omp parallel do private(I,SK1,XSKIN,IS1,ARG,G2,IG) &
+     !$omp  reduction(+:RSUM,XKIN)
+     DO i=1,nstate
+@@ -107,6 +180,35 @@
+           xkin=xkin+crge%f(i,1)*sk1
+        ENDIF
+     ENDDO
++#endif
++#if defined(CPMDC_EVIDENCE_GORDER)
++    IF (prcp_com%akin.LE.deltakin) THEN
++       BLOCK
++         INTEGER :: ev_i, ev_ig
++         INTEGER(8), ALLOCATABLE :: ev_key(:)
++         REAL(real_8), ALLOCATABLE :: ev_val(:)
++         REAL(real_8) :: ev_sk, ev_tot
++         ALLOCATE(ev_key(ncpw%ngw), ev_val(ncpw%ngw))
++         DO ev_ig=1,ncpw%ngw
++            ev_key(ev_ig)=INT(inyh(1,ev_ig),8)+ISHFT(INT(inyh(2,ev_ig),8),21)+&
++                 ISHFT(INT(inyh(3,ev_ig),8),42)
++            ev_sk=0.0_real_8
++            DO ev_i=1,nstate
++               IF (crge%f(ev_i,1).NE.0._real_8) THEN
++                  ev_sk=ev_sk+crge%f(ev_i,1)*REAL(hg(ev_ig)*CONJG(c0(ev_ig,ev_i))*c0(ev_ig,ev_i))
++               ENDIF
++            ENDDO
++            ev_val(ev_ig)=ev_sk
++         ENDDO
++         CALL evidence_gorder_sum(ncpw%ngw,ev_key,ev_val,parai%allgrp,ev_tot)
++         IF (parai%mepos.EQ.0) THEN
++            xkin=ev_tot
++         ELSE
++            xkin=0.0_real_8
++         ENDIF
++       END BLOCK
++    ENDIF
++#endif
+     ener_com%ekin=xkin*parm%tpiba2
+     ! Other kinetic energies for CAS22 method
+     IF (lspin2%tlse .AND. (lspin2%tcas22.OR.lspin2%tpenal)) THEN
+diff -ruN a/src/loadpa_utils.mod.F90 b/src/loadpa_utils.mod.F90
+--- a/src/loadpa_utils.mod.F90	2026-10-11 10:21:57.875579217 +0000
++++ b/src/loadpa_utils.mod.F90	2026-10-11 11:17:19.493645929 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #include "cpmd_global.h"
+ 
+ MODULE loadpa_utils
+@@ -451,6 +452,21 @@
+ ! ==--------------------------------------------------------------==
+ 
+     thread_buff(:,:) = 0
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    im=-2**30
++    i1=1
++    i2=1
++    DO j2=1,n2
++       DO j1=1,n1
++          IF (ir(j1,j2).GE.im) THEN
++             im=ir(j1,j2)
++             i1=j1
++             i2=j2
++          ENDIF
++       ENDDO
++    ENDDO
++#else
++    thread_buff(:,:) = 0
+     !$omp parallel &
+     !$omp          private(J1,J2,IM,ithread) &
+     !$omp          shared(N1,N2,thread_buff)
+@@ -486,6 +502,7 @@
+           ENDIF
+        ENDIF
+     ENDDO
++#endif
+     ! ==--------------------------------------------------------------==
+     RETURN
+   END SUBROUTINE iraymax
+diff -ruN a/src/mltfft_utils.mod.F90 b/src/mltfft_utils.mod.F90
+--- a/src/mltfft_utils.mod.F90	2026-10-11 10:21:57.883579568 +0000
++++ b/src/mltfft_utils.mod.F90	2026-10-11 11:17:19.493645929 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE mltfft_utils
+ 
+   USE cublas_types,                    ONLY: cublas_handle_t
+@@ -516,11 +517,15 @@
+     ELSE
+        fftw_dir=fftw_b
+     ENDIF
++#if defined(CPMDC_EVIDENCE_FFTW_ESTIMATE)
++    fftw_flags=fftw_es
++#else
+     IF (use_wisdom) THEN
+        fftw_flags=fftw_me
+     ELSE
+        fftw_flags=fftw_es
+     ENDIF
++#endif
+ 
+     IF (transa.EQ.'N'.OR.transa.EQ.'n') THEN
+        IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
+diff -ruN a/src/mp_interface.mod.F90 b/src/mp_interface.mod.F90
+--- a/src/mp_interface.mod.F90	2026-10-11 10:21:57.883579568 +0000
++++ b/src/mp_interface.mod.F90	2026-10-11 11:17:19.489645948 +0000
+@@ -6,6 +6,16 @@
+ 
+ MODULE mp_interface
+   USE error_handling,                  ONLY: stopgm
++  USE evidence_reduce,                 ONLY: evidence_allreduce_c8,&
++                                             evidence_allreduce_c8_inplace,&
++                                             evidence_allreduce_r8,&
++                                             evidence_allreduce_r8_inplace,&
++                                             evidence_allreduce_r8_s,&
++                                             evidence_allreduce_c8_s,&
++                                             evidence_reduce_c8,&
++                                             evidence_reduce_c8_s,&
++                                             evidence_reduce_r8,&
++                                             evidence_reduce_r8_s
+   USE kinds,                           ONLY: int_1,&
+                                              int_4,&
+                                              int_8,&
+diff -ruN a/src/nlforce_utils.mod.F90 b/src/nlforce_utils.mod.F90
+--- a/src/nlforce_utils.mod.F90	2026-10-11 10:21:57.887579744 +0000
++++ b/src/nlforce_utils.mod.F90	2026-10-11 11:17:19.861644181 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE nlforce_utils
+   USE cppt,                            ONLY: twnl
+   USE cvan,                            ONLY: deeq,&
+diff -ruN a/src/potfor_utils.mod.F90 b/src/potfor_utils.mod.F90
+--- a/src/potfor_utils.mod.F90	2026-10-11 10:21:57.891579919 +0000
++++ b/src/potfor_utils.mod.F90	2026-10-11 11:17:19.861644181 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #if defined(__SR11000)
+ !option OPT(O(ss))
+ #endif
+@@ -113,6 +114,53 @@
+ #else                
+     ! mb   For scalar version & pseudo-vector machines
+     IF (cntl%bigmem) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_fion(:, :, :,:)
++  ev_nc=(ncpw%nhg)-(ig1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_fion(SIZE(FION,1), SIZE(FION,2), SIZE(FION,3),ev_nc))
++  ev_fion=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IG, IS, IA, ISA, RP, RHET, RHOG, RHETS, RHOGS, GX, GY, GZ, VCGS, TXX, TYY, TZZ) &
++!$omp  private(EI123, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(ig1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++    DO ig=ev_lo,ev_hi
++          rp=eirop(ig)
++          rhet=v(nzh(ig))
++          rhog=rhet+rp
++          rhets=CONJG(rhet)
++          rhogs=CONJG(rhog)
++          gx=CMPLX(0._real_8,gk(1,ig),kind=real_8)
++          gy=CMPLX(0._real_8,gk(2,ig),kind=real_8)
++          gz=CMPLX(0._real_8,gk(3,ig),kind=real_8)
++          vcgs=scg(ig)*rhogs
++          isa=0
++          DO is=1,ions1%nsp
++             txx=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gx
++             tyy=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gy
++             tzz=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gz
++             DO ia=1,ions0%na(is)
++                isa=isa+1
++                ei123=eigrb(ig,isa)
++                ev_fion(1,ia,is,ev_c)=ev_fion(1,ia,is,ev_c)+REAL(ei123*txx)*omtp
++                ev_fion(2,ia,is,ev_c)=ev_fion(2,ia,is,ev_c)+REAL(ei123*tyy)*omtp
++                ev_fion(3,ia,is,ev_c)=ev_fion(3,ia,is,ev_c)+REAL(ei123*tzz)*omtp
++             ENDDO
++          ENDDO
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    FION=FION+ev_fion(:, :, :,ev_c)
++  ENDDO
++END BLOCK
++#else
+ #ifdef __SR8000
+        !poption parallel
+        !poption tlocal(RP,RHET,RHOG,RHETS,RHOGS,GX,GY,GZ,VCGS)
+@@ -152,7 +200,56 @@
+              ENDDO
+           ENDDO
+        ENDDO
++#endif
+     ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_fion(:, :, :,:)
++  ev_nc=(ncpw%nhg)-(ig1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_fion(SIZE(FION,1), SIZE(FION,2), SIZE(FION,3),ev_nc))
++  ev_fion=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IG, IS, IA, ISA, RP, RHET, RHOG, RHETS, RHOGS, GX, GY, GZ, VCGS, TXX, TYY, TZZ) &
++!$omp  private(EI123, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(ig1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++    DO ig=ev_lo,ev_hi
++          rp=eirop(ig)
++          rhet=v(nzh(ig))
++          rhog=rhet+rp
++          rhets=CONJG(rhet)
++          rhogs=CONJG(rhog)
++          gx=CMPLX(0._real_8,gk(1,ig),kind=real_8)
++          gy=CMPLX(0._real_8,gk(2,ig),kind=real_8)
++          gz=CMPLX(0._real_8,gk(3,ig),kind=real_8)
++          vcgs=scg(ig)*rhogs
++          isa=0
++          DO is=1,ions1%nsp
++             txx=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gx
++             tyy=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gy
++             tzz=(rhops(is,ig)*vcgs+vps(is,ig)*rhets)*gz
++             DO ia=1,ions0%na(is)
++                isa=isa+1
++                ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
++                     ei3(isa,inyh(3,ig))
++                ev_fion(1,ia,is,ev_c)=ev_fion(1,ia,is,ev_c)+REAL(ei123*txx)*omtp
++                ev_fion(2,ia,is,ev_c)=ev_fion(2,ia,is,ev_c)+REAL(ei123*tyy)*omtp
++                ev_fion(3,ia,is,ev_c)=ev_fion(3,ia,is,ev_c)+REAL(ei123*tzz)*omtp
++             ENDDO
++          ENDDO
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    FION=FION+ev_fion(:, :, :,ev_c)
++  ENDDO
++END BLOCK
++#else
+ #ifdef __SR8000
+        !poption parallel
+        !poption tlocal(RP,RHET,RHOG,RHETS,RHOGS,GX,GY,GZ,VCGS)
+@@ -193,6 +290,7 @@
+              ENDDO
+           ENDDO
+        ENDDO
++#endif
+     ENDIF
+ #endif
+     CALL tihalt(procedureN,isub)
+diff -ruN a/src/ppener_utils.mod.F90 b/src/ppener_utils.mod.F90
+--- a/src/ppener_utils.mod.F90	2026-10-11 10:21:57.891579919 +0000
++++ b/src/ppener_utils.mod.F90	2026-10-11 11:17:19.861644181 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #include "cpmd_global.h"
+ 
+ MODULE ppener_utils
+@@ -75,6 +76,57 @@
+        ei=(0.0_real_8,0.0_real_8)
+        ee=(0.0_real_8,0.0_real_8)
+     ENDIF
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    BLOCK
++      INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++      INTEGER, PARAMETER :: ev_cs=64
++      COMPLEX(real_8), ALLOCATABLE :: ev_eh(:)
++      COMPLEX(real_8), ALLOCATABLE :: ev_ei(:)
++      COMPLEX(real_8), ALLOCATABLE :: ev_ee(:)
++      REAL(real_8), ALLOCATABLE :: ev_eps(:)
++      ev_nc=(ncpw%nhg)-(ig1)+1
++      IF (ev_nc.LT.0) ev_nc=0
++      ev_nc=(ev_nc+ev_cs-1)/ev_cs
++      IF (ev_nc.LT.1) ev_nc=1
++      ALLOCATE(ev_eh(ev_nc), ev_ei(ev_nc), ev_ee(ev_nc), ev_eps(ev_nc))
++      ev_eh(:)=(0.0_real_8,0.0_real_8)
++      ev_ei(:)=(0.0_real_8,0.0_real_8)
++      ev_ee(:)=(0.0_real_8,0.0_real_8)
++      ev_eps(:)=0.0_real_8
++    !$omp parallel do schedule(static) &
++    !$omp  private(IG, VP, RP, RHET, RHOG, RHETS, RHOGS, VCG, ev_lo, ev_hi)
++      DO ev_c=1,ev_nc
++        ev_lo=(ig1)+(ev_c-1)*ev_cs
++        ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++        DO ig=ev_lo,ev_hi
++       ! ==------------------------------------------------------------==
++       ! == In VTEMP it is stored temporarily the potential in G-space.==
++       ! ==------------------------------------------------------------==
++       vp=eivps(ig)
++       rp=eirop(ig)
++       rhet=v(nzh(ig))
++       rhog=rhet+rp
++       rhets=CONJG(rhet)
++       rhogs=CONJG(rhog)
++       vcg=scg(ig)*rhog
++       vtemp(ig)=vcg+vp
++       ! Hartree term (e-e, ion-ion and e-ion [part] interactions)
++       ev_eh(ev_c)=ev_eh(ev_c)+vcg*rhogs
++       ! Gaussian charge dist. (RHOPS) Ion-Ion interaction
++       ev_ei(ev_c)=ev_ei(ev_c)+scg(ig)*rp*CONJG(rp)
++       ! e-e interaction
++       ev_ee(ev_c)=ev_ee(ev_c)+scg(ig)*rhet*CONJG(rhet)
++       ev_eps(ev_c)=ev_eps(ev_c)+rhets*vp
++        ENDDO
++      ENDDO
++      DO ev_c=1,ev_nc
++        EH=EH+ev_eh(ev_c)
++        EI=EI+ev_ei(ev_c)
++        EE=EE+ev_ee(ev_c)
++        EPS=EPS+ev_eps(ev_c)
++      ENDDO
++    END BLOCK
++#else
+     !$omp  parallel do private(IG,VP,RP,RHET,RHOG,RHETS,RHOGS,VCG) &
+     !$omp  reduction(+:EH,EI,EE,EPS)
+ #ifdef __SR8000
+@@ -102,6 +154,7 @@
+        ee=ee+scg(ig)*rhet*CONJG(rhet)
+        eps=eps+rhets*vp
+     ENDDO
++#endif
+     __NVTX_TIMER_STOP
+     CALL tihalt(procedureN,isub)
+     ! ==--------------------------------------------------------------==
+diff -ruN a/src/rhoofr_utils.mod.F90 b/src/rhoofr_utils.mod.F90
+--- a/src/rhoofr_utils.mod.F90	2026-10-11 10:21:57.899580270 +0000
++++ b/src/rhoofr_utils.mod.F90	2026-10-11 11:17:19.849644239 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #include "cpmd_global.h"
+ 
+ MODULE rhoofr_utils
+@@ -547,6 +548,36 @@
+     IF (cntl%tlsd) THEN
+        rsum1=0._real_8
+        rsum1abs=0._real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         REAL(real_8), ALLOCATABLE :: ev_rsum1(:)
++         REAL(real_8), ALLOCATABLE :: ev_rsum1abs(:)
++         ev_nc=(fpar%nnr1)-(1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_rsum1(ev_nc), ev_rsum1abs(ev_nc))
++         ev_rsum1(:)=0.0_real_8
++         ev_rsum1abs(:)=0.0_real_8
++       !$omp parallel do schedule(static) &
++       !$omp  private(I, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++           DO i=ev_lo,ev_hi
++          ev_rsum1(ev_c) = ev_rsum1(ev_c) + (rhoe(i,1) - rhoe(i,2))
++          ev_rsum1abs(ev_c) = ev_rsum1abs(ev_c) + ABS(rhoe(i,1) - rhoe(i,2))
++          rhoe(i,1) = rhoe(i,1) + rhoe(i,2)
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           RSUM1=RSUM1+ev_rsum1(ev_c)
++           RSUM1ABS=RSUM1ABS+ev_rsum1abs(ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(I) shared(fpar,RHOE) &
+        !$omp  reduction(+:RSUM1,RSUM1ABS)
+        DO i=1,fpar%nnr1
+@@ -554,6 +585,7 @@
+           rsum1abs = rsum1abs + ABS(rhoe(i,1) - rhoe(i,2))
+           rhoe(i,1) = rhoe(i,1) + rhoe(i,2)
+        ENDDO
++#endif
+        chrg%csums=rsum1*parm%omega/REAL(lr1s*lr2s*lr3s,kind=real_8)
+        chrg%csumsabs=rsum1abs*parm%omega/REAL(lr1s*lr2s*lr3s,kind=real_8)
+        ! ALPHA+BETA DENSITY IN RHOE(*,1), BETA DENSITY IN RHOE(*,2) ; M STATE
+@@ -605,6 +637,31 @@
+     ! RSUM1=DASUM(NNR1,RHOE(1,1),1)
+     ! --> with VDB PP RHOE might be negative in some points
+     rsum1=0._real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_rsum1(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_rsum1(ev_nc))
++  ev_rsum1(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(I, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO i=ev_lo,ev_hi
++       ev_rsum1(ev_c)=ev_rsum1(ev_c)+rhoe(i,1)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    RSUM1=RSUM1+ev_rsum1(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__SR8000)
+     !poption parallel, tlocal(I), psum(RSUM1)
+ #else
+@@ -614,6 +671,7 @@
+     DO i=1,fpar%nnr1
+        rsum1=rsum1+rhoe(i,1)
+     ENDDO
++#endif
+     rsum1=rsum1*parm%omega/REAL(spar%nr1s*spar%nr2s*spar%nr3s,kind=real_8)
+     chrg%csumg=rsum
+     chrg%csumr=rsum1
+diff -ruN a/src/rnlfor_utils.mod.F90 b/src/rnlfor_utils.mod.F90
+--- a/src/rnlfor_utils.mod.F90	2026-10-11 10:21:57.899580270 +0000
++++ b/src/rnlfor_utils.mod.F90	2026-10-11 11:17:19.861644181 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE rnlfor_utils
+   USE cvan,                            ONLY: deeq,&
+                                              dvan
+diff -ruN a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
+--- a/src/rwfopt_utils.mod.F90	2026-10-11 10:21:57.903580446 +0000
++++ b/src/rwfopt_utils.mod.F90	2026-10-11 11:17:19.493645929 +0000
+@@ -24,6 +24,7 @@
+   USE elct
+   USE enbandpri_utils,                 ONLY: enbandpri
+   USE ener
++  USE evidence_dump,                   ONLY: evidence_write_results
+   USE epr_efg_utils,                   ONLY: epr_efg
+   USE error_handling,                  ONLY: stopgm
+   USE fft_maxfft,                      ONLY: maxfft
+@@ -175,6 +176,7 @@
+     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
+     !#endif
+     CALL zeroing(psi)
++    ropt_mod%calste=cntl%tpres
+     CALL give_scr_rwfopt(lscr,tag)
+     ALLOCATE(scr(lscr),STAT=ierr)
+     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+@@ -827,7 +829,7 @@
+        GOTO 150
+     ENDIF
+     ! Calculate ionic forces
+-    IF (ropt_mod%convwf.AND.(tfor.OR.cntl%tpres.OR.vdwl%vdwd)) THEN
++    IF (cntl%tpres.OR.(ropt_mod%convwf.AND.(tfor.OR.vdwl%vdwd))) THEN
+        IF (vdwl%vdwd) CALL localize(tau0,c0,c2,sc0,crge%n)
+        IF (cntl%tdiag) THEN
+           CALL updrho(c0,c2,gde,sc0,pme,vpp,tau0,fion,eigv,&
+@@ -912,6 +914,7 @@
+     ENDIF
+     IF (paral%parent) THEN
+        CALL prmem('    RWFOPT')
++       CALL evidence_write_results(fion)
+        IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
+        CALL geofile(tau0,fion,'WRITE')
+     ENDIF
+diff -ruN a/src/SOURCES b/src/SOURCES
+--- a/src/SOURCES	2026-10-11 10:21:57.843577813 +0000
++++ b/src/SOURCES	2026-10-11 11:17:19.489645948 +0000
+@@ -82,7 +82,7 @@
+ 
+ 
+ SRC_MODULES = kinds.mod.F90 machine.mod.F90 timer.mod.F90 error_handling.mod.F90 para_global.mod.F90 \
+-           mp_interface.mod.F90 mp_multiple_comm_init.mod.F90 system.mod.F90 system_utils.mod.F90 reshaper.mod.F90 \
++           evidence_reduce.mod.F90 mp_interface.mod.F90 mp_multiple_comm_init.mod.F90 system.mod.F90 system_utils.mod.F90 reshaper.mod.F90 \
+            mm_parallel.mod.F90 if_parallel.mod.F90 md_driver.mod.F90 \
+            control_utils.mod.F90 dftin_utils.mod.F90 sysin_utils.mod.F90 setsc_utils.mod.F90 detsp_utils.mod.F90 \
+            adat.mod.F90 atom.mod.F90 atwf.mod.F90 bc.mod.F90 benc.mod.F90 aavan.mod.F90 \
+@@ -219,7 +219,7 @@
+            lr_upd_utils.mod.F90 dd_xc_utils.mod.F90 eind_ii_utils.mod.F90 eind_loc_utils.mod.F90 eind_nl_utils.mod.F90 \
+            lr_in_utils.mod.F90 lr_xcpot_utils.mod.F90 lr_ortho_utils.mod.F90 lr_pcg_utils.mod.F90 canon_utils.mod.F90 \
+            lr_tddft_utils.mod.F90 lr_tddft_drhoe.mod.F90 vibana_utils.mod.F90 dd_xc_ana_utils.mod.F90 dd_functionals_utils.mod.F90 \
+-           rwfopt_utils.mod.F90 updwf_utils.mod.F90 odiis_utils.mod.F90 pcgrad_utils.mod.F90 k_updwf_utils.mod.F90 \
++           evidence_dump.mod.F90 rwfopt_utils.mod.F90 updwf_utils.mod.F90 odiis_utils.mod.F90 pcgrad_utils.mod.F90 k_updwf_utils.mod.F90 \
+            k_odiis_utils.mod.F90 k_hesele_utils.mod.F90 k_pcgrad_utils.mod.F90 k_diis_rhofix_utils.mod.F90 cdft_utils.mod.F90 \
+            transme_utils.mod.F90 syscomb_utils.mod.F90 davidson_utils.mod.F90 ksdiag_utils.mod.F90 vgsortho_utils.mod.F90 \
+            hpsi_utils.mod.F90 spsi_utils.mod.F90 gsortho_utils.mod.F90 rhov1_utils.mod.F90 hubbardu.mod.F90 hubbardu_utils.mod.F90 \
+diff -ruN a/src/stress_utils.mod.F90 b/src/stress_utils.mod.F90
+--- a/src/stress_utils.mod.F90	2026-10-11 10:21:57.903580446 +0000
++++ b/src/stress_utils.mod.F90	2026-10-11 11:17:19.857644200 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #include "cpmd_global.h"
+ 
+ MODULE stress_utils
+@@ -418,6 +419,34 @@
+                       ENDDO
+                    ENDDO
+ #else
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++                   BLOCK
++                     INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++                     INTEGER, PARAMETER :: ev_cs=64
++                     REAL(real_8), ALLOCATABLE :: ev_sgc(:,:)
++                     ev_nc=(ncpw%ngw)-(1)+1
++                     IF (ev_nc.LT.0) ev_nc=0
++                     ev_nc=(ev_nc+ev_cs-1)/ev_cs
++                     IF (ev_nc.LT.1) ev_nc=1
++                     ALLOCATE(ev_sgc(SIZE(SGC,1),ev_nc))
++                     ev_sgc=0.0_real_8
++                   !$omp parallel do schedule(static) &
++                   !$omp  private(KK, IG, ev_lo, ev_hi)
++                     DO ev_c=1,ev_nc
++                       ev_lo=(1)+(ev_c-1)*ev_cs
++                       ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%ngw))
++                       DO ig=ev_lo,ev_hi
++                      DO kk=1,6
++                         ev_sgc(kk,ev_c)=ev_sgc(kk,ev_c)+REAL(dqg(ig,1)*gagkp(ig,kk,ikind))+&
++                              REAL(dqg(ncpw%ngw+ig,1)*gagkm(ig,kk,ikind))
++                      ENDDO
++                       ENDDO
++                     ENDDO
++                     DO ev_c=1,ev_nc
++                       SGC=SGC+ev_sgc(:,ev_c)
++                     ENDDO
++                   END BLOCK
++#else
+                    !$omp parallel do private(KK,IG) reduction(+:SGC) schedule(static)
+                    DO ig=1,ncpw%ngw
+                       DO kk=1,6
+@@ -426,6 +455,7 @@
+                       ENDDO
+                    ENDDO
+ #endif
++#endif
+                 ELSE
+ #if defined(__VECTOR)
+                    t1=0.0_real_8
+@@ -434,6 +464,51 @@
+                    t4=0.0_real_8
+                    t5=0.0_real_8
+                    t6=0.0_real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++                   BLOCK
++                     INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++                     INTEGER, PARAMETER :: ev_cs=64
++                     REAL(real_8), ALLOCATABLE :: ev_t1(:)
++                     REAL(real_8), ALLOCATABLE :: ev_t2(:)
++                     COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++                     COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++                     COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++                     COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++                     ev_nc=(ncpw%ngw)-(1)+1
++                     IF (ev_nc.LT.0) ev_nc=0
++                     ev_nc=(ev_nc+ev_cs-1)/ev_cs
++                     IF (ev_nc.LT.1) ev_nc=1
++                     ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++                     ev_t1(:)=0.0_real_8
++                     ev_t2(:)=0.0_real_8
++                     ev_t3(:)=(0.0_real_8,0.0_real_8)
++                     ev_t4(:)=(0.0_real_8,0.0_real_8)
++                     ev_t5(:)=(0.0_real_8,0.0_real_8)
++                     ev_t6(:)=(0.0_real_8,0.0_real_8)
++                   !$omp parallel do schedule(static) &
++                   !$omp  private(IG, ev_lo, ev_hi)
++                     DO ev_c=1,ev_nc
++                       ev_lo=(1)+(ev_c-1)*ev_cs
++                       ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%ngw))
++                       DO ig=ev_lo,ev_hi
++                      ev_t1(ev_c)=ev_t1(ev_c)+REAL(dqg(ig,1)*gagk(ig,1))
++                      ev_t2(ev_c)=ev_t2(ev_c)+REAL(dqg(ig,1)*gagk(ig,2))
++                      ev_t3(ev_c)=ev_t3(ev_c)+REAL(dqg(ig,1)*gagk(ig,3))
++                      ev_t4(ev_c)=ev_t4(ev_c)+REAL(dqg(ig,1)*gagk(ig,4))
++                      ev_t5(ev_c)=ev_t5(ev_c)+REAL(dqg(ig,1)*gagk(ig,5))
++                      ev_t6(ev_c)=ev_t6(ev_c)+REAL(dqg(ig,1)*gagk(ig,6))
++                       ENDDO
++                     ENDDO
++                     DO ev_c=1,ev_nc
++                       T1=T1+ev_t1(ev_c)
++                       T2=T2+ev_t2(ev_c)
++                       T3=T3+ev_t3(ev_c)
++                       T4=T4+ev_t4(ev_c)
++                       T5=T5+ev_t5(ev_c)
++                       T6=T6+ev_t6(ev_c)
++                     ENDDO
++                   END BLOCK
++#else
+                    !$omp parallel do private(IG) &
+                    !$omp  reduction(+:T1,T2,T3,T4,T5,T6)
+                    DO ig=1,ncpw%ngw
+@@ -444,6 +519,7 @@
+                       t5=t5+REAL(dqg(ig,1)*gagk(ig,5))
+                       t6=t6+REAL(dqg(ig,1)*gagk(ig,6))
+                    ENDDO
++#endif
+                    sgc(1)=sgc(1)+t1
+                    sgc(2)=sgc(2)+t2
+                    sgc(3)=sgc(3)+t3
+@@ -451,12 +527,40 @@
+                    sgc(5)=sgc(5)+t5
+                    sgc(6)=sgc(6)+t6
+ #else 
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++                   BLOCK
++                     INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++                     INTEGER, PARAMETER :: ev_cs=64
++                     REAL(real_8), ALLOCATABLE :: ev_sgc(:,:)
++                     ev_nc=(ncpw%ngw)-(1)+1
++                     IF (ev_nc.LT.0) ev_nc=0
++                     ev_nc=(ev_nc+ev_cs-1)/ev_cs
++                     IF (ev_nc.LT.1) ev_nc=1
++                     ALLOCATE(ev_sgc(SIZE(sgc,1),ev_nc))
++                     ev_sgc=0.0_real_8
++                   !$omp parallel do schedule(static) &
++                   !$omp  private(KK, IG, ev_lo, ev_hi)
++                     DO ev_c=1,ev_nc
++                       ev_lo=(1)+(ev_c-1)*ev_cs
++                       ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%ngw))
++                       DO ig=ev_lo,ev_hi
++                      DO kk=1,6
++                         ev_sgc(kk,ev_c)=ev_sgc(kk,ev_c)+REAL(dqg(ig,1)*gagk(ig,kk))
++                      ENDDO
++                       ENDDO
++                     ENDDO
++                     DO ev_c=1,ev_nc
++                       sgc=sgc+ev_sgc(:,ev_c)
++                     ENDDO
++                   END BLOCK
++#else
+                    !$omp parallel do private(KK,IG) reduction(+:sgc)
+                    DO ig=1,ncpw%ngw
+                       DO kk=1,6
+                          sgc(kk)=sgc(kk)+REAL(dqg(ig,1)*gagk(ig,kk))
+                       ENDDO
+                    ENDDO
++#endif
+ #endif 
+                 ENDIF
+                 weight=wk(ikk)*f(i,ikk)
+diff -ruN a/src/sum.inc b/src/sum.inc
+--- a/src/sum.inc	2026-10-11 10:21:57.903580446 +0000
++++ b/src/sum.inc	2026-10-11 11:17:19.489645948 +0000
+@@ -105,8 +105,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_real8_r0'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,1,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8_s(data_in,data_out,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out =data_in 
+@@ -124,8 +123,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_real8_r1'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1:n)=data_in (1:n)
+@@ -143,8 +141,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_real8_r2'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1:n)=data_in (1,1:n)
+@@ -162,8 +159,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_real8_r3'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1,1:n)=data_in (1,1,1:n)
+@@ -181,8 +177,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_real8_r4'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1,1,1:n)=data_in (1,1,1,1:n)
+@@ -295,8 +290,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_complex8_r0'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,1,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8_s(data_in,data_out,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out =data_in 
+@@ -314,8 +308,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_complex8_r1'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1:n)=data_in (1:n)
+@@ -333,8 +326,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_complex8_r2'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1:n)=data_in (1,1:n)
+@@ -352,8 +344,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_complex8_r3'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1,1:n)=data_in (1,1,1:n)
+@@ -371,8 +362,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_complex8_r4'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_allreduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8(data_in,data_out,n,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1,1,1:n)=data_in (1,1,1,1:n)
+diff -ruN a/src/sum_in_place.inc b/src/sum_in_place.inc
+--- a/src/sum_in_place.inc	2026-10-11 10:21:57.907580621 +0000
++++ b/src/sum_in_place.inc	2026-10-11 11:17:19.493645929 +0000
+@@ -154,14 +154,12 @@
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_r8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_PRECISION,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_r8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -170,8 +168,7 @@
+            __LINE__,__FILE__)
+       do i=1,n,buff_size
+         m=min(buff_size,n-i+1)
+-        call mpi_allreduce(data(i),buff,m,MPI_DOUBLE_PRECISION,&
+-             MPI_SUM,comm,ierr)
++        call evidence_allreduce_r8(data(i),buff,m,comm,ierr)
+         call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+         data(i:i+m-1)=buff(1:m)
+       enddo
+@@ -200,14 +197,12 @@
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_r8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_PRECISION,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_r8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -246,14 +241,12 @@
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_r8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_PRECISION,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_r8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -292,14 +285,12 @@
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_r8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1,1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_PRECISION,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_r8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -338,14 +329,12 @@
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_r8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1,1,1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_PRECISION,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_r8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -384,14 +373,12 @@
+   complex(real_8),dimension(:),allocatable :: buff
+   complex(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_COMPLEX,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_c8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_COMPLEX,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_c8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -400,8 +387,7 @@
+            __LINE__,__FILE__)
+       do i=1,n,buff_size
+         m=min(buff_size,n-i+1)
+-        call mpi_allreduce(data(i),buff,m,MPI_DOUBLE_COMPLEX,&
+-             MPI_SUM,comm,ierr)
++        call evidence_allreduce_c8(data(i),buff,m,comm,ierr)
+         call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+         data(i:i+m-1)=buff(1:m)
+       enddo
+@@ -430,14 +416,12 @@
+   complex(real_8),dimension(:),allocatable :: buff
+   complex(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_COMPLEX,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_c8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_COMPLEX,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_c8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -476,14 +460,12 @@
+   complex(real_8),dimension(:),allocatable :: buff
+   complex(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_COMPLEX,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_c8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_COMPLEX,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_c8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+@@ -522,14 +504,12 @@
+   complex(real_8),dimension(:),allocatable :: buff
+   complex(real_8),dimension(para_stack_buff_size) :: stack_buff
+   if (n<=para_stack_buff_size) then
+-    call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_COMPLEX,&
+-         MPI_SUM,comm,ierr)
++    call evidence_allreduce_c8(data,stack_buff,n,comm,ierr)
+     call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     data(1,1,1,1:n)=stack_buff(1:n)
+   else
+     if (para_use_mpi_in_place) then
+-      call mpi_allreduce(MPI_IN_PLACE,data,n,MPI_DOUBLE_COMPLEX,&
+-           MPI_SUM,comm,ierr)
++      call evidence_allreduce_c8_inplace(data,n,comm,ierr)
+       call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+     else
+       buff_size=min(n,para_buff_size)
+diff -ruN a/src/sum_root.inc b/src/sum_root.inc
+--- a/src/sum_root.inc	2026-10-11 10:21:57.907580621 +0000
++++ b/src/sum_root.inc	2026-10-11 11:17:19.489645948 +0000
+@@ -67,8 +67,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r0'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,1,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_r8_s(data_in,data_out,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out =data_in 
+@@ -86,8 +85,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r1'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_r8(data_in,data_out,n,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1:n)=data_in (1:n)
+@@ -105,8 +103,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r2'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_r8(data_in,data_out,n,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1:n)=data_in (1,1:n)
+@@ -124,8 +121,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r0'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,1,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_c8_s(data_in,data_out,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out =data_in 
+@@ -143,8 +139,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r1'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_c8(data_in,data_out,n,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1:n)=data_in (1:n)
+@@ -162,8 +157,7 @@
+   CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r2'
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+-       MPI_SUM,root,comm,ierr)
++  call evidence_reduce_c8(data_in,data_out,n,root,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+ #else
+   data_out (1,1:n)=data_in (1,1:n)
+diff -ruN a/src/sum_scalar_in_place.inc b/src/sum_scalar_in_place.inc
+--- a/src/sum_scalar_in_place.inc	2026-10-11 10:21:57.907580621 +0000
++++ b/src/sum_scalar_in_place.inc	2026-10-11 11:17:19.489645948 +0000
+@@ -49,8 +49,7 @@
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+   REAL(real_8) :: stack_buff
+-  CALL mpi_allreduce(DATA,stack_buff,1,MPI_DOUBLE_PRECISION,&
+-         MPI_SUM,comm,ierr)
++  call evidence_allreduce_r8_s(DATA,stack_buff,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+   DATA=stack_buff
+ #endif
+@@ -68,8 +67,7 @@
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+   COMPLEX(real_8) :: stack_buff
+-  CALL mpi_allreduce(DATA,stack_buff,1,MPI_DOUBLE_COMPLEX,&
+-         MPI_SUM,comm,ierr)
++  call evidence_allreduce_c8_s(DATA,stack_buff,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+   DATA=stack_buff
+ #endif
+diff -ruN a/src/vlocst_utils.mod.F90 b/src/vlocst_utils.mod.F90
+--- a/src/vlocst_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/vlocst_utils.mod.F90	2026-10-11 11:17:19.857644200 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE vlocst_utils
+   USE cppt,                            ONLY: nzh
+   USE ffsum_utils,                     ONLY: ffsum
+@@ -64,6 +65,51 @@
+     t4=(0.0_real_8,0.0_real_8)
+     t5=(0.0_real_8,0.0_real_8)
+     t6=(0.0_real_8,0.0_real_8)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  COMPLEX(real_8), ALLOCATABLE :: ev_t1(:)
++  COMPLEX(real_8), ALLOCATABLE :: ev_t2(:)
++  COMPLEX(real_8), ALLOCATABLE :: ev_t3(:)
++  COMPLEX(real_8), ALLOCATABLE :: ev_t4(:)
++  COMPLEX(real_8), ALLOCATABLE :: ev_t5(:)
++  COMPLEX(real_8), ALLOCATABLE :: ev_t6(:)
++  ev_nc=(ncpw%nhg)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_t1(ev_nc), ev_t2(ev_nc), ev_t3(ev_nc), ev_t4(ev_nc), ev_t5(ev_nc), ev_t6(ev_nc))
++  ev_t1(:)=(0.0_real_8,0.0_real_8)
++  ev_t2(:)=(0.0_real_8,0.0_real_8)
++  ev_t3(:)=(0.0_real_8,0.0_real_8)
++  ev_t4(:)=(0.0_real_8,0.0_real_8)
++  ev_t5(:)=(0.0_real_8,0.0_real_8)
++  ev_t6(:)=(0.0_real_8,0.0_real_8)
++!$omp parallel do schedule(static) &
++!$omp  private(IG, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%nhg))
++    DO ig=ev_lo,ev_hi
++       ev_t1(ev_c)=ev_t1(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,1)
++       ev_t2(ev_c)=ev_t2(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,2)
++       ev_t3(ev_c)=ev_t3(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,3)
++       ev_t4(ev_c)=ev_t4(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,4)
++       ev_t5(ev_c)=ev_t5(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,5)
++       ev_t6(ev_c)=ev_t6(ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,6)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    T1=T1+ev_t1(ev_c)
++    T2=T2+ev_t2(ev_c)
++    T3=T3+ev_t3(ev_c)
++    T4=T4+ev_t4(ev_c)
++    T5=T5+ev_t5(ev_c)
++    T6=T6+ev_t6(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #ifdef __SR8000
+     !poption parallel, tlocal(IG) 
+     !poption psum(T1,T2,T3,T4,T5,T6)
+@@ -78,6 +124,7 @@
+        t5=t5+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,5)
+        t6=t6+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,6)
+     ENDDO
++#endif
+     depst(1)=depst(1)+t1
+     depst(2)=depst(2)+t2
+     depst(3)=depst(3)+t3
+@@ -85,12 +132,40 @@
+     depst(5)=depst(5)+t5
+     depst(6)=depst(6)+t6
+ #else 
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    BLOCK
++      INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++      INTEGER, PARAMETER :: ev_cs=64
++      COMPLEX(real_8), ALLOCATABLE :: ev_depst(:,:)
++      ev_nc=(ncpw%nhg)-(1)+1
++      IF (ev_nc.LT.0) ev_nc=0
++      ev_nc=(ev_nc+ev_cs-1)/ev_cs
++      IF (ev_nc.LT.1) ev_nc=1
++      ALLOCATE(ev_depst(SIZE(depst,1),ev_nc))
++      ev_depst=(0.0_real_8,0.0_real_8)
++    !$omp parallel do schedule(static) &
++    !$omp  private(KK, IG, ev_lo, ev_hi)
++      DO ev_c=1,ev_nc
++        ev_lo=(1)+(ev_c-1)*ev_cs
++        ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%nhg))
++        DO ig=ev_lo,ev_hi
++       DO kk=1,6
++          ev_depst(kk,ev_c)=ev_depst(kk,ev_c)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,kk)
++       ENDDO
++        ENDDO
++      ENDDO
++      DO ev_c=1,ev_nc
++        depst=depst+ev_depst(:,ev_c)
++      ENDDO
++    END BLOCK
++#else
+     !$omp parallel do private(KK,IG) reduction(+:depst)
+     DO ig=1,ncpw%nhg
+        DO kk=1,6
+           depst(kk)=depst(kk)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,kk)
+        ENDDO
+     ENDDO
++#endif
+ #endif 
+     IF (pslo_com%tivan) THEN
+        DO kk=1,6
+@@ -109,11 +184,38 @@
+              ENDDO
+              depst(kk)=depst(kk)+temp
+ #else 
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++             BLOCK
++               INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++               INTEGER, PARAMETER :: ev_cs=64
++               COMPLEX(real_8), ALLOCATABLE :: ev_depst(:,:)
++               ev_nc=(ncpw%nhg)-(ig1)+1
++               IF (ev_nc.LT.0) ev_nc=0
++               ev_nc=(ev_nc+ev_cs-1)/ev_cs
++               IF (ev_nc.LT.1) ev_nc=1
++               ALLOCATE(ev_depst(SIZE(depst,1),ev_nc))
++               ev_depst=(0.0_real_8,0.0_real_8)
++             !$omp parallel do schedule(static) &
++             !$omp  private(ig, ev_lo, ev_hi)
++               DO ev_c=1,ev_nc
++                 ev_lo=(ig1)+(ev_c-1)*ev_cs
++                 ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++                 DO ig=ev_lo,ev_hi
++                ev_depst(kk,ev_c)=ev_depst(kk,ev_c)+CONJG(drhovg(ig,kk))*eivps(ig)
++                IF (cntl%tlsd) ev_depst(kk,ev_c)=ev_depst(kk,ev_c)+CONJG(drhovg(ig,6+kk))*eivps(ig)
++                 ENDDO
++               ENDDO
++               DO ev_c=1,ev_nc
++                 depst=depst+ev_depst(:,ev_c)
++               ENDDO
++             END BLOCK
++#else
+              !$omp parallel do private(ig) reduction(+:depst)
+              DO ig=ig1,ncpw%nhg
+                 depst(kk)=depst(kk)+CONJG(drhovg(ig,kk))*eivps(ig)
+                 IF (cntl%tlsd) depst(kk)=depst(kk)+CONJG(drhovg(ig,6+kk))*eivps(ig)
+              ENDDO
++#endif
+ #endif 
+           ENDIF
+        ENDDO
+diff -ruN a/src/vofrhoa_utils.mod.F90 b/src/vofrhoa_utils.mod.F90
+--- a/src/vofrhoa_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/vofrhoa_utils.mod.F90	2026-10-11 11:17:19.849644239 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ #include "cpmd_global.h"
+ 
+ MODULE vofrhoa_utils
+diff -ruN a/src/vofrhob_utils.mod.F90 b/src/vofrhob_utils.mod.F90
+--- a/src/vofrhob_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/vofrhob_utils.mod.F90	2026-10-11 11:17:19.849644239 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ 
+ #include "cpmd_global.h"
+ 
+@@ -278,6 +279,32 @@
+              CALL dscal(4*fpar%nnr1,-1.0_real_8,dqg,1)
+              vgc=0.0_real_8
+              IF (corel%tinlc) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+(rhoval(ir,1)-rhoval(ir,2))*REAL(dqg_1d(ir))
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+rhoval(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -287,7 +314,34 @@
+                    vgc=vgc+(rhoval(ir,1)-rhoval(ir,2))*REAL(dqg_1d(ir))
+                    vgc=vgc+rhoval(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
+                 ENDDO
++#endif
+              ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+rhoe(ir,1)*REAL(dqg_1d(ir))
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+rhoe(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -297,8 +351,34 @@
+                    vgc=vgc+rhoe(ir,1)*REAL(dqg_1d(ir))
+                    vgc=vgc+rhoe(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
+                 ENDDO
++#endif
+              ENDIF
+              IF (cntl%ttau) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+(tau(ir,1)*vtau(ir,1)+tau(ir,2)*vtau(ir,2))
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -307,6 +387,7 @@
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+(tau(ir,1)*vtau(ir,1)+tau(ir,2)*vtau(ir,2))
+                 ENDDO
++#endif
+              ENDIF
+           ENDIF
+        ELSE
+@@ -316,6 +397,31 @@
+              CALL dscal(2*fpar%nnr1,-1.0_real_8,dqg,1)
+              vgc=0.0_real_8
+              IF (corel%tinlc) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+rhoval(ir,1)*REAL(dqg_1d(ir))
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -327,7 +433,33 @@
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+rhoval(ir,1)*REAL(dqg_1d(ir))
+                 ENDDO
++#endif
+              ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+rhoe(ir,1)*REAL(dqg_1d(ir))
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -339,8 +471,34 @@
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+rhoe(ir,1)*REAL(dqg_1d(ir))
+                 ENDDO
++#endif
+              ENDIF
+              IF (cntl%ttau) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_vgc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_vgc(ev_nc))
++  ev_vgc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++                   ev_vgc(ev_c)=ev_vgc(ev_c)+tau(ir,1)*vtau(ir,1)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    VGC=VGC+ev_vgc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+                 !$omp parallel do private(IR) reduction(+:VGC)
+ #else
+@@ -352,6 +510,7 @@
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+tau(ir,1)*vtau(ir,1)
+                 ENDDO
++#endif
+              ENDIF
+           ENDIF
+        ENDIF
+diff -ruN a/src/vofrhoh_utils.mod.F90 b/src/vofrhoh_utils.mod.F90
+--- a/src/vofrhoh_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/vofrhoh_utils.mod.F90	2026-10-11 11:17:19.853644220 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE vofrhoh_utils
+   USE cppt,                            ONLY: gk,&
+                                              hipz,&
+@@ -127,6 +128,41 @@
+        eps=(0.0_real_8,0.0_real_8)
+        ig1=1
+     ENDIF
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    BLOCK
++      INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++      INTEGER, PARAMETER :: ev_cs=64
++      REAL(real_8), ALLOCATABLE :: ev_eze(:)
++      REAL(real_8), ALLOCATABLE :: ev_eps(:)
++      ev_nc=(ncpw%nhg)-(ig1)+1
++      IF (ev_nc.LT.0) ev_nc=0
++      ev_nc=(ev_nc+ev_cs-1)/ev_cs
++      IF (ev_nc.LT.1) ev_nc=1
++      ALLOCATE(ev_eze(ev_nc), ev_eps(ev_nc))
++      ev_eze(:)=0.0_real_8
++      ev_eps(:)=0.0_real_8
++    !$omp parallel do schedule(static) &
++    !$omp  private(IG, VP, RP, RHOG, RHOT, VZCP, ev_lo, ev_hi)
++      DO ev_c=1,ev_nc
++        ev_lo=(ig1)+(ev_c-1)*ev_cs
++        ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++        DO ig=ev_lo,ev_hi
++       vp=eivps(ig)
++       rp=eirop(ig)
++       rhog=v(nzh(ig))
++       rhot=rhog+rp
++       vzcp=hipz(ig)*rhot
++       vtemp(ig)=vp+vzcp
++       ev_eze(ev_c)=ev_eze(ev_c)+(REAL(rhot)*REAL(vzcp)+AIMAG(rhot)*AIMAG(vzcp))
++       ev_eps(ev_c)=ev_eps(ev_c)+(REAL(vp)*REAL(rhog)+AIMAG(vp)*AIMAG(rhog))
++        ENDDO
++      ENDDO
++      DO ev_c=1,ev_nc
++        EZE=EZE+ev_eze(ev_c)
++        EPS=EPS+ev_eps(ev_c)
++      ENDDO
++    END BLOCK
++#else
+     !$omp parallel do private(IG,VP,RP,RHOG,RHOT,VZCP) &
+     !$omp  reduction(+:EZE,EPS)
+     DO ig=ig1,ncpw%nhg
+@@ -139,6 +175,7 @@
+        eze=eze+(REAL(rhot)*REAL(vzcp)+AIMAG(rhot)*AIMAG(vzcp))
+        eps=eps+(REAL(vp)*REAL(rhog)+AIMAG(vp)*AIMAG(rhog))
+     ENDDO
++#endif
+     ener_com%epseu=2._real_8*REAL(eps)*parm%omega
+     ! ==------------------------------------------------------------==
+     ! FORCES ON ATOMS DUE TO ZERO CORRECTION AND PSEUDO-POTENTIAL
+@@ -239,6 +276,31 @@
+     CALL invfftn(v,.FALSE.,parai%allgrp)
+     CALL hip(v,qphi)
+     ehip1=0.0_real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_ehip1(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_ehip1(ev_nc))
++  ev_ehip1(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(IR, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO ir=ev_lo,ev_hi
++       ev_ehip1(ev_c)=ev_ehip1(ev_c)+REAL(v(ir))*rhoe(ir)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    EHIP1=EHIP1+ev_ehip1(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #if defined(__VECTOR)
+     !$omp parallel do private(IR) reduction(+:EHIP1)
+ #else
+@@ -247,8 +309,37 @@
+     DO ir=1,fpar%nnr1
+        ehip1=ehip1+REAL(v(ir))*rhoe(ir)
+     ENDDO
++#endif
+     CALL  fwfftn(v,.FALSE.,parai%allgrp)
+     ehip2=0.0_real_8
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++    BLOCK
++      INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++      INTEGER, PARAMETER :: ev_cs=64
++      REAL(real_8), ALLOCATABLE :: ev_ehip2(:)
++      ev_nc=(ncpw%nhg)-(1)+1
++      IF (ev_nc.LT.0) ev_nc=0
++      ev_nc=(ev_nc+ev_cs-1)/ev_cs
++      IF (ev_nc.LT.1) ev_nc=1
++      ALLOCATE(ev_ehip2(ev_nc))
++      ev_ehip2(:)=0.0_real_8
++    !$omp parallel do schedule(static) &
++    !$omp  private(IG, VZCP, ev_lo, ev_hi)
++      DO ev_c=1,ev_nc
++        ev_lo=(1)+(ev_c-1)*ev_cs
++        ev_hi=MIN((1)+ev_c*ev_cs-1,(ncpw%nhg))
++        DO ig=ev_lo,ev_hi
++       vzcp=v(nzh(ig))
++       ev_ehip2(ev_c)=ev_ehip2(ev_c)+(REAL(vzcp)*REAL(eirop(ig))+&
++            AIMAG(vzcp)*AIMAG(eirop(ig)))
++       vtemp(ig)=vtemp(ig)+vzcp
++        ENDDO
++      ENDDO
++      DO ev_c=1,ev_nc
++        EHIP2=EHIP2+ev_ehip2(ev_c)
++      ENDDO
++    END BLOCK
++#else
+     !$omp parallel do private(IG,VZCP) reduction(+:EHIP2)
+     DO ig=1,ncpw%nhg
+        vzcp=v(nzh(ig))
+@@ -256,6 +347,7 @@
+             AIMAG(vzcp)*AIMAG(eirop(ig)))
+        vtemp(ig)=vtemp(ig)+vzcp
+     ENDDO
++#endif
+     IF (geq0) ehip2=ehip2-0.5_real_8*REAL(v(nzh(1)))*REAL(eirop(1))
+     ener_com%ehep = 0.5_real_8*ehip1*parm%omega/REAL(nnrs,kind=real_8)&
+          + ehip2*parm%omega&
+@@ -358,6 +450,36 @@
+           eps=(0.0_real_8,0.0_real_8)
+           ig1=1
+        ENDIF
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++       BLOCK
++         INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++         INTEGER, PARAMETER :: ev_cs=64
++         REAL(real_8), ALLOCATABLE :: ev_eze(:)
++         ev_nc=(ncpw%nhg)-(ig1)+1
++         IF (ev_nc.LT.0) ev_nc=0
++         ev_nc=(ev_nc+ev_cs-1)/ev_cs
++         IF (ev_nc.LT.1) ev_nc=1
++         ALLOCATE(ev_eze(ev_nc))
++         ev_eze(:)=0.0_real_8
++       !$omp parallel do schedule(static) &
++       !$omp  private(IG, RHOG, VZCP, RP, ev_lo, ev_hi)
++         DO ev_c=1,ev_nc
++           ev_lo=(ig1)+(ev_c-1)*ev_cs
++           ev_hi=MIN((ig1)+ev_c*ev_cs-1,(ncpw%nhg))
++           DO ig=ev_lo,ev_hi
++          rhog=v(nzh(ig))
++          vzcp=hipz(ig)*rhog
++          ev_eze(ev_c)=ev_eze(ev_c)+(-REAL(rhog)*REAL(vzcp)-AIMAG(rhog)*AIMAG(vzcp))
++          rp=eirop(ig)
++          vzcp=hipz(ig)*rp
++          ev_eze(ev_c)=ev_eze(ev_c)+(REAL(rp)*REAL(vzcp)+AIMAG(rp)*AIMAG(vzcp))
++           ENDDO
++         ENDDO
++         DO ev_c=1,ev_nc
++           EZE=EZE+ev_eze(ev_c)
++         ENDDO
++       END BLOCK
++#else
+        !$omp parallel do private(IG,RHOG,VZCP,RP) reduction(+:EZE)
+        DO ig=ig1,ncpw%nhg
+           rhog=v(nzh(ig))
+@@ -367,6 +489,7 @@
+           vzcp=hipz(ig)*rp
+           eze=eze+(REAL(rp)*REAL(vzcp)+AIMAG(rp)*AIMAG(vzcp))
+        ENDDO
++#endif
+        eze=eze*parm%omega
+        ehip1 = 0.5_real_8*ehip1*parm%omega/REAL(nnrs,kind=real_8)
+        ehip2 = ehip2*parm%omega
+diff -ruN a/src/vofrhos_utils.mod.F90 b/src/vofrhos_utils.mod.F90
+--- a/src/vofrhos_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/vofrhos_utils.mod.F90	2026-10-11 11:17:19.853644220 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE vofrhos_utils
+   USE cp_xc_utils,                     ONLY: cp_xc
+   USE cnst,                            ONLY: fpi
+diff -ruN a/src/xcener_utils.mod.F90 b/src/xcener_utils.mod.F90
+--- a/src/xcener_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/xcener_utils.mod.F90	2026-10-11 11:17:19.849644239 +0000
+@@ -1,3 +1,4 @@
++#include "evidence_flags.h"
+ MODULE xcener_utils
+   USE fft_maxfft,                      ONLY: maxfft
+   USE func,                            ONLY: func1,&
+@@ -85,6 +86,41 @@
+     IF (cntl%tlsd) CALL dcopy(2*fpar%nnr1,v(1,1),1,v(1,2),1)
+     IF (func1%mfxcc /= mfxcc_is_skipped.OR.func1%mfxcx /= mfxcx_is_skipped) THEN
+        IF (tabx%narray.LT.2.AND..NOT.cntl%tlsd) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_sxc(:)
++  REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_sxc(ev_nc), ev_vxc(ev_nc))
++  ev_sxc(:)=0.0_real_8
++  ev_vxc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(I, ROE, EX, EC, VX, VC, VXC1, EXC1, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO i=ev_lo,ev_hi
++             roe=MAX(rhoe(i,1),0.0_real_8)
++             CALL xc(roe,ex,ec,vx,vc)
++             ! hybrid weights are now in subroutine XC
++             vxc1=vx+vc
++             exc1=ex+ec
++             v(i,1)=v(i,1)+CMPLX(vxc1,0.0_real_8,kind=real_8)
++             ev_sxc(ev_c)=ev_sxc(ev_c)+exc1*roe
++             ev_vxc(ev_c)=ev_vxc(ev_c)+vxc1*MAX(rhoval(i,1),0.0_real_8)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    SXC=SXC+ev_sxc(ev_c)
++    VXC=VXC+ev_vxc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #ifdef __SR8000
+           !poption parallel
+           !poption tlocal(EX,EC,VX,VC,VXC1,EXC1)
+@@ -101,8 +137,53 @@
+              sxc=sxc+exc1*roe
+              vxc=vxc+vxc1*MAX(rhoval(i,1),0.0_real_8)
+           ENDDO
++#endif
+        ELSE
+           IF (.NOT.cntl%tlsd) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++BLOCK
++  INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++  INTEGER, PARAMETER :: ev_cs=64
++  REAL(real_8), ALLOCATABLE :: ev_sxc(:)
++  REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++  ev_nc=(fpar%nnr1)-(1)+1
++  IF (ev_nc.LT.0) ev_nc=0
++  ev_nc=(ev_nc+ev_cs-1)/ev_cs
++  IF (ev_nc.LT.1) ev_nc=1
++  ALLOCATE(ev_sxc(ev_nc), ev_vxc(ev_nc))
++  ev_sxc(:)=0.0_real_8
++  ev_vxc(:)=0.0_real_8
++!$omp parallel do schedule(static) &
++!$omp  private(I, ROE, RATIO, I1, DD, EE, VXC1, EXC1, EX, VX, EC, VC, ev_lo, ev_hi)
++  DO ev_c=1,ev_nc
++    ev_lo=(1)+(ev_c-1)*ev_cs
++    ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++    DO i=ev_lo,ev_hi
++                roe=MAX(rhoe(i,1),0.0_real_8)
++                ratio=(1._real_8/tabx%ddro)*roe
++                i1=ratio
++                IF (i1.LT.tabx%narray) THEN
++                   dd=ratio-REAL(i1,kind=real_8)
++                   ee=1._real_8-dd
++                   vxc1=vvxc(i1)*ee+vvxc(i1+1)*dd
++                   exc1=eexc(i1)*ee+eexc(i1+1)*dd
++                ELSE
++                   CALL xc(roe,ex,ec,vx,vc)
++                   ! hybrid weights are now in subroutine XC
++                   vxc1=vx+vc
++                   exc1=ex+ec
++                ENDIF
++                v(i,1)=v(i,1)+CMPLX(vxc1,0.0_real_8,kind=real_8)
++                ev_sxc(ev_c)=ev_sxc(ev_c)+exc1*roe
++                ev_vxc(ev_c)=ev_vxc(ev_c)+vxc1*MAX(rhoval(i,1),0.0_real_8)
++    ENDDO
++  ENDDO
++  DO ev_c=1,ev_nc
++    SXC=SXC+ev_sxc(ev_c)
++    VXC=VXC+ev_vxc(ev_c)
++  ENDDO
++END BLOCK
++#else
+ #ifdef __SR8000
+              !poption parallel
+              !poption tlocal(EX,EC,VX,VC,VXC1,EXC1)
+@@ -131,7 +212,50 @@
+                 sxc=sxc+exc1*roe
+                 vxc=vxc+vxc1*MAX(rhoval(i,1),0.0_real_8)
+              ENDDO
++#endif
+           ELSE
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++             BLOCK
++               INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++               INTEGER, PARAMETER :: ev_cs=64
++               REAL(real_8), ALLOCATABLE :: ev_sxc(:)
++               REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++               ev_nc=(fpar%nnr1)-(1)+1
++               IF (ev_nc.LT.0) ev_nc=0
++               ev_nc=(ev_nc+ev_cs-1)/ev_cs
++               IF (ev_nc.LT.1) ev_nc=1
++               ALLOCATE(ev_sxc(ev_nc), ev_vxc(ev_nc))
++               ev_sxc(:)=0.0_real_8
++               ev_vxc(:)=0.0_real_8
++             !$omp parallel do schedule(static) &
++             !$omp  private(IR, ROE, ETA, EX, EC, VXA, VCA, VXCA, VXB, VCB, VXCB, EXC, ev_lo, ev_hi)
++               DO ev_c=1,ev_nc
++                 ev_lo=(1)+(ev_c-1)*ev_cs
++                 ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++                 DO ir=ev_lo,ev_hi
++                roe = MAX(rhoe(ir,1),1.0e-15_real_8)
++                eta = (rhoe(ir,1)-2._real_8*rhoe(ir,2))/roe
++                IF (ABS(eta).GT.1._real_8) eta=SIGN(1.0_real_8,eta)
++                CALL xc_lsd(roe,eta,ex,ec,vxa,vca,vxb,vcb)
++                ! hybrid weights are now in subroutine xc_lsd
++                vxca=vxa+vca
++                vxcb=vxb+vcb
++                exc=ex+ec
++                v(ir,1)=v(ir,1)+CMPLX(vxca,0.0_real_8,kind=real_8)
++                v(ir,2)=v(ir,2)+CMPLX(vxcb,0.0_real_8,kind=real_8)
++                ev_sxc(ev_c)=ev_sxc(ev_c)+exc*roe
++                ! .aa
++                ev_vxc(ev_c)=ev_vxc(ev_c)+(vxca*(rhoval(ir,1)-rhoval(ir,2))+&
++                     vxcb*rhoval(ir,2))
++                ! .aa
++                 ENDDO
++               ENDDO
++               DO ev_c=1,ev_nc
++                 SXC=SXC+ev_sxc(ev_c)
++                 VXC=VXC+ev_vxc(ev_c)
++               ENDDO
++             END BLOCK
++#else
+              ! ==----------------------------------------------------------==
+              ! ==  INPUT : RHOE(1..NNR1)  ALPHA + BETA DENSITY             ==
+              ! ==          RHOE(NNR1+1..2*NNR1)  BETA DENSITY             ==
+@@ -163,6 +287,7 @@
+                      vxcb*rhoval(ir,2))
+                 ! .aa
+              ENDDO
++#endif
+           ENDIF
+        ENDIF
+     ENDIF
+@@ -196,36 +321,192 @@
+     ntab=0
+     IF (.NOT.cntl%tlsd) THEN
+        IF (func1%mfxcc == mfxcc_is_skipped.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL xalpu(func2%salpha,parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,&
+                rhoe,v,sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+ABS(rhoval(ir,1))*REAL(v(ir,1))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_lyp.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL lypuu(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v,sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+ABS(rhoval(ir,1))*REAL(v(ir,1))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_pade) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL mikeu(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v,sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+ABS(rhoval(ir,1))*REAL(v(ir,1))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSE
+           CALL xcener_old(sxc,vxc,rhoval,rhoe,v)
+        ENDIF
+@@ -239,41 +520,200 @@
+        ! ==------------------------------------------------------------==
+        CALL dcopy(2*fpar%nnr1,v(1,1),1,v(1,2),1)
+        IF (func1%mfxcc == mfxcc_is_skipped.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL xalpsp(func2%salpha,parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,&
+                rhoe,v(1,1),v(1,2),sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
++                  +ABS(rhoval(ir,2))*REAL(v(ir,2)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_lyp.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL slypsp(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v(1,1),v(1,2),&
+                func2%salpha,sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
++                  +ABS(rhoval(ir,2))*REAL(v(ir,2)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_pade) THEN
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL mikesp(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v(1,1),v(1,2),&
+                sxc,flops)
++#if defined(CPMDC_EVIDENCE_OMP_FIXED)
++          BLOCK
++            INTEGER :: ev_c, ev_nc, ev_lo, ev_hi
++            INTEGER, PARAMETER :: ev_cs=64
++            REAL(real_8), ALLOCATABLE :: ev_vxc(:)
++            ev_nc=(fpar%nnr1)-(1)+1
++            IF (ev_nc.LT.0) ev_nc=0
++            ev_nc=(ev_nc+ev_cs-1)/ev_cs
++            IF (ev_nc.LT.1) ev_nc=1
++            ALLOCATE(ev_vxc(ev_nc))
++            ev_vxc(:)=0.0_real_8
++          !$omp parallel do schedule(static) &
++          !$omp  private(IR, ev_lo, ev_hi)
++            DO ev_c=1,ev_nc
++              ev_lo=(1)+(ev_c-1)*ev_cs
++              ev_hi=MIN((1)+ev_c*ev_cs-1,(fpar%nnr1))
++              DO ir=ev_lo,ev_hi
++             ev_vxc(ev_c)=ev_vxc(ev_c)+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
++                  +ABS(rhoval(ir,2))*REAL(v(ir,2)))
++              ENDDO
++            ENDDO
++            DO ev_c=1,ev_nc
++              VXC=VXC+ev_vxc(ev_c)
++            ENDDO
++          END BLOCK
++#else
+           !$omp parallel do private(IR) reduction(+:VXC)
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSE
+           CALL xcener_old(sxc,vxc,rhoval,rhoe,v)
+        ENDIF

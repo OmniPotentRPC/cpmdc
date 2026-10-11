@@ -1,0 +1,8 @@
+bin/
+results/runs/
+__pycache__/
+*.pyc
+GEOMETRY
+GEOMETRY.xyz
+LATEST
+RESTART*
