@@ -68,12 +68,12 @@ html_theme_options = {
                 {
                     "title": "eOn",
                     "url": "https://eondocs.org",
-                    "summary": "Long timescale dynamics for rare-event atomic systems",
+                    "summary": "Saddle point finding on potential energy surfaces",
                 },
                 {
                     "title": "rgpot",
                     "url": "https://rgpot.rgoswami.me",
-                    "summary": "Cap'n Proto RPC server for potential energy calculations",
+                    "summary": "Potential-energy library and Cap'n Proto RPC server",
                 },
                 {
                     "title": "rgmin",
@@ -83,12 +83,12 @@ html_theme_options = {
                 {
                     "title": "rgsaddle",
                     "url": "https://omnipotentrpc.github.io/rgsaddle",
-                    "summary": "Band and minimum-mode saddles over rgmin",
+                    "summary": "Band and minimum-mode saddle mechanics over rgmin",
                 },
                 {
                     "title": "rgpycrumbs",
                     "url": "https://rgpycrumbs.rgoswami.me",
-                    "summary": "Python toolkit for chemical physics and eOn workflows",
+                    "summary": "Pure-Python computational library and CLI for chemical physics",
                 },
                 {
                     "title": "minimage",
@@ -103,17 +103,17 @@ html_theme_options = {
                 {
                     "title": "readcon",
                     "url": "https://lode-org.github.io/readcon-core",
-                    "summary": "CON and convel interchange for rare-event codes",
+                    "summary": "Reference implementation of versioned CON checkpoints",
                 },
                 {
                     "title": "readcon-db",
                     "url": "https://lode-org.github.io/readcon-db",
-                    "summary": "Mmap-backed store for CON campaign corpora",
+                    "summary": "Mmap-backed CON campaign corpus store",
                 },
                 {
                     "title": "readcon-ops",
                     "url": "https://github.com/lode-org/readcon-ops",
-                    "summary": "Comparisons and rigid alignment of readcon frames",
+                    "summary": "Comparisons and rigid alignment of coordinate frames",
                 },
             ],
         },

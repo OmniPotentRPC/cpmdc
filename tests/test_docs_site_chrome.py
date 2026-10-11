@@ -9,16 +9,56 @@ from pathlib import Path
 
 
 ECOSYSTEM = [
-    ("eOn", "https://eondocs.org"),
-    ("rgpot", "https://rgpot.rgoswami.me"),
-    ("rgmin", "https://omnipotentrpc.github.io/rgmin"),
-    ("rgsaddle", "https://omnipotentrpc.github.io/rgsaddle"),
-    ("rgpycrumbs", "https://rgpycrumbs.rgoswami.me"),
-    ("minimage", "https://lode-org.github.io/minimage"),
-    ("linkcell", "https://docs.rs/linkcell"),
-    ("readcon", "https://lode-org.github.io/readcon-core"),
-    ("readcon-db", "https://lode-org.github.io/readcon-db"),
-    ("readcon-ops", "https://github.com/lode-org/readcon-ops"),
+    (
+        "eOn",
+        "https://eondocs.org",
+        "Saddle point finding on potential energy surfaces",
+    ),
+    (
+        "rgpot",
+        "https://rgpot.rgoswami.me",
+        "Potential-energy library and Cap'n Proto RPC server",
+    ),
+    (
+        "rgmin",
+        "https://omnipotentrpc.github.io/rgmin",
+        "Local minimization over eindir objectives",
+    ),
+    (
+        "rgsaddle",
+        "https://omnipotentrpc.github.io/rgsaddle",
+        "Band and minimum-mode saddle mechanics over rgmin",
+    ),
+    (
+        "rgpycrumbs",
+        "https://rgpycrumbs.rgoswami.me",
+        "Pure-Python computational library and CLI for chemical physics",
+    ),
+    (
+        "minimage",
+        "https://lode-org.github.io/minimage",
+        "Minimum-image convention on a general parallelepiped",
+    ),
+    (
+        "linkcell",
+        "https://docs.rs/linkcell",
+        "Periodic linked-cell k-nearest neighbour search",
+    ),
+    (
+        "readcon",
+        "https://lode-org.github.io/readcon-core",
+        "Reference implementation of versioned CON checkpoints",
+    ),
+    (
+        "readcon-db",
+        "https://lode-org.github.io/readcon-db",
+        "Mmap-backed CON campaign corpus store",
+    ),
+    (
+        "readcon-ops",
+        "https://github.com/lode-org/readcon-ops",
+        "Comparisons and rigid alignment of coordinate frames",
+    ),
 ]
 
 
@@ -43,7 +83,7 @@ def main() -> int:
         if needle not in conf:
             failures.append(f"conf.py missing {needle}")
     menu = re.findall(
-        r'\{\s*"title": "([^"]+)",\s*"url": "([^"]+)",',
+        r'\{\s*"title": "([^"]+)",\s*"url": "([^"]+)",\s*"summary": "([^"]+)",',
         conf,
     )
     if menu != ECOSYSTEM:
