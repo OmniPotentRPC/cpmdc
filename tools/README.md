@@ -44,11 +44,17 @@ those members with `ar r`. OpenCPMD build trees contain a directory named
 `lib`, and the generated Makefile may set `AR` to the archiver with no
 operation letter, so `make lib` does not refresh `lib/libcpmd.a`.
 `FFLAGS` and `CFLAGS` in that Makefile need `-fPIC`: `libcpmdc` is a
-shared library, and a non-PIC member fails the link with `R_X86_64_PC32`.
-`tools/LINUX-X86_64-GFORTRAN-MPI-PIC` is the configuration the archive
-how-to copies into `configure/` before `configure.sh`. It adds `-fPIC`,
-links `-lopenblas`, and adds `-fallow-argument-mismatch` when `mpif90`
-accepts that flag.
+shared library, and a non-PIC member fails the link with `R_X86_64_PC32`
+on x86_64.
+`tools/LINUX-X86_64-GFORTRAN-MPI-PIC` and
+`tools/LINUX-AARCH64-GFORTRAN-MPI-PIC` are the configurations the
+archive how-to copies into `configure/` before `configure.sh`.
+Each adds `-fPIC` and `-ffp-contract=off`, links `-lopenblas`, and adds
+`-fallow-argument-mismatch` when `mpif90` accepts that flag.
+Neither passes `-march`.
+The x86_64 default target is x86-64.
+The aarch64 default target is armv8-a.
+`-ffp-contract=off` keeps results equal across those build targets.
 
 Cold embed path also requires at runtime:
 
