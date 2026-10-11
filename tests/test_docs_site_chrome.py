@@ -11,11 +11,13 @@ from pathlib import Path
 ECOSYSTEM = [
     ("eOn", "https://eondocs.org"),
     ("rgpot", "https://rgpot.rgoswami.me"),
-    ("rgmin", "https://omnipotentrpc.github.io/rgmin/"),
-    ("rgsaddle", "https://omnipotentrpc.github.io/rgsaddle/"),
+    ("rgmin", "https://omnipotentrpc.github.io/rgmin"),
+    ("rgsaddle", "https://omnipotentrpc.github.io/rgsaddle"),
     ("rgpycrumbs", "https://rgpycrumbs.rgoswami.me"),
-    ("readcon", "https://lode-org.github.io/readcon-core/"),
-    ("readcon-db", "https://lode-org.github.io/readcon-db/"),
+    ("minimage", "https://lode-org.github.io/minimage"),
+    ("linkcell", "https://docs.rs/linkcell"),
+    ("readcon", "https://lode-org.github.io/readcon-core"),
+    ("readcon-db", "https://lode-org.github.io/readcon-db"),
     ("readcon-ops", "https://github.com/lode-org/readcon-ops"),
 ]
 
@@ -40,11 +42,12 @@ def main() -> int:
     ):
         if needle not in conf:
             failures.append(f"conf.py missing {needle}")
-    for title, url in ECOSYSTEM:
-        if f'"title": "{title}"' not in conf:
-            failures.append(f"conf.py missing ecosystem title {title}")
-        if url not in conf:
-            failures.append(f"conf.py missing ecosystem url {url}")
+    menu = re.findall(
+        r'\{\s*"title": "([^"]+)",\s*"url": "([^"]+)",',
+        conf,
+    )
+    if menu != ECOSYSTEM:
+        failures.append(f"ecosystem menu is {menu}, expected {ECOSYSTEM}")
     if '"title": "cpmdc"' in conf:
         failures.append("conf.py lists cpmdc in its own ecosystem menu")
     if "HaoZeke/readcon" in conf:

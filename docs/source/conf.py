@@ -77,12 +77,12 @@ html_theme_options = {
                 },
                 {
                     "title": "rgmin",
-                    "url": "https://omnipotentrpc.github.io/rgmin/",
+                    "url": "https://omnipotentrpc.github.io/rgmin",
                     "summary": "Local minimization over eindir objectives",
                 },
                 {
                     "title": "rgsaddle",
-                    "url": "https://omnipotentrpc.github.io/rgsaddle/",
+                    "url": "https://omnipotentrpc.github.io/rgsaddle",
                     "summary": "Band and minimum-mode saddles over rgmin",
                 },
                 {
@@ -91,13 +91,23 @@ html_theme_options = {
                     "summary": "Python toolkit for chemical physics and eOn workflows",
                 },
                 {
+                    "title": "minimage",
+                    "url": "https://lode-org.github.io/minimage",
+                    "summary": "Minimum-image convention on a general parallelepiped",
+                },
+                {
+                    "title": "linkcell",
+                    "url": "https://docs.rs/linkcell",
+                    "summary": "Periodic linked-cell k-nearest neighbour search",
+                },
+                {
                     "title": "readcon",
-                    "url": "https://lode-org.github.io/readcon-core/",
+                    "url": "https://lode-org.github.io/readcon-core",
                     "summary": "CON and convel interchange for rare-event codes",
                 },
                 {
                     "title": "readcon-db",
-                    "url": "https://lode-org.github.io/readcon-db/",
+                    "url": "https://lode-org.github.io/readcon-db",
                     "summary": "Mmap-backed store for CON campaign corpora",
                 },
                 {
