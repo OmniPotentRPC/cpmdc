@@ -57,6 +57,8 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      - name: Probe AVX-VNNI and VP2INTERSECT
+        run: bash tools/probe_extra_isa.sh
       - name: Stub suite under ASan/UBSan
         id: sanitize
         continue-on-error: true
