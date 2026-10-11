@@ -58,7 +58,17 @@ jobs:
           pixi-version: latest
           cache: true
       - name: Stub suite under ASan/UBSan
+        id: sanitize
+        continue-on-error: true
         run: pixi run test-stub-sanitize
+      # prterun reports SIGILL and drops the instruction. The preload runs only
+      # after that failure, and only in this job.
+      - name: Show the MPI SIGILL instruction
+        if: steps.sanitize.outcome == 'failure'
+        run: bash tools/trace_mpi_sigill.sh
+      - name: Sanitize suite result
+        if: steps.sanitize.outcome == 'failure'
+        run: exit 1
 
   stub-and-e2e-arm64:
     name: stub-and-e2e (ubuntu-24.04-arm)
