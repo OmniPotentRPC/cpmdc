@@ -2,15 +2,27 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'ci/**'
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   stub-and-e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: CPU flags
+        run: |
+          grep -m1 flags /proc/cpuinfo || true
+          lscpu || true
+          echo "cpmdc SIMD paths: none"
+          echo "scalar: exercised by the test suite"
+          echo "avx2: not exercised"
+          echo "avx512: not exercised"
+          echo "neon: not exercised"
       - uses: prefix-dev/setup-pixi@v0.8.3
         with:
           pixi-version: latest
@@ -21,14 +33,97 @@ jobs:
         run: pixi run test-e2e
       - name: Cmocka suite
         run: pixi run test-cmocka
+      - name: Keep unstripped libraries for the ISA audit
+        run: tools/collect_isa_audit_libs.sh build isa-audit-libs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unstripped-libs-x86_64
+          path: isa-audit-libs/
 
   sanitize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: CPU flags
+        run: |
+          grep -m1 flags /proc/cpuinfo || true
+          lscpu || true
+          echo "cpmdc SIMD paths: none"
+          echo "scalar: exercised by the test suite"
+          echo "avx2: not exercised"
+          echo "avx512: not exercised"
+          echo "neon: not exercised"
       - uses: prefix-dev/setup-pixi@v0.8.3
         with:
           pixi-version: latest
           cache: true
       - name: Stub suite under ASan/UBSan
         run: pixi run test-stub-sanitize
+
+  stub-and-e2e-arm64:
+    name: stub-and-e2e (ubuntu-24.04-arm)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: CPU flags
+        run: |
+          grep -m1 flags /proc/cpuinfo || true
+          lscpu || true
+          echo "cpmdc SIMD paths: none"
+          echo "scalar: exercised by the test suite"
+          echo "avx2: not exercised"
+          echo "avx512: not exercised"
+          echo "neon: not exercised"
+      # pixi.toml platforms are linux-64, osx-64, and osx-arm64.
+      # This job uses the distro toolchain instead of that lock.
+      - name: Apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gfortran pkg-config python3 python3-venv \
+            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
+            ninja-build file
+      - name: Meson
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/meson-venv"
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2'
+          echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      - name: Full meson suite
+        run: |
+          . scripts/with_baseline_flags.sh
+          meson setup build -Dwith_tests=true
+          meson compile -C build
+          meson test -C build --print-errorlogs
+      - name: Keep unstripped libraries for the ISA audit
+        run: tools/collect_isa_audit_libs.sh build isa-audit-libs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unstripped-libs-arm64
+          path: isa-audit-libs/
+
+  # TODO(I0): repin to main once OmniPotentRPC/rgpot branch ci/isa-audit merges.
+  # Pinned to 8957850fd15005ea460ba336781ed152f7ee3d92 on that branch.
+  isa-audit-x86_64:
+    name: isa audit (x86_64)
+    needs: stub-and-e2e
+    permissions:
+      contents: read
+      actions: write
+    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@8957850fd15005ea460ba336781ed152f7ee3d92
+    with:
+      artifact-name: unstripped-libs-x86_64
+      allow-file: isa-allow.toml
+      baseline: x86-64
+
+  # TODO(I0): repin to main once OmniPotentRPC/rgpot branch ci/isa-audit merges.
+  isa-audit-arm64:
+    name: isa audit (arm64)
+    needs: stub-and-e2e-arm64
+    permissions:
+      contents: read
+      actions: write
+    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@8957850fd15005ea460ba336781ed152f7ee3d92
+    with:
+      artifact-name: unstripped-libs-arm64
+      allow-file: isa-allow.toml
+      baseline: armv8-a
