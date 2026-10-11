@@ -1809,13 +1809,10 @@ int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
                                 int ranks_per_calc) {
   char err[512];
   int index = -1;
-  if (g_live_sessions > 0) {
-    cpmdc_store_error("CPMD calculator bind refused: a session is live");
-    return -1;
-  }
   err[0] = '\0';
-  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc, &index, err,
-                          sizeof(err)) != 0) {
+  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc,
+                          g_live_sessions > 0, &index, err, sizeof(err)) !=
+      0) {
     cpmdc_store_error(err[0] != '\0' ? err : "CPMD calculator bind refused");
     return -1;
   }

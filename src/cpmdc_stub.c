@@ -248,9 +248,10 @@ int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
   char err[512];
   int index = -1;
   err[0] = '\0';
-  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc, &index, err,
+  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc, 0, &index, err,
                           sizeof(err)) != 0) {
-    if (strstr(err, "does not equal") != NULL)
+    if (strstr(err, "does not equal") != NULL ||
+        strstr(err, "aligned block") != NULL)
       snprintf(g_last_error, sizeof(g_last_error), "%s", err);
     else
       stub_store_error("cpmdc_adopt_calculator_comm");

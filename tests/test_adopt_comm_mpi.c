@@ -37,6 +37,8 @@ static int root_world_rank(MPI_Comm comm) {
   return root;
 }
 
+static void expect_distinct_roots(MPI_Comm comm, int index, const char *label);
+
 static void expect_group(MPI_Comm comm, int ranks_per_calc, int blocked_index,
                          const char *label) {
   int index;
@@ -83,6 +85,53 @@ static void expect_group(MPI_Comm comm, int ranks_per_calc, int blocked_index,
     check(stored_size == size, msg);
     MPI_Comm_compare(comm, stored, &cmp);
     check(cmp == MPI_IDENT || cmp == MPI_CONGRUENT, "stored comm compare");
+  }
+  expect_distinct_roots(comm, index, label);
+}
+
+/* One index per group root, gathered on MPI_COMM_WORLD. The roots' indices
+ * are 0 .. ncalc-1 with no duplicates.
+ */
+static void expect_distinct_roots(MPI_Comm comm, int index, const char *label) {
+  int local = 0;
+  int size = 0;
+  int world_size = 0;
+  int from_root;
+  int gathered[4];
+  int roots[4];
+  int nroots = 0;
+  int ncalc;
+  int i;
+  int j;
+  char msg[160];
+
+  MPI_Comm_rank(comm, &local);
+  MPI_Comm_size(comm, &size);
+  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  from_root = (local == 0 && index >= 0) ? index : -1;
+  check(world_size == 4 && world_size <= 4, "world size for the root gather");
+  MPI_Allgather(&from_root, 1, MPI_INT, gathered, 1, MPI_INT, MPI_COMM_WORLD);
+  for (i = 0; i < world_size && i < 4; i++) {
+    if (gathered[i] >= 0)
+      roots[nroots++] = gathered[i];
+  }
+  ncalc = size > 0 ? world_size / size : 0;
+  snprintf(msg, sizeof(msg), "%s: %d group roots, expected %d", label, nroots,
+           ncalc);
+  check(nroots == ncalc, msg);
+  for (i = 0; i < nroots; i++) {
+    for (j = i + 1; j < nroots; j++) {
+      if (roots[j] < roots[i]) {
+        int tmp = roots[i];
+        roots[i] = roots[j];
+        roots[j] = tmp;
+      }
+    }
+  }
+  for (i = 0; i < nroots && i < ncalc; i++) {
+    snprintf(msg, sizeof(msg), "%s: root index %d, expected %d", label,
+             roots[i], i);
+    check(roots[i] == i, msg);
   }
 }
 
@@ -147,6 +196,7 @@ int main(int argc, char **argv) {
   MPI_Comm reversed;
   MPI_Comm single;
   MPI_Comm striped;
+  MPI_Comm uneven;
   MPI_Comm world = MPI_COMM_NULL;
   int stored_size = -1;
   MPI_Comm stored = MPI_COMM_NULL;
@@ -218,12 +268,67 @@ int main(int argc, char **argv) {
   expect_group(reversed, 2, g_world / 2, "2x2 reversed key");
   mark("2x2 reversed key");
 
-  /* World ranks 0 and 2 share a group, and world_rank/size is not the
-   * same number on both. The index has to be the root's quotient.
+  /* World ranks 0 and 2 share a group. Both striped groups would receive
+   * index 0, so the call is refused and the stored communicator stays.
    */
   striped = split_color(g_world % 2, g_world);
-  expect_group(striped, 2, -1, "striped pair");
+  {
+    MPI_Comm before = MPI_COMM_NULL;
+    MPI_Comm after = MPI_COMM_NULL;
+    int before_size = -1;
+    int after_size = -1;
+    int cmp = MPI_UNEQUAL;
+    int index;
+    check(cpmdc_adopted_comm(&before, sizeof(before)) == 0,
+          "comm before the striped adopt");
+    if (before != MPI_COMM_NULL)
+      MPI_Comm_size(before, &before_size);
+    index = cpmdc_adopt_calculator_comm(&striped, sizeof(striped), 2);
+    check(index < 0, "striped split returned an index");
+    err = cpmdc_last_error();
+    check(err && strstr(err, "aligned block"), "striped last_error");
+    check(cpmdc_adopted_comm(&after, sizeof(after)) == 0,
+          "striped cleared the stored communicator");
+    if (after != MPI_COMM_NULL)
+      MPI_Comm_size(after, &after_size);
+    check(after_size == before_size, "striped replaced the stored size");
+    if (before != MPI_COMM_NULL && after != MPI_COMM_NULL) {
+      MPI_Comm_compare(before, after, &cmp);
+      check(cmp == MPI_IDENT || cmp == MPI_CONGRUENT,
+            "striped replaced the stored communicator");
+    }
+  }
   mark("striped placement");
+
+  /* Colors 0, 1, 1, 2. Group {1, 2} has size 2 and starts at an odd rank.
+   * The singletons are aligned blocks and receive their world ranks.
+   */
+  uneven = split_color(g_world == 0 ? 0 : (g_world == 3 ? 2 : 1), g_world);
+  {
+    int group_size = 0;
+    int index;
+    MPI_Comm_size(uneven, &group_size);
+    index = cpmdc_adopt_calculator_comm(&uneven, sizeof(uneven), group_size);
+    if (g_world == 1 || g_world == 2) {
+      MPI_Comm after = MPI_COMM_NULL;
+      int cmp = MPI_UNEQUAL;
+      check(index < 0, "misaligned block returned an index");
+      err = cpmdc_last_error();
+      check(err && strstr(err, "aligned block"), "misaligned last_error");
+      check(cpmdc_adopted_comm(&after, sizeof(after)) == 0,
+            "misaligned cleared the stored communicator");
+      if (after != MPI_COMM_NULL) {
+        MPI_Comm_compare(reversed, after, &cmp);
+        check(cmp == MPI_IDENT || cmp == MPI_CONGRUENT,
+              "misaligned replaced the stored communicator");
+      }
+    } else if (g_world == 0) {
+      check(index == 0, "singleton world rank 0 index");
+    } else {
+      check(index == 3, "singleton world rank 3 index");
+    }
+  }
+  mark("misaligned block");
 
   if (params_path) {
     size_t nbytes = 0;
@@ -269,6 +374,7 @@ int main(int argc, char **argv) {
   MPI_Comm_free(&reversed);
   MPI_Comm_free(&single);
   MPI_Comm_free(&striped);
+  MPI_Comm_free(&uneven);
   {
     int any = 0;
     MPI_Allreduce(&g_fail, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);

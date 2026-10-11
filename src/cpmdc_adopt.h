@@ -3,15 +3,17 @@
 
 #include <stddef.h>
 
-/* Query the adopted communicator and broadcast the calculator index.
+/* Query the adopted communicator and choose the calculator index.
  * Rank and size come from comm. When ranks_per_calc > 0 that size must
- * equal it. The index is the MPI_COMM_WORLD rank of local rank 0 divided
- * by the adopted size. Local rank 0 computes it and MPI_Bcast carries it
- * to the rest of the group. Returns 0 and writes *index_out on success.
- * Returns -1 and writes err on failure. Does not store the handle.
+ * equal it. The group must be one aligned block of that many world ranks.
+ * The index is the lowest world rank in the block divided by the size.
+ * live is nonzero when this rank has a CPMDCSession. The call reduces that
+ * flag with the rank bounds, and any live session fails the whole group.
+ * Returns 0 and writes *index_out on success. Returns -1 and writes err
+ * on failure. Does not store the handle.
  */
 int cpmdc_adopt_resolve(const void *comm, size_t comm_bytes, int ranks_per_calc,
-                        int *index_out, char *err, size_t errcap);
+                        int live, int *index_out, char *err, size_t errcap);
 
 /* Remember the handle of the last successful adopt. */
 int cpmdc_adopt_commit(const void *comm, size_t comm_bytes);
