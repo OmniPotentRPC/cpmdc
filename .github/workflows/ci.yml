@@ -10,12 +10,12 @@ jobs:
   stub-and-e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           pixi-version: latest
           cache: true
-      - name: Full meson suite (stub + embed E2E)
+      - name: Full meson suite (reference evaluator)
         run: pixi run test-stub
       - name: E2E suite only
         run: pixi run test-e2e
@@ -25,10 +25,31 @@ jobs:
   sanitize:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: prefix-dev/setup-pixi@v0.8.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
         with:
           pixi-version: latest
           cache: true
       - name: Stub suite under ASan/UBSan
         run: pixi run test-stub-sanitize
+
+  opencpmd-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: prefix-dev/setup-pixi@92815284c57faa15cd896c4d5cfb2d59f32dc43d # v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: OpenCPMD archive cache key
+        id: opencpmd-key
+        run: echo "key=$(bash tools/ci_opencpmd_e2e.sh key)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/opencpmd-archive
+          key: opencpmd-${{ steps.opencpmd-key.outputs.key }}
+      - name: Linked OpenCPMD suites
+        env:
+          CPMDC_OPENCPMD_CACHE: ${{ runner.temp }}/opencpmd-archive
+        run: pixi run test-opencpmd

@@ -55,6 +55,19 @@ pixi run test-stub
 A healthy default run passes the parser, ABI, feature inventory, session,
 result-buffer, unit-conversion, and reference evaluator tests.
 
+## Continuous Integration
+
+| Job | What it runs |
+| --- | --- |
+| `stub-and-e2e` | Default Meson suite. The reference evaluator stands in for OpenCPMD. |
+| `sanitize` | That suite under AddressSanitizer and UndefinedBehaviorSanitizer. |
+| `opencpmd-e2e` | OpenCPMD `062582b7cfd8` with the patches in `tools/`, then the `e2e`, `embed`, `water`, and `opencpmd` suites. |
+
+`stub-and-e2e` does not link `libcpmd.a`.
+`pixi run test-opencpmd` is the same OpenCPMD job on a local machine.
+The job and the local command are described in
+[OpenCPMD in CI](docs/orgmode/contributing/developer/opencpmd-ci.org).
+
 ## Repository Map
 
 | Path | Purpose |

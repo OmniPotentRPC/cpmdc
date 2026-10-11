@@ -126,6 +126,7 @@ reference]].
 | ~test-stub~ | default | configure ~build/~, compile, full Meson suite |
 | ~test-cmocka~ | default | the ~cmocka~ suite only |
 | ~test-e2e~ | default | the ~e2e~ suite only (single point and optimizer session) |
+| ~test-opencpmd~ | default | pinned OpenCPMD archive, then the linked ~e2e~, ~embed~, ~water~, and ~opencpmd~ suites |
 | ~test-stub-sanitize~ | default | full suite in ~build-sanitize/~ under AddressSanitizer and UndefinedBehaviorSanitizer |
 | ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
 | ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |

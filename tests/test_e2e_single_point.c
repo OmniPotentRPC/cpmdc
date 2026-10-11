@@ -1,6 +1,9 @@
 /**
  * End-to-end single-point evaluation through Cap'n Proto carriers.
- * Uses the embed-shell reference PEF (no OpenCPMD archives required).
+ * The default build uses the embed-shell reference PEF.
+ * A build with -Dwith_cpmd=true evaluates the linked OpenCPMD archive.
+ * Under mpirun the test does not fork: every rank enters the library.
+ * Rank 0 prints one cpmdc-rank-report line (energy, max |force|, FNV-1a).
  */
 #define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
@@ -8,6 +11,7 @@
 
 #include <errno.h>
 #include <math.h>
+#include <mpi.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -95,6 +99,63 @@ static void nocell_child(void *vctx, void *vout) {
                                ctx->params_size, o->forces_nc);
 }
 
+/* mpirun exports the world size before MPI_Init. A fork after that
+ * launch calls MPI_Init in a child the launcher does not know. */
+static int mpi_launcher_size(void) {
+  const char *size = getenv("OMPI_COMM_WORLD_SIZE");
+  if (size == NULL || size[0] == '\0')
+    size = getenv("PMI_SIZE");
+  if (size == NULL || size[0] == '\0')
+    return 0;
+  return atoi(size);
+}
+
+static int mpi_launcher_rank(void) {
+  const char *rank = getenv("OMPI_COMM_WORLD_RANK");
+  if (rank == NULL || rank[0] == '\0')
+    rank = getenv("PMI_RANK");
+  if (rank == NULL || rank[0] == '\0')
+    return 0;
+  return atoi(rank);
+}
+
+/* FNV-1a over the raw bytes of the energy and the force buffer.
+ * Rank 0 prints it. The CI job compares 1 rank with 2 ranks and does
+ * not fail on a difference: the reduction is inside OpenCPMD. */
+static void report_rank_result(double energy, const double *forces,
+                               int nforce) {
+  int i;
+  double max_abs = 0.0;
+  unsigned long long hash = 14695981039346656037ull;
+  const unsigned char *bytes;
+  size_t b;
+  int ranks;
+  if (mpi_launcher_rank() != 0)
+    return;
+  for (i = 0; i < nforce; ++i) {
+    double a = fabs(forces[i]);
+    if (a > max_abs)
+      max_abs = a;
+  }
+  bytes = (const unsigned char *)&energy;
+  for (b = 0; b < sizeof(energy); ++b) {
+    hash ^= bytes[b];
+    hash *= 1099511628211ull;
+  }
+  bytes = (const unsigned char *)forces;
+  for (b = 0; b < (size_t)nforce * sizeof(double); ++b) {
+    hash ^= bytes[b];
+    hash *= 1099511628211ull;
+  }
+  ranks = mpi_launcher_size();
+  if (ranks <= 0)
+    ranks = 1;
+  printf("cpmdc-rank-report ranks=%d energy_h=%.17g max_abs_force=%.17g "
+         "fnv=%016llx\n",
+         ranks, energy, max_abs, hash);
+  fflush(stdout);
+}
+
 static void test_single_point_calculate_result(void **state) {
   (void)state;
   if (!cpmdc_available()) {
@@ -114,12 +175,16 @@ static void test_single_point_calculate_result(void **state) {
   assert_true(need >= 32u + 6u * 8u);
 
   static struct step_out so;
+  static struct nocell_out no;
   assert_true(need <= sizeof(so.out));
   /* Session forces path on the same ForceInput (includes cell term). */
   CPMDCSession *session = cpmdc_session_create(params, params_size);
   assert_non_null(session);
   struct step_ctx ctx = {params, params_size, step, step_size, need, session};
-  RUN_SETUP_CHILD(step_child, &ctx, &so);
+  if (mpi_launcher_size() > 0)
+    step_child(&ctx, &so);
+  else
+    RUN_SETUP_CHILD(step_child, &ctx, &so);
 
   CPMDCResult r = so.r;
   size_t out_size = so.out_size;
@@ -153,9 +218,12 @@ static void test_single_point_calculate_result(void **state) {
   assert_float_equal(f.energy_h, r.energy_h, 1e-9);
   for (int i = 0; i < 6; ++i)
     assert_true(isfinite(so.forces[i]));
+  report_rank_result(r.energy_h, so.forces, 6);
   /* C-array entry point has no cell; energy is slightly lower than ForceInput. */
-  static struct nocell_out no;
-  RUN_SETUP_CHILD(nocell_child, &ctx, &no);
+  if (mpi_launcher_size() > 0)
+    nocell_child(&ctx, &no);
+  else
+    RUN_SETUP_CHILD(nocell_child, &ctx, &no);
   CPMDCResult fnc = no.fnc;
   assert_int_equal(fnc.ok, 1);
   assert_true(isfinite(fnc.energy_h));
@@ -177,5 +245,13 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_single_point_calculate_result),
   };
-  return cmocka_run_group_tests(tests, NULL, NULL);
+  int rc = cmocka_run_group_tests(tests, NULL, NULL);
+  /* Open MPI treats a process that called MPI_Init and then returned
+   * from main as an abnormal exit. The library initialises MPI. */
+  if (mpi_launcher_size() > 0) {
+    int inited = 0;
+    if (MPI_Initialized(&inited) == MPI_SUCCESS && inited)
+      MPI_Finalize();
+  }
+  return rc;
 }

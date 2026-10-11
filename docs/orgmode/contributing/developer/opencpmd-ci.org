@@ -1,0 +1,78 @@
+#+TITLE: OpenCPMD in CI
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* What the job runs
+The ~opencpmd-e2e~ job in ~.github/workflows/ci.yml~ is the run that links
+~libcpmd.a~.
+~stub-and-e2e~ and ~sanitize~ configure the default build.
+That build uses the reference evaluator, so a green default job does not mean
+the OpenCPMD archive was exercised.
+The workflow starts on a push to ~main~ and on a pull request.
+A push of a feature branch does not start it.
+
+The linked job checks out OpenCPMD
+~062582b7cfd832d36f88f504cd08e4ead42eb404~ and applies ~tools/*.patch~ in
+the order in ~tools/README.md~ before ~configure.sh~.
+GCC 14 rejects the unpatched ~cGetMemAddrs~ return, and the embed modules
+have to be present when the Makefile is generated.
+It copies ~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ into ~configure/~, runs
+~configure.sh~, builds the tree, runs ~tools/rebuild_opencpmd_embed.sh~, and
+builds ~obj/timetag.o~.
+Meson is configured with ~-Dwith_cpmd=true -Dwith_tests=true~.
+The job runs the ~e2e~, ~embed~, ~water~, and ~opencpmd~ suites one process at
+a time, because a linked evaluation changes the process working directory
+into the pseudopotential library.
+It reads ~build-cpmd/meson-logs/testlog.txt~ and fails if any of those tests
+was skipped.
+It then runs the single-point test under ~mpirun -n 1~ and ~mpirun -n 2~ and
+prints the energy and the max absolute force component.
+The same binary is repeated at 1, 2, and ~nproc~ OpenMP threads on one rank.
+Those rank and thread lines are a report.
+A difference is not a failure: the sums are OpenCPMD reductions.
+
+* Cache
+Actions cache stores ~lib/libcpmd.a~, ~obj/timetag.o~, and the ~obj/*.mod~
+files.
+The Fortran bridge compiles against those module files, so the object
+directory is part of the cache.
+The key is the SHA-256 of the OpenCPMD commit, a recipe stamp, every patch,
+and ~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~.
+~bash tools/ci_opencpmd_e2e.sh key~ prints that key.
+A warm cache skips ~configure~ and ~make~ and still applies the patches to a
+clean tree so the module files match the sources.
+With a warm cache the job is meant to finish in half an hour.
+A cold build of OpenCPMD is longer.
+The job timeout is two hours.
+
+* Pseudopotentials
+The suites name ~O_MT_BLYP.psp~, ~H_CVB_BLYP.psp~, ~N_MT_BLYP.psp~, and
+~Si_MT_BLYP.psp~.
+The script downloads those four files from OpenCPMD/Regtests commit
+~b2b2c64d39da2ecb96857ab9a007f34332db9d1b~ and checks the SHA-256 stored in
+~tools/ci_opencpmd_e2e.sh~.
+~Si_MT_BLYP.psp~ is fetched from ~tests/PP_LIBRARY/pseudo/~ and saved under
+its basename.
+~CPMDC_PSEUDO_DIR~ points at that directory.
+
+* Reproduce it
+The Pixi task ~test-opencpmd~ runs ~tools/ci_opencpmd_e2e.sh~.
+~mpif90~, ~gcc~, and OpenBLAS come from the default Pixi environment.
+
+#+begin_src bash
+pixi run test-opencpmd
+#+end_src
+
+The OpenCPMD tree is copied from ~CPMDC_OPENCPMD_PRISTINE~ when that checkout
+is the pinned SHA, otherwise the script fetches the commit.
+The default pristine path is ~/tmp/opencpmd/CPMD~.
+The build directory is ~/tmp/cpmdc-opencpmd-e2e/CPMD~.
+The local archive cache is =$HOME/.cache/cpmdc-opencpmd/<key>/=.
+Set ~CPMDC_OPENCPMD_CACHE~ to reuse another directory, which is what the
+GitHub Actions cache step does.
+The script prints ~opencpmd-ci mode=cold~ or ~mode=warm~ with the archive,
+Meson, suite, rank, and total seconds.
+
+Actions are pinned by commit:
+~actions/checkout~ ~11bd71901bbe5b1630ceea73d27597364c9af683~ (v4.2.2),
+~prefix-dev/setup-pixi~ ~92815284c57faa15cd896c4d5cfb2d59f32dc43d~ (v0.8.3),
+and ~actions/cache~ ~5a3ec84eff668545956fd18022155c47e93e2684~ (v4.2.3).

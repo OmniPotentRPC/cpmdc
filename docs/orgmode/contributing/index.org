@@ -169,4 +169,5 @@ The Sphinx theme injects ~antics-api.turtletech.us/antics.js~ via
    :maxdepth: 2
 
    developer/release
+   developer/opencpmd-ci
 #+end_export

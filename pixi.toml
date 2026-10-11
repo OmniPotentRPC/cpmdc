@@ -43,7 +43,8 @@ test-stub-sanitize = { cmd = "meson setup build-sanitize -Dwith_tests=true -Db_s
 release-assert = { cmd = "python3 scripts/release_assert.py", description = "Verify release metadata versions agree" }
 towncrier-draft = { cmd = "uvx towncrier build --draft", description = "Preview changelog fragments" }
 release-cog-dry = { cmd = "cog bump --auto --dry-run", description = "Preview the release bump" }
-test-stub = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --print-errorlogs", description = "Configure, build, and test (stub + embed E2E)" }
+test-stub = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --print-errorlogs", description = "Configure, build, and test the default suite (reference evaluator)" }
+test-opencpmd = { cmd = "bash tools/ci_opencpmd_e2e.sh", description = "Build pinned OpenCPMD and run the linked e2e, embed, water, and opencpmd suites" }
 test-cmocka = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite cmocka --print-errorlogs", description = "Run cmocka suites (params + e2e)" }
 test-e2e = { cmd = "meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --suite e2e --print-errorlogs", description = "Single-point and optimizer-session E2E" }
 prek-validate = { cmd = "prek validate-config prek.toml", description = "Validate prek/pre-commit config" }

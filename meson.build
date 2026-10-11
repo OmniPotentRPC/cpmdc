@@ -590,6 +590,7 @@ if get_option('with_tests')
       force_input_step_a_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],
+    timeout: 600,
   )
 
   test(
