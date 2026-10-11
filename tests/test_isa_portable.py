@@ -178,6 +178,7 @@ def main() -> int:
     mpi_launch = (root / "tests/run_mpi_test.py").read_text(encoding="utf-8")
     require("--mca" in mpi_launch and "^patcher" in mpi_launch, "MPI launcher does not disable the memory patcher", failures)
     require("^ucx" in mpi_launch, "MPI launcher does not exclude UCX under ASan", failures)
+    require("avx512f" in mpi_launch and "^avx" in mpi_launch, "MPI launcher does not drop AVX-512 ops when the host advertises them", failures)
 
     golden = root / "tests/golden/isa-hashes.toml"
     require(not golden.exists(), "tests/golden/isa-hashes.toml is the SHA-256 of zero bytes and must stay deleted", failures)

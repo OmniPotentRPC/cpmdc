@@ -56,6 +56,9 @@ def launch_env() -> dict[str, str]:
     with AddressSanitizer dies with SIGILL unless that patcher is off.
     UCX opens the same patcher during MPI_Init on some CPUs, so those
     components are excluded while a sanitizer is active.
+    Open MPI selects AVX-512 reductions from CPUID and does not check
+    that the OS enables them. A host that advertises AVX-512F uses the
+    scalar op component so a faulting instruction cannot kill the rank.
     LeakSanitizer also counts allocations that belong to Open MPI, so
     leak detection is disabled for this process only.
     """
@@ -65,6 +68,8 @@ def launch_env() -> dict[str, str]:
         env["OMPI_MCA_pml"] = "^ucx"
         env["OMPI_MCA_osc"] = "^ucx"
         env["OMPI_MCA_btl"] = "^uct"
+    if host_advertises_avx512():
+        env["OMPI_MCA_op"] = "^avx"
     parts = [
         part
         for part in env.get("ASAN_OPTIONS", "").split(":")
@@ -73,6 +78,32 @@ def launch_env() -> dict[str, str]:
     parts.append("detect_leaks=0")
     env["ASAN_OPTIONS"] = ":".join(parts)
     return env
+
+
+def host_advertises_avx512() -> bool:
+    """True when ``/proc/cpuinfo`` lists the AVX-512F flag."""
+    try:
+        text = open("/proc/cpuinfo", encoding="utf-8", errors="replace").read()
+    except OSError:
+        return False
+    for line in text.splitlines():
+        if line.startswith("flags") and "avx512f" in line.split():
+            return True
+    return False
+
+
+def mca_accepted(launcher: str, flags: list[str]) -> bool:
+    try:
+        probed = subprocess.run(
+            [launcher, *flags, "-n", "1", "true"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return probed.returncode == 0
 
 
 def openmpi_mca_args(launcher: str, asan: bool) -> list[str]:
@@ -96,18 +127,12 @@ def openmpi_mca_args(launcher: str, asan: bool) -> list[str]:
                 "^uct",
             ]
         )
-    try:
-        probed = subprocess.run(
-            [launcher, *flags, "-n", "1", "true"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired):
+    if not mca_accepted(launcher, flags):
         return []
-    if probed.returncode != 0:
-        return []
+    if host_advertises_avx512():
+        with_scalar_ops = [*flags, "--mca", "op", "^avx"]
+        if mca_accepted(launcher, with_scalar_ops):
+            return with_scalar_ops
     return flags
 
 
