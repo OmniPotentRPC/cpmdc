@@ -91,6 +91,8 @@ jobs:
       - name: Full meson suite
         run: |
           . scripts/with_baseline_flags.sh
+          # Ubuntu 24.04 cmocka.h uses jmp_buf and va_list and does not include their headers.
+          export CFLAGS="${CFLAGS:+$CFLAGS }-include setjmp.h -include stdarg.h"
           meson setup build -Dwith_tests=true
           meson compile -C build
           meson test -C build --print-errorlogs
