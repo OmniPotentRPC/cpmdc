@@ -1,7 +1,9 @@
 #INFO#
 #INFO# Linux x86_64, gfortran, MPI, position-independent code.
+#INFO# This file does not pass -march. The compiler default target is x86-64.
 #INFO# Compilers are mpif90 and gcc on PATH.
 #INFO# LIBS is -lopenblas. That library has to export the LAPACK symbols.
+#INFO# -ffp-contract=off keeps results equal across build targets.
 #INFO#
 
      IRAT=2
@@ -15,11 +17,11 @@
      AR='/usr/bin/ar ruv'
      RANLIB='/usr/bin/ranlib'
      if [ $debug ]; then
-       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC'
-       CFLAGS='-g -O0 -Wall -fPIC'
+       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC -ffp-contract=off'
+       CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off'
      else
-       FFLAGS='-O2 -Wall -fPIC'
-       CFLAGS='-O2 -Wall -fPIC'
+       FFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
+       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
      fi
      if [ $omp ]; then
        FFLAGS=${FFLAGS}' -fopenmp'

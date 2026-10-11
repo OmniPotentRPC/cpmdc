@@ -44,6 +44,35 @@ capnp_generated_c_args = []
 if cc.get_id() != 'msvc'
   common_c_args += ['-Wall', '-Wextra', '-Wpedantic']
 endif
+# No contraction: a multiply and an add stay separate on every build target.
+# MSVC /fp:precise does not contract. Register these before any subproject call.
+if cc.get_id() == 'msvc'
+  add_global_arguments('/fp:precise', language: 'c')
+elif cc.has_argument('-ffp-contract=off')
+  add_global_arguments('-ffp-contract=off', language: 'c')
+endif
+if fc.get_id() == 'msvc'
+  add_global_arguments('/fp:precise', language: 'fortran')
+elif fc.has_argument('-ffp-contract=off')
+  add_global_arguments('-ffp-contract=off', language: 'fortran')
+endif
+# conda-forge compilers export CFLAGS=-march=nocona, which is above x86-64.
+# A later -march on the compiler command replaces it. armv8-a is the aarch64 baseline.
+if host_machine.cpu_family() == 'x86_64'
+  if cc.has_argument('-march=x86-64')
+    add_global_arguments('-march=x86-64', language: 'c')
+  endif
+  if fc.has_argument('-march=x86-64')
+    add_global_arguments('-march=x86-64', language: 'fortran')
+  endif
+elif host_machine.cpu_family() == 'aarch64'
+  if cc.has_argument('-march=armv8-a')
+    add_global_arguments('-march=armv8-a', language: 'c')
+  endif
+  if fc.has_argument('-march=armv8-a')
+    add_global_arguments('-march=armv8-a', language: 'fortran')
+  endif
+endif
 if cc.get_id() in ['gcc', 'clang']
   capnp_generated_c_args += ['-Wno-missing-field-initializers']
 endif
@@ -1008,6 +1037,15 @@ test(
     python,
     args: [
       meson.current_source_dir() / 'tests/test_readme_navigation.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
+    'isa-portable',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_isa_portable.py',
       meson.current_source_dir(),
     ],
     suite: ['docs'],
