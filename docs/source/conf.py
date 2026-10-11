@@ -46,12 +46,67 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 html_theme = "shibuya"
 html_static_path = ["_static"]
 html_baseurl = "https://cpmdc.rgoswami.me/"
+# Sphinx sets language to "en". The default sitemap scheme is
+# {lang}{version}{link}, so every page would be published under /en/.
+sitemap_url_scheme = "{link}"
+# Navbar falls back to html_logo when light_logo/dark_logo are unset.
+html_logo = "_static/cpmdc_notext_light.svg"
 
 html_theme_options = {
     "github_url": "https://github.com/OmniPotentRPC/cpmdc",
     "accent_color": "violet",
     "dark_code": True,
     "globaltoc_expand_depth": 1,
+    # Shibuya toggles .light-logo / .dark-logo with color mode.
+    "light_logo": "_static/cpmdc_notext_light.svg",
+    "dark_logo": "_static/cpmdc_notext.svg",
+    "nav_links": [
+        {
+            "title": "Ecosystem",
+            "children": [
+                {
+                    "title": "eOn",
+                    "url": "https://eondocs.org",
+                    "summary": "Long timescale dynamics for rare-event atomic systems",
+                },
+                {
+                    "title": "rgpot",
+                    "url": "https://rgpot.rgoswami.me",
+                    "summary": "Cap'n Proto RPC server for potential energy calculations",
+                },
+                {
+                    "title": "rgmin",
+                    "url": "https://omnipotentrpc.github.io/rgmin/",
+                    "summary": "Local minimization over eindir objectives",
+                },
+                {
+                    "title": "rgsaddle",
+                    "url": "https://omnipotentrpc.github.io/rgsaddle/",
+                    "summary": "Band and minimum-mode saddles over rgmin",
+                },
+                {
+                    "title": "rgpycrumbs",
+                    "url": "https://rgpycrumbs.rgoswami.me",
+                    "summary": "Python toolkit for chemical physics and eOn workflows",
+                },
+                {
+                    "title": "readcon",
+                    "url": "https://lode-org.github.io/readcon-core/",
+                    "summary": "CON and convel interchange for rare-event codes",
+                },
+                {
+                    "title": "readcon-db",
+                    "url": "https://lode-org.github.io/readcon-db/",
+                    "summary": "Mmap-backed store for CON campaign corpora",
+                },
+                {
+                    "title": "readcon-ops",
+                    "url": "https://github.com/lode-org/readcon-ops",
+                    "summary": "Comparisons and rigid alignment of readcon frames",
+                },
+            ],
+        },
+    ],
 }
 
 html_context = {
@@ -60,6 +115,14 @@ html_context = {
     "source_repo": "cpmdc",
     "source_version": "main",
     "source_docs_path": "/docs/source/",
+}
+
+html_sidebars = {
+    "**": [
+        "sidebars/localtoc.html",
+        "sidebars/repo-stats.html",
+        "sidebars/edit-this-page.html",
+    ],
 }
 
 html_css_files = ["custom.css"]

@@ -127,7 +127,7 @@ Use the smallest suite that exercises the layer you changed:
 | Deck rendering or Cap'n Proto fixtures | ~meson test -C build --suite cmocka --print-errorlogs~ | cmocka render suites pass |
 | Session lifecycle, topology, or units | ~meson test -C build --suite e2e --print-errorlogs~ | single-point and optimizer-session tests pass |
 | Public documentation | ~pixi run -e docs sphinxbld~ | Sphinx build succeeds |
-| Org-to-RST refresh | ~pixi run -e docs mkrst~ | checked-in ~docs/source/*.rst~ matches the org sources |
+| Org-to-RST refresh | ~pixi run -e docs mkrst~ | ~docs/source/*.rst~ is regenerated from the org sources and is not committed |
 | OpenCPMD archive link | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ | default tests plus live water parity pass |
 
 ~meson test --print-errorlogs~ is preferred because cmocka assertion output and
