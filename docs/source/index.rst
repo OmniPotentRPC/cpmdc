@@ -86,7 +86,7 @@ Start Here
      - Layers, the in-process route, orbitals between calls
      - :doc:`Architecture <explanation/architecture>`
    * - Build OpenCPMD for more than one CPU
-     - Use the PIC configure file for that architecture and leave ``-march`` unset
+     - Use the PIC configure file, which passes ``-march=x86-64`` or ``-march=armv8-a``
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - See which instruction sets cpmdc compiles for
      - This library has no hot kernel and does not read ``CPMDC_SIMD``

@@ -51,9 +51,9 @@ on x86_64.
 archive how-to copies into `configure/` before `configure.sh`.
 Each adds `-fPIC` and `-ffp-contract=off`, links `-lopenblas`, and adds
 `-fallow-argument-mismatch` when `mpif90` accepts that flag.
-Neither passes `-march`.
-The x86_64 default target is x86-64.
-The aarch64 default target is armv8-a.
+`LINUX-X86_64-GFORTRAN-MPI-PIC` passes `-march=x86-64` on debug and release `FFLAGS` and `CFLAGS`.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to x86-64-v3 with AVX2 and FMA.
+`LINUX-AARCH64-GFORTRAN-MPI-PIC` passes `-march=armv8-a` on those same flags.
 `-ffp-contract=off` keeps results equal across those build targets.
 
 Cold embed path also requires at runtime:

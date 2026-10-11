@@ -265,11 +265,14 @@ pass those flags include ``INTEL-AMD-IFORT-OPENMPI`` and
 One binary per microarchitecture belongs in EESSI (Dröge et al.,
 Softw. Pract. Exp. 53, 176 (2023), doi:10.1002/spe.3075).
 
-``cpmdc`` ships two configure files that leave the instruction set at
-the compiler default. ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` is for
-x86-64. ``tools/LINUX-AARCH64-GFORTRAN-MPI-PIC`` is for aarch64, where
-that default is armv8-a. Neither file passes ``-march``. Both add
-``-fPIC``, because ``libcpmdc`` is a shared library, and
+``cpmdc`` ships two configure files that set the instruction set
+explicitly. ``tools/LINUX-X86_64-GFORTRAN-MPI-PIC`` passes
+``-march=x86-64`` on debug and release ``FFLAGS`` and ``CFLAGS``. GCC
+11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to
+x86-64-v3, which includes AVX2 and FMA.
+``tools/LINUX-AARCH64-GFORTRAN-MPI-PIC`` passes ``-march=armv8-a`` on
+those same flags. Both add ``-fPIC``, because ``libcpmdc`` is a shared
+library, and
 ``-ffp-contract=off``. ``-ffp-contract=off`` stops the compiler from
 fusing a multiply and an add into one instruction. That keeps numeric
 results equal across build targets. The same flag is on ``cpmdc`` C

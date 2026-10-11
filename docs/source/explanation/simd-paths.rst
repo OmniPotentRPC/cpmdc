@@ -24,7 +24,7 @@ How selection works
 
 There is no path table and no ``CPMDC_SIMD`` variable. ``cpmdc`` does
 not read ``CPMDC_SIMD``. An environment value cannot select a kernel
-this library does not ship. The scalar compiler default is the only
+this library does not ship. The baseline compile is the only
 path, and it is the path the tests run.
 
 OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at

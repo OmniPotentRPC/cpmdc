@@ -104,28 +104,23 @@ jobs:
           name: unstripped-libs-arm64
           path: isa-audit-libs/
 
-  # TODO(I0): repin to main once OmniPotentRPC/rgpot branch ci/isa-audit merges.
-  # Pinned to 8957850fd15005ea460ba336781ed152f7ee3d92 on that branch.
   isa-audit-x86_64:
     name: isa audit (x86_64)
     needs: stub-and-e2e
     permissions:
       contents: read
-      actions: write
-    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@8957850fd15005ea460ba336781ed152f7ee3d92
+    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
     with:
       artifact-name: unstripped-libs-x86_64
       allow-file: isa-allow.toml
       baseline: x86-64
 
-  # TODO(I0): repin to main once OmniPotentRPC/rgpot branch ci/isa-audit merges.
   isa-audit-arm64:
     name: isa audit (arm64)
     needs: stub-and-e2e-arm64
     permissions:
       contents: read
-      actions: write
-    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@8957850fd15005ea460ba336781ed152f7ee3d92
+    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
     with:
       artifact-name: unstripped-libs-arm64
       allow-file: isa-allow.toml

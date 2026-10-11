@@ -1,6 +1,6 @@
 #INFO#
 #INFO# Linux aarch64, gfortran, MPI, position-independent code.
-#INFO# This file does not pass -march. The compiler default target is armv8-a.
+#INFO# FFLAGS and CFLAGS pass -march=armv8-a on debug and release builds.
 #INFO# Compilers are mpif90 and gcc on PATH.
 #INFO# LIBS is -lopenblas. That library has to export the LAPACK symbols.
 #INFO# -ffp-contract=off keeps results equal across build targets.
@@ -17,11 +17,11 @@
      AR='/usr/bin/ar ruv'
      RANLIB='/usr/bin/ranlib'
      if [ $debug ]; then
-       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC -ffp-contract=off'
-       CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off'
+       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC -ffp-contract=off -march=armv8-a'
+       CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off -march=armv8-a'
      else
-       FFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
-       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
+       FFLAGS='-O2 -Wall -fPIC -ffp-contract=off -march=armv8-a'
+       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off -march=armv8-a'
      fi
      if [ $omp ]; then
        FFLAGS=${FFLAGS}' -fopenmp'

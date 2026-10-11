@@ -29,8 +29,8 @@ See [[file:../howto/opencpmd-archive.org][the archive how-to]].
 There is no path table and no ~CPMDC_SIMD~ variable.
 ~cpmdc~ does not read ~CPMDC_SIMD~.
 An environment value cannot select a kernel this library does not ship.
-The scalar compiler default is the only path, and it is the path the
-tests run.
+The baseline compile is the only path, and it is the path the tests
+run.
 
 OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at
 run time when built with ~DYNAMIC_ARCH~ and with FFTW's SIMD codelets.

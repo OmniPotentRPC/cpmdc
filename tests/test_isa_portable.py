@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Portable OpenCPMD configs, the empty ISA allowlist, and the golden digest."""
+"""Portable OpenCPMD configs and the empty ISA allowlist."""
 
 from __future__ import annotations
 
-import hashlib
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+# Whole -march tokens. The substring "-march=armv8" also matches "-march=armv8-a".
 FORBIDDEN = (
     "-xHost",
     "-march=native",
@@ -16,13 +16,15 @@ FORBIDDEN = (
     "-mavx",
     "-march=x86-64-v3",
     "-march=x86-64-v2",
-    "-march=armv8",
 )
 
-CONFIGS = (
-    "tools/LINUX-X86_64-GFORTRAN-MPI-PIC",
-    "tools/LINUX-AARCH64-GFORTRAN-MPI-PIC",
-)
+CONFIGS = {
+    "tools/LINUX-X86_64-GFORTRAN-MPI-PIC": "-march=x86-64",
+    "tools/LINUX-AARCH64-GFORTRAN-MPI-PIC": "-march=armv8-a",
+}
+
+AUDIT_SHA = "06638f2ece83b12731b387ba819b67dc2151556b"
+OLD_AUDIT_SHA = "8957850fd15005ea460ba336781ed152f7ee3d92"
 
 
 def require(condition: bool, message: str, failures: list[str]) -> None:
@@ -39,6 +41,10 @@ def strip_comments(text: str) -> str:
     return "\n".join(kept)
 
 
+def march_tokens(code: str) -> list[str]:
+    return [token.rstrip("'\"") for token in re.findall(r"-march=\S+", code)]
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: test_isa_portable.py SOURCE_ROOT", file=sys.stderr)
@@ -47,7 +53,7 @@ def main() -> int:
     root = Path(sys.argv[1])
     failures: list[str] = []
 
-    for rel in CONFIGS:
+    for rel, baseline in CONFIGS.items():
         path = root / rel
         require(path.is_file(), f"missing {rel}", failures)
         if not path.is_file():
@@ -60,14 +66,21 @@ def main() -> int:
             failures,
         )
         require(code.count("-fPIC") >= 4, f"{rel} does not pass -fPIC on FFLAGS and CFLAGS", failures)
+        tokens = march_tokens(code)
+        require(
+            len(tokens) >= 4 and all(token == baseline for token in tokens),
+            f"{rel} march tokens {tokens} are not exactly {baseline}",
+            failures,
+        )
         for flag in FORBIDDEN:
             require(flag not in code, f"{rel} contains {flag}", failures)
-        require("-march" not in code, f"{rel} passes -march", failures)
+        require("compiler default" not in text.lower(), f"{rel} claims a compiler default ISA", failures)
+        require("does not pass -march" not in text, f"{rel} claims it leaves -march unset", failures)
 
-    aarch64 = (root / CONFIGS[1]).read_text(encoding="utf-8") if (root / CONFIGS[1]).is_file() else ""
-    require("armv8-a" in aarch64, "aarch64 config does not name the armv8-a default", failures)
-    x86 = (root / CONFIGS[0]).read_text(encoding="utf-8") if (root / CONFIGS[0]).is_file() else ""
-    require("x86-64" in x86, "x86_64 config does not name the x86-64 default", failures)
+    x86_path = root / "tools/LINUX-X86_64-GFORTRAN-MPI-PIC"
+    if x86_path.is_file():
+        x86 = x86_path.read_text(encoding="utf-8")
+        require("x86-64-v2" in x86 and "x86-64-v3" in x86, "x86_64 config does not name the RHEL GCC defaults", failures)
 
     meson = (root / "meson.build").read_text(encoding="utf-8")
     require("-ffp-contract=off" in meson, "meson.build does not pass -ffp-contract=off", failures)
@@ -103,7 +116,19 @@ def main() -> int:
             f"opencpmd-archive {label} lacks the aarch64 config",
             failures,
         )
+        require("-march=x86-64" in text, f"opencpmd-archive {label} lacks -march=x86-64", failures)
+        require("-march=armv8-a" in text, f"opencpmd-archive {label} lacks -march=armv8-a", failures)
+        require("x86-64-v2" in text and "x86-64-v3" in text, f"opencpmd-archive {label} lacks the RHEL GCC defaults", failures)
+        require("compiler default" not in text.lower(), f"opencpmd-archive {label} claims a compiler default ISA", failures)
         require("10.1002/spe.3075" in text, f"opencpmd-archive {label} lacks the EESSI DOI", failures)
+
+    readme = (root / "tools/README.md").read_text(encoding="utf-8")
+    require("-march=x86-64" in readme and "-march=armv8-a" in readme, "tools/README.md lacks the baseline march flags", failures)
+    require("x86-64-v2" in readme and "x86-64-v3" in readme, "tools/README.md lacks the RHEL GCC defaults", failures)
+
+    news = (root / "docs/newsfragments/+portable-fp-contract.changed.md").read_text(encoding="utf-8")
+    require("-march=x86-64" in news and "-march=armv8-a" in news, "newsfragment lacks the baseline march flags", failures)
+    require("x86-64-v2" in news and "x86-64-v3" in news, "newsfragment lacks the RHEL GCC defaults", failures)
 
     simd = root / "docs/orgmode/explanation/simd-paths.org"
     simd_rst = root / "docs/source/explanation/simd-paths.rst"
@@ -117,18 +142,20 @@ def main() -> int:
             require("CPMDC_SIMD" in text, f"simd-paths {label} does not name CPMDC_SIMD", failures)
             require("-ffp-contract=off" in text, f"simd-paths {label} lacks -ffp-contract=off", failures)
             require("10.1016/j.cpc.2013.06.003" in text, f"simd-paths {label} lacks the Páll and Hess DOI", failures)
+            require("compiler default" not in text.lower(), f"simd-paths {label} claims a compiler default ISA", failures)
 
     index = (root / "docs/orgmode/index.org").read_text(encoding="utf-8")
     index_rst = (root / "docs/source/index.rst").read_text(encoding="utf-8")
     require("explanation/simd-paths" in index, "org index does not list simd-paths", failures)
     require("explanation/simd-paths" in index_rst, "rst index does not list simd-paths", failures)
+    require("-march=x86-64" in index and "-march=armv8-a" in index, "org index lacks the baseline march flags", failures)
+    require("-march=x86-64" in index_rst and "-march=armv8-a" in index_rst, "rst index lacks the baseline march flags", failures)
 
     workflow = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    require(
-        "8957850fd15005ea460ba336781ed152f7ee3d92" in workflow,
-        "ci.yml does not pin the I0 audit workflow by SHA",
-        failures,
-    )
+    require(workflow.count(AUDIT_SHA) == 2, "ci.yml does not pin both ISA audit calls to the shipped SHA", failures)
+    require(OLD_AUDIT_SHA not in workflow, "ci.yml still pins the I0 audit workflow", failures)
+    require("actions: write" not in workflow, "ci.yml grants actions: write", failures)
+    require("TODO(I0)" not in workflow, "ci.yml still has a TODO(I0) comment", failures)
     require("isa-allow.toml" in workflow, "ci.yml does not pass isa-allow.toml", failures)
     require("workflow_dispatch" in workflow, "ci.yml has no workflow_dispatch trigger", failures)
     require("ubuntu-24.04-arm" in workflow, "ci.yml has no ubuntu-24.04-arm job", failures)
@@ -153,14 +180,7 @@ def main() -> int:
     require("^ucx" in mpi_launch, "MPI launcher does not exclude UCX under ASan", failures)
 
     golden = root / "tests/golden/isa-hashes.toml"
-    require(golden.is_file(), "missing tests/golden/isa-hashes.toml", failures)
-    if golden.is_file():
-        golden_text = golden.read_text(encoding="utf-8")
-        digest = hashlib.sha256(b"").hexdigest()
-        require(digest in golden_text, "golden file digest is not SHA-256 of the empty f64 buffer", failures)
-        require("no hot numeric kernel" in golden_text, "golden file recipe does not name the empty kernel", failures)
-        for thread in ("1", "2", "3", "8"):
-            require(re.search(rf"\b{thread}\b", golden_text) is not None, f"golden file omits {thread} threads", failures)
+    require(not golden.exists(), "tests/golden/isa-hashes.toml is the SHA-256 of zero bytes and must stay deleted", failures)
 
     flags_script = root / "scripts/with_baseline_flags.sh"
     require(flags_script.is_file(), "missing scripts/with_baseline_flags.sh", failures)
@@ -186,7 +206,7 @@ def main() -> int:
                 flags = line
                 break
     print(flags or "cpu flags: unavailable")
-    print("path scalar: exercised (compiler default; no dispatched kernel to force)")
+    print("path scalar: exercised (baseline march; no dispatched kernel to force)")
     print("path avx2: not exercised")
     print("path avx512: not exercised")
     print("path neon: not exercised")

@@ -1,6 +1,8 @@
 #INFO#
 #INFO# Linux x86_64, gfortran, MPI, position-independent code.
-#INFO# This file does not pass -march. The compiler default target is x86-64.
+#INFO# FFLAGS and CFLAGS pass -march=x86-64 on debug and release builds.
+#INFO# GCC 11 on RHEL 9 defaults to x86-64-v2.
+#INFO# GCC 14 on RHEL 10 defaults to x86-64-v3, which includes AVX2 and FMA.
 #INFO# Compilers are mpif90 and gcc on PATH.
 #INFO# LIBS is -lopenblas. That library has to export the LAPACK symbols.
 #INFO# -ffp-contract=off keeps results equal across build targets.
@@ -17,11 +19,11 @@
      AR='/usr/bin/ar ruv'
      RANLIB='/usr/bin/ranlib'
      if [ $debug ]; then
-       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC -ffp-contract=off'
-       CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off'
+       FFLAGS='-g -O0 -fcheck=all -Wuninitialized -Wall -fPIC -ffp-contract=off -march=x86-64'
+       CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off -march=x86-64'
      else
-       FFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
-       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
+       FFLAGS='-O2 -Wall -fPIC -ffp-contract=off -march=x86-64'
+       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off -march=x86-64'
      fi
      if [ $omp ]; then
        FFLAGS=${FFLAGS}' -fopenmp'
