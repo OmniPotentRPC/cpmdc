@@ -1,6 +1,7 @@
 /* C ABI frontend: Cap'n Proto sessions + unit carriers (nwchemc pattern).
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
+#include "cpmdc_adopt.h"
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
@@ -64,7 +65,7 @@ void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
-int cpmdc_embed_adopt_comm(int fcomm, int ranks_per_calc);
+int cpmdc_embed_store_comm(int fcomm);
 int cpmdc_embed_adopted_fcomm(void);
 #endif
 
@@ -139,6 +140,7 @@ struct CPMDCSession {
 };
 
 static CPMDCSession *g_active_session = NULL;
+static int g_live_sessions = 0;
 static CPMDCEmbedImage g_image;
 
 static CPMDCEmbedImage *active_image(void) {
@@ -1396,6 +1398,7 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   }
   (void)configure_embed_from_session(session);
   cpmdc_store_error("");
+  g_live_sessions++;
   return session;
 }
 
@@ -1466,6 +1469,8 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
 void cpmdc_session_destroy(CPMDCSession *session) {
   if (!session)
     return;
+  if (g_live_sessions > 0)
+    g_live_sessions--;
   if (g_active_session == session)
     g_active_session = NULL;
   free(session->params_bytes);
@@ -1802,31 +1807,34 @@ int cpmdc_bind_calculator(int ranks_per_calc) {
 
 int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
                                 int ranks_per_calc) {
+  char err[512];
+  int index = -1;
+  if (g_live_sessions > 0) {
+    cpmdc_store_error("CPMD calculator bind refused: a session is live");
+    return -1;
+  }
+  err[0] = '\0';
+  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc, &index, err,
+                          sizeof(err)) != 0) {
+    cpmdc_store_error(err[0] != '\0' ? err : "CPMD calculator bind refused");
+    return -1;
+  }
 #if defined(CPMDC_HAS_CPMD)
-  MPI_Comm ccomm;
-  int calc;
-  if (!comm || comm_bytes != sizeof(MPI_Comm)) {
-    cpmdc_store_error("CPMD calculator bind refused");
-    return -1;
+  {
+    MPI_Comm ccomm;
+    memcpy(&ccomm, comm, sizeof(ccomm));
+    if (cpmdc_embed_store_comm(MPI_Comm_c2f(ccomm)) != 0) {
+      cpmdc_store_error("CPMD calculator bind refused");
+      return -1;
+    }
   }
-  memcpy(&ccomm, comm, sizeof(ccomm));
-  if (ccomm == MPI_COMM_NULL) {
-    cpmdc_store_error("CPMD calculator bind refused");
-    return -1;
-  }
-  calc = cpmdc_embed_adopt_comm(MPI_Comm_c2f(ccomm), ranks_per_calc);
-  if (calc < 0)
-    cpmdc_store_error("CPMD calculator bind refused");
-  else
-    cpmdc_store_error("");
-  return calc;
-#else
-  (void)comm;
-  (void)comm_bytes;
-  (void)ranks_per_calc;
-  cpmdc_store_error("CPMD calculator bind refused");
-  return -1;
 #endif
+  if (cpmdc_adopt_commit(comm, comm_bytes) != 0) {
+    cpmdc_store_error("CPMD calculator bind refused");
+    return -1;
+  }
+  cpmdc_store_error("");
+  return index;
 }
 
 int cpmdc_adopted_comm(void *out, size_t nbytes) {
@@ -1836,15 +1844,14 @@ int cpmdc_adopted_comm(void *out, size_t nbytes) {
   if (!out || nbytes != sizeof(MPI_Comm))
     return -1;
   fcomm = cpmdc_embed_adopted_fcomm();
-  if (fcomm == 0)
+  /* -1 means unset. 0 is MPI_COMM_WORLD's Fortran handle on Open MPI. */
+  if (fcomm < 0)
     return -1;
   ccomm = MPI_Comm_f2c(fcomm);
   memcpy(out, &ccomm, sizeof(ccomm));
   return 0;
 #else
-  (void)out;
-  (void)nbytes;
-  return -1;
+  return cpmdc_adopt_copy(out, nbytes);
 #endif
 }
 

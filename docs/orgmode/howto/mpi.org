@@ -83,12 +83,44 @@ and ~cpmdc_bind_calculator~ has already initialised MPI and stored the
 calculator communicator by the time setup reaches ~mp_start~.
 
 * A communicator the host already split
-~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~ stores the
-caller's ~MPI_Comm~ as ~mp_comm_world~.
-~nbytes~ is the size of that communicator.
-The call does not call ~MPI_Init~ or ~MPI_Comm_split~.
-~cpmdc_adopted_comm~ copies the stored communicator back to the caller.
+A host that has already split its ranks passes that communicator to
+~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~.
+[[https://rgpot.rgoswami.me][rgpot]] does this when it binds calculator groups.
+Its MPI contract is the
+[[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]], and the
+messages those hosts share are the ones in the
+[[file:../index.org][cpmdc overview]].
+~nbytes~ is ~sizeof(MPI_Comm)~.
+The call is collective on ~comm~.
+It reads rank and size from ~comm~.
+It does not call ~MPI_Init~ or ~MPI_Comm_split~.
+The size check uses ~comm~.
+The index uses the ~MPI_COMM_WORLD~ rank of local rank 0.
+
+When ~ranks_per_calc~ is greater than zero, the adopted size must equal it.
+A different size returns -1, and ~cpmdc_last_error()~ names both numbers.
+Zero or less skips that check.
+The calculator index is the ~MPI_COMM_WORLD~ rank of local rank 0, divided by
+the adopted size.
+Local rank 0 computes that quotient and the call broadcasts it on ~comm~, so
+every rank of the group returns the same index.
+On an aligned block of ~size~ ranks the quotient is ~world_rank / size~ for
+every member, including when the key order inside the block is reversed.
+A group that is not an aligned block still agrees, because only the root's
+world rank enters the division.
+
+~cpmdc_adopted_comm~ copies the stored handle back to the caller.
+An OpenCPMD build keeps that handle in ~mp_comm_world~.
 ~cpmdc_bind_calculator~ remains the split for a host that has not split.
+That split still runs once per process.
+
+A later adopt replaces the communicator when no ~CPMDCSession~ exists.
+Destroy every session first.
+While a session exists the call returns -1, ~cpmdc_last_error()~ says a
+session is live, and the stored communicator stays as it was.
+The index arithmetic is the same for 1 group of 4 ranks, 2 groups of 2, and
+4 groups of 1: it uses the group root's world rank and the adopted size, and
+it does not depend on which rank of the group asks.
 
 * Share the parent's result
 The host owns the broadcast.
@@ -135,4 +167,3 @@ CPMD also runs OpenMP threads inside each rank when OpenCPMD was built with
 ~-omp~.
 Set ~OMP_NUM_THREADS~ per rank so that ranks times threads matches the cores
 the job holds.
-

@@ -35,21 +35,61 @@ Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
 The split happens once per process.
 ~embed_calculator_bound~, a module variable in ~cpmd_embed_c_api~, records
-it, and a second call only reports the group index.
+it, and a second bind only reports the group index.
 A host that already holds the calculator communicator calls
 ~cpmdc_adopt_calculator_comm~ instead.
-That call copies the communicator into ~mp_comm_world~ and does not call
-~MPI_Init~ or ~MPI_Comm_split~.
-~cpmdc_adopted_comm~ copies ~mp_comm_world~ back out.
-A null communicator, a world that does not divide, or a build without
-CPMD returns -1.
-A second adopt returns the same index and leaves the communicator alone.
+That call reads rank and size from the adopted communicator, copies it into
+~mp_comm_world~ on an OpenCPMD build, and does not call ~MPI_Init~ or
+~MPI_Comm_split~.
+~cpmdc_adopted_comm~ copies the stored handle back out.
+A null communicator, a size that is not ~ranks_per_calc~ when that argument
+is positive, MPI that has not been initialised, or a build without MPI
+returns -1.
+The text is ~cpmdc_last_error()~.
+A later adopt replaces the communicator when no ~CPMDCSession~ exists.
+While a session exists the call returns -1 and leaves the handle alone.
 
 | World size | ~ranks_per_calc~ | Calculators | Parent ranks |
 |------------+------------------+-------------+--------------|
 | 16 | 16, 0, or no call | 1 | 0 |
 | 16 | 4 | 4 | 0, 4, 8, 12 |
 | 16 | 5 | refused, returns -1 | |
+
+* The adopted index
+~cpmdc_adopt_calculator_comm~ keeps the same index formula,
+~world_rank / size~, with ~size~ taken from the adopted communicator.
+The rank that enters the division is local rank 0 of that communicator, and
+the call broadcasts the quotient so the group agrees.
+Computing the quotient on every rank would give different answers when the
+group is not an aligned block of ~size~ world ranks: world ranks 0 and 2 in
+one group of size 2 have quotients 0 and 1.
+The broadcast makes both return the root's quotient.
+Inside an aligned block the quotient is the same for every member, so
+reversing the key order does not change the index.
+One group of 4, two groups of 2, and four groups of 1 are the same rule.
+The [[file:../howto/mpi.org][mpirun how-to]] shows the call.
+[[https://rgpot.rgoswami.me][rgpot]] is the host that loads this library and
+may already have split the ranks; its group contract is the
+[[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]].
+
+Open MPI's Fortran handle for ~MPI_COMM_WORLD~ is 0, and ~MPI_COMM_NULL~ is a different value.
+The stored handle uses that numbering, so 0 means the world communicator.
+The index is determined by that root and that size.
+cpmdc does not make the SCF energy or the forces bitwise identical across
+rank counts.
+Those reductions run inside OpenCPMD (~mp_sum~ is ~MPI_Allreduce~, the FFT
+plane split follows the rank count, and OpenMP ~REDUCTION~ clauses run inside
+the archive).
+A single point at one rank and at two ranks can be compared by the maximum
+absolute deviation of the energy and of the forces.
+That comparison is a report, not a bitwise claim.
+
+| Adopted size | ~ranks_per_calc~ | Result |
+|--------------+------------------+--------|
+| 2 | 2 | index = root world rank / 2, the same on both ranks |
+| 2 | 4 | -1, ~cpmdc_last_error()~ names 2 and 4 |
+| 4 | 0 or less | index = root world rank / 4 |
+| 1 | 1 | index = that rank's world rank |
 
 * Why the parent rank's result counts
 CPMD computes the energy and ionic forces for the calculation as a whole, and

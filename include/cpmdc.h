@@ -275,25 +275,31 @@ int cpmdc_bind_calculator(int ranks_per_calc);
 /**
  * @brief Install a communicator the caller already split.
  *
- * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. The call does not
- * call `MPI_Init` or `MPI_Comm_split`. An OpenCPMD build stores that
- * communicator as `mp_comm_world` and returns this rank's calculator
- * index, `world_rank / ranks_per_calc`. A value of zero or less means one
- * calculator. Returns -1 when `comm` is null, MPI is not initialized, the
- * world does not divide, or this library has no CPMD backend. Failure
- * text is `cpmdc_last_error()`. A second call returns the same index and
- * does not replace the communicator.
+ * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. Collective on that
+ * communicator. Does not call `MPI_Init` or `MPI_Comm_split`. Rank and size
+ * come from `comm`. When `ranks_per_calc` is greater than zero, that size
+ * must equal it. A mismatch returns -1 and `cpmdc_last_error()` names both
+ * numbers. Zero or less skips the size check.
+ * The calculator index is the `MPI_COMM_WORLD` rank of local rank 0, divided
+ * by the adopted size. Local rank 0 computes it and the call broadcasts it,
+ * so every rank of the group returns the same index.
+ * An OpenCPMD build stores the communicator as `mp_comm_world`.
+ * A later call replaces it when no `CPMDCSession` exists. While a session
+ * exists the call returns -1 and leaves the communicator in place.
+ * Returns -1 when `comm` is null, `comm_bytes` is not the size of an
+ * `MPI_Comm`, MPI is not initialized, or this build has no MPI. Failure
+ * text is `cpmdc_last_error()`.
  */
 int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
                                 int ranks_per_calc);
 
 /**
- * @brief Copy the adopted `mp_comm_world` into `out`.
+ * @brief Copy the stored calculator communicator into `out`.
  *
- * `out` receives an `MPI_Comm` of `nbytes` bytes. Returns 0 when a
- * calculator communicator is stored, and -1 when `out` is null, `nbytes`
- * is not that size, or no communicator has been adopted. Does not write
- * `cpmdc_last_error()`.
+ * `out` receives an `MPI_Comm` of `nbytes` bytes. On an OpenCPMD build that
+ * handle is `mp_comm_world`. Returns 0 when a calculator communicator is
+ * stored, and -1 when `out` is null, `nbytes` is not that size, or no
+ * communicator has been adopted. Does not write `cpmdc_last_error()`.
  */
 int cpmdc_adopted_comm(void *out, size_t nbytes);
 
