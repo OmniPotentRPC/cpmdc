@@ -261,6 +261,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">Every rank is a copy of the host</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-adopted-index">The adopted index</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#who-ends-mpi">Who ends MPI</a></li>
@@ -495,12 +496,46 @@ and stored the calculator communicator by the time setup reaches
 </section>
 <section id="a-communicator-the-host-already-split">
 <h1>A communicator the host already split<a class="headerlink" href="#a-communicator-the-host-already-split" title="Link to this heading">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm(comm,</span> <span class="pre">nbytes,</span> <span class="pre">ranks_per_calc)</span></code> stores the
-caller’s <code class="docutils literal notranslate"><span class="pre">MPI_Comm</span></code> as <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>. <code class="docutils literal notranslate"><span class="pre">nbytes</span></code> is the size of
-that communicator. The call does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
-<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies the stored
-communicator back to the caller. <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> remains the
-split for a host that has not split.</p>
+<p>A host that has already split its ranks passes that communicator to
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm(comm,</span> <span class="pre">nbytes,</span> <span class="pre">ranks_per_calc)</span></code>.
+<a class="reference external" href="https://rgpot.rgoswami.me">rgpot</a> does this when it binds calculator
+groups. Its MPI contract is the <a class="reference external" href="https://rgpot.rgoswami.me/reference/mpi.html">rgpot MPI
+reference</a>, and the
+messages those hosts share are the ones in the
+<a class="reference internal" href="../index.html"><span class="doc">cpmdc overview</span></a>. <code class="docutils literal notranslate"><span class="pre">nbytes</span></code> is <code class="docutils literal notranslate"><span class="pre">sizeof(MPI_Comm)</span></code>.
+The call is collective on <code class="docutils literal notranslate"><span class="pre">comm</span></code>. It reads rank and size from
+<code class="docutils literal notranslate"><span class="pre">comm</span></code>. It does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>. The size
+check uses <code class="docutils literal notranslate"><span class="pre">comm</span></code>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> is greater than zero, the adopted size must
+equal it. A different size returns -1, and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> names
+both numbers. Zero or less skips that check. The same positive
+<code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> on every rank gives every group the same size, and
+the calculator indices are then unique. The group must be one aligned
+block of <code class="docutils literal notranslate"><span class="pre">size</span></code> consecutive world ranks, starting at a multiple of
+<code class="docutils literal notranslate"><span class="pre">size</span></code>. The calculator index is the lowest world rank in that block,
+divided by <code class="docutils literal notranslate"><span class="pre">size</span></code>. Any other layout returns -1 on every rank of the
+group, and <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> says the communicator is not an
+aligned block. Reversing the key order inside an aligned block does not
+change the index. A striped split is refused: world ranks 0 and 2 in one
+group of size 2, and ranks 1 and 3 in the other, would otherwise both
+receive index 0.</p>
+<p>The handle is borrowed. The call does not use <code class="docutils literal notranslate"><span class="pre">MPI_Comm_dup</span></code>. It
+stores the caller’s communicator, and an OpenCPMD build also stores it
+in <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code>. The caller keeps ownership and must not free the
+communicator until the last session is destroyed or a later adopt
+replaces it. An adopt after <code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> replaces the
+communicator that call split, and the caller of bind cannot free that
+one.</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies the stored handle back to the caller.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_bind_calculator</span></code> remains the split for a host that has not
+split. That split still runs once per process.</p>
+<p>A later adopt replaces the communicator when no <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> exists.
+Destroy every session first. If any rank of the group has a live
+session, every rank returns -1, <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> says a session is
+live, and the stored communicator stays as it was. That refusal is the
+same collective as the index, so one rank does not return while another
+waits. The index is the same rule for 1 group of 4 ranks, 2 groups of 2,
+and 4 groups of 1.</p>
 </section>
 <section id="share-the-parent-s-result">
 <h1>Share the parent’s result<a class="headerlink" href="#share-the-parent-s-result" title="Link to this heading">¶</a></h1>

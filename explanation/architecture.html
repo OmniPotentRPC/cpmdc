@@ -261,6 +261,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html">Every rank is a copy of the host</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html#the-adopted-index">The adopted index</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="mpi-model.html#who-ends-mpi">Who ends MPI</a></li>
@@ -414,14 +415,13 @@ drives the engine as a library.</p>
 <tr class="row-even"><td><p>Public C ABI</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code>,
 <code class="docutils literal notranslate"><span class="pre">include/cpmdc_features.h</span></code></p></td>
-<td><p>the functions, the
-result structs, the
-feature table types</p></td>
+<td><p>the functions, the result
+structs, the feature table
+types</p></td>
 </tr>
 <tr class="row-odd"><td><p>Messages</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>,
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, <code class="docutils literal notranslate"><span class="pre">ForceInput</span></code>,
 <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>,
 <code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Capabilities</span></code></p></td>
@@ -429,53 +429,56 @@ feature table types</p></td>
 <tr class="row-even"><td><p>Decode and render</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_params.c</span></code>, generated
 <code class="docutils literal notranslate"><span class="pre">capnp-c</span></code> readers</p></td>
-<td><p>reading messages,
-rendering the CPMD
-deck, unit factors</p></td>
+<td><p>reading messages, rendering the
+CPMD deck, unit factors</p></td>
 </tr>
 <tr class="row-odd"><td><p>Sessions</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code></p></td>
-<td><p>session lifecycle,
-topology guard, unit
-conversion, result
+<td><p>session lifecycle, topology
+guard, unit conversion, result
 messages</p></td>
 </tr>
-<tr class="row-even"><td><p>Fortran decode</p></td>
+<tr class="row-even"><td><p>Calculator index</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_adopt.c</span></code></p></td>
+<td><p>rank and size of an adopted
+communicator, and the
+calculator index of an aligned
+block</p></td>
+</tr>
+<tr class="row-odd"><td><p>Fortran decode</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_embed_apply_params.f90</span></code>,
 generated <code class="docutils literal notranslate"><span class="pre">capnp-fortran</span></code> readers</p></td>
-<td><p>the scalar method
-knobs, read on the
-Fortran side</p></td>
+<td><p>the scalar method knobs, read
+on the Fortran side</p></td>
 </tr>
-<tr class="row-odd"><td><p>Engine bridge</p></td>
+<tr class="row-even"><td><p>Engine bridge</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">bind(C)</span></code> entry
-points; the reference
-evaluator, or with
-<code class="docutils literal notranslate"><span class="pre">CPMDC_HAS_CPMD</span></code> the
-calls into OpenCPMD</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">bind(C)</span></code> entry points; the
+reference evaluator, or with
+<code class="docutils literal notranslate"><span class="pre">CPMDC_HAS_CPMD</span></code> the calls
+into OpenCPMD</p></td>
 </tr>
-<tr class="row-even"><td><p>Support</p></td>
+<tr class="row-odd"><td><p>Support</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_memfd.c</span></code>,
 <code class="docutils literal notranslate"><span class="pre">src/cpmd_stop_intercept.c</span></code></p></td>
-<td><p>the in-memory deck
-file and
-working-directory
-switch; the <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>
-catch</p></td>
+<td><p>the in-memory deck file and
+working-directory switch; the
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> catch</p></td>
 </tr>
-<tr class="row-odd"><td><p>Discovery</p></td>
+<tr class="row-even"><td><p>Discovery</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_features.c</span></code>,
 <code class="docutils literal notranslate"><span class="pre">src/cpmdc_capabilities.c</span></code></p></td>
-<td><p>the feature table and
-the <code class="docutils literal notranslate"><span class="pre">Capabilities</span></code>
-message</p></td>
+<td><p>the feature table and the
+<code class="docutils literal notranslate"><span class="pre">Capabilities</span></code> message</p></td>
 </tr>
-<tr class="row-even"><td><p>Stub</p></td>
+<tr class="row-odd"><td><p>Stub</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc_stub.c</span></code></p></td>
-<td><p>the same symbols, all
-failing, for link
-checks</p></td>
+<td><p>the same symbols for link
+checks; calls that need
+OpenCPMD fail, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code>
+still returns the calculator
+index when MPI is linked</p></td>
 </tr>
 </tbody>
 </table>

@@ -261,6 +261,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Every rank is a copy of the host</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="#the-adopted-index">The adopted index</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#one-session-per-calculator">One session per calculator</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#who-ends-mpi">Who ends MPI</a></li>
@@ -294,6 +295,7 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#">Every rank is a copy of the host</a></li>
 <li><a class="reference internal" href="#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
+<li><a class="reference internal" href="#the-adopted-index">The adopted index</a></li>
 <li><a class="reference internal" href="#why-the-parent-rank-s-result-counts">Why the parent rank’s result counts</a></li>
 <li><a class="reference internal" href="#one-session-per-calculator">One session per calculator</a></li>
 <li><a class="reference internal" href="#who-ends-mpi">Who ends MPI</a></li>
@@ -418,14 +420,18 @@ running, then splits <code class="docutils literal notranslate"><span class="pre
 its own CPMD setup, its own SCF, its own stored orbitals, all driven by
 the same deck. The split happens once per process.
 <code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, a module variable in <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api</span></code>,
-records it, and a second call only reports the group index. A host that
+records it, and a second bind only reports the group index. A host that
 already holds the calculator communicator calls
-<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> instead. That call copies the
-communicator into <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> and does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or
-<code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> back
-out. A null communicator, a world that does not divide, or a build
-without CPMD returns -1. A second adopt returns the same index and
-leaves the communicator alone.</p>
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopt_calculator_comm</span></code> instead. That call reads rank and size
+from the adopted communicator, copies it into <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> on an
+OpenCPMD build, and does not call <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code> or <code class="docutils literal notranslate"><span class="pre">MPI_Comm_split</span></code>.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_adopted_comm</span></code> copies the stored handle back out. A null
+communicator, a size that is not <code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code> when that argument
+is positive, MPI that has not been initialised, or a build without MPI
+returns -1. The text is <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>. A later adopt replaces
+the communicator when no <code class="docutils literal notranslate"><span class="pre">CPMDCSession</span></code> exists. If any rank of the
+group has a live session, every rank returns -1 and leaves the handle
+alone.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -450,6 +456,69 @@ leaves the communicator alone.</p>
 <td><p>5</p></td>
 <td><p>refused, returns -1</p></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="the-adopted-index">
+<h1>The adopted index<a class="headerlink" href="#the-adopted-index" title="Link to this heading">¶</a></h1>
+<p>The calculator index is the lowest <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> rank of the group
+divided by the adopted size. The group must be one aligned block of that
+many consecutive world ranks, starting at a multiple of the size. Any
+other layout returns -1 on every rank of the group. Indices are unique
+when every group has the same size. Passing the same
+<code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> on every rank enforces that size. A striped split
+of 4 ranks into groups {0, 2} and {1, 3} is refused: both have size 2
+and lowest ranks 0 and 1, so both would have been index 0. Reversing the
+key order inside an aligned block does not change the index. One group
+of 4, two groups of 2, and four groups of 1 are the same rule. The
+<a class="reference internal" href="../howto/mpi.html"><span class="doc">mpirun how-to</span></a> shows the call.
+<a class="reference external" href="https://rgpot.rgoswami.me">rgpot</a> is the host that loads this
+library and may already have split the ranks; its group contract is the
+<a class="reference external" href="https://rgpot.rgoswami.me/reference/mpi.html">rgpot MPI reference</a>.</p>
+<p>Open MPI’s Fortran handle for <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> is 0, and
+<code class="docutils literal notranslate"><span class="pre">MPI_COMM_NULL</span></code> is a different value. The stored handle uses that
+numbering, so 0 means the world communicator. The index is the lowest
+world rank of an aligned block divided by that size. cpmdc does not make
+the SCF energy or the forces bitwise identical across rank counts. Those
+reductions run inside OpenCPMD (<code class="docutils literal notranslate"><span class="pre">mp_sum</span></code> is <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code>, the FFT
+plane split follows the rank count, and OpenMP <code class="docutils literal notranslate"><span class="pre">REDUCTION</span></code> clauses run
+inside the archive). A single point at one rank and at two ranks can be
+compared by the maximum absolute deviation of the energy and of the
+forces. That comparison is a report, not a bitwise claim.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Adopted size</p></th>
+<th class="head"><p><code class="docutils literal notranslate"><span class="pre">ranks_per_calc</span></code></p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>2</p></td>
+<td><p>index = lowest world rank /
+2, the same on both ranks</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>4</p></td>
+<td><p>-1, <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code>
+names 2 and 4</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p>0 or less</p></td>
+<td><p>index = lowest world rank /
+4</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>1</p></td>
+<td><p>index = that rank’s world
+rank</p></td>
+</tr>
+<tr class="row-even"><td><p>2, striped {0, 2}</p></td>
+<td><p>2</p></td>
+<td><p>-1, not an aligned block</p></td>
 </tr>
 </tbody>
 </table>
