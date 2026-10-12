@@ -83,12 +83,56 @@ and ~cpmdc_bind_calculator~ has already initialised MPI and stored the
 calculator communicator by the time setup reaches ~mp_start~.
 
 * A communicator the host already split
-~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~ stores the
-caller's ~MPI_Comm~ as ~mp_comm_world~.
-~nbytes~ is the size of that communicator.
-The call does not call ~MPI_Init~ or ~MPI_Comm_split~.
-~cpmdc_adopted_comm~ copies the stored communicator back to the caller.
+A host that has already split its ranks passes that communicator to
+~cpmdc_adopt_calculator_comm(comm, nbytes, ranks_per_calc)~.
+[[https://rgpot.rgoswami.me][rgpot]] does this when it binds calculator groups.
+Its MPI contract is the
+[[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]], and the
+messages those hosts share are the ones in the
+[[file:../index.org][cpmdc overview]].
+~nbytes~ is ~sizeof(MPI_Comm)~.
+The call is collective on ~comm~.
+It reads rank and size from ~comm~.
+It does not call ~MPI_Init~ or ~MPI_Comm_split~.
+The size check uses ~comm~.
+
+When ~ranks_per_calc~ is greater than zero, the adopted size must equal it.
+A different size returns -1, and ~cpmdc_last_error()~ names both numbers.
+Zero or less skips that check.
+The same positive ~ranks_per_calc~ on every rank gives every group the same
+size, and the calculator indices are then unique.
+The group must be one aligned block of ~size~ consecutive world ranks,
+starting at a multiple of ~size~.
+The calculator index is the lowest world rank in that block, divided by
+~size~.
+Any other layout returns -1 on every rank of the group, and
+~cpmdc_last_error()~ says the communicator is not an aligned block.
+Reversing the key order inside an aligned block does not change the index.
+A striped split is refused: world ranks 0 and 2 in one group of size 2, and
+ranks 1 and 3 in the other, would otherwise both receive index 0.
+
+The handle is borrowed.
+The call does not use ~MPI_Comm_dup~.
+It stores the caller's communicator, and an OpenCPMD build also stores it in
+~mp_comm_world~.
+The caller keeps ownership and must not free the communicator until the last
+session is destroyed or a later adopt replaces it.
+An adopt after ~cpmdc_bind_calculator~ replaces the communicator that call
+split, and the caller of bind cannot free that one.
+
+~cpmdc_adopted_comm~ copies the stored handle back to the caller.
 ~cpmdc_bind_calculator~ remains the split for a host that has not split.
+That split still runs once per process.
+
+A later adopt replaces the communicator when no ~CPMDCSession~ exists.
+Destroy every session first.
+If any rank of the group has a live session, every rank returns -1,
+~cpmdc_last_error()~ says a session is live, and the stored communicator
+stays as it was.
+That refusal is the same collective as the index, so one rank does not
+return while another waits.
+The index is the same rule for 1 group of 4 ranks, 2 groups of 2, and 4
+groups of 1.
 
 * Share the parent's result
 The host owns the broadcast.
@@ -135,4 +179,3 @@ CPMD also runs OpenMP threads inside each rank when OpenCPMD was built with
 ~-omp~.
 Set ~OMP_NUM_THREADS~ per rank so that ranks times threads matches the cores
 the job holds.
-

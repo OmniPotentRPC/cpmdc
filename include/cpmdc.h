@@ -275,25 +275,42 @@ int cpmdc_bind_calculator(int ranks_per_calc);
 /**
  * @brief Install a communicator the caller already split.
  *
- * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. The call does not
- * call `MPI_Init` or `MPI_Comm_split`. An OpenCPMD build stores that
- * communicator as `mp_comm_world` and returns this rank's calculator
- * index, `world_rank / ranks_per_calc`. A value of zero or less means one
- * calculator. Returns -1 when `comm` is null, MPI is not initialized, the
- * world does not divide, or this library has no CPMD backend. Failure
- * text is `cpmdc_last_error()`. A second call returns the same index and
- * does not replace the communicator.
+ * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. Collective on that
+ * communicator. Does not call `MPI_Init` or `MPI_Comm_split`. Rank and size
+ * come from `comm`. When `ranks_per_calc` is greater than zero, that size
+ * must equal it. A mismatch returns -1 and `cpmdc_last_error()` names both
+ * numbers. Zero or less skips the size check.
+ * The group must be one aligned block of world ranks, starting at a multiple
+ * of the adopted size. Any other layout returns -1 on every rank of the
+ * group. The calculator index is the lowest world rank in that block divided
+ * by the size. Indices are unique when every group has the same size, which
+ * the same `ranks_per_calc > 0` on every rank enforces.
+ * The handle is borrowed: the call does not use `MPI_Comm_dup`. It stores
+ * the caller's communicator, and an OpenCPMD build also stores it as
+ * `mp_comm_world`. The caller keeps ownership and must not free the
+ * communicator until the last session is destroyed or a later adopt replaces
+ * it. An adopt after `cpmdc_bind_calculator` replaces the communicator that
+ * call split, and the caller of bind cannot free that one.
+ * A later call replaces the communicator when no `CPMDCSession` exists. If
+ * any rank of the group has a live session, every rank returns -1 and the
+ * stored communicator stays as it was.
+ * Returns -1 when `comm` is null, `comm_bytes` is not the size of an
+ * `MPI_Comm`, MPI is not initialized, or this build has no MPI. Failure
+ * text is `cpmdc_last_error()`.
+ * Call adopt, `cpmdc_session_create`, and `cpmdc_session_destroy` from one
+ * thread: `g_live_sessions` and `g_active_session` are process globals, and
+ * OpenCPMD state is process-global too.
  */
 int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
                                 int ranks_per_calc);
 
 /**
- * @brief Copy the adopted `mp_comm_world` into `out`.
+ * @brief Copy the stored calculator communicator into `out`.
  *
- * `out` receives an `MPI_Comm` of `nbytes` bytes. Returns 0 when a
- * calculator communicator is stored, and -1 when `out` is null, `nbytes`
- * is not that size, or no communicator has been adopted. Does not write
- * `cpmdc_last_error()`.
+ * `out` receives an `MPI_Comm` of `nbytes` bytes. On an OpenCPMD build that
+ * handle is `mp_comm_world`. Returns 0 when a calculator communicator is
+ * stored, and -1 when `out` is null, `nbytes` is not that size, or no
+ * communicator has been adopted. Does not write `cpmdc_last_error()`.
  */
 int cpmdc_adopted_comm(void *out, size_t nbytes);
 

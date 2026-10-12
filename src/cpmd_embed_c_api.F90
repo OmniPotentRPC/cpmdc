@@ -70,7 +70,7 @@ MODULE cpmd_embed_c_api
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_bind_calculator
-  PUBLIC :: cpmdc_embed_adopt_comm, cpmdc_embed_adopted_fcomm
+  PUBLIC :: cpmdc_embed_store_comm, cpmdc_embed_adopted_fcomm
   PUBLIC :: cpmdc_embed_reset_state, cpmdc_embed_teardown
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
@@ -144,7 +144,10 @@ MODULE cpmd_embed_c_api
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
   ! mp_start assigns mp_comm_world only when it calls MPI_Init.
-  ! The flag records that this process already split a calculator.
+  ! The flag records that this process has stored a calculator communicator.
+  ! cpmdc_embed_bind_calculator splits once.
+  ! cpmdc_embed_store_comm may replace that communicator. The C caller
+  ! refuses the replacement while a session is live.
   LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
   ! The saved c0 matches one cutoff, cell, charge, multiplicity,
   ! functional, deck, and elemental composition. A later call with a
@@ -300,39 +303,38 @@ CONTAINS
 #endif
   END FUNCTION cpmdc_embed_bind_calculator
 
-  FUNCTION cpmdc_embed_adopt_comm(fcomm, ranks_per_calc) RESULT(calc) &
-      BIND(C, NAME='cpmdc_embed_adopt_comm')
+  FUNCTION cpmdc_embed_store_comm(fcomm) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_store_comm')
     INTEGER(c_int), INTENT(IN), VALUE :: fcomm
-    INTEGER(c_int), INTENT(IN), VALUE :: ranks_per_calc
-    INTEGER(c_int) :: calc
-    calc = -1_c_int
+    INTEGER(c_int) :: ok
+    ok = -1_c_int
 #if defined(CPMDC_HAS_CPMD)
     BLOCK
       USE mpi
       USE mp_interface, ONLY: mp_comm_world
-      INTEGER :: ierr, rank, npe, rpc
+      INTEGER :: ierr
       LOGICAL :: inited
-      ! Fortran MPI_COMM_NULL is 0 on Open MPI and MPICH.
-      IF (fcomm == 0_c_int) RETURN
+      ! Rank, size, and the calculator index are decided in C from this
+      ! communicator. This routine only installs it, including a replacement
+      ! when the C caller has already allowed a rebind.
+      ! Open MPI's Fortran handle for MPI_COMM_WORLD is 0, and MPI_COMM_NULL
+      ! is a different value, so 0 is a communicator the host can adopt.
+      IF (INT(fcomm) == MPI_COMM_NULL) RETURN
       CALL MPI_INITIALIZED(inited, ierr)
       IF (.NOT. inited) RETURN
-      rpc = INT(ranks_per_calc)
-      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
-      CALL MPI_Comm_size(MPI_COMM_WORLD, npe, ierr)
-      IF (rpc <= 0) rpc = npe
-      IF (rpc > npe .OR. MOD(npe, rpc) /= 0) RETURN
-      calc = INT(rank / rpc, c_int)
-      IF (embed_calculator_bound) RETURN
       mp_comm_world = INT(fcomm)
       embed_calculator_bound = .TRUE.
+      ok = 0_c_int
     END BLOCK
 #endif
-  END FUNCTION cpmdc_embed_adopt_comm
+  END FUNCTION cpmdc_embed_store_comm
 
   FUNCTION cpmdc_embed_adopted_fcomm() RESULT(fcomm) &
       BIND(C, NAME='cpmdc_embed_adopted_fcomm')
     INTEGER(c_int) :: fcomm
-    fcomm = 0_c_int
+    ! -1 means nothing is stored. 0 is a valid Fortran handle: Open MPI uses
+    ! it for MPI_COMM_WORLD.
+    fcomm = -1_c_int
 #if defined(CPMDC_HAS_CPMD)
     BLOCK
       USE mp_interface, ONLY: mp_comm_world
