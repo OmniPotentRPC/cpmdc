@@ -98,8 +98,8 @@ diff -ruN a/src/dotp_utils.mod.F90 b/src/dotp_utils.mod.F90
    RETURN
 diff -ruN a/src/evidence_dump.mod.F90 b/src/evidence_dump.mod.F90
 --- a/src/evidence_dump.mod.F90	1970-01-01 00:00:00.000000000 +0000
-+++ b/src/evidence_dump.mod.F90	2026-10-11 11:17:19.489645948 +0000
-@@ -0,0 +1,131 @@
++++ b/src/evidence_dump.mod.F90	2026-10-11 20:12:48.175233708 +0000
+@@ -0,0 +1,151 @@
 +! Evidence only, not for upstream as is.
 +! Writes raw f64 results when CPMDC_EVIDENCE_BIN is set.
 +! fion is the nuclear gradient (printed as GRADIENTS (-FORCES)).
@@ -116,6 +116,7 @@ diff -ruN a/src/evidence_dump.mod.F90 b/src/evidence_dump.mod.F90
 +  use system, only: ncpw, parm, parap
 +  implicit none
 +  public :: evidence_write_results
++  public :: evidence_log_step
 +contains
 +
 +  subroutine evidence_write_results(fion)
@@ -229,6 +230,25 @@ diff -ruN a/src/evidence_dump.mod.F90 b/src/evidence_dump.mod.F90
 +    close(iu)
 +    if (.not. opened) return
 +  end subroutine evidence_write_results
++
++  subroutine evidence_log_step(tcpu)
++    real(real_8), intent(in) :: tcpu
++    character(len=1024) :: path
++    integer :: iu, length, stat
++
++    call get_environment_variable('CPMDC_EVIDENCE_STEPS', path, length, stat)
++    if (stat /= 0 .or. length <= 0) return
++    if (.not. paral%io_parent) return
++    open(newunit=iu, file=trim(path(1:length)), access='stream', &
++         form='unformatted', status='old', position='append', iostat=stat)
++    if (stat /= 0) then
++      open(newunit=iu, file=trim(path(1:length)), access='stream', &
++           form='unformatted', status='replace', iostat=stat)
++      if (stat /= 0) return
++    end if
++    write(iu) tcpu
++    close(iu)
++  end subroutine evidence_log_step
 +
 +end module evidence_dump
 diff -ruN a/src/evidence_flags.h b/src/evidence_flags.h
@@ -3698,3 +3718,22 @@ diff -ruN a/src/xcener_utils.mod.F90 b/src/xcener_utils.mod.F90
         ELSE
            CALL xcener_old(sxc,vxc,rhoval,rhoe,v)
         ENDIF
+diff -ruN a/src/wrener_utils.mod.F90 b/src/wrener_utils.mod.F90
+--- a/src/wrener_utils.mod.F90	2026-10-11 10:21:57.911580797 +0000
++++ b/src/wrener_utils.mod.F90	2026-10-11 20:12:48.187233682 +0000
+@@ -15,6 +15,7 @@
+                                              ener_com,&
+                                              ener_d,&
+                                              tenergy_ok
++  USE evidence_dump,                   ONLY: evidence_log_step
+   USE fint,                            ONLY: fint1
+   USE hubbardu,                        ONLY: hubbu  
+   USE ions,                            ONLY: ions0,&
+@@ -138,6 +139,7 @@
+        IF (paral%io_parent) THEN
+           WRITE(6,'(I4,1PE11.3,1PE12.3,0PF15.6,1PE13.3,0PF10.2) ')&
+                nfi,gemax,cnorm,etot,detot,tcpU
++          CALL evidence_log_step(tcpu)
+        ENDIF
+        IF (.NOT.(nfi.EQ.1.AND.infi.GE.0) .AND.&
+             ok_print(cprint%iprint(iprint_info),engpri,.FALSE.)) THEN

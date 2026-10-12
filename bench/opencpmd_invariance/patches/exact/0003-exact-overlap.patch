@@ -1,0 +1,383 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Overlaps and nonlocal projections are exact sums over local G.
+A DGEMM whose K dimension is the local G count, followed by MPI_SUM
+of the rounded block, changes with the rank split.
+exact_ovlap_fill and exact_pairsum add each G term, allreduce the
+digits, and round once. The gamma rgs triangular multiply is the same
+explicit sum, so it does not use DTRMM.
+
+--- a/src/ovlap_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
++++ b/src/ovlap_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
+@@ -38,7 +38,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_ovlap_fill, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -98,6 +101,27 @@
+     CALL tihalt(procedureN//'_grps_a',isub2)
+     ! <<<<<<<
+ 
++#ifdef __EXACT_ACC
++    IF (.NOT.cntl%tlsd.AND.nstate.GT.0) THEN
++       IF (NGW_local.GT.0) THEN
++          IF (symmetric) THEN
++             CALL exact_ovlap_fill(nstate,nstate,a,C1_local,C1_local,&
++                  NGW_local,1,NGW_local,GEQ0_local,parai%allgrp)
++          ELSE
++             CALL exact_ovlap_fill(nstate,nstate,a,C1_local,C2_local,&
++                  NGW_local,1,NGW_local,GEQ0_local,parai%allgrp)
++          ENDIF
++       ELSE
++          BLOCK
++            COMPLEX(real_8) :: ex_dummy(1,1)
++            ex_dummy=(0.0_real_8,0.0_real_8)
++            CALL exact_ovlap_fill(nstate,nstate,a,ex_dummy,ex_dummy,&
++                 1,1,0,.FALSE.,parai%allgrp)
++          END BLOCK
++       ENDIF
++       CALL exact_note_skip(1)
++    ELSE
++#endif
+     IF (NGW_local.GT.0.AND.nstate.GT.0) THEN
+        IF (cntl%tlsd) THEN
+           CALL zeroing(a)!,nstate*nstate)
+@@ -168,11 +192,18 @@
+     ELSE
+        CALL zeroing(a)!,nstate**2)
+     ENDIF
++#ifdef __EXACT_ACC
++    ENDIF
++#endif
+ 
+     ! >>>>>>> cp_grp trick
+     CALL tiset(procedureN//'_grps_b',isub3)
+     ! we reduce so that we get back the cp_grp distribution of the matrix
++#ifdef __EXACT_ACC
++    IF (cntl%tlsd) CALL cp_grp_redist(a,nstate,nstate)
++#else
+     CALL cp_grp_redist(a,nstate,nstate)
++#endif
+     DEALLOCATE(C1_local,stat=ierr)
+     IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',& 
+          __LINE__,__FILE__)
+@@ -469,6 +500,10 @@
+   USE cp_grp_utils, ONLY : cp_grp_redist
+   USE cp_grp_utils, ONLY : cp_grp_get_sizes
+   USE zeroing_utils,                   ONLY: zeroing
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_ovlap_fill
++  USE parac, ONLY: parai
++#endif
+   IMPLICIT NONE
+   INTEGER                                    :: ngw, n1, n2
+   REAL(real_8)                               :: a(n1,n2)
+@@ -496,6 +531,21 @@
+   ENDIF
+   ! <<<<<<<
+ 
++#ifdef __EXACT_ACC
++  IF (n1.GT.0.AND.n2.GT.0) THEN
++     IF (NGW_local.GT.0) THEN
++        CALL exact_ovlap_fill(n1,n2,a,c1,c2,ngw,ibeg_c0,NGW_local,&
++             GEQ0_local,parai%allgrp)
++     ELSE
++        BLOCK
++          COMPLEX(real_8) :: ex_dummy(1,1)
++          ex_dummy=(0.0_real_8,0.0_real_8)
++          CALL exact_ovlap_fill(n1,n2,a,ex_dummy,ex_dummy,1,1,0,&
++               .FALSE.,parai%allgrp)
++        END BLOCK
++     ENDIF
++  ENDIF
++#else
+   IF (NGW_local.GT.0) THEN
+ #if defined (__ES)
+      ! mb   This is not necessary if your BLAS libraries are optimized for ES 
+@@ -511,13 +561,20 @@
+   ELSE
+      CALL zeroing(a)!,n1*n2)
+   ENDIF
++#endif
+   ! >>>>>>> cp_grp trick
++#ifdef __EXACT_ACC
++  IF (.FALSE.) THEN
++#endif
+   IF (use_cp_grp) THEN
+      CALL tiset(procedureN//'_grps_b',isub3)
+      ! we reduce so that we get back the cp_grp distribution of the matrix
+      CALL cp_grp_redist(a,n1,n2)
+      CALL tihalt(procedureN//'_grps_b',isub3)
+   ENDIF
++#ifdef __EXACT_ACC
++  ENDIF
++#endif
+   ! <<<<<<<
+ 
+   CALL tihalt(procedureN,isub)
+--- a/src/rgs_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
++++ b/src/rgs_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
+@@ -16,7 +16,10 @@
+                                              zclean_k
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_ovlap_fill
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -59,6 +62,19 @@
+     CALL tihalt(procedureN//'_grps_a',isub2)
+     ! <<<<<<<
+ 
++#ifdef __EXACT_ACC
++    IF (NGW_local.GT.0) THEN
++       CALL exact_ovlap_fill(nstate,nstate,smat,CP_local,CP_local,&
++            NGW_local,1,NGW_local,GEQ0_local,parai%cp_grp)
++    ELSE
++       BLOCK
++         COMPLEX(real_8) :: ex_dummy(1,1)
++         ex_dummy=(0.0_real_8,0.0_real_8)
++         CALL exact_ovlap_fill(nstate,nstate,smat,ex_dummy,ex_dummy,&
++              1,1,0,.FALSE.,parai%cp_grp)
++       END BLOCK
++    ENDIF
++#else
+     CALL zeroing(smat)!,nstate*nstate)
+     IF (NGW_local.GT.0)&
+          CALL dsyrk('U','T',nstate,2*NGW_local,2._real_8,CP_local,&
+@@ -67,10 +83,28 @@
+          CALL dger(nstate,nstate,-1.0_real_8,CP_local,2*NGW_local,&
+          CP_local,2*NGW_local,smat,nstate)
+     CALL mp_sum(smat,nstate**2,parai%cp_grp)
++#endif
+     CALL uinv('U',smat,nstate,nstate)
+-    IF (NGW_local.GT.0)&
+-         CALL dtrmm('R','U','N','N',2*NGW_local,nstate,1._real_8,&
+-         smat,nstate,CP_local,2*NGW_local)
++    IF (NGW_local.GT.0) THEN
++#ifdef __EXACT_ACC
++       BLOCK
++         INTEGER :: ex_ig, ex_j, ex_k
++         COMPLEX(real_8) :: ex_acc
++         DO ex_ig=1,NGW_local
++            DO ex_j=nstate,1,-1
++               ex_acc=(0.0_real_8,0.0_real_8)
++               DO ex_k=1,ex_j
++                  ex_acc=ex_acc+CP_local(ex_ig,ex_k)*smat(ex_k,ex_j)
++               ENDDO
++               CP_local(ex_ig,ex_j)=ex_acc
++            ENDDO
++         ENDDO
++       END BLOCK
++#else
++       CALL dtrmm('R','U','N','N',2*NGW_local,nstate,1._real_8,&
++            smat,nstate,CP_local,2*NGW_local)
++#endif
++    ENDIF
+     IF (GEQ0_local) CALL zclean(CP_local,nstate,NGW_local)
+ 
+     ! >>>>>>> cp_grp trick
+--- a/src/ksmat_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
++++ b/src/ksmat_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
+@@ -24,7 +24,10 @@
+   USE vpsi_utils,                      ONLY: vpsi
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -87,6 +90,9 @@
+     ELSE
+        CALL dscal(  atwp%nattot*atwp%nattot,-1._real_8,xxmat(1,1),1)
+     ENDIF
++#ifdef __EXACT_ACC
++    IF (.NOT.tkpts%tkpnt) CALL exact_note_skip(1)
++#endif
+     CALL tihalt('     KSMAT',isub)
+     ! ==--------------------------------------------------------------==
+     RETURN
+--- a/src/rnlsm1_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
++++ b/src/rnlsm1_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
+@@ -29,7 +29,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_pairsum, exact_fnl_mark
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -74,7 +77,11 @@
+          __LINE__,__FILE__)
+     ! ==--------------------------------------------------------------==
+     CALL zeroing(fnl(:,:,:,:,ikind))!,imagp*ions1%nat*maxsys%nhxs*nstate)
++#ifdef __EXACT_ACC
++    ! Keep every rank in the projector loop so the allreduces match.
++#else
+     IF (nkpt%ngwk.EQ.0) GOTO 1000
++#endif
+     ! ==--------------------------------------------------------------==
+     CALL part_1d_get_blk_bounds(nstate,parai%cp_inter_me,parai%cp_nogrp,&
+          first_state,last_state)
+@@ -142,9 +149,15 @@
+ #ifdef __SR8000
+                 !poption parallel
+ #endif
++#ifdef __EXACT_ACC
++                IF (nkpt%ngwk.GT.0) THEN
++#endif
+                 DO ia=1,ions0%na(is)
+                    scr(1,ia)=0.5_real_8*scr(1,ia)
+                 ENDDO
++#ifdef __EXACT_ACC
++                ENDIF
++#endif
+              ENDIF
+           ENDIF
+           ! 
+@@ -155,6 +168,35 @@
+                   nkpt%ngwk,c0(1,first_state),nkpt%ngwk,zzero,&
+                   fnl(1,isa0+1,iv,first_state,ikind),ions1%nat*maxsys%nhxs)
+           ELSE
++#ifdef __EXACT_ACC
++             BLOCK
++               REAL(real_8), ALLOCATABLE :: ex_blk(:,:)
++               INTEGER :: ex_ia, ex_is
++               COMPLEX(real_8) :: ex_dummy(1,1)
++               ALLOCATE(ex_blk(MAX(ions0%na(is),1), MAX(n_state,1)))
++               IF (n_state.GT.0.AND.ions0%na(is).GT.0) THEN
++                  IF (nkpt%ngwk.GT.0) THEN
++                     CALL exact_pairsum(ions0%na(is),n_state,nkpt%ngwk,scr,&
++                          nkpt%ngwk,c0(1,first_state),nkpt%ngwk,2.0_real_8,&
++                          ex_blk,parai%allgrp)
++                  ELSE
++                     ex_dummy=(0.0_real_8,0.0_real_8)
++                     CALL exact_pairsum(ions0%na(is),n_state,0,ex_dummy,1,&
++                          ex_dummy,1,2.0_real_8,ex_blk,parai%allgrp)
++                  ENDIF
++                  DO ex_is=1,n_state
++                     DO ex_ia=1,ions0%na(is)
++                        fnl(1,isa0+ex_ia,iv,first_state+ex_is-1,ikind)=ex_blk(ex_ia,ex_is)
++                     ENDDO
++                  ENDDO
++               ELSE
++                  ex_dummy=(0.0_real_8,0.0_real_8)
++                  CALL exact_pairsum(1,1,0,ex_dummy,1,ex_dummy,1,2.0_real_8,&
++                       ex_blk,parai%allgrp)
++               ENDIF
++               DEALLOCATE(ex_blk)
++             END BLOCK
++#else
+              IF (ions0%na(is).GT.1) THEN
+                 CALL dgemm('T','N',ions0%na(is),n_state,2*nkpt%ngwk,2._real_8,scr(1,1),&
+                      2*nkpt%ngwk,c0(1,first_state),2*nkpt%ngwk,0.0_real_8,&
+@@ -164,6 +206,7 @@
+                      2*nkpt%ngwk,scr(1,1),1,0.0_real_8,&
+                      fnl(1,isa0+1,iv,first_state,ikind),ions1%nat*maxsys%nhxs)
+              ENDIF
++#endif
+           ENDIF
+ 
+        ENDDO
+@@ -172,12 +215,20 @@
+ 
+     ! ==--------------------------------------------------------------==
+     IF (parai%cp_nogrp.GT.1) THEN
+-
++#ifdef __EXACT_ACC
++       IF (tkpts%tkpnt) THEN
++#endif
+        CALL mp_sum(fnl(:,:,:,:,ikind),imagp*ions1%nat*maxsys%nhxs*nstate,&
+             parai%cp_inter_grp)
++#ifdef __EXACT_ACC
++       ENDIF
++#endif
+     ENDIF
+     ! ==--------------------------------------------------------------==      
+ 
++#ifdef __EXACT_ACC
++    IF (.NOT.tkpts%tkpnt) CALL exact_fnl_mark()
++#endif
+ 1000 CONTINUE
+ 
+     CALL sumfnl(fnl(:,:,:,:,ikind),nstate)
+--- a/src/rnlsm2_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
++++ b/src/rnlsm2_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
+@@ -26,7 +26,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_pairsum, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -445,8 +448,37 @@
+                          EISCR(IG,IA) = CMPLX(-ARG*EI,ARG*ER,kind=real_8)
+                       ENDDO
+                    ENDIF
++#ifdef __EXACT_ACC
++                   IF(GEQ0.AND.nkpt%ngwk.GT.0) EISCR(1,IA)=0.5_real_8*EISCR(1,IA)
++#else
+                    IF(GEQ0) EISCR(1,IA)=0.5_real_8*EISCR(1,IA)
++#endif
+                 ENDDO
++#ifdef __EXACT_ACC
++                BLOCK
++                  REAL(real_8), ALLOCATABLE :: ex_blk(:,:)
++                  INTEGER :: ex_ia, ex_is
++                  COMPLEX(real_8) :: ex_dummy(1,1)
++                  ALLOCATE(ex_blk(MAX(ions0%na(IS),1), MAX(NSTATE,1)))
++                  IF (ions0%na(IS).GT.0.AND.NSTATE.GT.0) THEN
++                     IF (nkpt%ngwk.GT.0) THEN
++                        CALL exact_pairsum(ions0%na(IS),NSTATE,nkpt%ngwk,EISCR,&
++                             nkpt%ngwk,C0(1,1),nkpt%ngwk,TFAC,ex_blk,parai%allgrp)
++                     ELSE
++                        ex_dummy=(0.0_real_8,0.0_real_8)
++                        CALL exact_pairsum(ions0%na(IS),NSTATE,0,ex_dummy,1,&
++                             ex_dummy,1,TFAC,ex_blk,parai%allgrp)
++                     ENDIF
++                     DO ex_is=1,NSTATE
++                        DO ex_ia=1,ions0%na(IS)
++                           DAI(1,ex_ia,ex_is)=ex_blk(ex_ia,ex_is)
++                        ENDDO
++                     ENDDO
++                  ENDIF
++                  DEALLOCATE(ex_blk)
++                END BLOCK
++                CALL exact_note_skip(1)
++#else
+                 IF(nkpt%ngwk.GT.0) THEN
+                    IF (ions0%na(IS).GT.1) THEN
+                       CALL DGEMM('T','N',ions0%na(IS),NSTATE,2*nkpt%ngwk,TFAC,&
+@@ -457,6 +489,7 @@
+                            &               EISCR(1,1),1,0.0_real_8,DAI(1,1,1),mmdim%naxq)
+                    ENDIF
+                 ENDIF
++#endif
+              ENDIF
+              CALL mp_sum(DAI,IMAGP*mmdim%naxq*NSTATE,parai%allgrp)
+              DO I=parap%NST12(parai%mepos,1),parap%NST12(parai%mepos,2)

@@ -1,0 +1,675 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Stress components are exact sums, including the nonlocal strain term.
+OpenMP plus-reductions in the stress loops are removed under the
+switch and replaced by one accumulator per component.
+The becs projection in nlsm1_s was a DGEMM over the local G count.
+That partial, then MPI_SUM, left a rank-dependent off-diagonal denl.
+exact_pairsum adds each G term and rounds once. The plane split is
+unchanged.
+
+--- a/src/htrstr_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
++++ b/src/htrstr_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
+@@ -29,7 +29,11 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish_n
++  USE parac, ONLY: parai
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -50,6 +54,9 @@
+                                                 rhog, rhogs, rhopr
+     INTEGER                                  :: ia, ig, ig1, is, isa, isub, kk
+     REAL(real_8)                             :: ei, er, er2, fpibg, r2
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_dehc(6)
++#endif
+ 
+ ! Variables
+ 
+@@ -58,6 +65,11 @@
+ #endif 
+     ! ==--------------------------------------------------------------==
+     CALL tiset('    HTRSTR',isub)
++#ifdef __EXACT_ACC
++    DO kk=1,6
++       CALL exact_acc_zero(ex_dehc(kk))
++    ENDDO
++#endif
+     IF (geq0) THEN
+        ig1=2
+     ELSE
+@@ -383,9 +395,11 @@
+     ENDIF
+ #else 
+     IF (cntl%bigmem) THEN
++#ifndef __EXACT_ACC
+        !$omp parallel do private(ig,isa,is,ia,kk,rhopr,r2, &
+        !$omp rhet,rhog,rhogs,fpibg,cfpibg,chgm1) &
+        !$omp reduction(+:dehc)
++#endif
+        DO ig=ig1,ncpw%nhg
+           rhopr = (0.0_real_8,0.0_real_8)
+           isa=0
+@@ -405,18 +419,26 @@
+           DO kk=1,6
+              dehc(kk) = dehc(kk) +&
+                   cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)
++#ifdef __EXACT_ACC
++             CALL exact_acc_add(ex_dehc(kk),REAL(cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)))
++#endif
+           ENDDO
+           IF (pslo_com%tivan) THEN
+              DO kk=1,6
+                 dehc(kk) = dehc(kk) + cfpibg*rhogs*drhovg(ig,kk)
++#ifdef __EXACT_ACC
++                CALL exact_acc_add(ex_dehc(kk),REAL(cfpibg*rhogs*drhovg(ig,kk)))
++#endif
+                 IF (cntl%tlsd) dehc(kk) = dehc(kk) + cfpibg*rhogs*drhovg(ig,6+kk)
+              ENDDO
+           ENDIF
+        ENDDO
+     ELSE
++#ifndef __EXACT_ACC
+        !$omp parallel do private(ig,isa,is,ia,kk,rhopr,r2,ei123,er,ei,er2, &
+        !$omp rhet,rhog,rhogs,fpibg,cfpibg,chgm1) &
+        !$omp reduction(+:dehc)
++#endif
+        DO ig=ig1,ncpw%nhg
+           rhopr = (0.0_real_8,0.0_real_8)
+           isa=0
+@@ -441,16 +463,32 @@
+           DO kk=1,6
+              dehc(kk) = dehc(kk) +&
+                   cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)
++#ifdef __EXACT_ACC
++             CALL exact_acc_add(ex_dehc(kk),REAL(cfpibg*rhogs*(rhog*chgm1+rhopr)*gagk(ig,kk)))
++#endif
+           ENDDO
+           IF (pslo_com%tivan) THEN
+              DO kk=1,6
+                 dehc(kk) = dehc(kk) + cfpibg*rhogs*drhovg(ig,kk)
++#ifdef __EXACT_ACC
++                CALL exact_acc_add(ex_dehc(kk),REAL(cfpibg*rhogs*drhovg(ig,kk)))
++#endif
+                 IF (cntl%tlsd) dehc(kk) = dehc(kk) + cfpibg*rhogs*drhovg(ig,6+kk)
+              ENDDO
+           ENDIF
+        ENDDO
+     ENDIF
+ #endif 
++#ifdef __EXACT_ACC
++    BLOCK
++      REAL(real_8) :: ex_o(6)
++      INTEGER :: ex_k
++      CALL exact_acc_finish_n(ex_dehc,6,ex_o,parai%allgrp)
++      DO ex_k=1,6
++         dehc(ex_k)=CMPLX(ex_o(ex_k),0.0_real_8,kind=real_8)
++      ENDDO
++    END BLOCK
++#endif
+     DO kk=1,6
+        deht(kk) = -eht*delta(alpha(kk),beta(kk)) +&
+             2.0_real_8*parm%omega*REAL(dehc(kk))
+--- a/src/vlocst_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
++++ b/src/vlocst_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
+@@ -19,6 +19,10 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish_n
++  USE parac, ONLY: parai
++#endif
+ 
+   IMPLICIT NONE
+ 
+@@ -46,12 +50,20 @@
+     COMPLEX(real_8)                          :: v(maxfft), eivps(ncpw%nhg)
+ 
+     INTEGER                                  :: ig, ig1, isub, kk
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_dep(6)
++#endif
+ 
+ #ifdef __VECTOR 
+     COMPLEX(real_8)                          :: temp,t1,t2,t3,t4,t5,t6
+ #endif 
+     ! ==--------------------------------------------------------------==
+     CALL tiset('    VLOCST',isub)
++#ifdef __EXACT_ACC
++    DO kk=1,6
++       CALL exact_acc_zero(ex_dep(kk))
++    ENDDO
++#endif
+     CALL zeroing(dqg)!,nhg)
+     ! Calculate derivative local pp part*structure factor
+     CALL ffsum(dqg)
+@@ -85,10 +97,15 @@
+     depst(5)=depst(5)+t5
+     depst(6)=depst(6)+t6
+ #else 
++#ifndef __EXACT_ACC
+     !$omp parallel do private(KK,IG) reduction(+:depst)
++#endif
+     DO ig=1,ncpw%nhg
+        DO kk=1,6
+           depst(kk)=depst(kk)+CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,kk)
++#ifdef __EXACT_ACC
++          CALL exact_acc_add(ex_dep(kk),REAL(CONJG(v(nzh(ig)))*dqg(ig,1)*gagk(ig,kk)))
++#endif
+        ENDDO
+     ENDDO
+ #endif 
+@@ -102,22 +119,52 @@
+ #ifdef __SR8000
+              !poption parallel, tlocal(IG), psum(TEMP)
+ #endif 
++#ifndef __EXACT_ACC
+              !$omp parallel do private(IG) reduction(+:TEMP)
++#endif
+              DO ig=ig1,ncpw%nhg
+                 temp=temp+CONJG(drhovg(ig,kk))*eivps(ig)
+-                IF (cntl%tlsd) temp=temp+CONJG(drhovg(ig,6+kk))*eivps(ig)
++#ifdef __EXACT_ACC
++                CALL exact_acc_add(ex_dep(kk),REAL(CONJG(drhovg(ig,kk))*eivps(ig)))
++#endif
++                IF (cntl%tlsd) THEN
++                   temp=temp+CONJG(drhovg(ig,6+kk))*eivps(ig)
++#ifdef __EXACT_ACC
++                   CALL exact_acc_add(ex_dep(kk),REAL(CONJG(drhovg(ig,6+kk))*eivps(ig)))
++#endif
++                ENDIF
+              ENDDO
+              depst(kk)=depst(kk)+temp
+ #else 
++#ifndef __EXACT_ACC
+              !$omp parallel do private(ig) reduction(+:depst)
++#endif
+              DO ig=ig1,ncpw%nhg
+                 depst(kk)=depst(kk)+CONJG(drhovg(ig,kk))*eivps(ig)
+-                IF (cntl%tlsd) depst(kk)=depst(kk)+CONJG(drhovg(ig,6+kk))*eivps(ig)
++#ifdef __EXACT_ACC
++                CALL exact_acc_add(ex_dep(kk),REAL(CONJG(drhovg(ig,kk))*eivps(ig)))
++#endif
++                IF (cntl%tlsd) THEN
++                   depst(kk)=depst(kk)+CONJG(drhovg(ig,6+kk))*eivps(ig)
++#ifdef __EXACT_ACC
++                   CALL exact_acc_add(ex_dep(kk),REAL(CONJG(drhovg(ig,6+kk))*eivps(ig)))
++#endif
++                ENDIF
+              ENDDO
+ #endif 
+           ENDIF
+        ENDDO
+     ENDIF
++#ifdef __EXACT_ACC
++    BLOCK
++      REAL(real_8) :: ex_o(6)
++      INTEGER :: ex_k
++      CALL exact_acc_finish_n(ex_dep,6,ex_o,parai%allgrp)
++      DO ex_k=1,6
++         depst(ex_k)=CMPLX(ex_o(ex_k),0.0_real_8,kind=real_8)
++      ENDDO
++    END BLOCK
++#endif
+     ! Factor 2._real_8 with GAGK
+ #ifdef __VECTOR 
+     depst(1)=2.0_real_8*depst(1)
+--- a/src/stress_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
++++ b/src/stress_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
+@@ -70,6 +70,9 @@
+   USE vdwcmod,                         ONLY: vdwl,&
+                                              vdwr
+   USE zeroing_utils,                   ONLY: zeroing
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_acc_finish_n
++#endif
+ 
+   IMPLICIT NONE
+ 
+@@ -107,6 +110,9 @@
+       rckj, rckk, repand, rlm, rxlm(3), sgc(6), sum, topia, weight, xlm, &
+       xskin, ylm, zlm, zv2, xlm_, ylm_, zlm_
+     REAL(real_8), ALLOCATABLE                :: gam(:)
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_dekin(6), ex_acc
++#endif
+     REAL(real_8), EXTERNAL                   :: ddot
+ 
+ #if defined(__VECTOR)
+@@ -232,6 +238,11 @@
+ #endif 
+     ! Initialize the stress arrays
+     CALL zeroing(dekin)!,6)
++#ifdef __EXACT_ACC
++    DO kk=1,6
++       CALL exact_acc_zero(ex_dekin(kk))
++    ENDDO
++#endif
+     dehc=0.0_real_8
+     CALL zeroing(deht )!,6)
+     CALL zeroing(dexc )!,6)
+@@ -451,16 +462,27 @@
+                    sgc(5)=sgc(5)+t5
+                    sgc(6)=sgc(6)+t6
+ #else 
++#ifdef __EXACT_ACC
++                   DO ig=1,ncpw%ngw
++                      DO kk=1,6
++                         CALL exact_acc_add(ex_dekin(kk),wk(ikk)*f(i,ikk)*&
++                              REAL(dqg(ig,1)*gagk(ig,kk)))
++                      ENDDO
++                   ENDDO
++#else
+                    !$omp parallel do private(KK,IG) reduction(+:sgc)
+                    DO ig=1,ncpw%ngw
+                       DO kk=1,6
+                          sgc(kk)=sgc(kk)+REAL(dqg(ig,1)*gagk(ig,kk))
+                       ENDDO
+                    ENDDO
++#endif
+ #endif 
+                 ENDIF
++#ifndef __EXACT_ACC
+                 weight=wk(ikk)*f(i,ikk)
+                 CALL daxpy(6,weight,sgc(1),1,dekin(1),1)
++#endif
+              ENDIF
+           ENDDO
+        ENDDO
+@@ -478,6 +500,9 @@
+                    DO jv=1,nlps_com%ngh(is)
+                       DO kk=1,6
+                          sum=0.0_real_8
++#ifdef __EXACT_ACC
++                         CALL exact_acc_zero(ex_acc)
++#endif
+                          DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+                             ii=i-parap%nst12(parai%mepos,1)+1
+                             IF (f(i,ikk).NE.0._real_8) THEN
+@@ -485,8 +510,16 @@
+                                sum=sum+weight*ddot(imagp*ions0%na(is),&
+                                     becs(1,isa0+1,iv,kk,ii,ikind),1,&
+                                     fnl (1,isa0+1,jv,i,ikind),1)
++#ifdef __EXACT_ACC
++                               CALL exact_acc_add(ex_acc,weight*ddot(imagp*ions0%na(is), &
++                                    becs(1,isa0+1,iv,kk,ii,ikind),1, &
++                                    fnl(1,isa0+1,jv,i,ikind),1))
++#endif
+                             ENDIF
+                          ENDDO
++#ifdef __EXACT_ACC
++                         sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                          denl(kk) = denl(kk) + 2.0_real_8*sum*dvan(jv,iv,is)
+                       ENDDO
+                    ENDDO
+@@ -503,6 +536,9 @@
+                          kj=sgpp2%lfval(jv,is)
+                          DO kk=1,6
+                             sum=0.0_real_8
++#ifdef __EXACT_ACC
++                            CALL exact_acc_zero(ex_acc)
++#endif
+                             DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+                                ii=i-parap%nst12(parai%mepos,1)+1
+                                IF (f(i,ikk).NE.0._real_8) THEN
+@@ -510,8 +546,16 @@
+                                   sum=sum+weight*ddot(imagp*ions0%na(is),&
+                                        becs(1,isa0+1,iv,kk,ii,ikind),1,&
+                                        fnl (1,isa0+1,jv,i,ikind),1)
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add(ex_acc,weight*ddot(imagp*ions0%na(is), &
++                                       becs(1,isa0+1,iv,kk,ii,ikind),1, &
++                                       fnl(1,isa0+1,jv,i,ikind),1))
++#endif
+                                ENDIF
+                             ENDDO
++#ifdef __EXACT_ACC
++                            sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                             denl(kk) = denl(kk) + 2._real_8*sum*sgpp2%hlsg(ki,kj,l,is)
+                          ENDDO
+                       ENDIF
+@@ -522,6 +566,9 @@
+                 DO iv=1,nlps_com%ngh(is)
+                    DO kk=1,6
+                       sum=0.0_real_8
++#ifdef __EXACT_ACC
++                      CALL exact_acc_zero(ex_acc)
++#endif
+                       DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+                          ii=i-parap%nst12(parai%mepos,1)+1
+                          IF (f(i,ikk).NE.0._real_8) THEN
+@@ -529,8 +576,16 @@
+                             sum=sum+weight*ddot(imagp*ions0%na(is),&
+                                  becs(1,isa0+1,iv,kk,ii,ikind),1,&
+                                  fnl (1,isa0+1,iv,i,ikind),1)
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add(ex_acc,weight*ddot(imagp*ions0%na(is), &
++                                 becs(1,isa0+1,iv,kk,ii,ikind),1, &
++                                 fnl(1,isa0+1,iv,i,ikind),1))
++#endif
+                          ENDIF
+                       ENDDO
++#ifdef __EXACT_ACC
++                      sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                       denl(kk) = denl(kk) + 2.0_real_8*sum*wsg(is,iv)
+                    ENDDO
+                 ENDDO
+@@ -540,6 +595,11 @@
+        ENDDO
+     ENDDO
+     ! ==--------------------------------------------------------------==
++#ifdef __EXACT_ACC
++    IF (.NOT.tkdp) THEN
++       CALL exact_acc_finish_n(ex_dekin,6,dekin,parai%allgrp)
++    ENDIF
++#endif
+     IF (tkpts%tkpnt) THEN
+        CALL dscal(6,-1.0_real_8,dekin(1),1)
+     ELSE IF (.NOT.tkdp) THEN
+--- a/src/pi_stress_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
++++ b/src/pi_stress_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
+@@ -68,7 +68,9 @@
+     ENDDO
+     ! Force term other than centroids 
+     CALL zeroing(paifr)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,ip,xlm,ylm,zlm) reduction(+:paifr)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -88,7 +90,9 @@
+           paifr(3,3)=paifr(3,3)-fionks(3,ia,is,ip)*zlm
+        ENDDO
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do
++#endif
+     ! Symmetric matrix and set to 0 if < EPSILON
+     DO i=1,3
+        DO j=i,3
+@@ -104,7 +108,9 @@
+     ENDDO
+     ! Kinetic term of centroids only
+     CALL zeroing(paikin)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,fact) reduction(+:paikin)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -119,7 +125,9 @@
+        paikin(2,3)=paikin(2,3)+fact*vstage(2,ia,is)*vstage(3,ia,is)
+        paikin(3,3)=paikin(3,3)+fact*vstage(3,ia,is)*vstage(3,ia,is)
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do
++#endif
+     paiu=paiks+paifr   ! stress tensor minus velocity-dependent part
+     ! Symmetrization
+     CALL symstress(paiu)
+@@ -180,7 +188,9 @@
+     omegap = SQRT(rnp)*cntr%tempw/factem
+     omp2 = omegap*omegap
+     CALL zeroing(paihar)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,ip,fact) reduction(+:paihar)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -197,10 +207,14 @@
+           paihar(3,3)=paihar(3,3)+fact*stagep(3,ia,is,ip)*stagep(3,ia,is,ip)
+        ENDDO
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do
++#endif
+     ! Kinetic term 
+     CALL zeroing(paikin)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,ip,fact) reduction(+:paikin)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -217,7 +231,9 @@
+           paikin(3,3)=paikin(3,3)+fact*vstage(3,ia,is,ip)*vstage(3,ia,is,ip)
+        ENDDO
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do 
++#endif
+     paiu=paiks+paihar+paikin
+     ! Symmetrization
+     CALL symstress(paiu)
+@@ -261,7 +277,9 @@
+     omegap = SQRT(rnp)*cntr%tempw/factem
+     omp2 = omegap*omegap
+     CALL zeroing(paihar)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,fact,ip,xlm,ylm,zlm) reduction(+:paihar)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -282,10 +300,14 @@
+           paihar(3,3)=paihar(3,3)+fact*zlm*zlm
+        ENDDO
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do
++#endif
+     ! Kinetic term 
+     CALL zeroing(paikin)
++#ifndef __EXACT_ACC
+     !$omp parallel do private(i,ia,is,fact,ip) reduction(+:paikin)
++#endif
+     DO i=1,ions1%nat
+        ia=iatpt(1,i)
+        is=iatpt(2,i)
+@@ -302,7 +324,9 @@
+           paikin(3,3)=paikin(3,3)+fact*pivelp(3,ia,is,ip)*pivelp(3,ia,is,ip)
+        ENDDO
+     ENDDO
++#ifndef __EXACT_ACC
+     !$omp end parallel do
++#endif
+     paiu=paiks+paihar+paikin
+     ! Symmetrization
+     CALL symstress(paiu)
+--- a/src/totstr_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
++++ b/src/totstr_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
+@@ -20,6 +20,9 @@
+   USE system,                          ONLY: cntl,&
+                                              parm
+   USE vdwcmod,                         ONLY: vdwr
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_note_skip
++#endif
+ 
+   IMPLICIT NONE
+ 
+@@ -53,6 +56,9 @@
+        paiu(beta(kk),alpha(kk)) = paiu(alpha(kk),beta(kk))
+     ENDDO
+ 
++#ifdef __EXACT_ACC
++    CALL exact_note_skip(1)
++#endif
+     CALL mp_sum(paiu,9,parai%allgrp)
+ 
+     ! ==--------------------------------------------------------------==
+--- a/src/rhoofr_kdp_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
++++ b/src/rhoofr_kdp_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
+@@ -44,7 +44,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -312,15 +315,30 @@
+     ! HERE TO CHECK THE INTEGRAL OF THE CHARGE DENSITY
+     ! RSUM1=DASUM(NNR1,RHOE(1,1),1)
+     ! --> with VDB PP RHOE might be negative in some points
++#ifdef __EXACT_ACC
++    BLOCK
++      TYPE(exact_acc) :: ex_r
++      INTEGER :: ex_i
++      CALL exact_acc_zero(ex_r)
++      DO ex_i=1,fpar%nnr1
++         CALL exact_acc_add(ex_r,rhoe(ex_i,1))
++      ENDDO
++      rsum1=exact_acc_finish(ex_r,parai%allgrp)
++    END BLOCK
++#else
+     rsum1=0._real_8
+     !$omp parallel do private(I) reduction(+:RSUM1)
+     DO i=1,fpar%nnr1
+        rsum1=rsum1+rhoe(i,1)
+     ENDDO
++#endif
+     rsum1=rsum1*parm%omega/REAL(spar%nr1s*spar%nr2s*spar%nr3s,kind=real_8)
+     chrg%csumg=rsum
+     chrg%csumr=rsum1
+     CALL mp_sum(chrg%csumg,parai%allgrp)
++#ifdef __EXACT_ACC
++    CALL exact_note_skip(1)
++#endif
+     CALL mp_sum(chrg%csumr,parai%allgrp)
+     CALL mp_sum(chrg%csums,parai%allgrp)
+     CALL mp_sum(chrg%csumsabs,parai%allgrp)
+--- a/src/rhoofr_p_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
++++ b/src/rhoofr_p_utils.mod.F90	2026-10-12 04:10:52.647896734 +0000
+@@ -39,7 +39,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -248,15 +251,30 @@
+        chrg%csumsabs=rsum1abs*parm%omega/REAL(spar%nr1s*spar%nr2s*spar%nr3s,kind=real_8)
+     ENDIF
+     ! here to check the integral of the charge density
++#ifdef __EXACT_ACC
++    BLOCK
++      TYPE(exact_acc) :: ex_r
++      INTEGER :: ex_i
++      CALL exact_acc_zero(ex_r)
++      DO ex_i=1,fpar%nnr1
++         CALL exact_acc_add(ex_r,drhoe(ex_i,1))
++      ENDDO
++      rsum1=exact_acc_finish(ex_r,parai%allgrp)
++    END BLOCK
++#else
+     rsum1=0._real_8
+     !$omp parallel do private(i) reduction(+:rsum1)
+     DO i=1,fpar%nnr1
+        rsum1=rsum1+drhoe(i,1)
+     ENDDO
++#endif
+     rsum1=rsum1*parm%omega/REAL(spar%nr1s*spar%nr2s*spar%nr3s,kind=real_8)
+     chrg%csumg=rsum
+     chrg%csumr=rsum1
+     CALL mp_sum(chrg%csumg,parai%allgrp)
++#ifdef __EXACT_ACC
++    CALL exact_note_skip(1)
++#endif
+     CALL mp_sum(chrg%csumr,parai%allgrp)
+     CALL mp_sum(chrg%csums,parai%allgrp)
+     CALL mp_sum(chrg%csumsabs,parai%allgrp)
+--- a/src/rinforce_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
++++ b/src/rinforce_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
+@@ -222,7 +222,9 @@
+     IF (pslo_com%tivan) CALL qinit(rs1,rs2)
+     pub = 0._real_8
+     IF (geq0) THEN
++#ifndef __EXACT_ACC
+        !$omp parallel do private(IS) reduction(+:PUB)
++#endif
+ #ifdef __SR8000
+        !poption parallel, tlocal(IS), psum(PUB)
+ #endif
+@@ -238,7 +240,9 @@
+     ! ==--------------------------------------------------------------==
+     ener_com%eself=0._real_8
+     eself=0.0_real_8
++#ifndef __EXACT_ACC
+     !$omp parallel do private(IS) reduction(+:ESELF)
++#endif
+ #ifdef __SR8000
+     !poption parallel, tlocal(IS), psum(ESELF)
+ #endif
+@@ -257,7 +261,9 @@
+     maxsys%lpmax=0
+     IF (pslo_com%tivan) THEN
+        lpmax=0
++#ifndef __EXACT_ACC
+        !$omp parallel do private(IM,IV,JV,LP) reduction(max:lpmax)
++#endif
+        DO im=1,mx
+           DO iv=1,nlx
+              DO jv=iv,nlx
+--- a/src/nlsm1_s_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
++++ b/src/nlsm1_s_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
+@@ -113,11 +113,35 @@
+                 CALL zgemm('C','N',ions0%na(is),nstate,nkpt%ngwk,zone,scr(1,1),&
+                      nkpt%ngwk,c0(1,1),nkpt%ngwk,zzero,&
+                      dai(1,1,1),maxsys%nax)
++                CALL mp_sum(dai,imagp*maxsys%nax*nstate,parai%allgrp)
+              ELSE
++#ifdef __EXACT_ACC
++                ! The strain projection is a sum over G. A DGEMM over the
++                ! local G count, followed by an MPI sum of the rounded
++                ! partial, changes with the rank split. exact_pairsum adds
++                ! each G term into a superaccumulator and rounds once.
++                ! scr(1) is already halved, so scale 2 matches the DGEMM.
++                BLOCK
++                  USE exact_acc_utils, ONLY: exact_pairsum
++                  REAL(real_8), ALLOCATABLE :: ex_dai(:,:)
++                  INTEGER :: iex, jex
++                  ALLOCATE(ex_dai(ions0%na(is),nstate))
++                  CALL exact_pairsum(ions0%na(is),nstate,ncpw%ngw,&
++                       scr,nkpt%ngwk,c0,nkpt%ngwk,2.0_real_8,ex_dai,&
++                       parai%allgrp)
++                  DO jex=1,nstate
++                     DO iex=1,ions0%na(is)
++                        dai(1,iex,jex)=ex_dai(iex,jex)
++                     ENDDO
++                  ENDDO
++                  DEALLOCATE(ex_dai)
++                END BLOCK
++#else
+                 CALL dgemm('T','N',ions0%na(is),nstate,2*ncpw%ngw,2.0_real_8,scr(1,1),&
+                      2*ncpw%ngw,c0(1,1),2*ncpw%ngw,0.0_real_8,dai(1,1,1),maxsys%nax)
++                CALL mp_sum(dai,imagp*maxsys%nax*nstate,parai%allgrp)
++#endif
+              ENDIF
+-             CALL mp_sum(dai,imagp*maxsys%nax*nstate,parai%allgrp)
+ #ifdef __VECTOR 
+              IF (imagp.EQ.1) THEN
+ #ifdef __SR8000

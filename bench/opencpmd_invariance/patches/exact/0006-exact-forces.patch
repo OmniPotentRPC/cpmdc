@@ -1,0 +1,692 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Force components are exact sums of the same per-G or per-atom terms.
+The nonlocal force, the local force, and the Ewald ion-ion force each
+finish through the superaccumulator. The final fion reduction is one
+exact merge when forces are requested.
+
+--- a/src/potfor_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
++++ b/src/potfor_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
+@@ -25,7 +25,10 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_fion_add3
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -78,8 +81,17 @@
+              vcgs=scg(ig)*rhogs
+              ei123=ei123*(rhops(is,ig)*vcgs+vps(is,ig)*rhets)
+              fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*gx)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*gx)*omtp)
++#endif
+              fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*gy)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*gy)*omtp)
++#endif
+              fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*gz)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*gz)*omtp)
++#endif
+           ENDDO
+        ENDDO
+     ELSE
+@@ -105,8 +117,17 @@
+              vcgs=scg(ig)*rhogs
+              ei123=ei123*(rhops(is,ig)*vcgs+vps(is,ig)*rhets)
+              fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*gx)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*gx)*omtp)
++#endif
+              fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*gy)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*gy)*omtp)
++#endif
+              fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*gz)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*gz)*omtp)
++#endif
+           ENDDO
+        ENDDO
+     ENDIF
+@@ -122,12 +143,14 @@
+ #ifdef __HPC
+        ! no-OMP - segmentation fault if OMP are used here
+ #else
++#ifndef __EXACT_ACC
+        !$omp parallel do private(IG,IS,IA,ISA) &
+        !$omp  private(RP,RHET,RHOG,RHETS,RHOGS,GX,GY,GZ,VCGS) &
+        !$omp  private(TXX,TYY,TZZ,EI123) &
+        !$omp  reduction(+:FION)
+ #endif
+ #endif
++#endif
+        DO ig=ig1,ncpw%nhg
+           rp=eirop(ig)
+           rhet=v(nzh(ig))
+@@ -147,8 +170,17 @@
+                 isa=isa+1
+                 ei123=eigrb(ig,isa)
+                 fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*txx)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*txx)*omtp)
++#endif
+                 fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*tyy)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*tyy)*omtp)
++#endif
+                 fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*tzz)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*tzz)*omtp)
++#endif
+              ENDDO
+           ENDDO
+        ENDDO
+@@ -162,12 +194,14 @@
+ #ifdef __HPC
+        ! no-OMP - segmentation fault if OMP are used here
+ #else
++#ifndef __EXACT_ACC
+        !$omp parallel do private(IG,IS,IA,ISA) &
+        !$omp  private(RP,RHET,RHOG,RHETS,RHOGS,GX,GY,GZ,VCGS) &
+        !$omp  private(TXX,TYY,TZZ,EI123) &
+        !$omp  reduction(+:FION)
+ #endif
+ #endif
++#endif
+        DO ig=ig1,ncpw%nhg
+           rp=eirop(ig)
+           rhet=v(nzh(ig))
+@@ -188,8 +222,17 @@
+                 ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
+                      ei3(isa,inyh(3,ig))
+                 fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*txx)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*txx)*omtp)
++#endif
+                 fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*tyy)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*tyy)*omtp)
++#endif
+                 fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*tzz)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*tzz)*omtp)
++#endif
+              ENDDO
+           ENDDO
+        ENDDO
+@@ -225,8 +268,10 @@
+        DO ia=1,ions0%na(is)
+           isa=isa+1
+           IF (cntl%bigmem) THEN
++#ifndef __EXACT_ACC
+              !$omp parallel do private(IG,EI123,RG,GX,GY,GZ,TXX,TYY,TZZ) &
+              !$omp  shared(ISA,RHOG)
++#endif
+              DO ig=ig1,ncpw%nhg
+                 ei123=eigrb(ig,isa)
+                 rg=CONJG(rhog(ig))
+@@ -237,12 +282,23 @@
+                 tyy=vps(is,ig)*rg*CMPLX(0._real_8,gk(2,ig),kind=real_8)
+                 tzz=vps(is,ig)*rg*CMPLX(0._real_8,gk(3,ig),kind=real_8)
+                 fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*txx)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*txx)*omtp)
++#endif
+                 fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*tyy)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*tyy)*omtp)
++#endif
+                 fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*tzz)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*tzz)*omtp)
++#endif
+              ENDDO
+           ELSE
++#ifndef __EXACT_ACC
+              !$omp parallel do private(IG,EI123,RG,GX,GY,GZ,TXX,TYY,TZZ) &
+              !$omp  shared(ISA,RHOG)
++#endif
+              DO ig=ig1,ncpw%nhg
+                 ei123=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
+                      ei3(isa,inyh(3,ig))
+@@ -254,8 +310,17 @@
+                 tyy=vps(is,ig)*rg*CMPLX(0._real_8,gk(2,ig),kind=real_8)
+                 tzz=vps(is,ig)*rg*CMPLX(0._real_8,gk(3,ig),kind=real_8)
+                 fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*txx)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*txx)*omtp)
++#endif
+                 fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*tyy)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*tyy)*omtp)
++#endif
+                 fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*tzz)*omtp
++#ifdef __EXACT_ACC
++                CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*tzz)*omtp)
++#endif
+              ENDDO
+           ENDIF
+        ENDDO
+@@ -280,8 +345,17 @@
+                      ei3(isa,inyh(3,ig))
+              ENDIF
+              fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*txx)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,1,ia,is,REAL(ei123*txx)*omtp)
++#endif
+              fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*tyy)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,2,ia,is,REAL(ei123*tyy)*omtp)
++#endif
+              fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*tzz)*omtp
++#ifdef __EXACT_ACC
++             CALL exact_fion_add3(fion,3,ia,is,REAL(ei123*tzz)*omtp)
++#endif
+           ENDDO
+        ENDDO
+     ENDDO
+--- a/src/rnlfor_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
++++ b/src/rnlfor_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
+@@ -28,7 +28,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_fion_add3
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -104,10 +107,19 @@
+                                        jv,  ii,ik)
+                                   fion(1,ia,is)=fion(1,ia,is)-weight*tdbl*&
+                                        temp*(wk1_1+wk2_1)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,1,ia,is,-(weight*tdbl* temp*(wk1_1+wk2_1)))
++#endif
+                                   fion(2,ia,is)=fion(2,ia,is)-weight*tdbl*&
+                                        temp*(wk1_2+wk2_2)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,2,ia,is,-(weight*tdbl* temp*(wk1_2+wk2_2)))
++#endif
+                                   fion(3,ia,is)=fion(3,ia,is)-weight*tdbl*&
+                                        temp*(wk1_3+wk2_3)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,3,ia,is,-(weight*tdbl* temp*(wk1_3+wk2_3)))
++#endif
+                                ENDDO
+                             ELSE
+                                !$omp parallel do private(IA,ISA,TEMP,wk1_1,wk1_2,wk1_3) &
+@@ -129,10 +141,19 @@
+                                        ii,ik)
+                                   fion(1,ia,is)=fion(1,ia,is)-weight*tdbl*&
+                                        temp*(wk1_1+wk2_1)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,1,ia,is,-(weight*tdbl* temp*(wk1_1+wk2_1)))
++#endif
+                                   fion(2,ia,is)=fion(2,ia,is)-weight*tdbl*&
+                                        temp*(wk1_2+wk2_2)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,2,ia,is,-(weight*tdbl* temp*(wk1_2+wk2_2)))
++#endif
+                                   fion(3,ia,is)=fion(3,ia,is)-weight*tdbl*&
+                                        temp*(wk1_3+wk2_3)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,3,ia,is,-(weight*tdbl* temp*(wk1_3+wk2_3)))
++#endif
+                                ENDDO
+                             ENDIF
+                          ELSE
+@@ -162,10 +183,19 @@
+                                        i,ik)
+                                   fion(1,ia,is)=fion(1,ia,is)-weight*tdbl*&
+                                        temp*(wk1_1+wk2_1)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,1,ia,is,-(weight*tdbl* temp*(wk1_1+wk2_1)))
++#endif
+                                   fion(2,ia,is)=fion(2,ia,is)-weight*tdbl*&
+                                        temp*(wk1_2+wk2_2)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,2,ia,is,-(weight*tdbl* temp*(wk1_2+wk2_2)))
++#endif
+                                   fion(3,ia,is)=fion(3,ia,is)-weight*tdbl*&
+                                        temp*(wk1_3+wk2_3)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,3,ia,is,-(weight*tdbl* temp*(wk1_3+wk2_3)))
++#endif
+                                ENDDO
+                             ELSE
+                                !$omp parallel do private(IA,ISA,TEMP,wk1_1,wk1_2,wk1_3) &
+@@ -187,10 +217,19 @@
+                                        i,ik)
+                                   fion(1,ia,is)=fion(1,ia,is)-weight*tdbl*&
+                                        temp*(wk1_1+wk2_1)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,1,ia,is,-(weight*tdbl* temp*(wk1_1+wk2_1)))
++#endif
+                                   fion(2,ia,is)=fion(2,ia,is)-weight*tdbl*&
+                                        temp*(wk1_2+wk2_2)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,2,ia,is,-(weight*tdbl* temp*(wk1_2+wk2_2)))
++#endif
+                                   fion(3,ia,is)=fion(3,ia,is)-weight*tdbl*&
+                                        temp*(wk1_3+wk2_3)
++#ifdef __EXACT_ACC
++                                  CALL exact_fion_add3(fion,3,ia,is,-(weight*tdbl* temp*(wk1_3+wk2_3)))
++#endif
+                                ENDDO
+                             ENDIF
+                          ENDIF
+@@ -223,14 +262,41 @@
+                                           iv,1,ii,ik)*fnl2(1,isa,jv,  ii,ik)-tt*&
+                                           dfnl(2,isa,iv,1,ii,ik)* fnl2(2,isa,jv,&
+                                           ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          1, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,1,ii,ik)*fnl2(1,isa,jv, ii,ik)-tt* &
++                                          dfnl(2,isa,iv,1,ii,ik)* fnl2(2,isa,jv, ii,ik)))
++#endif
+                                      fion(2,ia,is)=fion(2,ia,is)-tt*dfnl(1,isa,&
+                                           iv,2,ii,ik)*fnl2(1,isa,jv,  ii,ik)-tt*&
+                                           dfnl(2,isa,iv,2,ii,ik)* fnl2(2,isa,jv,&
+                                           ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          2, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,2,ii,ik)*fnl2(1,isa,jv, ii,ik)-tt* &
++                                          dfnl(2,isa,iv,2,ii,ik)* fnl2(2,isa,jv, ii,ik)))
++#endif
+                                      fion(3,ia,is)=fion(3,ia,is)-tt*dfnl(1,isa,&
+                                           iv,3,ii,ik)*fnl2(1,isa,jv,  ii,ik)-tt*&
+                                           dfnl(2,isa,iv,3,ii,ik)* fnl2(2,isa,jv,&
+                                           ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          3, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,3,ii,ik)*fnl2(1,isa,jv, ii,ik)-tt* &
++                                          dfnl(2,isa,iv,3,ii,ik)* fnl2(2,isa,jv, ii,ik)))
++#endif
+                                   ENDDO
+                                ELSE
+                                   !$omp parallel do private(IA,ISA)
+@@ -240,14 +306,41 @@
+                                           iv,1,ii,ik)*fnl2(1,isa,jv,   i,ik)-tt*&
+                                           dfnl(2,isa,iv,1,ii,ik)* fnl2(2,isa,jv,&
+                                           i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          1, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,1,ii,ik)*fnl2(1,isa,jv, i,ik)-tt* &
++                                          dfnl(2,isa,iv,1,ii,ik)* fnl2(2,isa,jv, i,ik)))
++#endif
+                                      fion(2,ia,is)=fion(2,ia,is)-tt*dfnl(1,isa,&
+                                           iv,2,ii,ik)*fnl2(1,isa,jv,   i,ik)-tt*&
+                                           dfnl(2,isa,iv,2,ii,ik)* fnl2(2,isa,jv,&
+                                           i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          2, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,2,ii,ik)*fnl2(1,isa,jv, i,ik)-tt* &
++                                          dfnl(2,isa,iv,2,ii,ik)* fnl2(2,isa,jv, i,ik)))
++#endif
+                                      fion(3,ia,is)=fion(3,ia,is)-tt*dfnl(1,isa,&
+                                           iv,3,ii,ik)*fnl2(1,isa,jv,   i,ik)-tt*&
+                                           dfnl(2,isa,iv,3,ii,ik)* fnl2(2,isa,jv,&
+                                           i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          3, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,3,ii,ik)*fnl2(1,isa,jv, i,ik)-tt* &
++                                          dfnl(2,isa,iv,3,ii,ik)* fnl2(2,isa,jv, i,ik)))
++#endif
+                                   ENDDO
+                                ENDIF
+                             ELSE
+@@ -257,10 +350,34 @@
+                                      isa=isa0+ia
+                                      fion(1,ia,is)=fion(1,ia,is)-tt*dfnl(1,isa,&
+                                           iv,1,ii,ik)*fnl2(1,isa,jv,  ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          1, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,1,ii,ik)*fnl2(1,isa,jv, ii,ik)))
++#endif
+                                      fion(2,ia,is)=fion(2,ia,is)-tt*dfnl(1,isa,&
+                                           iv,2,ii,ik)*fnl2(1,isa,jv,  ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          2, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,2,ii,ik)*fnl2(1,isa,jv, ii,ik)))
++#endif
+                                      fion(3,ia,is)=fion(3,ia,is)-tt*dfnl(1,isa,&
+                                           iv,3,ii,ik)*fnl2(1,isa,jv,  ii,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          3, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,3,ii,ik)*fnl2(1,isa,jv, ii,ik)))
++#endif
+                                   ENDDO
+                                ELSE
+                                   !$omp parallel do private(IA,ISA)
+@@ -268,10 +385,34 @@
+                                      isa=isa0+ia
+                                      fion(1,ia,is)=fion(1,ia,is)-tt*dfnl(1,isa,&
+                                           iv,1,ii,ik)*fnl2(1,isa,jv,   i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          1, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,1,ii,ik)*fnl2(1,isa,jv, i,ik)))
++#endif
+                                      fion(2,ia,is)=fion(2,ia,is)-tt*dfnl(1,isa,&
+                                           iv,2,ii,ik)*fnl2(1,isa,jv,   i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          2, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,2,ii,ik)*fnl2(1,isa,jv, i,ik)))
++#endif
+                                      fion(3,ia,is)=fion(3,ia,is)-tt*dfnl(1,isa,&
+                                           iv,3,ii,ik)*fnl2(1,isa,jv,   i,ik)
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3( &
++                                          fion, &
++                                          3, &
++                                          ia, &
++                                          is, &
++                                          -(tt*dfnl(1,isa, iv,3,ii,ik)*fnl2(1,isa,jv, i,ik)))
++#endif
+                                   ENDDO
+                                ENDIF
+                             ENDIF
+@@ -303,8 +444,17 @@
+                                     ik)+dfnl(2,isa,iv,3,ii,ik)*fnl2(2,isa,iv,&
+                                     ii,ik)
+                                fion(1,ia,is)=fion(1,ia,is)-temp*weight*wk1_1
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,1,ia,is,-(temp*weight*wk1_1))
++#endif
+                                fion(2,ia,is)=fion(2,ia,is)-temp*weight*wk1_2
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,2,ia,is,-(temp*weight*wk1_2))
++#endif
+                                fion(3,ia,is)=fion(3,ia,is)-temp*weight*wk1_3
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,3,ia,is,-(temp*weight*wk1_3))
++#endif
+                             ENDDO
+                          ELSE
+                             !$omp parallel do private(IA,ISA,wk1_1,wk1_2,wk1_3)
+@@ -317,8 +467,17 @@
+                                wk1_3=dfnl(1,isa,iv,3,ii,ik)*fnl2(1,isa,iv,&
+                                     ii,ik)
+                                fion(1,ia,is)=fion(1,ia,is)-temp*weight*wk1_1
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,1,ia,is,-(temp*weight*wk1_1))
++#endif
+                                fion(2,ia,is)=fion(2,ia,is)-temp*weight*wk1_2
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,2,ia,is,-(temp*weight*wk1_2))
++#endif
+                                fion(3,ia,is)=fion(3,ia,is)-temp*weight*wk1_3
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,3,ia,is,-(temp*weight*wk1_3))
++#endif
+                             ENDDO
+                          ENDIF
+                       ELSE
+@@ -336,8 +495,17 @@
+                                     ik)+dfnl(2,isa,iv,3,ii,ik)*fnl2(2,isa,iv,&
+                                     i,ik)
+                                fion(1,ia,is)=fion(1,ia,is)-temp*weight*wk1_1
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,1,ia,is,-(temp*weight*wk1_1))
++#endif
+                                fion(2,ia,is)=fion(2,ia,is)-temp*weight*wk1_2
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,2,ia,is,-(temp*weight*wk1_2))
++#endif
+                                fion(3,ia,is)=fion(3,ia,is)-temp*weight*wk1_3
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,3,ia,is,-(temp*weight*wk1_3))
++#endif
+                             ENDDO
+                          ELSE
+                             !$omp parallel do private(IA,ISA,wk1_1,wk1_2,wk1_3)
+@@ -350,8 +518,17 @@
+                                wk1_3=dfnl(1,isa,iv,3,ii,ik)*fnl2(1,isa,iv,&
+                                     i,ik)
+                                fion(1,ia,is)=fion(1,ia,is)-temp*weight*wk1_1
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,1,ia,is,-(temp*weight*wk1_1))
++#endif
+                                fion(2,ia,is)=fion(2,ia,is)-temp*weight*wk1_2
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,2,ia,is,-(temp*weight*wk1_2))
++#endif
+                                fion(3,ia,is)=fion(3,ia,is)-temp*weight*wk1_3
++#ifdef __EXACT_ACC
++                               CALL exact_fion_add3(fion,3,ia,is,-(temp*weight*wk1_3))
++#endif
+                             ENDDO
+                          ENDIF
+                       ENDIF
+@@ -431,12 +608,34 @@
+                                  fnl(1,iatl,jv,clsd%ialpha,1)+ dfab(isa,jv,1)*&
+                                  fnl(1,iatl,iv,clsd%ibeta,1)+dfab(isa,jv,2)*&
+                                  fnl(1,iatl, iv, clsd%ialpha,1))
++#ifdef __EXACT_ACC
++                            CALL exact_fion_add3( &
++                                 fion, &
++                                 k, &
++                                 ia, &
++                                 is, &
++                                 -(0.5_real_8*tt*(dfab(isa,iv, 1)*fnl(1,iatl,jv,clsd%ibeta,1)+ &
++                                 dfab(isa,iv,2)* fnl(1,iatl,jv,clsd%ialpha,1)+ &
++                                 dfab(isa,jv,1)* fnl(1,iatl,iv,clsd%ibeta,1)+ &
++                                 dfab(isa,jv,2)* fnl(1,iatl, iv, clsd%ialpha,1))))
++#endif
+                          ELSE
+                             fion(k,ia,is)=fion(k,ia,is)-tt*(dfab(isa,iv,1)*&
+                                  fnl(1,isa,jv,clsd%ibeta,1)+dfab(isa,iv,2)*fnl(1,&
+                                  isa, jv, clsd%ialpha, 1)+dfab(isa, jv,1)*fnl(1,&
+                                  isa,iv, clsd%ibeta,1)+ dfab(isa,jv,2)*fnl(1,isa,&
+                                  iv,clsd%ialpha,1))
++#ifdef __EXACT_ACC
++                            CALL exact_fion_add3( &
++                                 fion, &
++                                 k, &
++                                 ia, &
++                                 is, &
++                                 -(tt*(dfab(isa,iv,1)* fnl(1,isa,jv,clsd%ibeta,1)+ &
++                                 dfab(isa,iv,2)*fnl(1, isa, jv, clsd%ialpha, 1)+ &
++                                 dfab(isa, jv,1)*fnl(1, isa,iv, clsd%ibeta,1)+ &
++                                 dfab(isa,jv,2)*fnl(1,isa, iv,clsd%ialpha,1))))
++#endif
+                          ENDIF
+                       ENDDO
+                    ENDIF
+@@ -454,10 +653,28 @@
+                          fion(k,ia,is)=fion(k,ia,is)-wsg(is,iv)*(dfab(isa,iv,&
+                               1)*fnl(1,iatl,iv,clsd%ibeta,1)+fnl(1,iatl,iv,clsd%ialpha,&
+                               1)* dfab(isa,iv,2))
++#ifdef __EXACT_ACC
++                         CALL exact_fion_add3( &
++                              fion, &
++                              k, &
++                              ia, &
++                              is, &
++                              -(wsg(is,iv)*(dfab(isa,iv, 1)*fnl(1,iatl,iv,clsd%ibeta,1)+ &
++                              fnl(1,iatl,iv,clsd%ialpha, 1)* dfab(isa,iv,2))))
++#endif
+                       ELSE
+                          fion(k,ia,is)=fion(k,ia,is)-wsg(is,iv)*(dfab(isa,iv,&
+                               1)*fnl(1,isa,iv,clsd%ibeta,1)+fnl(1,isa,iv,clsd%ialpha,&
+                               1)* dfab(isa,iv,2))
++#ifdef __EXACT_ACC
++                         CALL exact_fion_add3( &
++                              fion, &
++                              k, &
++                              ia, &
++                              is, &
++                              -(wsg(is,iv)*(dfab(isa,iv, 1)*fnl(1,isa,iv,clsd%ibeta,1)+ &
++                              fnl(1,isa,iv,clsd%ialpha, 1)* dfab(isa,iv,2))))
++#endif
+                       ENDIF
+                    ENDIF
+                 ENDDO
+--- a/src/rpiiint_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
++++ b/src/rpiiint_utils.mod.F90	2026-10-12 04:10:52.643896730 +0000
+@@ -17,7 +17,10 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_note_skip, exact_fion_add3
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -36,6 +39,9 @@
+     ! == ESR depends only on TAU0 (RAGGIO and VALENCE CHARGES)        ==
+     ! ==--------------------------------------------------------------==
+     REAL(real_8)                             :: esr, tau0(:,:,:), fion(:,:,:)
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_esr
++#endif
+     INTEGER                                  :: iesr
+     LOGICAL                                  :: tfor
+ 
+@@ -69,6 +75,9 @@
+     IALL=iesrk
+ #endif 
+     esr=0._real_8
++#ifdef __EXACT_ACC
++    CALL exact_acc_zero(ex_esr)
++#endif
+     iat=0
+     DO k=1,ions1%nsp
+        DO j=k,ions1%nsp
+@@ -127,16 +136,37 @@
+                                   ENDIF
+                                   addesr=zv2*cp_erfc(arg)/rlm
+                                   esr=esr+addesr*esrtzero
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add(ex_esr,addesr*esrtzero)
++#endif
+                                   IF (tfor) THEN
+                                      addpre=(2._real_8*zv2/SQRT(pi))*&
+                                           EXP(-arg*arg)/rckj
+                                      repand=esrtzero*(addesr+addpre)/erre2
+                                      tfion1=tfion1+repand*rxlm1
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,1,l,k,repand*rxlm1)
++#endif
+                                      tfion2=tfion2+repand*rxlm2
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,2,l,k,repand*rxlm2)
++#endif
+                                      tfion3=tfion3+repand*rxlm3
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,3,l,k,repand*rxlm3)
++#endif
+                                      tfion4=tfion4-repand*rxlm1
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,1,m,j,-(repand*rxlm1))
++#endif
+                                      tfion5=tfion5-repand*rxlm2
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,2,m,j,-(repand*rxlm2))
++#endif
+                                      tfion6=tfion6-repand*rxlm3
++#ifdef __EXACT_ACC
++                                     CALL exact_fion_add3(fion,3,m,j,-(repand*rxlm3))
++#endif
+                                   ENDIF
+                                ENDIF
+                             ENDIF
+@@ -169,8 +199,14 @@
+        CALL eam_pot(esr,tau0,iesr,fion,tfor)
+     ENDIF
+     ! 
++#ifdef __EXACT_ACC
++    esr=exact_acc_finish(ex_esr,parai%allgrp)
++    CALL exact_note_skip(1)
++#endif
+     CALL mp_sum(esr,parai%allgrp)
++#ifndef __EXACT_ACC
+     IF (.NOT.paral%parent) esr=0._real_8
++#endif
+     CALL tihalt('   RPIIINT',isub)
+     ! ==================================================================
+     RETURN
+--- a/src/forces_driver.mod.F90	2026-10-12 04:10:52.643896730 +0000
++++ b/src/forces_driver.mod.F90	2026-10-12 04:10:52.643896730 +0000
+@@ -70,7 +70,10 @@
+ !!use ovlap_utils, only : ovlap_c
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_fion_finish
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -422,7 +425,11 @@
+ 2000 CONTINUE
+     rsactive = .FALSE.
+     IF (tfor) THEN
++#ifdef __EXACT_ACC
++       CALL exact_fion_finish(fion,3*maxsys%nax*maxsys%nsx,parai%allgrp)
++#else
+        CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%allgrp)
++#endif
+        IF (paral%parent) THEN
+           CALL symvec(fion)
+           CALL taucl(fion)

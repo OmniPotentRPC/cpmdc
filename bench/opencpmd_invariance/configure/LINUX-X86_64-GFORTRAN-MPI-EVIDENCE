@@ -18,7 +18,7 @@
        CFLAGS='-g -O0 -Wall -fPIC -ffp-contract=off'
      else
        FFLAGS='-O2 -Wall -fPIC -ffp-contract=off -ffree-line-length-none'
-       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off'
+       CFLAGS='-O2 -Wall -fPIC -ffp-contract=off -Wno-int-conversion'
      fi
      if [ $omp ]; then
        FFLAGS=${FFLAGS}' -fopenmp'

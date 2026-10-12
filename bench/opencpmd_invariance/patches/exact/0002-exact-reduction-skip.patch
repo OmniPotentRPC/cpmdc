@@ -1,0 +1,190 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Already-global sums must not be added again.
+exact_note_skip tells the next in-place real8 mp_sum, or summat, to
+return. exact_fnl_consume does the same for sumfnl, including the
+one-rank return, so a mark is not left for a later sum.
+
+--- a/src/sum_in_place.inc	2026-10-12 04:10:52.615896701 +0000
++++ b/src/sum_in_place.inc	2026-10-12 04:10:52.615896701 +0000
+@@ -137,6 +137,9 @@
+ #endif
+ end subroutine mp_sum_in_place_int8_r1
+ subroutine mp_sum_in_place_real8_r1(data,n,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   use mpi
+ #endif
+@@ -153,6 +156,9 @@
+   integer :: ierr,m,i,stat,buff_size
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   if (n<=para_stack_buff_size) then
+     call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+@@ -183,6 +189,9 @@
+ #endif
+ end subroutine mp_sum_in_place_real8_r1
+ subroutine mp_sum_in_place_real8_r2(data,n,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   use mpi
+ #endif
+@@ -199,6 +208,9 @@
+   integer :: ierr,m,i,stat,buff_size
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   if (n<=para_stack_buff_size) then
+     call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+@@ -229,6 +241,9 @@
+ #endif
+ end subroutine mp_sum_in_place_real8_r2
+ subroutine mp_sum_in_place_real8_r3(data,n,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   use mpi
+ #endif
+@@ -245,6 +260,9 @@
+   integer :: ierr,m,i,stat,buff_size
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   if (n<=para_stack_buff_size) then
+     call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+@@ -275,6 +293,9 @@
+ #endif
+ end subroutine mp_sum_in_place_real8_r3
+ subroutine mp_sum_in_place_real8_r4(data,n,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   use mpi
+ #endif
+@@ -291,6 +312,9 @@
+   integer :: ierr,m,i,stat,buff_size
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   if (n<=para_stack_buff_size) then
+     call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+@@ -321,6 +345,9 @@
+ #endif
+ end subroutine mp_sum_in_place_real8_r4
+ subroutine mp_sum_in_place_real8_r5(data,n,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   use mpi
+ #endif
+@@ -337,6 +364,9 @@
+   integer :: ierr,m,i,stat,buff_size
+   real(real_8),dimension(:),allocatable :: buff
+   real(real_8),dimension(para_stack_buff_size) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   if (n<=para_stack_buff_size) then
+     call mpi_allreduce(data,stack_buff,n,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+--- a/src/sum_scalar_in_place.inc	2026-10-12 04:10:52.615896701 +0000
++++ b/src/sum_scalar_in_place.inc	2026-10-12 04:10:52.615896701 +0000
+@@ -37,6 +37,9 @@
+ #endif
+ END SUBROUTINE mp_sum_in_place_int8_r0
+ SUBROUTINE mp_sum_in_place_real8_r0(DATA,comm)
++#ifdef __EXACT_ACC
++  use exact_acc_utils, only: exact_consume_skip
++#endif
+ #ifdef __PARALLEL
+   USE mpi
+ #endif
+@@ -49,6 +52,9 @@
+ #ifdef __PARALLEL
+   INTEGER :: ierr
+   REAL(real_8) :: stack_buff
++#ifdef __EXACT_ACC
++  if (exact_consume_skip()) return
++#endif
+   CALL mpi_allreduce(DATA,stack_buff,1,MPI_DOUBLE_PRECISION,&
+          MPI_SUM,comm,ierr)
+   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+--- a/src/summat_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
++++ b/src/summat_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
+@@ -13,7 +13,10 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_consume_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -40,6 +43,9 @@
+ ! == GLOBAL SUMMATION OF A SYMMETRIC MATRIX                       ==
+ ! ==--------------------------------------------------------------==
+ 
++#ifdef __EXACT_ACC
++    IF (exact_consume_skip()) RETURN
++#endif
+     IF (parai%nproc.LE.1) RETURN
+     CALL tiset('    SUMMAT',isub)
+     n2 = nstate*nstate
+--- a/src/sumfnl_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
++++ b/src/sumfnl_utils.mod.F90	2026-10-12 04:10:52.619896706 +0000
+@@ -24,7 +24,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_fnl_consume
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -48,6 +51,9 @@
+     INTEGER, ALLOCATABLE                     :: iat1(:,:,:), iii(:,:,:,:)
+     REAL(real_8), ALLOCATABLE                :: scr(:,:,:,:)
+ 
++#ifdef __EXACT_ACC
++    IF (exact_fnl_consume()) RETURN
++#endif
+     IF (parai%nproc.LE.1) RETURN
+     imax=imagp*nlm*nstate
+     IF (imax.EQ.0) RETURN
+@@ -171,6 +177,9 @@
+                                                 imax, is, isub, iv, lsumfnl
+     REAL(real_8), ALLOCATABLE                :: scr(:,:,:,:)
+ 
++#ifdef __EXACT_ACC
++    IF (exact_fnl_consume()) RETURN
++#endif
+     IF (parai%nproc.LE.1) RETURN
+     ! ==--------------------------------------------------------------==
+     imax=imagp*nlm*nstate

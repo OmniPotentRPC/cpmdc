@@ -804,6 +804,15 @@ if get_option('with_tests')
   )
 
   test(
+    'atomic-overlap-rank',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_atomic_overlap_rank.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
+
+  test(
     'opencpmd-rebuild-helper',
     python,
     args: [

@@ -6279,3 +6279,195 @@ Their wall times are not a scaling measurement.
 | full | water | 3 | 1 | 0.1523 | 0.1471 | 0.1567 | 0.971 |
 | full | water | 4 | 1 | 0.1132 | 0.1118 | 0.1232 | 0.980 |
 | full | water | 8 | 1 | 0.0679 | 0.0656 | 0.0680 | 0.817 |
+
+* Exact accumulation
+The compile switch is ~-D__EXACT_ACC~. It is off unless that macro is set.
+The series is ~patches/exact/~ (0001 through 0008) against OpenCPMD
+~062582b7cfd832d36f88f504cd08e4ead42eb404~.
+~patches/evidence.patch~ is the measurement dump and is separate from
+the switch.
+Built from the same sources with the macro unset, Si8 and water at
+1 rank and 1 thread match the stock binary on every dumped energy,
+force, and stress component.
+With the macro set, one rank is a different rounding of the same sum.
+Si8 ~etot~ is -31.248972418520417 Ha
+(stock -31.248972418520435 Ha).
+Water ~etot~ is -16.966662624767061 Ha
+(stock -16.966662624766947 Ha).
+
+The plane split is unchanged (~loadpa_utils.mod.F90:145-160~).
+Each term that feeds ~etot~, the forces, or the stress is added into
+a Kulisch superaccumulator before a rank-local or thread-local
+rounding. OpenMP merges the digits, MPI merges them, and one
+round-ties-to-even produces the binary64 value.
+Local ~NGW~ and the plane bounds still follow the rank count.
+The summed quantities do not.
+
+- ~0001~ is the accumulator. Thirty-six signed 128-bit digits cover
+  every binary64 value as an integer multiple of ~2^-1074~.
+  The module is empty when the macro is unset.
+- ~0002~ skips an in-place real8 ~mp_sum~, or ~summat~, when the value
+  is already global. ~sumfnl~ consumes its mark before the one-rank
+  return.
+- ~0003~ replaces overlaps and nonlocal projections whose DGEMM ~K~
+  dimension is the local G count. Each G term is added, the digits are
+  reduced, and the result is rounded once. The gamma ~rgs~ multiply
+  is the same explicit sum, in place of DTRMM.
+- ~0004~ replaces the apply-side products in the nonlocal potential,
+  the rotation, and the atomic-orbital contraction. The inner sum is
+  over the projector or the atomic index at fixed length.
+  The gamma atomic guess builds one replicated matrix and diagonalizes
+  it on the parent. The distributed Lanczos start is compiled out
+  under the switch.
+- ~0005~ makes the energy terms exact: kinetic energy, the eigenvalues,
+  the local and nonlocal potentials, the Hartree pieces, and the XC
+  integrals. The cube-root Newton warm start is the closed form,
+  because that start depends on which points share a thread.
+  GEMAX and the DIIS scale are an explicit modulus scan. OpenBLAS
+  ~izamax~ and ~idamax~ miss the maximum for some lengths, and that
+  length is the local G count.
+  The DIIS trust-region ~gamma~ is updated on the rank that owns G=0
+  and broadcast from that rank. On water at 4 ranks G=0 is on rank 3.
+  Broadcasting the parent's value dropped the update, and the orbitals
+  diverged at SCF step 29.
+- ~0006~ makes the local, nonlocal, and Ewald force components exact.
+  The final ~fion~ reduction is one exact merge when forces are
+  requested.
+- ~0007~ makes the stress components exact, including the nonlocal
+  strain. OpenMP plus-reductions in ~htrstr~, ~vlocst~, ~pi_stress~,
+  and ~rinforce~ run serially under the switch.
+  The ~becs~ projection in ~nlsm1_s~ was a DGEMM over the local G count
+  followed by MPI_SUM, which left a rank-dependent off-diagonal ~denl~.
+  ~exact_pairsum~ adds each G term and rounds once.
+- ~0008~ plans FFTW ESTIMATE as one transform and sets FFTW threads
+  to 1. A standalone FFTW 3.3.10 ESTIMATE check, ~plan_many~ against
+  one transform at a time, mismatches when the batch size or the
+  planner thread count changes. For n=36 and n=48 the mismatch is at
+  2 and 4 planner threads. For n=64 the batched plan differs from one
+  transform even at 1 thread. The measured binaries do not take this
+  path. They use the internal Temperton FFT (~-D__HAS_FFT_DEFAULT~).
+  Its lot size is ~ncache/(4*n)~ with ~ncache~ 2048 on this build, so
+  the lot does not depend on the rank count. For water, n=108 and the
+  lot is 3, and the plane counts 27, 54, and 108 are multiples of 3.
+
+Scope, as built and measured: gamma point, DIIS, norm-conserving
+pseudopotentials (BHS on Si8, SGPP on water), ~cp_nogrp=1~.
+Vanderbilt, PCG, LSD, k-points, Hubbard, and ~akin~ stay on the stock
+path. ~exact_pairsum~ returns without an allreduce when the state
+count is zero, and it deadlocks if that count differs across ranks.
+~pcgrad~ is unchanged.
+
+** Atomic H and S
+The gamma atomic guess builds one replicated H (~xxmat~) and one
+replicated S (~xsmat~), then calls ~dsygvx~ on the parent.
+~ksmat~ fills H through ~ovlap2~. ~ovlap~ fills S. ~summat~ then adds
+the upper triangle across ranks.
+Each of those fills is a DGEMM whose K dimension is the rank-local G
+count, so the value that reaches ~summat~ is already rounded.
+The rounded partial follows the plane split. Ranks 1, 2, 3, and 4
+disagree.
+Under ~-D__EXACT_ACC~ the distributed Lanczos start is compiled out,
+so this replicated path is the one that runs. ~exact_ovlap_fill~ adds
+each G term into the superaccumulator, allreduces the digits, and
+rounds once. ~ksmat~ posts one skip and ~ovlap~ posts one skip. The
+two ~summat~ calls consume those skips, so the global matrices are
+left as rounded. Nothing between the posts and the consumes is an
+in-place real8 ~mp_sum~.
+
+Water, one step, 6 atomic functions, 36 elements. Old is that
+replicated path with the macro unset. Exact is ~-D__EXACT_ACC~.
+maxabs is against rank 1. ndiff counts elements whose bits differ.
+
+| matrix | ranks | old (1,1) | old maxabs | old ndiff | exact (1,1) | exact maxabs | exact ndiff |
+|--------+-------+-----------+------------+-----------+-------------+--------------+-------------|
+| XXMAT | 1 | -7.7741621816127660E-01 | 0 | 0/36 | -7.7741621816127593E-01 | 0 | 0/36 |
+| XXMAT | 2 | -7.7741621816127848E-01 | 3.442E-15 | 35/36 | -7.7741621816127593E-01 | 0 | 0/36 |
+| XXMAT | 3 | -7.7741621816127560E-01 | 2.109E-15 | 35/36 | -7.7741621816127593E-01 | 0 | 0/36 |
+| XXMAT | 4 | -7.7741621816127582E-01 | 2.554E-15 | 35/36 | -7.7741621816127593E-01 | 0 | 0/36 |
+| XSMAT | 1 | 9.9999999999999978E-01 | 0 | 0/36 | 1.0000000000000000E+00 | 0 | 0/36 |
+| XSMAT | 2 | 9.9999999999999845E-01 | 2.220E-15 | 36/36 | 1.0000000000000000E+00 | 0 | 0/36 |
+| XSMAT | 3 | 9.9999999999999933E-01 | 8.882E-16 | 35/36 | 1.0000000000000000E+00 | 0 | 0/36 |
+| XSMAT | 4 | 1.0000000000000007E+00 | 1.998E-15 | 36/36 | 1.0000000000000000E+00 | 0 | 0/36 |
+
+** Bitwise grid
+Ranks 1, 2, 3, 4, 8 and threads 1, 2, 8, five repeats, stock and exact
+interleaved. 15 cells per system, including the oversubscribed cells
+(~ranks * threads~ above 8). 300 runs, all exit 0, all at the step cap.
+On the exact binary, every dumped energy, every force component, and
+every stress component has one hex across that grid, on Si8 and on
+water. Distinct hash count per quantity index is 1.
+Local ~NGW~ and ~nrxpl~ still change with the rank count.
+
+** Cost against stock
+Median SCF step from five interleaved repeats. The range is the min
+and the max of those five. Oversubscribed cells are bitwise-only.
+
+One thread:
+
+| system | ranks | stock median s | stock range s | exact median s | exact range s | overhead % |
+|--------+-------+-----------------+---------------+----------------+---------------+------------|
+| si8 | 1 | 0.0113 | 0.0112-0.0129 | 0.0682 | 0.0681-0.0697 | 505 |
+| si8 | 2 | 0.0060 | 0.0059-0.0064 | 0.0363 | 0.0363-0.0412 | 506 |
+| si8 | 3 | 0.0046 | 0.0043-0.0069 | 0.0262 | 0.0256-0.0274 | 465 |
+| si8 | 4 | 0.0036 | 0.0035-0.0040 | 0.0205 | 0.0202-0.0214 | 468 |
+| si8 | 8 | 0.0035 | 0.0021-0.0036 | 0.0138 | 0.0126-0.0185 | 296 |
+| water | 1 | 0.4259 | 0.4039-0.4687 | 0.5942 | 0.5623-0.6450 | 39.5 |
+| water | 2 | 0.2156 | 0.2074-0.2231 | 0.2972 | 0.2868-0.3019 | 37.8 |
+| water | 3 | 0.1492 | 0.1428-0.1530 | 0.1994 | 0.1945-0.2071 | 33.7 |
+| water | 4 | 0.1103 | 0.1057-0.1206 | 0.1511 | 0.1452-0.1618 | 36.9 |
+| water | 8 | 0.0654 | 0.0612-0.0688 | 0.0863 | 0.0797-0.0877 | 32.1 |
+
+Si8's stock step is about 11 ms, so the scalar loops in the exact
+apply and the superaccumulator dominate the step.
+Water's stock step is long enough that the same path is a 32% to 40%
+increase at one thread.
+
+Rank 1, varying threads, water:
+
+| threads | stock median s | stock range s | exact median s | exact range s | overhead % |
+|---------+----------------+---------------+----------------+---------------+------------|
+| 1 | 0.4259 | 0.4039-0.4687 | 0.5942 | 0.5623-0.6450 | 39.5 |
+| 2 | 0.2480 | 0.2461-0.2732 | 0.3889 | 0.3789-0.3963 | 56.8 |
+| 8 | 0.1532 | 0.1425-0.1930 | 0.2755 | 0.2681-0.2918 | 79.9 |
+
+Water at 4 ranks and 2 threads is bimodal in both binaries
+(stock samples 0.0787, 0.0791, 0.0811, 0.1251, 0.1281;
+exact samples 0.1146, 0.1150, 0.1541, 0.1645, 0.1693).
+The median ratio on that cell is not a stable overhead.
+
+** Strong scaling
+One thread. Efficiency is the 1-rank median divided by ~ranks~ times
+the median at that rank.
+
+| variant | system | ranks | median s | efficiency |
+|---------+--------+-------+----------+------------|
+| stock | si8 | 1 | 0.0113 | 1.000 |
+| stock | si8 | 2 | 0.0060 | 0.940 |
+| stock | si8 | 3 | 0.0046 | 0.811 |
+| stock | si8 | 4 | 0.0036 | 0.781 |
+| stock | si8 | 8 | 0.0035 | 0.404 |
+| stock | water | 1 | 0.4259 | 1.000 |
+| stock | water | 2 | 0.2156 | 0.988 |
+| stock | water | 3 | 0.1492 | 0.951 |
+| stock | water | 4 | 0.1103 | 0.965 |
+| stock | water | 8 | 0.0654 | 0.815 |
+| exact | si8 | 1 | 0.0682 | 1.000 |
+| exact | si8 | 2 | 0.0363 | 0.940 |
+| exact | si8 | 3 | 0.0262 | 0.869 |
+| exact | si8 | 4 | 0.0205 | 0.833 |
+| exact | si8 | 8 | 0.0138 | 0.618 |
+| exact | water | 1 | 0.5942 | 1.000 |
+| exact | water | 2 | 0.2972 | 1.000 |
+| exact | water | 3 | 0.1994 | 0.993 |
+| exact | water | 4 | 0.1511 | 0.983 |
+| exact | water | 8 | 0.0863 | 0.861 |
+
+Exact Si8 scales further than stock because the step is longer than
+the MPI latency. The absolute step is still several times the stock
+step. Exact water stays above 0.86 at 8 ranks.
+
+~inputs/si64.inp~ is a 2x2x2 cell of Si8, 64 atoms, 128 states, 25 Ry,
+~MAXSTEP~ 5, for a long-step cost measurement.
+
+The numbers are OpenCPMD measurements. They are not a statement about
+cpmdc.

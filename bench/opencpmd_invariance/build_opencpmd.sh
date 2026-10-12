@@ -42,12 +42,53 @@ case "${VARIANT}" in
   ab) MACROS=$'#define CPMDC_EVIDENCE_MP_GATHER\n#define CPMDC_EVIDENCE_GORDER' ;;
   full) MACROS=$'#define CPMDC_EVIDENCE_MP_GATHER\n#define CPMDC_EVIDENCE_GORDER\n#define CPMDC_EVIDENCE_OMP_FIXED' ;;
   fftw) MACROS="#define CPMDC_EVIDENCE_FFTW_ESTIMATE" ;;
+  exact) MACROS="" ;;
   *) echo "unknown variant ${VARIANT}" >&2; exit 1 ;;
 esac
 
-if [[ ! -f "${DEST}/Makefile" && "${VARIANT}" != "stock" && "${VARIANT}" != "fftw" ]]; then
+if [[ ! -f "${DEST}/Makefile" && "${VARIANT}" != "stock" && "${VARIANT}" != "fftw" && "${VARIANT}" != "exact" ]]; then
   echo "build stock first so ${DEST} exists" >&2
   exit 1
+fi
+
+if [[ "${VARIANT}" == "exact" ]]; then
+  # Harness plus the exact series. Do not regenerate evidence.patch.
+  WORK="${OPENCPMD_WORK:-/tmp/opencpmd-exact-work}"
+  DEST="${OPENCPMD_DEST:-/tmp/opencpmd-exact-build}"
+  rm -rf "${WORK}"
+  cp -a "${SRC_BASE}" "${WORK}"
+  side="$(mktemp -d)"
+  cp -a "${SRC_BASE}/." "${side}/"
+  for p in "${ROOT}/patches/exact/"*.patch; do
+    patch -p1 --forward --batch -d "${side}" < "${p}"
+  done
+  patch -p1 --forward --batch -d "${WORK}" < "${ROOT}/patches/evidence.patch"
+  while IFS= read -r rel; do
+    rel="${rel#b/}"
+    if [[ "${rel}" == "src/SOURCES" ]]; then
+      continue
+    fi
+    cp -a "${side}/${rel}" "${WORK}/${rel}"
+  done < <(grep -h '^+++ b/' "${ROOT}/patches/exact/"*.patch | awk '{print $2}' | sort -u)
+  python3 - "${WORK}/src/SOURCES" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+needle = "mp_interface.mod.F90 "
+insert = "mp_interface.mod.F90 exact_acc_utils.mod.F90 "
+if "exact_acc_utils.mod.F90" not in text:
+    if needle not in text:
+        raise SystemExit("SOURCES mp_interface anchor missing")
+    text = text.replace(needle, insert, 1)
+    path.write_text(text)
+PY
+  cfg="LINUX-X86_64-GFORTRAN-MPI-EVIDENCE"
+  cp "${ROOT}/configure/${cfg}" "${WORK}/configure/${cfg}"
+  write_flags ""
+  (cd "${WORK}" && ./configure.sh -omp -DEST="${DEST}" "${cfg}")
+  # The switch is compile-time and default off. The harness macros stay unset.
+  sed -i 's/-D__HAS_FFT_DEFAULT/-D__HAS_FFT_DEFAULT -D__EXACT_ACC/' "${DEST}/Makefile"
+  rm -rf "${side}"
 fi
 
 if [[ "${VARIANT}" == "stock" || "${VARIANT}" == "fftw" ]]; then

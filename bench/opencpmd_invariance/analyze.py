@@ -256,7 +256,7 @@ def main() -> None:
     parts.append("* Cost")
     parts.extend(cost_table(by_variant))
     parts.append("* Strong scaling")
-    parts.extend(scaling_table(by_variant, [v for v in ("stock", "full") if v in by_variant]))
+    parts.extend(scaling_table(by_variant, [v for v in ("stock", "full", "exact") if v in by_variant]))
     text = "\n".join(parts) + "\n"
     args.out.write_text(text, encoding="utf-8")
     print(args.out)

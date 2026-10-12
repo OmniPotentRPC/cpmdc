@@ -1,0 +1,217 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Apply-side products and the atomic guess no longer follow the rank split.
+exact_apply_rr sums the projector index for one G at a time, so the
+result does not depend on how many G vectors share a rank.
+The gamma atomic guess builds one replicated matrix and diagonalizes
+it on the parent. The distributed Lanczos start is rank-dependent.
+
+--- a/src/fnonloc_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
++++ b/src/fnonloc_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
+@@ -37,6 +37,9 @@
+                                              ncpw,&
+                                              nkpt,&
+                                              parap
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_apply_rr
++#endif
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+@@ -171,9 +174,16 @@
+                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddki(1,1,1),&
+                         maxsys%nax,zzero,auxc,nkpt%ngwk)
+                 ELSE
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(NGW_local,nstate,ions0%na(is),1._real_8,&
++                        eigr(ibeg_c0:ibeg_c0+NGW_local-1,isa0+1:isa0+ions0%na(is),1),&
++                        ddia(1:ions0%na(is),1:nstate),0._real_8,&
++                        auxc(1:NGW_local,1:nstate))
++#else
+                    CALL dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia(1,1),maxsys%nax,0._real_8,&
+                         auxc,2*ncpw%ngw)
++#endif
+                 ENDIF
+                 !$omp parallel do private(I,IG,FFI,CTM,T1,TR,TI)
+ #ifdef __SR8000
+@@ -267,9 +277,16 @@
+                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddki(1,1,1),&
+                         maxsys%nax,zzero,auxc,nkpt%ngwk)
+                 ELSE
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(NGW_local,nstate,ions0%na(is),1._real_8,&
++                        eigr(ibeg_c0:ibeg_c0+NGW_local-1,isa0+1:isa0+ions0%na(is),1),&
++                        ddia(1:ions0%na(is),1:nstate),0._real_8,&
++                        auxc(1:NGW_local,1:nstate))
++#else
+                    CALL dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia(1,1),maxsys%nax,0._real_8,&
+                         auxc,2*ncpw%ngw)
++#endif
+                 ENDIF
+                 !$omp parallel do private(I,IG,FFI,CTM,T1,TR,TI)
+ #ifdef __SR8000
+@@ -330,9 +347,16 @@
+                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddia,maxsys%nax,&
+                         zzero,auxc,nkpt%ngwk)
+                 ELSE
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(NGW_local,nstate,ions0%na(is),1._real_8,&
++                        eigr(ibeg_c0:ibeg_c0+NGW_local-1,isa0+1:isa0+ions0%na(is),1),&
++                        ddia(1:ions0%na(is),1:nstate),0._real_8,&
++                        auxc(1:NGW_local,1:nstate))
++#else
+                    CALL dgemm('N','N',2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia,maxsys%nax,0.0_real_8,&
+                         auxc,2*ncpw%ngw)
++#endif
+                 ENDIF
+                 !$omp parallel do private(I,IG,CTM,FFI,T)
+ #ifdef __SR8000
+--- a/src/rotate_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
++++ b/src/rotate_utils.mod.F90	2026-10-12 04:10:52.623896710 +0000
+@@ -11,6 +11,9 @@
+   USE nvtx_utils
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_apply_rr
++#endif
+ 
+   IMPLICIT NONE
+ 
+@@ -86,6 +89,17 @@
+     __NVTX_TIMER_START ( procedureN )
+ 
+     IF (n>0) THEN
++#ifdef __EXACT_ACC
++       IF (tlsd) THEN
++          naa=na+1
++          CALL exact_apply_rr(n/2,na,na,a,c1(1:n/2,1:na),gam(1:na,1:na),b,c2(1:n/2,1:na))
++          CALL exact_apply_rr(n/2,nb,nb,a,c1(1:n/2,naa:naa+nb-1),&
++               gam(naa:naa+nb-1,naa:naa+nb-1),b,c2(1:n/2,naa:naa+nb-1))
++       ELSE
++          CALL exact_apply_rr(n/2,nstate,nstate,a,c1(1:n/2,1:nstate),&
++               gam(1:nstate,1:nstate),b,c2(1:n/2,1:nstate))
++       ENDIF
++#else
+        IF (tlsd) THEN
+           naa=na+1
+           CALL dgemm('N','N',n,na,na,a,c1(1,1),n,gam(1,1),nstate,b,c2(1,1),n)
+@@ -93,6 +107,7 @@
+        ELSE
+           CALL dgemm('N','N',n,nstate,nstate,a,c1,n,gam,nstate,b,c2,n)
+        ENDIF
++#endif
+     ENDIF
+ 
+     __NVTX_TIMER_STOP
+--- a/src/atomwf_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
++++ b/src/atomwf_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
+@@ -68,6 +68,9 @@
+                                              vofrho
+   USE zeroing_utils,                   ONLY: zeroing
+ 
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_apply_rr
++#endif
+   IMPLICIT NONE
+ 
+   PRIVATE
+@@ -121,7 +124,9 @@
+     ! vw    1) still bugs with cntl%cdft = T
+     ! vw    2) not yet implemented with TKPNT = T 
+     ! vw so we hack...
++#ifndef __EXACT_ACC
+     IF (.NOT.tkpts%tkpnt.AND..NOT.cntl%cdft) cntl%tdmal = .TRUE.
++#endif
+     ! vw<<<
+     IF (cntl%tdmal.AND.paral%io_parent) THEN
+        WRITE(6,*)&
+@@ -377,19 +382,43 @@
+           ELSE              ! IF (TKPNT) THEN
+              IF (tlsd2) THEN
+                 nn=MIN(spin_mod%nsup,atwp%nattot)
+-                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0)&
+-                     CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
+-                     2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,:, ikind),2*nkpt%ngwk)
++                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0) THEN
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(nkpt%ngwk,nn,atwp%nattot,1.0_real_8,&
++                        catom(1:nkpt%ngwk,1:atwp%nattot),&
++                        xmatat(1:atwp%nattot,1:nn),0.0_real_8,&
++                        c0(1:nkpt%ngwk,1:nn,ikind))
++#else
++                   CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
++                        2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,:, ikind),2*nkpt%ngwk)
++#endif
++                ENDIF
+                 nn=MIN(spin_mod%nsdown,atwp%nattot)
+-                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0)&
+-                     CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
+-                     2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,spin_mod%nsup+ 1:,ikind),&
+-                     2*nkpt%ngwk)
++                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0) THEN
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(nkpt%ngwk,nn,atwp%nattot,1.0_real_8,&
++                        catom(1:nkpt%ngwk,1:atwp%nattot),&
++                        xmatat(1:atwp%nattot,1:nn),0.0_real_8,&
++                        c0(1:nkpt%ngwk,spin_mod%nsup+1:spin_mod%nsup+nn,ikind))
++#else
++                   CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
++                        2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,spin_mod%nsup+ 1:,ikind),&
++                        2*nkpt%ngwk)
++#endif
++                ENDIF
+              ELSE
+                 nn=MIN(nstate,atwp%nattot)
+-                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0)&
+-                     CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
+-                     2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,:, ikind),2*nkpt%ngwk)
++                IF (nn.GT.0 .AND. nkpt%ngwk.GT.0) THEN
++#ifdef __EXACT_ACC
++                   CALL exact_apply_rr(nkpt%ngwk,nn,atwp%nattot,1.0_real_8,&
++                        catom(1:nkpt%ngwk,1:atwp%nattot),&
++                        xmatat(1:atwp%nattot,1:nn),0.0_real_8,&
++                        c0(1:nkpt%ngwk,1:nn,ikind))
++#else
++                   CALL dgemm('N','N',2*nkpt%ngwk,nn,atwp%nattot,1.0_real_8,catom(1,1),&
++                        2*nkpt%ngwk,xmatat,atwp%nattot,0.0_real_8,c0(:,:, ikind),2*nkpt%ngwk)
++#endif
++                ENDIF
+              ENDIF
+           ENDIF
+           ! Randomize other states and orthogonalize.
+--- a/src/atrho_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
++++ b/src/atrho_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
+@@ -8,6 +8,9 @@
+                                              inyh,&
+                                              nzh
+   USE dotp_utils,                      ONLY: dotp
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_cdot_global
++#endif
+   USE error_handling,                  ONLY: stopgm
+   USE fftmain_utils,                   ONLY: invfftn
+   USE fftnew_utils,                    ONLY: setfftn
+@@ -169,8 +172,18 @@
+           CALL loadc(pcatom(:,iaorb),foc,ncpw%ngw,ncpw%ngw,atwp%nattot-iaorb+1,&
+                SIZE(foc),is,iat,natst)
+           DO ixx=iaorb,iaorb+natst-1
++#ifdef __EXACT_ACC
++             BLOCK
++               COMPLEX(real_8), ALLOCATABLE :: ex_col(:)
++               ALLOCATE(ex_col(ncpw%ngw))
++               ex_col=pcatom(1:ncpw%ngw,ixx)
++               sfc=exact_cdot_global(ncpw%ngw,ex_col,ex_col,geq0,parai%allgrp)
++               DEALLOCATE(ex_col)
++             END BLOCK
++#else
+              sfc=dotp(ncpw%ngw,pcatom(:,ixx),pcatom(:,ixx))
+              CALL mp_sum(sfc,parai%allgrp)
++#endif
+              IF (sfc.EQ.0._real_8) THEN
+                 IF (paral%io_parent)&
+                      WRITE(6,'(A,A,I5,A)') ' ATRHO|',&

@@ -1,0 +1,98 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+FFTW ESTIMATE plans are one transform wide, and FFTW threads are 1.
+plan_many with a batch size equal to the local plane count can choose
+a different codelet when the rank count changes that count.
+The measured binaries use the internal Temperton FFT, not this path.
+Temperton's lot size is ncache/(4*n), which does not depend on rank.
+
+--- a/src/mltfft_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
++++ b/src/mltfft_utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
+@@ -489,7 +489,7 @@
+     RETURN
+   END SUBROUTINE mltfft_hp
+   ! ==================================================================
+-  SUBROUTINE mltfft_fftw(transa,transb,a,ldax,lday,b,ldbx,ldby,n,m,&
++  RECURSIVE SUBROUTINE mltfft_fftw(transa,transb,a,ldax,lday,b,ldbx,ldby,n,m,&
+        isign,scale,use_wisdom)
+     ! ==--------------------------------------------------------------==
+     CHARACTER(len=1)                         :: transa, transb
+@@ -522,6 +522,54 @@
+        fftw_flags=fftw_es
+     ENDIF
+ 
++#ifdef __EXACT_ACC
++    ! One plane per ESTIMATE plan. The batch size m is the local plane
++    ! count, which changes with the rank count, and FFTW may pick a
++    ! different codelet for a different m.
++    IF (m.GT.1) THEN
++       DO i=1,m
++          IF ((transa.EQ.'N'.OR.transa.EQ.'n').AND.(transb.EQ.'N'.OR.transb.EQ.'n')) THEN
++             CALL dfftw_plan_many_dft(plan,1,n,1,a(1,i),n,1,ldax,b(1,i),n,1,ldbx,&
++                  fftw_dir,fftw_flags)
++             CALL dfftw_execute_dft(plan,a(1,i),b(1,i))
++             IF (tscal) THEN
++                DO j=1,n
++                   b(j,i)=scale*b(j,i)
++                ENDDO
++             ENDIF
++          ELSE IF (transa.EQ.'N'.OR.transa.EQ.'n') THEN
++             CALL dfftw_plan_many_dft(plan,1,n,1,a(1,i),n,1,ldax,b(i,1),n,ldbx,1,&
++                  fftw_dir,fftw_flags)
++             CALL dfftw_execute_dft(plan,a(1,i),b(i,1))
++             IF (tscal) THEN
++                DO j=1,n
++                   b(i,j)=scale*b(i,j)
++                ENDDO
++             ENDIF
++          ELSE IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
++             CALL dfftw_plan_many_dft(plan,1,n,1,a(i,1),n,ldax,1,b(1,i),n,1,ldbx,&
++                  fftw_dir,fftw_flags)
++             CALL dfftw_execute_dft(plan,a(i,1),b(1,i))
++             IF (tscal) THEN
++                DO j=1,n
++                   b(j,i)=scale*b(j,i)
++                ENDDO
++             ENDIF
++          ELSE
++             CALL dfftw_plan_many_dft(plan,1,n,1,a(i,1),n,ldax,1,b(i,1),n,ldbx,1,&
++                  fftw_dir,fftw_flags)
++             CALL dfftw_execute_dft(plan,a(i,1),b(i,1))
++             IF (tscal) THEN
++                DO j=1,n
++                   b(i,j)=scale*b(i,j)
++                ENDDO
++             ENDIF
++          ENDIF
++          CALL dfftw_destroy_plan(plan)
++       ENDDO
++       GOTO 880
++    ENDIF
++#endif
+     IF (transa.EQ.'N'.OR.transa.EQ.'n') THEN
+        IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
+           CALL dfftw_plan_many_dft(plan,1,n,m,a,n,1,ldax,b,n,1,ldbx,&
+@@ -577,6 +625,7 @@
+     ENDIF
+     CALL dfftw_destroy_plan(plan)
+ #endif
++880 CONTINUE
+     IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
+        !$omp parallel do private (I,J)
+        DO j=m+1,ldby
+--- a/src/utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
++++ b/src/utils.mod.F90	2026-10-12 04:10:52.651896738 +0000
+@@ -184,8 +184,12 @@
+        mcpus=ncpus
+ #if defined(__HAS_FFT_FFTW3)
+        !$      CALL DFFTW_INIT_THREADS(IDUMMY)
++#ifdef __EXACT_ACC
++       !$      CALL DFFTW_PLAN_WITH_NTHREADS(1)
++#else
+        !$      CALL DFFTW_PLAN_WITH_NTHREADS(MCPUS)
+ #endif
++#endif
+     ENDIF
+     ! ==--------------------------------------------------------------==
+     RETURN

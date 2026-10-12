@@ -1,0 +1,1544 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Energy terms that feed etot are exact sums.
+Kinetic energy, eigenvalues, the local and nonlocal potentials, the
+Hartree pieces, and the XC integrals each add one term at a time.
+The cube-root warm start in the XC kernel is replaced by the closed
+form, because the Newton start depends on which points share a thread.
+GEMAX is an explicit modulus scan. OpenBLAS izamax misses the maximum
+for some vector lengths, and the length is the local G count.
+The DIIS trust-region gamma is updated on the rank that owns G=0.
+That rank is not the parent for every decomposition, so the value is
+broadcast from the owner.
+
+--- a/src/kin_energy_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
++++ b/src/kin_energy_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
+@@ -16,7 +16,11 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish
++  USE parac, ONLY: parai
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -59,6 +63,39 @@
+ #endif
+     ! ==--------------------------------------------------------------==
+     ! Accumulate the charge and kinetic energy
++#ifdef __EXACT_ACC
++    BLOCK
++      TYPE(exact_acc) :: acc_r, acc_k
++      INTEGER :: iex, iig
++      REAL(real_8) :: term
++      IF (prcp_com%akin.GT.deltakin) CALL stopgm('KIN_ENERGY',&
++           'AKIN is not covered by exact accumulation',__LINE__,__FILE__)
++      CALL exact_acc_zero(acc_r)
++      CALL exact_acc_zero(acc_k)
++      DO iex=1,nstate
++         IF (crge%f(iex,1).NE.0._real_8) THEN
++            IF (geq0) THEN
++               CALL exact_acc_add(acc_r,crge%f(iex,1)*REAL(c0(1,iex))*REAL(c0(1,iex)))
++               iig=2
++            ELSE
++               iig=1
++            ENDIF
++            DO iig=iig,ncpw%ngw
++               term=2.0_real_8*(REAL(c0(iig,iex))*REAL(c0(iig,iex))+&
++                    AIMAG(c0(iig,iex))*AIMAG(c0(iig,iex)))
++               CALL exact_acc_add(acc_r,crge%f(iex,1)*term)
++            ENDDO
++            DO iig=1,ncpw%ngw
++               term=REAL(hg(iig)*CONJG(c0(iig,iex))*c0(iig,iex))
++               CALL exact_acc_add(acc_k,crge%f(iex,1)*term)
++            ENDDO
++         ENDIF
++      ENDDO
++      rsum=exact_acc_finish(acc_r,parai%allgrp)
++      xkin=exact_acc_finish(acc_k,parai%allgrp)
++      ener_com%ekin=xkin*parm%tpiba2
++    END BLOCK
++#else
+     rsum=0._real_8
+     xkin=0._real_8
+     !$omp parallel do private(I,SK1,XSKIN,IS1,ARG,G2,IG) &
+@@ -108,6 +145,7 @@
+        ENDIF
+     ENDDO
+     ener_com%ekin=xkin*parm%tpiba2
++#endif
+     ! Other kinetic energies for CAS22 method
+     IF (lspin2%tlse .AND. (lspin2%tcas22.OR.lspin2%tpenal)) THEN
+        IF (prcp_com%akin.GT.deltakin) CALL stopgm('RHOOFR',&
+--- a/src/csize_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
++++ b/src/csize_utils.mod.F90	2026-10-12 04:10:52.627896714 +0000
+@@ -126,6 +126,83 @@
+        cnorm=0._real_8
+        gemax=0._real_8
+     ENDIF
++#ifdef __EXACT_ACC
++    ! izamax from the linked BLAS misses the true maximum for some
++    ! vector lengths, so the printed GEMAX and the convergence test
++    ! then depend on how many G vectors sit on a rank. Scan explicitly.
++    ! The norm is the exact sum of |c|^2, one state at a time, so the
++    ! rank split does not change the rounded result.
++    IF (.NOT.tkpts%tkpnt) THEN
++       BLOCK
++         USE exact_acc_utils, ONLY: exact_cdot_global, exact_note_skip
++         USE geq0mod, ONLY: geq0
++         COMPLEX(real_8) :: ex_dummy(1)
++         REAL(real_8) :: aval, lmax
++         INTEGER :: ig, ist, nou2, nod2, nused
++         lmax=0.0_real_8
++         cnorm=0.0_real_8
++         ex_dummy=CMPLX(0.0_real_8,0.0_real_8,kind=real_8)
++         IF (cntl%tlsd) THEN
++            nou2=0
++            DO ist=1,spin_mod%nsup
++               IF (crge%f(ist,1).GT.1.e-5_real_8) nou2=nou2+1
++            ENDDO
++            nod2=0
++            DO ist=spin_mod%nsup+1,nstate
++               IF (crge%f(ist,1).GT.1.e-5_real_8) nod2=nod2+1
++            ENDDO
++            nocc=nou2+nod2
++            DO ist=1,nou2
++               IF (nkpt%ngwk.GT.0) THEN
++                  DO ig=1,nkpt%ngwk
++                     aval=ABS(c2(ig,ist))
++                     IF (aval.GT.lmax) lmax=aval
++                  ENDDO
++                  cnorm=cnorm+exact_cdot_global(nkpt%ngwk,c2(1,ist),&
++                       c2(1,ist),geq0,parai%allgrp)
++               ELSE
++                  cnorm=cnorm+exact_cdot_global(0,ex_dummy,ex_dummy,&
++                       geq0,parai%allgrp)
++               ENDIF
++            ENDDO
++            DO ist=spin_mod%nsup+1,spin_mod%nsup+nod2
++               IF (nkpt%ngwk.GT.0) THEN
++                  DO ig=1,nkpt%ngwk
++                     aval=ABS(c2(ig,ist))
++                     IF (aval.GT.lmax) lmax=aval
++                  ENDDO
++                  cnorm=cnorm+exact_cdot_global(nkpt%ngwk,c2(1,ist),&
++                       c2(1,ist),geq0,parai%allgrp)
++               ELSE
++                  cnorm=cnorm+exact_cdot_global(0,ex_dummy,ex_dummy,&
++                       geq0,parai%allgrp)
++               ENDIF
++            ENDDO
++         ELSE
++            nused=0
++            DO ist=1,nstate
++               IF (crge%f(ist,1).GT.1.e-5_real_8) nused=nused+1
++            ENDDO
++            nocc=nused
++            DO ist=1,nused
++               IF (nkpt%ngwk.GT.0) THEN
++                  DO ig=1,nkpt%ngwk
++                     aval=ABS(c2(ig,ist))
++                     IF (aval.GT.lmax) lmax=aval
++                  ENDDO
++                  cnorm=cnorm+exact_cdot_global(nkpt%ngwk,c2(1,ist),&
++                       c2(1,ist),geq0,parai%allgrp)
++               ELSE
++                  cnorm=cnorm+exact_cdot_global(0,ex_dummy,ex_dummy,&
++                       geq0,parai%allgrp)
++               ENDIF
++            ENDDO
++         ENDIF
++         gemax=lmax
++         CALL exact_note_skip(1)
++       END BLOCK
++    ENDIF
++#endif
+     CALL mp_sum(cnorm,parai%allgrp)
+     CALL mp_max(gemax,parai%allgrp)
+     cnorm=SQRT(cnorm/REAL(nocc*spar%ngwks,kind=real_8))
+--- a/src/odiis_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
++++ b/src/odiis_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
+@@ -413,6 +413,10 @@
+   USE mp_interface, ONLY: mp_sum,mp_max
+   USE system , ONLY:spar
+   USE parac, ONLY : paral,parai
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_note_skip
++  USE geq0mod, ONLY: geq0
++#endif
+   IMPLICIT NONE
+   INTEGER                                    :: ngw_l, n
+   REAL(real_8)                               :: c2(2,ngw_l*n), grmax, gimax, &
+@@ -424,6 +428,42 @@
+ 
+ ! ==--------------------------------------------------------------==
+ 
++#ifdef __EXACT_ACC
++  BLOCK
++    TYPE(exact_acc) :: ex_g
++    INTEGER :: ex_i, ex_ig, ex_base
++    CALL exact_acc_zero(ex_g)
++    IF (ngw_l.GT.0.AND.n.GT.0) THEN
++       ! idamax misses the maximum for some lengths. The length here is
++       ! the local G count times the number of states, so a miss makes
++       ! the DIIS scale depend on the rank split.
++       grmax=0.0_real_8
++       gimax=0.0_real_8
++       DO ex_i=1,n*ngw_l
++          grmax=MAX(grmax,ABS(c2(1,ex_i)))
++          gimax=MAX(gimax,ABS(c2(2,ex_i)))
++       ENDDO
++       DO ex_i=1,n
++          ex_base=(ex_i-1)*ngw_l
++          IF (geq0) THEN
++             CALL exact_acc_add(ex_g,c2(1,ex_base+1)*c2(1,ex_base+1))
++             ex_ig=2
++          ELSE
++             ex_ig=1
++          ENDIF
++          DO ex_ig=ex_ig,ngw_l
++             CALL exact_acc_add(ex_g,2.0_real_8*(c2(1,ex_base+ex_ig)*c2(1,ex_base+ex_ig)+&
++                  c2(2,ex_base+ex_ig)*c2(2,ex_base+ex_ig)))
++          ENDDO
++       ENDDO
++    ELSE
++       grmax=0.0_real_8
++       gimax=0.0_real_8
++    ENDIF
++    gnorm=exact_acc_finish(ex_g,parai%cp_grp)
++  END BLOCK
++  CALL exact_note_skip(1)
++#else
+   IF (ngw_l.GT.0.AND.n.GT.0) THEN
+      ir=idamax(n*ngw_l,c2(1,1),2)
+      ii=idamax(n*ngw_l,c2(2,1),2)
+@@ -439,6 +479,7 @@
+      gimax=0.0_real_8
+      gnorm=0.0_real_8
+   ENDIF
++#endif
+   CALL mp_sum(gnorm,parai%cp_grp)
+   GRMAX=ABS(GRMAX);GIMAX=ABS(GIMAX)
+   CALL mp_max(grmax,parai%cp_grp)
+@@ -495,6 +536,10 @@
+   USE error_handling, ONLY: stopgm
+   USE timer, ONLY: tiset, tihalt
+   USE mp_interface, ONLY: mp_sum, mp_bcast
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_cdot_add, exact_acc_finish, exact_note_skip
++  USE geq0mod, ONLY: geq0
++#endif
+   USE system , ONLY:cnti,cntl,maxdis,ncpw
+   USE parac, ONLY : paral,parai
+   USE ener , ONLY:ener_com
+@@ -577,7 +622,20 @@
+            ENDIF
+         ENDIF
+      ENDIF
++#ifdef __EXACT_ACC
++     ! G=0 is not on the parent for every rank count. The trust-region
++     ! update is computed on the rank that owns G=0, then broadcast
++     ! from that rank.
++     BLOCK
++       INTEGER :: ex_owner
++       ex_owner=0
++       IF (geq0_local) ex_owner=parai%cp_me
++       CALL mp_sum(ex_owner,parai%cp_grp)
++       CALL mp_bcast(gamma,ex_owner,parai%cp_grp)
++     END BLOCK
++#else
+      CALL mp_bcast(gamma,parai%io_source,parai%cp_grp)
++#endif
+      reinit=.FALSE.
+      IF (ndiis.GT.cnti%nreset.AND.cnti%nreset.GE.3) THEN
+         ! ..restart if there was no progress over the last steps 
+@@ -635,6 +693,24 @@
+   !$omp end parallel do
+ 
+   ! Update cntl%diis matrix
++#ifdef __EXACT_ACC
++  DO i=1,nsize-1
++     BLOCK
++       TYPE(exact_acc) :: ex_d
++       INTEGER :: ex_k
++       CALL exact_acc_zero(ex_d)
++       IF (ngw_local.GT.0) THEN
++          CALL idcopy(ngw_local*nocc,c0_local,gde(1,i),&
++               grmax(i),gimax(i))
++          DO ex_k=1,nocc
++             CALL exact_cdot_add(ex_d,ngw_local,c0_local(1,ex_k),c2_local(1,ex_k),geq0)
++          ENDDO
++       ENDIF
++       diism(i,nowv)=exact_acc_finish(ex_d,parai%cp_grp)
++     END BLOCK
++  ENDDO
++  CALL exact_note_skip(1)
++#else
+   DO i=1,nsize-1
+      diism(i,nowv)=0.0_real_8
+   ENDDO
+@@ -648,6 +724,7 @@
+         ENDDO
+      ENDDO
+   ENDIF
++#endif
+   CALL mp_sum(diism(:,nowv),nsize-1,parai%cp_grp)
+   DO i=1,nsize-1
+      diism(nowv,i)=diism(i,nowv)
+--- a/src/ppener_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
++++ b/src/ppener_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
+@@ -11,7 +11,12 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish_n
++  USE mp_interface, ONLY: mp_sum
++  USE parac, ONLY: parai
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -75,6 +80,48 @@
+        ei=(0.0_real_8,0.0_real_8)
+        ee=(0.0_real_8,0.0_real_8)
+     ENDIF
++#ifdef __EXACT_ACC
++    BLOCK
++      TYPE(exact_acc) :: ex_a(8)
++      REAL(real_8) :: ex_o(8)
++      INTEGER :: ex_k
++      DO ex_k=1,8
++         CALL exact_acc_zero(ex_a(ex_k))
++      ENDDO
++      CALL exact_acc_add(ex_a(1),REAL(eh))
++      CALL exact_acc_add(ex_a(2),AIMAG(eh))
++      CALL exact_acc_add(ex_a(3),REAL(ei))
++      CALL exact_acc_add(ex_a(4),AIMAG(ei))
++      CALL exact_acc_add(ex_a(5),REAL(ee))
++      CALL exact_acc_add(ex_a(6),AIMAG(ee))
++      CALL exact_acc_add(ex_a(7),REAL(eps))
++      CALL exact_acc_add(ex_a(8),AIMAG(eps))
++      DO ig=ig1,ncpw%nhg
++         vp=eivps(ig)
++         rp=eirop(ig)
++         rhet=v(nzh(ig))
++         rhog=rhet+rp
++         rhets=CONJG(rhet)
++         rhogs=CONJG(rhog)
++         vcg=scg(ig)*rhog
++         vtemp(ig)=vcg+vp
++         CALL exact_acc_add(ex_a(1),REAL(vcg*rhogs))
++         CALL exact_acc_add(ex_a(2),AIMAG(vcg*rhogs))
++         CALL exact_acc_add(ex_a(3),REAL(scg(ig)*rp*CONJG(rp)))
++         CALL exact_acc_add(ex_a(4),AIMAG(scg(ig)*rp*CONJG(rp)))
++         CALL exact_acc_add(ex_a(5),REAL(scg(ig)*rhet*CONJG(rhet)))
++         CALL exact_acc_add(ex_a(6),AIMAG(scg(ig)*rhet*CONJG(rhet)))
++         CALL exact_acc_add(ex_a(7),REAL(rhets*vp))
++         CALL exact_acc_add(ex_a(8),AIMAG(rhets*vp))
++      ENDDO
++      CALL exact_acc_finish_n(ex_a,8,ex_o,parai%allgrp)
++      eh=CMPLX(ex_o(1),ex_o(2),kind=real_8)
++      ei=CMPLX(ex_o(3),ex_o(4),kind=real_8)
++      ee=CMPLX(ex_o(5),ex_o(6),kind=real_8)
++      eps=CMPLX(ex_o(7),ex_o(8),kind=real_8)
++    END BLOCK
++    CALL mp_sum(vploc,parai%allgrp)
++#else
+     !$omp  parallel do private(IG,VP,RP,RHET,RHOG,RHETS,RHOGS,VCG) &
+     !$omp  reduction(+:EH,EI,EE,EPS)
+ #ifdef __SR8000
+@@ -102,6 +149,7 @@
+        ee=ee+scg(ig)*rhet*CONJG(rhet)
+        eps=eps+rhets*vp
+     ENDDO
++#endif
+     __NVTX_TIMER_STOP
+     CALL tihalt(procedureN,isub)
+     ! ==--------------------------------------------------------------==
+--- a/src/xcener_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
++++ b/src/xcener_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
+@@ -21,7 +21,11 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish
++  USE parac, ONLY: parai
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -89,8 +93,10 @@
+           !poption parallel
+           !poption tlocal(EX,EC,VX,VC,VXC1,EXC1)
+ #endif
++#ifndef __EXACT_ACC
+           !$omp parallel do private(I,ROE,EX,EC,VX,VC,VXC1,EXC1) &
+           !$omp reduction(+:SXC,VXC)
++#endif
+           DO i=1,fpar%nnr1
+              roe=MAX(rhoe(i,1),0.0_real_8)
+              CALL xc(roe,ex,ec,vx,vc)
+@@ -109,9 +115,12 @@
+              !poption tlocal(ROE)
+              !voption pvfunc(3)
+ #endif
++#ifdef __EXACT_ACC
++#else
+              !$omp parallel do private(I,ROE,RATIO,I1,DD,EE) &
+              !$omp private(VXC1,EXC1,EX,VX,EC,VC) &
+              !$omp reduction(+:SXC,VXC)
++#endif
+              DO i=1,fpar%nnr1
+                 roe=MAX(rhoe(i,1),0.0_real_8)
+                 ratio=(1._real_8/tabx%ddro)*roe
+@@ -143,9 +152,11 @@
+              !poption parallel
+              !poption tlocal(EX,EC,VXA,VCA,VXB,VCB,VXCA,VXCB,EXC)
+ #endif
++#ifndef __EXACT_ACC
+              !$omp parallel do private(IR,ROE,ETA,EX,EC,VXA,VCA,VXCA) &
+              !$omp private(VXB,VCB,VXCB,EXC) &
+              !$omp reduction(+:SXC,VXC)
++#endif
+              DO ir=1,fpar%nnr1
+                 roe = MAX(rhoe(ir,1),1.0e-15_real_8)
+                 eta = (rhoe(ir,1)-2._real_8*rhoe(ir,2))/roe
+@@ -196,36 +207,132 @@
+     ntab=0
+     IF (.NOT.cntl%tlsd) THEN
+        IF (func1%mfxcc == mfxcc_is_skipped.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL xalpu(func2%salpha,parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,&
+                rhoe,v,sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,ABS(rhoval(ex_i,1))*REAL(v(ex_i,1)))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_lyp.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL lypuu(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v,sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,ABS(rhoval(ex_i,1))*REAL(v(ex_i,1)))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_pade) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL mikeu(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v,sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,ABS(rhoval(ex_i,1))*REAL(v(ex_i,1)))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+ABS(rhoval(ir,1))*REAL(v(ir,1))
+           ENDDO
++#endif
+        ELSE
+           CALL xcener_old(sxc,vxc,rhoval,rhoe,v)
+        ENDIF
+@@ -239,41 +346,137 @@
+        ! ==------------------------------------------------------------==
+        CALL dcopy(2*fpar%nnr1,v(1,1),1,v(1,2),1)
+        IF (func1%mfxcc == mfxcc_is_skipped.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL xalpsp(func2%salpha,parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,&
+                rhoe,v(1,1),v(1,2),sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(ABS(rhoval(ex_i,1)-rhoval(ex_i,2))*REAL(v(ex_i,1)) +ABS(rhoval(ex_i,2))*REAL(v(ex_i,2))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_lyp.AND.func1%mfxcx == mfxcx_is_slaterx) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL slypsp(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v(1,1),v(1,2),&
+                func2%salpha,sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(ABS(rhoval(ex_i,1)-rhoval(ex_i,2))*REAL(v(ex_i,1)) +ABS(rhoval(ex_i,2))*REAL(v(ex_i,2))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSEIF (func1%mfxcc == mfxcc_is_pade) THEN
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(-ABS(rhoval(ex_i,1))*REAL(v(ex_i,1))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(-ABS(rhoval(ir,1))*REAL(v(ir,1)))
+           ENDDO
++#endif
+           CALL mikesp(parm%nr1,spar%nr2s,spar%nr3s,fpar%kr1,fpar%kr2s,fpar%kr3s,rhoe,v(1,1),v(1,2),&
+                sxc,flops)
++#ifndef __EXACT_ACC
+           !$omp parallel do private(IR) reduction(+:VXC)
++#endif
++#ifdef __EXACT_ACC
++          BLOCK
++            TYPE(exact_acc) :: ex_loop
++            REAL(real_8) :: ex_gsum
++            INTEGER :: ex_i
++            CALL exact_acc_zero(ex_loop)
++            DO ex_i=1,fpar%nnr1
++              CALL exact_acc_add(ex_loop,(ABS(rhoval(ex_i,1)-rhoval(ex_i,2))*REAL(v(ex_i,1)) +ABS(rhoval(ex_i,2))*REAL(v(ex_i,2))))
++            ENDDO
++            ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++            vxc = vxc + ex_gsum
++          END BLOCK
++#else
+           DO ir=1,fpar%nnr1
+              vxc=vxc+(ABS(rhoval(ir,1)-rhoval(ir,2))*REAL(v(ir,1))&
+                   +ABS(rhoval(ir,2))*REAL(v(ir,2)))
+           ENDDO
++#endif
+        ELSE
+           CALL xcener_old(sxc,vxc,rhoval,rhoe,v)
+        ENDIF
+--- a/src/nfunc_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
++++ b/src/nfunc_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
+@@ -27,7 +27,16 @@
+   USE kinds,                           ONLY: real_8
+   USE timer,                           ONLY: tihalt,&
+        tiset
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_merge, exact_acc_finish
++  USE parac, ONLY: parai
++#endif
+   IMPLICIT NONE
++#ifdef __EXACT_ACC
++  TYPE(exact_acc) :: ex_e
++  TYPE(exact_acc), ALLOCATABLE :: ex_plane(:)
++  INTEGER :: ex_np, ex_ip
++#endif
+   INTEGER                                    :: nr1, nr2, nr3, km1, km2, km3
+   REAL(real_8)                               :: rho(km1,km2,km3), &
+                                                 uion(2,km1,km2,km3), eexcu, &
+@@ -53,6 +62,9 @@
+   fa2=fa1*f43
+   bcf=b*cf
+   eexcu=0._real_8
++#ifdef __EXACT_ACC
++  CALL exact_acc_zero(ex_e)
++#endif
+   x1=1._real_8
+   x2=1._real_8
+   x3=1._real_8
+@@ -62,13 +74,24 @@
+   ii2=MOD(nr2,2)
+   IF (ii3.NE.0.OR.ii2.NE.0) CALL stopgm('LYPUU','ODD DIMENSION',& 
+        __LINE__,__FILE__)
++#ifdef __EXACT_ACC
++  ex_np=(nr3+1)/2
++  ALLOCATE(ex_plane(ex_np))
++  DO ex_ip=1,ex_np
++     CALL exact_acc_zero(ex_plane(ex_ip))
++  ENDDO
++#endif
+   !$omp parallel do private(I1,I2,I3,RHOU1,RHOU2,RHOU3,RHOU4,D1,D2,D3,D4) &
+   !$omp  firstprivate(X1,X2,X3,X4) &
+   !$omp  private(NCOUNT,RSX1,RSX2,RSX3,RSX4,ECRS1,ECRS2,ECRS3,ECRS4) &
+   !$omp  private(OX1,OX2,OX3,OX4,ELYP1,ELYP2,ELYP3,ELYP4) &
+   !$omp  private(EPSXCU1,EPSXCU2,EPSXCU3,EPSXCU4) &
++#ifdef __EXACT_ACC
++  !$omp  private(VXC1,VXC2,VXC3,VXC4)
++#else
+   !$omp  private(VXC1,VXC2,VXC3,VXC4) &
+   !$omp  reduction(+:EEXCU,IC)
++#endif
+   ! ..loops are four times unrolled
+   DO i3=1,nr3,2
+      DO i2=1,nr2,2
+@@ -78,6 +101,13 @@
+            rhou3=MAX(rho(i1,i2+0,i3+1),small)
+            rhou4=MAX(rho(i1,i2+1,i3+1),small)
+            ! ..iterative calculation of rho**(1/3) (using Newton method)
++#ifdef __EXACT_ACC
++           x1=rhou1**(1._real_8/3._real_8)
++           x2=rhou2**(1._real_8/3._real_8)
++           x3=rhou3**(1._real_8/3._real_8)
++           x4=rhou4**(1._real_8/3._real_8)
++           GOTO 10
++#endif
+            DO ncount=1,100
+               d1=x1-rhou1/(x1*x1)
+               d2=x2-rhou2/(x2*x2)
+@@ -124,18 +154,41 @@
+                 (d*ox3+ecrs3*(d*ox3+c))
+            vxc4=fa2*x4+elyp4-0.33333333333333_real_8*rsx4*a*ox4*&
+                 (d*ox4+ecrs4*(d*ox4+c))
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu1*rhou1)
++#else
+            eexcu=eexcu+epsxcu1*rhou1
++#endif
+            uion(1,i1,i2+0,i3+0)=uion(1,i1,i2+0,i3+0)+vxc1
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu2*rhou2)
++#else
+            eexcu=eexcu+epsxcu2*rhou2
++#endif
+            uion(1,i1,i2+1,i3+0)=uion(1,i1,i2+1,i3+0)+vxc2
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu3*rhou3)
++#else
+            eexcu=eexcu+epsxcu3*rhou3
++#endif
+            uion(1,i1,i2+0,i3+1)=uion(1,i1,i2+0,i3+1)+vxc3
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu4*rhou4)
++#else
+            eexcu=eexcu+epsxcu4*rhou4
++#endif
+            uion(1,i1,i2+1,i3+1)=uion(1,i1,i2+1,i3+1)+vxc4
+         ENDDO
+      ENDDO
+   ENDDO
+-  ! ..counting floating point operations
++#ifdef __EXACT_ACC
++  DO ex_ip=1,ex_np
++     CALL exact_acc_merge(ex_e,ex_plane(ex_ip))
++  ENDDO
++  eexcu = exact_acc_finish(ex_e,parai%allgrp)
++  DEALLOCATE(ex_plane)
++#endif
++! ..counting floating point operations
+   fadd   = ic * 11._real_8 + (nr1*nr2*nr3) *  9._real_8
+   fmult  = ic * 12._real_8 + (nr1*nr2*nr3) * 15._real_8
+   fdiv   = ic *  4._real_8 + (nr1*nr2*nr3) *  2._real_8
+@@ -201,6 +254,13 @@
+            rhou3=MAX(rho(i1,i2+0,i3+1),small)
+            rhou4=MAX(rho(i1,i2+1,i3+1),small)
+            ! ..iterative calculation of rho**(1/3) (using Newton method)
++#ifdef __EXACT_ACC
++           x1=rhou1**(1._real_8/3._real_8)
++           x2=rhou2**(1._real_8/3._real_8)
++           x3=rhou3**(1._real_8/3._real_8)
++           x4=rhou4**(1._real_8/3._real_8)
++           GOTO 10
++#endif
+            DO ncount=1,100
+               d1=x1-rhou1/(x1*x1)
+               d2=x2-rhou2/(x2*x2)
+@@ -255,7 +315,16 @@
+   USE kinds,                           ONLY: real_8
+   USE timer,                           ONLY: tihalt,&
+        tiset
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_merge, exact_acc_finish
++  USE parac, ONLY: parai
++#endif
+   IMPLICIT NONE
++#ifdef __EXACT_ACC
++  TYPE(exact_acc) :: ex_e
++  TYPE(exact_acc), ALLOCATABLE :: ex_plane(:)
++  INTEGER :: ex_np, ex_ip
++#endif
+   INTEGER                                    :: nr1, nr2, nr3, km1, km2, km3
+   REAL(real_8)                               :: rho(km1,km2,km3), &
+                                                 uion(2,km1,km2,km3), eexcu, &
+@@ -287,6 +356,9 @@
+   CALL tiset(procedureN,isub)
+   ! ==--------------------------------------------------------------==
+   eexcu=0._real_8
++#ifdef __EXACT_ACC
++  CALL exact_acc_zero(ex_e)
++#endif
+   x1=1._real_8
+   x2=1._real_8
+   x3=1._real_8
+@@ -296,13 +368,24 @@
+   ii2=MOD(nr2,2)
+   IF (ii3.NE.0.OR.ii2.NE.0) CALL stopgm('MIKEU','ODD DIMENSION',& 
+        __LINE__,__FILE__)
++#ifdef __EXACT_ACC
++  ex_np=(nr3+1)/2
++  ALLOCATE(ex_plane(ex_np))
++  DO ex_ip=1,ex_np
++     CALL exact_acc_zero(ex_plane(ex_ip))
++  ENDDO
++#endif
+   ! ..loops are four times unrolled
+   !$omp parallel do private(I1,I2,I3,RHOU1,RHOU2,RHOU3,RHOU4,D1,D2,D3,D4) &
+   !$omp  firstprivate(X1,X2,X3,X4) &
+   !$omp  private(NCOUNT,RSU1,RSU2,RSU3,RSU4,TOPU1,TOPU2,TOPU3,TOPU4) &
+   !$omp  private(DTOPU1,DTOPU2,DTOPU3,DTOPU4,BOTU1,BOTU2,BOTU3,BOTU4) &
++#ifdef __EXACT_ACC
++  !$omp  private(EPSXCU1,EPSXCU2,EPSXCU3,EPSXCU4,VXC1,VXC2,VXC3,VXC4)
++#else
+   !$omp  private(EPSXCU1,EPSXCU2,EPSXCU3,EPSXCU4,VXC1,VXC2,VXC3,VXC4) &
+   !$omp  reduction(+:EEXCU,IC)
++#endif
+   DO i3=1,nr3,2
+      DO i2=1,nr2,2
+         DO i1=1,nr1
+@@ -311,6 +394,13 @@
+            rhou3=MAX(rho(i1,i2+0,i3+1),small)
+            rhou4=MAX(rho(i1,i2+1,i3+1),small)
+            ! ..iterative calculation of rho**(1/3) (using Newton method)
++#ifdef __EXACT_ACC
++           x1=rhou1**(1._real_8/3._real_8)
++           x2=rhou2**(1._real_8/3._real_8)
++           x3=rhou3**(1._real_8/3._real_8)
++           x4=rhou4**(1._real_8/3._real_8)
++           GOTO 10
++#endif
+            DO ncount=1,100
+               d1=x1-rhou1/(x1*x1)
+               d2=x2-rhou2/(x2*x2)
+@@ -392,22 +482,45 @@
+            epsxcu2=topu2*(-1._real_8/botu2)
+            epsxcu3=topu3*(-1._real_8/botu3)
+            epsxcu4=topu4*(-1._real_8/botu4)
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu1*rhou1)
++#else
+            eexcu=eexcu+epsxcu1*rhou1
++#endif
+            vxc1=dtopu1*(-1._real_8/botu1)*(-1._real_8/botu1)
+            uion(1,i1,i2+0,i3+0)=uion(1,i1,i2+0,i3+0)+vxc1
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu2*rhou2)
++#else
+            eexcu=eexcu+epsxcu2*rhou2
++#endif
+            vxc2=dtopu2*(-1._real_8/botu2)*(-1._real_8/botu2)
+            uion(1,i1,i2+1,i3+0)=uion(1,i1,i2+1,i3+0)+vxc2
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu3*rhou3)
++#else
+            eexcu=eexcu+epsxcu3*rhou3
++#endif
+            vxc3=dtopu3*(-1._real_8/botu3)*(-1._real_8/botu3)
+            uion(1,i1,i2+0,i3+1)=uion(1,i1,i2+0,i3+1)+vxc3
++#ifdef __EXACT_ACC
++           CALL exact_acc_add(ex_plane((i3+1)/2),epsxcu4*rhou4)
++#else
+            eexcu=eexcu+epsxcu4*rhou4
++#endif
+            vxc4=dtopu4*(-1._real_8/botu4)*(-1._real_8/botu4)
+            uion(1,i1,i2+1,i3+1)=uion(1,i1,i2+1,i3+1)+vxc4
+         ENDDO
+      ENDDO
+   ENDDO
+-  ! ..counting floating point operations
++#ifdef __EXACT_ACC
++  DO ex_ip=1,ex_np
++     CALL exact_acc_merge(ex_e,ex_plane(ex_ip))
++  ENDDO
++  eexcu = exact_acc_finish(ex_e,parai%allgrp)
++  DEALLOCATE(ex_plane)
++#endif
++! ..counting floating point operations
+   fadd   = ic * 11._real_8 + (nr1*nr2*nr3) * 14._real_8
+   fmult  = ic * 12._real_8 + (nr1*nr2*nr3) * 18._real_8
+   fdiv   = ic *  4._real_8 + (nr1*nr2*nr3) *  2._real_8
+--- a/src/gcxctbl_utils.mod.F90	2026-10-12 04:10:52.631896718 +0000
++++ b/src/gcxctbl_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
+@@ -9,7 +9,11 @@
+                                              fpar,&
+                                              parm
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_merge, exact_acc_finish
++  USE parac, ONLY: parai
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -247,9 +251,18 @@
+ 
+ ! ==--------------------------------------------------------------==
+ 
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_sx, ex_sc
++    TYPE(exact_acc), ALLOCATABLE :: ex_px(:), ex_pc(:)
++    INTEGER :: ex_np, ex_ip
++#endif
+     two13=2._real_8**0.333333333333333_real_8
+     sgcx = 0.0_real_8
+     sgcc = 0.0_real_8
++#ifdef __EXACT_ACC
++    CALL exact_acc_zero(ex_sx)
++    CALL exact_acc_zero(ex_sc)
++#endif
+     ogceps=1._real_8/cntr%gceps
+     x1=1._real_8
+     x2=1._real_8
+@@ -261,6 +274,14 @@
+     ii2=MOD(parm%nr2,2)
+     IF (ii3.NE.0.OR.ii2.NE.0) CALL stopgm('GCXLYP','ODD DIMENSION',& 
+          __LINE__,__FILE__)
++#ifdef __EXACT_ACC
++    ex_np=(parm%nr3+1)/2
++    ALLOCATE(ex_px(ex_np),ex_pc(ex_np))
++    DO ex_ip=1,ex_np
++       CALL exact_acc_zero(ex_px(ex_ip))
++       CALL exact_acc_zero(ex_pc(ex_ip))
++    ENDDO
++#endif
+     !$omp parallel do private(I1,I2,I3,RHOU1,RHOU2,RHOU3,RHOU4,D1,D2,D3,D4) &
+     !$omp  firstprivate(X1,X2,X3,X4) &
+     !$omp  private(NCOUNT,RHO431,RHO432,RHO433,RHO434,SMOO1,DSMOO1,DRHO) &
+@@ -274,8 +295,12 @@
+     !$omp  private(R44,R51,R52,R53,R54,OM1,OM2,OM3,OM4,XL1,XL2,XL3) &
+     !$omp  private(XL4,FF1,FF2,FF3,FF4,EECC_1,EECC_2,EECC_3,EECC_4) &
+     !$omp  private(DOM1,DOM2,DOM3,DOM4,DXL1,DXL2,DXL3,DXL4,V1CC_1) &
++#ifdef __EXACT_ACC
++    !$omp  private(V1CC_2,V1CC_3,V1CC_4,V2CC_1,V2CC_2,V2CC_3,V2CC_4)
++#else
+     !$omp  private(V1CC_2,V1CC_3,V1CC_4,V2CC_1,V2CC_2,V2CC_3,V2CC_4) &
+     !$omp  reduction(+:SGCX,SGCC,IC,ID) __COLLAPSE3
++#endif
+     DO i3=1,parm%nr3,2
+        DO i2=1,parm%nr2,2
+           DO i1=1,parm%nr1
+@@ -284,7 +309,16 @@
+              rhou3=MAX(rhoe(i1,i2+0,i3+1),small)
+              rhou4=MAX(rhoe(i1,i2+1,i3+1),small)
+              IF ((rhou1+rhou2+rhou3+rhou4).GT.5._real_8*small) THEN
++#ifndef __EXACT_ACC
+                 id=id+1
++#endif
++#ifdef __EXACT_ACC
++                x1=rhou1**(1._real_8/3._real_8)
++                x2=rhou2**(1._real_8/3._real_8)
++                x3=rhou3**(1._real_8/3._real_8)
++                x4=rhou4**(1._real_8/3._real_8)
++                GOTO 10
++#endif
+                 DO ncount=1,100
+                    d1=x1-rhou1/x1**2
+                    d2=x2-rhou2/x2**2
+@@ -457,10 +491,17 @@
+                 v2cc_3=0.08333333333333_real_8*a*b*r53*om3*xl3
+                 v2cc_4=0.08333333333333_real_8*a*b*r54*om4*xl4
+                 ! ..sum up results
++#ifdef __EXACT_ACC
++                CALL exact_acc_add(ex_px((i3+1)/2),smoo1*eexc_1*rho431+smoo2*eexc_2*rho432+&
++                     smoo3*eexc_3*rho433+smoo4*eexc_4*rho434)
++                CALL exact_acc_add(ex_pc((i3+1)/2),smoo1*eecc_1+smoo2*eecc_2+&
++                     smoo3*eecc_3+smoo4*eecc_4)
++#else
+                 sgcx=sgcx+(smoo1*eexc_1*rho431+smoo2*eexc_2*rho432+&
+                      smoo3*eexc_3*rho433+smoo4*eexc_4*rho434)
+                 sgcc=sgcc+(smoo1*eecc_1+smoo2*eecc_2+&
+                      smoo3*eecc_3+smoo4*eecc_4)
++#endif
+                 v(i1,i2+0,i3+0)=dsmoo1*eexc_1*rho431+smoo1*vexc11*x1
+                 v(i1,i2+1,i3+0)=dsmoo2*eexc_2*rho432+smoo2*vexc12*x2
+                 v(i1,i2+0,i3+1)=dsmoo3*eexc_3*rho433+smoo3*vexc13*x3
+@@ -477,6 +518,15 @@
+           ENDDO
+        ENDDO
+     ENDDO
++#ifdef __EXACT_ACC
++    DO ex_ip=1,ex_np
++       CALL exact_acc_merge(ex_sx,ex_px(ex_ip))
++       CALL exact_acc_merge(ex_sc,ex_pc(ex_ip))
++    ENDDO
++    sgcx=exact_acc_finish(ex_sx,parai%allgrp)
++    sgcc=exact_acc_finish(ex_sc,parai%allgrp)
++    DEALLOCATE(ex_px,ex_pc)
++#endif
+     ! ..counting floating point operations
+     fadd   = ic * 11._real_8 + 4._real_8*id * 21._real_8
+     fmult  = ic * 12._real_8 + 4._real_8*id * 68._real_8
+--- a/src/vofrhoa_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
++++ b/src/vofrhoa_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
+@@ -115,11 +115,19 @@
+        ! Ion-Ion interaction - e-e (double counting)
+        ener_com%eht =  ener_com%ehii-ener_com%ehee&
+             + ener_com%esr&
++#ifdef __EXACT_ACC
++            - ener_com%eself
++#else
+             - ener_com%eself/REAL(parai%nproc,kind=real_8)
++#endif
+     ELSE
+        ener_com%eht =  ener_com%ehep&
+             + ener_com%esr&
++#ifdef __EXACT_ACC
++            - ener_com%eself
++#else
+             - ener_com%eself/REAL(parai%nproc,kind=real_8)
++#endif
+     ENDIF
+     ! Local pseudopotential energies
+     ener_com%epseu=2._real_8*REAL(eps)*parm%omega
+--- a/src/vofrhob_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
++++ b/src/vofrhob_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
+@@ -67,7 +67,10 @@
+   USE xcener_utils,                    ONLY: xcener
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -279,20 +282,28 @@
+              vgc=0.0_real_8
+              IF (corel%tinlc) THEN
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+(rhoval(ir,1)-rhoval(ir,2))*REAL(dqg_1d(ir))
+                    vgc=vgc+rhoval(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
+                 ENDDO
+              ELSE
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+rhoe(ir,1)*REAL(dqg_1d(ir))
+                    vgc=vgc+rhoe(ir,2)*REAL(dqg_1d(fpar%nnr1+ir))
+@@ -300,13 +311,31 @@
+              ENDIF
+              IF (cntl%ttau) THEN
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
++#ifdef __EXACT_ACC
++                BLOCK
++                  TYPE(exact_acc) :: ex_loop
++                  REAL(real_8) :: ex_gsum
++                  INTEGER :: ex_i
++                  CALL exact_acc_zero(ex_loop)
++                  DO ex_i=1,fpar%nnr1
++                    CALL exact_acc_add(ex_loop,(tau(ex_i,1)*vtau(ex_i,1)+tau(ex_i,2)*vtau(ex_i,2)))
++                  ENDDO
++                  ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++                  vgc = vgc + ex_gsum
++                END BLOCK
++#else
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+(tau(ir,1)*vtau(ir,1)+tau(ir,2)*vtau(ir,2))
+                 ENDDO
++#endif
+              ENDIF
+           ENDIF
+        ELSE
+@@ -317,41 +346,95 @@
+              vgc=0.0_real_8
+              IF (corel%tinlc) THEN
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
+ #ifdef __SR8000
+                 !poption parallel, tlocal(IR), psum(VGC)
+ #endif 
++#ifdef __EXACT_ACC
++                BLOCK
++                  TYPE(exact_acc) :: ex_loop
++                  REAL(real_8) :: ex_gsum
++                  INTEGER :: ex_i
++                  CALL exact_acc_zero(ex_loop)
++                  DO ex_i=1,fpar%nnr1
++                    CALL exact_acc_add(ex_loop,rhoval(ex_i,1)*REAL(dqg_1d(ex_i)))
++                  ENDDO
++                  ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++                  vgc = vgc + ex_gsum
++                END BLOCK
++#else
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+rhoval(ir,1)*REAL(dqg_1d(ir))
+                 ENDDO
++#endif
+              ELSE
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
+ #ifdef __SR8000
+                 !poption parallel, tlocal(IR), psum(VGC)
+ #endif 
++#ifdef __EXACT_ACC
++                BLOCK
++                  TYPE(exact_acc) :: ex_loop
++                  REAL(real_8) :: ex_gsum
++                  INTEGER :: ex_i
++                  CALL exact_acc_zero(ex_loop)
++                  DO ex_i=1,fpar%nnr1
++                    CALL exact_acc_add(ex_loop,rhoe(ex_i,1)*REAL(dqg_1d(ex_i)))
++                  ENDDO
++                  ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++                  vgc = vgc + ex_gsum
++                END BLOCK
++#else
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+rhoe(ir,1)*REAL(dqg_1d(ir))
+                 ENDDO
++#endif
+              ENDIF
+              IF (cntl%ttau) THEN
+ #if defined(__VECTOR)
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC)
++#endif
+ #else
++#ifndef __EXACT_ACC
+                 !$omp parallel do private(IR) reduction(+:VGC) schedule(static)
+ #endif
++#endif
+ #ifdef __SR8000
+                 !poption parallel, tlocal(IR), psum(VGC)
+ #endif
++#ifdef __EXACT_ACC
++                BLOCK
++                  TYPE(exact_acc) :: ex_loop
++                  REAL(real_8) :: ex_gsum
++                  INTEGER :: ex_i
++                  CALL exact_acc_zero(ex_loop)
++                  DO ex_i=1,fpar%nnr1
++                    CALL exact_acc_add(ex_loop,tau(ex_i,1)*vtau(ex_i,1))
++                  ENDDO
++                  ex_gsum = exact_acc_finish(ex_loop,parai%allgrp)
++                  vgc = vgc + ex_gsum
++                END BLOCK
++#else
+                 DO ir=1,fpar%nnr1
+                    vgc=vgc+tau(ir,1)*vtau(ir,1)
+                 ENDDO
++#endif
+              ENDIF
+           ENDIF
+        ENDIF
+--- a/src/rnlrh_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
++++ b/src/rnlrh_utils.mod.F90	2026-10-12 04:10:52.635896722 +0000
+@@ -29,7 +29,10 @@
+   USE timer,                           ONLY: tihalt,&
+                                              tiset
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -54,6 +57,9 @@
+                                                 isub, iv, jv, ki, kj, l, l2, &
+                                                 li, lj
+     REAL(real_8)                             :: sum, weight
++#ifdef __EXACT_ACC
++    TYPE(exact_acc) :: ex_acc
++#endif
+ 
+     enl=0._real_8
+     ! If no non-local components -> return.
+@@ -74,6 +80,9 @@
+              DO iv=1,nlps_com%ngh(is)
+                 DO jv=1,nlps_com%ngh(is)
+                    sum=0.0_real_8
++#ifdef __EXACT_ACC
++                   CALL exact_acc_zero(ex_acc)
++#endif
+                    ! Remember: NST12(MEPOS,1)=1
+                    ! ST12(MEPOS,2)=NSTATE for serial jobs
+                    DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+@@ -83,15 +92,24 @@
+                             isa=isa0+ia
+                             sum=sum+crge%f(i,ik)*fnl2(1,isa,iv,ii,ik)*&
+                                  fnl2(1,isa,jv,ii,ik)
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add(ex_acc,crge%f(i,ik)*fnl2(1,isa,iv,ii,ik)* fnl2(1,isa,jv,ii,ik))
++#endif
+                          ENDDO
+                       ELSE
+                          DO ia=1,ions0%na(is)
+                             isa=isa0+ia
+                             sum=sum+crge%f(i,ik)*fnl2(1,isa,iv,i,ik)*&
+                                  fnl2(1,isa,jv,i,ik)
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add(ex_acc,crge%f(i,ik)*fnl2(1,isa,iv,i,ik)* fnl2(1,isa,jv,i,ik))
++#endif
+                          ENDDO
+                       ENDIF
+                    ENDDO
++#ifdef __EXACT_ACC
++                   sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                    enl=enl+dvan(jv,iv,is)*sum
+                 ENDDO
+              ENDDO
+@@ -107,6 +125,9 @@
+                    IF (l2.EQ.l.AND.li.EQ.lj) THEN
+                       kj=sgpp2%lfval(jv,is)
+                       sum=0.0_real_8
++#ifdef __EXACT_ACC
++                      CALL exact_acc_zero(ex_acc)
++#endif
+                       DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+                          weight=wk(ik)*crge%f(i,ik)
+                          IF (weight.EQ.0._real_8) GOTO 2000
+@@ -117,12 +138,18 @@
+                                   isa=isa0+ia
+                                   sum=sum+weight*fnl2(1,isa,iv,ii,ik)*&
+                                        fnl2(1,isa,jv,ii,ik)
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add(ex_acc,weight*fnl2(1,isa,iv,ii,ik)* fnl2(1,isa,jv,ii,ik))
++#endif
+                                ENDDO
+                             ELSE
+                                DO ia=1,ions0%na(is)
+                                   isa=isa0+ia
+                                   sum=sum+weight*fnl2(1,isa,iv,i,ik)*&
+                                        fnl2(1,isa,jv,i,ik)
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add(ex_acc,weight*fnl2(1,isa,iv,i,ik)* fnl2(1,isa,jv,i,ik))
++#endif
+                                ENDDO
+                             ENDIF
+                          ELSE
+@@ -132,6 +159,12 @@
+                                   sum=sum+weight*&
+                                        (fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,jv,ii,ik)&
+                                        +fnl2(2,isa,iv,ii,ik)*fnl2(2,isa,jv,ii,ik))
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add( &
++                                       ex_acc, &
++                                       weight* (fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,jv,ii,ik) + &
++                                       fnl2(2,isa,iv,ii,ik)*fnl2(2,isa,jv,ii,ik)))
++#endif
+                                ENDDO
+                             ELSE
+                                DO ia=1,ions0%na(is)
+@@ -139,11 +172,19 @@
+                                   sum=sum+weight*&
+                                        (fnl2(1,isa,iv,i,ik)*fnl2(1,isa,jv,i,ik)&
+                                        +fnl2(2,isa,iv,i,ik)*fnl2(2,isa,jv,i,ik))
++#ifdef __EXACT_ACC
++                                  CALL exact_acc_add( &
++                                       ex_acc, &
++                                       weight* (fnl2(1,isa,iv,i,ik)*fnl2(1,isa,jv,i,ik) +fnl2(2,isa,iv,i,ik)*fnl2(2,isa,jv,i,ik)))
++#endif
+                                ENDDO
+                             ENDIF
+                          ENDIF
+ 2000                     CONTINUE
+                       ENDDO
++#ifdef __EXACT_ACC
++                      sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                       IF (iv.NE.jv) sum=2._real_8*sum
+                       enl=enl+sum*sgpp2%hlsg(ki,kj,l,is)
+                    ENDIF
+@@ -153,6 +194,9 @@
+              ! BHS AND RELATED 
+              DO iv=1,nlps_com%ngh(is)
+                 sum=0.0_real_8
++#ifdef __EXACT_ACC
++                CALL exact_acc_zero(ex_acc)
++#endif
+                 DO i=parap%nst12(parai%mepos,1),parap%nst12(parai%mepos,2)
+                    ii=i-parap%nst12(parai%mepos,1)+1
+                    IF (imagp.EQ.1) THEN
+@@ -161,12 +205,18 @@
+                             isa=isa0+ia
+                             sum=sum+crge%f(i,ik)*wk(ik)*&
+                                  fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,iv,ii,ik)
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add(ex_acc,crge%f(i,ik)*wk(ik)* fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,iv,ii,ik))
++#endif
+                          ENDDO
+                       ELSE
+                          DO ia=1,ions0%na(is)
+                             isa=isa0+ia
+                             sum=sum+crge%f(i,ik)*wk(ik)*&
+                                  fnl2(1,isa,iv,i,ik)*fnl2(1,isa,iv,i,ik)
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add(ex_acc,crge%f(i,ik)*wk(ik)* fnl2(1,isa,iv,i,ik)*fnl2(1,isa,iv,i,ik))
++#endif
+                          ENDDO
+                       ENDIF
+                    ELSE
+@@ -176,6 +226,12 @@
+                             sum=sum+crge%f(i,ik)*wk(ik)*&
+                                  (fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,iv,ii,ik)&
+                                  +fnl2(2,isa,iv,ii,ik)*fnl2(2,isa,iv,ii,ik))
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add( &
++                                 ex_acc, &
++                                 crge%f(i,ik)*wk(ik)* (fnl2(1,isa,iv,ii,ik)*fnl2(1,isa,iv,ii,ik) + &
++                                 fnl2(2,isa,iv,ii,ik)*fnl2(2,isa,iv,ii,ik)))
++#endif
+                          ENDDO
+                       ELSE
+                          DO ia=1,ions0%na(is)
+@@ -183,10 +239,19 @@
+                             sum=sum+crge%f(i,ik)*wk(ik)*&
+                                  (fnl2(1,isa,iv,i,ik)*fnl2(1,isa,iv,i,ik)&
+                                  +fnl2(2,isa,iv,i,ik)*fnl2(2,isa,iv,i,ik))
++#ifdef __EXACT_ACC
++                            CALL exact_acc_add( &
++                                 ex_acc, &
++                                 crge%f(i,ik)*wk(ik)* (fnl2(1,isa,iv,i,ik)*fnl2(1,isa,iv,i,ik) + &
++                                 fnl2(2,isa,iv,i,ik)*fnl2(2,isa,iv,i,ik)))
++#endif
+                          ENDDO
+                       ENDIF
+                    ENDIF
+                 ENDDO
++#ifdef __EXACT_ACC
++                sum = exact_acc_finish(ex_acc,parai%allgrp)
++#endif
+                 enl=enl+wsg(is,iv)*sum
+              ENDDO
+           ENDIF
+--- a/src/rscpot_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
++++ b/src/rscpot_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
+@@ -45,7 +45,10 @@
+                                              vcomp
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_fion_reset, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -101,6 +104,9 @@
+     ! ==--------------------------------------------------------------==
+     nfto=3*maxsys%nax*maxsys%nsx
+     CALL zeroing(fion)!,nfto)
++#ifdef __EXACT_ACC
++    CALL exact_fion_reset(3*maxsys%nax*maxsys%nsx)
++#endif
+     CALL rpiiint(ener_com%esr,tau0,fion,iteropt%iesr,tfor)
+     ! ==--------------------------------------------------------------==
+     ! == Compute the electronic density and kinetic energy            ==
+@@ -181,6 +187,9 @@
+     ener_com%etot = ener_com%ekin + ener_com%eht + ener_com%epseu + ener_com%enl + ener_com%exc + e_mm&
+          + vdwr%evdw + hubbu%ehub  ! Empirical or WFC-ab initio van der Waals correction
+     ! Sum ETOT,EKIN,EPSEU,ENL,EHT,EHEP,EHEE,EHII,EXC,VXC,EGC
++#ifdef __EXACT_ACC
++    CALL exact_note_skip(12)
++#endif
+     CALL mp_sum(ener_com% etot,parai%allgrp)
+     CALL mp_sum(ener_com% ekin,parai%allgrp)
+     CALL mp_sum(ener_com% epseu,parai%allgrp)
+--- a/src/gcener_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
++++ b/src/gcener_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
+@@ -45,7 +45,10 @@
+                                              tiset
+   USE zeroing_utils,                   ONLY: zeroing
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish_n
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -191,6 +194,27 @@
+        ENDIF
+     ENDIF
+     ! ==--------------------------------------------------------------==
++#ifdef __EXACT_ACC
++    IF (tstress) THEN
++       BLOCK
++         TYPE(exact_acc) :: ex_d(6)
++         REAL(real_8) :: ex_o(6)
++         INTEGER :: ex_k, ex_ir, ex_ia, ex_ib
++         DO ex_k=1,6
++            CALL exact_acc_zero(ex_d(ex_k))
++            ex_ia=alpha(ex_k)+1
++            ex_ib=beta(ex_k)+1
++            DO ex_ir=1,fpar%nnr1
++               CALL exact_acc_add(ex_d(ex_k),vtmp(ex_ir)*grad(ex_ir,ex_ia)*grad(ex_ir,ex_ib))
++            ENDDO
++         ENDDO
++         CALL exact_acc_finish_n(ex_d,6,ex_o,parai%allgrp)
++         DO ex_k=1,6
++            degc(ex_k)=ex_o(ex_k)*parm%omega/(spar%nr1s*spar%nr2s*spar%nr3s)
++         ENDDO
++       END BLOCK
++    ENDIF
++#else
+     IF (tstress) THEN
+        ! Contribution of dF/d(delta.n) to the stress tensor
+        !$omp parallel do private(KK,IR,IA,IB)
+@@ -204,6 +228,7 @@
+           degc(kk)=degc(kk)*parm%omega/(spar%nr1s*spar%nr2s*spar%nr3s)
+        ENDDO
+     ENDIF
++#endif
+     ! ==--------------------------------------------------------------==
+     ! FFT of V1 and V2*RHOx to G-Space
+     !$omp parallel do private(IR)
+--- a/src/rhoofr_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
++++ b/src/rhoofr_utils.mod.F90	2026-10-12 04:10:52.639896726 +0000
+@@ -108,7 +108,10 @@
+ 
+   USE nvtx_utils
+ 
+-  IMPLICIT NONE
++#ifdef __EXACT_ACC
++  USE exact_acc_utils, ONLY: exact_acc, exact_acc_zero, exact_acc_add, exact_acc_finish, exact_note_skip
++#endif
++IMPLICIT NONE
+ 
+   PRIVATE
+ 
+@@ -604,6 +607,17 @@
+     ! HERE TO CHECK THE INTEGRAL OF THE CHARGE DENSITY
+     ! RSUM1=DASUM(NNR1,RHOE(1,1),1)
+     ! --> with VDB PP RHOE might be negative in some points
++#ifdef __EXACT_ACC
++    BLOCK
++      TYPE(exact_acc) :: ex_r
++      INTEGER :: ex_i
++      CALL exact_acc_zero(ex_r)
++      DO ex_i=1,fpar%nnr1
++         CALL exact_acc_add(ex_r,rhoe(ex_i,1))
++      ENDDO
++      rsum1=exact_acc_finish(ex_r,parai%allgrp)
++    END BLOCK
++#else
+     rsum1=0._real_8
+ #if defined(__SR8000)
+     !poption parallel, tlocal(I), psum(RSUM1)
+@@ -614,9 +628,13 @@
+     DO i=1,fpar%nnr1
+        rsum1=rsum1+rhoe(i,1)
+     ENDDO
++#endif
+     rsum1=rsum1*parm%omega/REAL(spar%nr1s*spar%nr2s*spar%nr3s,kind=real_8)
+     chrg%csumg=rsum
+     chrg%csumr=rsum1
++#ifdef __EXACT_ACC
++    CALL exact_note_skip(2)
++#endif
+     CALL mp_sum(chrg%csumg,parai%allgrp)
+     CALL mp_sum(chrg%csumr,parai%allgrp)
+     CALL mp_sum(chrg%csums,parai%allgrp)

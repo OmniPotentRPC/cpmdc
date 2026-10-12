@@ -1,0 +1,607 @@
+Exact accumulation for OpenCPMD. Default off (-D__EXACT_ACC).
+Against 062582b7cfd832d36f88f504cd08e4ead42eb404.
+
+Kulisch superaccumulator and the compile switch.
+Each binary64 term is added into signed 128-bit digits before any
+rank-local or thread-local rounding. OpenMP and MPI merge the digits,
+then one round-ties-to-even produces the binary64 result.
+The module is empty unless -D__EXACT_ACC is set, so the stock path
+does not change. The distribution is unchanged.
+
+--- a/src/exact_acc_utils.mod.F90	1970-01-01 00:00:00.000000000 +0000
++++ b/src/exact_acc_utils.mod.F90	2026-10-12 04:10:52.611896698 +0000
+@@ -0,0 +1,583 @@
++#ifdef __EXACT_ACC
++#include "cpmd_global.h"
++
++! Kulisch superaccumulator for one binary64 sum.
++! Each bin is a signed 128-bit integer holding a 64-bit digit of the
++! fixed-point expansion, plus carry headroom. Every binary64 value is
++! an integer multiple of 2^-1074, so the digits cover that grid exactly.
++! Bin addition is associative. The binary64 result is produced once,
++! round-ties-to-even, after the OpenMP and MPI merges.
++!
++! Compiled only when __EXACT_ACC is set. The stock path is unchanged.
++module exact_acc_utils
++  use mpi
++  implicit none
++  integer, parameter :: exact_i16 = selected_int_kind(38)
++  integer, parameter :: exact_min_pow = -1074
++  integer, parameter :: exact_width = 64
++  integer, parameter :: exact_nbins = 36
++  type exact_acc
++    integer(exact_i16) :: bin(exact_nbins) = 0_exact_i16
++  end type exact_acc
++
++  integer, save :: exact_sum_skip = 0
++  logical, save :: exact_fnl_ready = .false.
++  logical, save :: exact_fion_on = .false.
++  integer, save :: exact_fion_n = 0
++  type(exact_acc), allocatable, save :: exact_fion_acc(:)
++
++  integer, save :: exact_mpi_dtype = 0
++  integer, save :: exact_mpi_op = 0
++  logical, save :: exact_mpi_ready = .false.
++
++  interface
++    subroutine exact_mpi_add(invec, inoutvec, len, datatype)
++      integer :: len, datatype
++      integer(8) :: invec(2, *), inoutvec(2, *)
++    end subroutine exact_mpi_add
++  end interface
++
++  public :: exact_acc, exact_i16, exact_nbins
++  public :: exact_acc_zero, exact_acc_add, exact_acc_merge
++  public :: exact_acc_round
++  public :: exact_acc_allreduce_n, exact_acc_allreduce_one
++  public :: exact_acc_finish
++  public :: exact_cdot_add, exact_cdot_global
++  public :: exact_ovlap_fill
++  public :: exact_apply_rr
++  public :: exact_pairsum
++  public :: exact_note_skip, exact_consume_skip
++  public :: exact_fnl_mark, exact_fnl_consume
++  public :: exact_fion_reset, exact_fion_add, exact_fion_add3
++  public :: exact_fion_finish
++  public :: exact_fion_on
++  public :: exact_acc_finish_n
++
++contains
++
++  subroutine exact_acc_zero(a)
++    type(exact_acc), intent(out) :: a
++    a%bin = 0_exact_i16
++  end subroutine exact_acc_zero
++
++  subroutine exact_acc_add(a, x)
++    type(exact_acc), intent(inout) :: a
++    real(8), intent(in) :: x
++    integer(8) :: bits, frac
++    integer :: expb, sgn, pow, rel, slot, shift
++    integer(exact_i16) :: mant
++    bits = transfer(x, 0_8)
++    sgn = int(shiftr(bits, 63))
++    expb = int(ibits(bits, 52, 11))
++    frac = ibits(bits, 0, 52)
++    if (expb == 2047) return
++    if (expb == 0) then
++      if (frac == 0_8) return
++      mant = int(frac, exact_i16)
++      pow = -1074
++    else
++      mant = int(ior(frac, shiftl(1_8, 52)), exact_i16)
++      pow = expb - 1023 - 52
++    end if
++    if (sgn == 1) mant = -mant
++    rel = pow - exact_min_pow
++    slot = rel/exact_width + 1
++    shift = modulo(rel, exact_width)
++    call add_mant(a, slot, shift, mant)
++  end subroutine exact_acc_add
++
++  subroutine add_mant(a, slot, shift, mant)
++    type(exact_acc), intent(inout) :: a
++    integer, intent(in) :: slot, shift
++    integer(exact_i16), intent(in) :: mant
++    integer(exact_i16) :: low, high, split
++    if (slot < 1 .or. slot > exact_nbins) return
++    if (shift == 0) then
++      a%bin(slot) = a%bin(slot) + mant
++      call carry_up(a, slot)
++      return
++    end if
++    split = ishft(1_exact_i16, exact_width - shift)
++    high = floor_div(mant, split)
++    low = mant - high*split
++    a%bin(slot) = a%bin(slot) + ishft(low, shift)
++    call carry_up(a, slot)
++    if (high /= 0_exact_i16 .and. slot < exact_nbins) then
++      a%bin(slot + 1) = a%bin(slot + 1) + high
++      call carry_up(a, slot + 1)
++    end if
++  end subroutine add_mant
++
++  subroutine carry_up(a, slot)
++    type(exact_acc), intent(inout) :: a
++    integer, intent(in) :: slot
++    integer(exact_i16) :: lim, base, carry
++    integer :: s
++    lim = ishft(1_exact_i16, 96)
++    base = ishft(1_exact_i16, exact_width)
++    s = slot
++    do while (s >= 1 .and. s <= exact_nbins)
++      if (a%bin(s) < lim .and. a%bin(s) > -lim) return
++      carry = floor_div(a%bin(s), base)
++      a%bin(s) = a%bin(s) - carry*base
++      if (s == exact_nbins) return
++      a%bin(s + 1) = a%bin(s + 1) + carry
++      s = s + 1
++    end do
++  end subroutine carry_up
++
++  subroutine exact_acc_merge(a, b)
++    type(exact_acc), intent(inout) :: a
++    type(exact_acc), intent(in) :: b
++    integer :: k
++    do k = 1, exact_nbins
++      a%bin(k) = a%bin(k) + b%bin(k)
++    end do
++    do k = 1, exact_nbins
++      call carry_up(a, k)
++    end do
++  end subroutine exact_acc_merge
++
++  function floor_div(n, d) result(q)
++    integer(exact_i16), intent(in) :: n, d
++    integer(exact_i16) :: q
++    if (n >= 0_exact_i16) then
++      q = n/d
++    else
++      q = -(( -n + d - 1_exact_i16)/d)
++    end if
++  end function floor_div
++
++  function exact_acc_round(src) result(x)
++    type(exact_acc), intent(in) :: src
++    real(8) :: x
++    type(exact_acc) :: a
++    integer(exact_i16) :: base, carry, v, t
++    integer :: k, top, pow, expb, i, rb, sticky, sgn
++    integer(8) :: frac, bits, mant
++    integer :: bit
++    a = src
++    base = ishft(1_exact_i16, exact_width)
++    carry = 0_exact_i16
++    do k = 1, exact_nbins
++      v = a%bin(k) + carry
++      carry = floor_div(v, base)
++      a%bin(k) = v - carry*base
++    end do
++    if (carry == 0_exact_i16) then
++      sgn = 0
++    else if (carry == -1_exact_i16) then
++      sgn = 1
++      carry = 1_exact_i16
++      do k = 1, exact_nbins
++        t = ieor(a%bin(k), base - 1_exact_i16) + carry
++        if (t >= base) then
++          a%bin(k) = t - base
++          carry = 1_exact_i16
++        else
++          a%bin(k) = t
++          carry = 0_exact_i16
++        end if
++      end do
++    else if (carry > 0_exact_i16) then
++      bits = ior(shiftl(int(sgn, 8), 63), shiftl(2047_8, 52))
++      x = transfer(bits, x)
++      return
++    else
++      bits = ior(shiftl(1_8, 63), shiftl(2047_8, 52))
++      x = transfer(bits, x)
++      return
++    end if
++    top = 0
++    do k = exact_nbins, 1, -1
++      if (a%bin(k) /= 0_exact_i16) then
++        top = k
++        exit
++      end if
++    end do
++    if (top == 0) then
++      x = 0.0d0
++      return
++    end if
++    pow = exact_min_pow + (top - 1)*exact_width + (127 - leadz(a%bin(top)))
++    if (pow > 1023) then
++      bits = ior(shiftl(int(sgn, 8), 63), shiftl(2047_8, 52))
++      x = transfer(bits, x)
++      return
++    end if
++    if (pow >= -1022) then
++      mant = 0_8
++      do i = 0, 52
++        if (bit_of(a, pow - i) == 1) mant = ibset(mant, 52 - i)
++      end do
++      rb = bit_of(a, pow - 53)
++      sticky = 0
++      if (any_below(a, pow - 53)) sticky = 1
++      if (rb == 1) then
++        if (sticky == 1 .or. btest(mant, 0)) mant = mant + 1_8
++      end if
++      if (mant >= shiftl(1_8, 53)) then
++        mant = shiftr(mant, 1)
++        pow = pow + 1
++      end if
++      if (pow > 1023) then
++        bits = ior(shiftl(int(sgn, 8), 63), shiftl(2047_8, 52))
++        x = transfer(bits, x)
++        return
++      end if
++      frac = iand(mant, shiftl(1_8, 52) - 1_8)
++      expb = pow + 1023
++      bits = ior(shiftl(int(sgn, 8), 63), ior(shiftl(int(expb, 8), 52), frac))
++      x = transfer(bits, x)
++      return
++    end if
++    frac = 0_8
++    do i = 0, 51
++      bit = bit_of(a, -1023 - i)
++      if (bit == 1) frac = ibset(frac, 51 - i)
++    end do
++    bits = ior(shiftl(int(sgn, 8), 63), frac)
++    x = transfer(bits, x)
++  end function exact_acc_round
++
++  function bit_of(a, pow) result(bit)
++    type(exact_acc), intent(in) :: a
++    integer, intent(in) :: pow
++    integer :: bit, rel, limb, off
++    bit = 0
++    rel = pow - exact_min_pow
++    if (rel < 0 .or. rel >= exact_nbins*exact_width) return
++    limb = rel/exact_width + 1
++    off = modulo(rel, exact_width)
++    bit = int(ibits(a%bin(limb), off, 1))
++  end function bit_of
++
++  function any_below(a, pow) result(yes)
++    type(exact_acc), intent(in) :: a
++    integer, intent(in) :: pow
++    logical :: yes
++    integer :: rel, limb, off, k
++    integer(exact_i16) :: mask
++    yes = .false.
++    rel = pow - exact_min_pow
++    if (rel <= 0) return
++    limb = (rel - 1)/exact_width + 1
++    off = modulo(rel - 1, exact_width)
++    if (limb >= 1 .and. limb <= exact_nbins) then
++      mask = ishft(1_exact_i16, off + 1) - 1_exact_i16
++      if (iand(a%bin(limb), mask) /= 0_exact_i16) then
++        yes = .true.
++        return
++      end if
++    end if
++    do k = 1, limb - 1
++      if (a%bin(k) /= 0_exact_i16) then
++        yes = .true.
++        return
++      end if
++    end do
++  end function any_below
++
++  subroutine exact_ensure_mpi()
++    integer :: ierr
++    if (exact_mpi_ready) return
++    call mpi_type_contiguous(2, MPI_INTEGER8, exact_mpi_dtype, ierr)
++    call mpi_type_commit(exact_mpi_dtype, ierr)
++    call mpi_op_create(exact_mpi_add, .true., exact_mpi_op, ierr)
++    exact_mpi_ready = .true.
++  end subroutine exact_ensure_mpi
++
++  subroutine exact_acc_allreduce_n(acc, n, comm)
++    type(exact_acc), intent(inout) :: acc(*)
++    integer, intent(in) :: n, comm
++    integer(8), allocatable :: sendb(:), recvb(:)
++    integer(8) :: limb(2)
++    integer :: i, k, ierr, nlimb
++    if (n <= 0) return
++    call exact_ensure_mpi()
++    nlimb = 2*exact_nbins*n
++    allocate(sendb(nlimb), recvb(nlimb))
++    do i = 1, n
++      do k = 1, exact_nbins
++        limb = transfer(acc(i)%bin(k), limb)
++        sendb(2*((i - 1)*exact_nbins + (k - 1)) + 1) = limb(1)
++        sendb(2*((i - 1)*exact_nbins + (k - 1)) + 2) = limb(2)
++      end do
++    end do
++    call mpi_allreduce(sendb, recvb, n*exact_nbins, exact_mpi_dtype, &
++         exact_mpi_op, comm, ierr)
++    do i = 1, n
++      do k = 1, exact_nbins
++        limb(1) = recvb(2*((i - 1)*exact_nbins + (k - 1)) + 1)
++        limb(2) = recvb(2*((i - 1)*exact_nbins + (k - 1)) + 2)
++        acc(i)%bin(k) = transfer(limb, acc(i)%bin(k))
++      end do
++    end do
++    deallocate(sendb, recvb)
++  end subroutine exact_acc_allreduce_n
++
++  subroutine exact_acc_allreduce_one(acc, comm)
++    type(exact_acc), intent(inout) :: acc
++    integer, intent(in) :: comm
++    type(exact_acc) :: tmp(1)
++    tmp(1) = acc
++    call exact_acc_allreduce_n(tmp, 1, comm)
++    acc = tmp(1)
++  end subroutine exact_acc_allreduce_one
++
++  function exact_acc_finish(acc, comm) result(x)
++    type(exact_acc), intent(inout) :: acc
++    integer, intent(in) :: comm
++    real(8) :: x
++    call exact_acc_allreduce_one(acc, comm)
++    x = exact_acc_round(acc)
++  end function exact_acc_finish
++
++  subroutine exact_cdot_add(acc, n, a, b, has_g0)
++    type(exact_acc), intent(inout) :: acc
++    integer, intent(in) :: n
++    complex(8), intent(in) :: a(*), b(*)
++    logical, intent(in) :: has_g0
++    integer :: ig, ig0
++    real(8) :: term
++    if (n < 1) return
++    ig0 = 1
++    if (has_g0) then
++      term = real(a(1))*real(b(1))
++      call exact_acc_add(acc, term)
++      ig0 = 2
++    end if
++    do ig = ig0, n
++      term = 2.0d0*(real(a(ig))*real(b(ig)) + aimag(a(ig))*aimag(b(ig)))
++      call exact_acc_add(acc, term)
++    end do
++  end subroutine exact_cdot_add
++
++  function exact_cdot_global(n, a, b, has_g0, comm) result(x)
++    integer, intent(in) :: n, comm
++    complex(8), intent(in) :: a(*), b(*)
++    logical, intent(in) :: has_g0
++    real(8) :: x
++    type(exact_acc) :: acc
++    call exact_acc_zero(acc)
++    call exact_cdot_add(acc, n, a, b, has_g0)
++    x = exact_acc_finish(acc, comm)
++  end function exact_cdot_global
++
++  ! out(ia, is) = sum_ig scale*(re_a*re_b + im_a*im_b), merged across comm.
++  ! a(ldc, na) is stored a(ig, ia). b(ldb, ns) is b(ig, is).
++  subroutine exact_pairsum(na, ns, ngw, a, lda, b, ldb, scale, out, comm)
++    integer, intent(in) :: na, ns, ngw, lda, ldb, comm
++    complex(8), intent(in) :: a(lda, *), b(ldb, *)
++    real(8), intent(in) :: scale
++    real(8), intent(out) :: out(na, ns)
++    type(exact_acc), allocatable :: acc(:, :)
++    integer :: ia, is, ig
++    real(8) :: term
++    if (na <= 0 .or. ns <= 0) return
++    allocate(acc(na, ns))
++    !$omp parallel do private(is, ia, ig, term) schedule(static)
++    do is = 1, ns
++      do ia = 1, na
++        call exact_acc_zero(acc(ia, is))
++        if (ngw > 0) then
++          do ig = 1, ngw
++            term = scale*(real(a(ig, ia))*real(b(ig, is)) + &
++                 aimag(a(ig, ia))*aimag(b(ig, is)))
++            call exact_acc_add(acc(ia, is), term)
++          end do
++        end if
++      end do
++    end do
++    !$omp end parallel do
++    call exact_acc_allreduce_n(acc, na*ns, comm)
++    do is = 1, ns
++      do ia = 1, na
++        out(ia, is) = exact_acc_round(acc(ia, is))
++      end do
++    end do
++    deallocate(acc)
++  end subroutine exact_pairsum
++
++  ! Gamma overlap. c1 and c2 are complex(ldc, *). The local G-vectors
++  ! occupy c(*, ibeg:ibeg+ngw-1) within each column... no: first index
++  ! is G, so the slice is c(ibeg:ibeg+ngw-1, state).
++  subroutine exact_ovlap_fill(n1, n2, amat, c1, c2, ldc, ibeg, ngw, &
++       has_g0, comm)
++    integer, intent(in) :: n1, n2, ldc, ibeg, ngw, comm
++    real(8), intent(out) :: amat(n1, n2)
++    complex(8), intent(in) :: c1(ldc, *), c2(ldc, *)
++    logical, intent(in) :: has_g0
++    type(exact_acc), allocatable :: acc(:, :)
++    integer :: i, j, ig, ig0, last
++    real(8) :: term
++    if (n1 <= 0 .or. n2 <= 0) return
++    allocate(acc(n1, n2))
++    last = ibeg + ngw - 1
++    !$omp parallel do private(j, i, ig, ig0, term) schedule(static)
++    do j = 1, n2
++      do i = 1, n1
++        call exact_acc_zero(acc(i, j))
++        if (ngw > 0) then
++          ig0 = ibeg
++          if (has_g0) then
++            term = real(c1(ig0, i))*real(c2(ig0, j))
++            call exact_acc_add(acc(i, j), term)
++            ig0 = ibeg + 1
++          end if
++          do ig = ig0, last
++            term = 2.0d0*(real(c1(ig, i))*real(c2(ig, j)) + &
++                 aimag(c1(ig, i))*aimag(c2(ig, j)))
++            call exact_acc_add(acc(i, j), term)
++          end do
++        end if
++      end do
++    end do
++    !$omp end parallel do
++    call exact_acc_allreduce_n(acc, n1*n2, comm)
++    do j = 1, n2
++      do i = 1, n1
++        amat(i, j) = exact_acc_round(acc(i, j))
++      end do
++    end do
++    deallocate(acc)
++  end subroutine exact_ovlap_fill
++
++  ! c(ig,j) = beta*c(ig,j) + alpha * sum_p a(ig,p)*b(p,j)
++  ! Callers pass the local g-slice. The p loop is the whole sum, so
++  ! each g is independent of how many g vectors share a rank or thread.
++  subroutine exact_apply_rr(ng, n, k, alpha, a, b, beta, c)
++    integer, intent(in) :: ng, n, k
++    real(8), intent(in) :: alpha, beta
++    complex(8), intent(in) :: a(ng, k)
++    real(8), intent(in) :: b(k, n)
++    complex(8), intent(inout) :: c(ng, n)
++    integer :: ig, j, p
++    complex(8) :: acc
++    if (ng < 1 .or. n < 1) return
++    !$omp parallel do private(j, ig, p, acc) schedule(static)
++    do j = 1, n
++      do ig = 1, ng
++        acc = (0.0d0, 0.0d0)
++        do p = 1, k
++          acc = acc + a(ig, p)*b(p, j)
++        end do
++        if (beta == 0.0d0) then
++          c(ig, j) = alpha*acc
++        else
++          c(ig, j) = beta*c(ig, j) + alpha*acc
++        end if
++      end do
++    end do
++    !$omp end parallel do
++  end subroutine exact_apply_rr
++
++  subroutine exact_note_skip(n)
++    integer, intent(in) :: n
++    exact_sum_skip = exact_sum_skip + n
++  end subroutine exact_note_skip
++
++  function exact_consume_skip() result(yes)
++    logical :: yes
++    yes = exact_sum_skip > 0
++    if (yes) exact_sum_skip = exact_sum_skip - 1
++  end function exact_consume_skip
++
++  subroutine exact_fnl_mark()
++    exact_fnl_ready = .true.
++  end subroutine exact_fnl_mark
++
++  function exact_fnl_consume() result(yes)
++    logical :: yes
++    yes = exact_fnl_ready
++    exact_fnl_ready = .false.
++  end function exact_fnl_consume
++
++  subroutine exact_fion_reset(n)
++    integer, intent(in) :: n
++    integer :: i
++    if (allocated(exact_fion_acc)) deallocate(exact_fion_acc)
++    exact_fion_n = n
++    if (n > 0) then
++      allocate(exact_fion_acc(n))
++      do i = 1, n
++        call exact_acc_zero(exact_fion_acc(i))
++      end do
++    end if
++    exact_fion_on = .true.
++  end subroutine exact_fion_reset
++
++  subroutine exact_fion_add(idx, dx)
++    integer, intent(in) :: idx
++    real(8), intent(in) :: dx
++    if (.not. exact_fion_on) return
++    if (idx < 1 .or. idx > exact_fion_n) return
++    call exact_acc_add(exact_fion_acc(idx), dx)
++  end subroutine exact_fion_add
++
++  subroutine exact_fion_add3(fion, k, ia, is, dx)
++    real(8), intent(in) :: fion(:,:,:)
++    integer, intent(in) :: k, ia, is
++    real(8), intent(in) :: dx
++    integer :: idx
++    idx = k + (ia - 1)*size(fion, 1) &
++         + (is - 1)*size(fion, 1)*size(fion, 2)
++    call exact_fion_add(idx, dx)
++  end subroutine exact_fion_add3
++
++  subroutine exact_acc_finish_n(acc, n, out, comm)
++    type(exact_acc), intent(inout) :: acc(*)
++    integer, intent(in) :: n, comm
++    real(8), intent(out) :: out(*)
++    integer :: i
++    if (n <= 0) return
++    call exact_acc_allreduce_n(acc, n, comm)
++    do i = 1, n
++      out(i) = exact_acc_round(acc(i))
++    end do
++  end subroutine exact_acc_finish_n
++
++  subroutine exact_fion_finish(fion, n, comm)
++    real(8), intent(out) :: fion(*)
++    integer, intent(in) :: n, comm
++    integer :: i, m
++    m = min(n, exact_fion_n)
++    if (m > 0) then
++      call exact_acc_allreduce_n(exact_fion_acc, m, comm)
++      do i = 1, m
++        fion(i) = exact_acc_round(exact_fion_acc(i))
++      end do
++      do i = m + 1, n
++        fion(i) = 0.0d0
++      end do
++    end if
++    exact_fion_on = .false.
++  end subroutine exact_fion_finish
++
++end module exact_acc_utils
++
++subroutine exact_mpi_add(invec, inoutvec, len, datatype)
++  use exact_acc_utils, only: exact_i16
++  implicit none
++  integer :: len, datatype
++  integer(8) :: invec(2, *), inoutvec(2, *)
++  integer(exact_i16) :: a, b
++  integer :: i
++  integer(8) :: tmp(2)
++  do i = 1, len
++    tmp = invec(:, i)
++    a = transfer(tmp, a)
++    tmp = inoutvec(:, i)
++    b = transfer(tmp, b)
++    b = a + b
++    tmp = transfer(b, tmp)
++    inoutvec(:, i) = tmp
++  end do
++end subroutine exact_mpi_add
++
++#else
++! Empty when __EXACT_ACC is unset, so a stock build does not pull MPI.
++module exact_acc_utils
++  implicit none
++end module exact_acc_utils
++#endif
+--- a/src/SOURCES	2026-10-12 04:10:52.615896701 +0000
++++ b/src/SOURCES	2026-10-12 04:10:52.615896701 +0000
+@@ -82,7 +82,7 @@
+ 
+ 
+ SRC_MODULES = kinds.mod.F90 machine.mod.F90 timer.mod.F90 error_handling.mod.F90 para_global.mod.F90 \
+-           mp_interface.mod.F90 mp_multiple_comm_init.mod.F90 system.mod.F90 system_utils.mod.F90 reshaper.mod.F90 \
++           mp_interface.mod.F90 exact_acc_utils.mod.F90 mp_multiple_comm_init.mod.F90 system.mod.F90 system_utils.mod.F90 reshaper.mod.F90 \
+            mm_parallel.mod.F90 if_parallel.mod.F90 md_driver.mod.F90 \
+            control_utils.mod.F90 dftin_utils.mod.F90 sysin_utils.mod.F90 setsc_utils.mod.F90 detsp_utils.mod.F90 \
+            adat.mod.F90 atom.mod.F90 atwf.mod.F90 bc.mod.F90 benc.mod.F90 aavan.mod.F90 \
