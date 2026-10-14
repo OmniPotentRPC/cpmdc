@@ -1,0 +1,9 @@
+# cpmdc ships no dispatched kernel. An above-baseline instruction in a
+# cpmdc symbol is a violation. There is no [[allow]] entry.
+#
+# OpenBLAS and libgfortran are linked dynamically in the CI build, so
+# their text is not in libcpmdc or the test binaries. Add a [[vendored]]
+# path only if a build copies one of those libraries into an audited
+# artefact (static link or a copied shared object).
+
+baseline = "x86-64"

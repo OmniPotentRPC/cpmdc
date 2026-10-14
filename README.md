@@ -355,7 +355,8 @@ Read the docs in this order:
 - Explanation: [architecture](docs/orgmode/explanation/architecture.org),
   [file route against in-process route](docs/orgmode/explanation/routes.org),
   [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
-  [MPI model](docs/orgmode/explanation/mpi-model.org)
+  [MPI model](docs/orgmode/explanation/mpi-model.org),
+  [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)
 
 Build the documentation site with:
 

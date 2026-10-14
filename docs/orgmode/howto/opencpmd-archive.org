@@ -126,8 +126,12 @@ The OpenCPMD sample ~LINUX-X86_64-GFORTRAN-MPI~ sets ~LIBS~ to one person's
 library path.
 Copying that file and adding ~-fPIC~ leaves the path in the build.
 ~cpmdc~ ships ~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ for the command below.
-It calls ~mpif90~ and ~gcc~ from ~PATH~, adds ~-fPIC~ to ~FFLAGS~ and
-~CFLAGS~, and sets ~LIBS~ to ~-lopenblas~.
+It calls ~mpif90~ and ~gcc~ from ~PATH~, adds ~-fPIC~ and
+~-ffp-contract=off~ to ~FFLAGS~ and ~CFLAGS~, and sets ~LIBS~ to
+~-lopenblas~.
+The aarch64 file is ~tools/LINUX-AARCH64-GFORTRAN-MPI-PIC~.
+The section Building OpenCPMD for mixed clusters below says when to
+use each file.
 When ~mpif90~ accepts it, ~FFLAGS~ also gains ~-fallow-argument-mismatch~.
 ~mp_bcast_byte~ broadcasts the bytes of its first argument, and one
 procedure calls it with several derived types.
@@ -200,3 +204,54 @@ no extra patch: ~cpmdc~ sets ~cntl%tpres~ before the SCF and copies
 ~paiu/omega~ afterwards.
 An isolated cell does not set the snapshot. The box has a volume, and CPMD
 does not compute the tensor.
+
+* Building OpenCPMD for mixed clusters
+A binary that runs on more than one CPU type must not be built with
+~-xHost~, ~-march=native~, or ~-axCORE-AVX512~.
+~-xHost~ and ~-march=native~ bind the object code to the CPU that
+compiled it.
+~-axCORE-AVX512~ is Intel's multi-target flag, and the binary it
+produces does not run on a non-Intel CPU.
+Stock OpenCPMD files that pass those flags include
+~INTEL-AMD-IFORT-OPENMPI~ and ~INTEL-SKYLAKE-IFORT-OPENMPI~.
+Do not copy them for a shared cluster.
+One binary per microarchitecture belongs in EESSI
+(Dröge et al., Softw. Pract. Exp. 53, 176 (2023),
+doi:10.1002/spe.3075).
+
+~cpmdc~ ships two configure files that set the instruction set explicitly.
+~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ passes ~-march=x86-64~ on debug and
+release ~FFLAGS~ and ~CFLAGS~.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults
+to x86-64-v3, which includes AVX2 and FMA.
+~tools/LINUX-AARCH64-GFORTRAN-MPI-PIC~ passes ~-march=armv8-a~ on those
+same flags.
+Both add ~-fPIC~, because ~libcpmdc~ is a shared library, and
+~-ffp-contract=off~.
+~-ffp-contract=off~ stops the compiler from fusing a multiply and an
+add into one instruction.
+That keeps numeric results equal across build targets.
+The same flag is on ~cpmdc~ C and Fortran arguments.
+Copy the file that matches the machine into ~configure/~:
+
+#+begin_src bash
+cp /path/to/cpmdc/tools/LINUX-AARCH64-GFORTRAN-MPI-PIC configure/
+./configure.sh -DEST=/path/to/opencpmd-build LINUX-AARCH64-GFORTRAN-MPI-PIC
+#+end_src
+
+On x86_64, use ~LINUX-X86_64-GFORTRAN-MPI-PIC~ in that command instead.
+
+OpenBLAS and FFTW choose their own kernels at run time when they were
+built that way.
+~meson.build~ links OpenBLAS, or FlexiBLAS when that library is
+present, and FFTW3, including ~fftw3_omp~ when it is present.
+Check OpenBLAS with ~openblas_get_config()~.
+The returned string contains ~DYNAMIC_ARCH~ when the library selects a
+kernel for the CPU it is running on.
+A build without ~DYNAMIC_ARCH~ can contain one microarchitecture and
+fault on a CPU that lacks it.
+Check FFTW in the build's ~config.log~ or the package recipe.
+Runtime selection is on when several SIMD codelet options were enabled
+together, for example ~--enable-sse2~, ~--enable-avx~, ~--enable-avx2~,
+~--enable-avx512~, or ~--enable-neon~.
+A library built with only one of those runs only that set.

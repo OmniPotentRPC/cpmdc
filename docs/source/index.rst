@@ -85,6 +85,12 @@ Start Here
    * - Understand what happens inside a call
      - Layers, the in-process route, orbitals between calls
      - :doc:`Architecture <explanation/architecture>`
+   * - Build OpenCPMD for more than one CPU
+     - Use the PIC configure file, which passes ``-march=x86-64`` or ``-march=armv8-a``
+     - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
+   * - See which instruction sets cpmdc compiles for
+     - This library has no hot kernel and does not read ``CPMDC_SIMD``
+     - :doc:`SIMD paths and dispatch <explanation/simd-paths>`
    * - Edit these docs
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
@@ -199,6 +205,7 @@ An OpenCPMD archive build links the same C ABI surface against
    explanation/routes
    explanation/wavefunction-state
    explanation/mpi-model
+   explanation/simd-paths
 
 .. toctree::
    :maxdepth: 2

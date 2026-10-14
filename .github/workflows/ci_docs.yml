@@ -27,7 +27,7 @@ jobs:
       with:
         name: documentation
         path: docs/build
-    - if: github.event_name == 'push'
+    - if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
       name: Deploy
       uses: peaceiris/actions-gh-pages@v4
       with:
@@ -37,9 +37,11 @@ jobs:
 name: Build and Deploy Documentation
 on:
   pull_request: {}
+  workflow_dispatch:
   push:
     branches:
     - main
+    - 'ci/**'
     tags:
     - '*'
   schedule:
