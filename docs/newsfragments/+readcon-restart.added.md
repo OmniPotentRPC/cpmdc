@@ -1,0 +1,1 @@
+`cpmdc-restart export-con` and `import-con` are available when Meson is configured with `-Dwith_readcon=true`. The bridge multiplies by `CPMDC_RESTART_ANGSTROM_PER_BOHR`, writes a RoundTrip CON, and calls `cpmdc_restart_set_cell` on import. The default build does not link readcon. The CON file is the geometry that is resumed, and the binary RESTART stays the wavefunction.

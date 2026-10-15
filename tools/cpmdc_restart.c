@@ -1,4 +1,5 @@
 #include "cpmdc_restart.h"
+#include "cpmdc_restart_con.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -15,10 +16,15 @@ static void usage(void) {
           "  cpmdc-restart velocities FILE [--angstrom]\n"
           "  cpmdc-restart patch-positions FILE XYZ OUT [--angstrom]\n"
           "  cpmdc-restart patch-velocities FILE XYZ OUT [--angstrom]\n"
+          "  cpmdc-restart export-con FILE OUT.con --species SYM[,SYM...]\n"
+          "  cpmdc-restart import-con FILE IN.con OUT\n"
           "\n"
           "XYZ is one x y z triple per line, in Bohr unless --angstrom.\n"
           "Coordinates stay in CPMD species order. Other RESTART records,\n"
-          "including the wavefunction, are copied unchanged.\n");
+          "including the wavefunction, are copied unchanged.\n"
+          "export-con and import-con need a build with -Dwith_readcon=true.\n"
+          "--species lists one symbol per CPMD species. The CON file is the\n"
+          "geometry that is resumed. The binary RESTART stays the wavefunction.\n");
 }
 
 static int want_angstrom(int argc, char **argv) {
@@ -251,6 +257,96 @@ int main(int argc, char **argv) {
       return 1;
     }
     free(xyz);
+    if (cpmdc_restart_write_path(file, out, err, sizeof err) != 0) {
+      fprintf(stderr, "cpmdc-restart: %s\n", err[0] ? err : "write failed");
+      cpmdc_restart_free(file);
+      return 1;
+    }
+  } else if (strcmp(cmd, "export-con") == 0) {
+    char **species = NULL;
+    const char **atoms = NULL;
+    int nspecies = 0;
+    int n;
+    const char *spec;
+    const char *out;
+    char *copy;
+    char *cursor;
+    if (argc < 6 || strcmp(argv[4], "--species") != 0) {
+      usage();
+      cpmdc_restart_free(file);
+      return 2;
+    }
+    out = argv[3];
+    spec = argv[5];
+    copy = malloc(strlen(spec) + 1);
+    if (!copy) {
+      fprintf(stderr, "cpmdc-restart: out of memory\n");
+      cpmdc_restart_free(file);
+      return 1;
+    }
+    memcpy(copy, spec, strlen(spec) + 1);
+    cursor = copy;
+    while (cursor && *cursor) {
+      char *comma = strchr(cursor, ',');
+      char **grown;
+      if (comma)
+        *comma = '\0';
+      if (*cursor == '\0') {
+        fprintf(stderr, "cpmdc-restart: empty species symbol\n");
+        free(species);
+        free(copy);
+        cpmdc_restart_free(file);
+        return 1;
+      }
+      grown = realloc(species, (size_t)(nspecies + 1) * sizeof(*species));
+      if (!grown) {
+        fprintf(stderr, "cpmdc-restart: out of memory\n");
+        free(species);
+        free(copy);
+        cpmdc_restart_free(file);
+        return 1;
+      }
+      species = grown;
+      species[nspecies++] = cursor;
+      cursor = comma ? comma + 1 : NULL;
+    }
+    n = cpmdc_restart_ncoords(file);
+    if (n > 0)
+      atoms = calloc((size_t)n, sizeof(*atoms));
+    if (!atoms ||
+        cpmdc_restart_expand_species_symbols(file, (const char *const *)species, nspecies,
+                                             atoms, n) != 0) {
+      fprintf(stderr, "cpmdc-restart: --species does not match the RESTART species\n");
+      free(atoms);
+      free(species);
+      free(copy);
+      cpmdc_restart_free(file);
+      return 1;
+    }
+    if (cpmdc_restart_con_export(file, out, atoms, n, err, sizeof err) != 0) {
+      fprintf(stderr, "cpmdc-restart: %s\n", err[0] ? err : "export failed");
+      free(atoms);
+      free(species);
+      free(copy);
+      cpmdc_restart_free(file);
+      return 1;
+    }
+    free(atoms);
+    free(species);
+    free(copy);
+  } else if (strcmp(cmd, "import-con") == 0) {
+    const char *out;
+    if (argc < 5) {
+      usage();
+      cpmdc_restart_free(file);
+      return 2;
+    }
+    out = argv[4];
+    if (cpmdc_restart_con_import(file, argv[3], err, sizeof err) != 0) {
+      fprintf(stderr, "cpmdc-restart: %s\n", err[0] ? err : "import failed");
+      cpmdc_restart_free(file);
+      return 1;
+    }
     if (cpmdc_restart_write_path(file, out, err, sizeof err) != 0) {
       fprintf(stderr, "cpmdc-restart: %s\n", err[0] ? err : "write failed");
       cpmdc_restart_free(file);
