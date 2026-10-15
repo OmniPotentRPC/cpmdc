@@ -20,15 +20,19 @@ extern "C" {
  * that is only the integer is accepted too.
  *
  * Coordinates, velocities, and the initial geometry are Bohr, in the order
- * wv30 writes tau0: species, then atom, then x,y,z. The angstrom conversion
- * matches OpenCPMD cnst%fbohr (1/0.529177210859).
+ * wv30 writes tau0: species, then atom, then x,y,z. Multiply a Bohr value
+ * by CPMDC_RESTART_ANGSTROM_PER_BOHR to get angstroms, and divide by the
+ * same macro on the way back. OpenCPMD names the reciprocal
+ * 1/0.529177210859 as cnst%fbohr. The restart bridge uses the macro in
+ * this header. src/cpmdc_params.h keeps a separate constant,
+ * CPMDC_BOHR_TO_ANGSTROM 0.529177210903.
  *
  * Replacing coordinates rewrites those 24-byte records and leaves every
  * other record, including plane-wave coefficients, byte for byte. The host
  * endianness must match the Fortran file (little endian on x86_64 gfortran).
  */
 
-/** Angstroms per Bohr, matching OpenCPMD `cnst%fbohr`. */
+/** Angstroms per Bohr. Multiply a Bohr coordinate by this macro. */
 #define CPMDC_RESTART_ANGSTROM_PER_BOHR 0.529177210859
 
 /** Opaque RESTART image. */
@@ -114,6 +118,24 @@ int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
  */
 int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
                           const int **na_per_species);
+
+/**
+ * @brief Expand one symbol per species into CPMD coordinate order.
+ *
+ * `atom_symbols[i]` aliases `species_symbols[s]` for the species that owns
+ * coordinate `i`. The caller keeps `species_symbols` alive.
+ *
+ * @param file Image whose species counts select the expansion.
+ * @param species_symbols One symbol per species, length `nspecies`.
+ * @param nspecies Must equal the stored species count.
+ * @param atom_symbols Receives `n_atoms` pointers. Required.
+ * @param n_atoms Must equal the coordinate count.
+ * @return 0 on success.
+ */
+int cpmdc_restart_expand_species_symbols(const cpmdc_restart *file,
+                                         const char *const *species_symbols,
+                                         int nspecies, const char **atom_symbols,
+                                         int n_atoms);
 
 /**
  * @brief Number of coordinate triples in section 4.
