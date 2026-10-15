@@ -109,6 +109,7 @@ Overview
 	int :ref:`cpmdc_restart_section<doxid-cpmdc__restart_8h_1a050b8c038447fe4331830979e20b168c>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, int section, int* count);
 	int :ref:`cpmdc_restart_cell<doxid-cpmdc__restart_8h_1ac1cdda0a95509fea2153133d80f96b7b>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, int* ibrav, int* indpg, double celldm[6]);
 	int :ref:`cpmdc_restart_species<doxid-cpmdc__restart_8h_1a25f632af816723de80cb0218a28b016e>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, int* nsp, const int** na_per_species);
+	int :ref:`cpmdc_restart_expand_species_symbols<doxid-cpmdc__restart_8h_1aa1af59868df9897f4344415de8230dd1>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, const char*const* species_symbols, int nspecies, const char** atom_symbols, int n_atoms);
 	int :ref:`cpmdc_restart_ncoords<doxid-cpmdc__restart_8h_1abfa7aca8335d0fc77ba01516ca77d86a>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file);
 	int :ref:`cpmdc_restart_coordinates<doxid-cpmdc__restart_8h_1a1f0b3f9f57fd0ca15b1a07b8ff5a649c>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, double* xyz, int n3);
 	int :ref:`cpmdc_restart_velocities<doxid-cpmdc__restart_8h_1aa8d1e583b86741cb4983f58e2fe911a0>`(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, double* xyz, int n3);
@@ -1076,6 +1077,56 @@ Read the species counts.
 
 0 when the species section is present.
 
+.. index:: pair: function; cpmdc_restart_expand_species_symbols
+.. _doxid-cpmdc__restart_8h_1aa1af59868df9897f4344415de8230dd1:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_restart_expand_species_symbols(const :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file, const char*const* species_symbols, int nspecies, const char** atom_symbols, int n_atoms)
+
+Expand one symbol per species into CPMD coordinate order.
+
+``atom_symbols[i]`` aliases ``species_symbols[s]`` for the species that owns coordinate ``i``. The caller keeps ``species_symbols`` alive.
+
+
+
+.. rubric:: Parameters:
+
+.. list-table::
+	:widths: 20 80
+
+	*
+		- file
+
+		- Image whose species counts select the expansion.
+
+	*
+		- species_symbols
+
+		- One symbol per species, length ``nspecies``.
+
+	*
+		- nspecies
+
+		- Must equal the stored species count.
+
+	*
+		- atom_symbols
+
+		- Receives ``n_atoms`` pointers. Required.
+
+	*
+		- n_atoms
+
+		- Must equal the coordinate count.
+
+
+
+.. rubric:: Returns:
+
+0 on success.
+
 .. index:: pair: function; cpmdc_restart_ncoords
 .. _doxid-cpmdc__restart_8h_1abfa7aca8335d0fc77ba01516ca77d86a:
 
@@ -1564,5 +1615,7 @@ Matches the shared-library soversion and :ref:`cpmdc_abi_version() <doxid-cpmdc_
 
 	#define CPMDC_RESTART_ANGSTROM_PER_BOHR
 
-Angstroms per Bohr, matching OpenCPMD ``cnstfbohr``.
+Angstroms per Bohr.
+
+Multiply a Bohr coordinate by this macro.
 

@@ -484,6 +484,7 @@ const char* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1aba7859
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a050b8c038447fe4331830979e20b168c"><span class="std std-ref">cpmdc_restart_section</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int section, int* count);
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ac1cdda0a95509fea2153133d80f96b7b"><span class="std std-ref">cpmdc_restart_cell</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* ibrav, int* indpg, double celldm[6]);
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a25f632af816723de80cb0218a28b016e"><span class="std std-ref">cpmdc_restart_species</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* nsp, const int** na_per_species);
+int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1aa1af59868df9897f4344415de8230dd1"><span class="std std-ref">cpmdc_restart_expand_species_symbols</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char*const* species_symbols, int nspecies, const char** atom_symbols, int n_atoms);
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span class="std std-ref">cpmdc_restart_ncoords</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span class="std std-ref">cpmdc_restart_coordinates</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3);
 int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span class="std std-ref">cpmdc_restart_velocities</span></a>(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3);
@@ -860,7 +861,38 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 when the species section is present.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span id="index-63"></span>int cpmdc_restart_ncoords(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aa1af59868df9897f4344415de8230dd1"><span id="index-63"></span>int cpmdc_restart_expand_species_symbols(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char*const* species_symbols, int nspecies, const char** atom_symbols, int n_atoms)</pre>
+<p>Expand one symbol per species into CPMD coordinate order.</p>
+<p><code class="docutils literal notranslate"><span class="pre">atom_symbols[i]</span></code> aliases <code class="docutils literal notranslate"><span class="pre">species_symbols[s]</span></code> for the species that owns coordinate <code class="docutils literal notranslate"><span class="pre">i</span></code>. The caller keeps <code class="docutils literal notranslate"><span class="pre">species_symbols</span></code> alive.</p>
+<p class="rubric">Parameters:</p>
+<div class="table-wrapper colwidths-given docutils container">
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 80.0%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>file</p></td>
+<td><p>Image whose species counts select the expansion.</p></td>
+</tr>
+<tr class="row-even"><td><p>species_symbols</p></td>
+<td><p>One symbol per species, length <code class="docutils literal notranslate"><span class="pre">nspecies</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>nspecies</p></td>
+<td><p>Must equal the stored species count.</p></td>
+</tr>
+<tr class="row-even"><td><p>atom_symbols</p></td>
+<td><p>Receives <code class="docutils literal notranslate"><span class="pre">n_atoms</span></code> pointers. Required.</p></td>
+</tr>
+<tr class="row-odd"><td><p>n_atoms</p></td>
+<td><p>Must equal the coordinate count.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Returns:</p>
+<p>0 on success.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1abfa7aca8335d0fc77ba01516ca77d86a"><span id="index-64"></span>int cpmdc_restart_ncoords(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file)</pre>
 <p>Number of coordinate triples in section 4.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -878,7 +910,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>The triple count, or 0 when that section is empty.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span id="index-64"></span>int cpmdc_restart_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a1f0b3f9f57fd0ca15b1a07b8ff5a649c"><span id="index-65"></span>int cpmdc_restart_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy coordinates in Bohr.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -902,7 +934,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span id="index-65"></span>int cpmdc_restart_velocities(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1aa8d1e583b86741cb4983f58e2fe911a0"><span id="index-66"></span>int cpmdc_restart_velocities(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy velocities in Bohr.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -926,7 +958,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a337a3c4578f21b024c908e66e0dd38fe"><span id="index-66"></span>int cpmdc_restart_initial_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a337a3c4578f21b024c908e66e0dd38fe"><span id="index-67"></span>int cpmdc_restart_initial_coordinates(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* xyz, int n3)</pre>
 <p>Copy the initial geometry in Bohr.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -950,7 +982,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3f076f8969698092b18908fb462ca13d"><span id="index-67"></span>int cpmdc_restart_set_coordinates(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3f076f8969698092b18908fb462ca13d"><span id="index-68"></span>int cpmdc_restart_set_coordinates(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
 <p>Replace coordinates, leaving every other record unchanged.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -974,7 +1006,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9f63ac6376aac41fd01fae63a73f3894"><span id="index-68"></span>int cpmdc_restart_set_velocities(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a9f63ac6376aac41fd01fae63a73f3894"><span id="index-69"></span>int cpmdc_restart_set_velocities(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double* xyz, int n3)</pre>
 <p>Replace velocities, leaving every other record unchanged.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -998,7 +1030,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3395624eaaf387d38411b709c6f4c06b"><span id="index-69"></span>int cpmdc_restart_set_cell(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double celldm[6])</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a3395624eaaf387d38411b709c6f4c06b"><span id="index-70"></span>int cpmdc_restart_set_cell(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const double celldm[6])</pre>
 <p>Replace the cell lattice parameters.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -1019,7 +1051,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a7fb885214c7ad0cda83cb7f7680fac6c"><span id="index-70"></span>int cpmdc_restart_cutoff(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a7fb885214c7ad0cda83cb7f7680fac6c"><span id="index-71"></span>int cpmdc_restart_cutoff(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, double* ecut, double* cdual, int* dual_flag, int* nel, int* nr1s, int* nr2s, int* nr3s)</pre>
 <p>Read the cutoff section.</p>
 <p><code class="docutils literal notranslate"><span class="pre">dual_flag</span></code> is the logical <code class="docutils literal notranslate"><span class="pre">dual</span></code> stored in section 7 (0 or 1), not the real dual factor. That factor is <code class="docutils literal notranslate"><span class="pre">cdual</span></code>.</p>
 <p class="rubric">Parameters:</p>
@@ -1059,7 +1091,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 when the section is present.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a5870f76d69d3672e1fa136c705475dbc"><span id="index-71"></span>int cpmdc_restart_states(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a5870f76d69d3672e1fa136c705475dbc"><span id="index-72"></span>int cpmdc_restart_states(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, int* n, int* nkpts, int* ngw, int* ngwl, int* nhg, int* nhgl)</pre>
 <p>Read the electronic-state counts.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -1095,7 +1127,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 when the section is present.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a999ee8be4f5b1b7c629b28fedd6e6a4f"><span id="index-72"></span>int cpmdc_restart_write_mem(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, void** bytes, size_t* nbytes, char* err, size_t err_cap)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1a999ee8be4f5b1b7c629b28fedd6e6a4f"><span id="index-73"></span>int cpmdc_restart_write_mem(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, void** bytes, size_t* nbytes, char* err, size_t err_cap)</pre>
 <p>Write the image to a newly allocated buffer.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -1125,7 +1157,7 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </div>
 <p class="rubric">Returns:</p>
 <p>0 on success.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1adda72bd3313b8e2ebd04360cb4ed5d2f"><span id="index-73"></span>int cpmdc_restart_write_path(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char* path, char* err, size_t err_cap)</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1adda72bd3313b8e2ebd04360cb4ed5d2f"><span id="index-74"></span>int cpmdc_restart_write_path(const <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file, const char* path, char* err, size_t err_cap)</pre>
 <p>Write the image to a filesystem path.</p>
 <p class="rubric">Parameters:</p>
 <div class="table-wrapper colwidths-given docutils container">
@@ -1155,11 +1187,12 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 </section>
 <section id="macros">
 <h3>Macros<a class="headerlink" href="#macros" title="Link to this heading">¶</a></h3>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a3e1546a10c3fe2b968f3bfaffd048056"><span id="index-74"></span>#define CPMDC_ABI_VERSION</pre>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-8h-1a3e1546a10c3fe2b968f3bfaffd048056"><span id="index-75"></span>#define CPMDC_ABI_VERSION</pre>
 <p>Numeric ABI generation of this header.</p>
 <p>Matches the shared-library soversion and <a class="reference internal" href="#doxid-cpmdc-8h-1a32d9936fa0bb1380d6da4b8c34c4be44"><span class="std std-ref">cpmdc_abi_version()</span></a>; bumps only on an incompatible ABI change.</p>
-<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1af60c430255991bb5fe2489d84b051597"><span id="index-75"></span>#define CPMDC_RESTART_ANGSTROM_PER_BOHR</pre>
-<p>Angstroms per Bohr, matching OpenCPMD <code class="docutils literal notranslate"><span class="pre">cnstfbohr</span></code>.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-cpmdc-restart-8h-1af60c430255991bb5fe2489d84b051597"><span id="index-76"></span>#define CPMDC_RESTART_ANGSTROM_PER_BOHR</pre>
+<p>Angstroms per Bohr.</p>
+<p>Multiply a Bohr coordinate by this macro.</p>
 </section>
 </section>
 </section>
