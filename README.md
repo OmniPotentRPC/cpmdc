@@ -187,6 +187,23 @@ cpmdc-restart patch-positions RESTART.1 pos.txt RESTART.1.next --angstrom
 Link `libcpmdc_restart` and include `cpmdc_restart.h` for the same operations
 from C or C++. The library does not link OpenCPMD.
 
+A build with `-Dwith_readcon=true` adds `export-con` and `import-con`. That
+option is off by default, so the CPMD-only build does not link Rust.
+readcon-core is pinned in `subprojects/readcon-core.wrap` to git main
+`694e808080c49979ee3099afcfa18e5420c40433` until `v0.17.1` is tagged. The
+bridge does not link readcon-db. `export-con` multiplies coordinates,
+velocities, and the cell lengths by `CPMDC_RESTART_ANGSTROM_PER_BOHR` and
+writes one RoundTrip CON with canonical left off and no decimal precision.
+`import-con` divides by that same macro and calls
+`cpmdc_restart_set_coordinates`, `cpmdc_restart_set_velocities`, and
+`cpmdc_restart_set_cell`. The CON file is the geometry that is resumed. The
+binary `RESTART` stays the wavefunction.
+
+```bash
+cpmdc-restart export-con RESTART.1 water.con --species O,H
+cpmdc-restart import-con RESTART.1 water.con RESTART.1.next
+```
+
 ## CPMD Input Model
 
 Route configuration in this order:

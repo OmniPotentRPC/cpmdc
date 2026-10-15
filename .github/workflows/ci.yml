@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'ci/**'
+      - feat/readcon-0.17
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -29,6 +30,12 @@ jobs:
           cache: true
       - name: Full meson suite (stub + embed E2E)
         run: pixi run test-stub
+      - name: Default restart build does not link readcon
+        run: |
+          if nm -A build/cpmdc-restart build/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
+            echo "default restart build references readcon"
+            exit 1
+          fi
       - name: E2E suite only
         run: pixi run test-e2e
       - name: Cmocka suite
@@ -67,6 +74,12 @@ jobs:
         env:
           FI_MR_CACHE_MONITOR: disabled
         run: pixi run test-stub-sanitize
+      - name: Sanitize restart build does not link readcon
+        run: |
+          if nm -A build-sanitize/cpmdc-restart build-sanitize/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
+            echo "sanitize restart build references readcon"
+            exit 1
+          fi
 
   stub-and-e2e-arm64:
     name: stub-and-e2e (ubuntu-24.04-arm)
@@ -105,12 +118,34 @@ jobs:
           meson setup build -Dwith_tests=true
           meson compile -C build
           meson test -C build --print-errorlogs
+          if nm -A build/cpmdc-restart build/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
+            echo "arm64 restart build references readcon"
+            exit 1
+          fi
       - name: Keep unstripped libraries for the ISA audit
         run: tools/collect_isa_audit_libs.sh build isa-audit-libs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unstripped-libs-arm64
           path: isa-audit-libs/
+
+  readcon-restart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: Rust 1.99
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.99.0 --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Byte-exact CON restart
+        run: |
+          . "$HOME/.cargo/env"
+          rustc --version
+          pixi run test-readcon
 
   isa-audit-x86_64:
     name: isa audit (x86_64)

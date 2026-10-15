@@ -1,0 +1,6 @@
+# v0.17.1 is not tagged. Cargo.toml on main already says 0.17.1.
+# Pin that main commit until the tag exists. 694e808 is the tip this bridge was written against.
+[wrap-git]
+directory = readcon-core
+url = https://github.com/lode-org/readcon-core.git
+revision = 694e808080c49979ee3099afcfa18e5420c40433

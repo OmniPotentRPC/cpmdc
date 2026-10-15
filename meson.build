@@ -309,11 +309,36 @@ cpmdc_restart_dep = declare_dependency(
   link_with: cpmdc_restart_lib,
   include_directories: inc,
 )
-executable(
+restart_tool_sources = ['tools/cpmdc_restart.c']
+restart_tool_deps = [cpmdc_restart_dep]
+cpmdc_restart_con_dep = disabler()
+if get_option('with_readcon')
+  readcon_proj = subproject(
+    'readcon-core',
+    default_options: ['default_library=static', 'with_tests=false', 'with_examples=false'],
+  )
+  readcon_dep = readcon_proj.get_variable('readcon_dep')
+  cpmdc_restart_con_lib = static_library(
+    'cpmdc_restart_con',
+    'tools/cpmdc_restart_con.c',
+    include_directories: [inc, include_directories('tools')],
+    dependencies: [cpmdc_restart_dep, readcon_dep, math_dep],
+    c_args: common_c_args,
+  )
+  cpmdc_restart_con_dep = declare_dependency(
+    link_with: cpmdc_restart_con_lib,
+    include_directories: [inc, include_directories('tools')],
+    dependencies: [cpmdc_restart_dep, readcon_dep, math_dep],
+  )
+  restart_tool_deps += [cpmdc_restart_con_dep]
+else
+  restart_tool_sources += ['tools/cpmdc_restart_con_stub.c']
+endif
+cpmdc_restart_exe = executable(
   'cpmdc-restart',
-  'tools/cpmdc_restart.c',
-  dependencies: [cpmdc_restart_dep],
-  include_directories: inc,
+  restart_tool_sources,
+  dependencies: restart_tool_deps,
+  include_directories: [inc, include_directories('tools')],
   c_args: common_c_args,
   install: true,
 )
@@ -368,6 +393,24 @@ if get_option('with_tests')
     suite: ['restart'],
     args: [meson.current_source_dir() / 'tests/restart_geo1.bin'],
   )
+  if get_option('with_readcon')
+    test(
+      'restart-con-golden',
+      executable(
+        'test_cpmd_restart_con',
+        'tests/test_cpmd_restart_con.c',
+        dependencies: [cpmdc_restart_con_dep],
+        include_directories: [inc, include_directories('tools')],
+        c_args: common_c_args,
+      ),
+      suite: ['restart-con'],
+      args: [
+        meson.current_source_dir() / 'tests/golden/restart_water.con',
+        cpmdc_restart_exe.full_path(),
+      ],
+      timeout: 120,
+    )
+  endif
   encode = [
     python,
     meson.current_source_dir() / 'tests/encode_capnp.py',
