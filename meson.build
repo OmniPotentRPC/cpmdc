@@ -28,12 +28,6 @@ add_project_arguments(
 )
 pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
-minimage_dep = dependency(
-  'minimage',
-  version: '>=0.1.4',
-  fallback: ['minimage', 'minimage_dep'],
-  default_options: ['with_tests=false', 'with_examples=false'],
-)
 dl_dep = dependency('dl', required: false)
 if not dl_dep.found()
   dl_dep = cc.find_library('dl', required: false)
@@ -82,6 +76,13 @@ endif
 if cc.get_id() in ['gcc', 'clang']
   capnp_generated_c_args += ['-Wno-missing-field-initializers']
 endif
+
+minimage_dep = dependency(
+  'minimage',
+  version: '>=0.1.4',
+  fallback: ['minimage', 'minimage_dep'],
+  default_options: ['with_tests=false', 'with_examples=false'],
+)
 
 cpmdc_params_sources = []
 cpmdc_params_deps = []
