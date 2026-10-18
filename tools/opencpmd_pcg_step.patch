@@ -1,0 +1,31 @@
+--- a/src/pcgrad_driver.mod.F90
++++ b/src/pcgrad_driver.mod.F90
+@@ -48,6 +48,18 @@
+ 
+ CONTAINS
+ 
++  PURE FUNCTION scaled_pcg_step(force0,force1,alam) RESULT(step)
++    REAL(real_8), INTENT(IN) :: force0, force1, alam
++    REAL(real_8) :: step, scale, slope
++    ! Directional derivatives share the square of the orbital-gradient scale.
++    ! Normalizing both preserves the interpolated root at small residuals.
++    scale=MAX(ABS(force0),ABS(force1))
++    step=alam
++    IF (scale.EQ.0._real_8) RETURN
++    slope=force1/scale-force0/scale
++    IF (slope.NE.0._real_8) step=-(force0/scale)*alam/slope
++  END FUNCTION scaled_pcg_step
++
+   ! ==================================================================
+   SUBROUTINE pcgrad(c0,c2,sc0,vpp,hnm1,rhoe,psi,tau0,nstate,dinit)
+     ! ==--------------------------------------------------------------==
+@@ -393,8 +405,7 @@
+        a = (force1-force0)/(2._real_8*alam)
+        b = force0
+        c = e0
+-       IF (ABS(a).LT.1.0e-15_real_8) a=SIGN(1.0e-15_real_8,a)
+-       x0=-b/(2.0_real_8*a)
++       x0=scaled_pcg_step(force0,force1,alam)
+        de = 0.5_real_8*(force1-force0)*x0*x0+force0*x0+e0
+        CALL mp_bcast(x0,parai%io_source,parai%cp_grp)
+        CALL mp_bcast(alam,parai%io_source,parai%cp_grp)
