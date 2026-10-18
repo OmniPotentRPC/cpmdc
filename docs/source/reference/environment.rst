@@ -71,7 +71,11 @@ evaluation it also writes ``cpmdc_warm_start S D``: where the SCF starts
 (``S`` 0 the selected key's stored orbitals, 1 another key's parked
 orbitals, -1 the deck's guess because every stored geometry lies beyond
 ``CPMDC_WARM_RMSD``) and the nearest distance ``D`` in Angstrom, or
-``cpmdc_warm_start -2`` when nothing is stored.
+``cpmdc_warm_start -2`` when nothing is stored. Lines with a distance
+also include ``donor_key=K``, the key whose converged orbitals supply
+the selected history, and ``periodic=T`` or ``periodic=F``, the native
+boundary model used for the distance. A rejected history's donor key
+describes the nearest stored candidate, not an accepted warm start.
 
 ``CPMDC_WARM_RMSD`` is the distance limit of
 :doc:`the stored orbitals <../explanation/wavefunction-state>` (section
