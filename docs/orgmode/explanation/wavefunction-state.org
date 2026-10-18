@@ -103,9 +103,11 @@ When that distance exceeds ~CPMDC_WARM_RMSD~ (default 0.15 Angstrom), the
 SCF starts from the deck's guess instead, and the stored copy of that call
 is dropped.
 A negative limit starts from the store at any distance.
-Periodic systems use minimage's Euclidean closest lattice image in the
-native cell, including skew cells. Isolated cluster and Hockney/Tuckerman
-systems use absolute Cartesian distances even when a cell is supplied.
+When the native ~tclust~ flag is false, the metric uses minimage's Euclidean
+closest lattice image in the native cell, including skew cells. A true
+~tclust~ flag selects absolute Cartesian distances even when a cell is
+supplied. The parser sets this flag for ~CLUSTER~, ~SURFACE~, ~POLYMER~ or
+~SYMMETRY 0~; a ~POISSON~ keyword alone does not establish it.
 Coordinates are compared in species order without rotation or alignment.
 A cell or boundary-model change invalidates every stored orbital state,
 including when the distance limit is negative.

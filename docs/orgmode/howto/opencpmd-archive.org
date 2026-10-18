@@ -121,6 +121,7 @@ build:
 #+begin_src bash
 git clone https://github.com/OpenCPMD/CPMD.git opencpmd
 cd opencpmd
+git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
          embed_teardown; do
