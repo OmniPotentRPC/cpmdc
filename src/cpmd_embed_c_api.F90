@@ -1923,7 +1923,7 @@ CONTAINS
         cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
-        embed_set_write_files
+        embed_set_write_files, embed_choose_warm_start
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
@@ -1947,7 +1947,8 @@ CONTAINS
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
-    INTEGER :: inwfun_deck, ibench_deck
+    INTEGER :: inwfun_deck, ibench_deck, warm_source
+    REAL(real64) :: warm_dist
     INTERFACE
       FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
         IMPORT :: c_int
@@ -2008,6 +2009,12 @@ CONTAINS
     ! and does not build a guess. inwfun 3 is the start when the copy is
     ! absent: loadc, one orthogonalisation, and no force evaluation.
     ! That stands in for the Lanczos guess and for the random start.
+    ! Stored orbitals start this SCF only when they converged at a
+    ! geometry within warm_rmsd_limit() of this one; farther, the guess
+    ! below is the cheaper start.
+    CALL embed_choose_warm_start(pos(1:nmax), warm_rmsd_limit(), &
+        warm_dist, warm_source)
+    CALL note_warm_start(warm_source, warm_dist)
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
     ! The cheap guess is for a process that already holds c0. A new
@@ -2132,6 +2139,44 @@ CONTAINS
     IF (TRIM(v) /= '1') RETURN
     IF (.NOT. paral%io_parent) RETURN
     WRITE(error_unit, '(A,I0)') 'cpmdc_scf_steps ', nfi
+  END SUBROUTINE
+
+  ! The largest root-mean-square distance per atom, in Angstrom, between
+  ! the geometry stored orbitals converged at and the geometry of a call
+  ! that may start from them. CPMDC_WARM_RMSD overrides it; a negative
+  ! value starts from the stored orbitals at any distance.
+  REAL(real64) FUNCTION warm_rmsd_limit()
+    ! Default limit, Angstrom.
+    REAL(real64), PARAMETER :: warm_rmsd_default = 0.5_real64
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st, ios
+    REAL(real64) :: x
+    warm_rmsd_limit = warm_rmsd_default
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_WARM_RMSD', v, STATUS=st)
+    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
+    READ(v, *, IOSTAT=ios) x
+    IF (ios == 0) warm_rmsd_limit = x
+  END FUNCTION
+
+  ! CPMDC_SCF_STEPS=1 also reports where each SCF started: source 0 the
+  ! selected key's store, 1 another key's parked orbitals, -1 the guess
+  ! because every stored geometry was beyond warm_rmsd_limit(), -2 the
+  ! guess because nothing was stored; and the nearest distance, Angstrom.
+  SUBROUTINE note_warm_start(source, dist)
+    USE parac, ONLY: paral
+    INTEGER, INTENT(IN) :: source
+    REAL(real64), INTENT(IN) :: dist
+    CHARACTER(LEN=8) :: v
+    INTEGER :: st
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_SCF_STEPS', v, STATUS=st)
+    IF (st /= 0) RETURN
+    IF (TRIM(v) /= '1') RETURN
+    IF (.NOT. paral%io_parent) RETURN
+    IF (source == -2) THEN
+      WRITE(error_unit, '(A,I0)') 'cpmdc_warm_start ', source
+    ELSE
+      WRITE(error_unit, '(A,I0,1X,F0.4)') 'cpmdc_warm_start ', source, dist
+    END IF
   END SUBROUTINE
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
