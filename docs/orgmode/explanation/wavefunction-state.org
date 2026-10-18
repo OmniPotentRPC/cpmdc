@@ -94,10 +94,11 @@ A session that never selects a key keeps one stored copy.
 Every stored and parked ~c0~ carries the geometry it converged at, the
 Angstrom positions the caller passed.
 Before each SCF, ~embed_choose_warm_start~ measures the root-mean-square
-distance per atom from the new geometry to each of them, without alignment,
-and takes the nearest: the store (the selected key's own copy, or the copy
-of the key last left when the selected key has none), or another key's
-parked copy, which it copies so the donor keeps its own.
+distance per atom from the new geometry to each of them, without alignment.
+The nearest one starts the SCF.
+It is either the store, which holds the selected key's own copy or, when
+that key has none, the copy of the key last left, or another key's parked
+copy, which is copied so the donor keeps its own.
 When that distance exceeds ~CPMDC_WARM_RMSD~ (default 0.15 Angstrom), the
 SCF starts from the deck's guess instead, and the stored copy of that call
 is dropped.
@@ -106,9 +107,10 @@ An atom the caller wraps across the cell counts its whole displacement, so
 it costs a warm start, never a result.
 
 The default comes from the Si3N4 BLYP 70 Ry band (7 atoms, 14 Angstrom
-cell, ODIIS, 4 ranks per calculation): two calls in one process, the
-second at a geometry a set distance away along the band, started from the
-first call's orbitals or from the deck's atomic guess.
+cell, ODIIS, 4 ranks per calculation).
+One process makes two calls.
+The second sits a set distance along the band from the first and starts
+from the first call's orbitals or from the deck's atomic guess.
 Five starting images, means over them per call:
 | RMSD (Angstrom) | SCF steps, warm | SCF steps, guess | wall saved by the warm start (s) |
 |-----------------+-----------------+------------------+----------------------------------|
