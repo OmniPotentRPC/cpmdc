@@ -93,13 +93,68 @@ neighbouring bead rather than the same bead one step earlier.
 evaluations belong to. ``opencpmd_embed_rwfopt.patch`` keeps a table of
 stored ``c0`` copies, one per key, beside the store ``rwfopt`` restores
 from. Selecting another key parks the converged ``c0`` under the key
-being left and moves the copy parked under the new key into the store; a
-key with nothing parked starts from the copy already in the store, the
-nearest calculation the calculator has. A partial copy from an
-unconverged pass is not parked. Every rank of a calculator selects the
-same key, and each rank parks its own slice of ``c0``. A basis change
-frees the table with the store, since every copy in it has the shape of
-the old basis. A session that never selects a key keeps one stored copy.
+being left and moves the copy parked under the new key into the store. A
+partial copy from an unconverged pass is not parked. Every rank of a
+calculator selects the same key, and each rank parks its own slice of
+``c0``. A basis change frees the table with the store, since every copy
+in it has the shape of the old basis. A session that never selects a key
+keeps one stored copy.
+
+Distance limit
+==============
+
+Every stored and parked ``c0`` carries the geometry it converged at, the
+Angstrom positions the caller passed. Before each SCF,
+``embed_choose_warm_start`` measures the root-mean-square distance per
+atom from the new geometry to each of them, without alignment. The
+nearest one starts the SCF. It is either the store, which holds the
+selected key's own copy or, when that key has none, the copy of the key
+last left, or another key's parked copy, which is copied so the donor
+keeps its own. When that distance exceeds ``CPMDC_WARM_RMSD`` (default
+0.15 Angstrom), the SCF starts from the deck's guess instead, and the
+stored copy of that call is dropped. A negative limit starts from the
+store at any distance. An atom the caller wraps across the cell counts
+its whole displacement, so it costs a warm start, never a result.
+
+The default comes from the Si3N4 BLYP 70 Ry band (7 atoms, 14 Angstrom
+cell, ODIIS, 4 ranks per calculation). One process makes two calls. The
+second sits a set distance along the band from the first and starts from
+the first call's orbitals or from the deck's atomic guess. Five starting
+images, means over them per call:
+
++----------------+----------------+----------------+----------------+
+| RMSD           | SCF steps,     | SCF steps,     | wall saved by  |
+| (Angstrom)     | warm           | guess          | the warm start |
+|                |                |                | (s)            |
++================+================+================+================+
+| 0.047          | 24.0           | 32.4           |                |
++----------------+----------------+----------------+----------------+
+| 0.116          | 29.2           | 33.2           | 4.5            |
++----------------+----------------+----------------+----------------+
+| 0.149          | 32.4           | 33.0           | 2.1            |
++----------------+----------------+----------------+----------------+
+| 0.167          | 33.8           | 33.4           | 1.2            |
++----------------+----------------+----------------+----------------+
+| 0.186          | 35.4           | 33.0           | -0.4           |
++----------------+----------------+----------------+----------------+
+| 0.233          | 37.6           | 32.8           | -2.4           |
++----------------+----------------+----------------+----------------+
+| 0.46 (3)       | 47.7           | 37.7           |                |
++----------------+----------------+----------------+----------------+
+| 0.9 to 3.1     | 36 to 283      | 19 to 52       |                |
++----------------+----------------+----------------+----------------+
+
+Next to an endpoint the guess is already close (19 to 26 steps): a warm
+start there gains at most 3 steps and loses from 0.12 Angstrom on.
+Mid-path images gain up to 27 steps at 0.05 Angstrom. The 0.46 row has
+three starting images; the last row covers the warm starts from images
+0, 4 and 8 to every image that far away. The deck's guess, not the
+simple guess (``inwfun 3``) a process that holds orbitals otherwise
+takes, is the start past the limit: the simple guess took 65 to 205
+steps on the same images where the deck's took 37 to 52. A band step
+capped at 0.1 Angstrom per atom stays inside the limit, so an image that
+returns to its own key is warm. ``CPMDC_SCF_STEPS=1`` prints the start
+of every call.
 
 What clears the orbitals
 ========================

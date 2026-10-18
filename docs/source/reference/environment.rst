@@ -1,33 +1,48 @@
 Read by libcpmdc at run time
 ============================
 
-+--------------------------+-------------------------------+----------------------+
-| Variable                 | Read in                       | Effect               |
-+==========================+===============================+======================+
-| ``CPMDC_PSEUDO_DIR``     | ``src/cpmd_embed_c_api.F90``, | directory holding    |
-|                          | first call of an OpenCPMD     | the pseudopotential  |
-|                          | session                       | files named in the   |
-|                          |                               | deck; ``cpmdc``      |
-|                          |                               | changes into it      |
-|                          |                               | while CPMD reads     |
-|                          |                               | them, then leaves it |
-|                          |                               | before CPMD writes   |
-|                          |                               | output files         |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMD_PP_LIBRARY_PATH`` | same place, when              | fallback for the     |
-|                          | ``CPMDC_PSEUDO_DIR`` is unset | same directory       |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMDC_DECK_OUT``       | ``src/cpmdc.c``, each time a  | file that receives   |
-|                          | message is rendered           | the rendered method  |
-|                          |                               | deck; each write     |
-|                          |                               | replaces the last    |
-+--------------------------+-------------------------------+----------------------+
-| ``CPMDC_STRESS``         | ``src/cpmd_embed_c_api.F90``, | ``0`` skips the      |
-|                          | each OpenCPMD evaluation      | stress tensor on     |
-|                          |                               | periodic cells; any  |
-|                          |                               | other value, or      |
-|                          |                               | unset, computes it   |
-+--------------------------+-------------------------------+----------------------+
++--------------------------+-------------------------------+-----------------------+
+| Variable                 | Read in                       | Effect                |
++==========================+===============================+=======================+
+| ``CPMDC_PSEUDO_DIR``     | ``src/cpmd_embed_c_api.F90``, | directory holding the |
+|                          | first call of an OpenCPMD     | pseudopotential files |
+|                          | session                       | named in the deck;    |
+|                          |                               | ``cpmdc`` changes     |
+|                          |                               | into it while CPMD    |
+|                          |                               | reads them, then      |
+|                          |                               | leaves it before CPMD |
+|                          |                               | writes output files   |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMD_PP_LIBRARY_PATH`` | same place, when              | fallback for the same |
+|                          | ``CPMDC_PSEUDO_DIR`` is unset | directory             |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_DECK_OUT``       | ``src/cpmdc.c``, each time a  | file that receives    |
+|                          | message is rendered           | the rendered method   |
+|                          |                               | deck; each write      |
+|                          |                               | replaces the last     |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_STRESS``         | ``src/cpmd_embed_c_api.F90``, | ``0`` skips the       |
+|                          | each OpenCPMD evaluation      | stress tensor on      |
+|                          |                               | periodic cells; any   |
+|                          |                               | other value, or       |
+|                          |                               | unset, computes it    |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_SCF_STEPS``      | ``src/cpmd_embed_c_api.F90``, | ``1`` writes          |
+|                          | each OpenCPMD evaluation      | ``cpmdc_warm_start``  |
+|                          |                               | and                   |
+|                          |                               | ``cpmdc_scf_steps N`` |
+|                          |                               | to the error stream   |
++--------------------------+-------------------------------+-----------------------+
+| ``CPMDC_WARM_RMSD``      | ``src/cpmd_embed_c_api.F90``, | largest               |
+|                          | each OpenCPMD evaluation      | root-mean-square      |
+|                          |                               | distance per atom,    |
+|                          |                               | Angstrom, at which    |
+|                          |                               | stored orbitals start |
+|                          |                               | the SCF; default      |
+|                          |                               | 0.15, a negative      |
+|                          |                               | value takes them at   |
+|                          |                               | any distance          |
++--------------------------+-------------------------------+-----------------------+
 
 The first call of an OpenCPMD session fails when neither
 ``CPMDC_PSEUDO_DIR`` nor ``CPMD_PP_LIBRARY_PATH`` names an existing
@@ -50,8 +65,18 @@ only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot
 stays invalid for them even when the box volume is positive.
 
-``CPMDC_SCF_STEPS=1`` writes one line, ``cpmdc_scf_steps N``, for each SCF
-that returns. ``N`` is that SCF's iteration count.
+``CPMDC_SCF_STEPS=1`` writes one line, ``cpmdc_scf_steps N``, for each
+SCF that returns. ``N`` is that SCF's iteration count. Before each
+evaluation it also writes ``cpmdc_warm_start S D``: where the SCF starts
+(``S`` 0 the selected key's stored orbitals, 1 another key's parked
+orbitals, -1 the deck's guess because every stored geometry lies beyond
+``CPMDC_WARM_RMSD``) and the nearest distance ``D`` in Angstrom, or
+``cpmdc_warm_start -2`` when nothing is stored.
+
+``CPMDC_WARM_RMSD`` is the distance limit of
+:doc:`the stored orbitals <../explanation/wavefunction-state>` (section
+Distance limit). A value that does not parse as a number keeps the
+default.
 
 Read by the tests and tools
 ===========================

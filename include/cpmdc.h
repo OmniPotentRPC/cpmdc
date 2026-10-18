@@ -357,7 +357,11 @@ void cpmdc_session_destroy(CPMDCSession *session);
  * The process stores the converged orbitals of one SCF. With a key named,
  * those orbitals are kept per key: an evaluation under a key starts from
  * the orbitals the last converged evaluation under the same key left, and
- * a key that has none yet starts from the orbitals already stored. A host
+ * a key that has none yet starts from the orbitals already stored. Of the
+ * stored orbitals of every key, the ones that converged nearest to the
+ * new geometry start the SCF, and only within CPMDC_WARM_RMSD (root-mean-
+ * square distance per atom, default 0.15 Angstrom); farther, the deck's
+ * guess starts it. A host
  * that runs several calculations on one calculator, the images of a band
  * or the beads of a ring polymer, names each by a stable key, so each
  * starts from its own previous geometry instead of from its neighbour's.
