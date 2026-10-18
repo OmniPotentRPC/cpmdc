@@ -387,6 +387,26 @@ cpmdc_embed_shell_dep = declare_dependency(
 )
 
 if get_option('with_tests')
+  geometry_test = executable(
+    'test_geometry_rmsd',
+    ['tests/test_geometry_rmsd.c', 'src/cpmdc_geometry.c'],
+    include_directories: inc,
+    dependencies: [minimage_dep, math_dep],
+  )
+  test('geometry-rmsd', geometry_test)
+  warm_selector_source = custom_target(
+    'warm-selector-source',
+    input: 'tools/opencpmd_embed_rwfopt.patch',
+    output: 'warm_selector.F90',
+    command: [python, files('tests/extract_warm_selector.py'), '@INPUT@', '@OUTPUT@'],
+  )
+  warm_selector_test = executable(
+    'test_warm_selector',
+    [warm_selector_source, 'tests/test_warm_selector.F90', 'src/cpmdc_geometry.c'],
+    include_directories: inc,
+    dependencies: [minimage_dep, math_dep],
+  )
+  test('warm-selector', warm_selector_test)
   test(
     'restart-file',
     executable(
