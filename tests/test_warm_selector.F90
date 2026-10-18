@@ -53,7 +53,7 @@ CONTAINS
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic
     REAL(real_8), INTENT(IN) :: limit
-    CALL embed_choose_warm_start(geo,cell,periodic,limit,dist,source,donor,metric)
+    CALL embed_choose_warm_start_metric_v2(geo,cell,periodic,limit,dist,source,donor,metric)
   END SUBROUTINE
   FUNCTION metric(a,b,box,periodic) RESULT(d)
     REAL(real_8), INTENT(IN) :: a(:),b(:),box(9)

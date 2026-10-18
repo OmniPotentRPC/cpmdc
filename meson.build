@@ -409,6 +409,16 @@ if get_option('with_tests')
   )
   test('warm-selector', warm_selector_test)
   test(
+    'warm-selector-abi',
+    python,
+    args: [
+      files('tests/test_warm_selector_abi.py'),
+      warm_selector_source,
+      meson.current_build_dir() / 'warm-selector-abi',
+    ] + fc.cmd_array(),
+    depends: warm_selector_source,
+  )
+  test(
     'restart-file',
     executable(
       'test_cpmd_restart',

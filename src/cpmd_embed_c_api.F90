@@ -1936,7 +1936,7 @@ CONTAINS
         cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
-        embed_set_write_files, embed_choose_warm_start
+        embed_set_write_files, embed_choose_warm_start_metric_v2
     USE phfac_utils, ONLY: phfac
     USE metr, ONLY: metr_com
     USE cnst, ONLY: fbohr
@@ -2038,7 +2038,7 @@ CONTAINS
     DO i = 1, 3
       warm_cell(3*i-2:3*i) = metr_com%ht(i,1:3) / fbohr
     END DO
-    CALL embed_choose_warm_start(warm_geo, warm_cell, .NOT. isos1%tclust, &
+    CALL embed_choose_warm_start_metric_v2(warm_geo, warm_cell, .NOT. isos1%tclust, &
         warm_rmsd_limit(), warm_dist, warm_source, warm_donor, warm_geometry_distance)
     CALL note_warm_start(warm_source, warm_dist, warm_donor, .NOT. isos1%tclust)
     last_warm_source = warm_source

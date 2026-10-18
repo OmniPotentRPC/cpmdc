@@ -30,6 +30,12 @@ GCC 14 rejects the stock return of a pointer from that function.
 The rwfopt patch publishes ~embed_set_warm_orbitals~,
 ~embed_set_need_forces~, ~embed_reset_warm_orbitals~, and
 ~embed_set_write_files~.
+Its geometry-aware selector is ~embed_choose_warm_start_metric_v2~.
+The bridge requires that exact versioned procedure in both the Fortran
+module interface and the archive object. An unversioned selector has a
+different calling convention and cannot be substituted, even if a newer
+module file is supplied beside it. A missing versioned symbol requires
+rebuilding the patched archive; copying module files alone is insufficient.
 The geometry patch adds ~embed_ctrl~, which holds ~embed_write_files~
 (default true). Setting it false skips ~geofile~ in ~initrun~ and the
 ~zhwwf~ and ~geofile~ writes in ~rwfopt~. ~wrgeof~ still prints coordinates.

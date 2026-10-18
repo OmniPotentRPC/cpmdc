@@ -58,7 +58,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     one stored c0.
 +  PUBLIC :: embed_select_orbital_slot
 +  PUBLIC :: embed_orbital_slot_count
-+  !   embed_choose_warm_start receives species-ordered Cartesian positions,
++  !   embed_choose_warm_start_metric_v2 receives species-ordered Cartesian positions,
 +  !     the row-major cell, periodicity, and a geometry-distance callback.
 +  !     Geometry and cell use Angstrom units. The stored
 +  !     c0 and every parked c0 carry the geometry they converged at. Of
@@ -72,7 +72,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     when another key's c0 does, -1 when the guess does because every
 +  !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
 +  !     returns the smallest distance, HUGE when nothing is stored.
-+  PUBLIC :: embed_choose_warm_start
++  PUBLIC :: embed_choose_warm_start_metric_v2
 +  INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
 +  TYPE :: embed_orbital_slot
 +    INTEGER(embed_key_kind) :: key = 0
@@ -89,7 +89,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_c0_store(:,:,:)
 +  INTEGER, SAVE :: embed_store_s1 = 0, embed_store_s2 = 0, embed_store_s3 = 0
 +  ! The geometry embed_c0_store converged at, and the geometry of the call
-+  ! in progress, as embed_choose_warm_start received them.
++  ! in progress, as embed_choose_warm_start_metric_v2 received them.
 +  REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
 +  REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
 +  LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
@@ -306,7 +306,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  END SUBROUTINE embed_restore_orbitals
 +
 +  ! ==================================================================
-+  SUBROUTINE embed_choose_warm_start(geo, cell, periodic, rmax, dist, source, donor, distance)
++  SUBROUTINE embed_choose_warm_start_metric_v2(geo, cell, periodic, rmax, dist, source, donor, distance)
 +    ! ==--------------------------------------------------------------==
 +    REAL(real_8), INTENT(IN) :: geo(:), cell(9), rmax
 +    LOGICAL, INTENT(IN) :: periodic
@@ -321,7 +321,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    REAL(real_8), INTENT(OUT) :: dist
 +    INTEGER, INTENT(OUT) :: source
 +    INTEGER(embed_key_kind), INTENT(OUT) :: donor
-+    CHARACTER(*), PARAMETER :: procedureN = 'embed_choose_warm_start'
++    CHARACTER(*), PARAMETER :: procedureN = 'embed_choose_warm_start_metric_v2'
 +    INTEGER :: i, best, ierr
 +    REAL(real_8) :: d
 +    ! A plane-wave orbital history belongs to one cell and boundary model.
@@ -387,7 +387,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_have_orbitals = .TRUE.
 +    embed_have_partial = .FALSE.
 +    source = 1
-+  END SUBROUTINE embed_choose_warm_start
++  END SUBROUTINE embed_choose_warm_start_metric_v2
 +
 +
    ! ==================================================================
