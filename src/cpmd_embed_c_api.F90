@@ -2163,8 +2163,12 @@ CONTAINS
   ! that may start from them. CPMDC_WARM_RMSD overrides it; a negative
   ! value starts from the stored orbitals at any distance.
   REAL(real64) FUNCTION warm_rmsd_limit()
-    ! Default limit, Angstrom.
-    REAL(real64), PARAMETER :: warm_rmsd_default = 0.5_real64
+    ! Default limit, Angstrom. On the Si3N4 BLYP 70 Ry band (7 atoms,
+    ! 4 ranks), against the deck's guess in the same process, stored
+    ! orbitals saved 4.5 s per call over five images at 0.12 Angstrom,
+    ! 2.1 s at 0.15 and 1.2 s at 0.17, and cost 0.4 s at 0.19 and 2.4 s
+    ! at 0.23. A band step capped at 0.1 Angstrom per atom stays inside.
+    REAL(real64), PARAMETER :: warm_rmsd_default = 0.15_real64
     CHARACTER(LEN=32) :: v
     INTEGER :: st, ios
     REAL(real64) :: x
