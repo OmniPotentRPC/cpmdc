@@ -1,0 +1,44 @@
+--- a/src/rggen_utils.mod.F90
++++ b/src/rggen_utils.mod.F90
+@@ -302,7 +302,7 @@
+     integer, allocatable, dimension(:) :: place_proc_ids,partition_place_nums
+ 
+     CHARACTER(mp_max_processor_name)         :: node_io_name, proc_name
+-    integer :: node_numtasks, node_taskid, iproc, from
++    integer :: node_numtasks, node_taskid, io_node_numtasks, iproc, from
+     integer :: proc_bind
+     LOGICAL                                  :: node_io_parent
+     INTEGER, DIMENSION(:), ALLOCATABLE :: io_node_taskid_list
+@@ -324,12 +324,15 @@
+     IF( paral%io_parent ) node_io_name = proc_name
+     CALL mp_bcast( node_io_name, parai%io_source, parai%cp_grp )
+     node_io_parent = proc_name == node_io_name
+-    ALLOCATE(io_node_taskid_list(0:node_numtasks-1))
++    ! The I/O node determines collective sizes on every calculator rank.
++    io_node_numtasks = node_numtasks
++    CALL mp_bcast( io_node_numtasks, parai%io_source, parai%cp_grp )
++    ALLOCATE(io_node_taskid_list(0:io_node_numtasks-1))
+     io_node_taskid_list(:) = 0
+     IF(node_io_parent) io_node_taskid_list(node_taskid) = parai%cp_me
+     CALL mp_sum( io_node_taskid_list, SIZE(io_node_taskid_list), parai%cp_grp )
+ 
+-    DO iproc = 0,node_numtasks-1
++    DO iproc = 0,io_node_numtasks-1
+        from = io_node_taskid_list( iproc )
+        proc_bind = -1
+ #ifndef _HASNT_OMP_45
+@@ -353,11 +356,12 @@
+        DO place_num = 0, num_places-1
+           place_num_procs = 0
+ #ifndef _HASNT_OMP_45
+-          !$ place_num_procs = omp_get_place_num_procs(place_num)
++          !$ IF (parai%cp_me == from) place_num_procs = omp_get_place_num_procs(place_num)
+ #endif
++          CALL mp_bcast( place_num_procs, from, parai%cp_grp )
+           allocate(place_proc_ids(place_num_procs))
+ #ifndef _HASNT_OMP_45
+-          !$ call omp_get_place_proc_ids(place_num,place_proc_ids)
++          !$ IF (parai%cp_me == from) call omp_get_place_proc_ids(place_num,place_proc_ids)
+ #endif
+           CALL mp_bcast( place_proc_ids, SIZE(place_proc_ids), from, parai%cp_grp )
+           IF( paral%io_parent ) THEN
