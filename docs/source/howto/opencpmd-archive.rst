@@ -160,7 +160,7 @@ first build:
    cd opencpmd
    for p in embed_rinitwf embed_geometry embed_rwfopt \
             converged_state kpoints_inputfile stopgm_return tistopgm \
-            c_mem_addrs embed_teardown; do
+            c_mem_addrs embed_teardown omp_info; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
 
@@ -205,12 +205,13 @@ source and rebuild only the affected members:
    cd /path/to/opencpmd-source
    for p in embed_rinitwf embed_geometry embed_rwfopt \
             converged_state kpoints_inputfile stopgm_return tistopgm \
-            c_mem_addrs embed_teardown; do
+            c_mem_addrs embed_teardown omp_info; do
      patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
    done
    /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
+   /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/opencpmd-build
 
-``rebuild_opencpmd_embed.sh`` recompiles the object of each vendored
+``rebuild_opencpmd_embed.sh`` recompiles the object of the embedding
 patch, ``error_handling.mod.o``, ``embed_ctrl.mod.o``,
 ``rinitwf_driver.mod.o``, ``initrun_driver.mod.o``, ``rwfopt_utils.mod.o``,
 ``updwf_utils.mod.o``, ``rkpnt_utils.mod.o``, ``timer.mod.o``,
@@ -225,6 +226,25 @@ naming different components. It calls ``ar`` directly because the
 generated Makefile sets ``AR`` without an operation letter, so its
 archive rule does not replace members. ``MAKE`` and ``AR`` in the
 environment override the programs it runs.
+
+``opencpmd_omp_info.patch`` corrects report collectives when one calculator
+spans nodes with unequal numbers of ranks. Every rank uses the I/O node's
+array size; otherwise the report calls ``MPI_Allreduce`` with different
+counts and can stop before the first electronic iteration. The separate
+``rebuild_opencpmd_omp_info.sh`` helper rebuilds ``rggen_utils.mod.o`` and
+replaces that archive member. Relink ``libcpmdc`` against the corrected archive.
+
+The reporting regression compiles the actual native routine with an MPI
+fixture representing unequal node populations. Inside an allocation with
+at least three ranks, run:
+
+.. code:: bash
+
+   /path/to/cpmdc/tools/check_opencpmd_omp_info.sh /path/to/opencpmd-source /path/to/build/omp-info
+
+The corrected routine exits zero. The unpatched control reports
+``inconsistent native report counts`` and exits nonzero. This checks report
+collectives; energy and force evaluations require their native tests.
 
 Link and check
 ==============
