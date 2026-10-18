@@ -168,6 +168,16 @@ static int check_sample(const unsigned char *bytes, size_t n, int expect_stream)
     cpmdc_restart_free(file);
     return fail("species");
   }
+  {
+    const char *species[] = {"H", "O"};
+    const char *atoms[3] = {NULL, NULL, NULL};
+    if (cpmdc_restart_expand_species_symbols(file, species, 2, atoms, 3) != 0 ||
+        strcmp(atoms[0], "H") != 0 || strcmp(atoms[1], "H") != 0 ||
+        strcmp(atoms[2], "O") != 0) {
+      cpmdc_restart_free(file);
+      return fail("species symbol expansion");
+    }
+  }
   if (cpmdc_restart_coordinates(file, xyz, 9) != 0 || xyz[3] != 1.0) {
     cpmdc_restart_free(file);
     return fail("coordinates");

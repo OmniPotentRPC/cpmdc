@@ -44,6 +44,35 @@ capnp_generated_c_args = []
 if cc.get_id() != 'msvc'
   common_c_args += ['-Wall', '-Wextra', '-Wpedantic']
 endif
+# No contraction: a multiply and an add stay separate on every build target.
+# MSVC /fp:precise does not contract. Register these before any subproject call.
+if cc.get_id() == 'msvc'
+  add_global_arguments('/fp:precise', language: 'c')
+elif cc.has_argument('-ffp-contract=off')
+  add_global_arguments('-ffp-contract=off', language: 'c')
+endif
+if fc.get_id() == 'msvc'
+  add_global_arguments('/fp:precise', language: 'fortran')
+elif fc.has_argument('-ffp-contract=off')
+  add_global_arguments('-ffp-contract=off', language: 'fortran')
+endif
+# conda-forge compilers export CFLAGS=-march=nocona, which is above x86-64.
+# A later -march on the compiler command replaces it. armv8-a is the aarch64 baseline.
+if host_machine.cpu_family() == 'x86_64'
+  if cc.has_argument('-march=x86-64')
+    add_global_arguments('-march=x86-64', language: 'c')
+  endif
+  if fc.has_argument('-march=x86-64')
+    add_global_arguments('-march=x86-64', language: 'fortran')
+  endif
+elif host_machine.cpu_family() == 'aarch64'
+  if cc.has_argument('-march=armv8-a')
+    add_global_arguments('-march=armv8-a', language: 'c')
+  endif
+  if fc.has_argument('-march=armv8-a')
+    add_global_arguments('-march=armv8-a', language: 'fortran')
+  endif
+endif
 if cc.get_id() in ['gcc', 'clang']
   capnp_generated_c_args += ['-Wno-missing-field-initializers']
 endif
@@ -102,17 +131,27 @@ if need_capnp_c
   )
 endif
 
+mpi_c_dep = dependency('mpi', language: 'c', required: false)
+stub_c_args = common_c_args + capnp_generated_c_args
+stub_deps = []
+if mpi_c_dep.found()
+  stub_c_args += ['-DCPMDC_HAVE_MPI=1']
+  stub_deps += [mpi_c_dep]
+endif
+
 cpmdc_stub = static_library(
   'cpmdc_stub',
-  ['src/cpmdc_stub.c', 'src/cpmdc_features.c'],
+  ['src/cpmdc_stub.c', 'src/cpmdc_features.c', 'src/cpmdc_adopt.c'],
   include_directories: inc,
-  c_args: common_c_args + capnp_generated_c_args,
+  c_args: stub_c_args,
+  dependencies: stub_deps,
   install: false,
 )
 
 cpmdc_stub_dep = declare_dependency(
   link_with: cpmdc_stub,
   include_directories: inc,
+  dependencies: stub_deps,
 )
 
 # ISO_C embed without libcpmd: deterministic reference PEF for tests and dlopen users.
@@ -160,7 +199,7 @@ if has_cpmd
   cpmd_embed_link += [cpmd_lib]
   cpmd_mpi_dep = [
     dependency('mpi', language: 'fortran', required: true),
-    dependency('mpi', language: 'c', required: true),
+    mpi_c_dep.found() ? mpi_c_dep : dependency('mpi', language: 'c', required: true),
   ]
   # foss puts BLAS behind FlexiBLAS. OpenBLAS is the backend that module loads.
   flexiblas = cc.find_library('flexiblas', required: false)
@@ -196,10 +235,17 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
-cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
+cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
                       'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
+cpmd_embed_c_args = common_c_args + capnp_generated_c_args
+if has_cpmd
+  cpmd_embed_c_args += ['-DCPMDC_HAS_CPMD=1', '-DCPMDC_HAVE_MPI=1']
+elif mpi_c_dep.found()
+  cpmd_embed_c_args += ['-DCPMDC_HAVE_MPI=1']
+  cpmd_mpi_dep += [mpi_c_dep]
+endif
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
 cpmd_archive_math_libs = []
@@ -225,7 +271,7 @@ cpmdc_embed_shell = static_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+  c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
   install: false,
@@ -236,7 +282,7 @@ cpmdc_shared = shared_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+  c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
@@ -263,11 +309,36 @@ cpmdc_restart_dep = declare_dependency(
   link_with: cpmdc_restart_lib,
   include_directories: inc,
 )
-executable(
+restart_tool_sources = ['tools/cpmdc_restart.c']
+restart_tool_deps = [cpmdc_restart_dep]
+cpmdc_restart_con_dep = disabler()
+if get_option('with_readcon')
+  readcon_proj = subproject(
+    'readcon-core',
+    default_options: ['default_library=static', 'with_tests=false', 'with_examples=false'],
+  )
+  readcon_dep = readcon_proj.get_variable('readcon_dep')
+  cpmdc_restart_con_lib = static_library(
+    'cpmdc_restart_con',
+    'tools/cpmdc_restart_con.c',
+    include_directories: [inc, include_directories('tools')],
+    dependencies: [cpmdc_restart_dep, readcon_dep, math_dep],
+    c_args: common_c_args,
+  )
+  cpmdc_restart_con_dep = declare_dependency(
+    link_with: cpmdc_restart_con_lib,
+    include_directories: [inc, include_directories('tools')],
+    dependencies: [cpmdc_restart_dep, readcon_dep, math_dep],
+  )
+  restart_tool_deps += [cpmdc_restart_con_dep]
+else
+  restart_tool_sources += ['tools/cpmdc_restart_con_stub.c']
+endif
+cpmdc_restart_exe = executable(
   'cpmdc-restart',
-  'tools/cpmdc_restart.c',
-  dependencies: [cpmdc_restart_dep],
-  include_directories: inc,
+  restart_tool_sources,
+  dependencies: restart_tool_deps,
+  include_directories: [inc, include_directories('tools')],
   c_args: common_c_args,
   install: true,
 )
@@ -322,6 +393,24 @@ if get_option('with_tests')
     suite: ['restart'],
     args: [meson.current_source_dir() / 'tests/restart_geo1.bin'],
   )
+  if get_option('with_readcon')
+    test(
+      'restart-con-golden',
+      executable(
+        'test_cpmd_restart_con',
+        'tests/test_cpmd_restart_con.c',
+        dependencies: [cpmdc_restart_con_dep],
+        include_directories: [inc, include_directories('tools')],
+        c_args: common_c_args,
+      ),
+      suite: ['restart-con'],
+      args: [
+        meson.current_source_dir() / 'tests/golden/restart_water.con',
+        cpmdc_restart_exe.full_path(),
+      ],
+      timeout: 120,
+    )
+  endif
   encode = [
     python,
     meson.current_source_dir() / 'tests/encode_capnp.py',
@@ -432,6 +521,46 @@ if get_option('with_tests')
     ),
     suite: ['stub'],
   )
+  if mpi_c_dep.found()
+    run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
+    adopt_comm_stub = executable(
+      'test_adopt_comm_stub',
+      'tests/test_adopt_comm_mpi.c',
+      dependencies: [cpmdc_stub_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + ['-DCPMDC_TEST_STUB=1'],
+    )
+    test(
+      'adopt-comm-stub',
+      python,
+      args: [run_mpi_test, '4', adopt_comm_stub.full_path()],
+      depends: [adopt_comm_stub],
+      suite: ['stub', 'mpi'],
+      timeout: 180,
+      is_parallel: false,
+    )
+    adopt_comm_shell = executable(
+      'test_adopt_comm_shell',
+      'tests/test_adopt_comm_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'adopt-comm-shell',
+      python,
+      args: [
+        run_mpi_test,
+        '4',
+        adopt_comm_shell.full_path(),
+        cpmd_parser_params_bin.full_path(),
+      ],
+      depends: [adopt_comm_shell, cpmd_parser_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 180,
+      is_parallel: false,
+    )
+  endif
   test(
     'capabilities-cmocka',
     executable(
@@ -965,6 +1094,15 @@ test(
     suite: ['docs'],
   )
   test(
+    'isa-portable',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_isa_portable.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'params-escape-render',
     executable(
       'test_params_escape_render',
@@ -1028,6 +1166,31 @@ test(
       depends: [water_params_bin, water_force_bin],
       suite: ['e2e', 'water'],
       timeout: 600,
+    )
+
+    si3n4_box_params_bin = custom_target(
+      'si3n4_box_params_bin',
+      input: 'tests/si3n4_box_params.capnp.txt',
+      output: 'si3n4_box_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    si3n4_box145_bin = custom_target(
+      'si3n4_box145_bin',
+      input: 'tests/force_input_si3n4_box145.capnp.txt',
+      output: 'force_input_si3n4_box145.bin',
+      command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+    )
+    test(
+      'box-cell-energy',
+      executable(
+        'test_box_cell_energy',
+        'tests/test_box_cell_energy.c',
+        dependencies: [cpmdc_embed_shell_dep, math_dep],
+      ),
+      args: [si3n4_box_params_bin.full_path(), si3n4_box145_bin.full_path()],
+      depends: [si3n4_box_params_bin, si3n4_box145_bin],
+      suite: ['e2e'],
+      timeout: 900,
     )
 
     silylamine_params_bin = custom_target(
@@ -1290,12 +1453,20 @@ test(
       'test_cold_deck_cell',
       'tests/test_cold_deck_cell.c',
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
-      include_directories: [inc],
+      include_directories: [inc, include_directories('src')],
       c_args: common_c_args,
     ),
     suite: ['cmocka', 'params'],
   )
 
+  # The overlay deck has no ANGSTROM, and its box is 10 Bohr: the cell the
+  # deck evaluated before the box was the cell.
+  force_input_overlay_step_bin = custom_target(
+    'force_input_overlay_step_bin',
+    input: 'tests/force_input_overlay_step.capnp.txt',
+    output: 'force_input_overlay_step.bin',
+    command: encode + ['ForceInput', '@INPUT@', '@OUTPUT@'],
+  )
   potential_config_common_cpmd_bin = custom_target(
     'potential_config_common_cpmd_bin',
     input: 'tests/potential_config_common_cpmd.capnp.txt',
@@ -1357,7 +1528,7 @@ test(
     args: [
       potential_config_common_cpmd_bin,
       potential_config_common_cpmd_reject_bin,
-      force_input_step_a_bin,
+      force_input_overlay_step_bin,
     ],
     suite: ['params', 'capnp'],
   )
