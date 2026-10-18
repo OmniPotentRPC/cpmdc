@@ -28,6 +28,12 @@ add_project_arguments(
 )
 pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
+minimage_dep = dependency(
+  'minimage',
+  version: '>=0.1.4',
+  fallback: ['minimage', 'minimage_dep'],
+  default_options: ['with_tests=false', 'with_examples=false'],
+)
 dl_dep = dependency('dl', required: false)
 if not dl_dep.found()
   dl_dep = cc.find_library('dl', required: false)
@@ -236,7 +242,7 @@ if has_cpmd
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
+                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
@@ -270,7 +276,7 @@ cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
+  dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
@@ -281,7 +287,7 @@ cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
+  dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,

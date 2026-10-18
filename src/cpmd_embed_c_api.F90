@@ -1938,6 +1938,8 @@ CONTAINS
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start
     USE phfac_utils, ONLY: phfac
+    USE metr, ONLY: metr_com
+    USE cnst, ONLY: fbohr
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
@@ -1957,11 +1959,12 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
     INTEGER(c_int), ALLOCATABLE :: origin(:)
-    REAL(c_double), ALLOCATABLE :: species_grad(:)
+    REAL(c_double), ALLOCATABLE :: species_grad(:), warm_geo(:)
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
     INTEGER :: inwfun_deck, ibench_deck, warm_source
-    REAL(real64) :: warm_dist
+    REAL(real64) :: warm_dist, warm_cell(9)
+    INTEGER(SELECTED_INT_KIND(18)) :: warm_donor
     INTERFACE
       FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
         IMPORT :: c_int
@@ -1981,7 +1984,7 @@ CONTAINS
     ! state undefined (HF_INIT, for one, leaves the HFX arrays unset), and
     ! an SCF on that state can fault. The caller reports the stop.
     IF (cpmdc_stop_code() /= 0_c_int) RETURN
-    ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
+    ALLOCATE(origin(n_atoms), species_grad(nmax), warm_geo(nmax), STAT=astat)
     IF (astat /= 0) THEN
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
       RETURN
@@ -2025,9 +2028,19 @@ CONTAINS
     ! Stored orbitals start this SCF only when they converged at a
     ! geometry within warm_rmsd_limit() of this one; farther, the guess
     ! below is the cheaper start.
-    CALL embed_choose_warm_start(pos(1:nmax), warm_rmsd_limit(), &
-        warm_dist, warm_source)
-    CALL note_warm_start(warm_source, warm_dist)
+    ! Orbitals and their geometry use the engine's species order, independent
+    ! of the interleaving of species in a caller's coordinate array.
+    DO slot = 1, n_atoms
+      j = INT(origin(slot)) + 1
+      warm_geo(3*slot-2:3*slot) = pos(3*j-2:3*j)
+    END DO
+    ! metr_com%ht contains lattice rows in Bohr, including deck-only cells.
+    DO i = 1, 3
+      warm_cell(3*i-2:3*i) = metr_com%ht(i,1:3) / fbohr
+    END DO
+    CALL embed_choose_warm_start(warm_geo, warm_cell, .NOT. isos1%tclust, &
+        warm_rmsd_limit(), warm_dist, warm_source, warm_donor, warm_geometry_distance)
+    CALL note_warm_start(warm_source, warm_dist, warm_donor, .NOT. isos1%tclust)
     last_warm_source = warm_source
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
@@ -2162,6 +2175,22 @@ CONTAINS
   ! the geometry stored orbitals converged at and the geometry of a call
   ! that may start from them. CPMDC_WARM_RMSD overrides it; a negative
   ! value starts from the stored orbitals at any distance.
+  REAL(real64) FUNCTION warm_geometry_distance(a, b, cell, periodic) RESULT(d)
+    REAL(real64), INTENT(IN) :: a(:), b(:), cell(9)
+    LOGICAL, INTENT(IN) :: periodic
+    INTERFACE
+      FUNCTION cpmdc_geometry_rmsd(n, a, b, cell, periodic) BIND(C) RESULT(rmsd)
+        IMPORT :: c_double, c_int
+        INTEGER(c_int), VALUE :: n, periodic
+        REAL(c_double), INTENT(IN) :: a(*), b(*), cell(*)
+        REAL(c_double) :: rmsd
+      END FUNCTION
+    END INTERFACE
+    d = HUGE(1.0_real64)
+    IF (SIZE(a) /= SIZE(b) .OR. MOD(SIZE(a), 3) /= 0) RETURN
+    d = cpmdc_geometry_rmsd(INT(SIZE(a)/3, c_int), a, b, cell, MERGE(1_c_int, 0_c_int, periodic))
+  END FUNCTION warm_geometry_distance
+
   REAL(real64) FUNCTION warm_rmsd_limit()
     ! Default limit, Angstrom. On the Si3N4 BLYP 70 Ry band (7 atoms,
     ! 4 ranks), against the deck's guess in the same process, stored
@@ -2183,9 +2212,11 @@ CONTAINS
   ! selected key's store, 1 another key's parked orbitals, -1 the guess
   ! because every stored geometry was beyond warm_rmsd_limit(), -2 the
   ! guess because nothing was stored; and the nearest distance, Angstrom.
-  SUBROUTINE note_warm_start(source, dist)
+  SUBROUTINE note_warm_start(source, dist, donor, periodic)
     USE parac, ONLY: paral
     INTEGER, INTENT(IN) :: source
+    INTEGER(SELECTED_INT_KIND(18)), INTENT(IN) :: donor
+    LOGICAL, INTENT(IN) :: periodic
     REAL(real64), INTENT(IN) :: dist
     CHARACTER(LEN=8) :: v
     INTEGER :: st
@@ -2196,7 +2227,8 @@ CONTAINS
     IF (source == -2) THEN
       WRITE(error_unit, '(A,I0)') 'cpmdc_warm_start ', source
     ELSE
-      WRITE(error_unit, '(A,I0,1X,F0.4)') 'cpmdc_warm_start ', source, dist
+      WRITE(error_unit, '(A,I0,1X,ES24.16E3,A,I0,A,L1)') &
+          'cpmdc_warm_start ', source, dist, ' donor_key=', donor, ' periodic=', periodic
     END IF
   END SUBROUTINE
 

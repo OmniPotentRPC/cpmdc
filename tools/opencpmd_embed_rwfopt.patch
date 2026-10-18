@@ -19,7 +19,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE ropt
    USE rscpot_utils,                    ONLY: give_scr_rscpot,&
                                               rscpot
-@@ -106,10 +108,357 @@
+@@ -106,10 +108,373 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -58,9 +58,9 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     one stored c0.
 +  PUBLIC :: embed_select_orbital_slot
 +  PUBLIC :: embed_orbital_slot_count
-+  !   embed_choose_warm_start(geo, rmax, dist, source): geo is the
-+  !     geometry of the call about to run, in whatever flat layout and unit
-+  !     the caller keeps (cpmdc passes its Angstrom positions). The stored
++  !   embed_choose_warm_start receives species-ordered Cartesian positions,
++  !     the row-major cell, periodicity, and a geometry-distance callback.
++  !     Geometry and cell use Angstrom units. The stored
 +  !     c0 and every parked c0 carry the geometry they converged at. Of
 +  !     those, the one at the smallest root-mean-square distance per atom
 +  !     (3 entries of geo per atom) starts the SCF when that distance is
@@ -82,7 +82,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  END TYPE embed_orbital_slot
 +  TYPE(embed_orbital_slot), ALLOCATABLE, SAVE :: embed_slots(:)
 +  LOGICAL, SAVE :: embed_have_key = .FALSE.
-+  INTEGER(embed_key_kind), SAVE :: embed_current_key = 0
++  INTEGER(embed_key_kind), SAVE :: embed_current_key = 0, embed_store_key = 0
 +  LOGICAL, SAVE :: embed_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_need_forces = .FALSE.
 +  LOGICAL, SAVE :: embed_have_partial = .FALSE.
@@ -91,6 +91,8 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  ! The geometry embed_c0_store converged at, and the geometry of the call
 +  ! in progress, as embed_choose_warm_start received them.
 +  REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
++  REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
++  LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
    !public :: lseprof
  
  CONTAINS
@@ -129,6 +131,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_warm_orbitals = .FALSE.
 +    embed_have_orbitals = .FALSE.
 +    embed_have_partial = .FALSE.
++    embed_history_set = .FALSE.
 +    IF (ALLOCATED(embed_c0_store)) THEN
 +      DEALLOCATE(embed_c0_store,STAT=ierr)
 +      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
@@ -243,6 +246,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +           __LINE__,__FILE__)
 +    ENDIF
 +    CALL MOVE_ALLOC(embed_slots(i)%c0, embed_c0_store)
++    embed_store_key = embed_slots(i)%key
 +    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
 +    IF (ALLOCATED(embed_slots(i)%geo)) &
 +         CALL MOVE_ALLOC(embed_slots(i)%geo, embed_store_geo)
@@ -278,6 +282,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +      embed_store_s1 = s1; embed_store_s2 = s2; embed_store_s3 = s3
 +    END IF
 +    embed_c0_store = c0
++    embed_store_key = embed_current_key
 +    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
 +    IF (ALLOCATED(embed_call_geo)) embed_store_geo = embed_call_geo
 +    embed_have_orbitals = .TRUE.
@@ -301,43 +306,51 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  END SUBROUTINE embed_restore_orbitals
 +
 +  ! ==================================================================
-+  REAL(real_8) FUNCTION embed_geo_rmsd(a, b)
++  SUBROUTINE embed_choose_warm_start(geo, cell, periodic, rmax, dist, source, donor, distance)
 +    ! ==--------------------------------------------------------------==
-+    ! Root-mean-square distance per atom of two flat geometries, 3 entries
-+    ! per atom; HUGE when they differ in length or are empty.
-+    REAL(real_8), INTENT(IN) :: a(:), b(:)
-+    embed_geo_rmsd = HUGE(1.0_real_8)
-+    IF (SIZE(a) /= SIZE(b) .OR. SIZE(a) < 3) RETURN
-+    embed_geo_rmsd = SQRT(3.0_real_8 * SUM((a - b)**2) / REAL(SIZE(a), real_8))
-+  END FUNCTION embed_geo_rmsd
-+
-+  ! ==================================================================
-+  SUBROUTINE embed_choose_warm_start(geo, rmax, dist, source)
-+    ! ==--------------------------------------------------------------==
-+    REAL(real_8), INTENT(IN) :: geo(:), rmax
++    REAL(real_8), INTENT(IN) :: geo(:), cell(9), rmax
++    LOGICAL, INTENT(IN) :: periodic
++    INTERFACE
++      FUNCTION distance(a, b, box, use_periodic) RESULT(d)
++        IMPORT :: real_8
++        REAL(real_8), INTENT(IN) :: a(:), b(:), box(9)
++        LOGICAL, INTENT(IN) :: use_periodic
++        REAL(real_8) :: d
++      END FUNCTION distance
++    END INTERFACE
 +    REAL(real_8), INTENT(OUT) :: dist
 +    INTEGER, INTENT(OUT) :: source
++    INTEGER(embed_key_kind), INTENT(OUT) :: donor
 +    CHARACTER(*), PARAMETER :: procedureN = 'embed_choose_warm_start'
 +    INTEGER :: i, best, ierr
 +    REAL(real_8) :: d
++    ! A plane-wave orbital history belongs to one cell and boundary model.
++    IF (embed_history_set) THEN
++      IF ((periodic .NEQV. embed_history_periodic) .OR. &
++          ANY(cell /= embed_history_cell)) CALL embed_reset_warm_orbitals()
++    ENDIF
++    embed_history_cell = cell
++    embed_history_periodic = periodic
++    embed_history_set = .TRUE.
 +    IF (ALLOCATED(embed_call_geo)) DEALLOCATE(embed_call_geo)
 +    embed_call_geo = geo
 +    dist = HUGE(1.0_real_8)
 +    source = -2
 +    best = -1
++    donor = 0
 +    ! The store, which holds the selected key's own c0 when that key
 +    ! parked one, else the c0 of the key last left.
 +    IF (embed_have_orbitals .AND. ALLOCATED(embed_c0_store)) THEN
 +      source = 0
 +      best = 0
-+      IF (ALLOCATED(embed_store_geo)) dist = embed_geo_rmsd(embed_store_geo, geo)
++      IF (ALLOCATED(embed_store_geo)) dist = distance(embed_store_geo, geo, cell, periodic)
 +    ENDIF
 +    IF (ALLOCATED(embed_slots)) THEN
 +      DO i = 1, SIZE(embed_slots)
 +        IF (.NOT. embed_slots(i)%used) CYCLE
 +        IF (.NOT. ALLOCATED(embed_slots(i)%c0)) CYCLE
 +        IF (.NOT. ALLOCATED(embed_slots(i)%geo)) CYCLE
-+        d = embed_geo_rmsd(embed_slots(i)%geo, geo)
++        d = distance(embed_slots(i)%geo, geo, cell, periodic)
 +        IF (best < 0 .OR. d < dist) THEN
 +          dist = d
 +          best = i
@@ -345,6 +358,8 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +      ENDDO
 +    ENDIF
 +    IF (best < 0) RETURN
++    donor = embed_store_key
++    IF (best > 0) donor = embed_slots(best)%key
 +    IF (rmax < 0.0_real_8) THEN
 +      source = 0
 +      IF (.NOT. embed_have_orbitals) source = -2
@@ -364,6 +379,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +           __LINE__,__FILE__)
 +    ENDIF
 +    embed_c0_store = embed_slots(best)%c0
++    embed_store_key = embed_slots(best)%key
 +    embed_store_s1 = SIZE(embed_c0_store, 1)
 +    embed_store_s2 = SIZE(embed_c0_store, 2)
 +    embed_store_s3 = SIZE(embed_c0_store, 3)
@@ -377,7 +393,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
-@@ -180,7 +529,7 @@
+@@ -180,7 +545,7 @@
      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
           __LINE__,__FILE__)
      ! ==--------------------------------------------------------------==
@@ -386,7 +402,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -196,6 +545,8 @@
+@@ -196,6 +561,8 @@
         ALLOCATE(taup(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
@@ -395,7 +411,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ALLOCATE(fion(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
-@@ -305,7 +656,20 @@
+@@ -305,7 +672,20 @@
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
@@ -416,7 +432,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -460,7 +824,7 @@
+@@ -460,7 +840,7 @@
                          infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf).AND.MOD(cdfti,store1%isctore).EQ.0)&
                          THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -425,7 +441,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     IF (ropt_mod%convwf) THEN
-@@ -476,7 +840,7 @@
+@@ -476,7 +856,7 @@
                  IF (convtest) THEN
                     IF (.NOT.cntl%bsymm.AND.MOD(cdfti,store1%isctore).NE.0)THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -434,7 +450,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     ropt_mod%convwf=.TRUE.
-@@ -551,7 +915,7 @@
+@@ -551,7 +931,7 @@
                  IF (.NOT.cntl%bsymm.AND.&
                       (MOD(infi,store1%istore).EQ.0.OR.infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf))THEN
                     CALL mm_dim(mm_go_mm,statusdummy)
@@ -443,7 +459,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                     CALL mm_dim(mm_revert,statusdummy)
                  ENDIF
                  IF (ropt_mod%convwf) THEN
-@@ -863,7 +1227,7 @@
+@@ -863,7 +1243,7 @@
      IF (cntl%tpspec) THEN
         IF (rout1%rhoout) CALL rhopri(c0,tau0,rhoe,psi(:,1),crge%n,nkpt%nkpnt)
         CALL mm_dim(mm_go_mm,statusdummy)
@@ -452,7 +468,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      ENDIF
      ! EHR]
      !
-@@ -882,7 +1246,7 @@
+@@ -882,7 +1262,7 @@
         CALL prcplngs(cplion,cplcfg,.TRUE.)
         IF (tfor.AND.tcplfd.OR.tcpllr) THEN
            IF (tcplfd) irec(irec_phes) = 1
@@ -461,7 +477,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ENDIF
         DEALLOCATE(cplion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -913,16 +1277,32 @@
+@@ -913,16 +1293,32 @@
      IF (paral%parent) THEN
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
