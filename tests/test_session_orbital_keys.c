@@ -23,6 +23,10 @@
 /* Keys holding parked orbitals in this process, the selected key excluded.
  * Exported by the embed layer (src/cpmd_embed_c_api.F90) for tests. */
 int cpmdc_embed_orbital_slots(void);
+/* Where the last SCF started: 0 the selected key's orbitals, 1 another
+ * key's, -1 the guess (every stored geometry beyond CPMDC_WARM_RMSD), -2
+ * the guess (nothing stored). Exported by the same layer for tests. */
+int cpmdc_embed_last_warm_source(void);
 
 static const char *g_params = NULL;
 
@@ -160,6 +164,79 @@ static void test_keys_keep_their_orbitals(void **state) {
   free(params);
 }
 
+enum { kFarSteps = 5 };
+
+struct far_out {
+  int ok[kFarSteps];
+  int source[kFarSteps];
+  double energy[kFarSteps];
+  double grad[kFarSteps][3 * kAtoms];
+  char message[256];
+};
+
+/* Keys 0, 1, 0, 1, 2 at A, B, A2, B2, A with a 0.05 Angstrom limit. B
+ * lies 0.12 Angstrom (root-mean-square per atom) from A and A2 0.006 from
+ * A, so key 1 starts from the guess, keys 0 and 1 then start from their
+ * own orbitals, and the new key 2 at A starts from key 0's. */
+static void far_child(void *vctx, void *vout) {
+  const struct keyed_ctx *ctx = (const struct keyed_ctx *)vctx;
+  struct far_out *o = (struct far_out *)vout;
+  const double *steps[kFarSteps] = {kA, kB, kA2, kB2, kA};
+  const long long keys[kFarSteps] = {0, 1, 0, 1, 2};
+  setenv("CPMDC_WARM_RMSD", "0.05", 1);
+  CPMDCSession *session = cpmdc_session_create(ctx->params, ctx->params_size);
+  if (!session) {
+    snprintf(o->message, sizeof(o->message), "session: %s", cpmdc_last_error());
+    return;
+  }
+  for (int i = 0; i < kFarSteps; ++i) {
+    cpmdc_session_select_orbitals(session, keys[i]);
+    CPMDCResult r =
+        cpmdc_session_energy_gradient(session, kAtoms, steps[i], kZ, o->grad[i]);
+    o->ok[i] = r.ok;
+    o->energy[i] = r.energy_h;
+    o->source[i] = cpmdc_embed_last_warm_source();
+    if (!r.ok) {
+      snprintf(o->message, sizeof(o->message), "step %d: %s", i, r.message);
+      break;
+    }
+  }
+  cpmdc_session_destroy(session);
+}
+
+static void test_far_orbitals_give_way_to_the_guess(void **state) {
+  (void)state;
+  if (!cpmdc_available()) {
+    print_message("[  SKIP   ] libcpmd embed not linked\n");
+    skip();
+  }
+  size_t params_size = 0;
+  unsigned char *params = read_file(g_params, &params_size);
+  assert_non_null(params);
+  struct far_out far;
+  struct keyed_ctx fctx = {params, params_size, 1};
+  RUN_SETUP_CHILD(far_child, &fctx, &far);
+  if (far.message[0] != '\0')
+    print_message("far run: %s\n", far.message);
+  const int want[kFarSteps] = {-2, -1, 0, 0, 1};
+  for (int i = 0; i < kFarSteps; ++i) {
+    assert_int_equal(far.ok[i], 1);
+    assert_int_equal(far.source[i], want[i]);
+  }
+  /* Every start ends at the cold result of its geometry. */
+  const int cold_of[kFarSteps] = {0, 1, 2, 3, 0};
+  for (int i = 0; i < kFarSteps; ++i) {
+    struct keyed_out cold;
+    struct keyed_ctx cctx = {params, params_size, -(cold_of[i] + 1)};
+    RUN_SETUP_CHILD(keyed_child, &cctx, &cold);
+    assert_int_equal(cold.ok[cold_of[i]], 1);
+    assert_float_equal(far.energy[i], cold.energy[cold_of[i]], 1e-7);
+    for (int k = 0; k < 3 * kAtoms; ++k)
+      assert_float_equal(far.grad[i][k], cold.grad[cold_of[i]][k], 1e-4);
+  }
+  free(params);
+}
+
 static void test_null_session_is_refused(void **state) {
   (void)state;
   assert_int_equal(cpmdc_session_select_orbitals(NULL, 3), -1);
@@ -175,6 +252,7 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_null_session_is_refused),
       cmocka_unit_test(test_keys_keep_their_orbitals),
+      cmocka_unit_test(test_far_orbitals_give_way_to_the_guess),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
