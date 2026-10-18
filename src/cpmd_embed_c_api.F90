@@ -2033,8 +2033,11 @@ CONTAINS
     ibench_deck = ibench(1)
     ! The cheap guess is for a process that already holds c0. A new
     ! session's counter is 0; the latch says the basis still matches.
+    ! Stored orbitals dropped for distance give way to the deck's guess:
+    ! on the Si3N4 band the simple guess took 65 to 205 SCF steps where
+    ! the deck's atomic guess took 37 to 52.
     IF (image%cfg_warm_steps > 0 .OR. embed_basis_latched) THEN
-      cnti%inwfun = 3
+      IF (warm_source /= -1) cnti%inwfun = 3
       ibench(1) = 1
     END IF
     CALL embed_set_warm_orbitals(.TRUE.)
