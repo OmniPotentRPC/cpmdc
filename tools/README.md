@@ -30,8 +30,10 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_c_mem_addrs.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_teardown.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
+/path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
 
