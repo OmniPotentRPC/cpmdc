@@ -257,6 +257,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Cold and warm calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#orbitals-per-key">Orbitals per key</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="#distance-limit">Distance limit</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#the-restart-file">The RESTART file</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -300,6 +301,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#">Cold and warm calls</a></li>
 <li><a class="reference internal" href="#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
 <li><a class="reference internal" href="#orbitals-per-key">Orbitals per key</a></li>
+<li><a class="reference internal" href="#distance-limit">Distance limit</a></li>
 <li><a class="reference internal" href="#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li><a class="reference internal" href="#the-restart-file">The RESTART file</a></li>
 <li><a class="reference internal" href="#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -498,13 +500,101 @@ neighbouring bead rather than the same bead one step earlier.
 evaluations belong to. <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code> keeps a table of
 stored <code class="docutils literal notranslate"><span class="pre">c0</span></code> copies, one per key, beside the store <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> restores
 from. Selecting another key parks the converged <code class="docutils literal notranslate"><span class="pre">c0</span></code> under the key
-being left and moves the copy parked under the new key into the store; a
-key with nothing parked starts from the copy already in the store, the
-nearest calculation the calculator has. A partial copy from an
-unconverged pass is not parked. Every rank of a calculator selects the
-same key, and each rank parks its own slice of <code class="docutils literal notranslate"><span class="pre">c0</span></code>. A basis change
-frees the table with the store, since every copy in it has the shape of
-the old basis. A session that never selects a key keeps one stored copy.</p>
+being left and moves the copy parked under the new key into the store. A
+partial copy from an unconverged pass is not parked. Every rank of a
+calculator selects the same key, and each rank parks its own slice of
+<code class="docutils literal notranslate"><span class="pre">c0</span></code>. A basis change frees the table with the store, since every copy
+in it has the shape of the old basis. A session that never selects a key
+keeps one stored copy.</p>
+</section>
+<section id="distance-limit">
+<h1>Distance limit<a class="headerlink" href="#distance-limit" title="Link to this heading">¶</a></h1>
+<p>Every stored and parked <code class="docutils literal notranslate"><span class="pre">c0</span></code> carries the geometry it converged at, the
+Angstrom positions the caller passed. Before each SCF,
+<code class="docutils literal notranslate"><span class="pre">embed_choose_warm_start</span></code> measures the root-mean-square distance per
+atom from the new geometry to each of them, without alignment. The
+nearest one starts the SCF. It is either the store, which holds the
+selected key’s own copy or, when that key has none, the copy of the key
+last left, or another key’s parked copy, which is copied so the donor
+keeps its own. When that distance exceeds <code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> (default
+0.15 Angstrom), the SCF starts from the deck’s guess instead, and the
+stored copy of that call is dropped. A negative limit starts from the
+store at any distance. An atom the caller wraps across the cell counts
+its whole displacement, so it costs a warm start, never a result.</p>
+<p>The default comes from the Si3N4 BLYP 70 Ry band (7 atoms, 14 Angstrom
+cell, ODIIS, 4 ranks per calculation). One process makes two calls. The
+second sits a set distance along the band from the first and starts from
+the first call’s orbitals or from the deck’s atomic guess. Five starting
+images, means over them per call:</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>RMSD
+(Angstrom)</p></th>
+<th class="head"><p>SCF steps,
+warm</p></th>
+<th class="head"><p>SCF steps,
+guess</p></th>
+<th class="head"><p>wall saved by
+the warm start
+(s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0.047</p></td>
+<td><p>24.0</p></td>
+<td><p>32.4</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0.116</p></td>
+<td><p>29.2</p></td>
+<td><p>33.2</p></td>
+<td><p>4.5</p></td>
+</tr>
+<tr class="row-even"><td><p>0.149</p></td>
+<td><p>32.4</p></td>
+<td><p>33.0</p></td>
+<td><p>2.1</p></td>
+</tr>
+<tr class="row-odd"><td><p>0.167</p></td>
+<td><p>33.8</p></td>
+<td><p>33.4</p></td>
+<td><p>1.2</p></td>
+</tr>
+<tr class="row-even"><td><p>0.186</p></td>
+<td><p>35.4</p></td>
+<td><p>33.0</p></td>
+<td><p>-0.4</p></td>
+</tr>
+<tr class="row-odd"><td><p>0.233</p></td>
+<td><p>37.6</p></td>
+<td><p>32.8</p></td>
+<td><p>-2.4</p></td>
+</tr>
+<tr class="row-even"><td><p>0.46 (3)</p></td>
+<td><p>47.7</p></td>
+<td><p>37.7</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0.9 to 3.1</p></td>
+<td><p>36 to 283</p></td>
+<td><p>19 to 52</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Next to an endpoint the guess is already close (19 to 26 steps): a warm
+start there gains at most 3 steps and loses from 0.12 Angstrom on.
+Mid-path images gain up to 27 steps at 0.05 Angstrom. The 0.46 row has
+three starting images; the last row covers the warm starts from images
+0, 4 and 8 to every image that far away. The deck’s guess, not the
+simple guess (<code class="docutils literal notranslate"><span class="pre">inwfun</span> <span class="pre">3</span></code>) a process that holds orbitals otherwise
+takes, is the start past the limit: the simple guess took 65 to 205
+steps on the same images where the deck’s took 37 to 52. A band step
+capped at 0.1 Angstrom per atom stays inside the limit, so an image that
+returns to its own key is warm. <code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS=1</span></code> prints the start
+of every call.</p>
 </section>
 <section id="what-clears-the-orbitals">
 <h1>What clears the orbitals<a class="headerlink" href="#what-clears-the-orbitals" title="Link to this heading">¶</a></h1>

@@ -257,6 +257,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#orbitals-per-key">Orbitals per key</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#distance-limit">Distance limit</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -439,8 +440,23 @@ unset, computes it</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>,
 each OpenCPMD evaluation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> writes
+<code class="docutils literal notranslate"><span class="pre">cpmdc_warm_start</span></code>
+and
 <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code>
 to the error stream</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>,
+each OpenCPMD evaluation</p></td>
+<td><p>largest
+root-mean-square
+distance per atom,
+Angstrom, at which
+stored orbitals start
+the SCF; default
+0.15, a negative
+value takes them at
+any distance</p></td>
 </tr>
 </tbody>
 </table>
@@ -465,7 +481,16 @@ only energy and forces, and the stress snapshot stays invalid. Isolated
 cells never compute stress, whatever the variable says, and the snapshot
 stays invalid for them even when the box volume is positive.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS=1</span></code> writes one line, <code class="docutils literal notranslate"><span class="pre">cpmdc_scf_steps</span> <span class="pre">N</span></code>, for each
-SCF that returns. <code class="docutils literal notranslate"><span class="pre">N</span></code> is that SCF’s iteration count.</p>
+SCF that returns. <code class="docutils literal notranslate"><span class="pre">N</span></code> is that SCF’s iteration count. Before each
+evaluation it also writes <code class="docutils literal notranslate"><span class="pre">cpmdc_warm_start</span> <span class="pre">S</span> <span class="pre">D</span></code>: where the SCF starts
+(<code class="docutils literal notranslate"><span class="pre">S</span></code> 0 the selected key’s stored orbitals, 1 another key’s parked
+orbitals, -1 the deck’s guess because every stored geometry lies beyond
+<code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code>) and the nearest distance <code class="docutils literal notranslate"><span class="pre">D</span></code> in Angstrom, or
+<code class="docutils literal notranslate"><span class="pre">cpmdc_warm_start</span> <span class="pre">-2</span></code> when nothing is stored.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> is the distance limit of
+<a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">the stored orbitals</span></a> (section
+Distance limit). A value that does not parse as a number keeps the
+default.</p>
 </section>
 <section id="read-by-the-tests-and-tools">
 <h1>Read by the tests and tools<a class="headerlink" href="#read-by-the-tests-and-tools" title="Link to this heading">¶</a></h1>
