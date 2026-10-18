@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Require matching versioned selector objects, not just module interfaces."""
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -59,6 +60,15 @@ result = subprocess.run(compiler + [str(matched / "consumer.o"),
                         cwd=root, text=True, stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT)
 (root / "incompatible-link.txt").write_text(result.stdout)
-if result.returncode == 0 or versioned not in result.stdout.lower():
+diagnostic = result.stdout.lower()
+undefined_versioned = any(
+    versioned in line and ("undefined reference" in line or "undefined symbol" in line)
+    for line in diagnostic.splitlines()
+)
+undefined_versioned = undefined_versioned or re.search(
+    r"undefined symbols for architecture[^\n]*:\n\s*[\"']?[^\s]*" + versioned,
+    diagnostic,
+)
+if result.returncode == 0 or not undefined_versioned:
     raise RuntimeError("Incompatible selector object did not fail on the versioned symbol\n" + result.stdout)
 print("Matched and unversioned controls execute; mixed selector ABI is rejected at link")
