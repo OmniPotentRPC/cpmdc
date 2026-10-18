@@ -75,9 +75,12 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_last_warm_source
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
+  ! Where the last SCF started; see note_warm_start for the values.
+  INTEGER, SAVE :: last_warm_source = -2
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
@@ -444,6 +447,16 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     n = INT(embed_orbital_slot_count(), KIND=c_int)
 #endif
+  END FUNCTION
+
+  ! Where the last SCF of this process started: 0 the selected key's
+  ! stored orbitals, 1 another key's parked orbitals, -1 the guess because
+  ! every stored geometry lay beyond the CPMDC_WARM_RMSD limit, -2 the
+  ! guess because nothing was stored.
+  FUNCTION cpmdc_embed_last_warm_source() RESULT(source) &
+      BIND(C, NAME='cpmdc_embed_last_warm_source')
+    INTEGER(c_int) :: source
+    source = INT(last_warm_source, KIND=c_int)
   END FUNCTION
 
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
@@ -2015,6 +2028,7 @@ CONTAINS
     CALL embed_choose_warm_start(pos(1:nmax), warm_rmsd_limit(), &
         warm_dist, warm_source)
     CALL note_warm_start(warm_source, warm_dist)
+    last_warm_source = warm_source
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
     ! The cheap guess is for a process that already holds c0. A new
