@@ -2225,7 +2225,7 @@ CONTAINS
     IF (TRIM(v) /= '1') RETURN
     IF (.NOT. paral%io_parent) RETURN
     IF (source == -2) THEN
-      WRITE(error_unit, '(A,I0)') 'cpmdc_warm_start ', source
+      WRITE(error_unit, '(A,I0,A,L1)') 'cpmdc_warm_start ', source, ' periodic=', periodic
     ELSE
       WRITE(error_unit, '(A,I0,1X,ES24.16E3,A,I0,A,L1)') &
           'cpmdc_warm_start ', source, dist, ' donor_key=', donor, ' periodic=', periodic
