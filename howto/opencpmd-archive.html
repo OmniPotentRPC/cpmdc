@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Goal - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="../_static/mark.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Goal" href="write-cpmdparams.html" /><link rel="prev" title="What gets built" href="install.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Build the OpenCPMD archive for embedding - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Write a CPMDParams message" href="write-cpmdparams.html" /><link rel="prev" title="Install and build" href="install.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/howto/opencpmd-archive.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -23,20 +23,64 @@
     
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://cpmdc.rgoswami.me/howto/opencpmd-archive.html"/>
-  <meta property="og:title" content="Goal"/>
+  <meta property="og:title" content="Build the OpenCPMD archive for embedding"/>
     <meta name="twitter:card" content="summary"/>
-  <!-- Antics analytics (TurtleTech) -->
-<script defer src="https://antics-api.turtletech.us/antics.js"></script></head>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
 <body><div class="sy-head">
   <div class="sy-head-blur"></div>
   <div class="sy-head-inner sy-container mx-auto">
     <a class="sy-head-brand" href="../index.html">
-      
-      
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
       <strong>cpmdc</strong>
     </a>
     <div class="sy-head-nav" id="head-nav">
-      <nav class="sy-head-links"></nav>
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
       <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
   <input type="text" name="q" placeholder="Search" />
   <kbd>/</kbd>
@@ -66,148 +110,30 @@ data-aria-dark="Switch to auto color mode">
       <div class="sy-scrollbar p-6">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">Build the default library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#describe-the-method-and-the-geometry">Describe the method and the geometry</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#run-the-example-host">Run the example host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#write-your-own-host">Write your own host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#switch-to-opencpmd">Switch to OpenCPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#what-you-built">What you built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">What connects to what</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#prepare-the-run-directory">Prepare the run directory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-the-minimisation">Run the minimisation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#change-the-method">Change the method</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-on-several-ranks">Run on several ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Default Build</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-paths">Common Paths</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#work-loop">Work Loop</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#what-to-read-after-the-first-run">What To Read After The First Run</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#run-the-host-example">Run The Host Example</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#test-selection">Test Selection</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#session-suites">Session Suites</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#opencpmd-archive-build">OpenCPMD Archive Build</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-failures">Common Failures</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#cap-n-proto-fixtures">Cap&#8217;n Proto Fixtures</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul class="current">
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">What gets built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#requirements">Requirements</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#build-the-default-library">Build the default library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#meson-options">Meson options</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#build-against-opencpmd">Build against OpenCPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#install">Install</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="install.html#pixi-tasks">Pixi tasks</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#patches-and-what-each-one-is-for">Patches and what each one is for</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#build-a-patched-tree">Build a patched tree</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#patch-a-tree-that-is-already-built">Patch a tree that is already built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#link-and-check">Link and check</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#building-opencpmd-for-mixed-clusters">Building OpenCPMD for mixed clusters</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html#write-the-message-as-cap-n-proto-text">Write the message as Cap&#8217;n Proto text</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html#map-deck-lines-to-fields">Map deck lines to fields</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html#defaults-that-change-the-physics">Defaults that change the physics</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html#check-the-rendered-deck">Check the rendered deck</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html#where-the-geometry-dependent-lines-go">Where the geometry-dependent lines go</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Pick The Entry Point</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#c-abi">C ABI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#message-flow">Message Flow</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#feature-discovery">Feature Discovery</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#session-step-calls-direct-call-socket">Session Step Calls (direct-call socket)</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#result-buffer-contract">Result Buffer Contract</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#session-lifetime">Session Lifetime</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#cpmd-input-ownership">CPMD Input Ownership</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#restart-files">RESTART files</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#units">Units</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#opencpmd-runtime-inputs">OpenCPMD Runtime Inputs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html#nuclear-forces-from-repeated-scf-calls">Nuclear forces from repeated SCF calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#the-rules">The rules</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#a-communicator-the-host-already-split">A communicator the host already split</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#one-session-per-calculator">One session per calculator</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#finalize-mpi">Finalize MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html#threads">Threads</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html#measured-on-the-si3n4-cluster">Measured on the Si3N4 cluster</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html#set-odiis-in-the-message">Set ODIIS in the message</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html#when-to-keep-pcg">When to keep PCG</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html#always-set-maxiter">Always set MAXITER</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html#write-the-deck-to-a-file">Write the deck to a file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html#what-the-opencpmd-path-changes">What the OpenCPMD path changes</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html#checks-worth-making-on-the-file">Checks worth making on the file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html#compare-with-a-deck-that-works">Compare with a deck that works</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Energies</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html#failed-calls">Failed calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html#forces">Forces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html#build-and-link">Build and link</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="install.html">Install and build</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">Conventions</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#types">Types</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#library-status">Library status</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#mpi">MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#configuration-without-a-session">Configuration without a session</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#global-array-calls">Global array calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#sessions">Sessions</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#one-shot-message-calls">One-shot message calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#results-of-the-last-evaluation">Results of the last evaluation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#discovery">Discovery</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html#restart-file-library">RESTART file library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Read by libcpmdc at run time</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html#read-by-the-tests-and-tools">Read by the tests and tools</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html#read-by-hosts-that-load-libcpmdc">Read by hosts that load libcpmdc</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdinputsection"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmddirective"><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdcpmdsection-the-fields-a-force-call-uses"><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdsystemsection-the-fields-that-set-the-cell"><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmddftsection"><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#cpmdatomssection-and-cpmdatomspseudopotential"><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#forceinput"><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">Contract</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#top-level-cpmdparams-fields">Top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#feature-id-namespaces">Feature ID namespaces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#mapping-a-cpmd-manual-line">Mapping a CPMD manual line</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#inventory-guardrails">Inventory guardrails</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#cpmdinputsection-kinds"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code> kinds</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#escape-hatches">Escape hatches</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#choosing-an-input-carrier">Choosing an input carrier</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#catalog-section-exposure">Catalog section exposure</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#other-structured-parameter-features">Other structured parameter features</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#typed-cpmd-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#typed-dft-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> controls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Two copies of one list</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#feature-ids">Feature IDs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#query-it-from-c">Query it from C</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#the-inventory-file">The inventory file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#the-checks">The checks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html#add-a-row">Add a row</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Sources checked</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html#symbols">Symbols</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html#parser-sections">Parser sections</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">A</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#c">C</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#d">D</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#e">E</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#f">F</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#g">G</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#h">H</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#k">K</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#m">M</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#n">N</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#o">O</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#p">P</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#r">R</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#s">S</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#t">T</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html#w">W</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
@@ -242,45 +168,16 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Why a C ABI around CPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#layers">Layers</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#two-messages-two-lifetimes">Two messages, two lifetimes</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#what-one-evaluation-does">What one evaluation does</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#where-the-deck-comes-from">Where the deck comes from</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#sessions-topology-and-state">Sessions, topology, and state</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#three-builds-one-abi">Three builds, one ABI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#the-file-route-it-replaces">The file route it replaces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">What one call costs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#how-the-wavefunction-travels">How the wavefunction travels</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#what-each-route-has-to-guard-against">What each route has to guard against</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#both-routes-give-the-same-answers">Both routes give the same answers</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#orbitals-per-key">Orbitals per key</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#distance-limit">Distance limit</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">Every rank is a copy of the host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-adopted-index">The adopted index</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#one-session-per-calculator">One session per calculator</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#who-ends-mpi">Who ends MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#threads-inside-ranks">Threads inside ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">Paths</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html#how-selection-works">How selection works</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html#bit-identical-results">Bit-identical results</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Development Checks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#add-a-typed-cpmd-keyword">Add a typed CPMD keyword</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#source-layout">Source Layout</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#documentation">Documentation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#release-process">Release Process</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Versioning</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html#checklist">Checklist</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
 </ul>
 </li>
 </ul>
@@ -298,7 +195,7 @@ data-aria-dark="Switch to auto color mode">
       <i class="i-lucide close"></i>
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
-<li><a class="reference internal" href="#">Goal</a></li>
+<li><a class="reference internal" href="#goal">Goal</a></li>
 <li><a class="reference internal" href="#patches-and-what-each-one-is-for">Patches and what each one is for</a></li>
 <li><a class="reference internal" href="#build-a-patched-tree">Build a patched tree</a></li>
 <li><a class="reference internal" href="#patch-a-tree-that-is-already-built">Patch a tree that is already built</a></li>
@@ -328,7 +225,7 @@ data-aria-dark="Switch to auto color mode">
   </span>
 </a><div class="edit-this-page">
   <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/howto/opencpmd-archive.rst">Edit this page</a>
-</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+</div></div>
   </aside>
   <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
   <main class="sy-main w-full max-sm:max-w-full print:pt-6">
@@ -344,7 +241,7 @@ data-aria-dark="Switch to auto color mode">
         <span>/</span>
         <meta itemprop="position" content="1" />
       </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
-        <strong itemprop="name">Goal</strong>
+        <strong itemprop="name">Build the OpenCPMD archive for embedding</strong>
         <meta itemprop="position" content="2" />
       </li></ol>
     <div class="xl:hidden ml-1">
@@ -392,21 +289,23 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </div><article class="yue dark-code" role="main">
-          <section id="goal">
-<h1>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h1>
-<p>Produce an OpenCPMD build tree whose <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code> can be linked
-into the shared <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> and evaluated repeatedly from one host
-process. A stock OpenCPMD archive does not work inside a host:
-<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> imports routines that only the patches add, the shared link
-stops on code built without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, and the unpatched SCF driver
-drops the forces and the orbitals that <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads after each call.
+          <section id="build-the-opencpmd-archive-for-embedding">
+<h1>Build the OpenCPMD archive for embedding<a class="headerlink" href="#build-the-opencpmd-archive-for-embedding" title="Link to this heading">¶</a></h1>
+<section id="goal">
+<h2>Goal<a class="headerlink" href="#goal" title="Link to this heading">¶</a></h2>
+<p>Produce an OpenCPMD build tree whose <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code> can be linked into the
+shared <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> and evaluated repeatedly from one host process.
+A stock OpenCPMD archive does not work inside a host: <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> imports
+routines that only the patches add, the shared link stops on code built
+without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, and the unpatched SCF driver drops the forces and the
+orbitals that <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reads after each call.
 The patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and one compiler flag fix those.
-<code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> makes <code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> return the address
-as <code class="docutils literal notranslate"><span class="pre">size_t</span></code>. GCC 14 rejects the stock return of a pointer from that
-function.</p>
+<code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> makes <code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> return the address as
+<code class="docutils literal notranslate"><span class="pre">size_t</span></code>.
+GCC 14 rejects the stock return of a pointer from that function.</p>
 </section>
 <section id="patches-and-what-each-one-is-for">
-<h1>Patches and what each one is for<a class="headerlink" href="#patches-and-what-each-one-is-for" title="Link to this heading">¶</a></h1>
+<h2>Patches and what each one is for<a class="headerlink" href="#patches-and-what-each-one-is-for" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -418,162 +317,126 @@ function.</p>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rinitwf_driver.mod.F90</span></code></p></td>
-<td><p>a warm call still builds the
-wavefunction guess and then
-discards it</p></td>
+<td><p>a warm call still builds the wavefunction guess and then discards it</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>,
-<code class="docutils literal notranslate"><span class="pre">src/initrun_driver.mod.F90</span></code>,
-<code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">initrun</span></code> still writes
-<code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> after
-<code class="docutils literal notranslate"><span class="pre">embed_set_write_files(.FALSE.)</span></code>,
-and <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> has no
-<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> to read</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/initrun_driver.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">initrun</span></code> still writes <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code> after <code class="docutils literal notranslate"><span class="pre">embed_set_write_files(.FALSE.)</span></code>, and <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> has no <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> to read</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rwfopt.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rwfopt_utils.mod.F90</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> deallocates <code class="docutils literal notranslate"><span class="pre">fion</span></code> on
-return and starts every SCF from a
-fresh guess, and
-<code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> does not
-compile</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> deallocates <code class="docutils literal notranslate"><span class="pre">fion</span></code> on return and starts every SCF from a fresh guess, and <code class="docutils literal notranslate"><span class="pre">cpmd_embed_c_api.F90</span></code> does not compile</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_converged_state.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/updwf_utils.mod.F90</span></code></p></td>
-<td><p>the optimiser applies one more
-update after convergence, so the
-saved orbitals no longer match the
-reported energy and forces;
-steepest descent with
-<code class="docutils literal notranslate"><span class="pre">iproj</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code> also needs its
-<code class="docutils literal notranslate"><span class="pre">gemax</span></code> reset before the
-convergence check</p></td>
+<td><p>the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces; steepest descent with <code class="docutils literal notranslate"><span class="pre">iproj</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code> also needs its <code class="docutils literal notranslate"><span class="pre">gemax</span></code> reset before the convergence check</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_kpoints_inputfile.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/rkpnt_utils.mod.F90</span></code></p></td>
-<td><p>the k-point report reads the host’s
-<code class="docutils literal notranslate"><span class="pre">argv[1]</span></code> as the input file name
-and stops with <code class="docutils literal notranslate"><span class="pre">STOP</span> <span class="pre">12345</span></code> when
-it is missing or longer than 80
-characters</p></td>
+<td><p>the k-point report reads the host’s <code class="docutils literal notranslate"><span class="pre">argv[1]</span></code> as the input file name and stops with <code class="docutils literal notranslate"><span class="pre">STOP</span> <span class="pre">12345</span></code> when it is missing or longer than 80 characters</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_stopgm_return.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/error_handling.mod.F90</span></code></p></td>
-<td><p>a CPMD stop inside an evaluation
-takes the <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code> path,
-which OpenCPMD writes to end the
-run</p></td>
+<td><p>a CPMD stop inside an evaluation takes the <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code> path, which OpenCPMD writes to end the run</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_tistopgm.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/timer.mod.F90</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">tistopgm</span></code> indexes
-<code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>,
-while the depth is still
-<code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the process faults
-before <code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tistopgm</span></code> indexes <code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>, while the depth is still <code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>, and the process faults before <code class="docutils literal notranslate"><span class="pre">LocalError</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">src/c_mem_utils.c</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> returns a
-<code class="docutils literal notranslate"><span class="pre">size_t</span></code> pointer, and GCC 14
-stops on that conversion</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cGetMemAddrs</span></code> returns a <code class="docutils literal notranslate"><span class="pre">size_t</span></code> pointer, and GCC 14 stops on that conversion</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_teardown.mod.F90</span></code>,
-<code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>,
-<code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code>, and 32 modules
-with first-call state</p></td>
-<td><p>a second setup in one process,
-after a basis change or a
-<code class="docutils literal notranslate"><span class="pre">stopgm</span></code>, stops in <code class="docutils literal notranslate"><span class="pre">ratom</span></code> with
-<code class="docutils literal notranslate"><span class="pre">allocation</span> <span class="pre">problem</span></code> or faults,
-because the arrays of the first
-setup are still allocated</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/embed_teardown.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/embed_ctrl.mod.F90</span></code>, <code class="docutils literal notranslate"><span class="pre">src/SOURCES</span></code>, and 32 modules with first-call state</p></td>
+<td><p>a second setup in one process, after a basis change or a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>, stops in <code class="docutils literal notranslate"><span class="pre">ratom</span></code> with <code class="docutils literal notranslate"><span class="pre">allocation</span> <span class="pre">problem</span></code> or faults, because the arrays of the first setup are still allocated</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>The rwfopt patch publishes <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code>,
 <code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">embed_set_write_files</span></code>. The geometry patch adds <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>, which
-holds <code class="docutils literal notranslate"><span class="pre">embed_write_files</span></code> (default true). Setting it false skips
-<code class="docutils literal notranslate"><span class="pre">geofile</span></code> in <code class="docutils literal notranslate"><span class="pre">initrun</span></code> and the <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> writes in
-<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>. <code class="docutils literal notranslate"><span class="pre">wrgeof</span></code> still prints coordinates.
+<code class="docutils literal notranslate"><span class="pre">embed_set_write_files</span></code>.
+The geometry patch adds <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>, which holds <code class="docutils literal notranslate"><span class="pre">embed_write_files</span></code>
+(default true). Setting it false skips <code class="docutils literal notranslate"><span class="pre">geofile</span></code> in <code class="docutils literal notranslate"><span class="pre">initrun</span></code> and the
+<code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> writes in <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>. <code class="docutils literal notranslate"><span class="pre">wrgeof</span></code> still prints coordinates.
 <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals(.FALSE.)</span></code> frees the saved orbitals.
-<code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> and <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> default to false,
-which is the <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> behaviour. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> leaves <code class="docutils literal notranslate"><span class="pre">fion</span></code> allocated
-only when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true, and frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code>
-before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>. It saves <code class="docutils literal notranslate"><span class="pre">c0</span></code> only when
-<code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> is true and the SCF converged. An unconverged
-pass leaves the previous copy. A failed store allocation calls
-<code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. On the next call it copies that <code class="docutils literal notranslate"><span class="pre">c0</span></code> in before
-<code class="docutils literal notranslate"><span class="pre">initrun</span></code>. <code class="docutils literal notranslate"><span class="pre">rinitwf</span></code> then returns after the phase factors when
-<code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> is true, so the guess does not run. A restart
-read inside <code class="docutils literal notranslate"><span class="pre">initrun</span></code> can replace <code class="docutils literal notranslate"><span class="pre">c0</span></code>, so the same copy is applied
-again after <code class="docutils literal notranslate"><span class="pre">initrun</span></code> when the shape still matches, and a different
-shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets <code class="docutils literal notranslate"><span class="pre">tfor</span></code> when
-<code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true. The stop patch publishes
-<code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>, a C function pointer. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> calls it with the
-stop code passed by value, after writing <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code>. A nonzero
-return makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> return to its caller, and a null pointer makes
-<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> call <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code>. The caller then continues past the
-failed check. The wavefunction, <code class="docutils literal notranslate"><span class="pre">fion</span></code>, and module state of that call
-are undefined, so <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> discards the result and sets CPMD up again
-before the next call. <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> runs only on the ranks that hit the
-error. A host with more than one rank aborts the others, because a rank
-that returns while the rest wait in an MPI call leaves them waiting. A
-standalone <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the pointer null and links without
-<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. While an evaluation is armed, <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> stores a catch
-in the pointer. The catch records the code and returns 1, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>
-reports the stop as a failed call (see
-<a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>). <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_catch</span></code> and
-<code class="docutils literal notranslate"><span class="pre">cpmdc_note_stop</span></code> are exported from <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>. The calculator split
-does not need a patch: <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> assigns <code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> only when
-CPMD itself calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>, and <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_bind_calculator</span></code>
-initialises MPI and stores its communicator before that. A module flag,
-<code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, makes a second bind return the same index.
-The timer patch changes <code class="docutils literal notranslate"><span class="pre">tistopgm</span></code>. <code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> stays <code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code>
-until <code class="docutils literal notranslate"><span class="pre">tistart</span></code>, and without the guard the call-stack walk indexes
-<code class="docutils literal notranslate"><span class="pre">trace_names</span></code> from that value, so a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> before <code class="docutils literal notranslate"><span class="pre">tistart</span></code>
-faults instead of writing <code class="docutils literal notranslate"><span class="pre">LocalError</span></code>. The walk runs only when the
-depth is inside <code class="docutils literal notranslate"><span class="pre">SIZE(tname%trace_names)</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> and <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> default to false, which is the
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> behaviour.
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> leaves <code class="docutils literal notranslate"><span class="pre">fion</span></code> allocated only when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true, and
+frees a surviving <code class="docutils literal notranslate"><span class="pre">fion</span></code> before its own <code class="docutils literal notranslate"><span class="pre">ALLOCATE</span></code>.
+It saves <code class="docutils literal notranslate"><span class="pre">c0</span></code> only when <code class="docutils literal notranslate"><span class="pre">embed_warm_orbitals</span></code> is true and the SCF converged.
+An unconverged pass leaves the previous copy.
+A failed store allocation calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>.
+On the next call it copies that <code class="docutils literal notranslate"><span class="pre">c0</span></code> in before <code class="docutils literal notranslate"><span class="pre">initrun</span></code>.
+<code class="docutils literal notranslate"><span class="pre">rinitwf</span></code> then returns after the phase factors when <code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code>
+is true, so the guess does not run.
+A restart read inside <code class="docutils literal notranslate"><span class="pre">initrun</span></code> can replace <code class="docutils literal notranslate"><span class="pre">c0</span></code>, so the same copy is
+applied again after <code class="docutils literal notranslate"><span class="pre">initrun</span></code> when the shape still matches, and a different
+shape calls <code class="docutils literal notranslate"><span class="pre">stopgm</span></code>.
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> sets <code class="docutils literal notranslate"><span class="pre">tfor</span></code> when <code class="docutils literal notranslate"><span class="pre">embed_need_forces</span></code> is true.
+The stop patch publishes <code class="docutils literal notranslate"><span class="pre">cpmd_stopgm_hook</span></code>, a C function pointer.
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> calls it with the stop code passed by value, after writing
+<code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code>.
+A nonzero return makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> return to its caller, and a null pointer
+makes <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> call <code class="docutils literal notranslate"><span class="pre">my_stopall</span></code>.
+The caller then continues past the failed check.
+The wavefunction, <code class="docutils literal notranslate"><span class="pre">fion</span></code>, and module state of that call are undefined, so
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> discards the result and sets CPMD up again before the next call.
+<code class="docutils literal notranslate"><span class="pre">stopgm</span></code> runs only on the ranks that hit the error.
+A host with more than one rank aborts the others, because a rank that
+returns while the rest wait in an MPI call leaves them waiting.
+A standalone <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> leaves the pointer null and links without <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.
+While an evaluation is armed, <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> stores a catch in the pointer.
+The catch records the code and returns 1, and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> reports the stop as a
+failed call (see <a class="reference internal" href="troubleshooting.html"><span class="doc">troubleshooting</span></a>).
+<code class="docutils literal notranslate"><span class="pre">cpmdc_embed_catch</span></code> and <code class="docutils literal notranslate"><span class="pre">cpmdc_note_stop</span></code> are exported from <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.
+The calculator split does not need a patch: <code class="docutils literal notranslate"><span class="pre">mp_start</span></code> assigns
+<code class="docutils literal notranslate"><span class="pre">mp_comm_world</span></code> only when CPMD itself calls <code class="docutils literal notranslate"><span class="pre">MPI_Init</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">cpmdc_embed_bind_calculator</span></code> initialises MPI and stores its communicator
+before that. A module flag, <code class="docutils literal notranslate"><span class="pre">embed_calculator_bound</span></code>, makes a second bind
+return the same index.
+The timer patch changes <code class="docutils literal notranslate"><span class="pre">tistopgm</span></code>.
+<code class="docutils literal notranslate"><span class="pre">trace_depth</span></code> stays <code class="docutils literal notranslate"><span class="pre">HUGE(0)</span></code> until <code class="docutils literal notranslate"><span class="pre">tistart</span></code>, and without the guard the
+call-stack walk indexes <code class="docutils literal notranslate"><span class="pre">trace_names</span></code> from that value, so a <code class="docutils literal notranslate"><span class="pre">stopgm</span></code> before
+<code class="docutils literal notranslate"><span class="pre">tistart</span></code> faults instead of writing <code class="docutils literal notranslate"><span class="pre">LocalError</span></code>.
+The walk runs only when the depth is inside <code class="docutils literal notranslate"><span class="pre">SIZE(tname%trace_names)</span></code>.</p>
 <p>The teardown patch adds the module <code class="docutils literal notranslate"><span class="pre">embed_teardown</span></code> and its routine
-<code class="docutils literal notranslate"><span class="pre">embed_teardown_state</span></code>, which <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_teardown</span></code> calls. It frees
-the saved orbitals, the communicators <code class="docutils literal notranslate"><span class="pre">set_cp_grp</span></code> built, and every
-<code class="docutils literal notranslate"><span class="pre">ALLOCATABLE</span></code> module variable and module-variable component that a
-<code class="docutils literal notranslate"><span class="pre">USE</span></code> reaches, outside the timer, stop, and CUDA device modules. It
-then adds one to <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> in <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. 37 routines in
-those 32 modules keep work on the setup and wavefunction optimisation
-path for their first call behind a <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> flag: <code class="docutils literal notranslate"><span class="pre">phfac</span></code>,
-<code class="docutils literal notranslate"><span class="pre">setbasis</span></code>, <code class="docutils literal notranslate"><span class="pre">hf_init</span></code>, <code class="docutils literal notranslate"><span class="pre">addfftnset</span></code>, the density mixers, the
-symmetry setup, the Vanderbilt and core-charge splines, and others. Each
-one compares the count it last saw with <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code>, and on a
+<code class="docutils literal notranslate"><span class="pre">embed_teardown_state</span></code>, which <code class="docutils literal notranslate"><span class="pre">cpmdc_embed_teardown</span></code> calls.
+It frees the saved orbitals, the communicators <code class="docutils literal notranslate"><span class="pre">set_cp_grp</span></code> built, and
+every <code class="docutils literal notranslate"><span class="pre">ALLOCATABLE</span></code> module variable and module-variable component that a
+<code class="docutils literal notranslate"><span class="pre">USE</span></code> reaches, outside the timer, stop, and CUDA device modules.
+It then adds one to <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> in <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>.
+37 routines in those 32 modules keep work on the setup and wavefunction
+optimisation path for their first call behind a <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> flag: <code class="docutils literal notranslate"><span class="pre">phfac</span></code>, <code class="docutils literal notranslate"><span class="pre">setbasis</span></code>,
+<code class="docutils literal notranslate"><span class="pre">hf_init</span></code>, <code class="docutils literal notranslate"><span class="pre">addfftnset</span></code>, the density mixers, the symmetry setup, the
+Vanderbilt and core-charge splines, and others.
+Each one compares the count it last saw with <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code>, and on a
 change frees its own <code class="docutils literal notranslate"><span class="pre">SAVE</span></code> arrays and runs as the first call again.
-The next setup then gives the energies of a fresh process. <code class="docutils literal notranslate"><span class="pre">tistart</span></code>
-keeps its state: it executes <code class="docutils literal notranslate"><span class="pre">STOP</span></code> on a second call, so the embed
-calls it once per process. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never tears down, and
-<code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> stays 0 there.</p>
-<p><code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_patch_integrity.py</span></code> checks that the patches are
-portable unified diffs against the files named above. Apply
-<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code> before the rwfopt patch. <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>
-reads <code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> from <code class="docutils literal notranslate"><span class="pre">rinitwf_driver</span></code>. Apply
-<code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code> before that rwfopt patch as well:
-<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>. The rwfopt, converged-state, k-point,
-stop, and timer patches are the commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request
-9</a> (branch
-<code class="docutils literal notranslate"><span class="pre">embedding-hooks</span></code>, <code class="docutils literal notranslate"><span class="pre">43cf4e7</span></code>) and apply in sequence to OpenCPMD
-commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>. Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> with them.
-Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code> last: it adds to the
-<code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> of the geometry patch and calls
-<code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code> from the rwfopt patch.
+The next setup then gives the energies of a fresh process.
+<code class="docutils literal notranslate"><span class="pre">tistart</span></code> keeps its state: it executes <code class="docutils literal notranslate"><span class="pre">STOP</span></code> on a second call, so the
+embed calls it once per process.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> never tears down, and <code class="docutils literal notranslate"><span class="pre">embed_teardowns</span></code> stays 0 there.</p>
+<p><code class="docutils literal notranslate"><span class="pre">tests/test_opencpmd_patch_integrity.py</span></code> checks that the patches are portable
+unified diffs against the files named above.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_rinitwf.patch</span></code> before the rwfopt patch.
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads <code class="docutils literal notranslate"><span class="pre">embed_have_orbitals</span></code> from <code class="docutils literal notranslate"><span class="pre">rinitwf_driver</span></code>.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_geometry.patch</span></code> before that rwfopt patch as well:
+<code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> reads <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>.
+The rwfopt, converged-state, k-point, stop, and timer patches are the
+commits on <a class="reference external" href="https://github.com/OpenCPMD/CPMD/pull/9">OpenCPMD pull request 9</a>
+(branch <code class="docutils literal notranslate"><span class="pre">embedding-hooks</span></code>, <code class="docutils literal notranslate"><span class="pre">43cf4e7</span></code>) and apply in sequence to OpenCPMD
+commit <code class="docutils literal notranslate"><span class="pre">062582b</span></code>.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_c_mem_addrs.patch</span></code> with them.
+Apply <code class="docutils literal notranslate"><span class="pre">opencpmd_embed_teardown.patch</span></code> last: it adds to the <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code> of
+the geometry patch and calls <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code> from the rwfopt
+patch.
 <code class="docutils literal notranslate"><span class="pre">cuda_get_address</span></code> stores the <code class="docutils literal notranslate"><span class="pre">size_t</span></code> that function returns.</p>
 </section>
 <section id="build-a-patched-tree">
-<h1>Build a patched tree<a class="headerlink" href="#build-a-patched-tree" title="Link to this heading">¶</a></h1>
-<p>Start from an OpenCPMD source checkout and apply the patches before the
-first build:</p>
+<h2>Build a patched tree<a class="headerlink" href="#build-a-patched-tree" title="Link to this heading">¶</a></h2>
+<p>Start from an OpenCPMD source checkout and apply the patches before the first
+build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/OpenCPMD/CPMD.git<span class="w"> </span>opencpmd
 </span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>opencpmd
 </span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
@@ -583,37 +446,38 @@ first build:</p>
 </span><span data-line="7"><span class="k">done</span>
 </span></pre></div>
 </div>
-<p>The OpenCPMD sample <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code> sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to one
-person’s library path. Copying that file and adding <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> leaves the
-path in the build. <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> ships
-<code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> for the command below. It calls
-<code class="docutils literal notranslate"><span class="pre">mpif90</span></code> and <code class="docutils literal notranslate"><span class="pre">gcc</span></code> from <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, adds <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> and
+<p>The OpenCPMD sample <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code> sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to one person’s
+library path.
+Copying that file and adding <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> leaves the path in the build.
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> ships <code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> for the command below.
+It calls <code class="docutils literal notranslate"><span class="pre">mpif90</span></code> and <code class="docutils literal notranslate"><span class="pre">gcc</span></code> from <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, adds <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> and
 <code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code> to <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>, and sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to
-<code class="docutils literal notranslate"><span class="pre">-lopenblas</span></code>. The aarch64 file is
-<code class="docutils literal notranslate"><span class="pre">tools/LINUX-AARCH64-GFORTRAN-MPI-PIC</span></code>. The section Building OpenCPMD
-for mixed clusters below says when to use each file. When <code class="docutils literal notranslate"><span class="pre">mpif90</span></code>
-accepts it, <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> also gains <code class="docutils literal notranslate"><span class="pre">-fallow-argument-mismatch</span></code>.
+<code class="docutils literal notranslate"><span class="pre">-lopenblas</span></code>.
+The aarch64 file is <code class="docutils literal notranslate"><span class="pre">tools/LINUX-AARCH64-GFORTRAN-MPI-PIC</span></code>.
+The section Building OpenCPMD for mixed clusters below says when to
+use each file.
+When <code class="docutils literal notranslate"><span class="pre">mpif90</span></code> accepts it, <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> also gains <code class="docutils literal notranslate"><span class="pre">-fallow-argument-mismatch</span></code>.
 <code class="docutils literal notranslate"><span class="pre">mp_bcast_byte</span></code> broadcasts the bytes of its first argument, and one
-procedure calls it with several derived types. gfortran 10 and later
-stop on those calls without the flag. That OpenBLAS build has to export
-the LAPACK symbols. <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared library; a member of
-<code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code> compiled without <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> fails the link with a
-<code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> relocation error. Copy the shipped file into the
-clone, then configure and build:</p>
+procedure calls it with several derived types.
+gfortran 10 and later stop on those calls without the flag.
+That OpenBLAS build has to export the LAPACK symbols.
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared library; a member of <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code> compiled without
+<code class="docutils literal notranslate"><span class="pre">-fPIC</span></code> fails the link with a <code class="docutils literal notranslate"><span class="pre">R_X86_64_PC32</span></code> relocation error.
+Copy the shipped file into the clone, then configure and build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cp<span class="w"> </span>/path/to/cpmdc/tools/LINUX-X86_64-GFORTRAN-MPI-PIC<span class="w"> </span>configure/
 </span><span data-line="2">./configure.sh<span class="w"> </span>-DEST<span class="o">=</span>/path/to/opencpmd-build<span class="w"> </span>LINUX-X86_64-GFORTRAN-MPI-PIC
 </span><span data-line="3">make<span class="w"> </span>-C<span class="w"> </span>/path/to/opencpmd-build<span class="w"> </span>-j<span class="w"> </span><span class="m">8</span>
 </span><span data-line="4">ls<span class="w"> </span>/path/to/opencpmd-build/lib/libcpmd.a<span class="w"> </span>/path/to/opencpmd-build/obj/timetag.o
 </span></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">/path/to/opencpmd-build</span></code> is the <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> passed to Meson. The
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> build reads <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code>, the module files in <code class="docutils literal notranslate"><span class="pre">obj/</span></code>,
-and the headers in <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">/path/to/opencpmd-build</span></code> is the <code class="docutils literal notranslate"><span class="pre">cpmd_root</span></code> passed to Meson.
+The <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> build reads <code class="docutils literal notranslate"><span class="pre">lib/libcpmd.a</span></code>, the module files in <code class="docutils literal notranslate"><span class="pre">obj/</span></code>, and the
+headers in <code class="docutils literal notranslate"><span class="pre">src/</span></code>.</p>
 </section>
 <section id="patch-a-tree-that-is-already-built">
-<h1>Patch a tree that is already built<a class="headerlink" href="#patch-a-tree-that-is-already-built" title="Link to this heading">¶</a></h1>
-<p>When the tree was built before the patches were applied, patch the
-source and rebuild only the affected members:</p>
+<h2>Patch a tree that is already built<a class="headerlink" href="#patch-a-tree-that-is-already-built" title="Link to this heading">¶</a></h2>
+<p>When the tree was built before the patches were applied, patch the source and
+rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
 </span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
@@ -624,25 +488,24 @@ source and rebuild only the affected members:</p>
 </span></pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of each vendored
-patch, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>,
-<code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, the 32 modules of the teardown
-patch, and <code class="docutils literal notranslate"><span class="pre">embed_teardown.mod.o</span></code> after them, and <code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code>
-for the module order, with one Make job, then replaces those members
-with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>. It runs one job because gfortran
-stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel
-rebuild can leave the two module files naming different components. It
-calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without
-an operation letter, so its archive rule does not replace members.
+patch, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>,
+<code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, the 32 modules of
+the teardown patch, and <code class="docutils literal notranslate"><span class="pre">embed_teardown.mod.o</span></code> after them, and
+<code class="docutils literal notranslate"><span class="pre">scex_utils.mod.o</span></code> for the module order, with one Make job, then replaces
+those members with <code class="docutils literal notranslate"><span class="pre">ar</span> <span class="pre">r</span></code> and runs <code class="docutils literal notranslate"><span class="pre">ranlib</span></code>.
+It runs one job because gfortran stores a copy of <code class="docutils literal notranslate"><span class="pre">Scex_t</span></code> inside
+<code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod</span></code>: a parallel rebuild can leave the two module files naming
+different components.
+It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an
+operation letter, so its archive rule does not replace members.
 <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">AR</span></code> in the environment override the programs it runs.</p>
 </section>
 <section id="link-and-check">
-<h1>Link and check<a class="headerlink" href="#link-and-check" title="Link to this heading">¶</a></h1>
-<p>OpenCPMD leaves <code class="docutils literal notranslate"><span class="pre">timetag</span></code> out of <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code> and links
-<code class="docutils literal notranslate"><span class="pre">obj/timetag.o</span></code> into <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>. <code class="docutils literal notranslate"><span class="pre">header</span></code> calls <code class="docutils literal notranslate"><span class="pre">timetag</span></code>, so the
-embed link needs that object too. Build it from the configured tree
-before <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span></code>:</p>
+<h2>Link and check<a class="headerlink" href="#link-and-check" title="Link to this heading">¶</a></h2>
+<p>OpenCPMD leaves <code class="docutils literal notranslate"><span class="pre">timetag</span></code> out of <code class="docutils literal notranslate"><span class="pre">libcpmd.a</span></code> and links <code class="docutils literal notranslate"><span class="pre">obj/timetag.o</span></code> into
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>. <code class="docutils literal notranslate"><span class="pre">header</span></code> calls <code class="docutils literal notranslate"><span class="pre">timetag</span></code>, so the embed link needs that object too.
+Build it from the configured tree before <code class="docutils literal notranslate"><span class="pre">meson</span> <span class="pre">setup</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">make<span class="w"> </span>-C<span class="w"> </span>/path/to/opencpmd-build/obj<span class="w"> </span>-f<span class="w"> </span>/path/to/opencpmd-build/Makefile<span class="w"> </span>timetag.o
 </span></pre></div>
 </div>
@@ -651,55 +514,64 @@ before <code class="docutils literal notranslate"><span class="pre">meson</span>
 </span><span data-line="3">nm<span class="w"> </span>-D<span class="w"> </span>build-cpmd/libcpmdc.so<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39; T cpmdc_&#39;</span>
 </span></pre></div>
 </div>
-<p>The last command counts the exported <code class="docutils literal notranslate"><span class="pre">cpmdc_*</span></code> symbols. The first
-evaluation needs the pseudopotential directory in <code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>;
-the <a class="reference internal" href="../tutorials/first-energy.html"><span class="doc">first energy tutorial</span></a> runs one.
-Stress tensors, which <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code> carries for periodic
-cells, need no extra patch: <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> sets <code class="docutils literal notranslate"><span class="pre">cntl%tpres</span></code> before the SCF
-and copies <code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code> afterwards. An isolated cell does not set the
-snapshot. The box has a volume, and CPMD does not compute the tensor.</p>
+<p>The last command counts the exported <code class="docutils literal notranslate"><span class="pre">cpmdc_*</span></code> symbols.
+The first evaluation needs the pseudopotential directory in
+<code class="docutils literal notranslate"><span class="pre">CPMDC_PSEUDO_DIR</span></code>; the <a class="reference internal" href="../tutorials/first-energy.html"><span class="doc">first energy
+tutorial</span></a> runs one.
+Stress tensors, which <code class="docutils literal notranslate"><span class="pre">PotentialResult.stress</span></code> carries for periodic cells, need
+no extra patch: <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> sets <code class="docutils literal notranslate"><span class="pre">cntl%tpres</span></code> before the SCF and copies
+<code class="docutils literal notranslate"><span class="pre">paiu/omega</span></code> afterwards.
+An isolated cell does not set the snapshot. The box has a volume, and CPMD
+does not compute the tensor.</p>
 </section>
 <section id="building-opencpmd-for-mixed-clusters">
-<h1>Building OpenCPMD for mixed clusters<a class="headerlink" href="#building-opencpmd-for-mixed-clusters" title="Link to this heading">¶</a></h1>
+<h2>Building OpenCPMD for mixed clusters<a class="headerlink" href="#building-opencpmd-for-mixed-clusters" title="Link to this heading">¶</a></h2>
 <p>A binary that runs on more than one CPU type must not be built with
-<code class="docutils literal notranslate"><span class="pre">-xHost</span></code>, <code class="docutils literal notranslate"><span class="pre">-march=native</span></code>, or <code class="docutils literal notranslate"><span class="pre">-axCORE-AVX512</span></code>. <code class="docutils literal notranslate"><span class="pre">-xHost</span></code> and
-<code class="docutils literal notranslate"><span class="pre">-march=native</span></code> bind the object code to the CPU that compiled it.
+<code class="docutils literal notranslate"><span class="pre">-xHost</span></code>, <code class="docutils literal notranslate"><span class="pre">-march=native</span></code>, or <code class="docutils literal notranslate"><span class="pre">-axCORE-AVX512</span></code>.
+<code class="docutils literal notranslate"><span class="pre">-xHost</span></code> and <code class="docutils literal notranslate"><span class="pre">-march=native</span></code> bind the object code to the CPU that
+compiled it.
 <code class="docutils literal notranslate"><span class="pre">-axCORE-AVX512</span></code> is Intel’s multi-target flag, and the binary it
-produces does not run on a non-Intel CPU. Stock OpenCPMD files that pass
-those flags include <code class="docutils literal notranslate"><span class="pre">INTEL-AMD-IFORT-OPENMPI</span></code> and
-<code class="docutils literal notranslate"><span class="pre">INTEL-SKYLAKE-IFORT-OPENMPI</span></code>. Do not copy them for a shared cluster.
-One binary per microarchitecture belongs in EESSI (Dröge et al., Softw.
-Pract. Exp. 53, 176 (2023), doi:10.1002/spe.3075).</p>
-<p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> ships two configure files that set the instruction set
-explicitly. <code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> passes
-<code class="docutils literal notranslate"><span class="pre">-march=x86-64</span></code> on debug and release <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>. GCC 11
-on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to
-x86-64-v3, which includes AVX2 and FMA.
-<code class="docutils literal notranslate"><span class="pre">tools/LINUX-AARCH64-GFORTRAN-MPI-PIC</span></code> passes <code class="docutils literal notranslate"><span class="pre">-march=armv8-a</span></code> on
-those same flags. Both add <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, because <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared
-library, and <code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code>. <code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code> stops the
-compiler from fusing a multiply and an add into one instruction. That
-keeps numeric results equal across build targets. The same flag is on
-<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> C and Fortran arguments. Copy the file that matches the
-machine into <code class="docutils literal notranslate"><span class="pre">configure/</span></code>:</p>
+produces does not run on a non-Intel CPU.
+Stock OpenCPMD files that pass those flags include
+<code class="docutils literal notranslate"><span class="pre">INTEL-AMD-IFORT-OPENMPI</span></code> and <code class="docutils literal notranslate"><span class="pre">INTEL-SKYLAKE-IFORT-OPENMPI</span></code>.
+Do not copy them for a shared cluster.
+One binary per microarchitecture belongs in EESSI
+(Dröge et al., Softw. Pract. Exp. 53, 176 (2023),
+<a class="reference external" href="https://doi.org/10.1002/spe.3075">https://doi.org/10.1002/spe.3075</a>).</p>
+<p><code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> ships two configure files that set the instruction set explicitly.
+<code class="docutils literal notranslate"><span class="pre">tools/LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> passes <code class="docutils literal notranslate"><span class="pre">-march=x86-64</span></code> on debug and
+release <code class="docutils literal notranslate"><span class="pre">FFLAGS</span></code> and <code class="docutils literal notranslate"><span class="pre">CFLAGS</span></code>.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults
+to x86-64-v3, which includes AVX2 and FMA.
+<code class="docutils literal notranslate"><span class="pre">tools/LINUX-AARCH64-GFORTRAN-MPI-PIC</span></code> passes <code class="docutils literal notranslate"><span class="pre">-march=armv8-a</span></code> on those
+same flags.
+Both add <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code>, because <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> is a shared library, and
+<code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code>.
+<code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code> stops the compiler from fusing a multiply and an
+add into one instruction.
+That keeps numeric results equal across build targets.
+The same flag is on <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> C and Fortran arguments.
+Copy the file that matches the machine into <code class="docutils literal notranslate"><span class="pre">configure/</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">cp<span class="w"> </span>/path/to/cpmdc/tools/LINUX-AARCH64-GFORTRAN-MPI-PIC<span class="w"> </span>configure/
 </span><span data-line="2">./configure.sh<span class="w"> </span>-DEST<span class="o">=</span>/path/to/opencpmd-build<span class="w"> </span>LINUX-AARCH64-GFORTRAN-MPI-PIC
 </span></pre></div>
 </div>
-<p>On x86<sub>64</sub>, use <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> in that command
-instead.</p>
+<p>On x86<sub>64</sub>, use <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI-PIC</span></code> in that command instead.</p>
 <p>OpenBLAS and FFTW choose their own kernels at run time when they were
-built that way. <code class="docutils literal notranslate"><span class="pre">meson.build</span></code> links OpenBLAS, or FlexiBLAS when that
-library is present, and FFTW3, including <code class="docutils literal notranslate"><span class="pre">fftw3_omp</span></code> when it is
-present. Check OpenBLAS with <code class="docutils literal notranslate"><span class="pre">openblas_get_config()</span></code>. The returned
-string contains <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> when the library selects a kernel for
-the CPU it is running on. A build without <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> can contain
-one microarchitecture and fault on a CPU that lacks it. Check FFTW in
-the build’s <code class="docutils literal notranslate"><span class="pre">config.log</span></code> or the package recipe. Runtime selection is
-on when several SIMD codelet options were enabled together, for example
-<code class="docutils literal notranslate"><span class="pre">--enable-sse2</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-avx</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-avx2</span></code>,
-<code class="docutils literal notranslate"><span class="pre">--enable-avx512</span></code>, or <code class="docutils literal notranslate"><span class="pre">--enable-neon</span></code>. A library built with only one
-of those runs only that set.</p>
+built that way.
+<code class="docutils literal notranslate"><span class="pre">meson.build</span></code> links OpenBLAS, or FlexiBLAS when that library is
+present, and FFTW3, including <code class="docutils literal notranslate"><span class="pre">fftw3_omp</span></code> when it is present.
+Check OpenBLAS with <code class="docutils literal notranslate"><span class="pre">openblas_get_config()</span></code>.
+The returned string contains <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> when the library selects a
+kernel for the CPU it is running on.
+A build without <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> can contain one microarchitecture and
+fault on a CPU that lacks it.
+Check FFTW in the build’s <code class="docutils literal notranslate"><span class="pre">config.log</span></code> or the package recipe.
+Runtime selection is on when several SIMD codelet options were enabled
+together, for example <code class="docutils literal notranslate"><span class="pre">--enable-sse2</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-avx</span></code>, <code class="docutils literal notranslate"><span class="pre">--enable-avx2</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--enable-avx512</span></code>, or <code class="docutils literal notranslate"><span class="pre">--enable-neon</span></code>.
+A library built with only one of those runs only that set.</p>
+</section>
 </section>
 
         </article><button class="back-to-top" type="button">
@@ -711,13 +583,13 @@ of those runs only that set.</p>
     <a href="install.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">What gets built</div></div>
+        <span>Previous</span><div class="title">Install and build</div></div>
     </a>
   </div><div class="navigation-next">
     <a href="write-cpmdparams.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Goal</div>
+        <div class="title">Write a CPMDParams message</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -727,6 +599,71 @@ of those runs only that set.</p>
 </div>
 <footer class="sy-foot">
   <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
     <div class="sy-foot-reserved md:flex justify-between items-center">
       <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
   
@@ -737,8 +674,7 @@ of those runs only that set.</p>
     
     <a href="https://shibuya.lepture.com">Shibuya theme</a>.
   </p>
-</div>
-      <div class="sy-foot-socials">
+</div> <div class="sy-foot-socials">
 <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
   <iconify-icon icon="simple-icons:github"></iconify-icon>
 </a></div>

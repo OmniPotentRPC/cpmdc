@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMDParams - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="../_static/mark.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Contract" href="cpmd-options.html" /><link rel="prev" title="Read by libcpmdc at run time" href="environment.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>CPMDParams schema fields - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="CPMD option mapping" href="cpmd-options.html" /><link rel="prev" title="Environment variables" href="environment.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/reference/cpmdparams-schema.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -23,20 +23,64 @@
     
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://cpmdc.rgoswami.me/reference/cpmdparams-schema.html"/>
-  <meta property="og:title" content="CPMDParams"/>
+  <meta property="og:title" content="CPMDParams schema fields"/>
     <meta name="twitter:card" content="summary"/>
-  <!-- Antics analytics (TurtleTech) -->
-<script defer src="https://antics-api.turtletech.us/antics.js"></script></head>
+  <link rel="icon" type="image/png" sizes="16x16" href="../_static/favicons/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../_static/favicons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../_static/favicons/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="../_static/favicons/android-chrome-512x512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="../_static/favicons/apple-touch-icon.png">
+<link rel="shortcut icon" href="../_static/favicons/favicon.ico">
+<link rel="manifest" href="../_static/favicons/site.webmanifest">
+<!-- Antics analytics (TurtleTech) -->
+<script defer src="https://antics-api.turtletech.us/antics.js"></script>
+<script>window.antics=window.antics||{event:function(){}};document.addEventListener('click',function(e){var a=e.target.closest('a');if(a&&a.hostname&&a.hostname!==location.hostname)antics.event('Outbound Link',{url:a.href})});</script></head>
 <body><div class="sy-head">
   <div class="sy-head-blur"></div>
   <div class="sy-head-inner sy-container mx-auto">
     <a class="sy-head-brand" href="../index.html">
-      
-      
+      <img class="light-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
+      <img class="dark-logo" src="../_static/icon.svg" alt="cpmdc" height="28" loading="lazy" />
       <strong>cpmdc</strong>
     </a>
     <div class="sy-head-nav" id="head-nav">
-      <nav class="sy-head-links"></nav>
+      <nav class="sy-head-links"><ul>
+      <li class="link"><button class="js-menu" type="button" id="nav-trigger-1" aria-controls="nav-children-1">
+            <span>Ecosystem</span>
+            <i class="i-lucide chevron-down"></i>
+          </button>
+        <ul id="nav-children-1" aria-labelledby="nav-trigger-1"><li><a href="https://eondocs.org">
+                <span>eOn</span>
+                <small>Saddle point finding on potential energy surfaces</small>
+              </a></li><li><a href="https://rgpot.rgoswami.me">
+                <span>rgpot</span>
+                <small>Potential-energy library and Cap'n Proto RPC server</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgmin">
+                <span>rgmin</span>
+                <small>Local minimization over eindir objectives</small>
+              </a></li><li><a href="https://omnipotentrpc.github.io/rgsaddle">
+                <span>rgsaddle</span>
+                <small>Band and minimum-mode saddle mechanics over rgmin</small>
+              </a></li><li><a href="https://rgpycrumbs.rgoswami.me">
+                <span>rgpycrumbs</span>
+                <small>Pure-Python computational library and CLI for chemical physics</small>
+              </a></li><li><a href="https://lode-org.github.io/minimage">
+                <span>minimage</span>
+                <small>Minimum-image convention on a general parallelepiped</small>
+              </a></li><li><a href="https://docs.rs/linkcell">
+                <span>linkcell</span>
+                <small>Periodic linked-cell k-nearest neighbour search</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-core">
+                <span>readcon</span>
+                <small>Reference implementation of versioned CON checkpoints</small>
+              </a></li><li><a href="https://lode-org.github.io/readcon-db">
+                <span>readcon-db</span>
+                <small>Mmap-backed CON campaign corpus store</small>
+              </a></li><li><a href="https://github.com/lode-org/readcon-ops">
+                <span>readcon-ops</span>
+                <small>Comparisons and rigid alignment of coordinate frames</small>
+              </a></li></ul>
+      </li></ul></nav>
       <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../search.html" method="get">
   <input type="text" name="q" placeholder="Search" />
   <kbd>/</kbd>
@@ -66,148 +110,30 @@ data-aria-dark="Switch to auto color mode">
       <div class="sy-scrollbar p-6">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">Build the default library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#describe-the-method-and-the-geometry">Describe the method and the geometry</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#run-the-example-host">Run the example host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#write-your-own-host">Write your own host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#switch-to-opencpmd">Switch to OpenCPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html#what-you-built">What you built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">What connects to what</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#prepare-the-run-directory">Prepare the run directory</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-the-minimisation">Run the minimisation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#change-the-method">Change the method</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html#run-on-several-ranks">Run on several ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Default Build</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-paths">Common Paths</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#work-loop">Work Loop</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#what-to-read-after-the-first-run">What To Read After The First Run</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#run-the-host-example">Run The Host Example</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#test-selection">Test Selection</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#session-suites">Session Suites</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#opencpmd-archive-build">OpenCPMD Archive Build</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#common-failures">Common Failures</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html#cap-n-proto-fixtures">Cap&#8217;n Proto Fixtures</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">How-To Guides</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">What gets built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#requirements">Requirements</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#build-the-default-library">Build the default library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#meson-options">Meson options</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#build-against-opencpmd">Build against OpenCPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#install">Install</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html#pixi-tasks">Pixi tasks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#patches-and-what-each-one-is-for">Patches and what each one is for</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#build-a-patched-tree">Build a patched tree</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#patch-a-tree-that-is-already-built">Patch a tree that is already built</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#link-and-check">Link and check</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html#building-opencpmd-for-mixed-clusters">Building OpenCPMD for mixed clusters</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#write-the-message-as-cap-n-proto-text">Write the message as Cap&#8217;n Proto text</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#map-deck-lines-to-fields">Map deck lines to fields</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#defaults-that-change-the-physics">Defaults that change the physics</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#check-the-rendered-deck">Check the rendered deck</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html#where-the-geometry-dependent-lines-go">Where the geometry-dependent lines go</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Pick The Entry Point</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#c-abi">C ABI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#message-flow">Message Flow</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#feature-discovery">Feature Discovery</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#session-step-calls-direct-call-socket">Session Step Calls (direct-call socket)</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#result-buffer-contract">Result Buffer Contract</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#session-lifetime">Session Lifetime</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#cpmd-input-ownership">CPMD Input Ownership</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#restart-files">RESTART files</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#units">Units</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#opencpmd-runtime-inputs">OpenCPMD Runtime Inputs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html#nuclear-forces-from-repeated-scf-calls">Nuclear forces from repeated SCF calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#the-rules">The rules</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-calculator-over-all-ranks">One calculator over all ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#several-calculators-in-one-job">Several calculators in one job</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#a-communicator-the-host-already-split">A communicator the host already split</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#share-the-parent-s-result">Share the parent&#8217;s result</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#one-session-per-calculator">One session per calculator</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#finalize-mpi">Finalize MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html#threads">Threads</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#measured-on-the-si3n4-cluster">Measured on the Si3N4 cluster</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#set-odiis-in-the-message">Set ODIIS in the message</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#when-to-keep-pcg">When to keep PCG</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html#always-set-maxiter">Always set MAXITER</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Goal</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#write-the-deck-to-a-file">Write the deck to a file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#what-the-opencpmd-path-changes">What the OpenCPMD path changes</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#checks-worth-making-on-the-file">Checks worth making on the file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html#compare-with-a-deck-that-works">Compare with a deck that works</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Energies</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#failed-calls">Failed calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#forces">Forces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html#build-and-link">Build and link</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/install.html">Install and build</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">Conventions</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#types">Types</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#library-status">Library status</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#mpi">MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#configuration-without-a-session">Configuration without a session</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#global-array-calls">Global array calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#sessions">Sessions</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#one-shot-message-calls">One-shot message calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#results-of-the-last-evaluation">Results of the last evaluation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#discovery">Discovery</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html#restart-file-library">RESTART file library</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html">Read by libcpmdc at run time</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html#read-by-the-tests-and-tools">Read by the tests and tools</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html#read-by-hosts-that-load-libcpmdc">Read by hosts that load libcpmdc</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmdinputsection"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmddirective"><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmdcpmdsection-the-fields-a-force-call-uses"><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmdsystemsection-the-fields-that-set-the-cell"><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmddftsection"><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#cpmdatomssection-and-cpmdatomspseudopotential"><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#forceinput"><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html">Contract</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#top-level-cpmdparams-fields">Top-level <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> fields</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#feature-id-namespaces">Feature ID namespaces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#mapping-a-cpmd-manual-line">Mapping a CPMD manual line</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#inventory-guardrails">Inventory guardrails</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#cpmdinputsection-kinds"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code> kinds</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#escape-hatches">Escape hatches</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#choosing-an-input-carrier">Choosing an input carrier</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#catalog-section-exposure">Catalog section exposure</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#other-structured-parameter-features">Other structured parameter features</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#typed-cpmd-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> controls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#typed-dft-controls">Typed <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> controls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html#potentialconfig"><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code></a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html">Two copies of one list</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html#feature-ids">Feature IDs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html#query-it-from-c">Query it from C</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html#the-inventory-file">The inventory file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html#the-checks">The checks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html#add-a-row">Add a row</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html">Sources checked</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html#symbols">Symbols</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html#parser-sections">Parser sections</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">A</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#c">C</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#d">D</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#e">E</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#f">F</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#g">G</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#h">H</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#k">K</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#m">M</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#n">N</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#o">O</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#p">P</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#r">R</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#s">S</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#t">T</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html#w">W</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="environment.html">Environment variables</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CPMDParams schema fields</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="cpmd-options.html">CPMD option mapping</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="feature-inventory.html">Feature inventory</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="surface-map.html">Public C surface map</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="glossary.html">Glossary</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../api/global.html">Global Namespace</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../api/enum_CPMDCFeatureKind.html">enum CPMDCFeatureKind</a></li>
@@ -242,45 +168,16 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Explanation</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Why a C ABI around CPMD</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#layers">Layers</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#two-messages-two-lifetimes">Two messages, two lifetimes</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#what-one-evaluation-does">What one evaluation does</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#where-the-deck-comes-from">Where the deck comes from</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#sessions-topology-and-state">Sessions, topology, and state</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#three-builds-one-abi">Three builds, one ABI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html#the-file-route-it-replaces">The file route it replaces</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">What one call costs</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#how-the-wavefunction-travels">How the wavefunction travels</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#what-each-route-has-to-guard-against">What each route has to guard against</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html#both-routes-give-the-same-answers">Both routes give the same answers</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Cold and warm calls</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#orbitals-per-key">Orbitals per key</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#distance-limit">Distance limit</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#what-clears-the-orbitals">What clears the orbitals</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-restart-file">The RESTART file</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">Every rank is a copy of the host</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-communicator-cpmd-uses">The communicator CPMD uses</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#the-adopted-index">The adopted index</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#why-the-parent-rank-s-result-counts">Why the parent rank&#8217;s result counts</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#one-session-per-calculator">One session per calculator</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#who-ends-mpi">Who ends MPI</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html#threads-inside-ranks">Threads inside ranks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">Paths</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html#how-selection-works">How selection works</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html#bit-identical-results">Bit-identical results</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/architecture.html">Architecture</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/routes.html">The file route and the in-process route</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/wavefunction-state.html">Wavefunction state between calls</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/mpi-model.html">The MPI model</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../explanation/simd-paths.html">SIMD paths and dispatch</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Contributing</span></p>
 <ul>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Development Checks</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#add-a-typed-cpmd-keyword">Add a typed CPMD keyword</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#source-layout">Source Layout</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#documentation">Documentation</a></li>
-<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html#release-process">Release Process</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Versioning</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html#checklist">Checklist</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../contributing/index.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing/developer/release.html">Release</a></li>
 </ul>
 </li>
 </ul>
@@ -298,7 +195,7 @@ data-aria-dark="Switch to auto color mode">
       <i class="i-lucide close"></i>
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
-<li><a class="reference internal" href="#"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></a></li>
+<li><a class="reference internal" href="#cpmdparams"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></a></li>
 <li><a class="reference internal" href="#cpmdinputsection"><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code></a></li>
 <li><a class="reference internal" href="#cpmddirective"><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code></a></li>
 <li><a class="reference internal" href="#cpmdcpmdsection-the-fields-a-force-call-uses"><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses</a></li>
@@ -331,7 +228,7 @@ data-aria-dark="Switch to auto color mode">
   </span>
 </a><div class="edit-this-page">
   <a href="https://github.com/OmniPotentRPC/cpmdc/blob/main/docs/source/reference/cpmdparams-schema.rst">Edit this page</a>
-</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+</div></div>
   </aside>
   <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
   <main class="sy-main w-full max-sm:max-w-full print:pt-6">
@@ -347,7 +244,7 @@ data-aria-dark="Switch to auto color mode">
         <span>/</span>
         <meta itemprop="position" content="1" />
       </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
-        <strong itemprop="name"><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code></strong>
+        <strong itemprop="name">CPMDParams schema fields</strong>
         <meta itemprop="position" content="2" />
       </li></ol>
     <div class="xl:hidden ml-1">
@@ -395,13 +292,15 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </div><article class="yue dark-code" role="main">
-          <p>The schema is <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>, a vendored copy of the shared
-<code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code> release pinned in
-<code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>. This page lists the fields that
-decide what CPMD computes. The <a class="reference internal" href="cpmd-options.html"><span class="doc">option mapping</span></a>
-lists every typed field with its feature ID and deck spelling.</p>
+          <section id="cpmdparams-schema-fields">
+<h1>CPMDParams schema fields<a class="headerlink" href="#cpmdparams-schema-fields" title="Link to this heading">¶</a></h1>
+<p>The schema is <code class="docutils literal notranslate"><span class="pre">schema/Potentials.capnp</span></code>, a vendored copy of the shared
+<code class="docutils literal notranslate"><span class="pre">potentials-schema</span></code> release pinned in <code class="docutils literal notranslate"><span class="pre">subprojects/potentials-schema.wrap</span></code>.
+This page lists the fields that decide what CPMD computes.
+The <a class="reference internal" href="cpmd-options.html"><span class="doc">option mapping</span></a> lists every typed field with its feature ID
+and deck spelling.</p>
 <section id="cpmdparams">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code><a class="headerlink" href="#cpmdparams" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code><a class="headerlink" href="#cpmdparams" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -413,94 +312,62 @@ lists every typed field with its feature ID and deck spelling.</p>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">functional</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;BLYP&quot;</span></code></p></td>
-<td><p>functional when no
-<code class="docutils literal notranslate"><span class="pre">dft</span></code> section sets
-one</p></td>
+<td><p>functional when no <code class="docutils literal notranslate"><span class="pre">dft</span></code> section sets one</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cutOffRy</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Float64</span></code>, 70.0</p></td>
-<td><p>plane-wave cutoff in
-Rydberg when no
-<code class="docutils literal notranslate"><span class="pre">system</span></code> section
-sets one</p></td>
+<td><p>plane-wave cutoff in Rydberg when no <code class="docutils literal notranslate"><span class="pre">system</span></code> section sets one</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">charge</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Int32</span></code>, 0</p></td>
-<td><p>system charge when
-the <code class="docutils literal notranslate"><span class="pre">system</span></code>
-section does not set
-one</p></td>
+<td><p>system charge when the <code class="docutils literal notranslate"><span class="pre">system</span></code> section does not set one</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">multiplicity</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Int32</span></code>, 1</p></td>
-<td><p>2S+1; above 1 selects
-spin-polarized
-defaults</p></td>
+<td><p>2S+1; above 1 selects spin-polarized defaults</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">task</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;gradient&quot;</span></code></p></td>
-<td><p>host hint:
-<code class="docutils literal notranslate"><span class="pre">energy</span></code>,
-<code class="docutils literal notranslate"><span class="pre">gradient</span></code>, <code class="docutils literal notranslate"><span class="pre">md</span></code>,
-<code class="docutils literal notranslate"><span class="pre">optimize</span></code></p></td>
+<td><p>host hint: <code class="docutils literal notranslate"><span class="pre">energy</span></code>, <code class="docutils literal notranslate"><span class="pre">gradient</span></code>, <code class="docutils literal notranslate"><span class="pre">md</span></code>, <code class="docutils literal notranslate"><span class="pre">optimize</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">title</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code></p></td>
-<td><p>comment header of the
-rendered deck</p></td>
+<td><p>comment header of the rendered deck</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">memoryMb</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">UInt32</span></code>, 0</p></td>
 <td><p>host memory hint</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>,
-<code class="docutils literal notranslate"><span class="pre">permanentDir</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scratchDir</span></code>, <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">FILEPATH</span></code> in
-<code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>
-writes <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>,
-<code class="docutils literal notranslate"><span class="pre">LATEST</span></code>,
-<code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code>
-there. A library
-force call writes
-none of them.
-<code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> wins</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">FILEPATH</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>. <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> writes <code class="docutils literal notranslate"><span class="pre">RESTART.1</span></code>, <code class="docutils literal notranslate"><span class="pre">LATEST</span></code>, <code class="docutils literal notranslate"><span class="pre">GEOMETRY</span></code>, and <code class="docutils literal notranslate"><span class="pre">GEOMETRY.xyz</span></code> there. A library force call writes none of them. <code class="docutils literal notranslate"><span class="pre">permanentDir</span></code> wins</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmdRoot</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code></p></td>
-<td><p>OpenCPMD tree hint
-for hosts</p></td>
+<td><p>OpenCPMD tree hint for hosts</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">enginePath</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code></p></td>
-<td><p>library path hint for
-hosts such as
-<code class="docutils literal notranslate"><span class="pre">rgpot</span></code></p></td>
+<td><p>library path hint for hosts such as <code class="docutils literal notranslate"><span class="pre">rgpot</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">inputBlocks</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">List(Text)</span></code></p></td>
-<td><p>literal
-<code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span> <span class="pre">...</span> <span class="pre">&amp;END</span></code>
-blocks placed before
-the rendered sections</p></td>
+<td><p>literal <code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span> <span class="pre">...</span> <span class="pre">&amp;END</span></code> blocks placed before the rendered sections</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">inputSections</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">List(CPMDInputSection)</span></code></p></td>
-<td><p>structured sections,
-rendered in list
-order</p></td>
+<td><p>structured sections, rendered in list order</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>A section missing from <code class="docutils literal notranslate"><span class="pre">inputSections</span></code> gets a default: <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code> with
-<code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code> and <code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code> 1e-6, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>
-with <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code>, and the top-level cutoff, charge, and
+<code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code> and <code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span></code> 1e-6, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code> with
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code>, and the top-level cutoff, charge, and
 multiplicity, and <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> with the top-level functional.</p>
 </section>
 <section id="cpmdinputsection">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code><a class="headerlink" href="#cpmdinputsection" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDInputSection</span></code><a class="headerlink" href="#cpmdinputsection" title="Link to this heading">¶</a></h2>
 <p>A union; each list entry sets exactly one arm.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
@@ -525,68 +392,34 @@ multiplicity, and <code class="docutils literal notranslate"><span class="pre">&
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">atoms</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> without
-coordinates</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> without coordinates</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vdwParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">propParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">linresParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">pimdParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">pathParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">tddftParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">respParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">exteParams</span></code>,
-<code class="docutils literal notranslate"><span class="pre">vectorsParams</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vdwParams</span></code>, <code class="docutils literal notranslate"><span class="pre">propParams</span></code>, <code class="docutils literal notranslate"><span class="pre">linresParams</span></code>, <code class="docutils literal notranslate"><span class="pre">pimdParams</span></code>, <code class="docutils literal notranslate"><span class="pre">pathParams</span></code>, <code class="docutils literal notranslate"><span class="pre">tddftParams</span></code>, <code class="docutils literal notranslate"><span class="pre">respParams</span></code>, <code class="docutils literal notranslate"><span class="pre">exteParams</span></code>, <code class="docutils literal notranslate"><span class="pre">vectorsParams</span></code></p></td>
 <td><p>typed long-tail sections</p></td>
 <td><p>the matching section</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">atom</span></code>, <code class="docutils literal notranslate"><span class="pre">basis</span></code>,
-<code class="docutils literal notranslate"><span class="pre">clas</span></code>, <code class="docutils literal notranslate"><span class="pre">eam</span></code>,
-<code class="docutils literal notranslate"><span class="pre">exte</span></code>,
-<code class="docutils literal notranslate"><span class="pre">hardness</span></code>,
-<code class="docutils literal notranslate"><span class="pre">info</span></code>,
-<code class="docutils literal notranslate"><span class="pre">linres</span></code>,
-<code class="docutils literal notranslate"><span class="pre">molstates</span></code>,
-<code class="docutils literal notranslate"><span class="pre">mts</span></code>, <code class="docutils literal notranslate"><span class="pre">nlcc</span></code>,
-<code class="docutils literal notranslate"><span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">pimd</span></code>,
-<code class="docutils literal notranslate"><span class="pre">potential</span></code>,
-<code class="docutils literal notranslate"><span class="pre">prop</span></code>,
-<code class="docutils literal notranslate"><span class="pre">ptddft</span></code>,
-<code class="docutils literal notranslate"><span class="pre">resp</span></code>, <code class="docutils literal notranslate"><span class="pre">tddft</span></code>,
-<code class="docutils literal notranslate"><span class="pre">vdw</span></code>,
-<code class="docutils literal notranslate"><span class="pre">vectors</span></code>,
-<code class="docutils literal notranslate"><span class="pre">wavefunction</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDDirectiveSection</span></code>:
-<code class="docutils literal notranslate"><span class="pre">directives</span></code> and nested
-<code class="docutils literal notranslate"><span class="pre">subsections</span></code></p></td>
-<td><p>the matching section,
-one line per
-directive</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">atom</span></code>, <code class="docutils literal notranslate"><span class="pre">basis</span></code>, <code class="docutils literal notranslate"><span class="pre">clas</span></code>, <code class="docutils literal notranslate"><span class="pre">eam</span></code>, <code class="docutils literal notranslate"><span class="pre">exte</span></code>, <code class="docutils literal notranslate"><span class="pre">hardness</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">linres</span></code>, <code class="docutils literal notranslate"><span class="pre">molstates</span></code>, <code class="docutils literal notranslate"><span class="pre">mts</span></code>, <code class="docutils literal notranslate"><span class="pre">nlcc</span></code>, <code class="docutils literal notranslate"><span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">pimd</span></code>, <code class="docutils literal notranslate"><span class="pre">potential</span></code>, <code class="docutils literal notranslate"><span class="pre">prop</span></code>, <code class="docutils literal notranslate"><span class="pre">ptddft</span></code>, <code class="docutils literal notranslate"><span class="pre">resp</span></code>, <code class="docutils literal notranslate"><span class="pre">tddft</span></code>, <code class="docutils literal notranslate"><span class="pre">vdw</span></code>, <code class="docutils literal notranslate"><span class="pre">vectors</span></code>, <code class="docutils literal notranslate"><span class="pre">wavefunction</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDDirectiveSection</span></code>: <code class="docutils literal notranslate"><span class="pre">directives</span></code> and nested <code class="docutils literal notranslate"><span class="pre">subsections</span></code></p></td>
+<td><p>the matching section, one line per directive</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">set</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDSetDirective</span></code>:
-<code class="docutils literal notranslate"><span class="pre">key</span> <span class="pre">=</span> <span class="pre">&quot;SECTION.KEYWORD&quot;</span></code>,
-<code class="docutils literal notranslate"><span class="pre">value</span></code></p></td>
-<td><p>one keyword merged
-into a named section</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDSetDirective</span></code>: <code class="docutils literal notranslate"><span class="pre">key</span> <span class="pre">=</span> <span class="pre">&quot;SECTION.KEYWORD&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">value</span></code></p></td>
+<td><p>one keyword merged into a named section</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">generic</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CPMDGenericSection</span></code>:
-<code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">directives</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CPMDGenericSection</span></code>: <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">directives</span></code></p></td>
 <td><p>a section by name</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">raw</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Text</span></code></p></td>
-<td><p>a full
-<code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span> <span class="pre">...</span> <span class="pre">&amp;END</span></code>
-block, verbatim</p></td>
+<td><p>a full <code class="docutils literal notranslate"><span class="pre">&amp;SECTION</span> <span class="pre">...</span> <span class="pre">&amp;END</span></code> block, verbatim</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="cpmddirective">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code><a class="headerlink" href="#cpmddirective" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDDirective</span></code><a class="headerlink" href="#cpmddirective" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -599,17 +432,16 @@ block, verbatim</p></td>
 <td><p>the line, for example <code class="docutils literal notranslate"><span class="pre">&quot;PCG</span> <span class="pre">MINIMIZE&quot;</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">args</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">List(Text)</span></code>; each entry becomes one indented line
-below the keyword</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">List(Text)</span></code>; each entry becomes one indented line below the keyword</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Every typed section has a <code class="docutils literal notranslate"><span class="pre">directives</span></code> list for keywords without a
-typed field.</p>
+<p>Every typed section has a <code class="docutils literal notranslate"><span class="pre">directives</span></code> list for keywords without a typed
+field.</p>
 </section>
 <section id="cpmdcpmdsection-the-fields-a-force-call-uses">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses<a class="headerlink" href="#cpmdcpmdsection-the-fields-a-force-call-uses" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDCpmdSection</span></code>, the fields a force call uses<a class="headerlink" href="#cpmdcpmdsection-the-fields-a-force-call-uses" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -629,43 +461,31 @@ typed field.</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">maxIter</span></code></p></td>
 <td><p>0, omitted</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>; the OpenCPMD
-path inserts 40 when
-absent</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MAXITER</span></code>; the OpenCPMD path inserts 40 when absent</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">maxStep</span></code></p></td>
 <td><p>0, omitted</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MAXSTEP</span></code>, the geometry
-step limit of CPMD’s own
-drivers</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MAXSTEP</span></code>, the geometry step limit of CPMD’s own drivers</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">odiis</span></code>,
-<code class="docutils literal notranslate"><span class="pre">odiisVectors</span></code>,
-<code class="docutils literal notranslate"><span class="pre">odiisOptions</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">odiis</span></code>, <code class="docutils literal notranslate"><span class="pre">odiisVectors</span></code>, <code class="docutils literal notranslate"><span class="pre">odiisOptions</span></code></p></td>
 <td><p>off</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> and its vector
-count</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ODIIS</span></code> and its vector count</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pcg</span></code></p></td>
 <td><p>off</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">PCG</span></code>; <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code>
-goes in <code class="docutils literal notranslate"><span class="pre">directives</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PCG</span></code>; <code class="docutils literal notranslate"><span class="pre">PCG</span> <span class="pre">MINIMIZE</span></code> goes in <code class="docutils literal notranslate"><span class="pre">directives</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">diis</span></code></p></td>
 <td><p>off</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">DIIS</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">centerMoleculeOff</span></code>,
-<code class="docutils literal notranslate"><span class="pre">centerMoleculeOn</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">centerMoleculeOff</span></code>, <code class="docutils literal notranslate"><span class="pre">centerMoleculeOn</span></code></p></td>
 <td><p>off</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CENTER</span> <span class="pre">MOLECULE</span> <span class="pre">OFF</span></code> /
-<code class="docutils literal notranslate"><span class="pre">ON</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CENTER</span> <span class="pre">MOLECULE</span> <span class="pre">OFF</span></code> / <code class="docutils literal notranslate"><span class="pre">ON</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">restartWavefunction</span></code></p></td>
 <td><p>off</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code>;
-read on the cold first
-call only</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">RESTART</span> <span class="pre">WAVEFUNCTION</span></code>; read on the cold first call only</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">isolatedMolecule</span></code></p></td>
 <td><p>off</p></td>
@@ -674,11 +494,11 @@ call only</p></td>
 </tbody>
 </table>
 </div>
-<p>The OpenCPMD path ignores restarted coordinates, velocities, and
-geometry: the host owns them.</p>
+<p>The OpenCPMD path ignores restarted coordinates, velocities, and geometry:
+the host owns them.</p>
 </section>
 <section id="cpmdsystemsection-the-fields-that-set-the-cell">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell<a class="headerlink" href="#cpmdsystemsection-the-fields-that-set-the-cell" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDSystemSection</span></code>, the fields that set the cell<a class="headerlink" href="#cpmdsystemsection-the-fields-that-set-the-cell" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -698,13 +518,9 @@ geometry: the host owns them.</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cell</span></code></p></td>
 <td><p>empty</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CELL</span></code>: six values
-<code class="docutils literal notranslate"><span class="pre">a,</span> <span class="pre">b/a,</span> <span class="pre">c/a,</span> <span class="pre">cos(alpha),</span> <span class="pre">cos(beta),</span> <span class="pre">cos(gamma)</span></code>,
-or nine with <code class="docutils literal notranslate"><span class="pre">cellVectors</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CELL</span></code>: six values <code class="docutils literal notranslate"><span class="pre">a,</span> <span class="pre">b/a,</span> <span class="pre">c/a,</span> <span class="pre">cos(alpha),</span> <span class="pre">cos(beta),</span> <span class="pre">cos(gamma)</span></code>, or nine with <code class="docutils literal notranslate"><span class="pre">cellVectors</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cellAbsolute</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cellDegree</span></code>,
-<code class="docutils literal notranslate"><span class="pre">cellVectors</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cellAbsolute</span></code>, <code class="docutils literal notranslate"><span class="pre">cellDegree</span></code>, <code class="docutils literal notranslate"><span class="pre">cellVectors</span></code></p></td>
 <td><p>off</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">ABSOLUTE</span></code>, <code class="docutils literal notranslate"><span class="pre">DEGREE</span></code>, <code class="docutils literal notranslate"><span class="pre">VECTORS</span></code></p></td>
 </tr>
@@ -712,15 +528,11 @@ or nine with <code class="docutils literal notranslate"><span class="pre">cellVe
 <td><p>70.0</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CUTOFF</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code>,
-<code class="docutils literal notranslate"><span class="pre">poissonParameter</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code>, <code class="docutils literal notranslate"><span class="pre">poissonParameter</span></code></p></td>
 <td><p>empty</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code>; <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> without one adds
-<code class="docutils literal notranslate"><span class="pre">HOCKNEY</span></code>, or <code class="docutils literal notranslate"><span class="pre">TUCKERMAN</span></code> for a hybrid
-functional</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code>; <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> without one adds <code class="docutils literal notranslate"><span class="pre">HOCKNEY</span></code>, or <code class="docutils literal notranslate"><span class="pre">TUCKERMAN</span></code> for a hybrid functional</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">charge</span></code>,
-<code class="docutils literal notranslate"><span class="pre">multiplicity</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code></p></td>
 <td><p>0, 1</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">CHARGE</span></code>, <code class="docutils literal notranslate"><span class="pre">MULTIPLICITY</span></code></p></td>
 </tr>
@@ -733,7 +545,7 @@ functional</p></td>
 </div>
 </section>
 <section id="cpmddftsection">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code><a class="headerlink" href="#cpmddftsection" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDDftSection</span></code><a class="headerlink" href="#cpmddftsection" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -768,7 +580,7 @@ functional</p></td>
 </div>
 </section>
 <section id="cpmdatomssection-and-cpmdatomspseudopotential">
-<h1><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code><a class="headerlink" href="#cpmdatomssection-and-cpmdatomspseudopotential" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">CPMDAtomsSection</span></code> and <code class="docutils literal notranslate"><span class="pre">CPMDAtomsPseudopotential</span></code><a class="headerlink" href="#cpmdatomssection-and-cpmdatomspseudopotential" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -779,26 +591,20 @@ functional</p></td>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">element</span></code></p></td>
-<td></td>
-<td><p>element symbol, such as
-<code class="docutils literal notranslate"><span class="pre">&quot;Si&quot;</span></code></p></td>
+<td><p></p></td>
+<td><p>element symbol, such as <code class="docutils literal notranslate"><span class="pre">&quot;Si&quot;</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">path</span></code></p></td>
-<td></td>
-<td><p>the <code class="docutils literal notranslate"><span class="pre">*file</span></code> line, a
-library name or a path</p></td>
+<td><p></p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line, a library name or a path</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lmax</span></code>, <code class="docutils literal notranslate"><span class="pre">loc</span></code>,
-<code class="docutils literal notranslate"><span class="pre">skip</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lmax</span></code>, <code class="docutils literal notranslate"><span class="pre">loc</span></code>, <code class="docutils literal notranslate"><span class="pre">skip</span></code></p></td>
 <td><p>-1, omitted</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">LMAX=</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC=</span></code>,
-<code class="docutils literal notranslate"><span class="pre">SKIP=</span></code>; 0 is <code class="docutils literal notranslate"><span class="pre">S</span></code>, 1
-<code class="docutils literal notranslate"><span class="pre">P</span></code>, 2 <code class="docutils literal notranslate"><span class="pre">D</span></code>, 3 <code class="docutils literal notranslate"><span class="pre">F</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">LMAX=</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC=</span></code>, <code class="docutils literal notranslate"><span class="pre">SKIP=</span></code>; 0 is <code class="docutils literal notranslate"><span class="pre">S</span></code>, 1 <code class="docutils literal notranslate"><span class="pre">P</span></code>, 2 <code class="docutils literal notranslate"><span class="pre">D</span></code>, 3 <code class="docutils literal notranslate"><span class="pre">F</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">kleinmanBylander</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on
-the <code class="docutils literal notranslate"><span class="pre">*file</span></code> line</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> on the <code class="docutils literal notranslate"><span class="pre">\*file</span></code> line</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">raggio</span></code></p></td>
 <td><p>0, omitted</p></td>
@@ -811,17 +617,18 @@ the <code class="docutils literal notranslate"><span class="pre">*file</span></c
 </tbody>
 </table>
 </div>
-<p>The <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section also carries <code class="docutils literal notranslate"><span class="pre">constraints</span></code>, <code class="docutils literal notranslate"><span class="pre">isotopes</span></code>,
-<code class="docutils literal notranslate"><span class="pre">velocities</span></code>, <code class="docutils literal notranslate"><span class="pre">dummyAtoms</span></code>, <code class="docutils literal notranslate"><span class="pre">changeBonds</span></code>, <code class="docutils literal notranslate"><span class="pre">generate</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">directives</span></code>. Coordinates never go here. On the OpenCPMD path, the
-<code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block CPMD reads is rebuilt from each step’s geometry.
+<p>The <code class="docutils literal notranslate"><span class="pre">atoms</span></code> section also carries <code class="docutils literal notranslate"><span class="pre">constraints</span></code>, <code class="docutils literal notranslate"><span class="pre">isotopes</span></code>, <code class="docutils literal notranslate"><span class="pre">velocities</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dummyAtoms</span></code>, <code class="docutils literal notranslate"><span class="pre">changeBonds</span></code>, <code class="docutils literal notranslate"><span class="pre">generate</span></code>, and <code class="docutils literal notranslate"><span class="pre">directives</span></code>.
+Coordinates never go here.
+On the OpenCPMD path, the <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block CPMD reads is rebuilt from each
+step’s geometry.
 Entries in <code class="docutils literal notranslate"><span class="pre">pseudopotentials</span></code> supply the file, <code class="docutils literal notranslate"><span class="pre">LMAX</span></code>, <code class="docutils literal notranslate"><span class="pre">LOC</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> for the elements they name. Elements left out of
-that list use a built-in table for H, C, N, O, Si, and Ge; see
-<a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>.</p>
+<code class="docutils literal notranslate"><span class="pre">KLEINMAN-BYLANDER</span></code> for the elements they name.
+Elements left out of that list use a built-in table for H, C, N, O, Si, and
+Ge; see <a class="reference internal" href="../howto/write-cpmdparams.html"><span class="doc">writing a CPMDParams message</span></a>.</p>
 </section>
 <section id="forceinput">
-<h1><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code><a class="headerlink" href="#forceinput" title="Link to this heading">¶</a></h1>
+<h2><code class="docutils literal notranslate"><span class="pre">ForceInput</span></code><a class="headerlink" href="#forceinput" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -832,18 +639,16 @@ that list use a built-in table for H, C, N, O, Si, and Ge; see
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pos</span></code></p></td>
-<td></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> coordinates in
-<code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code></p></td>
+<td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">3</span> <span class="pre">*</span> <span class="pre">natoms</span></code> coordinates in <code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">atmnrs</span></code></p></td>
-<td></td>
+<td><p></p></td>
 <td><p>atomic numbers</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">box</span></code></p></td>
 <td><p>empty</p></td>
-<td><p>nine values, row-major cell
-vectors in <code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code></p></td>
+<td><p>nine values, row-major cell vectors in <code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lengthUnit</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;angstrom&quot;</span></code></p></td>
@@ -851,19 +656,18 @@ vectors in <code class="docutils literal notranslate"><span class="pre">lengthUn
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">energyUnit</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;eV&quot;</span></code></p></td>
-<td><p>unit of the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code>
-energy</p></td>
+<td><p>unit of the <code class="docutils literal notranslate"><span class="pre">PotentialResult</span></code> energy</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 </section>
 <section id="potentialconfig">
-<h1><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code><a class="headerlink" href="#potentialconfig" title="Link to this heading">¶</a></h1>
-<p>A union of backend arms plus a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay
-(<code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code>). <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> accepts the <code class="docutils literal notranslate"><span class="pre">cpmd</span></code> arm, which holds
-a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, or the overlay alone; see the
-<a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a> for the lowering rules.</p>
+<h2><code class="docutils literal notranslate"><span class="pre">PotentialConfig</span></code><a class="headerlink" href="#potentialconfig" title="Link to this heading">¶</a></h2>
+<p>A union of backend arms plus a <code class="docutils literal notranslate"><span class="pre">common</span></code> overlay (<code class="docutils literal notranslate"><span class="pre">CommonMethodSpec</span></code>).
+<code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> accepts the <code class="docutils literal notranslate"><span class="pre">cpmd</span></code> arm, which holds a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code>, or the overlay
+alone; see the <a class="reference internal" href="c-abi.html"><span class="doc">C ABI reference</span></a> for the lowering rules.</p>
+</section>
 </section>
 
         </article><button class="back-to-top" type="button">
@@ -875,13 +679,13 @@ a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span>
     <a href="environment.html">
       <i class="i-lucide chevron-left"></i>
       <div class="page-info">
-        <span>Previous</span><div class="title">Read by libcpmdc at run time</div></div>
+        <span>Previous</span><div class="title">Environment variables</div></div>
     </a>
   </div><div class="navigation-next">
     <a href="cpmd-options.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Contract</div>
+        <div class="title">CPMD option mapping</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>
@@ -891,6 +695,71 @@ a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span>
 </div>
 <footer class="sy-foot">
   <div class="sy-foot-inner sy-container mx-auto">
+    
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--sy-c-text-weak);
+        font-size: 0.9em;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 1rem;
+          align-items: center;
+        "
+      >
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="1em"
+            height="1em"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M7,20H4V4h3V20z M14,20h-3V12h3V20z M21,20h-3V8h3V20z" />
+          </svg>
+          <span
+            >Analytics by
+            <a
+              href="https://antics.turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >antics</a
+            ></span
+          >
+        </span>
+
+        
+        <span style="display: inline-flex; align-items: center; gap: 0.3em">
+          <span>provided by</span>
+          <span style="display: inline-flex; align-items: center; gap: 0.3em">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.4em" height="1.4em" viewBox="0 0 64 64" aria-hidden="true"><g fill-rule="evenodd"><ellipse cx="32" cy="11" fill="#80D25B" rx="7" ry="9"/><path fill="#80D25B" d="M20.3,46c0,0-3.2,9.9.3,13.8c3.5,3.9 6.1,3.4 6.1-6C26.8,44.3 20.3,46 20.3,46Z"/><path fill="#80D25B" d="M38.3,46c0,0-3.2,9.9.4,13.8c3.5,3.9 6.1,3.4 6.1-6C44.8,44.3 38.3,46 38.3,46Z" transform="matrix(-1 0 0 1 81.8 0)"/><path fill="#80D25B" d="M20.6,21.2c0,0-6.7-5.8-10.5-5.2C6.2,16.7 6,22.2 6,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L20.6,21.2Z"/><path fill="#80D25B" d="M57.6,21.2c0,0-6.6-5.8-10.5-5.2C43.2,16.7 43,22.2 43,24c0,1.8 1.8,13.3 3.8,12.5c2-0.8 4-8.5 4-8.5c1.9,2.3 4.8,2.5 4.8,2.5L57.6,21.2Z" transform="matrix(-1 0 0 1 100.623 0)"/><path fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32,53C40.8,53 48,44.5 48,34C48,23.5 46.7,17 32,17C17.3,17 16,23.5 16,34C16,44.5 23.2,53 32,53Z"/><polygon fill="#BD7575" stroke="#595959" stroke-linecap="round" stroke-width="2" points="32 22 38.9 26 38.9 34 32 38 25.1 34 25.1 26"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M30,8C28.9,8 28,8.9 28,10"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M36,8C34.9,8 34,8.9 34,10" transform="matrix(-1 0 0 1 70 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M32.1,38.2L32.1,52.4M32,21.7L32,17M25.2,26L17.7,23.1M25.1,34.2L16.8,38.9"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M46.2,26L38.7,23.1" transform="matrix(-1 0 0 1 84.951 0)"/><path stroke="#595959" stroke-linecap="round" stroke-width="2" d="M47.1,34.2L38.8,38.9" transform="matrix(-1 0 0 1 85.891 0)"/></g></svg>
+            <a
+              href="https://turtletech.us/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: inherit; text-decoration: underline"
+              >TurtleTech ehf</a
+            >
+          </span>
+        </span>
+      </div>
+    </div>
+
+    
     <div class="sy-foot-reserved md:flex justify-between items-center">
       <div class="sy-foot-copyright"><p>2026-present, cpmdc developers</p>
   
@@ -901,8 +770,7 @@ a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span>
     
     <a href="https://shibuya.lepture.com">Shibuya theme</a>.
   </p>
-</div>
-      <div class="sy-foot-socials">
+</div> <div class="sy-foot-socials">
 <a href="https://github.com/OmniPotentRPC/cpmdc" aria-label="GitHub">
   <iconify-icon icon="simple-icons:github"></iconify-icon>
 </a></div>
