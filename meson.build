@@ -1085,6 +1085,15 @@ test(
     suite: ['docs'],
   )
   test(
+    'docs-site-chrome',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_docs_site_chrome.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'isa-portable',
     python,
     args: [

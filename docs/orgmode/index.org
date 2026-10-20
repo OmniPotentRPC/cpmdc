@@ -5,12 +5,12 @@
 #+begin_export rst
 .. image:: /_static/logo-light.svg
    :class: light-only
-   :width: 460
+   :width: 320
    :align: center
 
 .. image:: /_static/logo-dark.svg
    :class: dark-only
-   :width: 460
+   :width: 320
    :align: center
 
 #+end_export

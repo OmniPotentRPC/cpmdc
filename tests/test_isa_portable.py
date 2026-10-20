@@ -102,8 +102,12 @@ def main() -> int:
     require("[[vendored]]" not in allow_code, "isa-allow.toml vendors a library that CI links dynamically", failures)
 
     how = (root / "docs/orgmode/howto/opencpmd-archive.org").read_text(encoding="utf-8")
-    how_rst = (root / "docs/source/howto/opencpmd-archive.rst").read_text(encoding="utf-8")
-    for label, text in (("org", how), ("rst", how_rst)):
+    # mkrst writes the rst during the docs build. It is not committed.
+    pages = [("org", how)]
+    how_rst = root / "docs/source/howto/opencpmd-archive.rst"
+    if how_rst.is_file():
+        pages.append(("rst", how_rst.read_text(encoding="utf-8")))
+    for label, text in pages:
         require(
             "Building OpenCPMD for mixed clusters" in text,
             f"opencpmd-archive {label} lacks the mixed-cluster section",
@@ -131,25 +135,31 @@ def main() -> int:
     require("x86-64-v2" in news and "x86-64-v3" in news, "newsfragment lacks the RHEL GCC defaults", failures)
 
     simd = root / "docs/orgmode/explanation/simd-paths.org"
-    simd_rst = root / "docs/source/explanation/simd-paths.rst"
     require(simd.is_file(), "missing docs/orgmode/explanation/simd-paths.org", failures)
-    require(simd_rst.is_file(), "missing docs/source/explanation/simd-paths.rst", failures)
-    if simd.is_file() and simd_rst.is_file():
-        for label, text in (
-            ("org", simd.read_text(encoding="utf-8")),
-            ("rst", simd_rst.read_text(encoding="utf-8")),
-        ):
-            require("CPMDC_SIMD" in text, f"simd-paths {label} does not name CPMDC_SIMD", failures)
-            require("-ffp-contract=off" in text, f"simd-paths {label} lacks -ffp-contract=off", failures)
-            require("10.1016/j.cpc.2013.06.003" in text, f"simd-paths {label} lacks the Páll and Hess DOI", failures)
-            require("compiler default" not in text.lower(), f"simd-paths {label} claims a compiler default ISA", failures)
+    simd_pages = []
+    if simd.is_file():
+        simd_pages.append(("org", simd.read_text(encoding="utf-8")))
+    simd_rst = root / "docs/source/explanation/simd-paths.rst"
+    if simd_rst.is_file():
+        simd_pages.append(("rst", simd_rst.read_text(encoding="utf-8")))
+    for label, text in simd_pages:
+        require("CPMDC_SIMD" in text, f"simd-paths {label} does not name CPMDC_SIMD", failures)
+        require("-ffp-contract=off" in text, f"simd-paths {label} lacks -ffp-contract=off", failures)
+        require("10.1016/j.cpc.2013.06.003" in text, f"simd-paths {label} lacks the Páll and Hess DOI", failures)
+        require("compiler default" not in text.lower(), f"simd-paths {label} claims a compiler default ISA", failures)
 
     index = (root / "docs/orgmode/index.org").read_text(encoding="utf-8")
-    index_rst = (root / "docs/source/index.rst").read_text(encoding="utf-8")
     require("explanation/simd-paths" in index, "org index does not list simd-paths", failures)
-    require("explanation/simd-paths" in index_rst, "rst index does not list simd-paths", failures)
     require("-march=x86-64" in index and "-march=armv8-a" in index, "org index lacks the baseline march flags", failures)
-    require("-march=x86-64" in index_rst and "-march=armv8-a" in index_rst, "rst index lacks the baseline march flags", failures)
+    index_rst = root / "docs/source/index.rst"
+    if index_rst.is_file():
+        index_text = index_rst.read_text(encoding="utf-8")
+        require("explanation/simd-paths" in index_text, "rst index does not list simd-paths", failures)
+        require(
+            "-march=x86-64" in index_text and "-march=armv8-a" in index_text,
+            "rst index lacks the baseline march flags",
+            failures,
+        )
 
     workflow = (root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     require(workflow.count(AUDIT_SHA) == 2, "ci.yml does not pin both ISA audit calls to the shipped SHA", failures)

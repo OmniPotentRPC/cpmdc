@@ -149,9 +149,12 @@ pixi run -e docs docbld
 #+end_src
 
 Link between pages with Org file links, ~[[file:../howto/mpi.org][text]]~.
-The export runs ~docs/org-links.lua~ through pandoc, which turns each relative
-~.org~ link into a Sphinx ~:doc:~ reference, so the same link works on the
-forge and in the built site.
+The default export is ~ox-rst~.
+A file link whose target ends in ~.org~ becomes a Sphinx ~:doc:~ role, so the
+same link works on the forge and in the built site.
+Set ~CPMDC_ORG_EXPORT=pandoc~ to export with pandoc instead.
+That path applies ~docs/org-links.lua~ and makes the same ~:doc:~ rewrite.
+Generated ~docs/source/**/*.rst~ is not committed.
 
 Regenerate RST after editing Org sources:
 
@@ -160,8 +163,8 @@ pixi run -e docs mkrst
 #+end_src
 
 The Sphinx theme injects ~antics-api.turtletech.us/antics.js~ via
-~docs/source/_templates/partials/extra-head.html~ (same pattern as ~nwchemc~ /
-~rgpot~).
+~docs/source/_templates/partials/extra-head.html~, and the footer credit lives
+in ~docs/source/_templates/partials/site-foot.html~ (same pattern as ~rgpot~).
 
 * Release Process
 #+begin_export rst
