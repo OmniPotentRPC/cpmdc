@@ -526,6 +526,33 @@ int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
   return 0;
 }
 
+int cpmdc_restart_expand_species_symbols(const cpmdc_restart *file,
+                                         const char *const *species_symbols,
+                                         int nspecies, const char **atom_symbols,
+                                         int n_atoms) {
+  const int *na = NULL;
+  int nsp = 0;
+  int filled = 0;
+  if (!file || !species_symbols || !atom_symbols || n_atoms < 0)
+    return -1;
+  if (cpmdc_restart_species(file, &nsp, &na) != 0 || nspecies != nsp)
+    return -1;
+  for (int s = 0; s < nsp; s++) {
+    if (!species_symbols[s] || species_symbols[s][0] == '\0')
+      return -1;
+    if (na[s] < 0)
+      return -1;
+    for (int a = 0; a < na[s]; a++) {
+      if (filled >= n_atoms)
+        return -1;
+      atom_symbols[filled++] = species_symbols[s];
+    }
+  }
+  if (filled != n_atoms)
+    return -1;
+  return 0;
+}
+
 int cpmdc_restart_ncoords(const cpmdc_restart *file) {
   if (!file || file->sec_nrec[4] < 1)
     return 0;

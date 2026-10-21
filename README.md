@@ -70,7 +70,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tests/` | encoded fixtures and C/cmocka contract tests |
 | `docs/orgmode/` | authoritative documentation sources |
 
-Generated Sphinx sources live under `docs/source/`.
+The docs build writes generated RST under `docs/source/`. Those files are not committed.
 
 ## Main API Choices
 
@@ -113,9 +113,9 @@ For a complete mapping table, see
 | Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
 | The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
-| MPI rank groups (one calculator per group) | `cpmdc_bind_calculator` |
+| MPI rank groups (one calculator per group) | `cpmdc_bind_calculator`, `cpmdc_adopt_calculator_comm`, `cpmdc_adopted_comm` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
-| Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_destroy` |
+| Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_select_orbitals`, `cpmdc_session_destroy` |
 | Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
 | Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
 | One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_calculate_result_from_config`, `cpmdc_potential_result_size_for_force_input` |
@@ -142,9 +142,11 @@ cpmdc_session_destroy(session);
 ```
 
 `cpmdc_session_create()` copies the serialized params buffer. The first
-successful session evaluation fixes atom count and ordered atomic numbers.
-Coordinates, units, and the 3x3 cell may change between later steps; atom count
-or species changes require a new session.
+successful session evaluation fixes the atom count and the elemental
+composition. A reordering of those elements stays on the session.
+Coordinates, units, and the 3x3 cell may change between later steps. An
+evaluation with the same positions returns the stored energy and forces.
+A different composition or atom count requires a new session.
 
 ## Host Example
 
@@ -184,6 +186,23 @@ cpmdc-restart patch-positions RESTART.1 pos.txt RESTART.1.next --angstrom
 
 Link `libcpmdc_restart` and include `cpmdc_restart.h` for the same operations
 from C or C++. The library does not link OpenCPMD.
+
+A build with `-Dwith_readcon=true` adds `export-con` and `import-con`. That
+option is off by default, so the CPMD-only build does not link Rust.
+readcon-core is pinned in `subprojects/readcon-core.wrap` to git main
+`694e808080c49979ee3099afcfa18e5420c40433` until `v0.17.1` is tagged. The
+bridge does not link readcon-db. `export-con` multiplies coordinates,
+velocities, and the cell lengths by `CPMDC_RESTART_ANGSTROM_PER_BOHR` and
+writes one RoundTrip CON with canonical left off and no decimal precision.
+`import-con` divides by that same macro and calls
+`cpmdc_restart_set_coordinates`, `cpmdc_restart_set_velocities`, and
+`cpmdc_restart_set_cell`. The CON file is the geometry that is resumed. The
+binary `RESTART` stays the wavefunction.
+
+```bash
+cpmdc-restart export-con RESTART.1 water.con --species O,H
+cpmdc-restart import-con RESTART.1 water.con RESTART.1.next
+```
 
 ## CPMD Input Model
 
@@ -353,7 +372,8 @@ Read the docs in this order:
 - Explanation: [architecture](docs/orgmode/explanation/architecture.org),
   [file route against in-process route](docs/orgmode/explanation/routes.org),
   [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
-  [MPI model](docs/orgmode/explanation/mpi-model.org)
+  [MPI model](docs/orgmode/explanation/mpi-model.org),
+  [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)
 
 Build the documentation site with:
 
@@ -361,7 +381,7 @@ Build the documentation site with:
 pixi run -e docs docbld
 ```
 
-After editing Org sources, regenerate checked-in RST with:
+After editing Org sources, regenerate RST with:
 
 ```bash
 pixi run -e docs mkrst

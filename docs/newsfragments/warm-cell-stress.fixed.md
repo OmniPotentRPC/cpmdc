@@ -1,1 +1,0 @@
-A warm OpenCPMD step keeps its orbitals only while the cell matches the cold step. A different cell rebuilds the plane-wave basis. Silicon with an omitted projector channel is rendered as `LMAX=D LOC=D`.

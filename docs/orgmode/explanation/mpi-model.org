@@ -19,6 +19,9 @@ A rank that skips a call, or evaluates a different geometry, leaves the others
 waiting inside CPMD.
 
 * The communicator CPMD uses
+cpmdc has no ~with_mpi~ option.
+The engine takes MPI from the CPMD archive it is linked into.
+
 OpenCPMD keeps its world communicator in ~mp_comm_world~.
 ~mp_start~ assigns that variable only when CPMD itself calls ~MPI_Init~.
 When MPI is already running, ~mp_start~ leaves ~mp_comm_world~ as the host
@@ -32,13 +35,63 @@ Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
 The split happens once per process.
 ~embed_calculator_bound~, a module variable in ~cpmd_embed_c_api~, records
-it, and a second call only reports the group index.
+it, and a second bind only reports the group index.
+A host that already holds the calculator communicator calls
+~cpmdc_adopt_calculator_comm~ instead.
+That call reads rank and size from the adopted communicator, copies it into
+~mp_comm_world~ on an OpenCPMD build, and does not call ~MPI_Init~ or
+~MPI_Comm_split~.
+~cpmdc_adopted_comm~ copies the stored handle back out.
+A null communicator, a size that is not ~ranks_per_calc~ when that argument
+is positive, MPI that has not been initialised, or a build without MPI
+returns -1.
+The text is ~cpmdc_last_error()~.
+A later adopt replaces the communicator when no ~CPMDCSession~ exists.
+If any rank of the group has a live session, every rank returns -1 and leaves
+the handle alone.
 
 | World size | ~ranks_per_calc~ | Calculators | Parent ranks |
 |------------+------------------+-------------+--------------|
 | 16 | 16, 0, or no call | 1 | 0 |
 | 16 | 4 | 4 | 0, 4, 8, 12 |
 | 16 | 5 | refused, returns -1 | |
+
+* The adopted index
+The calculator index is the lowest ~MPI_COMM_WORLD~ rank of the group divided
+by the adopted size.
+The group must be one aligned block of that many consecutive world ranks,
+starting at a multiple of the size.
+Any other layout returns -1 on every rank of the group.
+Indices are unique when every group has the same size.
+Passing the same ~ranks_per_calc > 0~ on every rank enforces that size.
+A striped split of 4 ranks into groups {0, 2} and {1, 3} is refused: both
+have size 2 and lowest ranks 0 and 1, so both would have been index 0.
+Reversing the key order inside an aligned block does not change the index.
+One group of 4, two groups of 2, and four groups of 1 are the same rule.
+The [[file:../howto/mpi.org][mpirun how-to]] shows the call.
+[[https://rgpot.rgoswami.me][rgpot]] is the host that loads this library and
+may already have split the ranks; its group contract is the
+[[https://rgpot.rgoswami.me/reference/mpi.html][rgpot MPI reference]].
+
+Open MPI's Fortran handle for ~MPI_COMM_WORLD~ is 0, and ~MPI_COMM_NULL~ is a different value.
+The stored handle uses that numbering, so 0 means the world communicator.
+The index is the lowest world rank of an aligned block divided by that size.
+cpmdc does not make the SCF energy or the forces bitwise identical across
+rank counts.
+Those reductions run inside OpenCPMD (~mp_sum~ is ~MPI_Allreduce~, the FFT
+plane split follows the rank count, and OpenMP ~REDUCTION~ clauses run inside
+the archive).
+A single point at one rank and at two ranks can be compared by the maximum
+absolute deviation of the energy and of the forces.
+That comparison is a report, not a bitwise claim.
+
+| Adopted size | ~ranks_per_calc~ | Result |
+|--------------+------------------+--------|
+| 2 | 2 | index = lowest world rank / 2, the same on both ranks |
+| 2 | 4 | -1, ~cpmdc_last_error()~ names 2 and 4 |
+| 4 | 0 or less | index = lowest world rank / 4 |
+| 1 | 1 | index = that rank's world rank |
+| 2, striped {0, 2} | 2 | -1, not an aligned block |
 
 * Why the parent rank's result counts
 CPMD computes the energy and ionic forces for the calculation as a whole, and

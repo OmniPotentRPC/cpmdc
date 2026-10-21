@@ -1,0 +1,1 @@
+`tools/opencpmd_embed_teardown.patch` adds `embed_teardown_state` to OpenCPMD. It frees the module arrays, the setup communicators, and the saved orbitals of a setup. It also resets the first-call state of 37 routines on the setup and wavefunction optimisation path. The rebuild helper and the archive how-to apply it after the other patches.

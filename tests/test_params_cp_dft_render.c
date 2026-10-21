@@ -1040,6 +1040,8 @@ static const char *k_fixture_files[] = {
     "params_system_cell_vectors.bin",
     "params_system_bad_occupation.bin",
     "params_atoms_extras.bin",
+    "params_system_multiplicity_section.bin",
+    "params_system_multiplicity_top.bin",
 };
 
 static char *fixture_path(const char *dir, const char *name) {
@@ -1424,6 +1426,19 @@ int main(int argc, char **argv) {
     return 1;
   if (check_render_fails(fixture[18]) != 0)
     return 1;
+  /* MULTIPLICITY lands in &SYSTEM, from the section or else from the
+   * top-level scalar, and a spin multiplicity turns on LSD. */
+  const char *system_multiplicity_need[] = {
+      "&SYSTEM", " MULTIPLICITY\n  3\n", "&CPMD", " LSD\n",
+  };
+  if (check_deck(fixture[20], system_multiplicity_need,
+                 (int)(sizeof(system_multiplicity_need) /
+                       sizeof(system_multiplicity_need[0]))) != 0)
+    return 1;
+  if (check_deck(fixture[21], system_multiplicity_need,
+                 (int)(sizeof(system_multiplicity_need) /
+                       sizeof(system_multiplicity_need[0]))) != 0)
+    return 1;
   char *decks[17] = {0};
   for (int i = 0; i < 17; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);
@@ -1439,6 +1454,6 @@ int main(int argc, char **argv) {
     free(decks[i]);
   if (coverage_rc != 0)
     return 1;
-  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, system_couplings_prod, system_couplings_linres, system_couplings_lists, system_cell_qualifiers, and system_cell_vectors render + inventory finds\n");
+  printf("OK cp_md, dft_multi, cpmd_geometry, dft_scalars, cpmd_dynamics, cpmd_misc, long_tail_sections, vdw_controls, system_controls, system_monkhorst, system_kpoint_bands, system_cdft_acceptor_wmult, system_couplings_prod, system_couplings_linres, system_couplings_lists, system_cell_qualifiers, system_cell_vectors, and system_multiplicity render + inventory finds\n");
   return 0;
 }

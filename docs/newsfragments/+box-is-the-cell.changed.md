@@ -1,0 +1,1 @@
+The `ForceInput` box is the cell: a non-zero box replaces the `CELL` and `SYMMETRY` of the deck (`SYMMETRY 1` for a cubic deck and box, `SYMMETRY 8` for another orthorhombic box, `CELL VECTORS` otherwise), as a file-based caller that writes its own cell does. An isolated deck takes only an orthorhombic box. An all-zero box keeps the deck's cell.

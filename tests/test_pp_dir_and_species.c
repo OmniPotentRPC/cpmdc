@@ -490,9 +490,21 @@ static void test_split_species_and_output_directory(void **state) {
   assert_non_null(session_grouped);
   grouped_result = cpmdc_session_energy_forces(
       session_grouped, 3, grouped, grouped_z, forces_grouped);
+  assert_int_equal(grouped_result.ok, 1);
+  {
+    double forces_same[9];
+    CPMDCResult same_result = cpmdc_session_energy_forces(
+        session_grouped, 3, split, split_z, forces_same);
+    assert_int_equal(same_result.ok, 1);
+    assert_true(fabs(same_result.energy_h - grouped_result.energy_h) < 1e-6);
+    for (i = 0; i < 3; ++i) {
+      assert_true(fabs(forces_same[i] - forces_grouped[3 + i]) < 1e-5);
+      assert_true(fabs(forces_same[3 + i] - forces_grouped[i]) < 1e-5);
+      assert_true(fabs(forces_same[6 + i] - forces_grouped[6 + i]) < 1e-5);
+    }
+  }
   cpmdc_session_destroy(session_grouped);
   assert_int_equal(chdir(original), 0);
-  assert_int_equal(grouped_result.ok, 1);
 
   session_split = cpmdc_session_create(params, params_size);
   assert_non_null(session_split);

@@ -111,6 +111,9 @@ static void test_bind_calculator_failure(void **state) {
   prime_config_error();
   assert_int_equal(cpmdc_bind_calculator(1), -1);
   expect_has("calculator bind refused");
+  prime_config_error();
+  assert_int_equal(cpmdc_adopt_calculator_comm(NULL, 0, 1), -1);
+  expect_has("calculator bind refused");
 #else
   (void)state;
 #endif
@@ -196,6 +199,8 @@ static void test_readers_do_not_write_last_error(void **state) {
   CPMDCStressTensor stress;
   memset(&stress, 0x5a, sizeof(stress));
   assert_int_equal(cpmdc_last_stress(&stress), -1);
+  expect_has("CPMDParams buffer is empty");
+  assert_int_equal(cpmdc_adopted_comm(NULL, 0), -1);
   expect_has("CPMDParams buffer is empty");
   CPMDCEnergyComponents energy;
   assert_int_equal(cpmdc_last_energy_components(&energy), -1);

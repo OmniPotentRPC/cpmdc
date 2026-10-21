@@ -30,7 +30,18 @@ Energy: ~hartree~, ~ha~, ~au~, ~a.u.~, ~ev~, ~electronvolt~, ~ry~, ~rydberg~,
 ~kj/mol~, ~kjmol~, ~kcal/mol~, ~kcalmol~.
 The schema defaults are ~angstrom~ and ~eV~.
 ~ForceInput.box~ is empty or nine values, a row-major 3 by 3 cell in
-~lengthUnit~.
+~lengthUnit~, one lattice vector per row.
+The caller's box is the cell.
+A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
+~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another
+orthorhombic box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with
+off-diagonal components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD
+refuses beside it.
+An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and
+takes only an orthorhombic box; another box fails the call.
+Without ~ANGSTROM~ the box goes in as Bohr.
+An all-zero box is a system without a cell: the deck's ~CELL~ stays, or a
+12 Angstrom cube when the deck has none.
 The ~hasCharge~, ~charge~, ~hasMultiplicity~, and ~multiplicity~ fields of
 ~ForceInput~ are not read by ~cpmdc~.
 
@@ -88,8 +99,9 @@ optimisation.
 | ~const char *cpmdc_last_error(void)~ | per-thread text of the last failing public call, empty after a success |
 
 ~cpmdc_last_error()~ is written by ~cpmdc_set_params()~, ~cpmdc_configure()~,
-~cpmdc_bind_calculator()~, ~cpmdc_session_create()~,
-~cpmdc_session_set_params()~, ~cpmdc_session_create_from_config()~,
+~cpmdc_bind_calculator()~, ~cpmdc_adopt_calculator_comm()~, ~cpmdc_session_create()~,
+~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
+~cpmdc_session_create_from_config()~,
 ~cpmdc_session_configure()~, ~cpmdc_potential_result_size_for_force_input()~,
 and every evaluation entry point.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
@@ -97,16 +109,20 @@ missing pseudopotential directory.
 Snapshot readers (~cpmdc_last_stress()~ and the other ~cpmdc_last_*~ /
 ~cpmdc_session_last_*~ getters) do not write it: -1 means the snapshot is
 absent or the output pointer is null.
-~cpmdc_capabilities_result()~ does not write it either; its -1 is the size
-query.
+~cpmdc_adopted_comm()~ and ~cpmdc_capabilities_result()~ do not write it
+either.
+A capabilities return of -1 is the size query.
 
 * MPI
 
 | Function | Behaviour |
 |----------+-----------|
 | ~int cpmdc_bind_calculator(int ranks_per_calc)~ | collective on ~MPI_COMM_WORLD~; initialises MPI when needed and splits the world into calculators of ~ranks_per_calc~ consecutive ranks; ~ranks_per_calc <= 0~ keeps one calculator; returns this rank's calculator index, or -1 when the world size is not a multiple or the library has no CPMD backend; a second call returns the same index |
+| ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no ~CPMDCSession~ exists, and if any rank has a live session every rank returns -1; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
+| ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies the stored calculator communicator into ~out~ (on an OpenCPMD build, ~mp_comm_world~); returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
 
-Call it once on every rank before the first evaluation.
+~cpmdc_bind_calculator()~ runs once per process, before the first evaluation.
+~cpmdc_adopt_calculator_comm()~ may run again after every session has been destroyed.
 See [[file:../howto/mpi.org][running under mpirun]].
 
 * Configuration without a session
@@ -124,6 +140,9 @@ The fields it lowers are the ones ~cpmdc_capabilities_result()~ lists:
 ~xcFunctionals~, ~basisSet~, ~planewaveCutoffEv~, ~charge~,
 ~spinMultiplicity~, ~scfEnergyToleranceEv~, ~scfMaxIterations~, ~kMesh~,
 ~smearing~, ~vanDerWaalsMethod~, and ~vanDerWaalsS6~.
+~scfEnergyToleranceEv~ fills both values of ~CONVERGENCE ORBITALS~: the
+orbital threshold and the total-energy change between steps, which ends a
+smeared (free-energy) SCF once the energy settles.
 Setting both the arm and the overlay is rejected, and so is an overlay field
 without a CPMD lowering, ~relativityMethod~.
 
@@ -148,11 +167,14 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters; -1 once the session has accepted a topology |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
+| ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | the next evaluations start from the orbitals stored under ~key~; -1 for a ~NULL~ session |
 
-The first successful step fixes the atom count and the ordered atomic numbers.
-A later step with a different topology fails with ~topology change requires a
-new session~ before CPMD runs.
+The first successful step fixes the atom count and the elemental composition.
+A later step with a different count or composition fails with ~topology change
+requires a new session~ before CPMD runs.
+A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+An evaluation with the same positions returns the stored energy and forces.
 A session evaluated after another session in the same process reuses the
 stored orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
 and elemental composition match.

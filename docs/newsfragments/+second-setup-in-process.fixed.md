@@ -1,0 +1,1 @@
+One process can set OpenCPMD up again, for a new basis or after a CPMD stop. The embed calls `cpmdc_embed_teardown` before a second cold setup and from `cpmdc_embed_reset_state`. It frees what the first setup allocated, and the second setup gives the energies of a fresh process. A second setup used to stop in `ratom` with `allocation problem`, and the embed refused it.

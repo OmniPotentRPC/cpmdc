@@ -8,7 +8,7 @@ A stock OpenCPMD archive does not work inside a host: ~libcpmdc~ imports
 routines that only the patches add, the shared link stops on code built
 without ~-fPIC~, and the unpatched SCF driver drops the forces and the
 orbitals that ~cpmdc~ reads after each call.
-Six patches in ~tools/~ and one compiler flag fix those.
+The patches in ~tools/~ and one compiler flag fix those.
 ~opencpmd_c_mem_addrs.patch~ makes ~cGetMemAddrs~ return the address as
 ~size_t~.
 GCC 14 rejects the stock return of a pointer from that function.
@@ -17,6 +17,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 
 | Patch | File patched | Without it |
 |-------+--------------+------------|
+| ~opencpmd_embed_rinitwf.patch~ | ~src/rinitwf_driver.mod.F90~ | a warm call still builds the wavefunction guess and then discards it |
 | ~opencpmd_embed_geometry.patch~ | ~src/embed_ctrl.mod.F90~, ~src/initrun_driver.mod.F90~, ~src/SOURCES~ | ~initrun~ still writes ~GEOMETRY~ after ~embed_set_write_files(.FALSE.)~, and ~rwfopt~ has no ~embed_ctrl~ to read |
 | ~opencpmd_embed_rwfopt.patch~ | ~src/rwfopt_utils.mod.F90~ | ~rwfopt~ deallocates ~fion~ on return and starts every SCF from a fresh guess, and ~cpmd_embed_c_api.F90~ does not compile |
 | ~opencpmd_converged_state.patch~ | ~src/updwf_utils.mod.F90~ | the optimiser applies one more update after convergence, so the saved orbitals no longer match the reported energy and forces; steepest descent with ~iproj <= 1~ also needs its ~gemax~ reset before the convergence check |
@@ -24,6 +25,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | ~opencpmd_stopgm_return.patch~ | ~src/error_handling.mod.F90~ | a CPMD stop inside an evaluation takes the ~my_stopall~ path, which OpenCPMD writes to end the run |
 | ~opencpmd_tistopgm.patch~ | ~src/timer.mod.F90~ | ~tistopgm~ indexes ~trace_depth~ before ~tistart~, while the depth is still ~HUGE(0)~, and the process faults before ~LocalError~ |
 | ~opencpmd_c_mem_addrs.patch~ | ~src/c_mem_utils.c~ | ~cGetMemAddrs~ returns a ~size_t~ pointer, and GCC 14 stops on that conversion |
+| ~opencpmd_embed_teardown.patch~ | ~src/embed_teardown.mod.F90~, ~src/embed_ctrl.mod.F90~, ~src/SOURCES~, and 32 modules with first-call state | a second setup in one process, after a basis change or a ~stopgm~, stops in ~ratom~ with ~allocation problem~ or faults, because the arrays of the first setup are still allocated |
 
 The rwfopt patch publishes ~embed_set_warm_orbitals~,
 ~embed_set_need_forces~, ~embed_reset_warm_orbitals~, and
@@ -39,9 +41,13 @@ frees a surviving ~fion~ before its own ~ALLOCATE~.
 It saves ~c0~ only when ~embed_warm_orbitals~ is true and the SCF converged.
 An unconverged pass leaves the previous copy.
 A failed store allocation calls ~stopgm~.
-On the next call it restores that copy after ~initrun~ when the shape still
-matches, and a different shape calls ~stopgm~.
-It sets ~tfor~ when ~embed_need_forces~ is true.
+On the next call it copies that ~c0~ in before ~initrun~.
+~rinitwf~ then returns after the phase factors when ~embed_have_orbitals~
+is true, so the guess does not run.
+A restart read inside ~initrun~ can replace ~c0~, so the same copy is
+applied again after ~initrun~ when the shape still matches, and a different
+shape calls ~stopgm~.
+~rwfopt~ sets ~tfor~ when ~embed_need_forces~ is true.
 The stop patch publishes ~cpmd_stopgm_hook~, a C function pointer.
 ~stopgm~ calls it with the stop code passed by value, after writing
 ~LocalError-*.log~.
@@ -69,13 +75,37 @@ call-stack walk indexes ~trace_names~ from that value, so a ~stopgm~ before
 ~tistart~ faults instead of writing ~LocalError~.
 The walk runs only when the depth is inside ~SIZE(tname%trace_names)~.
 
+The teardown patch adds the module ~embed_teardown~ and its routine
+~embed_teardown_state~, which ~cpmdc_embed_teardown~ calls.
+It frees the saved orbitals, the communicators ~set_cp_grp~ built, and
+every ~ALLOCATABLE~ module variable and module-variable component that a
+~USE~ reaches, outside the timer, stop, and CUDA device modules.
+It then adds one to ~embed_teardowns~ in ~embed_ctrl~.
+37 routines in those 32 modules keep work on the setup and wavefunction
+optimisation path for their first call behind a ~SAVE~ flag: ~phfac~, ~setbasis~,
+~hf_init~, ~addfftnset~, the density mixers, the symmetry setup, the
+Vanderbilt and core-charge splines, and others.
+Each one compares the count it last saw with ~embed_teardowns~, and on a
+change frees its own ~SAVE~ arrays and runs as the first call again.
+The next setup then gives the energies of a fresh process.
+~tistart~ keeps its state: it executes ~STOP~ on a second call, so the
+embed calls it once per process.
+~cpmd.x~ never tears down, and ~embed_teardowns~ stays 0 there.
+
 ~tests/test_opencpmd_patch_integrity.py~ checks that the patches are portable
 unified diffs against the files named above.
-Apply ~opencpmd_embed_geometry.patch~ first: ~rwfopt~ reads ~embed_ctrl~.
-The other five are the commits on [[https://github.com/OpenCPMD/CPMD/pull/9][OpenCPMD pull request 9]]
+Apply ~opencpmd_embed_rinitwf.patch~ before the rwfopt patch.
+~rwfopt~ reads ~embed_have_orbitals~ from ~rinitwf_driver~.
+Apply ~opencpmd_embed_geometry.patch~ before that rwfopt patch as well:
+~rwfopt~ reads ~embed_ctrl~.
+The rwfopt, converged-state, k-point, stop, and timer patches are the
+commits on [[https://github.com/OpenCPMD/CPMD/pull/9][OpenCPMD pull request 9]]
 (branch ~embedding-hooks~, ~43cf4e7~) and apply in sequence to OpenCPMD
 commit ~062582b~.
 Apply ~opencpmd_c_mem_addrs.patch~ with them.
+Apply ~opencpmd_embed_teardown.patch~ last: it adds to the ~embed_ctrl~ of
+the geometry patch and calls ~embed_reset_warm_orbitals~ from the rwfopt
+patch.
 ~cuda_get_address~ stores the ~size_t~ that function returns.
 
 * Build a patched tree
@@ -85,8 +115,9 @@ build:
 #+begin_src bash
 git clone https://github.com/OpenCPMD/CPMD.git opencpmd
 cd opencpmd
-for p in embed_geometry embed_rwfopt converged_state \
-         kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
+         kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
+         embed_teardown; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 #+end_src
@@ -95,8 +126,12 @@ The OpenCPMD sample ~LINUX-X86_64-GFORTRAN-MPI~ sets ~LIBS~ to one person's
 library path.
 Copying that file and adding ~-fPIC~ leaves the path in the build.
 ~cpmdc~ ships ~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ for the command below.
-It calls ~mpif90~ and ~gcc~ from ~PATH~, adds ~-fPIC~ to ~FFLAGS~ and
-~CFLAGS~, and sets ~LIBS~ to ~-lopenblas~.
+It calls ~mpif90~ and ~gcc~ from ~PATH~, adds ~-fPIC~ and
+~-ffp-contract=off~ to ~FFLAGS~ and ~CFLAGS~, and sets ~LIBS~ to
+~-lopenblas~.
+The aarch64 file is ~tools/LINUX-AARCH64-GFORTRAN-MPI-PIC~.
+The section Building OpenCPMD for mixed clusters below says when to
+use each file.
 When ~mpif90~ accepts it, ~FFLAGS~ also gains ~-fallow-argument-mismatch~.
 ~mp_bcast_byte~ broadcasts the bytes of its first argument, and one
 procedure calls it with several derived types.
@@ -123,16 +158,20 @@ rebuild only the affected members:
 
 #+begin_src bash
 cd /path/to/opencpmd-source
-for p in embed_geometry embed_rwfopt converged_state \
-         kpoints_inputfile stopgm_return tistopgm c_mem_addrs; do
+for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
+         kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
+         embed_teardown; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 #+end_src
 
-~rebuild_opencpmd_embed.sh~ recompiles ~error_handling.mod.o~,
-~scex_utils.mod.o~, ~rwfopt_utils.mod.o~,
-~updwf_utils.mod.o~, ~rkpnt_utils.mod.o~, and ~timer.mod.o~ with one Make job, then replaces
+~rebuild_opencpmd_embed.sh~ recompiles the object of each vendored
+patch, ~error_handling.mod.o~, ~embed_ctrl.mod.o~, ~rinitwf_driver.mod.o~,
+~initrun_driver.mod.o~, ~rwfopt_utils.mod.o~, ~updwf_utils.mod.o~,
+~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~, the 32 modules of
+the teardown patch, and ~embed_teardown.mod.o~ after them, and
+~scex_utils.mod.o~ for the module order, with one Make job, then replaces
 those members with ~ar r~ and runs ~ranlib~.
 It runs one job because gfortran stores a copy of ~Scex_t~ inside
 ~rwfopt_utils.mod~: a parallel rebuild can leave the two module files naming
@@ -165,3 +204,54 @@ no extra patch: ~cpmdc~ sets ~cntl%tpres~ before the SCF and copies
 ~paiu/omega~ afterwards.
 An isolated cell does not set the snapshot. The box has a volume, and CPMD
 does not compute the tensor.
+
+* Building OpenCPMD for mixed clusters
+A binary that runs on more than one CPU type must not be built with
+~-xHost~, ~-march=native~, or ~-axCORE-AVX512~.
+~-xHost~ and ~-march=native~ bind the object code to the CPU that
+compiled it.
+~-axCORE-AVX512~ is Intel's multi-target flag, and the binary it
+produces does not run on a non-Intel CPU.
+Stock OpenCPMD files that pass those flags include
+~INTEL-AMD-IFORT-OPENMPI~ and ~INTEL-SKYLAKE-IFORT-OPENMPI~.
+Do not copy them for a shared cluster.
+One binary per microarchitecture belongs in EESSI
+(Dröge et al., Softw. Pract. Exp. 53, 176 (2023),
+doi:10.1002/spe.3075).
+
+~cpmdc~ ships two configure files that set the instruction set explicitly.
+~tools/LINUX-X86_64-GFORTRAN-MPI-PIC~ passes ~-march=x86-64~ on debug and
+release ~FFLAGS~ and ~CFLAGS~.
+GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults
+to x86-64-v3, which includes AVX2 and FMA.
+~tools/LINUX-AARCH64-GFORTRAN-MPI-PIC~ passes ~-march=armv8-a~ on those
+same flags.
+Both add ~-fPIC~, because ~libcpmdc~ is a shared library, and
+~-ffp-contract=off~.
+~-ffp-contract=off~ stops the compiler from fusing a multiply and an
+add into one instruction.
+That keeps numeric results equal across build targets.
+The same flag is on ~cpmdc~ C and Fortran arguments.
+Copy the file that matches the machine into ~configure/~:
+
+#+begin_src bash
+cp /path/to/cpmdc/tools/LINUX-AARCH64-GFORTRAN-MPI-PIC configure/
+./configure.sh -DEST=/path/to/opencpmd-build LINUX-AARCH64-GFORTRAN-MPI-PIC
+#+end_src
+
+On x86_64, use ~LINUX-X86_64-GFORTRAN-MPI-PIC~ in that command instead.
+
+OpenBLAS and FFTW choose their own kernels at run time when they were
+built that way.
+~meson.build~ links OpenBLAS, or FlexiBLAS when that library is
+present, and FFTW3, including ~fftw3_omp~ when it is present.
+Check OpenBLAS with ~openblas_get_config()~.
+The returned string contains ~DYNAMIC_ARCH~ when the library selects a
+kernel for the CPU it is running on.
+A build without ~DYNAMIC_ARCH~ can contain one microarchitecture and
+fault on a CPU that lacks it.
+Check FFTW in the build's ~config.log~ or the package recipe.
+Runtime selection is on when several SIMD codelet options were enabled
+together, for example ~--enable-sse2~, ~--enable-avx~, ~--enable-avx2~,
+~--enable-avx512~, or ~--enable-neon~.
+A library built with only one of those runs only that set.

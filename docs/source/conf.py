@@ -46,12 +46,78 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 html_theme = "shibuya"
 html_static_path = ["_static"]
 html_baseurl = "https://cpmdc.rgoswami.me/"
+# Sphinx sets language to "en". The default sitemap scheme is
+# {lang}{version}{link}, so every page would be published under /en/.
+sitemap_url_scheme = "{link}"
+# Navbar falls back to html_logo when light_logo/dark_logo are unset.
+# The badge reads on both headers; the wordmarks are the page hero.
+html_logo = "_static/icon.svg"
 
 html_theme_options = {
     "github_url": "https://github.com/OmniPotentRPC/cpmdc",
     "accent_color": "violet",
     "dark_code": True,
     "globaltoc_expand_depth": 1,
+    # Shibuya toggles .light-logo / .dark-logo with color mode.
+    "light_logo": "_static/icon.svg",
+    "dark_logo": "_static/icon.svg",
+    "nav_links": [
+        {
+            "title": "Ecosystem",
+            "children": [
+                {
+                    "title": "eOn",
+                    "url": "https://eondocs.org",
+                    "summary": "Saddle point finding on potential energy surfaces",
+                },
+                {
+                    "title": "rgpot",
+                    "url": "https://rgpot.rgoswami.me",
+                    "summary": "Potential-energy library and Cap'n Proto RPC server",
+                },
+                {
+                    "title": "rgmin",
+                    "url": "https://omnipotentrpc.github.io/rgmin",
+                    "summary": "Local minimization over eindir objectives",
+                },
+                {
+                    "title": "rgsaddle",
+                    "url": "https://omnipotentrpc.github.io/rgsaddle",
+                    "summary": "Band and minimum-mode saddle mechanics over rgmin",
+                },
+                {
+                    "title": "rgpycrumbs",
+                    "url": "https://rgpycrumbs.rgoswami.me",
+                    "summary": "Pure-Python computational library and CLI for chemical physics",
+                },
+                {
+                    "title": "minimage",
+                    "url": "https://lode-org.github.io/minimage",
+                    "summary": "Minimum-image convention on a general parallelepiped",
+                },
+                {
+                    "title": "linkcell",
+                    "url": "https://docs.rs/linkcell",
+                    "summary": "Periodic linked-cell k-nearest neighbour search",
+                },
+                {
+                    "title": "readcon",
+                    "url": "https://lode-org.github.io/readcon-core",
+                    "summary": "Reference implementation of versioned CON checkpoints",
+                },
+                {
+                    "title": "readcon-db",
+                    "url": "https://lode-org.github.io/readcon-db",
+                    "summary": "Mmap-backed CON campaign corpus store",
+                },
+                {
+                    "title": "readcon-ops",
+                    "url": "https://github.com/lode-org/readcon-ops",
+                    "summary": "Comparisons and rigid alignment of coordinate frames",
+                },
+            ],
+        },
+    ],
 }
 
 html_context = {
@@ -62,5 +128,13 @@ html_context = {
     "source_docs_path": "/docs/source/",
 }
 
+html_sidebars = {
+    "**": [
+        "sidebars/localtoc.html",
+        "sidebars/repo-stats.html",
+        "sidebars/edit-this-page.html",
+    ],
+}
+
 html_css_files = ["custom.css"]
-html_favicon = "_static/mark.svg"
+html_favicon = "_static/favicons/favicon.svg"

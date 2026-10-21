@@ -70,12 +70,23 @@ MODULE cpmd_embed_c_api
 
   PUBLIC :: cpmdc_embed_init, cpmdc_embed_available, cpmdc_embed_finalize
   PUBLIC :: cpmdc_embed_bind_calculator
-  PUBLIC :: cpmdc_embed_reset_state
+  PUBLIC :: cpmdc_embed_store_comm, cpmdc_embed_adopted_fcomm
+  PUBLIC :: cpmdc_embed_reset_state, cpmdc_embed_teardown
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
+  PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_last_warm_source
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
+  ! Where the last SCF started; see note_warm_start for the values.
+  INTEGER, SAVE :: last_warm_source = -2
+  ! OpenCPMD's tistart runs once per process: a second call prints
+  ! CALLED ONCE and executes STOP, which exits the host with status 0.
+  LOGICAL, SAVE :: timer_started = .FALSE.
+  ! True from the start of a cold setup until cpmdc_embed_teardown frees
+  ! what that setup allocated. A second cold setup tears the first down.
+  LOGICAL, SAVE :: cpmd_set_up = .FALSE.
   ! Results, the warm cell, and the method knobs live in the caller image.
   ! runtime_ready is process-wide. tcpu0 is the timer origin of one SCF.
 
@@ -136,7 +147,10 @@ MODULE cpmd_embed_c_api
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
   ! mp_start assigns mp_comm_world only when it calls MPI_Init.
-  ! The flag records that this process already split a calculator.
+  ! The flag records that this process has stored a calculator communicator.
+  ! cpmdc_embed_bind_calculator splits once.
+  ! cpmdc_embed_store_comm may replace that communicator. The C caller
+  ! refuses the replacement while a session is live.
   LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
   ! The saved c0 matches one cutoff, cell, charge, multiplicity,
   ! functional, deck, and elemental composition. A later call with a
@@ -292,6 +306,47 @@ CONTAINS
 #endif
   END FUNCTION cpmdc_embed_bind_calculator
 
+  FUNCTION cpmdc_embed_store_comm(fcomm) RESULT(ok) &
+      BIND(C, NAME='cpmdc_embed_store_comm')
+    INTEGER(c_int), INTENT(IN), VALUE :: fcomm
+    INTEGER(c_int) :: ok
+    ok = -1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mpi
+      USE mp_interface, ONLY: mp_comm_world
+      INTEGER :: ierr
+      LOGICAL :: inited
+      ! Rank, size, and the calculator index are decided in C from this
+      ! communicator. This routine only installs it, including a replacement
+      ! when the C caller has already allowed a rebind.
+      ! Open MPI's Fortran handle for MPI_COMM_WORLD is 0, and MPI_COMM_NULL
+      ! is a different value, so 0 is a communicator the host can adopt.
+      IF (INT(fcomm) == MPI_COMM_NULL) RETURN
+      CALL MPI_INITIALIZED(inited, ierr)
+      IF (.NOT. inited) RETURN
+      mp_comm_world = INT(fcomm)
+      embed_calculator_bound = .TRUE.
+      ok = 0_c_int
+    END BLOCK
+#endif
+  END FUNCTION cpmdc_embed_store_comm
+
+  FUNCTION cpmdc_embed_adopted_fcomm() RESULT(fcomm) &
+      BIND(C, NAME='cpmdc_embed_adopted_fcomm')
+    INTEGER(c_int) :: fcomm
+    ! -1 means nothing is stored. 0 is a valid Fortran handle: Open MPI uses
+    ! it for MPI_COMM_WORLD.
+    fcomm = -1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    BLOCK
+      USE mp_interface, ONLY: mp_comm_world
+      IF (.NOT. embed_calculator_bound) RETURN
+      fcomm = INT(mp_comm_world, c_int)
+    END BLOCK
+#endif
+  END FUNCTION cpmdc_embed_adopted_fcomm
+
   FUNCTION cpmdc_embed_init() RESULT(ok) BIND(C, NAME='cpmdc_embed_init')
     INTEGER(c_int) :: ok
     runtime_ready = .TRUE.
@@ -324,7 +379,26 @@ CONTAINS
     CALL embed_reset_warm_orbitals()
     CALL clear_embed_basis_latch()
 #endif
+    ok = cpmdc_embed_teardown()
+  END FUNCTION
+
+  ! Frees the module arrays, communicators and first-call state of the
+  ! OpenCPMD setup in this process (tools/opencpmd_embed_teardown.patch),
+  ! so the next force call sets CPMD up from its deck again, for any
+  ! basis. Without a setup it does nothing. The timers stay: tistart
+  ! runs once per process.
+  FUNCTION cpmdc_embed_teardown() RESULT(ok) BIND(C, NAME='cpmdc_embed_teardown')
+#if defined(CPMDC_HAS_CPMD)
+    USE embed_teardown, ONLY: embed_teardown_state
+#endif
+    INTEGER(c_int) :: ok
     ok = 1_c_int
+#if defined(CPMDC_HAS_CPMD)
+    IF (.NOT. cpmd_set_up) RETURN
+    CALL embed_teardown_state()
+    CALL clear_embed_basis_latch()
+    cpmd_set_up = .FALSE.
+#endif
   END FUNCTION
 
   ! A new image has no warm counter of its own. The process copy of c0
@@ -343,6 +417,46 @@ CONTAINS
     image%warm_has_cell = 0_c_int
     image%warm_cell = 0.0_c_double
     ok = 1_c_int
+  END FUNCTION
+
+  ! The stored c0 follows the key the caller names: the next SCF starts
+  ! from the orbitals the last converged call under that key left. A key
+  ! with none starts from the orbitals already stored. Every rank of the
+  ! calculator selects the same key before the same call.
+  SUBROUTINE cpmdc_embed_select_orbitals(key) &
+      BIND(C, NAME='cpmdc_embed_select_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_select_orbital_slot
+#endif
+    INTEGER(c_long_long), INTENT(IN), VALUE :: key
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
+#else
+    IF (key == 0_c_long_long) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! Keys with parked orbitals in this process, the selected key excluded.
+  FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &
+      BIND(C, NAME='cpmdc_embed_orbital_slots')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_orbital_slot_count
+#endif
+    INTEGER(c_int) :: n
+    n = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    n = INT(embed_orbital_slot_count(), KIND=c_int)
+#endif
+  END FUNCTION
+
+  ! Where the last SCF of this process started: 0 the selected key's
+  ! stored orbitals, 1 another key's parked orbitals, -1 the guess because
+  ! every stored geometry lay beyond the CPMDC_WARM_RMSD limit, -2 the
+  ! guess because nothing was stored.
+  FUNCTION cpmdc_embed_last_warm_source() RESULT(source) &
+      BIND(C, NAME='cpmdc_embed_last_warm_source')
+    INTEGER(c_int) :: source
+    source = INT(last_warm_source, KIND=c_int)
   END FUNCTION
 
   SUBROUTINE cpmdc_embed_finalize() BIND(C, NAME='cpmdc_embed_finalize')
@@ -1360,15 +1474,15 @@ CONTAINS
           ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
     END IF
     IF (.NOT. diagonal) THEN
-      ! A scalar internal file is one record. Slash edit descriptors
-      ! open further records and the write stops at end of file.
-      WRITE(text, '(A,3F16.8,A,3F16.8,A,3F16.8,A)') &
-           ' CELL VECTORS'//NEW_LINE('A'), &
-           cell(1), cell(2), cell(3), NEW_LINE('A'), &
+      ! An internal write to one CHARACTER variable has one record; a '/'
+      ! edit descriptor would end the write. The rows are joined by
+      ! NEW_LINE instead.
+      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
+           NEW_LINE('A'), cell(1), cell(2), cell(3), NEW_LINE('A'), &
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,3F12.6,A)') ' CELL'//NEW_LINE('A')//'  ', &
+      WRITE(text, '(A,3F20.12,A)') ' CELL'//NEW_LINE('A')//'  ', &
            cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)
@@ -1559,11 +1673,170 @@ CONTAINS
            ierr, knobs)
     END IF
     IF (ierr == 0 .AND. nlen > 0) THEN
-      CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      ! The caller's box is the cell. A deck CELL is replaced by it. An
+      ! all-zero box is a system without a cell (eOn's non-periodic
+      ! convention), so the deck's CELL, or the default, stays.
+      IF (has_cell /= 0 .AND. ANY(ABS(cell(1:9)) > 0.0_c_double)) THEN
+        CALL impose_box_cell(deck, nlen, cell, ierr)
+      ELSE
+        CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
+      END IF
       IF (ierr == 0) CALL inject_periodicity_if_unset(deck, nlen, cell, &
            has_cell, ierr)
       IF (ierr == 0) CALL inject_maxiter_if_missing(deck, nlen, ierr)
     END IF
+  END SUBROUTINE
+
+  ! The box of the call (Angstrom, rows are lattice vectors) is the cell
+  ! CPMD uses, whatever CELL the deck states. Every CELL line of &SYSTEM
+  ! and its data lines go, and so does SYMMETRY with its value line; then
+  ! the box goes back in before the &END of &SYSTEM:
+  !   isolated deck (SYMMETRY 0 or ISOLATED): SYMMETRY 0 and CELL, for a
+  !     diagonal box only; CPMD's isolated solvers need an orthorhombic
+  !     cell, so another box is refused (ierr 3).
+  !   diagonal box: SYMMETRY 1 when the deck said cubic and a = b = c,
+  !     otherwise SYMMETRY 8, with CELL a b/a c/a.
+  !   other box: CELL VECTORS and no SYMMETRY, which CPMD refuses beside it.
+  ! Without ANGSTROM in &SYSTEM the deck reads lengths in Bohr, so the box
+  ! is written in Bohr (CPMD's fbohr, 1/0.529177210859).
+  SUBROUTINE impose_box_cell(deck, nlen, cell, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
+    CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
+    INTEGER, INTENT(INOUT) :: nlen
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER, INTENT(OUT) :: ierr
+    REAL(real64), PARAMETER :: ang_per_bohr = 0.529177210859_real64
+    CHARACTER(LEN=:), ALLOCATABLE :: out
+    CHARACTER(LEN=80) :: head, tok, symtok
+    CHARACTER(LEN=600) :: text
+    REAL(real64) :: c(9), scale
+    INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k
+    LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, diagonal, done
+    ierr = 0
+    IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
+    ! First pass: units and the deck's symmetry, inside &SYSTEM only.
+    in_sys = .FALSE.
+    angstrom = .FALSE.
+    cubic_deck = .FALSE.
+    isolated_deck = .FALSE.
+    skip = 0
+    osym = 0
+    ls = 1
+    DO WHILE (ls <= nlen)
+      le = ls
+      DO WHILE (le <= nlen)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      CALL embed_upper_copy(deck(ls:MIN(le - 1, nlen)), head)
+      pos = 1
+      CALL embed_next_tok(head, pos, tok)
+      IF (osym == 1) THEN
+        ! The value line of SYMMETRY.
+        CALL embed_ltrim(head, symtok)
+        isolated_deck = symtok(1:1) == '0' .OR. INDEX(symtok, 'ISOLATED') > 0
+        cubic_deck = (symtok(1:1) == '1' .AND. LEN_TRIM(symtok) == 1) .OR. &
+            (INDEX(symtok, 'CUBIC') > 0 .AND. INDEX(symtok, 'FACE') == 0 &
+             .AND. INDEX(symtok, 'BODY') == 0)
+        osym = 2
+      ELSE IF (tok(1:7) == '&SYSTEM') THEN
+        in_sys = .TRUE.
+      ELSE IF (in_sys .AND. tok(1:4) == '&END') THEN
+        in_sys = .FALSE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'ANGSTROM') THEN
+        angstrom = .TRUE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY' .AND. osym == 0) THEN
+        osym = 1
+      END IF
+      ls = le + 1
+    END DO
+    DO k = 1, 9
+      c(k) = REAL(cell(k), KIND=real64)
+    END DO
+    diagonal = ABS(c(2)) + ABS(c(3)) + ABS(c(4)) + ABS(c(6)) + ABS(c(7)) + &
+        ABS(c(8)) <= 1.0e-8_real64
+    IF (isolated_deck .AND. .NOT. diagonal) THEN
+      CALL cpmdc_note_embed_failure('an isolated deck (SYMMETRY 0) needs ' // &
+           'an orthorhombic box; the ForceInput box has off-diagonal ' // &
+           'components' // c_null_char)
+      ierr = 3
+      RETURN
+    END IF
+    scale = 1.0_real64
+    IF (.NOT. angstrom) scale = 1.0_real64 / ang_per_bohr
+    c = c * scale
+    IF (diagonal) THEN
+      IF (c(1) <= 0.0_real64 .OR. c(5) <= 0.0_real64 .OR. c(9) <= 0.0_real64) THEN
+        CALL cpmdc_note_embed_failure('the ForceInput box has a ' // &
+             'non-positive diagonal' // c_null_char)
+        ierr = 3
+        RETURN
+      END IF
+      IF (isolated_deck) THEN
+        k = 0
+      ELSE IF (cubic_deck .AND. ABS(c(5) - c(1)) <= 1.0e-10_real64 * c(1) &
+               .AND. ABS(c(9) - c(1)) <= 1.0e-10_real64 * c(1)) THEN
+        k = 1
+      ELSE
+        k = 8
+      END IF
+      WRITE(text, '(A,A,I0,A,A,A,3F20.12,A,A)') ' SYMMETRY', NEW_LINE('A'), &
+           k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), c(1), c(5) / c(1), &
+           c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
+    ELSE
+      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
+           NEW_LINE('A'), c(1), c(2), c(3), NEW_LINE('A'), &
+           c(4), c(5), c(6), NEW_LINE('A'), c(7), c(8), c(9), NEW_LINE('A')
+    END IF
+    ntext = LEN_TRIM(text)
+    IF (text(ntext:ntext) /= NEW_LINE('A')) THEN
+      ntext = ntext + 1
+      text(ntext:ntext) = NEW_LINE('A')
+    END IF
+    ! Second pass: copy every line but CELL and SYMMETRY of &SYSTEM, and
+    ! put the box in before its &END.
+    out = ''
+    in_sys = .FALSE.
+    done = .FALSE.
+    skip = 0
+    sys_end = 0
+    ls = 1
+    DO WHILE (ls <= nlen)
+      le = ls
+      DO WHILE (le <= nlen)
+        IF (deck(le:le) == NEW_LINE('A')) EXIT
+        le = le + 1
+      END DO
+      nxt = MIN(le, nlen)
+      CALL embed_upper_copy(deck(ls:MIN(le - 1, nlen)), head)
+      pos = 1
+      CALL embed_next_tok(head, pos, tok)
+      IF (skip > 0) THEN
+        skip = skip - 1
+      ELSE IF (tok(1:7) == '&SYSTEM') THEN
+        in_sys = .TRUE.
+        out = out // deck(ls:nxt)
+      ELSE IF (in_sys .AND. tok(1:4) == '&END') THEN
+        in_sys = .FALSE.
+        out = out // text(1:ntext) // deck(ls:nxt)
+        done = .TRUE.
+      ELSE IF (in_sys .AND. TRIM(tok) == 'CELL') THEN
+        skip = 1
+        IF (INDEX(head, 'VECTORS') > 0) skip = 3
+      ELSE IF (in_sys .AND. TRIM(tok) == 'SYMMETRY') THEN
+        skip = 1
+      ELSE
+        out = out // deck(ls:nxt)
+      END IF
+      ls = le + 1
+    END DO
+    IF (.NOT. done) THEN
+      ! No &SYSTEM section to carry the cell: leave the deck as it was.
+      RETURN
+    END IF
+    sys_end = LEN(out)
+    CALL MOVE_ALLOC(out, deck)
+    nlen = sys_end
   END SUBROUTINE
 
   FUNCTION cpmdc_embed_compose_cold_deck(n_atoms, positions_ang, atomic_numbers, &
@@ -1823,7 +2096,7 @@ CONTAINS
         cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
-        embed_set_write_files
+        embed_set_write_files, embed_choose_warm_start
     USE phfac_utils, ONLY: phfac
     USE ener, ONLY: ener_com, chrg, ener_c, ener_d
     USE coor, ONLY: tau0, fion, taup
@@ -1847,7 +2120,8 @@ CONTAINS
     REAL(c_double), ALLOCATABLE :: species_grad(:)
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
-    INTEGER :: inwfun_deck, ibench_deck
+    INTEGER :: inwfun_deck, ibench_deck, warm_source
+    REAL(real64) :: warm_dist
     INTERFACE
       FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
         IMPORT :: c_int
@@ -1863,6 +2137,10 @@ CONTAINS
     END DO
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
+    ! A stopgm in the deck setup of this call returned here with the CPMD
+    ! state undefined (HF_INIT, for one, leaves the HFX arrays unset), and
+    ! an SCF on that state can fault. The caller reports the stop.
+    IF (cpmdc_stop_code() /= 0_c_int) RETURN
     ALLOCATE(origin(n_atoms), species_grad(nmax), STAT=astat)
     IF (astat /= 0) THEN
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
@@ -1900,17 +2178,26 @@ CONTAINS
     ! that store exists, and an unconverged SCF leaves the previous
     ! converged copy in place, so a later SCF is still a warm start.
     ! Converge to cntr%tolog with the deck MAXITER. Do not clamp nomore_iter.
-    ! initrun builds starting orbitals before the stored c0 replaces them.
-    ! Once a converged copy exists (a warm call), the simple atomic
-    ! superposition (inwfun 3: loadc, one orthogonalisation, no force
-    ! evaluation) stands in for the Lanczos guess and for the random start,
-    ! both of which run a full SCF step on orbitals that are then discarded.
+    ! When that copy is stored, rinitwf returns after the phase factors
+    ! and does not build a guess. inwfun 3 is the start when the copy is
+    ! absent: loadc, one orthogonalisation, and no force evaluation.
+    ! That stands in for the Lanczos guess and for the random start.
+    ! Stored orbitals start this SCF only when they converged at a
+    ! geometry within warm_rmsd_limit() of this one; farther, the guess
+    ! below is the cheaper start.
+    CALL embed_choose_warm_start(pos(1:nmax), warm_rmsd_limit(), &
+        warm_dist, warm_source)
+    CALL note_warm_start(warm_source, warm_dist)
+    last_warm_source = warm_source
     inwfun_deck = cnti%inwfun
     ibench_deck = ibench(1)
     ! The cheap guess is for a process that already holds c0. A new
     ! session's counter is 0; the latch says the basis still matches.
+    ! Stored orbitals dropped for distance give way to the deck's guess:
+    ! on the Si3N4 band the simple guess took 65 to 205 SCF steps where
+    ! the deck's atomic guess took 37 to 52.
     IF (image%cfg_warm_steps > 0 .OR. embed_basis_latched) THEN
-      cnti%inwfun = 3
+      IF (warm_source /= -1) cnti%inwfun = 3
       ibench(1) = 1
     END IF
     CALL embed_set_warm_orbitals(.TRUE.)
@@ -2029,6 +2316,48 @@ CONTAINS
     IF (TRIM(v) /= '1') RETURN
     IF (.NOT. paral%io_parent) RETURN
     WRITE(error_unit, '(A,I0)') 'cpmdc_scf_steps ', nfi
+  END SUBROUTINE
+
+  ! The largest root-mean-square distance per atom, in Angstrom, between
+  ! the geometry stored orbitals converged at and the geometry of a call
+  ! that may start from them. CPMDC_WARM_RMSD overrides it; a negative
+  ! value starts from the stored orbitals at any distance.
+  REAL(real64) FUNCTION warm_rmsd_limit()
+    ! Default limit, Angstrom. On the Si3N4 BLYP 70 Ry band (7 atoms,
+    ! 4 ranks), against the deck's guess in the same process, stored
+    ! orbitals saved 4.5 s per call over five images at 0.12 Angstrom,
+    ! 2.1 s at 0.15 and 1.2 s at 0.17, and cost 0.4 s at 0.19 and 2.4 s
+    ! at 0.23. A band step capped at 0.1 Angstrom per atom stays inside.
+    REAL(real64), PARAMETER :: warm_rmsd_default = 0.15_real64
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st, ios
+    REAL(real64) :: x
+    warm_rmsd_limit = warm_rmsd_default
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_WARM_RMSD', v, STATUS=st)
+    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
+    READ(v, *, IOSTAT=ios) x
+    IF (ios == 0) warm_rmsd_limit = x
+  END FUNCTION
+
+  ! CPMDC_SCF_STEPS=1 also reports where each SCF started: source 0 the
+  ! selected key's store, 1 another key's parked orbitals, -1 the guess
+  ! because every stored geometry was beyond warm_rmsd_limit(), -2 the
+  ! guess because nothing was stored; and the nearest distance, Angstrom.
+  SUBROUTINE note_warm_start(source, dist)
+    USE parac, ONLY: paral
+    INTEGER, INTENT(IN) :: source
+    REAL(real64), INTENT(IN) :: dist
+    CHARACTER(LEN=8) :: v
+    INTEGER :: st
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_SCF_STEPS', v, STATUS=st)
+    IF (st /= 0) RETURN
+    IF (TRIM(v) /= '1') RETURN
+    IF (.NOT. paral%io_parent) RETURN
+    IF (source == -2) THEN
+      WRITE(error_unit, '(A,I0)') 'cpmdc_warm_start ', source
+    ELSE
+      WRITE(error_unit, '(A,I0,1X,F0.4)') 'cpmdc_warm_start ', source, dist
+    END IF
   END SUBROUTINE
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
@@ -2297,6 +2626,11 @@ CONTAINS
     ! 3) Else a minimal deck with the applied functional, cutoff, charge, and
     !    multiplicity.
     ! Geometry for forces always comes from the C arrays into TAU0 after parse.
+    ! A basis change or a call after a CPMD stop: free the first setup
+    ! before this one allocates the same module arrays again.
+    IF (cpmd_set_up) THEN
+      IF (cpmdc_embed_teardown() == 0_c_int) RETURN
+    END IF
     CALL embed_compose_cold_deck(n_atoms, pos, z, cell, has_cell, deck, nlen, &
          ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
@@ -2328,7 +2662,11 @@ CONTAINS
            'cannot enter the pseudopotential directory'//c_null_char)
       RETURN
     END IF
-    CALL tistart(tcpu0, twall0)
+    cpmd_set_up = .TRUE.
+    IF (.NOT. timer_started) THEN
+      CALL tistart(tcpu0, twall0)
+      timer_started = .TRUE.
+    END IF
     CALL init_fileopen
     CALL startpa
     CALL New(bicanonicalCpmdInputConfig)

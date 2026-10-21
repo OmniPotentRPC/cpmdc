@@ -1,0 +1,14 @@
+(
+  functional = "BLYP", cutOffRy = 70.0, charge = 0, multiplicity = 1,
+  task = "gradient", title = "Si3N4 Geo1, deck cell 14 A, box wins",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-07, maxIter = 400 ) ),
+    ( dft = ( functional = "BLYP" ) ),
+    ( system = ( symmetry = 8, angstrom = true, cutOffRy = 70.0,
+        cell = [14.0, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true ),
+        ( element = "N", path = "N_MT_BLYP.psp", lmax = 1, loc = 1, kleinmanBylander = true )
+      ] ) )
+  ]
+)

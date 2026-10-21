@@ -28,10 +28,11 @@ def main() -> int:
         return 2
 
     root = Path(sys.argv[1])
-    targets = [
-        root / "include/cpmdc.h",
-        root / "docs/source/api/global.rst",
-    ]
+    targets = [root / "include/cpmdc.h"]
+    # Doxyrest writes this page during the docs build. It is not committed.
+    generated = root / "docs/source/api/global.rst"
+    if generated.is_file():
+        targets.append(generated)
     failures: list[str] = []
     for path in targets:
         text = path.read_text(encoding="utf-8")

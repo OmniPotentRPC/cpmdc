@@ -1,0 +1,51 @@
+# Si3N4 isomer 1. One method for the in-process params_path and the file-route deck.
+title = "Si3N4 isomer 1"
+functional = "BLYP"
+cutoff_ry = 70.0
+charge = 0
+multiplicity = 1
+task = "gradient"
+
+[dft]
+newcode = true
+gc_cutoff = 1.0e-7
+
+[wavefunction]
+optimize = true
+convergence_orbitals = 1.0e-5
+max_iter = 400
+
+[[wavefunction.directives]]
+keyword = "PCG MINIMIZE"
+
+[[wavefunction.directives]]
+keyword = "PRINT FORCES ON"
+
+[[wavefunction.directives]]
+keyword = "MEMORY BIG ON"
+
+[[wavefunction.directives]]
+keyword = "REAL SPACE WFN KEEP"
+
+[cell]
+symmetry = 1
+angstrom = true
+absolute = true
+degree = true
+
+[[cell.directives]]
+keyword = "POISSON SOLVER HOCKNEY"
+
+[[pseudopotentials]]
+element = "Si"
+file = "Si_MT_BLYP.psp"
+lmax = 2
+loc = 2
+kleinman_bylander = true
+
+[[pseudopotentials]]
+element = "N"
+file = "N_MT_BLYP.psp"
+lmax = 1
+loc = 1
+kleinman_bylander = true

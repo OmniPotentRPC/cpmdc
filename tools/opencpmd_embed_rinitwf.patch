@@ -1,0 +1,31 @@
+diff --git c/src/rinitwf_driver.mod.F90 w/src/rinitwf_driver.mod.F90
+--- c/src/rinitwf_driver.mod.F90
++++ w/src/rinitwf_driver.mod.F90
+@@ -44,6 +44,10 @@
+   PRIVATE
+ 
+   PUBLIC :: rinitwf
++  ! True on a rank that holds a converged c0. rwfopt sets it when that
++  ! copy is stored and clears it when the saved orbitals are dropped.
++  ! cpmd.x never sets it, so the guess still runs.
++  LOGICAL, SAVE, PUBLIC :: embed_have_orbitals = .FALSE.
+ 
+ CONTAINS
+ 
+@@ -73,6 +77,16 @@
+     tag=''
+     IF (cntl%tprcp.OR.cntl%tpres) CALL newcell
+     IF (tkpts%tkblock) CALL rkpt_swap(c0,nstate,1,'HGKP HGKM MASKGW TWNL')
++    ! The saved orbitals are already in c0. A new guess would replace
++    ! them, and initrun builds the density from c0. Phase factors still
++    ! follow the current positions. A rank with no stored copy falls
++    ! through and builds the guess.
++    IF (embed_have_orbitals) THEN
++       CALL phfac(tau0)
++       IF (corel%tinlc) CALL copot(rhoe,psi,.FALSE.)
++       CALL tihalt(procedureN,isub)
++       RETURN
++    ENDIF
+     IF (cnti%inwfun.EQ.1) THEN
+        qmmm_s=lqmmm%qmmm
+        lqmmm%qmmm=.FALSE.

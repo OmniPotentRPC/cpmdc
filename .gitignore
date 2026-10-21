@@ -3,6 +3,9 @@
 /docs/build/
 /docs/doctrees/
 /docs/source/xml/
+/docs/source/api/
+/docs/source/crates/
+/docs/source/**/*.rst
 *.o
 *.a
 *.so

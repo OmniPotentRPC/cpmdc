@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const double CLI_WATER_E = -17.04926427;
+static const double CLI_WATER_E = -17.13449267;
 
 static unsigned char *slurp(const char *path, size_t *n) {
   FILE *f = fopen(path, "rb");

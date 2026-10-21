@@ -1,6 +1,7 @@
 /**
  * Structured CPMD sections define the effective embed scalar configuration.
  */
+#define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 
 #include <math.h>
@@ -9,8 +10,11 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <cmocka.h>
+
+#include "setup_child.h"
 
 static const char *g_top = NULL;
 static const char *g_sections = NULL;
@@ -45,18 +49,45 @@ static unsigned char *read_file(const char *path, size_t *size) {
   return buf;
 }
 
+struct eval_ctx {
+  const unsigned char *params;
+  size_t params_size;
+  const unsigned char *step;
+  size_t step_size;
+  size_t need;
+};
+
+struct eval_out {
+  CPMDCResult result;
+  size_t out_size;
+};
+
+static void eval_child(void *vctx, void *vout) {
+  struct eval_ctx *ctx = (struct eval_ctx *)vctx;
+  struct eval_out *o = (struct eval_out *)vout;
+  unsigned char *out = (unsigned char *)malloc(ctx->need);
+  if (!out) {
+    snprintf(o->result.message, sizeof(o->result.message), "out of memory");
+    return;
+  }
+  o->result = cpmdc_calculate_result(ctx->params, ctx->params_size, ctx->step,
+                                     ctx->step_size, out, ctx->need,
+                                     &o->out_size);
+  free(out);
+}
+
+/* The two decks render different top-level scalars, so each one is its own
+ * OpenCPMD setup and runs in a child of its own. */
 static CPMDCResult eval_result(const unsigned char *params, size_t params_size,
                                const unsigned char *step, size_t step_size) {
   size_t need = cpmdc_potential_result_size_for_force_input(step, step_size);
   assert_true(need > 0);
-  unsigned char *out = (unsigned char *)malloc(need);
-  assert_non_null(out);
-  size_t out_size = 0;
-  CPMDCResult result = cpmdc_calculate_result(
-      params, params_size, step, step_size, out, need, &out_size);
-  assert_true(out_size == 0 || out_size <= need);
-  free(out);
-  return result;
+  struct eval_ctx ctx = {params, params_size, step, step_size, need};
+  struct eval_out o;
+  memset(&o, 0, sizeof(o));
+  RUN_SETUP_CHILD(eval_child, &ctx, &o);
+  assert_true(o.out_size == 0 || o.out_size <= need);
+  return o.result;
 }
 
 static void test_sections_override_top_level_scalars(void **state) {
@@ -71,6 +102,10 @@ static void test_sections_override_top_level_scalars(void **state) {
 
   CPMDCResult r_top = eval_result(top, top_size, step, step_size);
   CPMDCResult r_sections = eval_result(sections, section_size, step, step_size);
+  if (!r_top.ok)
+    print_message("top-level deck: %s\n", r_top.message);
+  if (!r_sections.ok)
+    print_message("sections deck: %s\n", r_sections.message);
   assert_int_equal(r_top.ok, 1);
   assert_int_equal(r_sections.ok, 1);
   assert_true(isfinite(r_top.energy_h));

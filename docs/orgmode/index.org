@@ -5,12 +5,12 @@
 #+begin_export rst
 .. image:: /_static/logo-light.svg
    :class: light-only
-   :width: 460
+   :width: 320
    :align: center
 
 .. image:: /_static/logo-dark.svg
    :class: dark-only
-   :width: 460
+   :width: 320
    :align: center
 
 #+end_export
@@ -39,10 +39,11 @@ Long-running drivers create one ~CPMDCSession~ from ~CPMDParams~, then pass
 The result-carrier call, ~cpmdc_session_calculate_result()~, writes the same
 ~PotentialResult~ message used by ~rgpot~ RPC clients.
 
-The first accepted session evaluation fixes atom count and ordered atomic
-numbers.
-Later steps may change coordinates, units, and the 3 by 3 cell; topology changes
-require a new session.
+The first accepted session evaluation fixes the atom count and the elemental
+composition.
+A reordering of those elements stays on the session.
+Later steps may change coordinates, units, and the 3 by 3 cell; a different
+composition requires a new session.
 
 * Start Here
 
@@ -80,6 +81,12 @@ require a new session.
    * - Understand what happens inside a call
      - Layers, the in-process route, orbitals between calls
      - :doc:`Architecture <explanation/architecture>`
+   * - Build OpenCPMD for more than one CPU
+     - Use the PIC configure file, which passes ``-march=x86-64`` or ``-march=armv8-a``
+     - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
+   * - See which instruction sets cpmdc compiles for
+     - This library has no hot kernel and does not read ``CPMDC_SIMD``
+     - :doc:`SIMD paths and dispatch <explanation/simd-paths>`
    * - Edit these docs
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
@@ -169,6 +176,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    explanation/routes
    explanation/wavefunction-state
    explanation/mpi-model
+   explanation/simd-paths
 
 .. toctree::
    :maxdepth: 2

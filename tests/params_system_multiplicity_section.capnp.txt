@@ -1,0 +1,19 @@
+(
+  functional = "PBE",
+  cutOffRy = 70.0,
+  task = "gradient",
+  title = "Triplet named in the system section",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true ) ),
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        multiplicity = 3
+      ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_PBE.psp", lmax = 1 )
+      ] ) )
+  ]
+)

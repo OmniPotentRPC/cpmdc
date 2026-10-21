@@ -1,1 +1,0 @@
-`cpmdc_last_error()` is set by every configuration, session-setup, bind, size, and evaluation call that fails, and cleared when that call succeeds. Snapshot readers and the capabilities size query do not write it.

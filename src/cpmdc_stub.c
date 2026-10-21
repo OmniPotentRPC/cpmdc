@@ -1,4 +1,5 @@
 #include "cpmdc.h"
+#include "cpmdc_adopt.h"
 
 #include <stdio.h>
 
@@ -127,6 +128,13 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
 
 void cpmdc_session_destroy(CPMDCSession *session) { (void)session; }
 
+int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
+  (void)session;
+  (void)key;
+  stub_store_error("cpmdc_session_select_orbitals");
+  return -1;
+}
+
 CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const double *positions_ang,
                                  const int *atomic_numbers) {
@@ -233,6 +241,32 @@ int cpmdc_bind_calculator(int ranks_per_calc) {
   (void)ranks_per_calc;
   stub_store_error("cpmdc_bind_calculator");
   return -1;
+}
+
+int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                int ranks_per_calc) {
+  char err[512];
+  int index = -1;
+  err[0] = '\0';
+  if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc, 0, &index, err,
+                          sizeof(err)) != 0) {
+    if (strstr(err, "does not equal") != NULL ||
+        strstr(err, "aligned block") != NULL)
+      snprintf(g_last_error, sizeof(g_last_error), "%s", err);
+    else
+      stub_store_error("cpmdc_adopt_calculator_comm");
+    return -1;
+  }
+  if (cpmdc_adopt_commit(comm, comm_bytes) != 0) {
+    stub_store_error("cpmdc_adopt_calculator_comm");
+    return -1;
+  }
+  g_last_error[0] = '\0';
+  return index;
+}
+
+int cpmdc_adopted_comm(void *out, size_t nbytes) {
+  return cpmdc_adopt_copy(out, nbytes);
 }
 
 int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out) {

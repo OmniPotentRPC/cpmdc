@@ -287,9 +287,12 @@
   "cpmdc_energy",
   "cpmdc_energy_forces",
   "cpmdc_bind_calculator",
+  "cpmdc_adopt_calculator_comm",
+  "cpmdc_adopted_comm",
   "cpmdc_session_create",
   "cpmdc_session_set_params",
   "cpmdc_session_destroy",
+  "cpmdc_session_select_orbitals",
   "cpmdc_session_energy_gradient",
   "cpmdc_session_energy",
   "cpmdc_session_energy_forces",
@@ -10800,6 +10803,20 @@
    "embed_applicable": true
   },
   {
+   "feature_id": "abi.cpmdc_adopt_calculator_comm",
+   "kind": "abi",
+   "name": "cpmdc_adopt_calculator_comm",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_adopted_comm",
+   "kind": "abi",
+   "name": "cpmdc_adopted_comm",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
    "feature_id": "abi.cpmdc_session_create",
    "kind": "abi",
    "name": "cpmdc_session_create",
@@ -10817,6 +10834,13 @@
    "feature_id": "abi.cpmdc_session_destroy",
    "kind": "abi",
    "name": "cpmdc_session_destroy",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_select_orbitals",
+   "kind": "abi",
+   "name": "cpmdc_session_select_orbitals",
    "stub_applicable": true,
    "embed_applicable": true
   },

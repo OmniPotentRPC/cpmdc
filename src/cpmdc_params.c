@@ -649,10 +649,66 @@ static int caller_asked_isolated(struct RenderSetList *sets) {
   return 0;
 }
 
+/* Hybrid functionals whose exact exchange CPMD evaluates without a range
+ * separation. HF_INIT has no Hockney Green's function for that exchange in
+ * an isolated cell and stops, so those decks get another Poisson solver. */
+static int functional_needs_cluster_hfx(const char *name, size_t len) {
+  static const char *const hybrids[] = {"PBE0", "B3LYP", "X3LYP", "B1LYP"};
+  char up[64];
+  if (!name || len == 0 || len >= sizeof(up))
+    return 0;
+  for (size_t i = 0; i < len; ++i)
+    up[i] = (char)toupper((unsigned char)name[i]);
+  up[len] = '\0';
+  if (strncmp(up, "HYB_", 4) == 0)
+    return 1;
+  for (size_t i = 0; i < sizeof(hybrids) / sizeof(hybrids[0]); ++i) {
+    if (strstr(up, hybrids[i]) != NULL)
+      return 1;
+  }
+  return 0;
+}
+
+/* The deck's functional is the &DFT section's when one names it, else the
+ * top-level one. */
+static int deck_needs_cluster_hfx(CPMDInputSection_list sections, int nsec,
+                                  const char *functional) {
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, sections, i);
+    if (sec.which != CPMDInputSection_dft)
+      continue;
+    struct CPMDDftSection body;
+    read_CPMDDftSection(&body, sec.dft);
+    if (body.functional.str && body.functional.len > 0)
+      return functional_needs_cluster_hfx(body.functional.str,
+                                          (size_t)body.functional.len);
+  }
+  return functional && functional_needs_cluster_hfx(functional,
+                                                    strlen(functional));
+}
+
+/* The deck's multiplicity is the &SYSTEM section's when it names one above
+ * a singlet, else the top-level one. */
+static int deck_multiplicity(CPMDInputSection_list sections, int nsec,
+                             int multiplicity) {
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, sections, i);
+    if (sec.which != CPMDInputSection_system)
+      continue;
+    struct CPMDSystemSection body;
+    read_CPMDSystemSection(&body, sec.system);
+    if (body.multiplicity > 1)
+      return body.multiplicity;
+  }
+  return multiplicity;
+}
+
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
-    int override_ncell, struct RenderSetList *sets, int emit_symmetry,
+    int override_ncell, int cluster_hfx, struct RenderSetList *sets, int emit_symmetry,
     int force_vectors) {
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
@@ -834,6 +890,11 @@ static int render_system_section_with_cell(
   }
   if (charge != 0) {
     if (append_fmt(dst, dst_size, used, " CHARGE\n  %d\n", charge) != 0)
+      return -1;
+  }
+  if (sys->multiplicity > 1) {
+    if (append_fmt(dst, dst_size, used, " MULTIPLICITY\n  %d\n",
+                   sys->multiplicity) != 0)
       return -1;
   }
   if (sys->nSup > 0) {
@@ -1341,7 +1402,9 @@ static int render_system_section_with_cell(
     return -1;
   if (emit_symmetry && symmetry == 0 && !field_has_poisson && !has_poisson &&
       !set_has_poisson) {
-    if (append_text(dst, dst_size, used, " POISSON SOLVER HOCKNEY\n") != 0)
+    const char *solver = cluster_hfx ? " POISSON SOLVER TUCKERMAN\n"
+                                     : " POISSON SOLVER HOCKNEY\n";
+    if (append_text(dst, dst_size, used, solver) != 0)
       return -1;
   }
   if (append_directives(dst, dst_size, used, sys->directives) != 0)
@@ -1355,10 +1418,10 @@ static int render_system_section_with_cell(
 static int render_system_section(char *dst, size_t dst_size, size_t *used,
                                  struct CPMDSystemSection *sys,
                                  double default_cutoff, int default_charge,
-                                 struct RenderSetList *sets) {
+                                 int cluster_hfx, struct RenderSetList *sets) {
   return render_system_section_with_cell(dst, dst_size, used, sys,
                                          default_cutoff, default_charge, NULL, 0,
-                                         sets, 1, 0);
+                                         cluster_hfx, sets, 1, 0);
 }
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
@@ -4632,6 +4695,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -4642,6 +4706,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       spin_polarized = body.lsd;
     }
   }
+  int cluster_hfx =
+      deck_needs_cluster_hfx(view.inputSections, nsec, functional);
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -4661,8 +4727,10 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
+      if (body.multiplicity <= 1)
+        body.multiplicity = mult;
       if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
-                                &sets) != 0)
+                                cluster_hfx, &sets) != 0)
         return -1;
       break;
     }
@@ -4805,7 +4873,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   }
   if (!has_system) {
     struct CPMDSystemSection def;
-    int emit_symmetry = caller_asked_isolated(&sets) ? 1 : 0;
+    int emit_symmetry = (caller_asked_isolated(&sets) || cluster_hfx) ? 1 : 0;
     memset(&def, 0, sizeof(def));
     def.symmetry = 0;
     def.angstrom = 1;
@@ -4813,7 +4881,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     def.charge = charge;
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
-                                        charge, NULL, 0, &sets, emit_symmetry,
+                                        charge, NULL, 0, cluster_hfx, &sets, emit_symmetry,
                                         0) != 0)
       return -1;
   }
@@ -5048,6 +5116,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
+  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -5058,6 +5127,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
       spin_polarized = body.lsd;
     }
   }
+  int cluster_hfx =
+      deck_needs_cluster_hfx(view.inputSections, nsec, functional);
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -5080,9 +5151,11 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
+      if (body.multiplicity <= 1)
+        body.multiplicity = mult;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
-              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, &sets, 1,
+              has_cell ? cell_ang : NULL, has_cell ? 9 : 0, cluster_hfx, &sets, 1,
               has_cell ? 1 : 0) != 0)
         return -1;
       break;
@@ -5245,7 +5318,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
     def.charge = charge;
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
-                                        charge, box, nbox, &sets, emit_symmetry,
+                                        charge, box, nbox, cluster_hfx, &sets, emit_symmetry,
                                         force_vectors) != 0)
       return -1;
   }

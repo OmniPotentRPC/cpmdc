@@ -4,6 +4,10 @@
 Legs:
 - pkg-config: cc + `pkg-config --cflags --libs cpmdc`
 - CMake: `find_package(cpmdc CONFIG REQUIRED)` when cmake is available
+
+The nested `meson setup` runs with CC and FC set to the compilers the outer
+build was configured with (`--cc`, `--fc`), so a compiler launcher in the
+host environment does not reach it.
 """
 import argparse
 import os
@@ -53,9 +57,21 @@ def run(cmd, **kw):
 
 
 def lib_dirs(prefix: Path):
-    return [d for d in (prefix / "lib", prefix / "lib64") if d.is_dir()] + list(
-        (prefix / "lib").glob("x86_64*")
-    )
+    """Directories that may hold the installed library and its pkg-config file.
+
+    Debian multiarch uses lib/x86_64-linux-gnu and lib/aarch64-linux-gnu.
+    A plain prefix uses lib or lib64.
+    """
+    found = [d for d in (prefix / "lib", prefix / "lib64") if d.is_dir()]
+    lib = prefix / "lib"
+    if lib.is_dir():
+        found.extend(
+            path
+            for path in lib.iterdir()
+            if path.is_dir()
+            and (path.name.startswith("x86_64") or path.name.startswith("aarch64"))
+        )
+    return found
 
 
 def main() -> int:
@@ -65,6 +81,7 @@ def main() -> int:
     parser.add_argument("--install-prefix", required=True)
     parser.add_argument("--meson", default="meson")
     parser.add_argument("--cc", default=os.environ.get("CC", "cc"))
+    parser.add_argument("--fc", default=os.environ.get("FC", "gfortran"))
     parser.add_argument("--pkg-config", default="pkg-config")
     args = parser.parse_args()
 
@@ -76,6 +93,11 @@ def main() -> int:
             shutil.rmtree(stale)
     build_root.mkdir(parents=True)
 
+    # The nested setup compiles with the compilers of the outer build. A
+    # launcher such as sccache in the host's CC does not reach it.
+    setup_env = dict(os.environ)
+    setup_env["CC"] = args.cc
+    setup_env["FC"] = args.fc
     inner_build = build_root / "package-build"
     run(
         [
@@ -86,9 +108,10 @@ def main() -> int:
             "--prefix",
             prefix,
             "-Dwith_tests=false",
-        ]
+        ],
+        env=setup_env,
     )
-    run([args.meson, "install", "-C", inner_build])
+    run([args.meson, "install", "-C", inner_build], env=setup_env)
 
     pc_dirs = [d / "pkgconfig" for d in lib_dirs(prefix) if (d / "pkgconfig").is_dir()]
     if not pc_dirs:

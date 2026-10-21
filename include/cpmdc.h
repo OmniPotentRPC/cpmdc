@@ -273,6 +273,48 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
 int cpmdc_bind_calculator(int ranks_per_calc);
 
 /**
+ * @brief Install a communicator the caller already split.
+ *
+ * `comm` points at an `MPI_Comm` of `comm_bytes` bytes. Collective on that
+ * communicator. Does not call `MPI_Init` or `MPI_Comm_split`. Rank and size
+ * come from `comm`. When `ranks_per_calc` is greater than zero, that size
+ * must equal it. A mismatch returns -1 and `cpmdc_last_error()` names both
+ * numbers. Zero or less skips the size check.
+ * The group must be one aligned block of world ranks, starting at a multiple
+ * of the adopted size. Any other layout returns -1 on every rank of the
+ * group. The calculator index is the lowest world rank in that block divided
+ * by the size. Indices are unique when every group has the same size, which
+ * the same `ranks_per_calc > 0` on every rank enforces.
+ * The handle is borrowed: the call does not use `MPI_Comm_dup`. It stores
+ * the caller's communicator, and an OpenCPMD build also stores it as
+ * `mp_comm_world`. The caller keeps ownership and must not free the
+ * communicator until the last session is destroyed or a later adopt replaces
+ * it. An adopt after `cpmdc_bind_calculator` replaces the communicator that
+ * call split, and the caller of bind cannot free that one.
+ * A later call replaces the communicator when no `CPMDCSession` exists. If
+ * any rank of the group has a live session, every rank returns -1 and the
+ * stored communicator stays as it was.
+ * Returns -1 when `comm` is null, `comm_bytes` is not the size of an
+ * `MPI_Comm`, MPI is not initialized, or this build has no MPI. Failure
+ * text is `cpmdc_last_error()`.
+ * Call adopt, `cpmdc_session_create`, and `cpmdc_session_destroy` from one
+ * thread: `g_live_sessions` and `g_active_session` are process globals, and
+ * OpenCPMD state is process-global too.
+ */
+int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                int ranks_per_calc);
+
+/**
+ * @brief Copy the stored calculator communicator into `out`.
+ *
+ * `out` receives an `MPI_Comm` of `nbytes` bytes. On an OpenCPMD build that
+ * handle is `mp_comm_world`. Returns 0 when a calculator communicator is
+ * stored, and -1 when `out` is null, `nbytes` is not that size, or no
+ * communicator has been adopted. Does not write `cpmdc_last_error()`.
+ */
+int cpmdc_adopted_comm(void *out, size_t nbytes);
+
+/**
  * @brief Create a persistent evaluation session from a Cap'n Proto message.
  *
  * The session owns a copy of the serialized message so callers may release the
@@ -308,6 +350,28 @@ int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
 
 /** @brief Release a persistent evaluation session. */
 void cpmdc_session_destroy(CPMDCSession *session);
+
+/**
+ * @brief Name the calculation the next evaluations of this session belong to.
+ *
+ * The process stores the converged orbitals of one SCF. With a key named,
+ * those orbitals are kept per key: an evaluation under a key starts from
+ * the orbitals the last converged evaluation under the same key left, and
+ * a key that has none yet starts from the orbitals already stored. Of the
+ * stored orbitals of every key, the ones that converged nearest to the
+ * new geometry start the SCF, and only within CPMDC_WARM_RMSD (root-mean-
+ * square distance per atom, default 0.15 Angstrom); farther, the deck's
+ * guess starts it. A host
+ * that runs several calculations on one calculator, the images of a band
+ * or the beads of a ring polymer, names each by a stable key, so each
+ * starts from its own previous geometry instead of from its neighbour's.
+ * Every rank of a calculator names the same key before the same
+ * evaluation. A basis change clears every key's orbitals. A session that
+ * never names a key keeps one stored copy.
+ *
+ * @return 0, or -1 when `session` is `NULL`.
+ */
+int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
 
 /**
  * @brief Compute energy and nuclear gradient with session-owned parameters.
@@ -433,8 +497,10 @@ const char *cpmdc_version(void);
  *        reports failure through this string.
  *
  * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
- * `cpmdc_bind_calculator()`, `cpmdc_session_create()`,
- * `cpmdc_session_set_params()`, `cpmdc_session_create_from_config()`,
+ * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
+ * `cpmdc_session_create()`,
+ * `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,
+ * `cpmdc_session_create_from_config()`,
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,
  * `cpmdc_energy_gradient()`, `cpmdc_energy_forces()`, the session variants,
@@ -444,8 +510,9 @@ const char *cpmdc_version(void);
  *
  * Snapshot readers (`cpmdc_last_stress()` and the other `cpmdc_last_*` /
  * `cpmdc_session_last_*` getters) do not write it: -1 means the snapshot is
- * absent or the output pointer is null. `cpmdc_capabilities_result()` does
- * not write it either; its -1 is the size query.
+ * absent or the output pointer is null. `cpmdc_adopted_comm()` and
+ * `cpmdc_capabilities_result()` do not write it either. A capabilities
+ * return of -1 is the size query.
  */
 const char *cpmdc_last_error(void);
 
