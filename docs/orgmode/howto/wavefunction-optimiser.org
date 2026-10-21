@@ -66,3 +66,33 @@ to it.
 Without ~maxIter~, the OpenCPMD path inserts ~MAXITER 40~ into the first deck.
 A warm call on a geometry that moved far from the previous one can need more
 steps than that, and an SCF that stops at the limit fails the call.
+
+* Strict PCG line minimization
+
+For strict orbital targets, apply =tools/opencpmd_pcg_step.patch= to the
+OpenCPMD source linked into the native archive. The directional slope and
+curvature both scale with the square of the orbital residual. An absolute
+curvature floor of 1e-15 can suppress the interpolated step even when the
+ratio of derivatives is well resolved. The patch divides both derivatives
+by their largest magnitude before finding the root; equal derivatives
+retain the supplied trial step. It does not change the convergence target.
+
+#+begin_src sh
+cd /path/to/OpenCPMD
+patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
+/path/to/cpmdc/tools/check_opencpmd_pcg_step.sh "$PWD" "$PWD/build/pcg-step-test"
+/path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
+#+end_src
+
+Run compilation inside a compute allocation. The check extracts the patched
+native function and calls it from C++ for 726 roots with derivative scales
+from 1e-300 to 1e300, plus degenerate and extrapolation cases. Expected output:
+
+#+begin_example
+726 scaled native line-search roots and four degenerate/extrapolation cases pass
+#+end_example
+
+Relink =libcpmdc= against the rebuilt archive. Preserve the separate
+=opencpmd_omp_info.patch= correction for calculator groups spanning nodes.
+The algebraic check establishes scale invariance; native force convergence
+must also be checked on the requested system and orbital target.

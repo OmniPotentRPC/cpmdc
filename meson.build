@@ -77,6 +77,13 @@ if cc.get_id() in ['gcc', 'clang']
   capnp_generated_c_args += ['-Wno-missing-field-initializers']
 endif
 
+minimage_dep = dependency(
+  'minimage',
+  version: '>=0.1.4',
+  fallback: ['minimage', 'minimage_dep'],
+  default_options: ['with_tests=false', 'with_examples=false'],
+)
+
 cpmdc_params_sources = []
 cpmdc_params_deps = []
 cpmdc_params_includes = []
@@ -236,7 +243,7 @@ if has_cpmd
 endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
-                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c',
+                      'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
@@ -270,7 +277,7 @@ cpmdc_embed_shell = static_library(
   'cpmdc_embed_shell',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
+  dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
@@ -281,7 +288,7 @@ cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
-  dependencies: cpmdc_params_deps + [math_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
+  dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
   c_args: cpmd_embed_c_args,
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
@@ -381,6 +388,36 @@ cpmdc_embed_shell_dep = declare_dependency(
 )
 
 if get_option('with_tests')
+  geometry_test = executable(
+    'test_geometry_rmsd',
+    ['tests/test_geometry_rmsd.c', 'src/cpmdc_geometry.c'],
+    include_directories: inc,
+    dependencies: [minimage_dep, math_dep],
+  )
+  test('geometry-rmsd', geometry_test)
+  warm_selector_source = custom_target(
+    'warm-selector-source',
+    input: 'tools/opencpmd_embed_rwfopt.patch',
+    output: 'warm_selector.F90',
+    command: [python, files('tests/extract_warm_selector.py'), '@INPUT@', '@OUTPUT@'],
+  )
+  warm_selector_test = executable(
+    'test_warm_selector',
+    [warm_selector_source, 'tests/test_warm_selector.F90', 'src/cpmdc_geometry.c'],
+    include_directories: inc,
+    dependencies: [minimage_dep, math_dep],
+  )
+  test('warm-selector', warm_selector_test)
+  test(
+    'warm-selector-abi',
+    python,
+    args: [
+      files('tests/test_warm_selector_abi.py'),
+      warm_selector_source,
+      meson.current_build_dir() / 'warm-selector-abi',
+    ] + fc.cmd_array(),
+    depends: warm_selector_source,
+  )
   test(
     'restart-file',
     executable(

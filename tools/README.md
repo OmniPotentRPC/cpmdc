@@ -15,6 +15,7 @@ linking `libcpmdc`.
 | `opencpmd_tistopgm.patch` | `tistopgm` prints the call stack only when `trace_depth` lies inside `trace_names`. Before `tistart` the depth is `HUGE(0)`, and the unguarded walk faults instead of writing `LocalError` |
 | `opencpmd_c_mem_addrs.patch` | `cGetMemAddrs` returns the pointer as `size_t`. `cuda_get_address` stores that integer. GCC 14 rejects the stock return of a `size_t` pointer |
 | `opencpmd_embed_teardown.patch` | Add `embed_teardown_state` (module `embed_teardown`) and the counter `embed_teardowns` in `embed_ctrl`. The routine frees the saved orbitals, the communicators of `set_cp_grp`, and every `ALLOCATABLE` module variable and component a `USE` reaches, outside the timer, stop and CUDA device modules, then moves the counter. 37 routines that keep first-call state behind a `SAVE` flag (`phfac`, `setbasis`, `hf_init`, `addfftnset`, the density mixers, the symmetry setup, ...) free their `SAVE` arrays and run as a first call again when the counter moved, so one process can set CPMD up again for another basis or after a `stopgm`. `tistart` keeps its state. Apply this last |
+| `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 ```bash
@@ -28,9 +29,25 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_c_mem_addrs.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_teardown.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
+/path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
+/path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
+
+The OpenMP report regression compiles the actual patched reporting routine
+with MPI interfaces that represent unequal node populations. Run it inside
+an allocation with at least three MPI ranks:
+
+```bash
+/path/to/cpmdc/tools/check_opencpmd_omp_info.sh /path/to/OpenCPMD /path/to/build/omp-info
+```
+
+It exits zero for consistent collective sizes. The unpatched routine exits
+nonzero and reports `inconsistent native report counts`. This checks reporting
+collectives; native energy and force calculations still require their own tests.
 
 `header` calls `timetag`. OpenCPMD compiles `src/timetag.F90` to
 `obj/timetag.o` outside `libcpmd.a`, and the embed link needs that object:
