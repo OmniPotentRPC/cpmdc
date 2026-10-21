@@ -1775,7 +1775,7 @@ CONTAINS
       END IF
       IF (isolated_deck) THEN
         k = 0
-      ELSE IF (cubic_deck .AND. ABS(c(5) - c(1)) <= 1.0e-10_real64 * c(1) &
+      ELSE IF ((cubic_deck .OR. osym == 0) .AND. ABS(c(5) - c(1)) <= 1.0e-10_real64 * c(1) &
                .AND. ABS(c(9) - c(1)) <= 1.0e-10_real64 * c(1)) THEN
         k = 1
       ELSE
