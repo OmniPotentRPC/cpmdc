@@ -716,6 +716,8 @@ static int render_system_section_with_cell(
   int symmetry = sys->symmetry;
   int charge = sys->charge != 0 ? sys->charge : default_charge;
   double cutoff = sys->cutOffRy > 0.0 ? sys->cutOffRy : default_cutoff;
+  if ((cell_override && override_ncell == 9) ? force_vectors : sys->cellVectors)
+    emit_symmetry = 0;
   if (emit_symmetry &&
       append_fmt(dst, dst_size, used, " SYMMETRY\n  %d\n", symmetry) != 0)
     return -1;

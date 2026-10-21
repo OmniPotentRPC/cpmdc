@@ -1425,6 +1425,19 @@ test(
     output: 'params_system_cell_vectors.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  test(
+    'cell-vector-boundary',
+    executable(
+      'test_cell_vector_boundary',
+      'tests/test_cell_vector_boundary.c',
+      dependencies: [cpmdc_embed_shell_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [params_system_cell_vectors_bin.full_path()],
+    depends: [params_system_cell_vectors_bin],
+    suite: ['params'],
+  )
   params_system_bad_occupation_bin = custom_target(
     'params_system_bad_occupation_bin',
     input: 'tests/params_system_bad_occupation.capnp.txt',
