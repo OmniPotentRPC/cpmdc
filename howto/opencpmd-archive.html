@@ -357,6 +357,12 @@ GCC 14 rejects the stock return of a pointer from that function.</p>
 <p>The rwfopt patch publishes <code class="docutils literal notranslate"><span class="pre">embed_set_warm_orbitals</span></code>,
 <code class="docutils literal notranslate"><span class="pre">embed_set_need_forces</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_reset_warm_orbitals</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">embed_set_write_files</span></code>.
+Its geometry-aware selector is <code class="docutils literal notranslate"><span class="pre">embed_choose_warm_start_metric_v2</span></code>.
+The bridge requires that exact versioned procedure in both the Fortran
+module interface and the archive object. An unversioned selector has a
+different calling convention and cannot be substituted, even if a newer
+module file is supplied beside it. A missing versioned symbol requires
+rebuilding the patched archive; copying module files alone is insufficient.
 The geometry patch adds <code class="docutils literal notranslate"><span class="pre">embed_ctrl</span></code>, which holds <code class="docutils literal notranslate"><span class="pre">embed_write_files</span></code>
 (default true). Setting it false skips <code class="docutils literal notranslate"><span class="pre">geofile</span></code> in <code class="docutils literal notranslate"><span class="pre">initrun</span></code> and the
 <code class="docutils literal notranslate"><span class="pre">zhwwf</span></code> and <code class="docutils literal notranslate"><span class="pre">geofile</span></code> writes in <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code>. <code class="docutils literal notranslate"><span class="pre">wrgeof</span></code> still prints coordinates.
@@ -439,11 +445,12 @@ patch.
 build:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/OpenCPMD/CPMD.git<span class="w"> </span>opencpmd
 </span><span data-line="2"><span class="nb">cd</span><span class="w"> </span>opencpmd
-</span><span data-line="3"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
-</span><span data-line="5"><span class="w">         </span>embed_teardown<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-</span><span data-line="6"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
-</span><span data-line="7"><span class="k">done</span>
+</span><span data-line="3">git<span class="w"> </span>checkout<span class="w"> </span>062582b7cfd832d36f88f504cd08e4ead42eb404
+</span><span data-line="4"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
+</span><span data-line="5"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
+</span><span data-line="6"><span class="w">         </span>embed_teardown<span class="w"> </span>omp_info<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="7"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
+</span><span data-line="8"><span class="k">done</span>
 </span></pre></div>
 </div>
 <p>The OpenCPMD sample <code class="docutils literal notranslate"><span class="pre">LINUX-X86_64-GFORTRAN-MPI</span></code> sets <code class="docutils literal notranslate"><span class="pre">LIBS</span></code> to one person’s
@@ -481,13 +488,14 @@ rebuild only the affected members:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/opencpmd-source
 </span><span data-line="2"><span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>embed_rinitwf<span class="w"> </span>embed_geometry<span class="w"> </span>embed_rwfopt<span class="w"> </span>converged_state<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">         </span>kpoints_inputfile<span class="w"> </span>stopgm_return<span class="w"> </span>tistopgm<span class="w"> </span>c_mem_addrs<span class="w"> </span><span class="se">\</span>
-</span><span data-line="4"><span class="w">         </span>embed_teardown<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span data-line="4"><span class="w">         </span>embed_teardown<span class="w"> </span>omp_info<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 </span><span data-line="5"><span class="w">  </span>patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_<span class="nv">$p</span>.patch
 </span><span data-line="6"><span class="k">done</span>
 </span><span data-line="7">/path/to/cpmdc/tools/rebuild_opencpmd_embed.sh<span class="w"> </span>/path/to/opencpmd-build
+</span><span data-line="8">/path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh<span class="w"> </span>/path/to/opencpmd-build
 </span></pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of each vendored
+<p><code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_embed.sh</span></code> recompiles the object of the embedding
 patch, <code class="docutils literal notranslate"><span class="pre">error_handling.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">embed_ctrl.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rinitwf_driver.mod.o</span></code>,
 <code class="docutils literal notranslate"><span class="pre">initrun_driver.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">rwfopt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">updwf_utils.mod.o</span></code>,
 <code class="docutils literal notranslate"><span class="pre">rkpnt_utils.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">timer.mod.o</span></code>, <code class="docutils literal notranslate"><span class="pre">c_mem_utils.o</span></code>, the 32 modules of
@@ -500,6 +508,21 @@ different components.
 It calls <code class="docutils literal notranslate"><span class="pre">ar</span></code> directly because the generated Makefile sets <code class="docutils literal notranslate"><span class="pre">AR</span></code> without an
 operation letter, so its archive rule does not replace members.
 <code class="docutils literal notranslate"><span class="pre">MAKE</span></code> and <code class="docutils literal notranslate"><span class="pre">AR</span></code> in the environment override the programs it runs.</p>
+<p><code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code> corrects report collectives when one calculator
+spans nodes with unequal numbers of ranks. Every rank uses the I/O node’s
+array size; otherwise the report calls <code class="docutils literal notranslate"><span class="pre">MPI_Allreduce</span></code> with different counts
+and can stop before the first electronic iteration. The separate
+<code class="docutils literal notranslate"><span class="pre">rebuild_opencpmd_omp_info.sh</span></code> helper rebuilds <code class="docutils literal notranslate"><span class="pre">rggen_utils.mod.o</span></code> and
+replaces that archive member. Relink <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> against the corrected archive.</p>
+<p>The reporting regression compiles the actual native routine with an MPI
+fixture representing unequal node populations. Inside an allocation with
+at least three ranks, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">/path/to/cpmdc/tools/check_opencpmd_omp_info.sh<span class="w"> </span>/path/to/opencpmd-source<span class="w"> </span>/path/to/build/omp-info
+</span></pre></div>
+</div>
+<p>The corrected routine exits zero. The unpatched control reports
+<code class="docutils literal notranslate"><span class="pre">inconsistent</span> <span class="pre">native</span> <span class="pre">report</span> <span class="pre">counts</span></code> and exits nonzero. This checks report
+collectives; energy and force evaluations require their native tests.</p>
 </section>
 <section id="link-and-check">
 <h2>Link and check<a class="headerlink" href="#link-and-check" title="Link to this heading">¶</a></h2>

@@ -48,6 +48,12 @@ Patches and what each one is for
 The rwfopt patch publishes ``embed_set_warm_orbitals``,
 ``embed_set_need_forces``, ``embed_reset_warm_orbitals``, and
 ``embed_set_write_files``.
+Its geometry-aware selector is ``embed_choose_warm_start_metric_v2``.
+The bridge requires that exact versioned procedure in both the Fortran
+module interface and the archive object. An unversioned selector has a
+different calling convention and cannot be substituted, even if a newer
+module file is supplied beside it. A missing versioned symbol requires
+rebuilding the patched archive; copying module files alone is insufficient.
 The geometry patch adds ``embed_ctrl``, which holds ``embed_write_files``
 (default true). Setting it false skips ``geofile`` in ``initrun`` and the
 ``zhwwf`` and ``geofile`` writes in ``rwfopt``. ``wrgeof`` still prints coordinates.
@@ -136,9 +142,10 @@ build:
 
     git clone https://github.com/OpenCPMD/CPMD.git opencpmd
     cd opencpmd
+    git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
     for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
              kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-             embed_teardown; do
+             embed_teardown omp_info; do
       patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
     done
 
@@ -183,12 +190,13 @@ rebuild only the affected members:
     cd /path/to/opencpmd-source
     for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
              kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-             embed_teardown; do
+             embed_teardown omp_info; do
       patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
     done
     /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
+    /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/opencpmd-build
 
-``rebuild_opencpmd_embed.sh`` recompiles the object of each vendored
+``rebuild_opencpmd_embed.sh`` recompiles the object of the embedding
 patch, ``error_handling.mod.o``, ``embed_ctrl.mod.o``, ``rinitwf_driver.mod.o``,
 ``initrun_driver.mod.o``, ``rwfopt_utils.mod.o``, ``updwf_utils.mod.o``,
 ``rkpnt_utils.mod.o``, ``timer.mod.o``, ``c_mem_utils.o``, the 32 modules of
@@ -201,6 +209,25 @@ different components.
 It calls ``ar`` directly because the generated Makefile sets ``AR`` without an
 operation letter, so its archive rule does not replace members.
 ``MAKE`` and ``AR`` in the environment override the programs it runs.
+
+``opencpmd_omp_info.patch`` corrects report collectives when one calculator
+spans nodes with unequal numbers of ranks. Every rank uses the I/O node's
+array size; otherwise the report calls ``MPI_Allreduce`` with different counts
+and can stop before the first electronic iteration. The separate
+``rebuild_opencpmd_omp_info.sh`` helper rebuilds ``rggen_utils.mod.o`` and
+replaces that archive member. Relink ``libcpmdc`` against the corrected archive.
+
+The reporting regression compiles the actual native routine with an MPI
+fixture representing unequal node populations. Inside an allocation with
+at least three ranks, run:
+
+.. code:: bash
+
+    /path/to/cpmdc/tools/check_opencpmd_omp_info.sh /path/to/opencpmd-source /path/to/build/omp-info
+
+The corrected routine exits zero. The unpatched control reports
+``inconsistent native report counts`` and exits nonzero. This checks report
+collectives; energy and force evaluations require their native tests.
 
 Link and check
 --------------

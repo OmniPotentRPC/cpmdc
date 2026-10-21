@@ -307,9 +307,14 @@ The method comes from a <code class="docutils literal notranslate"><span class="
 <p>You need an <code class="docutils literal notranslate"><span class="pre">eonclient</span></code> built with RGPOT support whose <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span></code> section
 reads <code class="docutils literal notranslate"><span class="pre">params_path</span></code>; eOn lists the key under <code class="docutils literal notranslate"><span class="pre">RgpotPot</span></code> in <code class="docutils literal notranslate"><span class="pre">eon/config.yaml</span></code>.
 Without <code class="docutils literal notranslate"><span class="pre">params_path</span></code>, eOn builds <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> from four scalar keys
-(<code class="docutils literal notranslate"><span class="pre">functional</span></code>, <code class="docutils literal notranslate"><span class="pre">cutoff_ry</span></code>, <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>), and <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> renders its
-isolated default deck from them: <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with the Hockney Poisson solver
-and none of the message’s sections.</p>
+(<code class="docutils literal notranslate"><span class="pre">functional</span></code>, <code class="docutils literal notranslate"><span class="pre">cutoff_ry</span></code>, <code class="docutils literal notranslate"><span class="pre">charge</span></code>, <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>).
+A positive cell is then periodic: symmetry 1 when the edges are equal,
+symmetry 8 when they are not, and <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> with no symmetry line when
+the box is tilted.
+A zero cell stays <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with the Hockney solver.
+To keep a molecule isolated, the message has to ask for it.
+This run uses <code class="docutils literal notranslate"><span class="pre">water.params.bin</span></code>, which sets <code class="docutils literal notranslate"><span class="pre">poissonSolver</span> <span class="pre">=</span> <span class="pre">&quot;HOCKNEY&quot;</span></code>, and
+stays isolated.</p>
 </section>
 <section id="prepare-the-run-directory">
 <h2>Prepare the run directory<a class="headerlink" href="#prepare-the-run-directory" title="Link to this heading">¶</a></h2>

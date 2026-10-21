@@ -333,17 +333,19 @@ In <code class="docutils literal notranslate"><span class="pre">inputBlocks</spa
 </section>
 <section id="the-system-is-treated-as-isolated">
 <h3>The system is treated as isolated<a class="headerlink" href="#the-system-is-treated-as-isolated" title="Link to this heading">¶</a></h3>
-<p><strong>Cause:</strong> a message without a <code class="docutils literal notranslate"><span class="pre">system</span></code> section renders <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with no
-<code class="docutils literal notranslate"><span class="pre">CELL</span></code>, and <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> without a Poisson solver adds
-<code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>.
-That is the isolated-cluster setup, with the cell taken from
-<code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> (or a 12 Angstrom cube without a box).
-A host that fills only the top-level scalars, <code class="docutils literal notranslate"><span class="pre">functional</span></code>, <code class="docutils literal notranslate"><span class="pre">cutOffRy</span></code>,
-<code class="docutils literal notranslate"><span class="pre">charge</span></code>, and <code class="docutils literal notranslate"><span class="pre">multiplicity</span></code>, gets this deck.</p>
-<p><strong>Fix:</strong> write a <code class="docutils literal notranslate"><span class="pre">system</span></code> section with <code class="docutils literal notranslate"><span class="pre">symmetry</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code> when the system is isolated on purpose.
+<p><strong>Cause:</strong> the deck that runs has <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, an isolated-molecule
+keyword, <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>, or a zero box.
+A typed <code class="docutils literal notranslate"><span class="pre">system</span></code> section that leaves <code class="docutils literal notranslate"><span class="pre">symmetry</span></code> at 0 still adds the Hockney
+solver, including when the box has a positive volume.
+A message with no <code class="docutils literal notranslate"><span class="pre">system</span></code> section takes its symmetry from the box on the
+force call.</p>
+<p><strong>Fix:</strong> write <code class="docutils literal notranslate"><span class="pre">symmetry</span></code> and <code class="docutils literal notranslate"><span class="pre">cell</span></code> when the system is periodic, and
+<code class="docutils literal notranslate"><span class="pre">poissonSolver</span></code> when it is isolated on purpose.
 In eOn, pass the whole message through <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code> instead of the
-scalar keys (see <a class="reference internal" href="../tutorials/eon-rgpot.html"><span class="doc">the eOn tutorial</span></a>).</p>
+scalar keys (see <a class="reference internal" href="../tutorials/eon-rgpot.html"><span class="doc">the eOn tutorial</span></a>).
+A scalar message with a positive cell is periodic.
+Put <code class="docutils literal notranslate"><span class="pre">poissonSolver</span> <span class="pre">=</span> <span class="pre">&quot;HOCKNEY&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">symmetry</span> <span class="pre">=</span> <span class="pre">0</span></code> in the message when the
+molecule is isolated.</p>
 </section>
 <section id="the-energy-changes-when-only-the-cell-changes">
 <h3>The energy changes when only the cell changes<a class="headerlink" href="#the-energy-changes-when-only-the-cell-changes" title="Link to this heading">¶</a></h3>

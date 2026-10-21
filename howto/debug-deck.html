@@ -334,20 +334,31 @@ An element with no such comment uses the built-in table (see
 An element in neither fails before CPMD starts, and the error names the
 atomic number.
 When the method deck has no <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>, <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, or <code class="docutils literal notranslate"><span class="pre">&amp;DFT</span></code> section at all,
-a minimal isolated deck replaces it: <code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code>,
-<code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span> <span class="pre">1.0d-5</span></code>, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code>, <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code>,
-<code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>, and the functional, cutoff, charge, and
-multiplicity of the message.</p></li>
+a minimal deck replaces it: <code class="docutils literal notranslate"><span class="pre">OPTIMIZE</span> <span class="pre">WAVEFUNCTION</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CONVERGENCE</span> <span class="pre">ORBITALS</span> <span class="pre">1.0d-5</span></code>, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code>, <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code>, and the
+functional, cutoff, charge, and multiplicity of the message.
+The symmetry comes from the step’s box.
+A cube is <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">1</span></code>.
+Unequal orthogonal edges are <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">8</span></code>.
+A tilted box is <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> with no <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line.
+A missing or zero box is <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code>.</p></li>
 <li><p>If the deck has no <code class="docutils literal notranslate"><span class="pre">CELL</span></code> keyword, a <code class="docutils literal notranslate"><span class="pre">CELL</span></code> line from <code class="docutils literal notranslate"><span class="pre">ForceInput.box</span></code> is
 inserted after <code class="docutils literal notranslate"><span class="pre">ANGSTROM</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>, or a 12 Angstrom cube when the step
-has no box.</p></li>
+has no box.
+A tilted box is written as <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code>.</p></li>
+<li><p>If the deck names no <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code>, no <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code>, no <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, and no
+isolated-molecule keyword, the same symmetry choice is written into
+<code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code>.
+An explicit symmetry line, Hockney solver, <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, or isolated-molecule
+keyword is left as written.
+<code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> is not given a <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line.</p></li>
 <li><p>If the deck has no <code class="docutils literal notranslate"><span class="pre">MAXITER</span></code> keyword, <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code> is inserted after
 <code class="docutils literal notranslate"><span class="pre">&amp;CPMD</span></code>.</p></li>
 </ol>
 <p>The method text is kept in full, including a block longer than a few thousand
 characters. A preview buffer shorter than the composed deck returns an error
 and does not keep a shortened copy.</p>
-<p>So read <code class="docutils literal notranslate"><span class="pre">method.inp</span></code> with those three edits in mind.
+<p>So read <code class="docutils literal notranslate"><span class="pre">method.inp</span></code> with those edits in mind.
 The <code class="docutils literal notranslate"><span class="pre">&amp;ATOMS</span></code> block in the file lists the pseudopotential lines with a
 placeholder atom count of 0; the coordinates come from each step.</p>
 </section>
@@ -362,7 +373,7 @@ placeholder atom count of 0; the coordinates come from each step.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> and <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span></code> in <code class="docutils literal notranslate"><span class="pre">&amp;SYSTEM</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code> is an isolated system; a message without a <code class="docutils literal notranslate"><span class="pre">system</span></code> section renders exactly that</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SYMMETRY</span> <span class="pre">0</span></code> with <code class="docutils literal notranslate"><span class="pre">POISSON</span> <span class="pre">SOLVER</span> <span class="pre">HOCKNEY</span></code> is an isolated system: a zero box, or a deck that asked for isolation. A positive-volume box with no such keyword is symmetry 1, symmetry 8, or <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> with no symmetry line</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CELL</span></code></p></td>
 <td><p>present means the message fixes the cell; absent means each step’s box supplies it</p></td>

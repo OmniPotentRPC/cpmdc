@@ -200,6 +200,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#set-odiis-in-the-message">Set ODIIS in the message</a></li>
 <li><a class="reference internal" href="#when-to-keep-pcg">When to keep PCG</a></li>
 <li><a class="reference internal" href="#always-set-maxiter">Always set MAXITER</a></li>
+<li><a class="reference internal" href="#strict-pcg-line-minimization">Strict PCG line minimization</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -379,6 +380,32 @@ to it.</p>
 <p>Without <code class="docutils literal notranslate"><span class="pre">maxIter</span></code>, the OpenCPMD path inserts <code class="docutils literal notranslate"><span class="pre">MAXITER</span> <span class="pre">40</span></code> into the first deck.
 A warm call on a geometry that moved far from the previous one can need more
 steps than that, and an SCF that stops at the limit fails the call.</p>
+</section>
+<section id="strict-pcg-line-minimization">
+<h2>Strict PCG line minimization<a class="headerlink" href="#strict-pcg-line-minimization" title="Link to this heading">¶</a></h2>
+<p>For strict orbital targets, apply <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_pcg_step.patch</span></code> to the
+OpenCPMD source linked into the native archive. The directional slope and
+curvature both scale with the square of the orbital residual. An absolute
+curvature floor of 1e-15 can suppress the interpolated step even when the
+ratio of derivatives is well resolved. The patch divides both derivatives
+by their largest magnitude before finding the root; equal derivatives
+retain the supplied trial step. It does not change the convergence target.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nb">cd</span><span class="w"> </span>/path/to/OpenCPMD
+</span><span data-line="2">patch<span class="w"> </span>-p1<span class="w"> </span>&lt;<span class="w"> </span>/path/to/cpmdc/tools/opencpmd_pcg_step.patch
+</span><span data-line="3">/path/to/cpmdc/tools/check_opencpmd_pcg_step.sh<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">/build/pcg-step-test&quot;</span>
+</span><span data-line="4">/path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh<span class="w"> </span>/path/to/cpmd-root
+</span></pre></div>
+</div>
+<p>Run compilation inside a compute allocation. The check extracts the patched
+native function and calls it from C++ for 726 roots with derivative scales
+from 1e-300 to 1e300, plus degenerate and extrapolation cases. Expected output:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="mi">726</span> <span class="n">scaled</span> <span class="n">native</span> <span class="n">line</span><span class="o">-</span><span class="n">search</span> <span class="n">roots</span> <span class="ow">and</span> <span class="n">four</span> <span class="n">degenerate</span><span class="o">/</span><span class="n">extrapolation</span> <span class="n">cases</span> <span class="k">pass</span>
+</span></pre></div>
+</div>
+<p>Relink <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> against the rebuilt archive. Preserve the separate
+<code class="docutils literal notranslate"><span class="pre">opencpmd_omp_info.patch</span></code> correction for calculator groups spanning nodes.
+The algebraic check establishes scale invariance; native force convergence
+must also be checked on the requested system and orbital target.</p>
 </section>
 </section>
 
