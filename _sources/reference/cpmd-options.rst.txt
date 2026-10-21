@@ -428,6 +428,14 @@ Other structured parameter features
 These ``params.inputSections.*`` IDs cover carriers and fields that are not
 single CPMD/DFT catalog keyword rows in the typed tables below.
 
+A ``system.cellVectors`` cell contains nine numbers grouped by lattice vector.
+Typed parameter rendering preserves them on one data line; geometry overrides
+use three vector rows. OpenCPMD accepts either layout in one list-directed
+read. ``CELL VECTORS`` specifies implicit triclinic symmetry, so its deck
+omits the ``SYMMETRY`` line and the default isolated Poisson solver. Combining
+``SYMMETRY`` with ``CELL VECTORS`` is rejected by the native parser. The vector
+qualifier also requires nine values and excludes ``ABSOLUTE`` and ``DEGREE``.
+
 .. table::
 
     +-----------------------------------------------------------------------+--------------------------------------------------+-------------------------------------------------------------------+

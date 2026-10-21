@@ -903,6 +903,13 @@ arms; every section can still be rendered through <code class="docutils literal 
 <h2>Other structured parameter features<a class="headerlink" href="#other-structured-parameter-features" title="Link to this heading">¶</a></h2>
 <p>These <code class="docutils literal notranslate"><span class="pre">params.inputSections.*</span></code> IDs cover carriers and fields that are not
 single CPMD/DFT catalog keyword rows in the typed tables below.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">system.cellVectors</span></code> cell contains nine numbers grouped by lattice vector.
+Typed parameter rendering preserves them on one data line; geometry overrides
+use three vector rows. OpenCPMD accepts either layout in one list-directed
+read. <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> specifies implicit triclinic symmetry, so its deck
+omits the <code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> line and the default isolated Poisson solver. Combining
+<code class="docutils literal notranslate"><span class="pre">SYMMETRY</span></code> with <code class="docutils literal notranslate"><span class="pre">CELL</span> <span class="pre">VECTORS</span></code> is rejected by the native parser. The vector
+qualifier also requires nine values and excludes <code class="docutils literal notranslate"><span class="pre">ABSOLUTE</span></code> and <code class="docutils literal notranslate"><span class="pre">DEGREE</span></code>.</p>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
