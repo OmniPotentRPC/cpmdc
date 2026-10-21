@@ -1184,7 +1184,8 @@ CONTAINS
     CALL append('  40'//NEW_LINE('A'))
     CALL append(' CENTER MOLECULE OFF'//NEW_LINE('A'))
     CALL append('&END'//NEW_LINE('A'))
-    icode = periodic_symmetry_code(cell, has_cell)
+    ! The built-in fallback is an isolated Hockney cluster.
+    icode = 0
     CALL append('&SYSTEM'//NEW_LINE('A'))
     IF (icode == 0 .OR. icode == 1 .OR. icode == 8) THEN
       CALL append(' SYMMETRY'//NEW_LINE('A'))
@@ -1706,7 +1707,7 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(OUT) :: ierr
     REAL(real64), PARAMETER :: ang_per_bohr = 0.529177210859_real64
-    CHARACTER(LEN=:), ALLOCATABLE :: out
+    CHARACTER(LEN=:), ALLOCATABLE :: out, symmetry_indent
     CHARACTER(LEN=80) :: head, tok, symtok
     CHARACTER(LEN=600) :: text
     REAL(real64) :: c(9), scale
@@ -1780,8 +1781,11 @@ CONTAINS
       ELSE
         k = 8
       END IF
-      WRITE(text, '(A,A,I0,A,A,A,3F20.12,A,A)') ' SYMMETRY', NEW_LINE('A'), &
-           k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), c(1), c(5) / c(1), &
+      symmetry_indent = ''
+      IF (osym == 0) symmetry_indent = '  '
+      WRITE(text, '(A,A,A,I0,A,A,A,3F20.12,A,A)') ' SYMMETRY', NEW_LINE('A'), &
+           symmetry_indent, k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), &
+           c(1), c(5) / c(1), &
            c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
     ELSE
       WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &

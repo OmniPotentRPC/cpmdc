@@ -1590,7 +1590,7 @@ test(
   )
 
   meson_prog = find_program('meson', required: false)
-  pkg_config_prog = find_program('pkg-config', 'pkgconf', required: false)
+  pkg_config_prog = find_program('pkgconf', 'pkg-config', required: false)
   if meson_prog.found() and pkg_config_prog.found()
     test(
       'cpmdc-installed-package-consumer',
