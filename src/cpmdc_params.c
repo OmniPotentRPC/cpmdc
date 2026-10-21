@@ -523,7 +523,7 @@ static int directives_have_prefix(CPMDDirective_list directives,
 
 static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
                             const double *cell, int ncell, int absolute,
-                            int degree, int vectors) {
+                            int degree, int vectors, int vector_rows) {
   if (ncell != 6 && ncell != 9)
     return 0;
   if (vectors && ncell != 9)
@@ -561,7 +561,8 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g %.10g %.10g %.10g\n",
                       a, b, c, ab, ac, bc);
   }
-  if (vectors) {
+  /* Typed lists use one record; geometry overrides use three vector rows. */
+  if (vectors && vector_rows) {
     for (int row = 0; row < 3; ++row) {
       if (append_fmt(dst, dst_size, used, " %.10g %.10g %.10g\n",
                      cell[3 * row], cell[3 * row + 1], cell[3 * row + 2]) != 0)
@@ -569,7 +570,7 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
     }
     return 0;
   }
-  if (fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
+  if (!vectors && fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
       fabs(cell[3]) < 1e-12 && fabs(cell[5]) < 1e-12 &&
       fabs(cell[6]) < 1e-12 && fabs(cell[7]) < 1e-12 && cell[0] != 0.0) {
     return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g 0 0 0\n",
@@ -733,14 +734,14 @@ static int render_system_section_with_cell(
     return -1;
   if (override_ncell == 9 && cell_override) {
     if (append_cpmd_cell(dst, dst_size, used, cell_override, override_ncell, 0,
-                         0, force_vectors) != 0)
+                         0, force_vectors, 1) != 0)
       return -1;
   } else if (ncell == 6 || ncell == 9) {
     double cell[9] = {0};
     for (int i = 0; i < ncell; ++i)
       cell[i] = capn_to_f64(capn_get64(sys->cell, i));
     if (append_cpmd_cell(dst, dst_size, used, cell, ncell, sys->cellAbsolute,
-                         sys->cellDegree, sys->cellVectors) != 0)
+                         sys->cellDegree, sys->cellVectors, 0) != 0)
       return -1;
   }
   int n_reference_cell = list64_len(&sys->referenceCell);
