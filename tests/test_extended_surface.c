@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include <setjmp.h>
+#include <stdarg.h>
 #include <cmocka.h>
 
 #include "schema/Potentials.capnp.h"

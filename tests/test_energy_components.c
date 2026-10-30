@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <setjmp.h>
+#include <stdarg.h>
 #include <cmocka.h>
 
 static const char *g_params = NULL;

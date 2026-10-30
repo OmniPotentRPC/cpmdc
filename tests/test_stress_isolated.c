@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <setjmp.h>
+#include <stdarg.h>
 #include <cmocka.h>
 
 #include "setup_child.h"
