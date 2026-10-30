@@ -1299,6 +1299,8 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_session_create", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_set_params", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_destroy", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_clear_result_cache", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_session_last_result_reused", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_select_orbitals", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_energy_gradient", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_energy", CPMDC_FEATURE_ABI, 1, 1},

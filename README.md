@@ -116,6 +116,7 @@ For a complete mapping table, see
 | MPI rank groups (one calculator per group) | `cpmdc_bind_calculator`, `cpmdc_adopt_calculator_comm`, `cpmdc_adopted_comm` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_select_orbitals`, `cpmdc_session_destroy` |
+| Session result cache | `cpmdc_session_clear_result_cache`, `cpmdc_session_last_result_reused` |
 | Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
 | Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
 | One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_calculate_result_from_config`, `cpmdc_potential_result_size_for_force_input` |
@@ -147,6 +148,14 @@ composition. A reordering of those elements stays on the session.
 Coordinates, units, and the 3x3 cell may change between later steps. An
 evaluation with the same positions returns the stored energy and forces.
 A different composition or atom count requires a new session.
+
+`cpmdc_session_clear_result_cache()` discards stored energy, gradient and
+stress results while retaining the electronic wavefunction warm starts.
+Call it before each displaced geometry when a finite difference requires an
+independent force calculation. `cpmdc_session_last_result_reused()` returns
+one for a reused result, zero for an evaluated result or a cleared cache,
+and minus one for a null session. The stub backend returns minus one for
+both functions because it cannot create a calculation session.
 
 ## Host Example
 
