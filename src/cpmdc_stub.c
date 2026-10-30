@@ -128,6 +128,17 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
 
 void cpmdc_session_destroy(CPMDCSession *session) { (void)session; }
 
+int cpmdc_session_clear_result_cache(CPMDCSession *session) {
+  (void)session;
+  stub_store_error("cpmdc_session_clear_result_cache");
+  return -1;
+}
+
+int cpmdc_session_last_result_reused(const CPMDCSession *session) {
+  (void)session;
+  return -1;
+}
+
 int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
   (void)session;
   (void)key;
