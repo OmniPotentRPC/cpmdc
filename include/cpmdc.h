@@ -374,6 +374,23 @@ void cpmdc_session_destroy(CPMDCSession *session);
 int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
 
 /**
+ * @brief Drop stored energy and gradient without changing electronic orbitals.
+ *
+ * The next force request performs an electronic evaluation even when its
+ * coordinates match the stored geometry. Orbital keys and their converged
+ * warm states stay available. Returns 0, or -1 for a null session.
+ */
+int cpmdc_session_clear_result_cache(CPMDCSession *session);
+
+/**
+ * @brief Whether the latest session evaluation returns a stored force result.
+ *
+ * Returns 1 for reuse, 0 for an electronic call, a failed evaluation, a new
+ * session, or an explicitly cleared result cache; returns -1 for null.
+ */
+int cpmdc_session_last_result_reused(const CPMDCSession *session);
+
+/**
  * @brief Compute energy and nuclear gradient with session-owned parameters.
  *
  * Positions are Angstrom. The gradient buffer must have `n_atoms * 3` doubles

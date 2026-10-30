@@ -863,6 +863,23 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  if has_cpmd
+    test(
+      'session-result-controls',
+      executable(
+        'test_session_result_controls',
+        'tests/test_session_result_controls.c',
+        dependencies: [cpmdc_embed_shell_dep, math_dep],
+        include_directories: inc,
+        c_args: common_c_args,
+      ),
+      args: [runtime_params_bin.full_path()],
+      depends: [runtime_params_bin],
+      suite: ['e2e', 'abi'],
+      timeout: 300,
+    )
+  endif
+
   params_escape_bin = custom_target(
     'params_escape_bin',
     input: 'tests/params_escape_generic.capnp.txt',

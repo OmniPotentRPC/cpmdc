@@ -121,6 +121,8 @@ struct CPMDCSession {
   size_t step_atom_capacity;
   /** Non-zero when the last successful gradient is stored. */
   int result_cached;
+  /** Non-zero when the latest call returns the stored result. */
+  int last_result_reused;
   /** Positions, atomic numbers, and gradient of that call. Owned. */
   double *cached_positions_ang;
   int *cached_atomic_numbers;
@@ -1490,6 +1492,7 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
+  session->last_result_reused = 0;
   if (grad_len_from_atoms(n_atoms, NULL) != 0)
     return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
@@ -1500,6 +1503,7 @@ static CPMDCResult session_energy_gradient_cell(
                                    grad_h_bohr)) {
     CPMDCResult cached;
     cached.ok = 1;
+    session->last_result_reused = 1;
     cached.energy_h = session->cached_energy_h;
     cached.message[0] = '\0';
     cpmdc_store_error("");
@@ -1526,6 +1530,21 @@ static CPMDCResult session_energy_gradient_cell(
     }
     return evaluated;
   }
+}
+
+int cpmdc_session_clear_result_cache(CPMDCSession *session) {
+  if (!session) {
+    cpmdc_store_error("null session");
+    return -1;
+  }
+  session_drop_cache(session);
+  session->last_result_reused = 0;
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_last_result_reused(const CPMDCSession *session) {
+  return session ? session->last_result_reused : -1;
 }
 
 int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
