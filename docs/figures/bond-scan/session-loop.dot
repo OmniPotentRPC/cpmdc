@@ -1,0 +1,20 @@
+digraph session_loop {
+  node [shape=box, style=rounded, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=9];
+
+  params [label="water.params.bin\nCPMDParams, read once"];
+  create [label="cpmdc_session_create"];
+  step [label="next O-H length\npositions, atomic numbers"];
+  call [label="cpmdc_session_energy_forces"];
+  scf [label="OpenCPMD SCF"];
+  store [label="stored orbitals\nand their geometry", shape=cylinder];
+  out [label="energy, Hartree\nforces, Hartree/Bohr"];
+
+  { rank=same; params; step; }
+  { rank=same; scf; store; }
+  params -> create -> call;
+  step -> call -> scf -> out;
+  scf -> store [label="converged"];
+  store -> scf [label="start here when within\nCPMDC_WARM_RMSD"];
+  out -> step [label="13 times", style=dashed, constraint=false];
+}
