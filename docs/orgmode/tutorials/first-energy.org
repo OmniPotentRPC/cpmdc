@@ -92,10 +92,10 @@ second, and prints a summary:
 #+end_src
 
 #+begin_src text
-energy_h=0.958703657646
-potential_result_size_bytes=888
+energy_h=0.958703877646
+potential_result_size_bytes=816
 message=ok
-ener_com_etot=0.958703657646
+ener_com_etot=0.958703877646
 ener_com_ekin=0.000000000000
 ener_com_exc=0.000000000000
 ener_com_eht=0.000000000000
@@ -168,19 +168,23 @@ int main(int argc, char **argv) {
 }
 #+end_src
 
-Compile it with the C compiler and link it with the Fortran compiler, which
-brings in the Fortran runtime that ~libcpmdc~ needs:
+Compile it with the C compiler and link it with ~mpif90~, the Fortran compiler
+wrapper of the Pixi environment's Open MPI.
+~libcpmdc~ needs the Fortran runtime, and in that environment it also links
+Open MPI.
+A plain ~$FC~ link stops with
+~libmpi.so.40, needed by libcpmdc.so, not found~:
 
 #+begin_src bash
 $CC -c first_forces.c -I "$CPMDC/include"
-$FC first_forces.o -L "$CPMDC/build" -lcpmdc \
+mpif90 first_forces.o -L "$CPMDC/build" -lcpmdc \
   -Wl,-rpath,"$CPMDC/build" -o first_forces
 ./first_forces water.params.bin water.step.bin
 #+end_src
 
 #+begin_src text
-cpmdc/0.2.0 available=0
-energy_h=0.95870366
+cpmdc/0.3.0 available=0
+energy_h=0.95870388
 force[0] =  -0.053992  -0.053992  -0.055259
 force[1] =  -0.006749  -0.007771  -0.006116
 force[2] =  -0.006749  -0.005727  -0.006116
@@ -236,15 +240,15 @@ iterations and the energy breakdown, and then the program prints its lines:
 
 #+begin_src text
  NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
-   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.63
+   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.59
  ...
-  13  4.399E-06   6.431E-07     -17.055717   -1.356E-08      0.65
+  13  4.451E-06   6.419E-07     -17.055717   -1.354E-08      0.61
  ...
  (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
  ...
 energy_h=-17.05571670
 force[0] =   0.000000   0.000000   0.022496
-force[1] =   0.000000   0.012514  -0.011962
+force[1] =  -0.000000   0.012514  -0.011962
 force[2] =   0.000000  -0.012514  -0.011962
 #+end_src
 
