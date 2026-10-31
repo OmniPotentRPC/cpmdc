@@ -3,11 +3,19 @@
 # Run inside `pixi shell` with the OpenCPMD build in $CPMDC/build-cpmd and
 # CPMDC_PSEUDO_DIR set. The program is taken from the tutorial page itself.
 # Usage: run_scan.sh water.params.bin [log-dir]
+# With no log-dir, scratch files go to a new temporary directory.
+# The script prints that path.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 CPMDC=${CPMDC:-$(cd "$here/../../.." && pwd)}
 params=$(realpath "${1:?usage: run_scan.sh water.params.bin [log-dir]}")
-logs=$(mkdir -p "${2:-$(mktemp -d)}" && cd "${2:-.}" && pwd)
+if [ -n "${2:-}" ]; then
+  mkdir -p "$2"
+  logs=$(cd "$2" && pwd)
+else
+  logs=$(mktemp -d)
+  printf '%s\n' "$logs"
+fi
 
 sed -n '/^#+begin_src c$/,/^#+end_src$/p' \
   "$CPMDC/docs/orgmode/tutorials/bond-scan.org" | sed '1d;$d' \
