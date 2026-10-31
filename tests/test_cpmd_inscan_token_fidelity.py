@@ -79,7 +79,7 @@ def main() -> int:
         "--cpmd-src",
         type=Path,
         default=None,
-        help="OpenCPMD src tree (default: env CPMD_SRC or common terra path)",
+        help="OpenCPMD src tree (default: env CPMD_SRC, else ~/work/OpenCPMD/CPMD/src)",
     )
     args = ap.parse_args()
     params_c = args.cpmdc_root / "src" / "cpmdc_params.c"
