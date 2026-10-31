@@ -57,6 +57,9 @@ composition requires a new session.
    * - See an energy and forces come out of the C API
      - Build the default library, then link OpenCPMD
      - :doc:`First energy and forces <tutorials/first-energy>`
+   * - Evaluate many geometries in one session and plot the energy
+     - Loop over bond lengths with ``cpmdc_session_energy_forces``
+     - :doc:`Scan a bond through one session <tutorials/bond-scan>`
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
@@ -139,6 +142,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    :caption: Tutorials
 
    tutorials/first-energy
+   tutorials/bond-scan
    tutorials/eon-rgpot
    tutorials/quickstart
 

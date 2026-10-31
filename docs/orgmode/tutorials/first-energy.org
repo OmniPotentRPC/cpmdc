@@ -271,6 +271,8 @@ previous one.
 A new session with the same functional, deck, cell, and elemental composition
 starts from those orbitals too, including when the atomic numbers are
 reordered.
+[[file:bond-scan.org][Scan a bond through one session]] runs that loop over 13
+geometries and plots the result.
 The [[file:eon-rgpot.org][eOn tutorial]] drives exactly that loop from a
 minimiser, and [[file:../howto/mpi.org][running under mpirun]] spreads each
 SCF over several ranks.

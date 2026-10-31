@@ -351,6 +351,9 @@ Read the docs in this order:
 
 - [First energy and forces](docs/orgmode/tutorials/first-energy.org): a C
   host from the default build to a real OpenCPMD energy
+- [Scan a bond through one session](docs/orgmode/tutorials/bond-scan.org): 13
+  geometries, an energy curve, and the self-consistent field iterations that
+  stored orbitals save
 - [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org): a minimisation
   driven by eOn with a `CPMDParams` file
 - [Quickstart](docs/orgmode/tutorials/quickstart.org): build, tests, and common
