@@ -1,8 +1,7 @@
 #+TITLE: First energy and forces through the C API
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-This tutorial takes you from a fresh checkout to the energy and forces of a
-water molecule, computed through the ~cpmdc~ C API.
+This tutorial starts from a fresh checkout and ends with the energy and forces of a water molecule from the ~cpmdc~ C application programming interface (API).
 You first run it against the default build, which needs no OpenCPMD, and
 then against a build that links OpenCPMD, where the same program returns a
 BLYP (Becke, Lee, Yang, Parr) density functional energy.
@@ -18,8 +17,7 @@ export CPMDC=$PWD
 #+end_src
 
 The last lines of the test run report ~Fail: 0~.
-The build directory ~build/~ now holds ~libcpmdc.so~ and the example program
-~example_host_step~.
+The build directory ~build/~ now contains ~libcpmdc.so~ and the example program ~example_host_step~.
 ~CPMDC~ remembers the checkout for the commands below.
 
 * Describe the method and the geometry
@@ -92,17 +90,17 @@ second, and prints a summary:
 #+end_src
 
 #+begin_src text
-energy_h=0.958703657646
-potential_result_size_bytes=888
+energy_h=0.958703877646
+potential_result_size_bytes=816
 message=ok
-ener_com_etot=0.958703657646
+ener_com_etot=0.958703877646
 ener_com_ekin=0.000000000000
 ener_com_exc=0.000000000000
 ener_com_eht=0.000000000000
 #+end_src
 
-The default build evaluates with a deterministic reference function, a
-harmonic well scaled by the atomic numbers, not with DFT.
+The default build evaluates a deterministic reference function instead of density functional theory.
+That function is a harmonic well scaled by the atomic numbers.
 Its numbers exercise the API and mean nothing physically, which is why the
 energy is positive and the components other than ~etot~ are zero.
 
@@ -168,12 +166,15 @@ int main(int argc, char **argv) {
 }
 #+end_src
 
-Compile it with the C compiler and link it with the Fortran compiler, which
-brings in the Fortran runtime that ~libcpmdc~ needs:
+The link step comes next.
+The default build links the Message Passing Interface (MPI) library whenever Meson finds one.
+The Pixi environment provides OpenMPI, so ~libcpmdc.so~ needs ~libmpi~.
+Compile with the MPI C wrapper and link with the MPI Fortran wrapper.
+The Fortran wrapper adds the MPI library and the Fortran runtime for ~libcpmdc~.
 
 #+begin_src bash
-$CC -c first_forces.c -I "$CPMDC/include"
-$FC first_forces.o -L "$CPMDC/build" -lcpmdc \
+mpicc -c first_forces.c -I "$CPMDC/include"
+mpif90 first_forces.o -L "$CPMDC/build" -lcpmdc \
   -Wl,-rpath,"$CPMDC/build" -o first_forces
 ./first_forces water.params.bin water.step.bin
 #+end_src
@@ -185,7 +186,7 @@ $FC first_forces.o -L "$CPMDC/build" -lcpmdc \
 # ]]]
 #+begin_src text
 cpmdc/0.3.0 available=0
-energy_h=0.95870366
+energy_h=0.95870388
 force[0] =  -0.053992  -0.053992  -0.055259
 force[1] =  -0.006749  -0.007771  -0.006116
 force[2] =  -0.006749  -0.005727  -0.006116
@@ -200,7 +201,7 @@ forces in Hartree/Bohr, whatever units the ~ForceInput~ names; the units of
 the message apply to the serialized ~PotentialResult~ path.
 
 * Switch to OpenCPMD
-The same program and the same two messages now run against real CPMD.
+The same program and the same two messages now run against the Car-Parrinello Molecular Dynamics (CPMD) code itself.
 Three things change: the library, the pseudopotential files, and one
 environment variable.
 
@@ -237,26 +238,30 @@ mpif90 first_forces_live.o -L "$CPMDC/build-cpmd" -lcpmdc \
 OMP_NUM_THREADS=1 ./first_forces_live water.params.bin water.step.bin
 #+end_src
 
-CPMD prints its usual output to standard output, ending with the SCF
-iterations and the energy breakdown, and then the program prints its lines:
+The program prints its version line, now with ~available=1~.
+CPMD then prints its usual output, which ends with the self-consistent field (SCF) iterations and the energy breakdown.
+The program prints the energy and forces last:
 
 #+begin_src text
- NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
-   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.63
+cpmdc/0.3.0 available=1
  ...
-  13  4.399E-06   6.431E-07     -17.055717   -1.356E-08      0.65
+ NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
+   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.65
+ ...
+  13  4.451E-06   6.419E-07     -17.055717   -1.354E-08      0.61
  ...
  (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
  ...
 energy_h=-17.05571670
 force[0] =   0.000000   0.000000   0.022496
-force[1] =   0.000000   0.012514  -0.011962
+force[1] =  -0.000000   0.012514  -0.011962
 force[2] =   0.000000  -0.012514  -0.011962
 #+end_src
 
 The SCF reached -17.05571670 Hartree at iteration 13.
 The forces are those of an off-equilibrium water geometry: zero along ~x~,
 the direction normal to the molecular plane, and mirror-symmetric in ~y~.
+The ~x~ components round to zero at six decimals, and one keeps its minus sign.
 The iteration timings in the ~TCPU~ column depend on the machine.
 
 * What you built
