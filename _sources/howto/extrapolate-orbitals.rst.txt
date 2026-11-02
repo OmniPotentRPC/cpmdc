@@ -1,0 +1,83 @@
+===========================================
+Extrapolate the orbitals along a trajectory
+===========================================
+
+
+
+Goal
+----
+
+Start each self-consistent field (SCF) of a host-driven trajectory from a prediction over the orbitals of the previous steps.
+Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer molecular dynamics (BO-MD) with ``EXTRAPOLATE WFN``.
+Use it when the host takes equal time steps, as a molecular dynamics (MD) integrator does.
+An optimiser, a saddle search, or a nudged elastic band moves by unequal steps, and the plain warm start of :doc:`wavefunction state between calls <../explanation/wavefunction-state>` suits them.
+
+Apply the patch
+---------------
+
+``tools/opencpmd_embed_extrapolate.patch`` goes onto the OpenCPMD tree after ``opencpmd_embed_teardown.patch``, as the :doc:`archive how-to <opencpmd-archive>` lists.
+Without it, OpenCPMD prints ``WARNING! WAVEFUNCTION EXTRAPOLATION ONLY SUPPORTED FOR BO-MD. DISABLING...``.
+Every warm call then starts from the unchanged stored orbitals.
+A ``libcpmdc`` built from this tree needs the patch: it links ``embed_extrapolation_used`` from the archive.
+
+Ask for it in the message
+-------------------------
+
+.. code:: capnp
+
+    ( cpmd = ( optimizeWavefunction = true,
+               convergenceOrbitals = 1.0e-6,
+               maxIter = 200,
+               extrapolateWfnOptions = "ASPC",
+               extrapolateWfnOrder = 4 ) )
+
+The message renders ``EXTRAPOLATE WFN ASPC`` with ``4`` on the next line.
+``ASPC`` selects the always stable predictor-corrector (ASPC) coefficients of Kolafa (J. Comput. Chem. 25, 335 (2004), https://doi.org/10.1002/jcc.10385).
+``POLY`` selects the polynomial ones.
+OpenCPMD starts from the ASPC coefficients and switches only for ``POLY`` on the ``EXTRAPOLATE WFN`` line.
+An ``extrapolateWfnOrder`` with an empty ``extrapolateWfnOptions`` renders ``EXTRAPOLATE WFN`` alone, and that deck uses ASPC.
+The order is the number of earlier converged orbital sets that the prediction combines.
+OpenCPMD still prints its warning, because ``control_test`` keeps ``cntl%textrap`` off for a wavefunction optimisation; the patch reads the request from ``embed_extrap_wfn`` instead.
+
+Check that it runs
+------------------
+
+Run the host with ``CPMDC_SCF_STEPS=1``.
+A call that starts from a prediction writes ``cpmdc_wfn_extrapolated K`` before its ``cpmdc_scf_steps N`` line, with ``K`` the number of orbital sets combined.
+``tests/test_extrapolate_wfn.c`` reads these first lines on the water trajectory of ``tests/golden/water_aspc_bomd.txt``:
+
+.. code:: text
+
+    cpmdc_warm_start -2 periodic=F
+    cpmdc_scf_steps 18
+    cpmdc_warm_start 0  4.3467596441160280E-004 donor_key=0 periodic=F
+    cpmdc_scf_steps 8
+    cpmdc_warm_start 0  1.2970053609380071E-003 donor_key=0 periodic=F
+    cpmdc_wfn_extrapolated 2
+    cpmdc_scf_steps 9
+    cpmdc_warm_start 0  2.1382110087115411E-003 donor_key=0 periodic=F
+    cpmdc_wfn_extrapolated 3
+    cpmdc_scf_steps 8
+
+The first call is cold.
+The second starts from the first call's orbitals.
+From the third call on, ``K`` grows to the order.
+
+Know when the history restarts
+------------------------------
+
+The prediction is valid only when the stored orbitals come from the previous calls of one trajectory.
+Each of these events empties the history:
+
+- a call whose SCF does not converge, or an orbital direct inversion in the iterative subspace (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG) ``MINIMIZE`` continuation
+
+- ``cpmdc_session_select_orbitals()`` with another key
+
+- stored orbitals farther than ``CPMDC_WARM_RMSD`` from the new geometry
+
+- anything that clears the stored orbitals, such as a cell, cutoff, or composition change
+
+The next calls then build the history again from the stored orbitals.
+``STORE`` and ``CSTEPS`` have no effect on this route.
+A library call writes no ``RESTART`` file, and every call converges its SCF to ``CONVERGENCE ORBITALS``.
+The energy and forces are those of a converged SCF, so only the number of iterations changes.

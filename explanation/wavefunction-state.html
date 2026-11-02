@@ -122,6 +122,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -199,6 +200,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#where-the-orbitals-are-kept">Where the orbitals are kept</a></li>
 <li><a class="reference internal" href="#orbitals-per-key">Orbitals per key</a></li>
 <li><a class="reference internal" href="#distance-limit">Distance limit</a></li>
+<li><a class="reference internal" href="#extrapolation-between-calls">Extrapolation between calls</a></li>
 <li><a class="reference internal" href="#what-clears-the-orbitals">What clears the orbitals</a></li>
 <li><a class="reference internal" href="#the-restart-file">The RESTART file</a></li>
 <li><a class="reference internal" href="#the-optimiser-on-a-warm-start">The optimiser on a warm start</a></li>
@@ -292,8 +294,7 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="wavefunction-state-between-calls">
 <h1>Wavefunction state between calls<a class="headerlink" href="#wavefunction-state-between-calls" title="Link to this heading">¶</a></h1>
-<p>A force call on a geometry close to the previous one should not start its SCF
-from scratch.
+<p>A force call on a geometry close to the previous one should not start its self-consistent field (SCF) from scratch.
 The converged orbitals of the last call, <code class="docutils literal notranslate"><span class="pre">c0</span></code> in OpenCPMD, are a far better
 starting point than atomic orbitals, and keeping them in memory is the main
 reason to run CPMD inside the host.
@@ -487,6 +488,62 @@ took 65 to 205 steps on the same images where the deck’s took 37 to 52.
 A band step capped at 0.1 Angstrom per atom stays inside the limit, so an
 image that returns to its own key is warm.
 <code class="docutils literal notranslate"><span class="pre">CPMDC_SCF_STEPS=1</span></code> prints the start of every call.</p>
+</section>
+<section id="extrapolation-between-calls">
+<h2>Extrapolation between calls<a class="headerlink" href="#extrapolation-between-calls" title="Link to this heading">¶</a></h2>
+<p>A warm start is a zeroth-order guess: the next SCF starts from the last converged orbitals as they are.
+Along a trajectory with equal time steps, a combination of the orbitals of the earlier steps predicts the next ones better.
+Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer molecular dynamics (BO-MD) with <code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code>, and the always stable predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004), <a class="reference external" href="https://doi.org/10.1002/jcc.10385">https://doi.org/10.1002/jcc.10385</a>) is one of its coefficient sets.
+CP2K extrapolates by default, with ASPC of order 3 (<code class="docutils literal notranslate"><span class="pre">FORCE_EVAL/DFT/QS</span> <span class="pre">EXTRAPOLATION</span></code>), and Quantum ESPRESSO offers first- and second-order extrapolation of the wavefunctions after Arias, Payne, and Joannopoulos (Phys. Rev. B 45, 1538 (1992), <a class="reference external" href="https://doi.org/10.1103/PhysRevB.45.1538">https://doi.org/10.1103/PhysRevB.45.1538</a>).</p>
+<p>OpenCPMD turns the keyword off in a wavefunction optimisation, which is the job a host-driven call runs.
+<code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code> keeps the request and lets <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> act on it when the orbitals stay in memory.
+After a converged SCF, the orbitals go into the store as before.
+At the start of the next call, <code class="docutils literal notranslate"><span class="pre">rwfopt</span></code> pushes that copy into a ring of <code class="docutils literal notranslate"><span class="pre">order</span></code> entries and calls CPMD’s <code class="docutils literal notranslate"><span class="pre">extrapwf</span></code>, which builds the prediction, rotates the earlier sets onto the newest one by their overlap, and orthonormalises the result.
+The SCF then runs from that prediction to the same convergence threshold.
+The ring is one per process, not one per key, so a key change, an unconverged pass, or a start past the distance limit empties it.
+The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation how-to</span></a> lists those events.</p>
+<p>A water molecule with the Becke-Lee-Yang-Parr (BLYP) functional at 50 Ry, on one rank, makes the comparison.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> ran the deck of <code class="docutils literal notranslate"><span class="pre">tests/water_aspc_params.capnp.txt</span></code> as BO-MD for 40 steps of 10 atomic time units.
+The library route ran the same 41 geometries from <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>’s trajectory, one call each, in one process.
+SCF iterations count steps 1 to 40; the first SCF, cold on both routes, took 18.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Route</p></th>
+<th class="head"><p>Start of each SCF</p></th>
+<th class="head"><p>SCF iterations</p></th>
+<th class="head"><p>Wall time (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code></p></td>
+<td><p>previous orbitals</p></td>
+<td><p>441</p></td>
+<td><p>376.1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code></p></td>
+<td><p>ASPC, order 4</p></td>
+<td><p>292</p></td>
+<td><p>263.4</p></td>
+</tr>
+<tr class="row-even"><td><p>library</p></td>
+<td><p>previous orbitals</p></td>
+<td><p>440</p></td>
+<td><p>392.6</p></td>
+</tr>
+<tr class="row-odd"><td><p>library</p></td>
+<td><p>ASPC, order 4</p></td>
+<td><p>297</p></td>
+<td><p>267.7</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The library energies match <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>’s <code class="docutils literal notranslate"><span class="pre">ENERGIES</span></code> file within 1.9e-10 Hartree on steps 1 to 40 of both runs.
+Library wall times cover the whole test process, setup included.
+For <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code>, the table gives its reported elapsed time.
+Over the first 12 steps, the case <code class="docutils literal notranslate"><span class="pre">tests/test_extrapolate_wfn.c</span></code> runs, the SCF iteration count is 88 on both routes with ASPC and 124 without.
+Over 40 steps, the library route takes 5 more iterations than <code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> with ASPC and one fewer without, while the energies of the two routes differ from the tenth decimal on.</p>
 </section>
 <section id="what-clears-the-orbitals">
 <h2>What clears the orbitals<a class="headerlink" href="#what-clears-the-orbitals" title="Link to this heading">¶</a></h2>

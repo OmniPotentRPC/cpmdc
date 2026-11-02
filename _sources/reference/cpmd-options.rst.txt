@@ -1811,6 +1811,27 @@ keys returned by ``cpmdc_feature_table()``.
     | ``catalog.cpmd.DCACP``                                   | ``params.inputSections.cpmd.dcacp``                               | ``dcacp``                               | ``DCACP``                                   |
     +----------------------------------------------------------+-------------------------------------------------------------------+-----------------------------------------+---------------------------------------------+
 
+``EXTRAPOLATE WFN`` renders into every deck that sets ``extrapolateWfnOptions`` or ``extrapolateWfnOrder``.
+``cpmd.x`` applies it in Born-Oppenheimer molecular dynamics only.
+On the in-process route it applies to every call that starts from stored orbitals, when the archive carries ``tools/opencpmd_embed_extrapolate.patch``.
+The :doc:`extrapolation how-to <../howto/extrapolate-orbitals>` shows a message and the check.
+
+.. table::
+
+    +------------------------+---------------------------------------------------------------------------+
+    | Part                   | In-process route                                                          |
+    +========================+===========================================================================+
+    | ``ASPC``, or no option | always stable predictor-corrector (ASPC) coefficients, OpenCPMD's default |
+    +------------------------+---------------------------------------------------------------------------+
+    | ``POLY``               | polynomial coefficients                                                   |
+    +------------------------+---------------------------------------------------------------------------+
+    | order                  | number of earlier calls in the prediction                                 |
+    +------------------------+---------------------------------------------------------------------------+
+    | ``STORE``              | no effect, with no ``RESTART`` file from a library call                   |
+    +------------------------+---------------------------------------------------------------------------+
+    | ``CSTEPS``             | no effect, with converged orbitals on every call                          |
+    +------------------------+---------------------------------------------------------------------------+
+
 Typed ``&DFT`` controls
 -----------------------
 

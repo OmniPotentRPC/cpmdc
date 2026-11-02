@@ -122,6 +122,7 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
@@ -4175,6 +4176,36 @@ keys returned by <code class="docutils literal notranslate"><span class="pre">cp
 <td><p><code class="docutils literal notranslate"><span class="pre">params.inputSections.cpmd.dcacp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">dcacp</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">DCACP</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">EXTRAPOLATE</span> <span class="pre">WFN</span></code> renders into every deck that sets <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOptions</span></code> or <code class="docutils literal notranslate"><span class="pre">extrapolateWfnOrder</span></code>.
+<code class="docutils literal notranslate"><span class="pre">cpmd.x</span></code> applies it in Born-Oppenheimer molecular dynamics only.
+On the in-process route it applies to every call that starts from stored orbitals, when the archive carries <code class="docutils literal notranslate"><span class="pre">tools/opencpmd_embed_extrapolate.patch</span></code>.
+The <a class="reference internal" href="../howto/extrapolate-orbitals.html"><span class="doc">extrapolation how-to</span></a> shows a message and the check.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Part</p></th>
+<th class="head"><p>In-process route</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ASPC</span></code>, or no option</p></td>
+<td><p>always stable predictor-corrector (ASPC) coefficients, OpenCPMD’s default</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">POLY</span></code></p></td>
+<td><p>polynomial coefficients</p></td>
+</tr>
+<tr class="row-even"><td><p>order</p></td>
+<td><p>number of earlier calls in the prediction</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">STORE</span></code></p></td>
+<td><p>no effect, with no <code class="docutils literal notranslate"><span class="pre">RESTART</span></code> file from a library call</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CSTEPS</span></code></p></td>
+<td><p>no effect, with converged orbitals on every call</p></td>
 </tr>
 </tbody>
 </table>
