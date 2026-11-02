@@ -1,8 +1,7 @@
 #+TITLE: Wavefunction state between calls
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-A force call on a geometry close to the previous one should not start its SCF
-from scratch.
+A force call on a geometry close to the previous one should not start its self-consistent field (SCF) from scratch.
 The converged orbitals of the last call, ~c0~ in OpenCPMD, are a far better
 starting point than atomic orbitals, and keeping them in memory is the main
 reason to run CPMD inside the host.
@@ -139,6 +138,38 @@ took 65 to 205 steps on the same images where the deck's took 37 to 52.
 A band step capped at 0.1 Angstrom per atom stays inside the limit, so an
 image that returns to its own key is warm.
 ~CPMDC_SCF_STEPS=1~ prints the start of every call.
+
+* Extrapolation between calls
+A warm start is a zeroth-order guess: the next SCF starts from the last converged orbitals as they are.
+Along a trajectory with equal time steps, a combination of the orbitals of the earlier steps predicts the next ones better.
+Car-Parrinello molecular dynamics (CPMD) does this in its own Born-Oppenheimer molecular dynamics (BO-MD) with ~EXTRAPOLATE WFN~, and the always stable predictor-corrector (ASPC) of Kolafa (J. Comput. Chem. 25, 335 (2004), doi:10.1002/jcc.10385) is one of its coefficient sets.
+CP2K extrapolates by default, with ASPC of order 3 (~FORCE_EVAL/DFT/QS EXTRAPOLATION~), and Quantum ESPRESSO offers first- and second-order extrapolation of the wavefunctions after Arias, Payne, and Joannopoulos (Phys. Rev. B 45, 1538 (1992), doi:10.1103/PhysRevB.45.1538).
+
+OpenCPMD turns the keyword off in a wavefunction optimisation, which is the job a host-driven call runs.
+~tools/opencpmd_embed_extrapolate.patch~ keeps the request and lets ~rwfopt~ act on it when the orbitals stay in memory.
+After a converged SCF, the orbitals go into the store as before.
+At the start of the next call, ~rwfopt~ pushes that copy into a ring of ~order~ entries and calls CPMD's ~extrapwf~, which builds the prediction, rotates the earlier sets onto the newest one by their overlap, and orthonormalises the result.
+The SCF then runs from that prediction to the same convergence threshold.
+The ring is one per process, not one per key, so a key change, an unconverged pass, or a start past the distance limit empties it.
+The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] lists those events.
+
+A water molecule with the Becke-Lee-Yang-Parr (BLYP) functional at 50 Ry, on one rank, makes the comparison.
+~cpmd.x~ ran the deck of ~tests/water_aspc_params.capnp.txt~ as BO-MD for 40 steps of 10 atomic time units.
+The library route ran the same 41 geometries from ~cpmd.x~'s trajectory, one call each, in one process.
+SCF iterations count steps 1 to 40; the first SCF, cold on both routes, took 18.
+
+| Route | Start of each SCF | SCF iterations | Wall time (s) |
+|-------+-------------------+----------------+---------------|
+| ~cpmd.x~ | previous orbitals | 441 | 376.1 |
+| ~cpmd.x~ | ASPC, order 4 | 292 | 263.4 |
+| library | previous orbitals | 440 | 392.6 |
+| library | ASPC, order 4 | 297 | 267.7 |
+
+The library energies match ~cpmd.x~'s ~ENERGIES~ file within 1.9e-10 Hartree on steps 1 to 40 of both runs.
+Library wall times cover the whole test process, setup included.
+For ~cpmd.x~, the table gives its reported elapsed time.
+Over the first 12 steps, the case ~tests/test_extrapolate_wfn.c~ runs, the SCF iteration count is 88 on both routes with ASPC and 124 without.
+Over 40 steps, the library route takes 5 more iterations than ~cpmd.x~ with ASPC and one fewer without, while the energies of the two routes differ from the tenth decimal on.
 
 * What clears the orbitals
 
