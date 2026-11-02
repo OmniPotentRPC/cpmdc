@@ -399,3 +399,8 @@ Its last section lists what to put in a new report.
 0.1.0 covers the Cap'n Proto contract, stable C ABI, Fortran bridge, shared
 `libcpmdc`, deterministic reference evaluator, OpenCPMD archive link path,
 parser tests, session tests, and rgpot-compatible result carriers.
+
+## License
+
+cpmdc is released under the `MIT License`.
+The full terms are in [`LICENSE`](LICENSE).

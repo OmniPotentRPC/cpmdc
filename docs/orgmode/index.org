@@ -198,3 +198,9 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
 
    changelog
 #+end_export
+
+* License
+cpmdc is released under the ~MIT License~.
+The full terms are in
+[[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]] at
+the root of the repository.
