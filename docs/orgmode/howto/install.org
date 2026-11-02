@@ -18,12 +18,14 @@ The tests use it to check the ABI without a working evaluator.
 
 | Artifact | Installed as | Purpose |
 |----------+--------------+---------|
-| ~libcpmdc.so~ | ~lib/libcpmdc.so.0~ | the C ABI from ~include/cpmdc.h~ |
+| ~libcpmdc.so~ | ~lib/libcpmdc.so.MAJOR~ | the C ABI from ~include/cpmdc.h~ |
 | public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_restart.h~ | declarations for hosts |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
 | CMake package | ~cpmdcConfig.cmake~ | imported target ~cpmdc::cpmdc~ |
+
+~MAJOR~ is the soversion, the first field of ~version.txt~.
 
 * Requirements
 The checked-in Pixi manifest pins every build dependency.
@@ -114,7 +116,8 @@ meson install -C build-install
 pkg-config --modversion cpmdc
 #+end_src
 
-The last command prints the project version from ~meson.build~.
+The last command prints the project version, which Meson reads from
+~version.txt~.
 Hosts that load the library at run time, such as ~rgpot~, look for it through
 ~CPMDC_LIBRARY~; see the [[file:../reference/environment.org][environment
 reference]].
@@ -130,7 +133,7 @@ reference]].
 | ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
 | ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |
 | ~lychee~ | default | link check over README, ~docs/orgmode~, and news fragments |
-| ~release-assert~, ~towncrier-draft~, ~release-cog-dry~ | default | release metadata checks |
+| ~release-assert~, ~version-sync~, ~towncrier-draft~, ~release-cog-dry~ | default | release metadata checks, and ~version.txt~ copies |
 | ~mkrst~ | ~docs~ | export ~docs/orgmode~ to ~docs/source~ RST |
 | ~doxybuild~ | ~docs~ | Doxygen XML and Doxyrest pages for the public headers |
 | ~sphinxbld~, ~docbld~ | ~docs~ | ~mkrst~, ~doxybuild~, then the Sphinx HTML site in ~docs/build~ |

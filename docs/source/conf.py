@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 import os
-import re
 import sys
 
 
-def _meson_project_version():
-    """The project version is the version field of the root meson.build."""
-    meson_build = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), os.pardir, os.pardir, "meson.build"
+def _project_version():
+    """The project version is the single line of the root version.txt."""
+    version_txt = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), os.pardir, os.pardir, "version.txt"
     )
-    with open(meson_build, encoding="ascii") as handle:
-        for line in handle:
-            match = re.match(r"\s*version:\s*'([^']+)'\s*,?\s*$", line)
-            if match:
-                return match.group(1)
-    raise RuntimeError("project version is missing from meson.build")
+    with open(version_txt, encoding="ascii") as handle:
+        return handle.read().strip()
 
 
 project = "cpmdc"
 copyright = "2026-present, cpmdc developers"
 author = "Rohit Goswami"
-release = _meson_project_version()
+release = _project_version()
 version = release
 
 doxyrest_prefix = os.environ.get("CONDA_PREFIX")

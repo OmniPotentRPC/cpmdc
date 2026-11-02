@@ -1,7 +1,7 @@
 project(
   'cpmdc',
   ['c', 'fortran'],
-  version: '0.3.0',
+  version: files('version.txt'),
   default_options: ['warning_level=2', 'c_std=c11'],
 )
 
