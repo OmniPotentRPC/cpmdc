@@ -268,6 +268,14 @@ def main() -> int:
     require("actions: write" not in workflow, "ci.yml grants actions: write", failures)
     require("TODO(I0)" not in workflow, "ci.yml still has a TODO(I0) comment", failures)
     require("isa-allow.toml" in workflow, "ci.yml does not pass isa-allow.toml", failures)
+    simd_lines = re.findall(r'echo "cpmdc SIMD paths: ([^"]*)"', workflow)
+    require(
+        len(simd_lines) == workflow.count("- name: CPU flags"),
+        "ci.yml CPU flags steps do not each print the cpmdc SIMD paths",
+        failures,
+    )
+    for line in simd_lines:
+        require("minimage" in line, f"ci.yml reports cpmdc SIMD paths {line!r} without the minimage kernels", failures)
     require("workflow_dispatch" in workflow, "ci.yml has no workflow_dispatch trigger", failures)
     require("ubuntu-24.04-arm" in workflow, "ci.yml has no ubuntu-24.04-arm job", failures)
     require(
