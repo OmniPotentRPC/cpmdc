@@ -29,17 +29,34 @@ See [[file:../howto/opencpmd-archive.org][the archive how-to]].
 There is no path table and no ~CPMDC_SIMD~ variable.
 ~cpmdc~ does not read ~CPMDC_SIMD~.
 An environment value cannot select a kernel this library does not ship.
-The baseline compile is the only path, and it is the path the tests
-run.
+The baseline compile is the only path in the C and Fortran sources.
+
+The minimage subproject is a Rust static library linked into
+~libcpmdc~.
+It compiles its AVX, AVX2, and AVX-512 kernels with
+~#[target_feature]~ and calls one only after
+~std::is_x86_feature_detected!~ reports the features it needs.
+The Rust standard library linked with it also contains the ~memchr~
+AVX2 searcher.
+libstd builds ~memchr~ without its ~std~ feature, so
+~Finder::is_available()~ returns false and the searcher is never
+called.
+The standard library feature detection reads ~XCR0~ with ~_xgetbv~
+only after the processor identification instruction (CPUID) reports
+XSAVE and OSXSAVE.
+The test suite calls only the one-pair displacement, which takes the
+scalar path on every CPU, so it runs no dispatched kernel.
 
 OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at
 run time when built with ~DYNAMIC_ARCH~ and with FFTW's SIMD codelets.
 Those instructions sit in those libraries, not in a ~cpmdc~ symbol.
 The ISA audit allowlist names no ~cpmdc~ symbol.
+Its symbol rules name the minimage kernels and the two standard
+library functions above, each with the features it may use and the
+run-time check that guards it.
 It names OpenBLAS or libgfortran only when a build links that library
 statically into an audited artefact.
-The default link is dynamic, so the allowlist shipped here has no
-symbol rule and no vendored path.
+The default link is dynamic, so the allowlist has no vendored path.
 
 Dispatched kernels elsewhere in this set of libraries follow the
 cluster-pair layout of Páll and Hess, Comput. Phys. Commun. 184, 2641
@@ -49,8 +66,8 @@ One binary per microarchitecture belongs in EESSI
 doi:10.1002/spe.3075).
 
 * Bit-identical results
-The same input gives the same output bits on every baseline build,
-because there is one code path.
+The same input gives the same output bits on every baseline build of
+the C and Fortran sources, because they have one code path.
 C and Fortran compile with ~-ffp-contract=off~.
 On MSVC the matching flag is ~/fp:precise~, which does not contract.
 The compiler does not fuse a multiply and an add, so a result does not
@@ -59,7 +76,7 @@ operations.
 Reductions in this repository do not split a sum into partials.
 Sources do not call a fused multiply-add intrinsic.
 
-Two exceptions sit outside that guarantee.
+Three exceptions sit outside that guarantee.
 Cell angles in ~src/cpmdc_params.c~ call libm ~cos~ when a six-element
 cell is written from degrees.
 That ~cos~ is libm, not an in-house polynomial, and glibc can pick an
@@ -67,5 +84,9 @@ implementation at run time, so those characters of a rendered deck can
 differ across libm builds.
 OpenBLAS, FFTW, and OpenCPMD's own math are not compiled by ~cpmdc~.
 Their kernels are not bit-identical across CPUs.
+minimage is built with ~cpmdc~ but picks its kernel at run time.
+Its scalar orthorhombic kernel adds the squared components as
+~(x*x + y*y) + z*z~ and its AVX kernel as ~x*x + (y*y + z*z)~, so a
+distance it returns can differ in the last bit between CPUs.
 glibc ~exp~, ~log~, and ~pow~ have the same kind of runtime choice.
 ~cpmdc~ does not call them for a value it defines.
