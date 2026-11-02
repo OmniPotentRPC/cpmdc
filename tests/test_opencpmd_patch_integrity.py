@@ -58,6 +58,11 @@ PATCHES = {
         "src/vdw_utils.mod.F90",
         "src/vpsi_utils.mod.F90",
     ),
+    "opencpmd_embed_extrapolate.patch": (
+        "src/control_test_utils.mod.F90",
+        "src/embed_ctrl.mod.F90",
+        "src/rwfopt_utils.mod.F90",
+    ),
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -230,6 +235,22 @@ def assert_embed_teardown(patch: Path) -> None:
         raise AssertionError(f"{patch.name}: embed_teardown must not touch the timers")
 
 
+def assert_embed_extrapolate(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "LOGICAL, PUBLIC, SAVE :: embed_extrap_wfn = .FALSE.",
+        "+    embed_extrap_wfn = cntl%textrap",
+        "PUBLIC :: embed_extrapolation_used",
+        "CALL extrapwf(0, cx, gam, embed_xhist, embed_xnow, embed_xcount, n, m)",
+        "+    CALL embed_extrapolate_orbitals(c0, cx)",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+    # control_test still turns cntl%textrap off, so cpmd.x keeps its jobs.
+    if "-       cntl%textrap=.FALSE." in text:
+        raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")
+
+
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
     for name, expected_target in PATCHES.items():
@@ -269,6 +290,8 @@ def main() -> int:
             assert_tistopgm(patch)
         elif name == "opencpmd_embed_teardown.patch":
             assert_embed_teardown(patch)
+        elif name == "opencpmd_embed_extrapolate.patch":
+            assert_embed_extrapolate(patch)
         elif name == "opencpmd_c_mem_addrs.patch":
             text = patch.read_text(encoding="utf-8")
             if "return (size_t) pp;" not in text:

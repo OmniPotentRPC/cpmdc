@@ -1,0 +1,211 @@
+diff --git a/src/control_test_utils.mod.F90 b/src/control_test_utils.mod.F90
+index a0c9c2c..69e3aa7 100644
+--- a/src/control_test_utils.mod.F90
++++ b/src/control_test_utils.mod.F90
+@@ -6,6 +6,7 @@ MODULE control_test_utils
+        cdftlog
+   USE comvelmod,                       ONLY: comvl
+   USE cp_cuda_types,                   ONLY: cp_cuda_env
++  USE embed_ctrl,                      ONLY: embed_extrap_wfn
+   USE error_handling,                  ONLY: stopgm
+   USE fileopenmod,                     ONLY: fo_info
+   USE fint,                            ONLY: fint1,&
+@@ -435,6 +436,7 @@ CONTAINS
+     IF (cntl%tberc.AND.(cntr%taubc.LE.0.0_real_8)) CALL stopgm('CONTROL',&
+          'BERENDSEN CHARACTERISTIC TIME <=0.0 FOR CELL',& 
+          __LINE__,__FILE__)
++    embed_extrap_wfn = cntl%textrap
+     IF (.NOT.(cntl%tmdbo.OR.cntl%tmdfile.OR.cnti%iftype.EQ.3)) THEN
+        IF (cntl%textrap)&
+             WRITE(6,*) 'WARNING! WAVEFUNCTION EXTRAPOLATION '&
+diff --git a/src/embed_ctrl.mod.F90 b/src/embed_ctrl.mod.F90
+index 80ca9e6..1ab8a43 100644
+--- a/src/embed_ctrl.mod.F90
++++ b/src/embed_ctrl.mod.F90
+@@ -15,4 +15,9 @@ MODULE embed_ctrl
+   ! cpmd.x never tears down, so the count stays 0.
+   INTEGER, PUBLIC, SAVE :: embed_teardowns = 0
+ 
++  ! control_test turns EXTRAPOLATE WFN off outside BO-MD and leaves the
++  ! request here. rwfopt honours it only for a host that keeps orbitals
++  ! between calls, so cpmd.x ignores it as before.
++  LOGICAL, PUBLIC, SAVE :: embed_extrap_wfn = .FALSE.
++
+ END MODULE embed_ctrl
+diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
+index 985c887..1638e79 100644
+--- a/src/rwfopt_utils.mod.F90
++++ b/src/rwfopt_utils.mod.F90
+@@ -21,7 +21,8 @@ MODULE rwfopt_utils
+   USE dynit_utils,                     ONLY: dynit
+   USE efld
+   USE ehrenfest_utils,                 ONLY: ehrenfest
+-  USE embed_ctrl,                      ONLY: embed_write_files
++  USE embed_ctrl,                      ONLY: embed_extrap_wfn,&
++                                             embed_write_files
+   USE elct
+   USE enbandpri_utils,                 ONLY: enbandpri
+   USE ener
+@@ -158,6 +159,10 @@ MODULE rwfopt_utils
+   !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
+   !     returns the smallest distance, HUGE when nothing is stored.
+   PUBLIC :: embed_choose_warm_start_metric_v2
++  !   embed_extrapolation_used(): how many converged c0 of earlier calls
++  !     extrapwf combined for the SCF that rwfopt last started, 0 or 1
++  !     when it started from the store as it is.
++  PUBLIC :: embed_extrapolation_used
+   INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
+   TYPE :: embed_orbital_slot
+     INTEGER(embed_key_kind) :: key = 0
+@@ -178,6 +183,15 @@ MODULE rwfopt_utils
+   REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
+   REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
+   LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
++  ! EXTRAPOLATE WFN for a host: the c0 that successive calls converged,
++  ! in extrapwf's ring order. embed_xstate is 1 while the store keeps the
++  ! c0 the last rwfopt converged and the ring does not, 2 once the ring
++  ! has it, and 0 when the store came from anywhere else: another key, a
++  ! partial pass, a dropped store. The ring then no longer describes one
++  ! trajectory, so it is emptied.
++  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_xhist(:,:,:,:)
++  INTEGER, SAVE :: embed_xnow = 0, embed_xcount = 0, embed_xstate = 0
++  INTEGER, SAVE :: embed_xused = 0
+   !public :: lseprof
+ 
+ CONTAINS
+@@ -217,6 +231,8 @@ CONTAINS
+     embed_have_orbitals = .FALSE.
+     embed_have_partial = .FALSE.
+     embed_history_set = .FALSE.
++    CALL embed_break_history()
++    IF (ALLOCATED(embed_xhist)) DEALLOCATE(embed_xhist)
+     IF (ALLOCATED(embed_c0_store)) THEN
+       DEALLOCATE(embed_c0_store,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+@@ -300,6 +316,7 @@ CONTAINS
+     CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
+     INTEGER :: i, ierr
+     IF (embed_have_key .AND. key == embed_current_key) RETURN
++    CALL embed_break_history()
+     ! Park the converged c0 of the key being left. A partial copy is not
+     ! a result and stays with the store.
+     IF (embed_have_key .AND. embed_have_orbitals .AND. &
+@@ -451,6 +468,7 @@ CONTAINS
+       RETURN
+     ENDIF
+     IF (dist > rmax) THEN
++      CALL embed_break_history()
+       embed_have_orbitals = .FALSE.
+       embed_have_partial = .FALSE.
+       source = -1
+@@ -464,6 +482,7 @@ CONTAINS
+            __LINE__,__FILE__)
+     ENDIF
+     embed_c0_store = embed_slots(best)%c0
++    CALL embed_break_history()
+     embed_store_key = embed_slots(best)%key
+     embed_store_s1 = SIZE(embed_c0_store, 1)
+     embed_store_s2 = SIZE(embed_c0_store, 2)
+@@ -474,6 +493,64 @@ CONTAINS
+     source = 1
+   END SUBROUTINE embed_choose_warm_start_metric_v2
+ 
++  ! ==================================================================
++  SUBROUTINE embed_break_history()
++    embed_xnow = 0
++    embed_xcount = 0
++    embed_xstate = 0
++  END SUBROUTINE embed_break_history
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_extrapolation_used()
++    embed_extrapolation_used = embed_xused
++  END FUNCTION embed_extrapolation_used
++
++  ! ==================================================================
++  SUBROUTINE embed_extrapolate_orbitals(c0, cx)
++    ! ==--------------------------------------------------------------==
++    ! The BO-MD extrapolation of md_driver, with the calls of a host as
++    ! the steps: extrapwf adds the restored c0 to the ring and replaces it
++    ! by the ASPC or polynomial prediction that EXTRAPOLATE WFN asks for.
++    ! cx keeps that prediction for the copy after initrun.
++    COMPLEX(real_8), INTENT(INOUT) :: c0(:,:,:)
++    COMPLEX(real_8), ALLOCATABLE, INTENT(INOUT) :: cx(:,:,:)
++    CHARACTER(*), PARAMETER :: procedureN = 'embed_extrapolate_orbitals'
++    REAL(real_8), ALLOCATABLE :: gam(:,:)
++    INTEGER :: ierr, m, n, nk, ng
++    embed_xused = 0
++    IF (.NOT. (embed_extrap_wfn .AND. embed_warm_orbitals .AND. &
++        embed_have_orbitals)) RETURN
++    IF (embed_xstate /= 1) THEN
++      CALL embed_break_history()
++      RETURN
++    ENDIF
++    m = cnti%mextra
++    n = crge%n
++    nk = nkpt%nkpnt
++    ng = nkpt%ngwk
++    IF (m < 1 .OR. cntl%bsymm .OR. SIZE(c0,1) /= ng .OR. &
++        SIZE(c0,2) < n .OR. SIZE(c0,3) < nk) RETURN
++    IF (ALLOCATED(embed_xhist)) THEN
++      IF (ANY(SHAPE(embed_xhist) /= (/ng, n, nk, m/))) DEALLOCATE(embed_xhist)
++    ENDIF
++    IF (.NOT. ALLOCATED(embed_xhist)) THEN
++      ALLOCATE(embed_xhist(ng, n, nk, m), STAT=ierr)
++      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++           __LINE__,__FILE__)
++      embed_xnow = 0
++      embed_xcount = 0
++    ENDIF
++    ALLOCATE(cx(ng, n, nk), gam(n, 2*n), STAT=ierr)
++    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++         __LINE__,__FILE__)
++    cx = c0(:, 1:n, 1:nk)
++    CALL extrapwf(0, cx, gam, embed_xhist, embed_xnow, embed_xcount, n, m)
++    c0(:, 1:n, 1:nk) = cx
++    embed_xstate = 2
++    embed_xused = embed_xcount
++    IF (embed_xcount < 2) DEALLOCATE(cx)
++  END SUBROUTINE embed_extrapolate_orbitals
++
+ 
+   ! ==================================================================
+   SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
+@@ -487,7 +564,7 @@ CONTAINS
+     CHARACTER(len=11), PARAMETER             :: filename = 'LOCPOT.cube'
+ 
+     CHARACTER(len=30)                        :: filen, tag
+-    COMPLEX(real_8), ALLOCATABLE             :: c0ini(:,:,:), csave(:), &
++    COMPLEX(real_8), ALLOCATABLE             :: c0ini(:,:,:), csave(:), cx(:,:,:), &
+                                                 rsave(:), rsave2(:),c2u(:,:)
+ 
+ #if defined(_HAS_CUDA)
+@@ -682,10 +759,15 @@ CONTAINS
+     IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
+         (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
+         CALL embed_restore_orbitals(c0)
++    CALL embed_extrapolate_orbitals(c0, cx)
+     CALL initrun(irec,c0,c2,sc0,rhoe,psi,eigv)
+     IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
+         (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
+         CALL embed_restore_orbitals(c0)
++    IF (ALLOCATED(cx)) THEN
++      c0(:, 1:SIZE(cx,2), 1:SIZE(cx,3)) = cx
++      DEALLOCATE(cx)
++    ENDIF
+     IF (cntl%tksham)THEN
+        CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
+        GOTO 150
+@@ -1303,10 +1385,12 @@ CONTAINS
+     IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
+       CALL embed_save_orbitals(c0)
+       embed_have_partial = .FALSE.
++      embed_xstate = 1
+     ELSE IF (embed_warm_orbitals .AND. .NOT. embed_have_orbitals) THEN
+       CALL embed_save_orbitals(c0)
+       embed_have_orbitals = .FALSE.
+       embed_have_partial = .TRUE.
++      CALL embed_break_history()
+     ENDIF
+     ! CB: TAUP,FION handled by BS_WFO
+     IF (.NOT.cntl%bsymm) THEN
