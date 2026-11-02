@@ -1,5 +1,16 @@
-# cpmdc ships no dispatched kernel. An above-baseline instruction in a
-# cpmdc symbol is a violation. There is no [[allow]] entry.
+# cpmdc's own C and Fortran code has no dispatched kernel.
+# An above-baseline instruction in a cpmdc symbol is a violation.
+#
+# The minimage subproject is a Rust staticlib linked into libcpmdc, and
+# it brings the Rust standard library with it. Each [[allow]] entry
+# names functions compiled with #[target_feature], lists the features
+# they use, and states the run-time check that guards the call. The
+# memchr AVX2 searcher is linked but never called: libstd builds memchr
+# without its std feature, so Finder::is_available() is false. A
+# minimage or Rust toolchain update that adds a kernel, or a feature to
+# one, fails the audit until the entry is reviewed.
+# tests/test_isa_portable.py rejects an entry that is not anchored,
+# uses a wildcard, matches a cpmdc symbol, or gives no such reason.
 #
 # OpenBLAS and libgfortran are linked dynamically in the CI build, so
 # their text is not in libcpmdc or the test binaries. Add a [[vendored]]
@@ -7,3 +18,33 @@
 # artefact (static link or a copied shared object).
 
 baseline = "x86-64"
+
+[[allow]]
+symbol = '^minimage::fused::avx::'
+features = ["avx"]
+reason = "minimage AVX kernels, called only after is_x86_feature_detected!(avx)"
+
+[[allow]]
+symbol = '^minimage::simd::(ortho|shifted)_avx$'
+features = ["avx"]
+reason = "minimage AVX kernels, called only after is_x86_feature_detected!(avx)"
+
+[[allow]]
+symbol = '^minimage::fixed(32)?::avx2::'
+features = ["avx", "avx2"]
+reason = "minimage AVX2 kernels, called only after is_x86_feature_detected!(avx2); avx2 implies avx"
+
+[[allow]]
+symbol = '^minimage::(fixed|fixed32|fused)::avx512::'
+features = ["avx", "avx2", "avx512f", "avx512dq"]
+reason = "minimage AVX-512 kernels, called only after is_x86_feature_detected!(avx512f) and (avx512dq); avx512f implies avx and avx2"
+
+[[allow]]
+symbol = '^<memchr::arch::x86_64::avx2::packedpair::Finder>::find(_prefilter)?_impl$'
+features = ["avx", "avx2"]
+reason = "Rust std memchr AVX2 searcher (avx2 implies avx), reached only when Finder::is_available() is true; libstd builds memchr without std, so it is false and the searcher is never called"
+
+[[allow]]
+symbol = '^core::core_arch::x86::xsave::_xgetbv$'
+features = ["xsave"]
+reason = "Rust std_detect calls this xsave function only after CPUID reports XSAVE and OSXSAVE"

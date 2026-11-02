@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Portable OpenCPMD configs and the empty ISA allowlist."""
+"""Portable OpenCPMD configs and the ISA allowlist rules."""
 
 from __future__ import annotations
 
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 # Whole -march tokens. The substring "-march=armv8" also matches "-march=armv8-a".
@@ -26,6 +27,25 @@ CONFIGS = {
 AUDIT_SHA = "06638f2ece83b12731b387ba819b67dc2151556b"
 OLD_AUDIT_SHA = "8957850fd15005ea460ba336781ed152f7ee3d92"
 
+# The auditor applies each [[allow]] symbol with re.search, so an entry
+# must start with an anchored Rust path. cpmdc's C and Fortran symbols
+# contain no "::".
+ALLOW_KEYS = {"symbol", "features", "reason"}
+RUST_PATH = re.compile(r"\^<?([a-z_][a-z0-9_]*)::")
+WILDCARDS = set(".*+[]{}\\")
+DISPATCH_CHECKS = ("is_x86_feature_detected!", "is_available()", "CPUID")
+
+# Entries the rules must reject: (entry, the reason it is rejected).
+BAD_ALLOWS = (
+    ({"symbol": "^minimage::.*", "features": ["avx"], "reason": "is_x86_feature_detected!(avx)"}, "wildcard"),
+    ({"symbol": "minimage::fused::avx::", "features": ["avx"], "reason": "is_x86_feature_detected!(avx)"}, "unanchored"),
+    ({"symbol": "^cpmdc_geometry_rmsd$", "features": ["avx2"], "reason": "is_x86_feature_detected!(avx2)"}, "cpmdc symbol"),
+    ({"symbol": "^minimage::a::|^b", "features": ["avx"], "reason": "is_x86_feature_detected!(avx)"}, "top-level |"),
+    ({"symbol": "^minimage::fused::avx::", "features": ["avx"], "reason": "minimage avx kernels"}, "no run-time check"),
+    ({"symbol": "^minimage::fused::avx::", "features": ["avx", "fma"], "reason": "is_x86_feature_detected!(avx)"}, "feature not in reason"),
+    ({"symbol": "^minimage::fused::avx::", "features": ["avx"]}, "no reason"),
+)
+
 
 def require(condition: bool, message: str, failures: list[str]) -> None:
     if not condition:
@@ -43,6 +63,77 @@ def strip_comments(text: str) -> str:
 
 def march_tokens(code: str) -> list[str]:
     return [token.rstrip("'\"") for token in re.findall(r"-march=\S+", code)]
+
+
+def cpmdc_identifiers(root: Path) -> set[str]:
+    names: set[str] = set()
+    for pattern in ("src/*.c", "src/*.h", "src/*.f90", "src/*.F90", "include/*.h"):
+        for path in root.glob(pattern):
+            names.update(re.findall(r"\b[A-Za-z_]\w*\b", path.read_text(encoding="utf-8", errors="replace")))
+    return names
+
+
+def wildcard(symbol: str) -> str | None:
+    """Return the first construct that widens a pattern past the names it spells out."""
+    depth = 0
+    previous = ""
+    for char in symbol:
+        if char in WILDCARDS or (char == "?" and previous != ")"):
+            return char
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "|" and depth == 0:
+            return char
+        previous = char
+    return None
+
+
+def allow_errors(entry: dict, project: str, identifiers: set[str]) -> list[str]:
+    symbol = entry.get("symbol")
+    label = f"isa-allow.toml [[allow]] {symbol!r}"
+    errors = []
+    if set(entry) != ALLOW_KEYS:
+        errors.append(f"{label} has keys {sorted(entry)}, not {sorted(ALLOW_KEYS)}")
+    if not isinstance(symbol, str) or not symbol:
+        return errors + [f"{label} names no symbol"]
+    path = RUST_PATH.match(symbol)
+    if path is None or symbol.count("^") != 1:
+        errors.append(f"{label} does not start with one anchored Rust path")
+    elif path.group(1).startswith(project):
+        errors.append(f"{label} allows a {project} symbol")
+    if not symbol.endswith(("$", "::")) or "$" in symbol[:-1]:
+        errors.append(f"{label} does not end at a function name or a module path")
+    construct = wildcard(symbol)
+    if construct is not None:
+        errors.append(f"{label} uses the wildcard {construct!r}")
+    try:
+        compiled = re.compile(symbol)
+    except re.error as exc:
+        errors.append(f"{label} is not a regex: {exc}")
+    else:
+        matched = sorted(name for name in identifiers if compiled.search(name))
+        if matched:
+            errors.append(f"{label} allows a {project} symbol: {matched[0]}")
+    features = entry.get("features")
+    if (
+        not isinstance(features, list)
+        or not features
+        or not all(isinstance(item, str) and item for item in features)
+        or len(set(features)) != len(features)
+    ):
+        errors.append(f"{label} features {features!r} are not distinct feature names")
+        features = []
+    reason = entry.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        return errors + [f"{label} states no reason"]
+    if not any(check in reason for check in DISPATCH_CHECKS):
+        errors.append(f"{label} reason names none of the run-time checks {DISPATCH_CHECKS}")
+    unstated = [item for item in features if not re.search(rf"\b{re.escape(item)}\b", reason)]
+    if unstated:
+        errors.append(f"{label} reason does not account for {unstated}")
+    return errors
 
 
 def main() -> int:
@@ -95,11 +186,21 @@ def main() -> int:
         failures,
     )
 
-    allow = (root / "isa-allow.toml").read_text(encoding="utf-8")
-    allow_code = strip_comments(allow)
-    require('baseline = "x86-64"' in allow_code, "isa-allow.toml baseline is not x86-64", failures)
-    require("[[allow]]" not in allow_code, "isa-allow.toml allows a cpmdc symbol", failures)
-    require("[[vendored]]" not in allow_code, "isa-allow.toml vendors a library that CI links dynamically", failures)
+    allow = tomllib.loads((root / "isa-allow.toml").read_text(encoding="utf-8"))
+    require(allow.get("baseline") == "x86-64", "isa-allow.toml baseline is not x86-64", failures)
+    require("vendored" not in allow, "isa-allow.toml vendors a library that CI links dynamically", failures)
+    project = re.search(r"project\(\s*'([^']+)'", meson)
+    require(project is not None, "meson.build names no project", failures)
+    project_name = project.group(1) if project else "cpmdc"
+    identifiers = cpmdc_identifiers(root)
+    require(f"{project_name}_geometry_rmsd" in identifiers, "no cpmdc identifiers found under src/ and include/", failures)
+    allows = allow.get("allow", [])
+    require(isinstance(allows, list) and len(allows) > 0, "isa-allow.toml has no [[allow]] entry for the minimage kernels", failures)
+    for entry in allows if isinstance(allows, list) else []:
+        for error in allow_errors(entry, project_name, identifiers):
+            failures.append(error)
+    for entry, why in BAD_ALLOWS:
+        require(bool(allow_errors(entry, project_name, identifiers)), f"allow rules accept a bad entry ({why})", failures)
 
     how = (root / "docs/orgmode/howto/opencpmd-archive.org").read_text(encoding="utf-8")
     # mkrst writes the rst during the docs build. It is not committed.
@@ -216,7 +317,8 @@ def main() -> int:
                 flags = line
                 break
     print(flags or "cpu flags: unavailable")
-    print("path scalar: exercised (baseline march; no dispatched kernel to force)")
+    print("path scalar: exercised (baseline march; the suite calls the scalar minimage one-pair displacement)")
+    print("minimage AVX, AVX2 and AVX-512 kernels: linked, picked at run time, not called by this suite")
     print("path avx2: not exercised")
     print("path avx512: not exercised")
     print("path neon: not exercised")
