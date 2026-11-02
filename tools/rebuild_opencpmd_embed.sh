@@ -17,10 +17,13 @@ fi
 # module dependency order:
 #   error_handling.mod.o   opencpmd_stopgm_return.patch
 #   embed_ctrl.mod.o       opencpmd_embed_geometry.patch (new module),
-#                          opencpmd_embed_teardown.patch
+#                          opencpmd_embed_teardown.patch,
+#                          opencpmd_embed_extrapolate.patch
+#   control_test_utils.mod.o  opencpmd_embed_extrapolate.patch
 #   rinitwf_driver.mod.o   opencpmd_embed_rinitwf.patch
 #   initrun_driver.mod.o   opencpmd_embed_geometry.patch
-#   rwfopt_utils.mod.o     opencpmd_embed_rwfopt.patch
+#   rwfopt_utils.mod.o     opencpmd_embed_rwfopt.patch,
+#                          opencpmd_embed_extrapolate.patch
 #   updwf_utils.mod.o      opencpmd_converged_state.patch
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
@@ -40,6 +43,7 @@ objects=(
   error_handling.mod.o
   scex_utils.mod.o
   embed_ctrl.mod.o
+  control_test_utils.mod.o
   rinitwf_driver.mod.o
   initrun_driver.mod.o
   rwfopt_utils.mod.o

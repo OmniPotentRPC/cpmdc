@@ -15,8 +15,17 @@ linking `libcpmdc`.
 | `opencpmd_tistopgm.patch` | `tistopgm` prints the call stack only when `trace_depth` lies inside `trace_names`. Before `tistart` the depth is `HUGE(0)`, and the unguarded walk faults instead of writing `LocalError` |
 | `opencpmd_c_mem_addrs.patch` | `cGetMemAddrs` returns the pointer as `size_t`. `cuda_get_address` stores that integer. GCC 14 rejects the stock return of a `size_t` pointer |
 | `opencpmd_embed_teardown.patch` | Add `embed_teardown_state` (module `embed_teardown`) and the counter `embed_teardowns` in `embed_ctrl`. The routine frees the saved orbitals, the communicators of `set_cp_grp`, and every `ALLOCATABLE` module variable and component a `USE` reaches, outside the timer, stop and CUDA device modules, then moves the counter. 37 routines that keep first-call state behind a `SAVE` flag (`phfac`, `setbasis`, `hf_init`, `addfftnset`, the density mixers, the symmetry setup, ...) free their `SAVE` arrays and run as a first call again when the counter moved, so one process can set CPMD up again for another basis or after a `stopgm`. `tistart` keeps its state. Apply this last |
+| `opencpmd_embed_extrapolate.patch` | Keep the `EXTRAPOLATE WFN` request that `control_test` turns off outside Born-Oppenheimer molecular dynamics (BO-MD) in `embed_extrap_wfn` of `embed_ctrl` |
 | `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
+
+When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` passes them to `extrapwf`.
+`extrapwf` adds them to a ring of the orbitals earlier calls converged.
+From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC) or polynomial prediction.
+`embed_extrapolation_used` returns how many sets that prediction combined.
+A call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties the ring.
+`cpmd.x` never sets `embed_warm_orbitals`, so it never takes this path.
+Apply `opencpmd_embed_extrapolate.patch` after the teardown patch.
 
 ```bash
 # from the OpenCPMD/CPMD tree used as -Dcpmd_root=
@@ -29,6 +38,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_stopgm_return.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_tistopgm.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_c_mem_addrs.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_teardown.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_extrapolate.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root

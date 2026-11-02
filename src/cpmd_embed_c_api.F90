@@ -2321,10 +2321,14 @@ CONTAINS
 
 
   ! CPMDC_SCF_STEPS=1 reports the iteration count of the SCF that just
-  ! returned. The error unit stays attached when unit 6 is a file.
+  ! returned. The error unit stays attached when unit 6 is a file, and
+  ! libgfortran buffers it when it is a file too, so each report flushes.
+  ! An SCF that started from EXTRAPOLATE WFN's prediction over two or
+  ! more earlier calls is reported first, with that count.
   SUBROUTINE note_scf_steps(nfi)
     USE ISO_FORTRAN_ENV, ONLY: error_unit
     USE parac, ONLY: paral
+    USE rwfopt_utils, ONLY: embed_extrapolation_used
     INTEGER, INTENT(IN) :: nfi
     CHARACTER(LEN=8) :: v
     INTEGER :: st
@@ -2332,7 +2336,10 @@ CONTAINS
     IF (st /= 0) RETURN
     IF (TRIM(v) /= '1') RETURN
     IF (.NOT. paral%io_parent) RETURN
+    IF (embed_extrapolation_used() > 1) WRITE(error_unit, '(A,I0)') &
+        'cpmdc_wfn_extrapolated ', embed_extrapolation_used()
     WRITE(error_unit, '(A,I0)') 'cpmdc_scf_steps ', nfi
+    FLUSH(error_unit)
   END SUBROUTINE
 
   ! The largest root-mean-square distance per atom, in Angstrom, between
@@ -2394,6 +2401,7 @@ CONTAINS
       WRITE(error_unit, '(A,I0,1X,ES24.16E3,A,I0,A,L1)') &
           'cpmdc_warm_start ', source, dist, ' donor_key=', donor, ' periodic=', periodic
     END IF
+    FLUSH(error_unit)
   END SUBROUTINE
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that

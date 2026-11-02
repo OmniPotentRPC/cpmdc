@@ -26,6 +26,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | ~opencpmd_tistopgm.patch~ | ~src/timer.mod.F90~ | ~tistopgm~ indexes ~trace_depth~ before ~tistart~, while the depth is still ~HUGE(0)~, and the process faults before ~LocalError~ |
 | ~opencpmd_c_mem_addrs.patch~ | ~src/c_mem_utils.c~ | ~cGetMemAddrs~ returns a ~size_t~ pointer, and GCC 14 stops on that conversion |
 | ~opencpmd_embed_teardown.patch~ | ~src/embed_teardown.mod.F90~, ~src/embed_ctrl.mod.F90~, ~src/SOURCES~, and 32 modules with first-call state | a second setup in one process, after a basis change or a ~stopgm~, stops in ~ratom~ with ~allocation problem~ or faults, because the arrays of the first setup are still allocated |
+| ~opencpmd_embed_extrapolate.patch~ | ~src/embed_ctrl.mod.F90~, ~src/control_test_utils.mod.F90~, ~src/rwfopt_utils.mod.F90~ | ~EXTRAPOLATE WFN~ in the deck is dropped with a warning, and ~libcpmdc~ does not link, because it reads ~embed_extrapolation_used~ |
 
 The rwfopt patch publishes ~embed_set_warm_orbitals~,
 ~embed_set_need_forces~, ~embed_reset_warm_orbitals~, and
@@ -98,6 +99,16 @@ The next setup then gives the energies of a fresh process.
 embed calls it once per process.
 ~cpmd.x~ never tears down, and ~embed_teardowns~ stays 0 there.
 
+The extrapolation patch keeps the ~EXTRAPOLATE WFN~ request that ~control_test~ turns off for every job other than Born-Oppenheimer molecular dynamics.
+~control_test~ copies ~cntl%textrap~ into ~embed_extrap_wfn~ in ~embed_ctrl~ before it does so.
+When that flag is true and a call starts from stored orbitals, ~rwfopt~ passes them to the ~extrapwf~ that the molecular dynamics driver calls between steps.
+That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration.
+~embed_extrapolation_used~ returns how many sets the last prediction combined.
+The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it.
+~cpmd.x~ never sets ~embed_warm_orbitals~ and never takes this path.
+Its molecular dynamics runs are unchanged.
+The [[file:extrapolate-orbitals.org][extrapolation how-to]] shows the message and the check.
+
 ~tests/test_opencpmd_patch_integrity.py~ checks that the patches are portable
 unified diffs against the files named above.
 Apply ~opencpmd_embed_rinitwf.patch~ before the rwfopt patch.
@@ -109,9 +120,8 @@ commits on [[https://github.com/OpenCPMD/CPMD/pull/9][OpenCPMD pull request 9]]
 (branch ~embedding-hooks~, ~43cf4e7~) and apply in sequence to OpenCPMD
 commit ~062582b~.
 Apply ~opencpmd_c_mem_addrs.patch~ with them.
-Apply ~opencpmd_embed_teardown.patch~ last: it adds to the ~embed_ctrl~ of
-the geometry patch and calls ~embed_reset_warm_orbitals~ from the rwfopt
-patch.
+Apply ~opencpmd_embed_teardown.patch~ after those: it adds to the ~embed_ctrl~ of the geometry patch and calls ~embed_reset_warm_orbitals~ from the rwfopt patch.
+Apply ~opencpmd_embed_extrapolate.patch~ after the teardown patch, whose lines in ~embed_ctrl~ it follows.
 ~cuda_get_address~ stores the ~size_t~ that function returns.
 
 * Build a patched tree
@@ -124,7 +134,7 @@ cd opencpmd
 git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown omp_info; do
+         embed_teardown embed_extrapolate omp_info; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 #+end_src
@@ -167,20 +177,14 @@ rebuild only the affected members:
 cd /path/to/opencpmd-source
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown omp_info; do
+         embed_teardown embed_extrapolate omp_info; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/opencpmd-build
 #+end_src
 
-~rebuild_opencpmd_embed.sh~ recompiles the object of the embedding
-patch, ~error_handling.mod.o~, ~embed_ctrl.mod.o~, ~rinitwf_driver.mod.o~,
-~initrun_driver.mod.o~, ~rwfopt_utils.mod.o~, ~updwf_utils.mod.o~,
-~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~, the 32 modules of
-the teardown patch, and ~embed_teardown.mod.o~ after them, and
-~scex_utils.mod.o~ for the module order, with one Make job, then replaces
-those members with ~ar r~ and runs ~ranlib~.
+~rebuild_opencpmd_embed.sh~ recompiles the object of the embedding patch, ~error_handling.mod.o~, ~embed_ctrl.mod.o~, ~control_test_utils.mod.o~, ~rinitwf_driver.mod.o~, ~initrun_driver.mod.o~, ~rwfopt_utils.mod.o~, ~updwf_utils.mod.o~, ~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~, the 32 modules of the teardown patch, and ~embed_teardown.mod.o~ after them, and ~scex_utils.mod.o~ for the module order, with one Make job, then replaces those members with ~ar r~ and runs ~ranlib~.
 It runs one job because gfortran stores a copy of ~Scex_t~ inside
 ~rwfopt_utils.mod~: a parallel rebuild can leave the two module files naming
 different components.

@@ -9,7 +9,7 @@
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
-| ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~ and ~cpmdc_scf_steps N~ to the error stream |
+| ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
 
 The first call of an OpenCPMD session fails when neither
@@ -47,6 +47,8 @@ Lines with a distance also include ~donor_key=K~, the key whose converged
 orbitals supply the selected history, and ~periodic=T~ or ~periodic=F~,
 the native boundary model used for the distance. A rejected history's donor
 key describes the nearest stored candidate, not an accepted warm start.
+A call whose orbitals start from the ~EXTRAPOLATE WFN~ prediction writes ~cpmdc_wfn_extrapolated K~ before its ~cpmdc_scf_steps~ line, with ~K~ the number of earlier converged orbital sets that the prediction combined.
+Each line is flushed as it is written, so a log file shows it while the host runs.
 
 ~CPMDC_WARM_RMSD~ is the distance limit of [[file:../explanation/wavefunction-state.org][the stored orbitals]] (section Distance limit).
 A value that does not parse as a number keeps the default.
