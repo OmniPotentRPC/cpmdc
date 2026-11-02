@@ -2321,7 +2321,8 @@ CONTAINS
 
 
   ! CPMDC_SCF_STEPS=1 reports the iteration count of the SCF that just
-  ! returned. The error unit stays attached when unit 6 is a file.
+  ! returned. The error unit stays attached when unit 6 is a file, and
+  ! libgfortran buffers it when it is a file too, so each report flushes.
   SUBROUTINE note_scf_steps(nfi)
     USE ISO_FORTRAN_ENV, ONLY: error_unit
     USE parac, ONLY: paral
@@ -2333,6 +2334,7 @@ CONTAINS
     IF (TRIM(v) /= '1') RETURN
     IF (.NOT. paral%io_parent) RETURN
     WRITE(error_unit, '(A,I0)') 'cpmdc_scf_steps ', nfi
+    FLUSH(error_unit)
   END SUBROUTINE
 
   ! The largest root-mean-square distance per atom, in Angstrom, between
@@ -2394,6 +2396,7 @@ CONTAINS
       WRITE(error_unit, '(A,I0,1X,ES24.16E3,A,I0,A,L1)') &
           'cpmdc_warm_start ', source, dist, ' donor_key=', donor, ' periodic=', periodic
     END IF
+    FLUSH(error_unit)
   END SUBROUTINE
 
   ! CPMDC_STRESS=0 skips the stress tensor on periodic cells. A caller that
