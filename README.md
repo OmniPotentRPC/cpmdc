@@ -28,6 +28,7 @@ portable result carrier used by RPC-facing callers.
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
 | Regenerate generated docs | Edit `docs/orgmode/`, then run `pixi run -e docs mkrst` and `pixi run -e docs sphinxbld` |
+| Ask a question or report a bug | Open an issue as [the reporting section](#questions-and-bug-reports) describes |
 
 New RPC and optimizer hosts should start with
 `cpmdc_session_calculate_result()`. It keeps `CPMDParams` method setup in a
@@ -386,6 +387,12 @@ After editing Org sources, regenerate RST with:
 ```bash
 pixi run -e docs mkrst
 ```
+
+## Questions and bug reports
+
+Ask questions and report bugs on the [GitHub issue tracker](https://github.com/OmniPotentRPC/cpmdc/issues).
+Check [troubleshooting](docs/orgmode/howto/troubleshooting.org) first, because it lists known failures with their fixes.
+Its last section lists what to put in a new report.
 
 ## Version
 
