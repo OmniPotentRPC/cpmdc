@@ -27,7 +27,7 @@ jobs:
         run: |
           grep -m1 flags /proc/cpuinfo || true
           lscpu || true
-          echo "cpmdc SIMD paths: none"
+          echo "cpmdc SIMD paths: minimage avx, avx2 and avx512 kernels, picked at run time"
           echo "scalar: exercised by the test suite"
           echo "avx2: not exercised"
           echo "avx512: not exercised"
@@ -63,7 +63,7 @@ jobs:
         run: |
           grep -m1 flags /proc/cpuinfo || true
           lscpu || true
-          echo "cpmdc SIMD paths: none"
+          echo "cpmdc SIMD paths: minimage avx, avx2 and avx512 kernels, picked at run time"
           echo "scalar: exercised by the test suite"
           echo "avx2: not exercised"
           echo "avx512: not exercised"
@@ -98,7 +98,7 @@ jobs:
         run: |
           grep -m1 flags /proc/cpuinfo || true
           lscpu || true
-          echo "cpmdc SIMD paths: none"
+          echo "cpmdc SIMD paths: none on aarch64; minimage dispatches on x86_64 only"
           echo "scalar: exercised by the test suite"
           echo "avx2: not exercised"
           echo "avx512: not exercised"
