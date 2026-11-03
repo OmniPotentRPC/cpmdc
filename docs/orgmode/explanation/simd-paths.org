@@ -47,15 +47,12 @@ XSAVE and OSXSAVE.
 The test suite calls only the one-pair displacement, which takes the
 scalar path on every CPU, so it runs no dispatched kernel.
 
-OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at
-run time when built with ~DYNAMIC_ARCH~ and with FFTW's SIMD codelets.
+OpenBLAS and the Fastest Fourier Transform in the West (FFTW), which an OpenCPMD link pulls in, select kernels at run time when built with ~DYNAMIC_ARCH~ and with FFTW's single instruction multiple data (SIMD) codelets.
 Those instructions sit in those libraries, not in a ~cpmdc~ symbol.
-The ISA audit allowlist names no ~cpmdc~ symbol.
-Its symbol rules name the minimage kernels and the two standard
-library functions above, each with the features it may use and the
-run-time check that guards it.
-It names OpenBLAS or libgfortran only when a build links that library
-statically into an audited artefact.
+The instruction set architecture (ISA) audit allowlist names no ~cpmdc~ symbol.
+Its symbol rules name the minimage kernels, the ~memchr~ searcher functions ~find_impl~ and ~find_prefilter_impl~, and ~_xgetbv~ from ~core~.
+Each rule lists the features those functions may use and the run-time check that guards them.
+The allowlist names OpenBLAS or libgfortran only when a build links that library statically into an audited artefact.
 The default link is dynamic, so the allowlist has no vendored path.
 
 Dispatched kernels elsewhere in this set of libraries follow the
