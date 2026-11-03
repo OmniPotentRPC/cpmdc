@@ -423,13 +423,20 @@ CONTAINS
   ! from the orbitals the last converged call under that key left. A key
   ! with none starts from the orbitals already stored. Every rank of the
   ! calculator selects the same key before the same call.
+  ! CPMDC_EXTRAP_KEYS=1 keeps the EXTRAPOLATE WFN history of each key
+  ! across a change of key; otherwise the change empties it.
   SUBROUTINE cpmdc_embed_select_orbitals(key) &
       BIND(C, NAME='cpmdc_embed_select_orbitals')
 #if defined(CPMDC_HAS_CPMD)
+    USE embed_ctrl, ONLY: embed_extrap_keys
     USE rwfopt_utils, ONLY: embed_select_orbital_slot
 #endif
     INTEGER(c_long_long), INTENT(IN), VALUE :: key
 #if defined(CPMDC_HAS_CPMD)
+    CHARACTER(LEN=8) :: v
+    INTEGER :: st
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_EXTRAP_KEYS', v, STATUS=st)
+    embed_extrap_keys = st == 0 .AND. TRIM(v) == '1'
     CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
 #else
     IF (key == 0_c_long_long) CONTINUE

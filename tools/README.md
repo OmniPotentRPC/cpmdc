@@ -24,6 +24,7 @@ When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` 
 From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC) or polynomial prediction.
 `embed_extrapolation_used` returns how many sets that prediction combined.
 A call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties the ring.
+With `embed_extrap_keys` of `embed_ctrl` set, which `CPMDC_EXTRAP_KEYS=1` does, each key parks its ring with its orbitals instead.
 `cpmd.x` never sets `embed_warm_orbitals`, so it never takes this path.
 Apply `opencpmd_embed_extrapolate.patch` after the teardown patch.
 

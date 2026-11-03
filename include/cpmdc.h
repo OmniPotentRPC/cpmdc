@@ -367,7 +367,8 @@ void cpmdc_session_destroy(CPMDCSession *session);
  * starts from its own previous geometry instead of from its neighbour's.
  * Every rank of a calculator names the same key before the same
  * evaluation. A basis change clears every key's orbitals. A session that
- * never names a key keeps one stored copy.
+ * never names a key keeps one stored copy. A change of key empties the
+ * EXTRAPOLATE WFN history, unless CPMDC_EXTRAP_KEYS=1 keeps one per key.
  *
  * @return 0, or -1 when `session` is `NULL`.
  */

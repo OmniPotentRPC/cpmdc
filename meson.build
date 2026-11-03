@@ -1287,19 +1287,32 @@ test(
       output: 'water_aspc_params.bin',
       command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
     )
+    test_extrapolate_wfn = executable(
+      'test_extrapolate_wfn',
+      'tests/test_extrapolate_wfn.c',
+      dependencies: [cpmdc_embed_shell_dep, math_dep],
+    )
+    water_aspc_golden = meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'
     test(
       'extrapolate-wfn',
-      executable(
-        'test_extrapolate_wfn',
-        'tests/test_extrapolate_wfn.c',
-        dependencies: [cpmdc_embed_shell_dep, math_dep],
-      ),
-      args: [water_aspc_params_bin.full_path(),
-             meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'],
+      test_extrapolate_wfn,
+      args: [water_aspc_params_bin.full_path(), water_aspc_golden],
       depends: [water_aspc_params_bin],
       suite: ['e2e'],
       timeout: 900,
     )
+    foreach mode : ['keys', 'default']
+      test(
+        'extrapolate-wfn-' + mode,
+        test_extrapolate_wfn,
+        args: [water_aspc_params_bin.full_path(), water_aspc_golden,
+               meson.current_source_dir() / 'tests/golden/water_aspc_bomd_b.txt',
+               mode],
+        depends: [water_aspc_params_bin],
+        suite: ['e2e'],
+        timeout: 900,
+      )
+    endforeach
   endif
 
 

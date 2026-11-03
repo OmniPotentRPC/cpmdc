@@ -243,6 +243,9 @@ def assert_embed_extrapolate(patch: Path) -> None:
         "PUBLIC :: embed_extrapolation_used",
         "CALL extrapwf(0, cx, gam, embed_xhist, embed_xnow, embed_xcount, n, m)",
         "+    CALL embed_extrapolate_orbitals(c0, cx)",
+        "LOGICAL, PUBLIC, SAVE :: embed_extrap_keys = .FALSE.",
+        "CALL MOVE_ALLOC(embed_xhist, embed_slots(i)%xhist)",
+        "CALL MOVE_ALLOC(embed_slots(i)%xhist, embed_xhist)",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")

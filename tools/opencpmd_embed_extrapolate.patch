@@ -19,10 +19,10 @@ index a0c9c2c..69e3aa7 100644
         IF (cntl%textrap)&
              WRITE(6,*) 'WARNING! WAVEFUNCTION EXTRAPOLATION '&
 diff --git a/src/embed_ctrl.mod.F90 b/src/embed_ctrl.mod.F90
-index 80ca9e6..1ab8a43 100644
+index 80ca9e6..65cfc23 100644
 --- a/src/embed_ctrl.mod.F90
 +++ b/src/embed_ctrl.mod.F90
-@@ -15,4 +15,9 @@ MODULE embed_ctrl
+@@ -15,4 +15,12 @@ MODULE embed_ctrl
    ! cpmd.x never tears down, so the count stays 0.
    INTEGER, PUBLIC, SAVE :: embed_teardowns = 0
  
@@ -30,23 +30,27 @@ index 80ca9e6..1ab8a43 100644
 +  ! request here. rwfopt honours it only for a host that keeps orbitals
 +  ! between calls, so cpmd.x ignores it as before.
 +  LOGICAL, PUBLIC, SAVE :: embed_extrap_wfn = .FALSE.
++  ! With this set, each orbital key parks its extrapolation history with
++  ! its orbitals, and a change of key no longer empties it.
++  LOGICAL, PUBLIC, SAVE :: embed_extrap_keys = .FALSE.
 +
  END MODULE embed_ctrl
 diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
-index 985c887..1638e79 100644
+index 985c887..5e05bb8 100644
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
-@@ -21,7 +21,8 @@ MODULE rwfopt_utils
+@@ -21,7 +21,9 @@ MODULE rwfopt_utils
    USE dynit_utils,                     ONLY: dynit
    USE efld
    USE ehrenfest_utils,                 ONLY: ehrenfest
 -  USE embed_ctrl,                      ONLY: embed_write_files
-+  USE embed_ctrl,                      ONLY: embed_extrap_wfn,&
++  USE embed_ctrl,                      ONLY: embed_extrap_keys,&
++                                             embed_extrap_wfn,&
 +                                             embed_write_files
    USE elct
    USE enbandpri_utils,                 ONLY: enbandpri
    USE ener
-@@ -158,6 +159,10 @@ MODULE rwfopt_utils
+@@ -158,12 +160,18 @@ MODULE rwfopt_utils
    !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
    !     returns the smallest distance, HUGE when nothing is stored.
    PUBLIC :: embed_choose_warm_start_metric_v2
@@ -57,7 +61,15 @@ index 985c887..1638e79 100644
    INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
    TYPE :: embed_orbital_slot
      INTEGER(embed_key_kind) :: key = 0
-@@ -178,6 +183,15 @@ MODULE rwfopt_utils
+     LOGICAL :: used = .FALSE.
+     COMPLEX(real_8), ALLOCATABLE :: c0(:,:,:)
+     REAL(real_8), ALLOCATABLE :: geo(:)
++    COMPLEX(real_8), ALLOCATABLE :: xhist(:,:,:,:)
++    INTEGER :: xnow = 0, xcount = 0, xstate = 0
+   END TYPE embed_orbital_slot
+   TYPE(embed_orbital_slot), ALLOCATABLE, SAVE :: embed_slots(:)
+   LOGICAL, SAVE :: embed_have_key = .FALSE.
+@@ -178,6 +186,16 @@ MODULE rwfopt_utils
    REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
    REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
    LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
@@ -66,14 +78,15 @@ index 985c887..1638e79 100644
 +  ! c0 the last rwfopt converged and the ring does not, 2 once the ring
 +  ! has it, and 0 when the store came from anywhere else: another key, a
 +  ! partial pass, a dropped store. The ring then no longer describes one
-+  ! trajectory, so it is emptied.
++  ! trajectory, so it is emptied. With embed_extrap_keys, a key parks its
++  ! ring in its slot and takes it back with its c0.
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_xhist(:,:,:,:)
 +  INTEGER, SAVE :: embed_xnow = 0, embed_xcount = 0, embed_xstate = 0
 +  INTEGER, SAVE :: embed_xused = 0
    !public :: lseprof
  
  CONTAINS
-@@ -217,6 +231,8 @@ CONTAINS
+@@ -217,6 +235,8 @@ CONTAINS
      embed_have_orbitals = .FALSE.
      embed_have_partial = .FALSE.
      embed_history_set = .FALSE.
@@ -82,15 +95,54 @@ index 985c887..1638e79 100644
      IF (ALLOCATED(embed_c0_store)) THEN
        DEALLOCATE(embed_c0_store,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -300,6 +316,7 @@ CONTAINS
-     CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
-     INTEGER :: i, ierr
-     IF (embed_have_key .AND. key == embed_current_key) RETURN
+@@ -286,6 +306,11 @@ CONTAINS
+            CALL MOVE_ALLOC(embed_slots(i)%c0, grown(i)%c0)
+       IF (ALLOCATED(embed_slots(i)%geo)) &
+            CALL MOVE_ALLOC(embed_slots(i)%geo, grown(i)%geo)
++      IF (ALLOCATED(embed_slots(i)%xhist)) &
++           CALL MOVE_ALLOC(embed_slots(i)%xhist, grown(i)%xhist)
++      grown(i)%xnow = embed_slots(i)%xnow
++      grown(i)%xcount = embed_slots(i)%xcount
++      grown(i)%xstate = embed_slots(i)%xstate
+     ENDDO
+     CALL MOVE_ALLOC(grown, embed_slots)
+     embed_slots(n+1)%used = .TRUE.
+@@ -317,7 +342,19 @@ CONTAINS
+       embed_slots(i)%c0 = embed_c0_store
+       IF (ALLOCATED(embed_slots(i)%geo)) DEALLOCATE(embed_slots(i)%geo)
+       IF (ALLOCATED(embed_store_geo)) embed_slots(i)%geo = embed_store_geo
++      IF (ALLOCATED(embed_slots(i)%xhist)) DEALLOCATE(embed_slots(i)%xhist)
++      ! The ring continues from the c0 parked with it, and only from that.
++      embed_slots(i)%xstate = 0
++      IF (embed_extrap_keys .AND. embed_xstate == 1) THEN
++        embed_slots(i)%xstate = 1
++        IF (ALLOCATED(embed_xhist)) THEN
++          CALL MOVE_ALLOC(embed_xhist, embed_slots(i)%xhist)
++          embed_slots(i)%xnow = embed_xnow
++          embed_slots(i)%xcount = embed_xcount
++        ENDIF
++      ENDIF
+     ENDIF
 +    CALL embed_break_history()
-     ! Park the converged c0 of the key being left. A partial copy is not
-     ! a result and stays with the store.
-     IF (embed_have_key .AND. embed_have_orbitals .AND. &
-@@ -451,6 +468,7 @@ CONTAINS
+     embed_have_key = .TRUE.
+     embed_current_key = key
+     ! Restore what the new key parked. Without one, the store keeps the
+@@ -340,6 +377,14 @@ CONTAINS
+     embed_store_s3 = SIZE(embed_c0_store, 3)
+     embed_have_orbitals = .TRUE.
+     embed_have_partial = .FALSE.
++    IF (.NOT. embed_extrap_keys) RETURN
++    embed_xstate = embed_slots(i)%xstate
++    IF (ALLOCATED(embed_slots(i)%xhist)) THEN
++      IF (ALLOCATED(embed_xhist)) DEALLOCATE(embed_xhist)
++      CALL MOVE_ALLOC(embed_slots(i)%xhist, embed_xhist)
++      embed_xnow = embed_slots(i)%xnow
++      embed_xcount = embed_slots(i)%xcount
++    ENDIF
+   END SUBROUTINE embed_select_orbital_slot
+ 
+   ! ==================================================================
+@@ -451,6 +496,7 @@ CONTAINS
        RETURN
      ENDIF
      IF (dist > rmax) THEN
@@ -98,7 +150,7 @@ index 985c887..1638e79 100644
        embed_have_orbitals = .FALSE.
        embed_have_partial = .FALSE.
        source = -1
-@@ -464,6 +482,7 @@ CONTAINS
+@@ -464,6 +510,7 @@ CONTAINS
             __LINE__,__FILE__)
      ENDIF
      embed_c0_store = embed_slots(best)%c0
@@ -106,7 +158,7 @@ index 985c887..1638e79 100644
      embed_store_key = embed_slots(best)%key
      embed_store_s1 = SIZE(embed_c0_store, 1)
      embed_store_s2 = SIZE(embed_c0_store, 2)
-@@ -474,6 +493,64 @@ CONTAINS
+@@ -474,6 +521,64 @@ CONTAINS
      source = 1
    END SUBROUTINE embed_choose_warm_start_metric_v2
  
@@ -171,7 +223,7 @@ index 985c887..1638e79 100644
  
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
-@@ -487,7 +564,7 @@ CONTAINS
+@@ -487,7 +592,7 @@ CONTAINS
      CHARACTER(len=11), PARAMETER             :: filename = 'LOCPOT.cube'
  
      CHARACTER(len=30)                        :: filen, tag
@@ -180,7 +232,7 @@ index 985c887..1638e79 100644
                                                  rsave(:), rsave2(:),c2u(:,:)
  
  #if defined(_HAS_CUDA)
-@@ -682,10 +759,15 @@ CONTAINS
+@@ -682,10 +787,15 @@ CONTAINS
      IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
          (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
          CALL embed_restore_orbitals(c0)
@@ -196,7 +248,7 @@ index 985c887..1638e79 100644
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -1303,10 +1385,12 @@ CONTAINS
+@@ -1303,10 +1413,12 @@ CONTAINS
      IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
        CALL embed_save_orbitals(c0)
        embed_have_partial = .FALSE.
