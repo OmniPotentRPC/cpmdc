@@ -318,16 +318,32 @@ See <a class="reference internal" href="../howto/opencpmd-archive.html"><span cl
 <p>There is no path table and no <code class="docutils literal notranslate"><span class="pre">CPMDC_SIMD</span></code> variable.
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> does not read <code class="docutils literal notranslate"><span class="pre">CPMDC_SIMD</span></code>.
 An environment value cannot select a kernel this library does not ship.
-The baseline compile is the only path, and it is the path the tests
-run.</p>
+The baseline compile is the only path in the C and Fortran sources.</p>
+<p>The minimage subproject is a Rust static library linked into
+<code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.
+It compiles its AVX, AVX2, and AVX-512 kernels with
+<code class="docutils literal notranslate"><span class="pre">#[target_feature]</span></code> and calls one only after
+<code class="docutils literal notranslate"><span class="pre">std::is_x86_feature_detected!</span></code> reports the features it needs.
+The Rust standard library linked with it also contains the <code class="docutils literal notranslate"><span class="pre">memchr</span></code>
+AVX2 searcher.
+libstd builds <code class="docutils literal notranslate"><span class="pre">memchr</span></code> without its <code class="docutils literal notranslate"><span class="pre">std</span></code> feature, so
+<code class="docutils literal notranslate"><span class="pre">Finder::is_available()</span></code> returns false and the searcher is never
+called.
+The standard library feature detection reads <code class="docutils literal notranslate"><span class="pre">XCR0</span></code> with <code class="docutils literal notranslate"><span class="pre">_xgetbv</span></code>
+only after the processor identification instruction (CPUID) reports
+XSAVE and OSXSAVE.
+The test suite calls only the one-pair displacement, which takes the
+scalar path on every CPU, so it runs no dispatched kernel.</p>
 <p>OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at
 run time when built with <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> and with FFTW’s SIMD codelets.
 Those instructions sit in those libraries, not in a <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> symbol.
 The ISA audit allowlist names no <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> symbol.
+Its symbol rules name the minimage kernels and the two standard
+library functions above, each with the features it may use and the
+run-time check that guards it.
 It names OpenBLAS or libgfortran only when a build links that library
 statically into an audited artefact.
-The default link is dynamic, so the allowlist shipped here has no
-symbol rule and no vendored path.</p>
+The default link is dynamic, so the allowlist has no vendored path.</p>
 <p>Dispatched kernels elsewhere in this set of libraries follow the
 cluster-pair layout of Páll and Hess, Comput. Phys. Commun. 184, 2641
 (2013), <a class="reference external" href="https://doi.org/10.1016/j.cpc.2013.06.003">https://doi.org/10.1016/j.cpc.2013.06.003</a>.
@@ -337,8 +353,8 @@ One binary per microarchitecture belongs in EESSI
 </section>
 <section id="bit-identical-results">
 <h2>Bit-identical results<a class="headerlink" href="#bit-identical-results" title="Link to this heading">¶</a></h2>
-<p>The same input gives the same output bits on every baseline build,
-because there is one code path.
+<p>The same input gives the same output bits on every baseline build of
+the C and Fortran sources, because they have one code path.
 C and Fortran compile with <code class="docutils literal notranslate"><span class="pre">-ffp-contract=off</span></code>.
 On MSVC the matching flag is <code class="docutils literal notranslate"><span class="pre">/fp:precise</span></code>, which does not contract.
 The compiler does not fuse a multiply and an add, so a result does not
@@ -346,7 +362,7 @@ depend on whether the build host would have contracted those
 operations.
 Reductions in this repository do not split a sum into partials.
 Sources do not call a fused multiply-add intrinsic.</p>
-<p>Two exceptions sit outside that guarantee.
+<p>Three exceptions sit outside that guarantee.
 Cell angles in <code class="docutils literal notranslate"><span class="pre">src/cpmdc_params.c</span></code> call libm <code class="docutils literal notranslate"><span class="pre">cos</span></code> when a six-element
 cell is written from degrees.
 That <code class="docutils literal notranslate"><span class="pre">cos</span></code> is libm, not an in-house polynomial, and glibc can pick an
@@ -354,6 +370,10 @@ implementation at run time, so those characters of a rendered deck can
 differ across libm builds.
 OpenBLAS, FFTW, and OpenCPMD’s own math are not compiled by <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code>.
 Their kernels are not bit-identical across CPUs.
+minimage is built with <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> but picks its kernel at run time.
+Its scalar orthorhombic kernel adds the squared components as
+<code class="docutils literal notranslate"><span class="pre">(x*x</span> <span class="pre">+</span> <span class="pre">y*y)</span> <span class="pre">+</span> <span class="pre">z*z</span></code> and its AVX kernel as <code class="docutils literal notranslate"><span class="pre">x*x</span> <span class="pre">+</span> <span class="pre">(y*y</span> <span class="pre">+</span> <span class="pre">z*z)</span></code>, so a
+distance it returns can differ in the last bit between CPUs.
 glibc <code class="docutils literal notranslate"><span class="pre">exp</span></code>, <code class="docutils literal notranslate"><span class="pre">log</span></code>, and <code class="docutils literal notranslate"><span class="pre">pow</span></code> have the same kind of runtime choice.
 <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> does not call them for a value it defines.</p>
 </section>
