@@ -334,15 +334,12 @@ only after the processor identification instruction (CPUID) reports
 XSAVE and OSXSAVE.
 The test suite calls only the one-pair displacement, which takes the
 scalar path on every CPU, so it runs no dispatched kernel.</p>
-<p>OpenBLAS and FFTW, which an OpenCPMD link pulls in, select kernels at
-run time when built with <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> and with FFTW’s SIMD codelets.
+<p>OpenBLAS and the Fastest Fourier Transform in the West (FFTW), which an OpenCPMD link pulls in, select kernels at run time when built with <code class="docutils literal notranslate"><span class="pre">DYNAMIC_ARCH</span></code> and with FFTW’s single instruction multiple data (SIMD) codelets.
 Those instructions sit in those libraries, not in a <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> symbol.
-The ISA audit allowlist names no <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> symbol.
-Its symbol rules name the minimage kernels and the two standard
-library functions above, each with the features it may use and the
-run-time check that guards it.
-It names OpenBLAS or libgfortran only when a build links that library
-statically into an audited artefact.
+The instruction set architecture (ISA) audit allowlist names no <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> symbol.
+Its symbol rules name the minimage kernels, the <code class="docutils literal notranslate"><span class="pre">memchr</span></code> searcher functions <code class="docutils literal notranslate"><span class="pre">find_impl</span></code> and <code class="docutils literal notranslate"><span class="pre">find_prefilter_impl</span></code>, and <code class="docutils literal notranslate"><span class="pre">_xgetbv</span></code> from <code class="docutils literal notranslate"><span class="pre">core</span></code>.
+Each rule lists the features those functions may use and the run-time check that guards them.
+The allowlist names OpenBLAS or libgfortran only when a build links that library statically into an audited artefact.
 The default link is dynamic, so the allowlist has no vendored path.</p>
 <p>Dispatched kernels elsewhere in this set of libraries follow the
 cluster-pair layout of Páll and Hess, Comput. Phys. Commun. 184, 2641
