@@ -11,6 +11,7 @@
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
+| ~CPMDC_EXTRAP_KEYS~ | ~src/cpmd_embed_c_api.F90~, each ~cpmdc_session_select_orbitals()~ call | ~1~ keeps the ~EXTRAPOLATE WFN~ history of each orbital key across a change of key; any other value, or unset, empties it on the change |
 
 The first call of an OpenCPMD session fails when neither
 ~CPMDC_PSEUDO_DIR~ nor ~CPMD_PP_LIBRARY_PATH~ names an existing directory.

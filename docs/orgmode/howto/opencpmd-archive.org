@@ -105,6 +105,9 @@ When that flag is true and a call starts from stored orbitals, ~rwfopt~ passes t
 That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration.
 ~embed_extrapolation_used~ returns how many sets the last prediction combined.
 The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it.
+When ~embed_extrap_keys~ in ~embed_ctrl~ is true, a change of key parks the ring in the slot of the key being left, and the key takes it back with its orbitals.
+~cpmdc~ sets that flag from ~CPMDC_EXTRAP_KEYS~.
+A tree built before this patch changed needs a full ~make~ after the rebuild helper: ~wfopts_utils.mod~ refers to the old layout of ~rwfopt_utils.mod~, and the ~cpmdc~ bridge then stops while it reads that module.
 ~cpmd.x~ never sets ~embed_warm_orbitals~ and never takes this path.
 Its molecular dynamics runs are unchanged.
 The [[file:extrapolate-orbitals.org][extrapolation how-to]] shows the message and the check.

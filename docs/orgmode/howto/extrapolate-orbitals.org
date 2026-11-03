@@ -57,11 +57,28 @@ The prediction is valid only when the stored orbitals come from the previous cal
 Each of these events empties the history:
 
 - a call whose SCF does not converge, or an orbital direct inversion in the iterative subspace (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG) ~MINIMIZE~ continuation
-- ~cpmdc_session_select_orbitals()~ with another key
+- ~cpmdc_session_select_orbitals()~ with another key, unless ~CPMDC_EXTRAP_KEYS=1~ keeps a history per key
 - stored orbitals farther than ~CPMDC_WARM_RMSD~ from the new geometry
 - anything that clears the stored orbitals, such as a cell, cutoff, or composition change
 
 The next calls then build the history again from the stored orbitals.
 ~STORE~ and ~CSTEPS~ have no effect on this route.
+
+* Keep one history per orbital key
+A host that steps two or more trajectories on one calculator names each by a key.
+Such trajectories include the beads of a ring polymer and the replicas of a parallel tempering run.
+The keys work as in [[file:../explanation/wavefunction-state.org][wavefunction state between calls]].
+By default, each change of key empties the history, so calls that alternate between keys never start from a prediction.
+Set ~CPMDC_EXTRAP_KEYS=1~ in the environment of every rank before the first ~cpmdc_session_select_orbitals()~ call.
+Each key then parks its history with its orbitals and takes both back when the host selects it again.
+
+#+begin_src bash
+CPMDC_EXTRAP_KEYS=1 CPMDC_SCF_STEPS=1 ./host
+#+end_src
+
+Each key reports ~cpmdc_wfn_extrapolated K~ with its own ~K~, which grows to the order as on a single trajectory.
+The other events above still empty the history of the key in use.
+Each history keeps ~order~ copies of the orbitals, so the memory for the histories grows with the number of keys times the order.
+~tests/test_extrapolate_wfn.c~ alternates two water trajectories under keys 1 and 2 in the ~extrapolate-wfn-keys~ case.
 A library call writes no ~RESTART~ file, and every call converges its SCF to ~CONVERGENCE ORBITALS~.
 The energy and forces are those of a converged SCF, so only the number of iterations changes.

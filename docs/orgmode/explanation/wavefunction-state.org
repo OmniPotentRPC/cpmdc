@@ -150,8 +150,12 @@ OpenCPMD turns the keyword off in a wavefunction optimisation, which is the job 
 After a converged SCF, the orbitals go into the store as before.
 At the start of the next call, ~rwfopt~ pushes that copy into a ring of ~order~ entries and calls CPMD's ~extrapwf~, which builds the prediction, rotates the earlier sets onto the newest one by their overlap, and orthonormalises the result.
 The SCF then runs from that prediction to the same convergence threshold.
-The ring is one per process, not one per key, so a key change, an unconverged pass, or a start past the distance limit empties it.
+By default each process keeps one ring, not one per key.
+That ring empties on a key change, an unconverged pass, or a start past the distance limit.
 The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] lists those events.
+With ~CPMDC_EXTRAP_KEYS=1~, each key parks its ring beside its orbitals, and a change of key no longer empties it.
+Each key then predicts from orbitals that it converged itself, so its history follows one trajectory.
+The default stays one ring, because the parked histories cost ~order~ copies of the orbitals per key.
 
 A water molecule with the Becke-Lee-Yang-Parr (BLYP) functional at 50 Ry, on one rank, makes the comparison.
 ~cpmd.x~ ran the deck of ~tests/water_aspc_params.capnp.txt~ as BO-MD for 40 steps of 10 atomic time units.
@@ -170,6 +174,29 @@ Library wall times cover the whole test process, setup included.
 For ~cpmd.x~, the table gives its reported elapsed time.
 Over the first 12 steps, the case ~tests/test_extrapolate_wfn.c~ runs, the SCF iteration count is 88 on both routes with ASPC and 124 without.
 Over 40 steps, the library route takes 5 more iterations than ~cpmd.x~ with ASPC and one fewer without, while the energies of the two routes differ from the tenth decimal on.
+
+Two water trajectories of 12 steps make the comparison for ~CPMDC_EXTRAP_KEYS~.
+The first is the trajectory of the case above.
+The second is a ~cpmd.x~ BO-MD run of the same deck from the molecule turned into the xz plane with longer O-H bonds.
+One process alternates them under keys 1 and 2, 26 calls in all, on one rank of the same machine as the ~cpmd.x~ runs.
+SCF iterations count steps 1 to 12 of each trajectory, and the cold first SCF took 18 on each.
+
+| Route | Start of each SCF | Trajectory 1 | Trajectory 2 | Median wall time (s) | IQR (s) |
+|-------+-------------------+--------------+--------------+----------------------+---------|
+| ~cpmd.x~, each trajectory alone | previous orbitals | 124 | 143 | 257.28 | 254.79 to 263.06 |
+| ~cpmd.x~, each trajectory alone | ASPC, order 4 | 88 | 100 | 197.09 | 194.45 to 199.55 |
+| library, two keys | previous orbitals of the key | 125 | 143 | 257.54 | 255.99 to 264.04 |
+| library, two keys, ~CPMDC_EXTRAP_KEYS=1~ | ASPC, order 4, per key | 88 | 100 | 195.80 | 194.81 to 198.80 |
+
+Without the variable, every change of key empties the ring, and the library route makes no prediction.
+With it, each key reaches the iteration count of ~cpmd.x~ with ASPC on its own trajectory.
+The energies match ~cpmd.x~ within 4.5e-10 Hartree without the variable and within 5.0e-11 Hartree with it.
+Each route ran 6 times in fresh processes, in 6 rounds that rotated the order of the six processes by one place each.
+The wall time of a process runs from its launch to its exit.
+For ~cpmd.x~, the time of a round adds the two trajectories.
+The table gives the median and the interquartile range (IQR) of the 6 rounds.
+The runs used a kernel-based virtual machine with 8 cores of an Intel Xeon processor and 47 GiB of memory.
+Each process ran one rank with ~OMP_NUM_THREADS=1~.
 
 * What clears the orbitals
 
