@@ -178,13 +178,19 @@ $FC first_forces.o -L "$CPMDC/build" -lcpmdc \
 ./first_forces water.params.bin water.step.bin
 #+end_src
 
+# [[[cog
+# import re
+# version = open("version.txt").read().strip()
+# cog.out(re.sub(r"^cpmdc/\S+", f"cpmdc/{version}", cog.previous, flags=re.M))
+# ]]]
 #+begin_src text
-cpmdc/0.2.0 available=0
+cpmdc/0.3.0 available=0
 energy_h=0.95870366
 force[0] =  -0.053992  -0.053992  -0.055259
 force[1] =  -0.006749  -0.007771  -0.006116
 force[2] =  -0.006749  -0.005727  -0.006116
 #+end_src
+# [[[end]]]
 
 ~available=0~ means this library is not linked to OpenCPMD.
 The energy in that transcript is the reference spring, a harmonic function of the positions, and it is not a plane-wave total energy.

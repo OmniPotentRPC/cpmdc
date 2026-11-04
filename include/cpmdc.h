@@ -10,7 +10,12 @@
  * Matches the shared-library soversion and cpmdc_abi_version(); bumps only on
  * an incompatible ABI change.
  */
+/* [[[cog
+major = open("version.txt").read().strip().split(".")[0]
+cog.outl(f"#define CPMDC_ABI_VERSION {major}")
+]]] */
 #define CPMDC_ABI_VERSION 0
+/* [[[end]]] */
 
 #ifdef __cplusplus
 extern "C" {

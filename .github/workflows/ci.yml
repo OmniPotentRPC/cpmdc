@@ -11,6 +11,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  version-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Version copies match version.txt
+        run: python3 scripts/release_assert.py
+
   stub-and-e2e:
     runs-on: ubuntu-latest
     steps:

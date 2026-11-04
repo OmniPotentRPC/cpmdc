@@ -6,8 +6,15 @@
 fields.
 Additive Cap'n Proto fields and new ABI entry points are minor; breaking field
 renumbers or ABI signature changes are major.
-The Sphinx ~version~ and ~release~ are the ~version~ field in the root
-~meson.build~. ~docs/source/conf.py~ reads that field.
+The version is the single line of the root ~version.txt~, and no other file
+carries a hand-written copy.
+Meson reads it with ~files()~, and ~docs/source/conf.py~ reads it for the
+Sphinx ~version~ and ~release~.
+~pixi run version-sync~ regenerates the cog copies in ~pixi.toml~,
+~include/cpmdc.h~, the Doxygen configuration, and the first-energy tutorial.
+~pixi run release-assert~ fails when one of them differs from ~version.txt~.
+The first cocogitto pre-bump hook writes the new version to ~version.txt~ and
+then regenerates the copies.
 
 * Checklist
 1. Run ~meson test -C build --print-errorlogs~ on the default parser/session
