@@ -124,3 +124,50 @@ Within each group, items that a reader needs while using the code come before it
    Replace the README tables that repeat the reference pages with links to those pages.
 
 The Pixi `lychee` task passes `--config .lychee.toml`, but that file is not in the tree, so the task stops before it checks any link.
+
+## Re-check
+
+This section grades the checklist again on top of commit `c631ed9`.
+It counts the changes that add `CITATION.cff`, the generated version
+line in `README.md`, and `.lychee.toml`.
+
+| Item | At `cf75065` | Now | Closed by |
+| --- | --- | --- | --- |
+| Synopsis | pass | pass | |
+| Tutorial | partial | pass | the MPI link step of [#9](https://github.com/OmniPotentRPC/cpmdc/pull/9) |
+| Contact information | missing | pass | the issue tracker sections of [#10](https://github.com/OmniPotentRPC/cpmdc/pull/10) |
+| Install instructions | pass | pass | |
+| Citation instructions | missing | pass | `CITATION.cff` and the Citation sections |
+| Contribution statement | partial | pass | the opening of the contributing guide in [#10](https://github.com/OmniPotentRPC/cpmdc/pull/10) |
+| Reference material | pass | pass | |
+| Licensing statement | partial | pass | the License sections of [#10](https://github.com/OmniPotentRPC/cpmdc/pull/10) |
+| Acknowledgments | not applicable | not applicable | |
+
+The default half of the first tutorial, `tutorials/first-energy.org`,
+ran again under GCC 13.3, Open MPI 4.1.6, and Cap'n Proto 1.0.1.
+It prints the transcripts on the page: `0.958703877646`, `816` bytes,
+and `cpmdc/0.3.0 available=0`.
+The OpenCPMD half was not run again.
+
+`CITATION.cff` names the author, the version, the license, and the
+repository, and it carries no DOI.
+`scripts/release_assert.py` regenerates its version and the README
+version line from `version.txt`.
+The Citation sections ask a paper with OpenCPMD energies to cite
+OpenCPMD by its repository, because OpenCPMD ships no citation file.
+
+Ranked gaps one to five are closed, and so is the README Version section
+of gap eight.
+Quickstart still sits among the tutorials, and its move stays deferred.
+`tutorials/eon-rgpot.org` still shows no `results.dat` or final energy,
+because no run of eOn through rgpot is on record.
+The README tables stay, because
+`tools/check_feature_inventory.py` and `tests/test_inventory_docs.py`
+require the README to list each ABI symbol, the feature ID namespaces,
+and the inventory tests.
+A change that replaces them with links has to move those checks to the
+reference pages first.
+
+`pixi run lychee` now reads `.lychee.toml` and checks 71 links.
+The two links to `CITATION.cff` on the `main` branch fail until that
+file lands there.
