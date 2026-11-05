@@ -942,6 +942,15 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  fd_check_exe = executable(
+    'cpmdc-fd-check',
+    'tools/cpmdc_fd_check.c',
+    dependencies: [cpmdc_embed_shell_dep, math_dep],
+    include_directories: [inc] + cpmdc_params_includes,
+    c_args: common_c_args,
+    install: false,
+  )
+
   test(
     'embed-warm-no-nomore-clamp',
     python,
