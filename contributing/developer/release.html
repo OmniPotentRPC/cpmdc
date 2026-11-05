@@ -298,8 +298,15 @@ data-aria-dark="Switch to auto color mode">
 fields.
 Additive Cap’n Proto fields and new ABI entry points are minor; breaking field
 renumbers or ABI signature changes are major.
-The Sphinx <code class="docutils literal notranslate"><span class="pre">version</span></code> and <code class="docutils literal notranslate"><span class="pre">release</span></code> are the <code class="docutils literal notranslate"><span class="pre">version</span></code> field in the root
-<code class="docutils literal notranslate"><span class="pre">meson.build</span></code>. <code class="docutils literal notranslate"><span class="pre">docs/source/conf.py</span></code> reads that field.</p>
+The version is the single line of the root <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>, and no other file
+carries a hand-written copy.
+Meson reads it with <code class="docutils literal notranslate"><span class="pre">files()</span></code>, and <code class="docutils literal notranslate"><span class="pre">docs/source/conf.py</span></code> reads it for the
+Sphinx <code class="docutils literal notranslate"><span class="pre">version</span></code> and <code class="docutils literal notranslate"><span class="pre">release</span></code>.
+<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">version-sync</span></code> regenerates the cog copies in <code class="docutils literal notranslate"><span class="pre">pixi.toml</span></code>,
+<code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code>, the Doxygen configuration, and the first-energy tutorial.
+<code class="docutils literal notranslate"><span class="pre">pixi</span> <span class="pre">run</span> <span class="pre">release-assert</span></code> fails when one of them differs from <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
+The first cocogitto pre-bump hook writes the new version to <code class="docutils literal notranslate"><span class="pre">version.txt</span></code> and
+then regenerates the copies.</p>
 </section>
 <section id="checklist">
 <h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading">¶</a></h2>

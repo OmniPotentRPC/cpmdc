@@ -96,6 +96,16 @@ Start Here
    * - Edit these docs
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
+   * - Ask a question or report a bug
+     - Open an issue with the version, the build options, and the failing deck
+     - `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_
+
+Questions and bug reports
+-------------------------
+
+Ask questions and report bugs on the `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_.
+Check :doc:`Troubleshooting <howto/troubleshooting>` first, because it lists known failures with their fixes.
+Its last section lists what to put in a new report.
 
 Build and Test
 --------------
@@ -211,3 +221,11 @@ An OpenCPMD archive build links the same C ABI surface against ``libcpmd.a``.
    :caption: Project
 
    changelog
+
+License
+-------
+
+cpmdc is released under the ``MIT License``.
+The full terms are in
+`LICENSE <https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE>`_ at
+the root of the repository.

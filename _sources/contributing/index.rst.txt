@@ -3,6 +3,14 @@ Contributing
 ============
 
 
+Bug reports, fixes, tests, documentation, and new typed keywords for the
+input deck are welcome.
+Report a problem or propose a change on the
+`GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_.
+Send the change itself as a pull request to the
+`cpmdc repository <https://github.com/OmniPotentRPC/cpmdc>`_ on GitHub.
+The sections below list the checks to run first and the files that each
+kind of change touches.
 
 Development Checks
 ------------------

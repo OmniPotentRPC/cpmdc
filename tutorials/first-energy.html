@@ -292,8 +292,7 @@ data-aria-dark="Switch to auto color mode">
 </div><article class="yue dark-code" role="main">
           <section id="first-energy-and-forces-through-the-c-api">
 <h1>First energy and forces through the C API<a class="headerlink" href="#first-energy-and-forces-through-the-c-api" title="Link to this heading">¶</a></h1>
-<p>This tutorial takes you from a fresh checkout to the energy and forces of a
-water molecule, computed through the <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> C API.
+<p>This tutorial starts from a fresh checkout and ends with the energy and forces of a water molecule from the <code class="docutils literal notranslate"><span class="pre">cpmdc</span></code> C application programming interface (API).
 You first run it against the default build, which needs no OpenCPMD, and
 then against a build that links OpenCPMD, where the same program returns a
 BLYP (Becke, Lee, Yang, Parr) density functional energy.</p>
@@ -307,8 +306,7 @@ BLYP (Becke, Lee, Yang, Parr) density functional energy.</p>
 </span></pre></div>
 </div>
 <p>The last lines of the test run report <code class="docutils literal notranslate"><span class="pre">Fail:</span> <span class="pre">0</span></code>.
-The build directory <code class="docutils literal notranslate"><span class="pre">build/</span></code> now holds <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> and the example program
-<code class="docutils literal notranslate"><span class="pre">example_host_step</span></code>.
+The build directory <code class="docutils literal notranslate"><span class="pre">build/</span></code> now contains <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> and the example program <code class="docutils literal notranslate"><span class="pre">example_host_step</span></code>.
 <code class="docutils literal notranslate"><span class="pre">CPMDC</span></code> remembers the checkout for the commands below.</p>
 </section>
 <section id="describe-the-method-and-the-geometry">
@@ -373,17 +371,17 @@ second, and prints a summary:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/build/example_host_step&quot;</span><span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">energy_h=0.958703657646
-</span><span data-line="2">potential_result_size_bytes=888
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">energy_h=0.958703877646
+</span><span data-line="2">potential_result_size_bytes=816
 </span><span data-line="3">message=ok
-</span><span data-line="4">ener_com_etot=0.958703657646
+</span><span data-line="4">ener_com_etot=0.958703877646
 </span><span data-line="5">ener_com_ekin=0.000000000000
 </span><span data-line="6">ener_com_exc=0.000000000000
 </span><span data-line="7">ener_com_eht=0.000000000000
 </span></pre></div>
 </div>
-<p>The default build evaluates with a deterministic reference function, a
-harmonic well scaled by the atomic numbers, not with DFT.
+<p>The default build evaluates a deterministic reference function instead of density functional theory.
+That function is a harmonic well scaled by the atomic numbers.
 Its numbers exercise the API and mean nothing physically, which is why the
 energy is positive and the components other than <code class="docutils literal notranslate"><span class="pre">etot</span></code> are zero.</p>
 </section>
@@ -448,16 +446,19 @@ the force on each atom:</p>
 </span><span data-line="54"><span class="p">}</span>
 </span></pre></div>
 </div>
-<p>Compile it with the C compiler and link it with the Fortran compiler, which
-brings in the Fortran runtime that <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code> needs:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="nv">$CC</span><span class="w"> </span>-c<span class="w"> </span>first_forces.c<span class="w"> </span>-I<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/include&quot;</span>
-</span><span data-line="2"><span class="nv">$FC</span><span class="w"> </span>first_forces.o<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/build&quot;</span><span class="w"> </span>-lcpmdc<span class="w"> </span><span class="se">\</span>
+<p>The link step comes next.
+The default build links the Message Passing Interface (MPI) library whenever Meson finds one.
+The Pixi environment provides OpenMPI, so <code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code> needs <code class="docutils literal notranslate"><span class="pre">libmpi</span></code>.
+Compile with the MPI C wrapper and link with the MPI Fortran wrapper.
+The Fortran wrapper adds the MPI library and the Fortran runtime for <code class="docutils literal notranslate"><span class="pre">libcpmdc</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">mpicc<span class="w"> </span>-c<span class="w"> </span>first_forces.c<span class="w"> </span>-I<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/include&quot;</span>
+</span><span data-line="2">mpif90<span class="w"> </span>first_forces.o<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/build&quot;</span><span class="w"> </span>-lcpmdc<span class="w"> </span><span class="se">\</span>
 </span><span data-line="3"><span class="w">  </span>-Wl,-rpath,<span class="s2">&quot;</span><span class="nv">$CPMDC</span><span class="s2">/build&quot;</span><span class="w"> </span>-o<span class="w"> </span>first_forces
 </span><span data-line="4">./first_forces<span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.2.0 available=0
-</span><span data-line="2">energy_h=0.95870366
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.3.0 available=0
+</span><span data-line="2">energy_h=0.95870388
 </span><span data-line="3">force[0] =  -0.053992  -0.053992  -0.055259
 </span><span data-line="4">force[1] =  -0.006749  -0.007771  -0.006116
 </span><span data-line="5">force[2] =  -0.006749  -0.005727  -0.006116
@@ -471,7 +472,7 @@ the message apply to the serialized <code class="docutils literal notranslate"><
 </section>
 <section id="switch-to-opencpmd">
 <h2>Switch to OpenCPMD<a class="headerlink" href="#switch-to-opencpmd" title="Link to this heading">¶</a></h2>
-<p>The same program and the same two messages now run against real CPMD.
+<p>The same program and the same two messages now run against the Car-Parrinello Molecular Dynamics (CPMD) code itself.
 Three things change: the library, the pseudopotential files, and one
 environment variable.</p>
 <ol class="arabic">
@@ -505,24 +506,28 @@ the link, for example with
 </span><span data-line="4"><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>./first_forces_live<span class="w"> </span>water.params.bin<span class="w"> </span>water.step.bin
 </span></pre></div>
 </div>
-<p>CPMD prints its usual output to standard output, ending with the SCF
-iterations and the energy breakdown, and then the program prints its lines:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1"> NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
-</span><span data-line="2">   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.63
-</span><span data-line="3"> ...
-</span><span data-line="4">  13  4.399E-06   6.431E-07     -17.055717   -1.356E-08      0.65
+<p>The program prints its version line, now with <code class="docutils literal notranslate"><span class="pre">available=1</span></code>.
+CPMD then prints its usual output, which ends with the self-consistent field (SCF) iterations and the energy breakdown.
+The program prints the energy and forces last:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span><span data-line="1">cpmdc/0.3.0 available=1
+</span><span data-line="2"> ...
+</span><span data-line="3"> NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
+</span><span data-line="4">   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.65
 </span><span data-line="5"> ...
-</span><span data-line="6"> (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
+</span><span data-line="6">  13  4.451E-06   6.419E-07     -17.055717   -1.354E-08      0.61
 </span><span data-line="7"> ...
-</span><span data-line="8">energy_h=-17.05571670
-</span><span data-line="9">force[0] =   0.000000   0.000000   0.022496
-</span><span data-line="10">force[1] =   0.000000   0.012514  -0.011962
-</span><span data-line="11">force[2] =   0.000000  -0.012514  -0.011962
+</span><span data-line="8"> (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
+</span><span data-line="9"> ...
+</span><span data-line="10">energy_h=-17.05571670
+</span><span data-line="11">force[0] =   0.000000   0.000000   0.022496
+</span><span data-line="12">force[1] =  -0.000000   0.012514  -0.011962
+</span><span data-line="13">force[2] =   0.000000  -0.012514  -0.011962
 </span></pre></div>
 </div>
 <p>The SCF reached -17.05571670 Hartree at iteration 13.
 The forces are those of an off-equilibrium water geometry: zero along <code class="docutils literal notranslate"><span class="pre">x</span></code>,
 the direction normal to the molecular plane, and mirror-symmetric in <code class="docutils literal notranslate"><span class="pre">y</span></code>.
+The <code class="docutils literal notranslate"><span class="pre">x</span></code> components round to zero at six decimals, and one keeps its minus sign.
 The iteration timings in the <code class="docutils literal notranslate"><span class="pre">TCPU</span></code> column depend on the machine.</p>
 </section>
 <section id="what-you-built">

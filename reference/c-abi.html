@@ -498,7 +498,7 @@ optimisation.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">&quot;cpmdc/&quot;</span></code> followed by the project version</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_abi_version(void)</span></code></p></td>
-<td><p>the ABI generation, equal to <code class="docutils literal notranslate"><span class="pre">CPMDC_ABI_VERSION</span></code> (0) and the shared-library soversion</p></td>
+<td><p>the ABI generation, equal to <code class="docutils literal notranslate"><span class="pre">CPMDC_ABI_VERSION</span></code> and the shared-library soversion, which are the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_available(void)</span></code></p></td>
 <td><p>1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub</p></td>

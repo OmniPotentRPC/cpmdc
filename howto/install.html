@@ -335,7 +335,7 @@ The tests use it to check the ABI without a working evaluator.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">libcpmdc.so</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.0</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lib/libcpmdc.so.MAJOR</span></code></p></td>
 <td><p>the C ABI from <code class="docutils literal notranslate"><span class="pre">include/cpmdc.h</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>public headers</p></td>
@@ -361,6 +361,7 @@ The tests use it to check the ABI without a working evaluator.</p>
 </tbody>
 </table>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">MAJOR</span></code> is the soversion, the first field of <code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.</p>
 </section>
 <section id="requirements">
 <h2>Requirements<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h2>
@@ -501,7 +502,8 @@ wrappers so both sides agree on one MPI:</p>
 </span><span data-line="3">pkg-config<span class="w"> </span>--modversion<span class="w"> </span>cpmdc
 </span></pre></div>
 </div>
-<p>The last command prints the project version from <code class="docutils literal notranslate"><span class="pre">meson.build</span></code>.
+<p>The last command prints the project version, which Meson reads from
+<code class="docutils literal notranslate"><span class="pre">version.txt</span></code>.
 Hosts that load the library at run time, such as <code class="docutils literal notranslate"><span class="pre">rgpot</span></code>, look for it through
 <code class="docutils literal notranslate"><span class="pre">CPMDC_LIBRARY</span></code>; see the <a class="reference internal" href="../reference/environment.html"><span class="doc">environment
 reference</span></a>.</p>
@@ -545,9 +547,9 @@ reference</span></a>.</p>
 <td><p>default</p></td>
 <td><p>link check over README, <code class="docutils literal notranslate"><span class="pre">docs/orgmode</span></code>, and news fragments</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">release-assert</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-draft</span></code>, <code class="docutils literal notranslate"><span class="pre">release-cog-dry</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">release-assert</span></code>, <code class="docutils literal notranslate"><span class="pre">version-sync</span></code>, <code class="docutils literal notranslate"><span class="pre">towncrier-draft</span></code>, <code class="docutils literal notranslate"><span class="pre">release-cog-dry</span></code></p></td>
 <td><p>default</p></td>
-<td><p>release metadata checks</p></td>
+<td><p>release metadata checks, and <code class="docutils literal notranslate"><span class="pre">version.txt</span></code> copies</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mkrst</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">docs</span></code></p></td>

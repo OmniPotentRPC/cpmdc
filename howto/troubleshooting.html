@@ -225,6 +225,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#a-preview-buffer-is-shorter-than-the-method-deck">A preview buffer is shorter than the method deck</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#report-a-new-problem">Report a new problem</a></li>
 </ul>
 </div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
@@ -317,7 +318,8 @@ data-aria-dark="Switch to auto color mode">
 <h1>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h1>
 <p>Each entry names the symptom, the cause in the code, and the fix.
 Set <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> first when the symptom involves energies (see
-<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).</p>
+<a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>).
+The last section says how to report a problem that no entry covers.</p>
 <section id="energies">
 <h2>Energies<a class="headerlink" href="#energies" title="Link to this heading">¶</a></h2>
 <section id="the-energy-is-off-by-about-2-ev-from-a-hand-written-deck">
@@ -510,6 +512,37 @@ an error and does not write a shortened deck.</p>
 <p><strong>Fix:</strong> size the caller buffer from the rendered text, or read the full deck
 from <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code>.</p>
 </section>
+</section>
+<section id="report-a-new-problem">
+<h2>Report a new problem<a class="headerlink" href="#report-a-new-problem" title="Link to this heading">¶</a></h2>
+<p>Open an issue on the <a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a> when no entry above matches.
+Questions go there too.</p>
+<p>Print the version and the build options that choose the code path.
+Replace <code class="docutils literal notranslate"><span class="pre">build</span></code> with your build directory, then run this command in the source tree.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">meson<span class="w"> </span>introspect<span class="w"> </span>build<span class="w"> </span>--projectinfo<span class="w"> </span>--buildoptions<span class="w"> </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;</span>
+</span><span data-line="2"><span class="s1">import json, sys</span>
+</span><span data-line="3"><span class="s1">info = json.load(sys.stdin)</span>
+</span><span data-line="4"><span class="s1">print(&quot;cpmdc&quot;, info[&quot;projectinfo&quot;][&quot;version&quot;])</span>
+</span><span data-line="5"><span class="s1">for option in info[&quot;buildoptions&quot;]:</span>
+</span><span data-line="6"><span class="s1">    if option[&quot;name&quot;] in (&quot;with_cpmd&quot;, &quot;cpmd_root&quot;, &quot;with_readcon&quot;):</span>
+</span><span data-line="7"><span class="s1">        print(option[&quot;name&quot;], &quot;=&quot;, repr(option[&quot;value&quot;]))</span>
+</span><span data-line="8"><span class="s1">&#39;</span>
+</span></pre></div>
+</div>
+<p>The default build prints:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">cpmdc</span> <span class="mf">0.3.0</span>
+</span><span data-line="2"><span class="n">with_cpmd</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="3"><span class="n">cpmd_root</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span data-line="4"><span class="n">with_readcon</span> <span class="o">=</span> <span class="kc">False</span>
+</span></pre></div>
+</div>
+<p>Put these items in the report:</p>
+<ol class="arabic simple">
+<li><p>the output of that command;</p></li>
+<li><p>the deck that <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code> wrote for the failing call (see <a class="reference internal" href="debug-deck.html"><span class="doc">debugging a deck</span></a>);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CPMDCResult.message</span></code> or <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code> for a failed call, or the <code class="docutils literal notranslate"><span class="pre">--print-errorlogs</span></code> output for a failed test;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">LocalError-*.log</span></code> file, when the call stopped with <code class="docutils literal notranslate"><span class="pre">CPMD</span> <span class="pre">stopgm</span> <span class="pre">during</span> <span class="pre">embed</span> <span class="pre">SCF</span></code>.</p></li>
+</ol>
 </section>
 </section>
 
