@@ -162,6 +162,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals
    howto/debug-deck
+   howto/check-forces
    howto/troubleshooting
 
 .. toctree::
