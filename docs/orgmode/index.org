@@ -90,8 +90,16 @@ composition requires a new session.
    * - Edit these docs
      - Regenerate generated docs from ``docs/orgmode`` before building Sphinx
      - :doc:`Contributing <contributing/index>`
+   * - Ask a question or report a bug
+     - Open an issue with the version, the build options, and the failing deck
+     - `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_
 
 #+end_export
+
+* Questions and bug reports
+Ask questions and report bugs on the [[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
+Check [[file:howto/troubleshooting.org][Troubleshooting]] first, because it lists known failures with their fixes.
+Its last section lists what to put in a new report.
 
 * Build and Test
 
@@ -191,3 +199,9 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
 
    changelog
 #+end_export
+
+* License
+cpmdc is released under the ~MIT License~.
+The full terms are in
+[[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]] at
+the root of the repository.

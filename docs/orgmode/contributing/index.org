@@ -1,6 +1,15 @@
 #+TITLE: Contributing
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
+Bug reports, fixes, tests, documentation, and new typed keywords for the
+input deck are welcome.
+Report a problem or propose a change on the
+[[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
+Send the change itself as a pull request to the
+[[https://github.com/OmniPotentRPC/cpmdc][cpmdc repository]] on GitHub.
+The sections below list the checks to run first and the files that each
+kind of change touches.
+
 * Development Checks
 Run the default parser, socket, and stub checks before changing the ABI,
 schema, renderer, or session runtime:

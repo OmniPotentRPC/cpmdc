@@ -28,6 +28,8 @@ portable result carrier used by RPC-facing callers.
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
 | Regenerate generated docs | Edit `docs/orgmode/`, then run `pixi run -e docs mkrst` and `pixi run -e docs sphinxbld` |
+| Ask a question or report a bug | Open an issue as [the reporting section](#questions-and-bug-reports) describes |
+| Send a fix or an improvement | Read the [contributing guide](docs/orgmode/contributing/index.org), then open a pull request |
 
 New RPC and optimizer hosts should start with
 `cpmdc_session_calculate_result()`. It keeps `CPMDParams` method setup in a
@@ -387,8 +389,26 @@ After editing Org sources, regenerate RST with:
 pixi run -e docs mkrst
 ```
 
+## Questions and bug reports
+
+Ask questions and report bugs on the [GitHub issue tracker](https://github.com/OmniPotentRPC/cpmdc/issues).
+Check [troubleshooting](docs/orgmode/howto/troubleshooting.org) first, because it lists known failures with their fixes.
+Its last section lists what to put in a new report.
+
+## Contributing
+
+Bug reports, fixes, tests, documentation, and new typed keywords for the input deck are welcome.
+Propose a change on the [GitHub issue tracker](https://github.com/OmniPotentRPC/cpmdc/issues).
+Send the change itself as a pull request to this repository.
+The [contributing guide](docs/orgmode/contributing/index.org) lists the checks to run first and the files that each kind of change touches.
+
 ## Version
 
 0.1.0 covers the Cap'n Proto contract, stable C ABI, Fortran bridge, shared
 `libcpmdc`, deterministic reference evaluator, OpenCPMD archive link path,
 parser tests, session tests, and rgpot-compatible result carriers.
+
+## License
+
+cpmdc is released under the `MIT License`.
+The full terms are in [`LICENSE`](LICENSE).
