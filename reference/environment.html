@@ -156,6 +156,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
 </ul>
 </li>
@@ -324,6 +327,10 @@ data-aria-dark="Switch to auto color mode">
 <td><p><code class="docutils literal notranslate"><span class="pre">src/cpmd_embed_c_api.F90</span></code>, each OpenCPMD evaluation</p></td>
 <td><p>largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance</p></td>
 </tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">src/cpmdc.c</span></code>, each evaluation under a running MPI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">1</span></code> gives every rank of the calculator rank 0’s energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank’s own result</p></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -364,6 +371,17 @@ A call whose orbitals start from the <code class="docutils literal notranslate">
 Each line is flushed as it is written, so a log file shows it while the host runs.</p>
 <p><code class="docutils literal notranslate"><span class="pre">CPMDC_WARM_RMSD</span></code> is the distance limit of <a class="reference internal" href="../explanation/wavefunction-state.html"><span class="doc">the stored orbitals</span></a> (section Distance limit).
 A value that does not parse as a number keeps the default.</p>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> adds three collectives to each evaluation on the
+calculator communicator: the one bound or adopted, or <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code> when
+neither call was made.
+Every rank fails when one rank failed, and every rank resets its CPMD state
+when one rank stopped.
+A repeat of the stored positions returns the stored result only when every
+rank repeats.
+<code class="docutils literal notranslate"><span class="pre">cpmdc_last_rank_spread()</span></code> then reports the largest energy and gradient
+difference from rank 0 before the broadcast.
+Set it to the same value on every rank.
+A build without MPI ignores it.</p>
 </section>
 <section id="read-by-the-tests-and-tools">
 <h2>Read by the tests and tools<a class="headerlink" href="#read-by-the-tests-and-tools" title="Link to this heading">¶</a></h2>

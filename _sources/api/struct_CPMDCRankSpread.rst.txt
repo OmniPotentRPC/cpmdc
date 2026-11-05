@@ -1,0 +1,80 @@
+.. index:: pair: struct; CPMDCRankSpread
+.. _doxid-struct_c_p_m_d_c_rank_spread:
+
+struct CPMDCRankSpread
+======================
+
+.. toctree::
+	:hidden:
+
+Overview
+~~~~~~~~
+
+How far the ranks of one calculator were from its rank 0. :ref:`More...<details-struct_c_p_m_d_c_rank_spread>`
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	#include <cpmdc.h>
+	
+	struct CPMDCRankSpread {
+		// fields
+	
+		int :ref:`valid<doxid-struct_c_p_m_d_c_rank_spread_1a38f49e841fbb0cae61296b9a88fd4447>`;
+		int :ref:`ranks<doxid-struct_c_p_m_d_c_rank_spread_1a9e7fa327fc3dc51382cf422afb830d28>`;
+		double :ref:`energy_h<doxid-struct_c_p_m_d_c_rank_spread_1ab1e8b6aac882e491c05a6bf0a3a0321c>`;
+		double :ref:`gradient_h_bohr<doxid-struct_c_p_m_d_c_rank_spread_1a1a720393c0395f53a3cae9580ef557e6>`;
+	};
+.. _details-struct_c_p_m_d_c_rank_spread:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+How far the ranks of one calculator were from its rank 0.
+
+Written by an evaluation that ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI. The differences are taken before every rank receives rank 0's energy and gradient. A NaN difference is reported as infinity. Both are 0 when every rank held the same values.
+
+Fields
+------
+
+.. index:: pair: variable; valid
+.. _doxid-struct_c_p_m_d_c_rank_spread_1a38f49e841fbb0cae61296b9a88fd4447:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int valid
+
+Non-zero when the last evaluation ran the consensus step.
+
+.. index:: pair: variable; ranks
+.. _doxid-struct_c_p_m_d_c_rank_spread_1a9e7fa327fc3dc51382cf422afb830d28:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int ranks
+
+Ranks in the calculator communicator.
+
+.. index:: pair: variable; energy_h
+.. _doxid-struct_c_p_m_d_c_rank_spread_1ab1e8b6aac882e491c05a6bf0a3a0321c:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double energy_h
+
+Largest ``|E_r - E_0|`` over the ranks ``r``, Hartree.
+
+.. index:: pair: variable; gradient_h_bohr
+.. _doxid-struct_c_p_m_d_c_rank_spread_1a1a720393c0395f53a3cae9580ef557e6:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double gradient_h_bohr
+
+Largest nuclear-gradient component difference from rank 0, Hartree/Bohr.
+

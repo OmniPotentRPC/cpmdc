@@ -156,6 +156,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
 </ul>
 </li>
@@ -313,7 +316,9 @@ order.
 An evaluation is collective over the ranks of its calculator.</p></li>
 <li><p>Take the energy and forces from the first rank of each calculator, CPMD’s
 parent rank, and broadcast them to the other ranks.
-The other ranks return from the call with values of their own.
+The other ranks return from the call with values of their own, unless
+<code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> is set, as the section on sharing the parent’s
+result describes.
 In a 4-rank water single point all four printed the parent’s energy and
 forces, but in a 4-rank dimer search, where every rank also ran the
 host’s optimizer, rank 1 took 3 steps on different curvatures while rank 0
@@ -460,6 +465,23 @@ a host that needs every group’s result on every rank broadcasts once per
 group over <code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code>.
 An optimizer that runs on every rank must step from the broadcast values;
 ranks that step from their own copies drift apart after the first step.</p>
+<p>Inside one calculator, <code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> does this broadcast in the
+library, so every rank of the calculator returns the parent’s energy and
+forces:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">16</span><span class="w"> </span>-x<span class="w"> </span><span class="nv">CPMDC_RANK_CONSENSUS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>./host<span class="w"> </span>params.bin<span class="w"> </span>step.bin
+</span></pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">-x</span></code> is the Open MPI flag that exports a variable to every rank.
+After an evaluation, <code class="docutils literal notranslate"><span class="pre">cpmdc_last_rank_spread()</span></code> reports the largest energy
+and gradient difference from the parent before the broadcast, and the rank
+count:</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span data-line="1"><span class="n">CPMDCRankSpread</span> <span class="n">spread</span><span class="p">;</span>
+</span><span data-line="2"><span class="k">if</span> <span class="p">(</span><span class="n">cpmdc_last_rank_spread</span><span class="p">(</span><span class="o">&amp;</span><span class="n">spread</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">world_rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span><span data-line="3">  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d ranks, dE %.3g Ha, dG %.3g Ha/Bohr</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">spread</span><span class="p">.</span><span class="n">ranks</span><span class="p">,</span>
+</span><span data-line="4">         <span class="n">spread</span><span class="p">.</span><span class="n">energy_h</span><span class="p">,</span> <span class="n">spread</span><span class="p">.</span><span class="n">gradient_h_bohr</span><span class="p">);</span>
+</span></pre></div>
+</div>
+<p>Both differences are 0 when the ranks agreed bit for bit.</p>
 </section>
 <section id="one-session-per-calculator">
 <h2>One session per calculator<a class="headerlink" href="#one-session-per-calculator" title="Link to this heading">¶</a></h2>

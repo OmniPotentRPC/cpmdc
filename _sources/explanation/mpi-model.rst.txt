@@ -130,8 +130,18 @@ every rank also ran the host's optimiser, the ranks' paths diverged, and only
 rank 0's results matched the file route.
 The robust rule is that the host takes the parent's result and broadcasts it,
 so every rank's optimiser steps from the same numbers.
-``cpmdc`` does not broadcast on its own because it cannot know which of the
-host's communicators should receive the result.
+The MPI standard gives the same advice: an application that needs a
+reproducible result computes it at one process and broadcasts it
+(`MPI 4.1, section 6.9.1 <https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report/node130.htm>`_).
+``cpmdc`` does not broadcast by default.
+``CPMDC_RANK_CONSENSUS=1`` makes it broadcast inside each calculator: after
+each evaluation, rank 0 of the calculator communicator sends its energy,
+gradient, and result snapshots to the other ranks of that communicator.
+``cpmdc_last_rank_spread()`` reports how far the other ranks were from those
+values, which is the size of the disagreement the broadcast removed.
+A host that needs every calculator's result on every world rank still
+broadcasts across calculators, because only the host knows which of its
+communicators should receive them.
 
 One session per calculator
 --------------------------

@@ -360,6 +360,24 @@ An isolated cell (symmetry 0, ``CLUSTER``, or an isolated-molecule keyword,
 including Hockney) leaves ``valid`` unset even when the box volume is positive.
 ``CPMDC_STRESS=0`` leaves it unset on a periodic cell as well.
 
+.. table::
+
+    +------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+    | Function                                             | Behaviour                                                                                                                                                                            |
+    +======================================================+======================================================================================================================================================================================+
+    | ``int cpmdc_last_rank_spread(CPMDCRankSpread *out)`` | copies the rank spread of the last evaluation in the process; 0 when it ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI, -1 otherwise; does not write ``cpmdc_last_error()`` |
+    +------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+``CPMDCRankSpread`` holds ``ranks``, the size of the calculator communicator,
+``energy_h``, the largest ``|E_r - E_0|`` over its ranks in Hartree, and
+``gradient_h_bohr``, the largest nuclear-gradient component difference from
+rank 0 in Hartree/Bohr.
+Both are taken before every rank receives rank 0's values, and a NaN
+difference is reported as infinity.
+A repeat of the stored positions keeps the spread of the evaluation that
+stored them.
+See :doc:`environment variables <environment>`.
+
 Discovery
 ---------
 

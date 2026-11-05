@@ -156,6 +156,9 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCPropertySnapshot.html">struct CPMDCPropertySnapshot</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCRankSpread.html">struct CPMDCRankSpread</a><ul class="simple">
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="../api/struct_CPMDCResult.html">struct CPMDCResult</a><ul class="simple">
 </ul>
 </li>
@@ -777,6 +780,29 @@ tensor for a periodic deck with a positive cell volume.
 An isolated cell (symmetry 0, <code class="docutils literal notranslate"><span class="pre">CLUSTER</span></code>, or an isolated-molecule keyword,
 including Hockney) leaves <code class="docutils literal notranslate"><span class="pre">valid</span></code> unset even when the box volume is positive.
 <code class="docutils literal notranslate"><span class="pre">CPMDC_STRESS=0</span></code> leaves it unset on a periodic cell as well.</p>
+<div class="table-wrapper docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Behaviour</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">cpmdc_last_rank_spread(CPMDCRankSpread</span> <span class="pre">*out)</span></code></p></td>
+<td><p>copies the rank spread of the last evaluation in the process; 0 when it ran with <code class="docutils literal notranslate"><span class="pre">CPMDC_RANK_CONSENSUS=1</span></code> under a running MPI, -1 otherwise; does not write <code class="docutils literal notranslate"><span class="pre">cpmdc_last_error()</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">CPMDCRankSpread</span></code> holds <code class="docutils literal notranslate"><span class="pre">ranks</span></code>, the size of the calculator communicator,
+<code class="docutils literal notranslate"><span class="pre">energy_h</span></code>, the largest <code class="docutils literal notranslate"><span class="pre">|E_r</span> <span class="pre">-</span> <span class="pre">E_0|</span></code> over its ranks in Hartree, and
+<code class="docutils literal notranslate"><span class="pre">gradient_h_bohr</span></code>, the largest nuclear-gradient component difference from
+rank 0 in Hartree/Bohr.
+Both are taken before every rank receives rank 0’s values, and a NaN
+difference is reported as infinity.
+A repeat of the stored positions keeps the spread of the evaluation that
+stored them.
+See <a class="reference internal" href="environment.html"><span class="doc">environment variables</span></a>.</p>
 </section>
 <section id="discovery">
 <h2>Discovery<a class="headerlink" href="#discovery" title="Link to this heading">¶</a></h2>

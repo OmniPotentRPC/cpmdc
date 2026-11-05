@@ -25,7 +25,9 @@ The rules
 
 3. Take the energy and forces from the first rank of each calculator, CPMD's
    parent rank, and broadcast them to the other ranks.
-   The other ranks return from the call with values of their own.
+   The other ranks return from the call with values of their own, unless
+   ``CPMDC_RANK_CONSENSUS=1`` is set, as the section on sharing the parent's
+   result describes.
    In a 4-rank water single point all four printed the parent's energy and
    forces, but in a 4-rank dimer search, where every rank also ran the
    host's optimizer, rank 1 took 3 steps on different curvatures while rank 0
@@ -178,6 +180,28 @@ a host that needs every group's result on every rank broadcasts once per
 group over ``MPI_COMM_WORLD``.
 An optimizer that runs on every rank must step from the broadcast values;
 ranks that step from their own copies drift apart after the first step.
+
+Inside one calculator, ``CPMDC_RANK_CONSENSUS=1`` does this broadcast in the
+library, so every rank of the calculator returns the parent's energy and
+forces:
+
+.. code:: bash
+
+    mpirun -np 16 -x CPMDC_RANK_CONSENSUS=1 ./host params.bin step.bin
+
+``-x`` is the Open MPI flag that exports a variable to every rank.
+After an evaluation, ``cpmdc_last_rank_spread()`` reports the largest energy
+and gradient difference from the parent before the broadcast, and the rank
+count:
+
+.. code:: c
+
+    CPMDCRankSpread spread;
+    if (cpmdc_last_rank_spread(&spread) == 0 && world_rank == 0)
+      printf("%d ranks, dE %.3g Ha, dG %.3g Ha/Bohr\n", spread.ranks,
+             spread.energy_h, spread.gradient_h_bohr);
+
+Both differences are 0 when the ranks agreed bit for bit.
 
 One session per calculator
 --------------------------

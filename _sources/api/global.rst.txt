@@ -14,6 +14,7 @@ Global Namespace
 	struct_CPMDCMDTrajectoryRow.rst
 	struct_CPMDCMultiStateEnergies.rst
 	struct_CPMDCPropertySnapshot.rst
+	struct_CPMDCRankSpread.rst
 	struct_CPMDCResult.rst
 	struct_CPMDCStressTensor.rst
 
@@ -36,6 +37,7 @@ Overview
 	typedef struct CPMDCMDTrajectoryRow :ref:`CPMDCMDTrajectoryRow<doxid-cpmdc_8h_1a116d67931c3d565982c327bb0a335818>`;
 	typedef struct CPMDCPropertySnapshot :ref:`CPMDCPropertySnapshot<doxid-cpmdc_8h_1a0ff3c92e7d255d36b825d98d6f9aaff2>`;
 	typedef struct CPMDCStressTensor :ref:`CPMDCStressTensor<doxid-cpmdc_8h_1ab0ed88166123b36bd5f3c01bba3400f4>`;
+	typedef struct CPMDCRankSpread :ref:`CPMDCRankSpread<doxid-cpmdc_8h_1a9da10067c6b6f8600a794799d2361dce>`;
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
@@ -53,6 +55,7 @@ Overview
 	struct :ref:`CPMDCMDTrajectoryRow<doxid-struct_c_p_m_d_c_m_d_trajectory_row>`;
 	struct :ref:`CPMDCMultiStateEnergies<doxid-struct_c_p_m_d_c_multi_state_energies>`;
 	struct :ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`;
+	struct :ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`;
 	struct :ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>`;
 	struct :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`;
 
@@ -98,6 +101,7 @@ Overview
 	int :ref:`cpmdc_session_last_property_snapshot<doxid-cpmdc_8h_1a1bbb45afce5cebb9f5141109fbe2f6d1>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCPropertySnapshot<doxid-struct_c_p_m_d_c_property_snapshot>`* out);
 	int :ref:`cpmdc_last_stress<doxid-cpmdc_8h_1ad1997ec438a489fa8321c36bcf5ec0b7>`(:ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
 	int :ref:`cpmdc_session_last_stress<doxid-cpmdc_8h_1a213829ea7a748a92923d6de4c20e9e50>`(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out);
+	int :ref:`cpmdc_last_rank_spread<doxid-cpmdc_8h_1a8887106fa9386467d98b12ca2d1835c1>`(:ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`* out);
 	size_t :ref:`cpmdc_feature_count<doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_table<doxid-cpmdc__features_8h_1ae40eb0e96927dc5f3feacc20c3869315>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_find<doxid-cpmdc__features_8h_1a4d2414cdfa87d867cf1ab1e708dfb4ca>`(const char* feature_id);
@@ -220,6 +224,18 @@ PROP-style property snapshot after a successful evaluation.
 Cartesian stress tensor after a successful PEF evaluation.
 
 Layout is row-major [xx, xy, xz, yx, yy, yz, zx, zy, zz] in Hartree/Bohr^3 (OpenCPMD ``paiu/omega`` after ``totstr`` when ``cntltpres``). ``valid`` is set only when that tensor was computed for a periodic cell. A positive cell volume is not enough: an isolated (cluster/Hockney) box leaves ``valid`` unset. Returns 0 when ``out->valid`` is set; -1 when stress was not computed.
+
+.. index:: pair: typedef; CPMDCRankSpread
+.. _doxid-cpmdc_8h_1a9da10067c6b6f8600a794799d2361dce:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct CPMDCRankSpread CPMDCRankSpread
+
+How far the ranks of one calculator were from its rank 0.
+
+Written by an evaluation that ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI. The differences are taken before every rank receives rank 0's energy and gradient. A NaN difference is reported as infinity. Both are 0 when every rank held the same values.
 
 .. index:: pair: typedef; CPMDCSession
 .. _doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239:
@@ -760,6 +776,18 @@ Returns 0 when ``out->valid`` is set, which is only after stress was computed fo
 	int cpmdc_session_last_stress(const :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`* session, :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`* out)
 
 Copy the last stress tensor stored on ``session``.
+
+.. index:: pair: function; cpmdc_last_rank_spread
+.. _doxid-cpmdc_8h_1a8887106fa9386467d98b12ca2d1835c1:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_last_rank_spread(:ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`* out)
+
+Copy the rank spread of the last evaluation in this process.
+
+Returns 0 when ``out->valid`` is set: the last evaluation ran with ``CPMDC_RANK_CONSENSUS=1`` under a running MPI. A repeat of the stored positions keeps the spread of the evaluation that stored them. Does not write ``:ref:`cpmdc_last_error() <doxid-cpmdc_8h_1ac58f0528fddd704c6fcf57da49885956>```.
 
 .. index:: pair: function; cpmdc_feature_count
 .. _doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e:
