@@ -10,6 +10,7 @@ VERSION_FILE = ROOT / "version.txt"
 COG = ["uvx", "--from", "cogapp==3.6.0", "cog"]
 COG_FILES = [
     "pixi.toml",
+    "CITATION.cff",
     "include/cpmdc.h",
     "docs/orgmode/tutorials/first-energy.org",
     "docs/source/Doxyfile_cpmdc.cfg",
