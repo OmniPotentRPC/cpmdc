@@ -974,6 +974,23 @@ if get_option('with_tests')
     c_args: common_c_args,
     install: false,
   )
+  # The expected stress mismatch is a property of the reference evaluator.
+  if not has_cpmd
+    test(
+      'fd-check-reference',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_fd_check.py',
+        fd_check_exe.full_path(),
+        water_params_bin.full_path(),
+        water_periodic_params_bin.full_path(),
+        water_force_bin.full_path(),
+      ],
+      depends: [fd_check_exe, water_params_bin, water_periodic_params_bin, water_force_bin],
+      suite: ['e2e', 'fd-check'],
+      timeout: 120,
+    )
+  endif
 
   test(
     'embed-warm-no-nomore-clamp',
