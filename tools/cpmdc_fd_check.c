@@ -175,7 +175,7 @@ static int check(struct fd *st, int want_stress) {
     printf("stress not computed by this calculator for this cell\n");
     return 2;
   }
-  printf("%-10s %20s %20s %12s\n", "stress", "numerical", "analytical",
+  printf("%-10s %20s %20s %12s\n", "virial", "numerical", "analytical",
          "abs diff");
   for (int a = 0; a < 3; ++a) {
     for (int b = a; b < 3; ++b) {
@@ -189,16 +189,17 @@ static int check(struct fd *st, int want_stress) {
         if (evaluate(st, st->x, h, &en[k], 0) != 0)
           return 2;
       }
-      double numer = -0.5 * (en[0] - en[1]) / (g_dx * vol);
-      char label[8] = {'s', "xyz"[a], "xyz"[b], 0};
-      compare(label, numer, st->s0[3 * a + b], 0, &sst);
+      /* CP2K checks pv_virial = -dE/d(eps) = V * stress, in Hartree. */
+      double numer = -0.5 * (en[0] - en[1]) / g_dx;
+      char label[8] = {'v', "xyz"[a], "xyz"[b], 0};
+      compare(label, numer, vol * st->s0[3 * a + b], 0, &sst);
       if (a != b) {
-        char swapped[8] = {'s', "xyz"[b], "xyz"[a], 0};
-        compare(swapped, numer, st->s0[3 * b + a], 0, &sst);
+        char swapped[8] = {'v', "xyz"[b], "xyz"[a], 0};
+        compare(swapped, numer, vol * st->s0[3 * b + a], 0, &sst);
       }
     }
   }
-  summary("stress", "ha/bohr^3", &sst);
+  summary("virial", "ha", &sst);
   return fst.bad || sst.bad ? 1 : 0;
 }
 

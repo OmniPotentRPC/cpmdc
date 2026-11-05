@@ -44,8 +44,11 @@ Each of the six symmetric strains ~eps_ab~ is applied as ~+DX~ and ~-DX~ to
 the cell vectors and to the positions, so the fractional coordinates stay
 fixed.
 That costs 12 more evaluations.
-The numerical stress is ~-(E(+DX) - E(-DX)) / (2 DX V)~ in
-Hartree/Bohr^3, the sign of OpenCPMD ~paiu/omega~ and of the CP2K virial.
+The check compares virials in Hartree, as CP2K compares ~pv_virial~, so
+~--eps-no-error-check~ means the same as there.
+The numerical virial is ~-(E(+DX) - E(-DX)) / (2 DX)~ and the analytic one
+is the volume times ~PotentialResult.stress~ in Hartree/Bohr^3, the sign of
+OpenCPMD ~paiu/omega~.
 
 * What the reference build shows
 The reference evaluator returns the analytic gradient of its energy, so its
