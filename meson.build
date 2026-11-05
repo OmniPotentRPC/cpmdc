@@ -597,6 +597,30 @@ if get_option('with_tests')
       timeout: 180,
       is_parallel: false,
     )
+    # The reference evaluator gives exact per-rank values to compare against.
+    if not has_cpmd
+      rank_consensus = executable(
+        'test_rank_consensus_mpi',
+        'tests/test_rank_consensus_mpi.c',
+        dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
+        include_directories: inc,
+        c_args: common_c_args,
+      )
+      test(
+        'rank-consensus',
+        python,
+        args: [
+          run_mpi_test,
+          '4',
+          rank_consensus.full_path(),
+          cpmd_parser_params_bin.full_path(),
+        ],
+        depends: [rank_consensus, cpmd_parser_params_bin],
+        suite: ['mpi', 'embed'],
+        timeout: 180,
+        is_parallel: false,
+      )
+    endif
   endif
   test(
     'capabilities-cmocka',
