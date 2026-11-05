@@ -405,9 +405,14 @@ The [contributing guide](docs/orgmode/contributing/index.org) lists the checks t
 
 ## Version
 
-0.1.0 covers the Cap'n Proto contract, stable C ABI, Fortran bridge, shared
-`libcpmdc`, deterministic reference evaluator, OpenCPMD archive link path,
-parser tests, session tests, and rgpot-compatible result carriers.
+<!-- [[[cog cog.outl(f'This README describes cpmdc {open("version.txt").read().strip()}.') ]]] -->
+This README describes cpmdc 0.3.0.
+<!-- [[[end]]] -->
+`version.txt` holds the only hand-written copy of the version.
+`pixi run version-sync` regenerates the other copies, and CI fails when
+one differs.
+[`CHANGELOG.md`](CHANGELOG.md) lists the changes in each release, and
+`docs/newsfragments/` holds the entries for the next one.
 
 ## Citation
 

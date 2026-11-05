@@ -11,6 +11,7 @@ COG = ["uvx", "--from", "cogapp==3.6.0", "cog"]
 COG_FILES = [
     "pixi.toml",
     "CITATION.cff",
+    "README.md",
     "include/cpmdc.h",
     "docs/orgmode/tutorials/first-energy.org",
     "docs/source/Doxyfile_cpmdc.cfg",
