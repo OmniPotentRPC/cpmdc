@@ -11,6 +11,7 @@
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
+| ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
 
 The first call of an OpenCPMD session fails when neither
 ~CPMDC_PSEUDO_DIR~ nor ~CPMD_PP_LIBRARY_PATH~ names an existing directory.
@@ -52,6 +53,18 @@ Each line is flushed as it is written, so a log file shows it while the host run
 
 ~CPMDC_WARM_RMSD~ is the distance limit of [[file:../explanation/wavefunction-state.org][the stored orbitals]] (section Distance limit).
 A value that does not parse as a number keeps the default.
+
+~CPMDC_RANK_CONSENSUS=1~ adds three collectives to each evaluation on the
+calculator communicator: the one bound or adopted, or ~MPI_COMM_WORLD~ when
+neither call was made.
+Every rank fails when one rank failed, and every rank resets its CPMD state
+when one rank stopped.
+A repeat of the stored positions returns the stored result only when every
+rank repeats.
+~cpmdc_last_rank_spread()~ then reports the largest energy and gradient
+difference from rank 0 before the broadcast.
+Set it to the same value on every rank.
+A build without MPI ignores it.
 
 * Read by the tests and tools
 
