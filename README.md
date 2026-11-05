@@ -65,6 +65,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `include/cpmdc.h` | public C ABI, sessions, one-shot calls, result sizing |
 | `include/cpmdc_restart.h` | C reader and writer for a CPMD `RESTART` file |
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
+| `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `include/cpmdc_features.h` | runtime feature discovery table |
 | `schema/Potentials.capnp` | `CPMDParams`, `ForceInput`, `PotentialResult`, `PotentialConfig` |
 | `src/cpmdc_params.c` | Cap'n Proto decode and CPMD `INPUT` rendering |
