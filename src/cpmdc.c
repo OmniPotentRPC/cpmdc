@@ -11,10 +11,12 @@
 #endif
 
 #include <limits.h>
+#include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(CPMDC_HAS_CPMD)
+#if defined(CPMDC_HAVE_MPI)
 #include <mpi.h>
 #endif
 
@@ -1049,6 +1051,118 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   return cpmdc_set_params_ov(params_capnp, params_capnp_size_bytes, NULL);
 }
 
+static CPMDCRankSpread g_rank_spread;
+
+#if defined(CPMDC_HAVE_MPI)
+/* The calculator communicator, or MPI_COMM_WORLD when none was bound or
+ * adopted. -1 when consensus is off or MPI is not running. */
+static int rank_consensus_comm(MPI_Comm *comm) {
+  const char *v = getenv("CPMDC_RANK_CONSENSUS");
+  int inited = 0;
+  int finalized = 0;
+  if (!v || strcmp(v, "1") != 0)
+    return -1;
+  if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited ||
+      MPI_Finalized(&finalized) != MPI_SUCCESS || finalized)
+    return -1;
+  if (cpmdc_adopted_comm(comm, sizeof(*comm)) != 0)
+    *comm = MPI_COMM_WORLD;
+  return 0;
+}
+
+static double rank_difference(double local, double root) {
+  double d;
+  if (local == root)
+    return 0.0;
+  d = fabs(local - root);
+  return isnan(d) ? HUGE_VAL : d;
+}
+#endif
+
+/* With consensus on, the flag holds only where it holds on every rank, so
+ * every rank takes the same branch into the next collective. */
+static int rank_consensus_all(int flag) {
+#if defined(CPMDC_HAVE_MPI)
+  MPI_Comm comm;
+  if (rank_consensus_comm(&comm) == 0 &&
+      MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, comm) !=
+          MPI_SUCCESS)
+    return 0;
+#endif
+  return flag;
+}
+
+/* CPMD treats rank 0 of the calculator as holding the result. Every rank
+ * fails when one failed and resets when one stopped. Otherwise every rank
+ * takes rank 0's energy, gradient, and snapshots, and the spread records
+ * how far the other ranks were from them. */
+static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
+                          double *grad, CPMDCEmbedImage *image) {
+  memset(&g_rank_spread, 0, sizeof(g_rank_spread));
+#if defined(CPMDC_HAVE_MPI)
+  MPI_Comm comm;
+  int size = 0;
+  int flags[2];
+  double dev[2] = {0.0, 0.0};
+  double *root;
+  if (rank_consensus_comm(&comm) != 0)
+    return 0;
+  if (MPI_Comm_size(comm, &size) != MPI_SUCCESS)
+    return -1;
+  root = (double *)malloc((n3 + 1u) * sizeof(*root));
+  flags[0] = !*ok || !root;
+  flags[1] = *stop != 0;
+  if (MPI_Allreduce(MPI_IN_PLACE, flags, 2, MPI_INT, MPI_MAX, comm) !=
+      MPI_SUCCESS) {
+    free(root);
+    return -1;
+  }
+  if (flags[1] && *stop == 0)
+    *stop = 1;
+  if (flags[0] && *ok) {
+    *ok = 0;
+    snprintf(g_embed_detail, sizeof(g_embed_detail), "%s",
+             "CPMD energy/gradient failed on another rank of the calculator");
+  }
+  if (flags[0] || flags[1]) {
+    free(root);
+    return 0;
+  }
+  root[0] = *energy;
+  memcpy(root + 1, grad, n3 * sizeof(*grad));
+  if (MPI_Bcast(root, (int)(n3 + 1u), MPI_DOUBLE, 0, comm) != MPI_SUCCESS ||
+      MPI_Bcast(image, (int)offsetof(CPMDCEmbedImage, warm_cell), MPI_BYTE, 0,
+                comm) != MPI_SUCCESS) {
+    free(root);
+    return -1;
+  }
+  dev[0] = rank_difference(*energy, root[0]);
+  for (size_t i = 0; i < n3; ++i) {
+    double d = rank_difference(grad[i], root[i + 1u]);
+    if (d > dev[1])
+      dev[1] = d;
+  }
+  *energy = root[0];
+  memcpy(grad, root + 1, n3 * sizeof(*grad));
+  free(root);
+  if (MPI_Allreduce(MPI_IN_PLACE, dev, 2, MPI_DOUBLE, MPI_MAX, comm) !=
+      MPI_SUCCESS)
+    return -1;
+  g_rank_spread.valid = 1;
+  g_rank_spread.ranks = size;
+  g_rank_spread.energy_h = dev[0];
+  g_rank_spread.gradient_h_bohr = dev[1];
+#else
+  (void)ok;
+  (void)stop;
+  (void)n3;
+  (void)energy;
+  (void)grad;
+  (void)image;
+#endif
+  return 0;
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -1082,6 +1196,9 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                    image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
+  if (rank_consensus(&ok, &stop, (size_t)n_atoms * 3u, &energy, grad_h_bohr,
+                     image) != 0)
+    return fail_msg("CPMDC_RANK_CONSENSUS: an MPI collective failed");
   if (stop != 0) {
     /* stopgm returned on this rank. The wavefunction, forces and module
      * state of this call are undefined. Drop them so the next call sets
@@ -1494,10 +1611,11 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
-  if (grad_h_bohr &&
-      session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
-                                   atomic_numbers, cell_ang, has_cell,
-                                   grad_h_bohr)) {
+  if (rank_consensus_all(
+          grad_h_bohr &&
+          session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
+                                       atomic_numbers, cell_ang, has_cell,
+                                       grad_h_bohr))) {
     CPMDCResult cached;
     cached.ok = 1;
     cached.energy_h = session->cached_energy_h;
@@ -1923,6 +2041,13 @@ int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *ou
   if (!session || !out)
     return -1;
   *out = session->image.stress;
+  return out->valid ? 0 : -1;
+}
+
+int cpmdc_last_rank_spread(CPMDCRankSpread *out) {
+  if (!out)
+    return -1;
+  *out = g_rank_spread;
   return out->valid ? 0 : -1;
 }
 

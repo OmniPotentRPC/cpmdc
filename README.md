@@ -116,6 +116,7 @@ For a complete mapping table, see
 | The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
 | MPI rank groups (one calculator per group) | `cpmdc_bind_calculator`, `cpmdc_adopt_calculator_comm`, `cpmdc_adopted_comm` |
+| Rank spread of one calculator under `CPMDC_RANK_CONSENSUS=1` | `cpmdc_last_rank_spread` |
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_select_orbitals`, `cpmdc_session_destroy` |
 | Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |

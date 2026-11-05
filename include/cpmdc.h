@@ -195,6 +195,25 @@ typedef struct CPMDCStressTensor {
   double values[9];
 } CPMDCStressTensor;
 
+/**
+ * @brief How far the ranks of one calculator were from its rank 0.
+ *
+ * Written by an evaluation that ran with `CPMDC_RANK_CONSENSUS=1` under a
+ * running MPI. The differences are taken before every rank receives rank 0's
+ * energy and gradient. A NaN difference is reported as infinity. Both are 0
+ * when every rank held the same values.
+ */
+typedef struct CPMDCRankSpread {
+  /** Non-zero when the last evaluation ran the consensus step. */
+  int valid;
+  /** Ranks in the calculator communicator. */
+  int ranks;
+  /** Largest `|E_r - E_0|` over the ranks `r`, Hartree. */
+  double energy_h;
+  /** Largest nuclear-gradient component difference from rank 0, Hartree/Bohr. */
+  double gradient_h_bohr;
+} CPMDCRankSpread;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
 
@@ -603,6 +622,16 @@ int cpmdc_last_stress(CPMDCStressTensor *out);
 /** @brief Copy the last stress tensor stored on @p session. */
 int cpmdc_session_last_stress(const CPMDCSession *session,
                               CPMDCStressTensor *out);
+
+/**
+ * @brief Copy the rank spread of the last evaluation in this process.
+ *
+ * Returns 0 when `out->valid` is set: the last evaluation ran with
+ * `CPMDC_RANK_CONSENSUS=1` under a running MPI. A repeat of the stored
+ * positions keeps the spread of the evaluation that stored them. Does not
+ * write `cpmdc_last_error()`.
+ */
+int cpmdc_last_rank_spread(CPMDCRankSpread *out);
 
 #ifdef __cplusplus
 }

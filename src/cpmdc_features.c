@@ -1323,6 +1323,7 @@ static const CPMDCFeatureEntry g_features[] = {
     {"abi.cpmdc_last_md_trajectory_row", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_last_property_snapshot", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_last_stress", CPMDC_FEATURE_ABI, 1, 1},
+    {"abi.cpmdc_last_rank_spread", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_last_energy_components", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_last_charge_integrals", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_session_last_multi_state_energies", CPMDC_FEATURE_ABI, 1, 1},

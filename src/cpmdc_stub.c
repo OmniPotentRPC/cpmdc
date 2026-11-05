@@ -296,6 +296,12 @@ int cpmdc_last_stress(CPMDCStressTensor *out) {
   return -1;
 }
 
+int cpmdc_last_rank_spread(CPMDCRankSpread *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
 int cpmdc_last_energy_components(CPMDCEnergyComponents *out) {
   if (out)
     memset(out, 0, sizeof(*out));
