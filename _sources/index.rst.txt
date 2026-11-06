@@ -99,6 +99,9 @@ Start Here
    * - Ask a question or report a bug
      - Open an issue with the version, the build options, and the failing deck
      - `GitHub issue tracker <https://github.com/OmniPotentRPC/cpmdc/issues>`_
+   * - Cite cpmdc in a paper
+     - Use the record in ``CITATION.cff``, and cite OpenCPMD for its energies
+     - `CITATION.cff <https://github.com/OmniPotentRPC/cpmdc/blob/main/CITATION.cff>`_
 
 Questions and bug reports
 -------------------------
@@ -221,6 +224,26 @@ An OpenCPMD archive build links the same C ABI surface against ``libcpmd.a``.
    :caption: Project
 
    changelog
+
+Citation
+--------
+
+Cite cpmdc with the record in
+`CITATION.cff <https://github.com/OmniPotentRPC/cpmdc/blob/main/CITATION.cff>`_
+at the root of the repository.
+It gives the author, the version, the license, and the repository in the
+`Citation File Format <https://citation-file-format.github.io>`_.
+GitHub reads that file and offers the record as "Cite this repository"
+on the repository page, as the
+`GitHub documentation on citation files <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files>`_
+describes.
+The record carries no digital object identifier (DOI).
+
+An OpenCPMD archive build computes its energies and forces with
+OpenCPMD, so a paper that reports them cites OpenCPMD as well.
+OpenCPMD ships no citation file; name it with its repository,
+`github.com/OpenCPMD/CPMD <https://github.com/OpenCPMD/CPMD>`_, and the
+version or commit that the archive was built from.
 
 License
 -------

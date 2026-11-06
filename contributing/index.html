@@ -554,6 +554,15 @@ Generated <code class="docutils literal notranslate"><span class="pre">docs/sour
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span>docs<span class="w"> </span>mkrst
 </span></pre></div>
 </div>
+<p>Check the links in the README, the Org sources, and the newsfragments:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">pixi<span class="w"> </span>run<span class="w"> </span>lychee
+</span></pre></div>
+</div>
+<p>The task runs <a class="reference external" href="https://lychee.cli.rs">lychee</a> with <code class="docutils literal notranslate"><span class="pre">.lychee.toml</span></code>,
+which also checks the anchor of a link such as <code class="docutils literal notranslate"><span class="pre">README.md#citation</span></code>.
+The Pixi environment does not provide lychee, so put it on the path
+first.
+A link to a file on the <code class="docutils literal notranslate"><span class="pre">main</span></code> branch fails until that file lands there.</p>
 <p>The Sphinx theme injects <code class="docutils literal notranslate"><span class="pre">antics-api.turtletech.us/antics.js</span></code> via
 <code class="docutils literal notranslate"><span class="pre">docs/source/_templates/partials/extra-head.html</span></code>, and the footer credit lives
 in <code class="docutils literal notranslate"><span class="pre">docs/source/_templates/partials/site-foot.html</span></code> (same pattern as <code class="docutils literal notranslate"><span class="pre">rgpot</span></code>).</p>
