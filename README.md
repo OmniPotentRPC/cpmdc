@@ -30,6 +30,7 @@ portable result carrier used by RPC-facing callers.
 | Regenerate generated docs | Edit `docs/orgmode/`, then run `pixi run -e docs mkrst` and `pixi run -e docs sphinxbld` |
 | Ask a question or report a bug | Open an issue as [the reporting section](#questions-and-bug-reports) describes |
 | Send a fix or an improvement | Read the [contributing guide](docs/orgmode/contributing/index.org), then open a pull request |
+| Cite cpmdc in a paper | Use the record in [`CITATION.cff`](CITATION.cff), as [Citation](#citation) describes |
 
 New RPC and optimizer hosts should start with
 `cpmdc_session_calculate_result()`. It keeps `CPMDParams` method setup in a
@@ -405,9 +406,31 @@ The [contributing guide](docs/orgmode/contributing/index.org) lists the checks t
 
 ## Version
 
-0.1.0 covers the Cap'n Proto contract, stable C ABI, Fortran bridge, shared
-`libcpmdc`, deterministic reference evaluator, OpenCPMD archive link path,
-parser tests, session tests, and rgpot-compatible result carriers.
+<!-- [[[cog cog.outl(f'This README describes cpmdc {open("version.txt").read().strip()}.') ]]] -->
+This README describes cpmdc 0.3.0.
+<!-- [[[end]]] -->
+`version.txt` holds the only hand-written copy of the version.
+`pixi run version-sync` regenerates the other copies, and CI fails when
+one differs.
+[`CHANGELOG.md`](CHANGELOG.md) lists the changes in each release, and
+`docs/newsfragments/` holds the entries for the next one.
+
+## Citation
+
+Cite cpmdc with the record in [`CITATION.cff`](CITATION.cff).
+It gives the author, the version, the license, and the repository in the
+[Citation File Format](https://citation-file-format.github.io).
+GitHub reads that file and offers the record as "Cite this repository"
+on the repository page, as the
+[GitHub documentation on citation files](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files)
+describes.
+The record carries no digital object identifier (DOI).
+
+An OpenCPMD archive build computes its energies and forces with
+OpenCPMD, so a paper that reports them cites OpenCPMD as well.
+OpenCPMD ships no citation file; name it with its repository,
+[github.com/OpenCPMD/CPMD](https://github.com/OpenCPMD/CPMD), and the
+version or commit that the archive was built from.
 
 ## License
 

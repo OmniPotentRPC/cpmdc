@@ -1,0 +1,10 @@
+# Configuration for `pixi run lychee`.
+# Options: https://lychee.cli.rs/guides/config/
+no_progress = true
+
+# GitHub answers bursts of requests with 429 Too Many Requests.
+accept = ["200..=299", "429"]
+max_retries = 3
+
+# Check the anchors of links such as README.md#citation.
+include_fragments = "anchor-only"

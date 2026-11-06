@@ -171,6 +171,18 @@ Regenerate RST after editing Org sources:
 pixi run -e docs mkrst
 #+end_src
 
+Check the links in the README, the Org sources, and the newsfragments:
+
+#+begin_src bash
+pixi run lychee
+#+end_src
+
+The task runs [[https://lychee.cli.rs][lychee]] with ~.lychee.toml~,
+which also checks the anchor of a link such as ~README.md#citation~.
+The Pixi environment does not provide lychee, so put it on the path
+first.
+A link to a file on the ~main~ branch fails until that file lands there.
+
 The Sphinx theme injects ~antics-api.turtletech.us/antics.js~ via
 ~docs/source/_templates/partials/extra-head.html~, and the footer credit lives
 in ~docs/source/_templates/partials/site-foot.html~ (same pattern as ~rgpot~).
