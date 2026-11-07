@@ -14,6 +14,13 @@
 #include <omp.h>
 #endif
 
+/* Test hook. Unset in ordinary runs. Names a setup step that must fail
+ * after earlier buffers exist, so the cleanup path can be checked. */
+static int fft_fault(const char *name) {
+  const char *env = getenv("CPMDC_PWSCALE_FFT_FAULT");
+  return env && strcmp(env, name) == 0;
+}
+
 static double fft_now(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -65,8 +72,10 @@ int cpmdc_pwscale_fft(int n, int workers, int weak_batch, double *seconds,
   fftw_complex **spec = NULL;
   fftw_plan *fwd = NULL;
   fftw_plan *rev = NULL;
-  fftw_plan serial_fwd, serial_rev;
-  int b;
+  fftw_plan serial_fwd = NULL;
+  fftw_plan serial_rev = NULL;
+  int b = 0;
+  int status = CPMDC_PWSCALE_OK;
   static int threads_ready = 0;
 
   if (n < 2 || (n % 2) != 0)
@@ -91,8 +100,10 @@ int cpmdc_pwscale_fft(int n, int workers, int weak_batch, double *seconds,
   serial_in = (double *)fftw_malloc((size_t)nreal * sizeof(double));
   serial_out = (double *)fftw_malloc((size_t)nreal * sizeof(double));
   serial_spec = (fftw_complex *)fftw_malloc((size_t)ncomplex * sizeof(fftw_complex));
-  if (!serial_in || !serial_out || !serial_spec)
-    return CPMDC_PWSCALE_ERR_ARG;
+  if (!serial_in || !serial_out || !serial_spec || fft_fault("serial-buf")) {
+    status = CPMDC_PWSCALE_ERR_ARG;
+    goto done;
+  }
   *alloc_bytes += (long long)nreal * 2 * (long long)sizeof(double);
   *alloc_bytes += (long long)ncomplex * (long long)sizeof(fftw_complex);
   fill_grid(serial_in, nreal);
@@ -101,31 +112,39 @@ int cpmdc_pwscale_fft(int n, int workers, int weak_batch, double *seconds,
   fftw_plan_with_nthreads(1);
   serial_fwd = fftw_plan_dft_r2c_3d(n, n, n, serial_in, serial_spec, FFTW_ESTIMATE);
   serial_rev = fftw_plan_dft_c2r_3d(n, n, n, serial_spec, serial_out, FFTW_ESTIMATE);
-  if (!serial_fwd || !serial_rev)
-    return CPMDC_PWSCALE_ERR_NOFFTW;
+  if (!serial_fwd || !serial_rev || fft_fault("serial-plan")) {
+    status = CPMDC_PWSCALE_ERR_NOFFTW;
+    goto done;
+  }
 
   in = (double **)calloc((size_t)batch, sizeof(double *));
   out = (double **)calloc((size_t)batch, sizeof(double *));
   spec = (fftw_complex **)calloc((size_t)batch, sizeof(fftw_complex *));
   fwd = (fftw_plan *)calloc((size_t)batch, sizeof(fftw_plan));
   rev = (fftw_plan *)calloc((size_t)batch, sizeof(fftw_plan));
-  if (!in || !out || !spec || !fwd || !rev)
-    return CPMDC_PWSCALE_ERR_ARG;
+  if (!in || !out || !spec || !fwd || !rev || fft_fault("batch-ptr")) {
+    status = CPMDC_PWSCALE_ERR_ARG;
+    goto done;
+  }
 
   fftw_plan_with_nthreads(plan_threads);
   for (b = 0; b < batch; ++b) {
     in[b] = (double *)fftw_malloc((size_t)nreal * sizeof(double));
     out[b] = (double *)fftw_malloc((size_t)nreal * sizeof(double));
     spec[b] = (fftw_complex *)fftw_malloc((size_t)ncomplex * sizeof(fftw_complex));
-    if (!in[b] || !out[b] || !spec[b])
-      return CPMDC_PWSCALE_ERR_ARG;
+    if (!in[b] || !out[b] || !spec[b] || (fft_fault("batch-buf") && b == 0)) {
+      status = CPMDC_PWSCALE_ERR_ARG;
+      goto done;
+    }
     *alloc_bytes += (long long)nreal * 2 * (long long)sizeof(double);
     *alloc_bytes += (long long)ncomplex * (long long)sizeof(fftw_complex);
     fill_grid(in[b], nreal);
     fwd[b] = fftw_plan_dft_r2c_3d(n, n, n, in[b], spec[b], FFTW_ESTIMATE);
     rev[b] = fftw_plan_dft_c2r_3d(n, n, n, spec[b], out[b], FFTW_ESTIMATE);
-    if (!fwd[b] || !rev[b])
-      return CPMDC_PWSCALE_ERR_NOFFTW;
+    if (!fwd[b] || !rev[b] || (fft_fault("batch-plan") && b == 0)) {
+      status = CPMDC_PWSCALE_ERR_NOFFTW;
+      goto done;
+    }
   }
   plan1 = fft_now();
   *plan_s = plan1 - plan0;
@@ -173,26 +192,35 @@ int cpmdc_pwscale_fft(int n, int workers, int weak_batch, double *seconds,
       *versus_serial_max_abs = vs;
   }
 
+done:
   for (b = 0; b < batch; ++b) {
     if (fwd && fwd[b])
       fftw_destroy_plan(fwd[b]);
     if (rev && rev[b])
       fftw_destroy_plan(rev[b]);
-    fftw_free(in[b]);
-    fftw_free(out[b]);
-    fftw_free(spec[b]);
+    if (in && in[b])
+      fftw_free(in[b]);
+    if (out && out[b])
+      fftw_free(out[b]);
+    if (spec && spec[b])
+      fftw_free(spec[b]);
   }
-  fftw_destroy_plan(serial_fwd);
-  fftw_destroy_plan(serial_rev);
-  fftw_free(serial_in);
-  fftw_free(serial_out);
-  fftw_free(serial_spec);
+  if (serial_fwd)
+    fftw_destroy_plan(serial_fwd);
+  if (serial_rev)
+    fftw_destroy_plan(serial_rev);
+  if (serial_in)
+    fftw_free(serial_in);
+  if (serial_out)
+    fftw_free(serial_out);
+  if (serial_spec)
+    fftw_free(serial_spec);
   free(in);
   free(out);
   free(spec);
   free(fwd);
   free(rev);
-  return CPMDC_PWSCALE_OK;
+  return status;
 }
 
 #else

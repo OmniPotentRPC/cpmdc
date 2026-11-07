@@ -318,6 +318,13 @@ int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob,
 
 #if defined(CPMDC_PWSCALE_HAVE_MPI)
 
+/* Test hook. Unset in ordinary runs. "gather" drops rank 0's buffers.
+ * "team" fails the last rank's team. Every rank still joins the allreduce. */
+static int mpi_fault(const char *name) {
+  const char *env = getenv("CPMDC_PWSCALE_MPI_FAULT");
+  return env && strcmp(env, name) == 0;
+}
+
 int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
                            const double *positions_bohr,
                            const int *atomic_numbers, double *forces_h_bohr,
@@ -364,20 +371,26 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
     return CPMDC_PWSCALE_ERR_ARG;
 
   local_f = (double *)calloc((size_t)n3, sizeof(double));
-  if (!local_f)
-    return CPMDC_PWSCALE_ERR_ARG;
-  alloc_bytes += (long long)n3 * (long long)sizeof(double);
-  if (rank == 0) {
+  if (local_f)
+    alloc_bytes += (long long)n3 * (long long)sizeof(double);
+  if (rank == 0 && !mpi_fault("gather")) {
     gathered_e = (double *)calloc((size_t)size, sizeof(double));
     gathered_f = (double *)calloc((size_t)size * (size_t)n3, sizeof(double));
-    if (!gathered_e || !gathered_f) {
+    if (gathered_e && gathered_f) {
+      alloc_bytes += (long long)size * (long long)sizeof(double);
+      alloc_bytes += (long long)size * (long long)n3 * (long long)sizeof(double);
+    }
+  }
+  {
+    int local_ok = local_f != NULL && (rank != 0 || (gathered_e && gathered_f));
+    int all_ok = 0;
+    if (MPI_Allreduce(&local_ok, &all_ok, 1, MPI_INT, MPI_MIN, use) != MPI_SUCCESS ||
+        !all_ok) {
       free(local_f);
       free(gathered_e);
       free(gathered_f);
       return CPMDC_PWSCALE_ERR_ARG;
     }
-    alloc_bytes += (long long)size * (long long)sizeof(double);
-    alloc_bytes += (long long)size * (long long)n3 * (long long)sizeof(double);
   }
 
   if (MPI_Barrier(use) != MPI_SUCCESS) {
@@ -399,11 +412,22 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
                   0, &local_e, local_f, &local_g, &local_a, &alloc_bytes,
                   &workers);
   }
-  if (rc != CPMDC_PWSCALE_OK) {
-    free(local_f);
-    free(gathered_e);
-    free(gathered_f);
-    return rc;
+  if (mpi_fault("team") && size > 1 && rank == size - 1)
+    rc = CPMDC_PWSCALE_ERR_ARG;
+  {
+    int rc_all = rc;
+    if (MPI_Allreduce(&rc, &rc_all, 1, MPI_INT, MPI_MIN, use) != MPI_SUCCESS) {
+      free(local_f);
+      free(gathered_e);
+      free(gathered_f);
+      return CPMDC_PWSCALE_ERR_ARG;
+    }
+    if (rc_all != CPMDC_PWSCALE_OK) {
+      free(local_f);
+      free(gathered_e);
+      free(gathered_f);
+      return rc_all;
+    }
   }
 
   if (MPI_Gather(&local_e, 1, MPI_DOUBLE, gathered_e, 1, MPI_DOUBLE, 0, use) !=

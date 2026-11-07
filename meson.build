@@ -1721,7 +1721,11 @@ if get_option('with_pwscale')
       'cpmdc_pwscale_cuda',
       input: 'src/cpmdc_pwscale_cuda.cu',
       output: 'cpmdc_pwscale_cuda.o',
-      command: [nvcc, '-O2', '-arch=sm_70', '-c', '@INPUT@', '-o', '@OUTPUT@'],
+      command: [
+        nvcc, '-O2', '-arch=sm_70',
+        '-I' + meson.current_source_dir() / 'include',
+        '-c', '@INPUT@', '-o', '@OUTPUT@',
+      ],
     )
     pwscale_objects += [pwscale_cuda]
   else
@@ -1783,6 +1787,30 @@ if get_option('with_pwscale')
       suite: ['pwscale'],
       timeout: 120,
     )
+    test(
+      'pwscale-cuda-include',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_pwscale_cuda_include.py',
+        meson.current_source_dir(),
+      ],
+      suite: ['pwscale'],
+    )
+    if fftw3.found() and fftw3_omp.found() and cc.has_header('fftw3.h')
+      pwscale_fft_fail = executable(
+        'test_pwscale_fft_fail',
+        ['tests/test_pwscale_fft_fail.c', 'bench/pwscale_fft.c'],
+        c_args: common_c_args + pwscale_c_args + pwscale_fft_args,
+        include_directories: [inc, include_directories('bench')],
+        dependencies: [pwscale_dep] + pwscale_fft_deps,
+      )
+      test(
+        'pwscale-fft-fail',
+        pwscale_fft_fail,
+        suite: ['pwscale'],
+        timeout: 60,
+      )
+    endif
     mpirun = find_program('mpirun', required: false)
     if mpirun.found() and mpi_c_dep.found()
       foreach np : ['2', '4', '8']
@@ -1794,6 +1822,20 @@ if get_option('with_pwscale')
           timeout: 180,
         )
       endforeach
+      pwscale_mpi_fault = executable(
+        'test_pwscale_mpi_fault',
+        'tests/test_pwscale_mpi_fault.c',
+        c_args: common_c_args + pwscale_c_args,
+        include_directories: inc,
+        dependencies: pwscale_dep,
+      )
+      test(
+        'pwscale-mpi-fault',
+        mpirun,
+        args: ['--bind-to', 'none', '--oversubscribe', '-np', '2', pwscale_mpi_fault],
+        suite: ['pwscale'],
+        timeout: 30,
+      )
     endif
   endif
 endif
