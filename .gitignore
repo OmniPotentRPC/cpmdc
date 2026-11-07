@@ -1,4 +1,5 @@
 /build*/
+/bench/build/
 /bbdir*/
 /docs/build/
 /docs/doctrees/

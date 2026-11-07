@@ -1702,3 +1702,98 @@ test(
   endif
 
 endif
+
+# Structure-factor scaffold. Separate from the embed library and the reference potential.
+if get_option('with_pwscale')
+  pwscale_omp = dependency('openmp', language: 'c', required: true)
+  pwscale_c_args = ['-D_POSIX_C_SOURCE=200809L']
+  pwscale_deps = [math_dep, pwscale_omp]
+  pwscale_sources = ['src/cpmdc_pwscale.c']
+  if mpi_c_dep.found()
+    pwscale_c_args += ['-DCPMDC_PWSCALE_HAVE_MPI=1']
+    pwscale_deps += [mpi_c_dep]
+  endif
+  pwscale_objects = []
+  if get_option('with_pwscale_cuda')
+    nvcc = find_program('nvcc', required: true)
+    # sm_70 is the floor for the double-precision atomicAdd in the scaffold kernel.
+    pwscale_cuda = custom_target(
+      'cpmdc_pwscale_cuda',
+      input: 'src/cpmdc_pwscale_cuda.cu',
+      output: 'cpmdc_pwscale_cuda.o',
+      command: [nvcc, '-O2', '-arch=sm_70', '-c', '@INPUT@', '-o', '@OUTPUT@'],
+    )
+    pwscale_objects += [pwscale_cuda]
+  else
+    pwscale_sources += ['src/cpmdc_pwscale_cuda_stub.c']
+  endif
+  pwscale_lib = static_library(
+    'cpmdc_pwscale',
+    pwscale_sources,
+    objects: pwscale_objects,
+    include_directories: inc,
+    c_args: common_c_args + pwscale_c_args,
+    dependencies: pwscale_deps,
+  )
+  pwscale_dep = declare_dependency(
+    link_with: pwscale_lib,
+    include_directories: [inc, include_directories('bench')],
+    dependencies: pwscale_deps,
+  )
+  pwscale_fft_args = []
+  pwscale_fft_deps = []
+  fftw3 = cc.find_library('fftw3', required: false)
+  fftw3_omp = cc.find_library('fftw3_omp', required: false)
+  if fftw3.found() and fftw3_omp.found() and cc.has_header('fftw3.h')
+    pwscale_fft_args += ['-DCPMDC_PWSCALE_HAVE_FFTW=1']
+    pwscale_fft_deps += [fftw3, fftw3_omp]
+  endif
+  pwscale_harness = executable(
+    'cpmdc-pwscale',
+    ['bench/pwscale_harness.c', 'bench/pwscale_fft.c'],
+    c_args: common_c_args + pwscale_c_args + pwscale_fft_args,
+    include_directories: [inc, include_directories('bench')],
+    dependencies: [pwscale_dep] + pwscale_fft_deps,
+    install: false,
+  )
+  if get_option('with_tests')
+    pwscale_agree = executable(
+      'test_pwscale_agreement',
+      'tests/test_pwscale_agreement.c',
+      c_args: common_c_args + pwscale_c_args,
+      include_directories: inc,
+      dependencies: pwscale_dep,
+    )
+    test(
+      'pwscale-agreement',
+      pwscale_agree,
+      suite: ['pwscale'],
+      timeout: 120,
+    )
+    test(
+      'pwscale-oracle',
+      python,
+      args: [meson.current_source_dir() / 'tests/pwscale_oracle.py'],
+      suite: ['pwscale'],
+    )
+    test(
+      'pwscale-logger',
+      python,
+      args: [meson.current_source_dir() / 'tests/test_pwscale_logger.py', pwscale_harness],
+      suite: ['pwscale'],
+      timeout: 120,
+    )
+    mpirun = find_program('mpirun', required: false)
+    if mpirun.found() and mpi_c_dep.found()
+      foreach np : ['2', '4', '8']
+        test(
+          'pwscale-agreement-mpi-' + np,
+          mpirun,
+          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_agree],
+          suite: ['pwscale'],
+          timeout: 180,
+        )
+      endforeach
+    endif
+  endif
+endif
