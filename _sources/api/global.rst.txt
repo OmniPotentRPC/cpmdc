@@ -17,6 +17,8 @@ Global Namespace
 	struct_CPMDCRankSpread.rst
 	struct_CPMDCResult.rst
 	struct_CPMDCStressTensor.rst
+	struct_cpmdc_pwscale_problem.rst
+	struct_cpmdc_pwscale_stats.rst
 
 Overview
 ~~~~~~~~
@@ -41,6 +43,8 @@ Overview
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
+	typedef struct cpmdc_pwscale_problem :target:`cpmdc_pwscale_problem<doxid-cpmdc__pwscale_8h_1af2e92a3b53cdffae89ca1df1fb56b008>`;
+	typedef struct cpmdc_pwscale_stats :target:`cpmdc_pwscale_stats<doxid-cpmdc__pwscale_8h_1ae1d3e6ecadbedaadd25c6828c469d1f3>`;
 	typedef struct :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>` :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`;
 
 	// enums
@@ -58,6 +62,8 @@ Overview
 	struct :ref:`CPMDCRankSpread<doxid-struct_c_p_m_d_c_rank_spread>`;
 	struct :ref:`CPMDCResult<doxid-struct_c_p_m_d_c_result>`;
 	struct :ref:`CPMDCStressTensor<doxid-struct_c_p_m_d_c_stress_tensor>`;
+	struct :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`;
+	struct :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`;
 
 	// global functions
 
@@ -105,6 +111,14 @@ Overview
 	size_t :ref:`cpmdc_feature_count<doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_table<doxid-cpmdc__features_8h_1ae40eb0e96927dc5f3feacc20c3869315>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_find<doxid-cpmdc__features_8h_1a4d2414cdfa87d867cf1ab1e708dfb4ca>`(const char* feature_id);
+	void :target:`cpmdc_pwscale_fill_geometry<doxid-cpmdc__pwscale_8h_1aeeedb48279f3808b778dbaa73e0c794d>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, double* positions_bohr, int* atomic_numbers);
+	int :target:`cpmdc_pwscale_within<doxid-cpmdc__pwscale_8h_1a0ec43d7c5364ec724ad18c808e8bac1b>`(double got, double ref);
+	int :target:`cpmdc_pwscale_sample_check<doxid-cpmdc__pwscale_8h_1af1f7a704c5b99826efc35782bf1e7cea>`(double got_energy, const double* got_forces, double ref_energy, const double* ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double* max_abs_dE, double* max_abs_dF, int* counts_match);
+	int :target:`cpmdc_pwscale_eval<doxid-cpmdc__pwscale_8h_1aa26b7fb52d9d69d7787ce467fa92f418>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
+	int :target:`cpmdc_pwscale_eval_mpi<doxid-cpmdc__pwscale_8h_1a213f0a8929d9ee4d79ee01f0d7323077>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats, const void* comm, size_t comm_bytes);
+	int :target:`cpmdc_pwscale_cuda_compiled<doxid-cpmdc__pwscale_8h_1a03639510eaf220a29c52f381bd66a0ae>`(void);
+	int :target:`cpmdc_pwscale_cuda_device<doxid-cpmdc__pwscale_8h_1a80f63f377b2a8860147d0aa4c912ed60>`(char* name, int namelen);
+	int :target:`cpmdc_pwscale_eval_cuda<doxid-cpmdc__pwscale_8h_1a8a4db6541981b362149742707e0d17a1>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
 	:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* :ref:`cpmdc_restart_read_mem<doxid-cpmdc__restart_8h_1ae7b62fa4d0ac1400f7ca88fae6687f2e>`(const void* bytes, size_t nbytes, char* err, size_t err_cap);
 	:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* :ref:`cpmdc_restart_read_path<doxid-cpmdc__restart_8h_1ac5c4295836c617d13898d447a69e5d23>`(const char* path, char* err, size_t err_cap);
 	void :ref:`cpmdc_restart_free<doxid-cpmdc__restart_8h_1a21508759d96038feef8c60585540cef8>`(:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file);
@@ -129,6 +143,15 @@ Overview
 	// macros
 
 	#define :ref:`CPMDC_ABI_VERSION<doxid-cpmdc_8h_1a3e1546a10c3fe2b968f3bfaffd048056>`
+	#define :target:`CPMDC_PWSCALE_DIST_ATOMS<doxid-cpmdc__pwscale_8h_1ab9a65264d36a4e01979135f1141ead89>`
+	#define :target:`CPMDC_PWSCALE_DIST_PW<doxid-cpmdc__pwscale_8h_1a13fa481866d4a87b2d01c4782b84edea>`
+	#define :target:`CPMDC_PWSCALE_ERR_ARG<doxid-cpmdc__pwscale_8h_1ac82f2f7b0f274823edcf64321259fba5>`
+	#define :target:`CPMDC_PWSCALE_ERR_CUDA<doxid-cpmdc__pwscale_8h_1a9d6ec4477e408979ca4738158e65718c>`
+	#define :target:`CPMDC_PWSCALE_ERR_NOCUDA<doxid-cpmdc__pwscale_8h_1a7653fa9f7c9c2722293fc358c4d72938>`
+	#define :target:`CPMDC_PWSCALE_ERR_NOFFTW<doxid-cpmdc__pwscale_8h_1aa85759102bb88dc283a6beebbcab3c8d>`
+	#define :target:`CPMDC_PWSCALE_ERR_NOMPI<doxid-cpmdc__pwscale_8h_1aea31514313ceea46f63f47620ac1dba7>`
+	#define :target:`CPMDC_PWSCALE_OK<doxid-cpmdc__pwscale_8h_1af350559789b2f6fb9758366a716653de>`
+	#define :target:`CPMDC_PWSCALE_RTOL<doxid-cpmdc__pwscale_8h_1a017b29af432a392bcd7cf74b4aa3bed6>`
 	#define :ref:`CPMDC_RESTART_ANGSTROM_PER_BOHR<doxid-cpmdc__restart_8h_1af60c430255991bb5fe2489d84b051597>`
 
 .. _details-global:

@@ -166,6 +166,12 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l3"><a class="reference internal" href="struct_CPMDCStressTensor.html">struct CPMDCStressTensor</a><ul class="simple">
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="struct_cpmdc_pwscale_problem.html">struct cpmdc_pwscale_problem</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="struct_cpmdc_pwscale_stats.html">struct cpmdc_pwscale_stats</a><ul class="simple">
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -318,6 +324,8 @@ typedef struct CPMDCRankSpread <a class="reference internal" href="#doxid-cpmdc-
 typedef struct <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a> <a class="reference internal" href="#doxid-cpmdc-8h-1a49ff1835247d81d2ea1d2bea854ba239"><span class="std std-ref">CPMDCSession</span></a>;
 typedef enum <a class="reference internal" href="enum_CPMDCFeatureKind.html#doxid-cpmdc-features-8h-1af730055345a93286960ba9ef1a3f05b2"><span class="std std-ref">CPMDCFeatureKind</span></a> <a class="reference internal" href="#doxid-cpmdc-features-8h-1ab8efa8b96095d9bcb86951f47cdf3ddd"><span class="std std-ref">CPMDCFeatureKind</span></a>;
 typedef struct CPMDCFeatureEntry <a class="reference internal" href="#doxid-cpmdc-features-8h-1a78e933e2bdea5d5a752302a384a3137b"><span class="std std-ref">CPMDCFeatureEntry</span></a>;
+typedef struct cpmdc_pwscale_problem <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1af2e92a3b53cdffae89ca1df1fb56b008">cpmdc_pwscale_problem</span>;
+typedef struct cpmdc_pwscale_stats <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1ae1d3e6ecadbedaadd25c6828c469d1f3">cpmdc_pwscale_stats</span>;
 typedef struct <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a> <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>;
 
 // enums
@@ -335,6 +343,8 @@ struct <a class="reference internal" href="struct_CPMDCPropertySnapshot.html#dox
 struct <a class="reference internal" href="struct_CPMDCRankSpread.html#doxid-struct-c-p-m-d-c-rank-spread"><span class="std std-ref">CPMDCRankSpread</span></a>;
 struct <a class="reference internal" href="struct_CPMDCResult.html#doxid-struct-c-p-m-d-c-result"><span class="std std-ref">CPMDCResult</span></a>;
 struct <a class="reference internal" href="struct_CPMDCStressTensor.html#doxid-struct-c-p-m-d-c-stress-tensor"><span class="std std-ref">CPMDCStressTensor</span></a>;
+struct <a class="reference internal" href="struct_cpmdc_pwscale_problem.html#doxid-structcpmdc-pwscale-problem"><span class="std std-ref">cpmdc_pwscale_problem</span></a>;
+struct <a class="reference internal" href="struct_cpmdc_pwscale_stats.html#doxid-structcpmdc-pwscale-stats"><span class="std std-ref">cpmdc_pwscale_stats</span></a>;
 
 // global functions
 
@@ -382,6 +392,14 @@ int <a class="reference internal" href="#doxid-cpmdc-8h-1a8887106fa9386467d98b12
 size_t <a class="reference internal" href="#doxid-cpmdc-features-8h-1a4cf7e2f669806606c1d1293533b3d38e"><span class="std std-ref">cpmdc_feature_count</span></a>(void);
 const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* <a class="reference internal" href="#doxid-cpmdc-features-8h-1ae40eb0e96927dc5f3feacc20c3869315"><span class="std std-ref">cpmdc_feature_table</span></a>(void);
 const <a class="reference internal" href="struct_CPMDCFeatureEntry.html#doxid-struct-c-p-m-d-c-feature-entry"><span class="std std-ref">CPMDCFeatureEntry</span></a>* <a class="reference internal" href="#doxid-cpmdc-features-8h-1a4d2414cdfa87d867cf1ab1e708dfb4ca"><span class="std std-ref">cpmdc_feature_find</span></a>(const char* feature_id);
+void <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1aeeedb48279f3808b778dbaa73e0c794d">cpmdc_pwscale_fill_geometry</span>(const <a class="reference internal" href="struct_cpmdc_pwscale_problem.html#doxid-structcpmdc-pwscale-problem"><span class="std std-ref">cpmdc_pwscale_problem</span></a>* prob, double* positions_bohr, int* atomic_numbers);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a0ec43d7c5364ec724ad18c808e8bac1b">cpmdc_pwscale_within</span>(double got, double ref);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1af1f7a704c5b99826efc35782bf1e7cea">cpmdc_pwscale_sample_check</span>(double got_energy, const double* got_forces, double ref_energy, const double* ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double* max_abs_dE, double* max_abs_dF, int* counts_match);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1aa26b7fb52d9d69d7787ce467fa92f418">cpmdc_pwscale_eval</span>(const <a class="reference internal" href="struct_cpmdc_pwscale_problem.html#doxid-structcpmdc-pwscale-problem"><span class="std std-ref">cpmdc_pwscale_problem</span></a>* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, <a class="reference internal" href="struct_cpmdc_pwscale_stats.html#doxid-structcpmdc-pwscale-stats"><span class="std std-ref">cpmdc_pwscale_stats</span></a>* stats);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a213f0a8929d9ee4d79ee01f0d7323077">cpmdc_pwscale_eval_mpi</span>(const <a class="reference internal" href="struct_cpmdc_pwscale_problem.html#doxid-structcpmdc-pwscale-problem"><span class="std std-ref">cpmdc_pwscale_problem</span></a>* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, <a class="reference internal" href="struct_cpmdc_pwscale_stats.html#doxid-structcpmdc-pwscale-stats"><span class="std std-ref">cpmdc_pwscale_stats</span></a>* stats, const void* comm, size_t comm_bytes);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a03639510eaf220a29c52f381bd66a0ae">cpmdc_pwscale_cuda_compiled</span>(void);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a80f63f377b2a8860147d0aa4c912ed60">cpmdc_pwscale_cuda_device</span>(char* name, int namelen);
+int <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a8a4db6541981b362149742707e0d17a1">cpmdc_pwscale_eval_cuda</span>(const <a class="reference internal" href="struct_cpmdc_pwscale_problem.html#doxid-structcpmdc-pwscale-problem"><span class="std std-ref">cpmdc_pwscale_problem</span></a>* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, <a class="reference internal" href="struct_cpmdc_pwscale_stats.html#doxid-structcpmdc-pwscale-stats"><span class="std std-ref">cpmdc_pwscale_stats</span></a>* stats);
 <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ae7b62fa4d0ac1400f7ca88fae6687f2e"><span class="std std-ref">cpmdc_restart_read_mem</span></a>(const void* bytes, size_t nbytes, char* err, size_t err_cap);
 <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* <a class="reference internal" href="#doxid-cpmdc-restart-8h-1ac5c4295836c617d13898d447a69e5d23"><span class="std std-ref">cpmdc_restart_read_path</span></a>(const char* path, char* err, size_t err_cap);
 void <a class="reference internal" href="#doxid-cpmdc-restart-8h-1a21508759d96038feef8c60585540cef8"><span class="std std-ref">cpmdc_restart_free</span></a>(<a class="reference internal" href="#doxid-cpmdc-restart-8h-1a34772f7f4950f85031f3585b7bde72c9"><span class="std std-ref">cpmdc_restart</span></a>* file);
@@ -406,6 +424,15 @@ int <a class="reference internal" href="#doxid-cpmdc-restart-8h-1adda72bd3313b8e
 // macros
 
 #define <a class="reference internal" href="#doxid-cpmdc-8h-1a3e1546a10c3fe2b968f3bfaffd048056"><span class="std std-ref">CPMDC_ABI_VERSION</span></a>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1ab9a65264d36a4e01979135f1141ead89">CPMDC_PWSCALE_DIST_ATOMS</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a13fa481866d4a87b2d01c4782b84edea">CPMDC_PWSCALE_DIST_PW</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1ac82f2f7b0f274823edcf64321259fba5">CPMDC_PWSCALE_ERR_ARG</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a9d6ec4477e408979ca4738158e65718c">CPMDC_PWSCALE_ERR_CUDA</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a7653fa9f7c9c2722293fc358c4d72938">CPMDC_PWSCALE_ERR_NOCUDA</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1aa85759102bb88dc283a6beebbcab3c8d">CPMDC_PWSCALE_ERR_NOFFTW</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1aea31514313ceea46f63f47620ac1dba7">CPMDC_PWSCALE_ERR_NOMPI</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1af350559789b2f6fb9758366a716653de">CPMDC_PWSCALE_OK</span>
+#define <span class="doxyrest-code-target target" id="doxid-cpmdc-pwscale-8h-1a017b29af432a392bcd7cf74b4aa3bed6">CPMDC_PWSCALE_RTOL</span>
 #define <a class="reference internal" href="#doxid-cpmdc-restart-8h-1af60c430255991bb5fe2489d84b051597"><span class="std std-ref">CPMDC_RESTART_ANGSTROM_PER_BOHR</span></a></pre>
 </section>
 <section id="detailed-documentation">

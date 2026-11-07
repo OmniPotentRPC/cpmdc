@@ -1,0 +1,25 @@
+.. index:: pair: struct; cpmdc_pwscale_problem
+.. _doxid-structcpmdc__pwscale__problem:
+
+struct cpmdc_pwscale_problem
+============================
+
+.. toctree::
+	:hidden:
+
+
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	
+	struct cpmdc_pwscale_problem {
+		// fields
+	
+		int :target:`natoms<doxid-structcpmdc__pwscale__problem_1a7fb4e60d99455e48e39c11013cbdbadb>`;
+		int :target:`npw<doxid-structcpmdc__pwscale__problem_1a88999eb7359e52006121c6d0fdb2bdd7>`;
+		double :target:`cell_bohr<doxid-structcpmdc__pwscale__problem_1a5ef7a981f3938defc25799bbe421976b>`;
+		double :target:`alpha<doxid-structcpmdc__pwscale__problem_1aa5b1f2ec2bfe5c66ccc6b07bc70d5c7a>`;
+		double :target:`sigma<doxid-structcpmdc__pwscale__problem_1a16c816c2dea0778bd41933a562e71124>`;
+	};

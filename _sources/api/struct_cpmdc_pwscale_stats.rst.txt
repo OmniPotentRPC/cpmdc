@@ -1,0 +1,29 @@
+.. index:: pair: struct; cpmdc_pwscale_stats
+.. _doxid-structcpmdc__pwscale__stats:
+
+struct cpmdc_pwscale_stats
+==========================
+
+.. toctree::
+	:hidden:
+
+
+
+
+.. ref-code-block:: cpp
+	:class: doxyrest-overview-code-block
+
+	
+	struct cpmdc_pwscale_stats {
+		// fields
+	
+		double :target:`energy_h<doxid-structcpmdc__pwscale__stats_1a7a14807852fce94ecfe0fdbfdf831d51>`;
+		double :target:`seconds<doxid-structcpmdc__pwscale__stats_1ad848d03c79610d67889bef05f21ec1c8>`;
+		double :target:`h2d_seconds<doxid-structcpmdc__pwscale__stats_1aed29fc0df10bbef8054a2723073eed09>`;
+		double :target:`d2h_seconds<doxid-structcpmdc__pwscale__stats_1a01bfec00df13a73704092cccbfc288bc>`;
+		long long :target:`g_visited<doxid-structcpmdc__pwscale__stats_1a26d2cd6641bca9ce1cbce6da2cc56e06>`;
+		long long :target:`atom_visits<doxid-structcpmdc__pwscale__stats_1afb600c19ec4c6642381dfe8b744d5872>`;
+		long long :target:`alloc_bytes<doxid-structcpmdc__pwscale__stats_1a2f3a28b50009ded9afc84eda83da5dae>`;
+		int :target:`workers<doxid-structcpmdc__pwscale__stats_1afc299b39f592a94a9834ad079551982d>`;
+		int :target:`mpi_ranks<doxid-structcpmdc__pwscale__stats_1acacebccd52c3c5d87e3f10002c28b1dc>`;
+	};
