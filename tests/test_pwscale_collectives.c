@@ -142,7 +142,7 @@ static void one_shot(int natoms, int npw, int dist) {
   pmpi_count_snapshot(after);
   per_bound = report("eval_mpi_bound", dist, natoms, npw, before, after,
                      REPEATS, digest(stats.energy_h, f, natoms * 3));
-  if (per_bind != 1 || per_bound + per_bind != per_one_shot) {
+  if (per_bind != 1 || per_bound != 1 || per_bound + per_bind != per_one_shot) {
     fprintf(stderr, "bind %lld bound %lld one-shot %lld\n", per_bind,
             per_bound, per_one_shot);
     g_fail = 1;
