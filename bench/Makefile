@@ -10,7 +10,8 @@ BUILD := $(ROOT)/bench/build
 
 .PHONY: all test clean
 
-all: $(BUILD)/cpmdc-pwscale $(BUILD)/test_pwscale_agreement
+all: $(BUILD)/cpmdc-pwscale $(BUILD)/test_pwscale_agreement \
+     $(BUILD)/test_pwscale_collectives $(BUILD)/libpmpi_count.so
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -30,6 +31,18 @@ $(BUILD)/pwscale_harness.o: $(ROOT)/bench/pwscale_harness.c | $(BUILD)
 $(BUILD)/test_pwscale_agreement.o: $(ROOT)/tests/test_pwscale_agreement.c | $(BUILD)
 	$(MPICC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
+$(BUILD)/pmpi_count.o: $(ROOT)/bench/pmpi_count.c | $(BUILD)
+	$(MPICC) $(CPPFLAGS) $(CFLAGS) -fPIC -c $< -o $@
+
+$(BUILD)/libpmpi_count.so: $(BUILD)/pmpi_count.o
+	$(MPICC) -shared $^ -o $@
+
+$(BUILD)/test_pwscale_collectives.o: $(ROOT)/tests/test_pwscale_collectives.c | $(BUILD)
+	$(MPICC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/test_pwscale_collectives: $(BUILD)/test_pwscale_collectives.o $(BUILD)/pmpi_count.o $(BUILD)/cpmdc_pwscale.o $(BUILD)/cpmdc_pwscale_cuda_stub.o
+	$(MPICC) $(LDFLAGS) $^ -lm -o $@
+
 $(BUILD)/cpmdc-pwscale: $(BUILD)/pwscale_harness.o $(BUILD)/pwscale_fft.o $(BUILD)/cpmdc_pwscale.o $(BUILD)/cpmdc_pwscale_cuda_stub.o
 	$(MPICC) $(LDFLAGS) $^ $(LIBS) -o $@
 
@@ -41,6 +54,8 @@ test: all
 	mpirun --bind-to none --oversubscribe -np 2 $(BUILD)/test_pwscale_agreement
 	mpirun --bind-to none --oversubscribe -np 4 $(BUILD)/test_pwscale_agreement
 	mpirun --bind-to none --oversubscribe -np 8 $(BUILD)/test_pwscale_agreement
+	mpirun --bind-to none --oversubscribe -np 2 $(BUILD)/test_pwscale_collectives
+	mpirun --bind-to none --oversubscribe -np 4 $(BUILD)/test_pwscale_collectives
 
 clean:
 	rm -rf $(BUILD)

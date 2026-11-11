@@ -18,6 +18,8 @@ extern "C" {
  * The scale follows the larger magnitude, then the floor of 1.
  * Visit counts match exactly.
  * The ordered reduction is what the tolerance covers. It is not a bitwise claim.
+ * A rank call is bitwise the same on every rank and from run to run for one
+ * rank count, because every rank sums the same partials in rank order.
  */
 
 #define CPMDC_PWSCALE_OK 0
@@ -78,15 +80,48 @@ int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob,
                        const int *atomic_numbers, double *forces_h_bohr,
                        int nthreads, int dist, cpmdc_pwscale_stats *stats);
 
-/* Every rank passes the same problem. The library sums partials in rank
- * order and broadcasts the parent result. nthreads is the team inside a rank.
+/* Every rank passes the same problem. Every rank receives every rank's
+ * partial and sums them in rank order. nthreads is the team inside a rank.
  * comm NULL selects MPI_COMM_WORLD. A build without MPI returns ERR_NOMPI.
+ * seconds runs from this rank's entry to the arrival of every partial.
+ * Each rank holds (ranks + 1) * (3 * natoms + 4) doubles for the sum.
  */
 int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
                            const double *positions_bohr,
                            const int *atomic_numbers, double *forces_h_bohr,
                            int nthreads, int dist, cpmdc_pwscale_stats *stats,
                            const void *comm, size_t comm_bytes);
+
+/* A problem bound to a communicator for repeated rank force calls.
+ * cpmdc_pwscale_eval_mpi binds, evaluates once, and frees on every call.
+ */
+typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind;
+
+/* Collective over comm. Every rank passes the same problem and dist.
+ * One collective checks that agreement and every rank's buffers, so the
+ * bound calls repeat neither check. comm NULL selects MPI_COMM_WORLD, and
+ * the communicator must outlive the binding. On failure every rank
+ * returns the same code and *out is NULL. A build without MPI returns
+ * ERR_NOMPI.
+ */
+int cpmdc_pwscale_mpi_bind_create(const cpmdc_pwscale_problem *prob, int dist,
+                                  const void *comm, size_t comm_bytes,
+                                  cpmdc_pwscale_mpi_bind **out);
+
+/* Collective over the bound communicator, with the result of
+ * cpmdc_pwscale_eval_mpi for the same arguments. The call runs one
+ * collective, an Allgather of each rank's energy, forces, visit counts, and
+ * return code. A failure on one rank, including a missing array, returns
+ * an error on every rank.
+ */
+int cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind *bind,
+                                 const double *positions_bohr,
+                                 const int *atomic_numbers,
+                                 double *forces_h_bohr, int nthreads,
+                                 cpmdc_pwscale_stats *stats);
+
+/* Local. Releases the binding and leaves the communicator alone. */
+void cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind *bind);
 
 int cpmdc_pwscale_cuda_compiled(void);
 

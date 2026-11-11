@@ -1836,6 +1836,22 @@ if get_option('with_pwscale')
         suite: ['pwscale'],
         timeout: 30,
       )
+      pwscale_collectives = executable(
+        'test_pwscale_collectives',
+        ['tests/test_pwscale_collectives.c', 'bench/pmpi_count.c'],
+        c_args: common_c_args + pwscale_c_args,
+        include_directories: [inc, include_directories('bench')],
+        dependencies: pwscale_dep,
+      )
+      foreach np : ['2', '4']
+        test(
+          'pwscale-collectives-' + np,
+          mpirun,
+          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_collectives],
+          suite: ['pwscale'],
+          timeout: 120,
+        )
+      endforeach
     endif
   endif
 endif

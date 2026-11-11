@@ -160,7 +160,7 @@ static void zero_mode_and_bound(void) {
 }
 
 #if defined(CPMDC_PWSCALE_HAVE_MPI)
-static void mpi_case(int natoms, int npw, int dist) {
+static void mpi_case(int natoms, int npw, int dist, int bound) {
   cpmdc_pwscale_problem prob;
   double *pos, *f_serial, *f_mpi;
   int *z;
@@ -186,7 +186,16 @@ static void mpi_case(int natoms, int npw, int dist) {
   rc = cpmdc_pwscale_eval(&prob, pos, z, f_serial, 1, dist, &serial);
   if (rc != CPMDC_PWSCALE_OK)
     g_fail = 1;
-  rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, f_mpi, 1, dist, &parallel, NULL, 0);
+  if (bound) {
+    cpmdc_pwscale_mpi_bind *bind = NULL;
+    rc = cpmdc_pwscale_mpi_bind_create(&prob, dist, NULL, 0, &bind);
+    if (rc == CPMDC_PWSCALE_OK)
+      rc = cpmdc_pwscale_eval_mpi_bound(bind, pos, z, f_mpi, 1, &parallel);
+    cpmdc_pwscale_mpi_bind_free(bind);
+  } else {
+    rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, f_mpi, 1, dist, &parallel, NULL,
+                                0);
+  }
   if (rc != CPMDC_PWSCALE_OK)
     g_fail = 1;
   if (rc == CPMDC_PWSCALE_OK && serial.energy_h == serial.energy_h) {
@@ -196,8 +205,9 @@ static void mpi_case(int natoms, int npw, int dist) {
         parallel.atom_visits != serial.atom_visits ||
         parallel.mpi_ranks != size || parallel.workers != 1) {
       if (rank == 0)
-        fprintf(stderr, "mpi dist %d dE %.3e peak |dF| %.3e visits %lld %lld\n",
-                dist, parallel.energy_h - serial.energy_h, peak,
+        fprintf(stderr,
+                "mpi dist %d bound %d dE %.3e peak |dF| %.3e visits %lld %lld\n",
+                dist, bound, parallel.energy_h - serial.energy_h, peak,
                 parallel.g_visited, parallel.atom_visits);
       g_fail = 1;
     }
@@ -253,10 +263,13 @@ int main(void) {
     compare_threads(17, 100, 3, CPMDC_PWSCALE_DIST_ATOMS);
 #if defined(CPMDC_PWSCALE_HAVE_MPI)
   } else {
-    mpi_case(16, 64, CPMDC_PWSCALE_DIST_PW);
-    mpi_case(16, 64, CPMDC_PWSCALE_DIST_ATOMS);
-    mpi_case(32, 256, CPMDC_PWSCALE_DIST_PW);
-    mpi_case(32, 128, CPMDC_PWSCALE_DIST_ATOMS);
+    int bound;
+    for (bound = 0; bound <= 1; ++bound) {
+      mpi_case(16, 64, CPMDC_PWSCALE_DIST_PW, bound);
+      mpi_case(16, 64, CPMDC_PWSCALE_DIST_ATOMS, bound);
+      mpi_case(32, 256, CPMDC_PWSCALE_DIST_PW, bound);
+      mpi_case(32, 128, CPMDC_PWSCALE_DIST_ATOMS, bound);
+    }
   }
   MPI_Allreduce(&g_fail, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
   g_fail = any;

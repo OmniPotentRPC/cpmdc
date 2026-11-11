@@ -50,9 +50,8 @@ static void split_range(int lo, int hi, int index, int pieces, int *begin,
   *end = lo + (int)(((long long)(index + 1) * n) / pieces);
 }
 
-static int problem_ok(const cpmdc_pwscale_problem *prob, const double *positions,
-                      const int *atomic_numbers, const double *forces) {
-  if (!prob || !positions || !atomic_numbers || !forces)
+static int problem_shape_ok(const cpmdc_pwscale_problem *prob) {
+  if (!prob)
     return 0;
   if (prob->natoms < 1 || prob->npw < 1)
     return 0;
@@ -63,6 +62,13 @@ static int problem_ok(const cpmdc_pwscale_problem *prob, const double *positions
   if (prob->natoms > 2000000000 / 3)
     return 0;
   return 1;
+}
+
+static int problem_ok(const cpmdc_pwscale_problem *prob, const double *positions,
+                      const int *atomic_numbers, const double *forces) {
+  if (!positions || !atomic_numbers || !forces)
+    return 0;
+  return problem_shape_ok(prob);
 }
 
 /* Adds into energy and forces. G = 0 is visited and adds nothing. */
@@ -318,36 +324,51 @@ int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob,
 
 #if defined(CPMDC_PWSCALE_HAVE_MPI)
 
-/* Test hook. Unset in ordinary runs. "gather" drops rank 0's buffers.
- * "team" fails the last rank's team. Every rank still joins the allreduce. */
+/* Test hook. Unset in ordinary runs. "gather" drops rank 0's gather buffer
+ * at bind time. "team" fails the last rank's team. Every rank still joins the
+ * collective that reports the failure. */
 static int mpi_fault(const char *name) {
   const char *env = getenv("CPMDC_PWSCALE_MPI_FAULT");
   return env && strcmp(env, name) == 0;
 }
 
-int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
-                           const double *positions_bohr,
-                           const int *atomic_numbers, double *forces_h_bohr,
-                           int nthreads, int dist, cpmdc_pwscale_stats *stats,
-                           const void *comm, size_t comm_bytes) {
+/* One slot per rank: return code, visit counts, energy, then forces.
+ * problem_shape_ok keeps npw * natoms below 2^53, so the counts are exact
+ * in a double. */
+enum { SLOT_RC, SLOT_G, SLOT_A, SLOT_E, SLOT_F };
+
+struct cpmdc_pwscale_mpi_bind {
+  MPI_Comm comm;
+  cpmdc_pwscale_problem prob;
+  int dist;
+  int rank;
+  int size;
+  int n3;
+  int slot;
+  double *local;
+  double *gathered;
+  long long held_bytes;
+};
+
+void cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind *bind) {
+  if (!bind)
+    return;
+  free(bind->local);
+  free(bind->gathered);
+  free(bind);
+}
+
+int cpmdc_pwscale_mpi_bind_create(const cpmdc_pwscale_problem *prob, int dist,
+                                  const void *comm, size_t comm_bytes,
+                                  cpmdc_pwscale_mpi_bind **out) {
   MPI_Comm use;
-  int rank = 0, size = 1, rc, b, e, i, workers = 1;
-  int key[2], minv[2], maxv[2];
-  int natoms, npw, n3;
-  double t0, t1, local_e = 0.0, energy = 0.0;
-  double *local_f = NULL;
-  double *gathered_e = NULL;
-  double *gathered_f = NULL;
-  long long local_g = 0, local_a = 0, g_visited = 0, atom_visits = 0;
-  long long alloc_bytes = 0;
+  int rank = 0, size = 1, local_ok;
+  int key[7], low[7];
+  cpmdc_pwscale_mpi_bind *bind = NULL;
 
-  if (stats)
-    memset(stats, 0, sizeof(*stats));
-  if (!problem_ok(prob, positions_bohr, atomic_numbers, forces_h_bohr))
+  if (!out)
     return CPMDC_PWSCALE_ERR_ARG;
-  if (dist != CPMDC_PWSCALE_DIST_PW && dist != CPMDC_PWSCALE_DIST_ATOMS)
-    return CPMDC_PWSCALE_ERR_ARG;
-
+  *out = NULL;
   if (comm) {
     if (comm_bytes != sizeof(MPI_Comm))
       return CPMDC_PWSCALE_ERR_ARG;
@@ -359,135 +380,124 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
       MPI_Comm_size(use, &size) != MPI_SUCCESS || size < 1)
     return CPMDC_PWSCALE_ERR_ARG;
 
+  local_ok = problem_shape_ok(prob) &&
+             (dist == CPMDC_PWSCALE_DIST_PW || dist == CPMDC_PWSCALE_DIST_ATOMS);
+  if (local_ok) {
+    bind = (cpmdc_pwscale_mpi_bind *)calloc(1, sizeof(*bind));
+    local_ok = bind != NULL;
+  }
+  if (local_ok) {
+    bind->comm = use;
+    bind->prob = *prob;
+    bind->dist = dist;
+    bind->rank = rank;
+    bind->size = size;
+    bind->n3 = prob->natoms * 3;
+    bind->slot = SLOT_F + bind->n3;
+    bind->local = (double *)calloc((size_t)bind->slot, sizeof(double));
+    if (!(rank == 0 && mpi_fault("gather")))
+      bind->gathered = (double *)calloc((size_t)size * (size_t)bind->slot,
+                                        sizeof(double));
+    local_ok = bind->local && bind->gathered;
+    if (local_ok)
+      bind->held_bytes = ((long long)size + 1) * (long long)bind->slot *
+                         (long long)sizeof(double);
+  }
+
+  /* One MIN gives both the minimum and, negated, the maximum of each key. */
+  key[0] = local_ok ? prob->npw : 0;
+  key[1] = local_ok ? prob->natoms : 0;
+  key[2] = local_ok ? dist : 0;
+  key[3] = -key[0];
+  key[4] = -key[1];
+  key[5] = -key[2];
+  key[6] = local_ok;
+  if (MPI_Allreduce(key, low, 7, MPI_INT, MPI_MIN, use) != MPI_SUCCESS ||
+      !low[6] || low[0] != -low[3] || low[1] != -low[4] || low[2] != -low[5]) {
+    cpmdc_pwscale_mpi_bind_free(bind);
+    return CPMDC_PWSCALE_ERR_ARG;
+  }
+  *out = bind;
+  return CPMDC_PWSCALE_OK;
+}
+
+/* The only collective is one Allgather of every rank's slot. Every rank then
+ * sums the slots in rank order, so every rank holds the same bytes, and the
+ * bytes do not depend on how MPI moves the slots. */
+int cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind *bind,
+                                 const double *positions_bohr,
+                                 const int *atomic_numbers,
+                                 double *forces_h_bohr, int nthreads,
+                                 cpmdc_pwscale_stats *stats) {
+  int rank, size, rc, rc_all, b, e, i, r, workers = 1;
+  int natoms, npw, n3, slot;
+  double t0, t1, local_e = 0.0, energy = 0.0;
+  double *local;
+  long long local_g = 0, local_a = 0, g_visited = 0, atom_visits = 0;
+  long long alloc_bytes;
+  const cpmdc_pwscale_problem *prob;
+
+  if (stats)
+    memset(stats, 0, sizeof(*stats));
+  if (!bind)
+    return CPMDC_PWSCALE_ERR_ARG;
+  t0 = pw_now();
+  rank = bind->rank;
+  size = bind->size;
+  prob = &bind->prob;
   natoms = prob->natoms;
   npw = prob->npw;
-  n3 = natoms * 3;
-  key[0] = npw;
-  key[1] = natoms;
-  if (MPI_Allreduce(key, minv, 2, MPI_INT, MPI_MIN, use) != MPI_SUCCESS ||
-      MPI_Allreduce(key, maxv, 2, MPI_INT, MPI_MAX, use) != MPI_SUCCESS)
-    return CPMDC_PWSCALE_ERR_ARG;
-  if (minv[0] != maxv[0] || minv[1] != maxv[1])
-    return CPMDC_PWSCALE_ERR_ARG;
+  n3 = bind->n3;
+  slot = bind->slot;
+  local = bind->local;
+  alloc_bytes = bind->held_bytes;
 
-  local_f = (double *)calloc((size_t)n3, sizeof(double));
-  if (local_f)
-    alloc_bytes += (long long)n3 * (long long)sizeof(double);
-  if (rank == 0 && !mpi_fault("gather")) {
-    gathered_e = (double *)calloc((size_t)size, sizeof(double));
-    gathered_f = (double *)calloc((size_t)size * (size_t)n3, sizeof(double));
-    if (gathered_e && gathered_f) {
-      alloc_bytes += (long long)size * (long long)sizeof(double);
-      alloc_bytes += (long long)size * (long long)n3 * (long long)sizeof(double);
-    }
-  }
-  {
-    int local_ok = local_f != NULL && (rank != 0 || (gathered_e && gathered_f));
-    int all_ok = 0;
-    if (MPI_Allreduce(&local_ok, &all_ok, 1, MPI_INT, MPI_MIN, use) != MPI_SUCCESS ||
-        !all_ok) {
-      free(local_f);
-      free(gathered_e);
-      free(gathered_f);
-      return CPMDC_PWSCALE_ERR_ARG;
-    }
-  }
-
-  if (MPI_Barrier(use) != MPI_SUCCESS) {
-    free(local_f);
-    free(gathered_e);
-    free(gathered_f);
-    return CPMDC_PWSCALE_ERR_ARG;
-  }
-  t0 = pw_now();
-
-  if (dist == CPMDC_PWSCALE_DIST_PW) {
+  memset(local, 0, (size_t)slot * sizeof(double));
+  if (!positions_bohr || !atomic_numbers || !forces_h_bohr) {
+    rc = CPMDC_PWSCALE_ERR_ARG;
+  } else if (bind->dist == CPMDC_PWSCALE_DIST_PW) {
     split_range(0, npw, rank, size, &b, &e);
     rc = team_box(prob, positions_bohr, atomic_numbers, b, e, 0, natoms,
-                  nthreads, 1, &local_e, local_f, &local_g, &local_a,
+                  nthreads, 1, &local_e, local + SLOT_F, &local_g, &local_a,
                   &alloc_bytes, &workers);
   } else {
     split_range(0, natoms, rank, size, &b, &e);
     rc = team_box(prob, positions_bohr, atomic_numbers, 0, npw, b, e, nthreads,
-                  0, &local_e, local_f, &local_g, &local_a, &alloc_bytes,
+                  0, &local_e, local + SLOT_F, &local_g, &local_a, &alloc_bytes,
                   &workers);
   }
   if (mpi_fault("team") && size > 1 && rank == size - 1)
     rc = CPMDC_PWSCALE_ERR_ARG;
-  {
-    int rc_all = rc;
-    if (MPI_Allreduce(&rc, &rc_all, 1, MPI_INT, MPI_MIN, use) != MPI_SUCCESS) {
-      free(local_f);
-      free(gathered_e);
-      free(gathered_f);
-      return CPMDC_PWSCALE_ERR_ARG;
-    }
-    if (rc_all != CPMDC_PWSCALE_OK) {
-      free(local_f);
-      free(gathered_e);
-      free(gathered_f);
-      return rc_all;
-    }
-  }
+  local[SLOT_RC] = (double)rc;
+  local[SLOT_G] = (double)local_g;
+  local[SLOT_A] = (double)local_a;
+  local[SLOT_E] = local_e;
 
-  if (MPI_Gather(&local_e, 1, MPI_DOUBLE, gathered_e, 1, MPI_DOUBLE, 0, use) !=
-          MPI_SUCCESS ||
-      MPI_Gather(local_f, n3, MPI_DOUBLE, gathered_f, n3, MPI_DOUBLE, 0, use) !=
-          MPI_SUCCESS) {
-    free(local_f);
-    free(gathered_e);
-    free(gathered_f);
+  if (MPI_Allgather(local, slot, MPI_DOUBLE, bind->gathered, slot, MPI_DOUBLE,
+                    bind->comm) != MPI_SUCCESS)
     return CPMDC_PWSCALE_ERR_ARG;
+  rc_all = CPMDC_PWSCALE_OK;
+  for (r = 0; r < size; ++r) {
+    int got = (int)bind->gathered[(size_t)r * (size_t)slot + SLOT_RC];
+    if (got < rc_all)
+      rc_all = got;
   }
+  if (rc_all != CPMDC_PWSCALE_OK)
+    return rc_all;
 
   memset(forces_h_bohr, 0, (size_t)n3 * sizeof(double));
-  if (rank == 0) {
-    int r;
-    for (r = 0; r < size; ++r) {
-      energy += gathered_e[r];
-      for (i = 0; i < n3; ++i)
-        forces_h_bohr[i] += gathered_f[(size_t)r * (size_t)n3 + (size_t)i];
-    }
+  for (r = 0; r < size; ++r) {
+    const double *part = bind->gathered + (size_t)r * (size_t)slot;
+    energy += part[SLOT_E];
+    g_visited += (long long)part[SLOT_G];
+    atom_visits += (long long)part[SLOT_A];
+    for (i = 0; i < n3; ++i)
+      forces_h_bohr[i] += part[SLOT_F + i];
   }
-  if (MPI_Bcast(&energy, 1, MPI_DOUBLE, 0, use) != MPI_SUCCESS ||
-      MPI_Bcast(forces_h_bohr, n3, MPI_DOUBLE, 0, use) != MPI_SUCCESS) {
-    free(local_f);
-    free(gathered_e);
-    free(gathered_f);
-    return CPMDC_PWSCALE_ERR_ARG;
-  }
-
-  if (dist == CPMDC_PWSCALE_DIST_PW) {
-    if (MPI_Allreduce(&local_g, &g_visited, 1, MPI_LONG_LONG, MPI_SUM, use) !=
-            MPI_SUCCESS ||
-        MPI_Allreduce(&local_a, &atom_visits, 1, MPI_LONG_LONG, MPI_SUM, use) !=
-            MPI_SUCCESS) {
-      free(local_f);
-      free(gathered_e);
-      free(gathered_f);
-      return CPMDC_PWSCALE_ERR_ARG;
-    }
-  } else {
+  /* Every rank of an atom split walks the whole grid, so the count is one copy. */
+  if (bind->dist == CPMDC_PWSCALE_DIST_ATOMS)
     g_visited = npw;
-    if (MPI_Allreduce(&local_a, &atom_visits, 1, MPI_LONG_LONG, MPI_SUM, use) !=
-        MPI_SUCCESS) {
-      free(local_f);
-      free(gathered_e);
-      free(gathered_f);
-      return CPMDC_PWSCALE_ERR_ARG;
-    }
-  }
-
-  if (MPI_Barrier(use) != MPI_SUCCESS) {
-    free(local_f);
-    free(gathered_e);
-    free(gathered_f);
-    return CPMDC_PWSCALE_ERR_ARG;
-  }
   t1 = pw_now();
-  free(local_f);
-  free(gathered_e);
-  free(gathered_f);
 
   if (stats) {
     stats->energy_h = energy;
@@ -499,6 +509,29 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
     stats->mpi_ranks = size;
   }
   return CPMDC_PWSCALE_OK;
+}
+
+int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
+                           const double *positions_bohr,
+                           const int *atomic_numbers, double *forces_h_bohr,
+                           int nthreads, int dist, cpmdc_pwscale_stats *stats,
+                           const void *comm, size_t comm_bytes) {
+  cpmdc_pwscale_mpi_bind *bind = NULL;
+  int rc;
+
+  if (stats)
+    memset(stats, 0, sizeof(*stats));
+  if (!problem_ok(prob, positions_bohr, atomic_numbers, forces_h_bohr))
+    return CPMDC_PWSCALE_ERR_ARG;
+  if (dist != CPMDC_PWSCALE_DIST_PW && dist != CPMDC_PWSCALE_DIST_ATOMS)
+    return CPMDC_PWSCALE_ERR_ARG;
+  rc = cpmdc_pwscale_mpi_bind_create(prob, dist, comm, comm_bytes, &bind);
+  if (rc != CPMDC_PWSCALE_OK)
+    return rc;
+  rc = cpmdc_pwscale_eval_mpi_bound(bind, positions_bohr, atomic_numbers,
+                                    forces_h_bohr, nthreads, stats);
+  cpmdc_pwscale_mpi_bind_free(bind);
+  return rc;
 }
 
 #else
@@ -520,5 +553,34 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
     memset(stats, 0, sizeof(*stats));
   return CPMDC_PWSCALE_ERR_NOMPI;
 }
+
+int cpmdc_pwscale_mpi_bind_create(const cpmdc_pwscale_problem *prob, int dist,
+                                  const void *comm, size_t comm_bytes,
+                                  cpmdc_pwscale_mpi_bind **out) {
+  (void)prob;
+  (void)dist;
+  (void)comm;
+  (void)comm_bytes;
+  if (out)
+    *out = NULL;
+  return CPMDC_PWSCALE_ERR_NOMPI;
+}
+
+int cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind *bind,
+                                 const double *positions_bohr,
+                                 const int *atomic_numbers,
+                                 double *forces_h_bohr, int nthreads,
+                                 cpmdc_pwscale_stats *stats) {
+  (void)bind;
+  (void)positions_bohr;
+  (void)atomic_numbers;
+  (void)forces_h_bohr;
+  (void)nthreads;
+  if (stats)
+    memset(stats, 0, sizeof(*stats));
+  return CPMDC_PWSCALE_ERR_NOMPI;
+}
+
+void cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind *bind) { (void)bind; }
 
 #endif

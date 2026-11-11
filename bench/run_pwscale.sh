@@ -1,6 +1,9 @@
 #!/bin/sh
 # Run the CPU strong and weak sweeps and the CUDA request.
 # The CUDA request records an empty timing when this build has no device.
+# BIND is passed to mpirun --bind-to. The default none leaves rank placement
+# to the OpenMP runtime, which with OMP_PROC_BIND=close puts every rank on
+# the first CPU. BIND=core gives each rank its own core.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 OUT=${1:?output directory}
@@ -13,6 +16,7 @@ ATOMS_PER=${ATOMS_PER:-96}
 PW_PER=${PW_PER:-16384}
 FFT_N=${FFT_N:-128}
 FFT_N_WEAK=${FFT_N_WEAK:-96}
+BIND=${BIND:-none}
 mkdir -p "$OUT/logs" "$OUT/benches"
 make -C "$ROOT/bench"
 unset OMP_NUM_THREADS || true
@@ -26,9 +30,9 @@ rm -f "$RAW"
 {
   echo "agreement"
   "$ROOT/bench/build/test_pwscale_agreement"
-  mpirun --bind-to none --oversubscribe -np 2 "$ROOT/bench/build/test_pwscale_agreement"
-  mpirun --bind-to none --oversubscribe -np 4 "$ROOT/bench/build/test_pwscale_agreement"
-  mpirun --bind-to none --oversubscribe -np 8 "$ROOT/bench/build/test_pwscale_agreement"
+  mpirun --bind-to "$BIND" --oversubscribe -np 2 "$ROOT/bench/build/test_pwscale_agreement"
+  mpirun --bind-to "$BIND" --oversubscribe -np 4 "$ROOT/bench/build/test_pwscale_agreement"
+  mpirun --bind-to "$BIND" --oversubscribe -np 8 "$ROOT/bench/build/test_pwscale_agreement"
 } >"$OUT/logs/agreement.txt" 2>&1
 
 COMMON="--runs $RUNS --natoms $NATOMS --npw $NPW --atoms-per $ATOMS_PER --pw-per $PW_PER --fft-n $FFT_N --cell 12 --alpha 0.4 --sigma 0.9 --out $RAW"
@@ -46,7 +50,7 @@ COMMON="--runs $RUNS --natoms $NATOMS --npw $NPW --atoms-per $ATOMS_PER --pw-per
   for np in $RANKS; do
     for mode in force-strong force-weak-atoms force-weak-pw; do
       echo "mode $mode np $np"
-      mpirun --bind-to none --oversubscribe -np "$np" "$BIN" --mode "$mode" --ranks $COMMON
+      mpirun --bind-to "$BIND" --oversubscribe -np "$np" "$BIN" --mode "$mode" --ranks $COMMON
     done
   done
 } >"$OUT/logs/sweep.txt" 2>&1
