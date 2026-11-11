@@ -166,6 +166,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/extrapolate-orbitals
    howto/debug-deck
    howto/check-forces
+   howto/pwscale-ranks
    howto/troubleshooting
 
 .. toctree::
