@@ -88,6 +88,35 @@ int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
                            int nthreads, int dist, cpmdc_pwscale_stats *stats,
                            const void *comm, size_t comm_bytes);
 
+/* A problem bound to a communicator for repeated rank force calls.
+ * cpmdc_pwscale_eval_mpi binds, evaluates once, and frees on every call.
+ */
+typedef struct cpmdc_pwscale_mpi_bind cpmdc_pwscale_mpi_bind;
+
+/* Collective over comm. Every rank passes the same problem and dist.
+ * One collective checks that agreement and every rank's buffers, so the
+ * bound calls repeat neither check. comm NULL selects MPI_COMM_WORLD, and
+ * the communicator must outlive the binding. On failure every rank
+ * returns the same code and *out is NULL. A build without MPI returns
+ * ERR_NOMPI.
+ */
+int cpmdc_pwscale_mpi_bind_create(const cpmdc_pwscale_problem *prob, int dist,
+                                  const void *comm, size_t comm_bytes,
+                                  cpmdc_pwscale_mpi_bind **out);
+
+/* Collective over the bound communicator, with the result of
+ * cpmdc_pwscale_eval_mpi for the same arguments. A failure on one rank,
+ * including a missing array, returns an error on every rank.
+ */
+int cpmdc_pwscale_eval_mpi_bound(cpmdc_pwscale_mpi_bind *bind,
+                                 const double *positions_bohr,
+                                 const int *atomic_numbers,
+                                 double *forces_h_bohr, int nthreads,
+                                 cpmdc_pwscale_stats *stats);
+
+/* Local. Releases the binding and leaves the communicator alone. */
+void cpmdc_pwscale_mpi_bind_free(cpmdc_pwscale_mpi_bind *bind);
+
 int cpmdc_pwscale_cuda_compiled(void);
 
 /* Writes a device name when one is present. Returns 1 when a device exists. */

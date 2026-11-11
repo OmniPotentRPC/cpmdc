@@ -53,9 +53,10 @@ static void same_on_every_rank(const char *what, long long total, uint64_t h) {
   }
 }
 
-static void report(const char *path, int dist, int natoms, int npw,
-                   const long long *before, const long long *after,
-                   int calls, uint64_t h) {
+/* Returns this path's collectives per call. */
+static long long report(const char *path, int dist, int natoms, int npw,
+                        const long long *before, const long long *after,
+                        int calls, uint64_t h) {
   int rank = 0, size = 1, k;
   long long d[PMPI_COUNT_KINDS];
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -72,7 +73,7 @@ static void report(const char *path, int dist, int natoms, int npw,
   }
   same_on_every_rank(path, total_of(d), h);
   if (rank != 0)
-    return;
+    return total_of(d);
   printf("path %s np %d dist %s natoms %d npw %d per_call_total %lld", path,
          size, dist == CPMDC_PWSCALE_DIST_PW ? "pw" : "atoms", natoms, npw,
          total_of(d));
@@ -80,12 +81,15 @@ static void report(const char *path, int dist, int natoms, int npw,
     if (d[k] != 0)
       printf(" %s=%lld", pmpi_count_name(k), d[k]);
   printf(" digest %016llx\n", (unsigned long long)h);
+  return total_of(d);
 }
 
 static void one_shot(int natoms, int npw, int dist) {
   cpmdc_pwscale_problem prob;
   cpmdc_pwscale_stats stats;
+  cpmdc_pwscale_mpi_bind *bind = NULL;
   long long before[PMPI_COUNT_KINDS], after[PMPI_COUNT_KINDS];
+  long long per_one_shot, per_bind, per_bound;
   double *pos = (double *)calloc((size_t)natoms * 3u, sizeof(double));
   double *f = (double *)calloc((size_t)natoms * 3u, sizeof(double));
   int *z = (int *)calloc((size_t)natoms, sizeof(int));
@@ -115,8 +119,36 @@ static void one_shot(int natoms, int npw, int dist) {
       g_fail = 1;
   }
   pmpi_count_snapshot(after);
-  report("eval_mpi", dist, natoms, npw, before, after, REPEATS, h);
+  per_one_shot = report("eval_mpi", dist, natoms, npw, before, after, REPEATS, h);
+
+  pmpi_count_snapshot(before);
+  rc = cpmdc_pwscale_mpi_bind_create(&prob, dist, NULL, 0, &bind);
+  pmpi_count_snapshot(after);
+  if (rc != CPMDC_PWSCALE_OK) {
+    g_fail = 1;
+    goto done;
+  }
+  per_bind = report("bind_create", dist, natoms, npw, before, after, 1, 0);
+  pmpi_count_snapshot(before);
+  for (i = 0; i < REPEATS; ++i) {
+    rc = cpmdc_pwscale_eval_mpi_bound(bind, pos, z, f, 1, &stats);
+    if (rc != CPMDC_PWSCALE_OK) {
+      g_fail = 1;
+      goto done;
+    }
+    if (digest(stats.energy_h, f, natoms * 3) != first)
+      g_fail = 1;
+  }
+  pmpi_count_snapshot(after);
+  per_bound = report("eval_mpi_bound", dist, natoms, npw, before, after,
+                     REPEATS, digest(stats.energy_h, f, natoms * 3));
+  if (per_bind != 1 || per_bound + per_bind != per_one_shot) {
+    fprintf(stderr, "bind %lld bound %lld one-shot %lld\n", per_bind,
+            per_bound, per_one_shot);
+    g_fail = 1;
+  }
 done:
+  cpmdc_pwscale_mpi_bind_free(bind);
   free(pos);
   free(f);
   free(z);

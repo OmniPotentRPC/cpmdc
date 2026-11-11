@@ -249,11 +249,22 @@ static int record_force_sample(row *line, const cpmdc_pwscale_stats *got,
   return ok;
 }
 
+static int rank_call(cpmdc_pwscale_mpi_bind *bind,
+                     const cpmdc_pwscale_problem *prob, const double *pos,
+                     const int *z, double *forces, int dist,
+                     cpmdc_pwscale_stats *got) {
+  if (bind)
+    return cpmdc_pwscale_eval_mpi_bound(bind, pos, z, forces, 1, got);
+  return cpmdc_pwscale_eval_mpi(prob, pos, z, forces, 1, dist, got, NULL, 0);
+}
+
 static int run_force(const char *mode, const char *dist_name, const char *scaling,
                      const char *axis, int dist, int natoms, int npw,
                      double cell, double alpha, double sigma, int workers, int runs,
-                     int use_mpi, FILE *out, const hw_info *hw, int rank) {
+                     int use_mpi, int bound, FILE *out, const hw_info *hw,
+                     int rank) {
   cpmdc_pwscale_problem prob;
+  cpmdc_pwscale_mpi_bind *bind = NULL;
   double *pos = NULL, *f_serial = NULL, *f_par = NULL;
   int *z = NULL;
   cpmdc_pwscale_stats serial, got;
@@ -291,8 +302,15 @@ static int run_force(const char *mode, const char *dist_name, const char *scalin
     bad = 1;
     goto done;
   }
+  if (use_mpi && bound) {
+    rc = cpmdc_pwscale_mpi_bind_create(&prob, dist, NULL, 0, &bind);
+    if (rc != CPMDC_PWSCALE_OK) {
+      bad = 1;
+      goto done;
+    }
+  }
   if (use_mpi)
-    rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, f_par, 1, dist, &got, NULL, 0);
+    rc = rank_call(bind, &prob, pos, z, f_par, dist, &got);
   else
     rc = cpmdc_pwscale_eval(&prob, pos, z, f_par, workers, dist, &got);
   if (rc != CPMDC_PWSCALE_OK) {
@@ -342,7 +360,7 @@ static int run_force(const char *mode, const char *dist_name, const char *scalin
 #endif
     c0 = wall_now();
     if (use_mpi)
-      rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, f_par, 1, dist, &got, NULL, 0);
+      rc = rank_call(bind, &prob, pos, z, f_par, dist, &got);
     else
       rc = cpmdc_pwscale_eval(&prob, pos, z, f_par, workers, dist, &got);
     c1 = wall_now();
@@ -375,6 +393,7 @@ static int run_force(const char *mode, const char *dist_name, const char *scalin
   }
 #endif
 done:
+  cpmdc_pwscale_mpi_bind_free(bind);
   free(pos);
   free(f_serial);
   free(f_par);
@@ -498,7 +517,7 @@ static void usage(void) {
   fprintf(stderr,
           "cpmdc-pwscale --mode <force-strong|force-weak-atoms|force-weak-pw|"
           "fft-strong|fft-weak|cuda> --out FILE [--threads 1,2,4,8] "
-          "[--ranks] [--runs 5] [--natoms N] [--npw N] [--atoms-per N] "
+          "[--ranks] [--bound] [--runs 5] [--natoms N] [--npw N] [--atoms-per N] "
           "[--pw-per N] [--fft-n N] [--cell B] [--alpha A] [--sigma S]\n");
 }
 
@@ -508,6 +527,7 @@ int main(int argc, char **argv) {
   int threads[16];
   int nthreads = 0;
   int ranks = 0;
+  int bound = 0;
   int runs = 5;
   int natoms = 64;
   int npw = 8192;
@@ -535,6 +555,8 @@ int main(int argc, char **argv) {
       i += 1;
     } else if (strcmp(a, "--ranks") == 0) {
       ranks = 1;
+    } else if (strcmp(a, "--bound") == 0) {
+      bound = 1;
     } else if (strcmp(a, "--runs") == 0 && v) {
       runs = atoi(v);
       i += 1;
@@ -707,7 +729,7 @@ int main(int argc, char **argv) {
       else if (strcmp(mode, "force-weak-pw") == 0)
         use_npw = pw_per * size;
       rc = run_force(mode, dist_name, scaling, "ranks", dist, use_natoms, use_npw,
-                     cell, alpha, sigma, size, runs, 1, out, &hw, rank);
+                     cell, alpha, sigma, size, runs, 1, bound, out, &hw, rank);
     } else {
       if (size != 1) {
         if (rank == 0)
@@ -725,7 +747,7 @@ int main(int argc, char **argv) {
         else if (strcmp(mode, "force-weak-pw") == 0)
           use_npw = pw_per * workers;
         rc = run_force(mode, dist_name, scaling, "threads", dist, use_natoms, use_npw,
-                       cell, alpha, sigma, workers, runs, 0, out, &hw, rank);
+                       cell, alpha, sigma, workers, runs, 0, 0, out, &hw, rank);
         if (rc != 0)
           break;
       }

@@ -84,6 +84,32 @@ int main(void) {
   prob.alpha = 0.5;
   prob.sigma = 1.0;
   cpmdc_pwscale_fill_geometry(&prob, pos, z);
+  {
+    cpmdc_pwscale_mpi_bind *bind = NULL;
+    alarm(8);
+    rc = cpmdc_pwscale_mpi_bind_create(&prob, CPMDC_PWSCALE_DIST_PW, NULL, 0,
+                                       &bind);
+    if (rc == CPMDC_PWSCALE_OK)
+      rc = cpmdc_pwscale_eval_mpi_bound(bind, rank == size - 1 ? NULL : pos, z,
+                                        forces, 1, &stats);
+    alarm(0);
+    cpmdc_pwscale_mpi_bind_free(bind);
+    local = rc != CPMDC_PWSCALE_ERR_ARG;
+    if (local)
+      fprintf(stderr, "rank %d missing positions rc %d\n", rank, rc);
+    MPI_Allreduce(&local, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    if (any) {
+      MPI_Finalize();
+      return 1;
+    }
+  }
+  memset(&prob, 0, sizeof(prob));
+  prob.natoms = 2;
+  prob.npw = 8;
+  prob.cell_bohr = 10.0;
+  prob.alpha = 0.5;
+  prob.sigma = 1.0;
+  cpmdc_pwscale_fill_geometry(&prob, pos, z);
   rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, forces, 1, CPMDC_PWSCALE_DIST_PW,
                               &stats, NULL, 0);
   if (rc != CPMDC_PWSCALE_OK || stats.mpi_ranks != size) {
