@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include <time.h>
 #include <unistd.h>
 
 #if defined(CPMDC_PWSCALE_HAVE_MPI)
@@ -19,7 +20,7 @@ static const char *HEADER =
     "kind,mode,dist,scaling,backend,parallel,workers,run,natoms,npw,cell_bohr,alpha,"
     "sigma,seconds,plan_s,energy_h,max_abs_dE,max_abs_dF,g_visited,atom_visits,"
     "alloc_bytes,h2d_s,d2h_s,counts_match,omp_threads,mpi_ranks,team_observed,"
-    "cpu_model,nproc,uname_m,gpu\n";
+    "cpu_model,nproc,uname_m,gpu,call_s\n";
 
 typedef struct hw_info {
   char model[192];
@@ -63,8 +64,16 @@ typedef struct row {
   int omp_threads;
   int mpi_ranks;
   int team_observed;
+  int has_call;
+  double call_s;
   const hw_info *hw;
 } row;
+
+static double wall_now(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+}
 
 static void csv_text(FILE *f, const char *s) {
   const char *p;
@@ -121,6 +130,8 @@ static void write_row(FILE *f, const row *r) {
   csv_text(f, r->hw->machine);
   fputc(',', f);
   csv_text(f, r->hw->gpu);
+  fputc(',', f);
+  csv_num_or_blank(f, r->has_call, r->call_s);
   fputc('\n', f);
   fflush(f);
 }
@@ -323,10 +334,18 @@ static int run_force(const char *mode, const char *dist_name, const char *scalin
   }
   for (run = 1; run <= runs; ++run) {
     int sample_ok;
+    double c0, c1;
+#if defined(CPMDC_PWSCALE_HAVE_MPI)
+    /* Ranks start the call together, so rank 0 times the whole call. */
+    if (use_mpi)
+      MPI_Barrier(MPI_COMM_WORLD);
+#endif
+    c0 = wall_now();
     if (use_mpi)
       rc = cpmdc_pwscale_eval_mpi(&prob, pos, z, f_par, 1, dist, &got, NULL, 0);
     else
       rc = cpmdc_pwscale_eval(&prob, pos, z, f_par, workers, dist, &got);
+    c1 = wall_now();
     if (rc != CPMDC_PWSCALE_OK) {
       bad = 1;
       break;
@@ -341,6 +360,8 @@ static int run_force(const char *mode, const char *dist_name, const char *scalin
       line.run = run;
       line.has_seconds = 1;
       line.seconds = got.seconds;
+      line.has_call = 1;
+      line.call_s = c1 - c0;
       write_row(out, &line);
     }
     if (!sample_ok)
