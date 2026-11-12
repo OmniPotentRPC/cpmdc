@@ -244,6 +244,7 @@ endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
                       'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
+                      'src/cpmdc_cp.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
@@ -303,7 +304,8 @@ cpmdc_shared_dep = declare_dependency(
   dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
 )
 
-install_headers('include/cpmdc.h', 'include/cpmdc_features.h', 'include/cpmdc_restart.h', subdir: 'cpmdc')
+install_headers('include/cpmdc.h', 'include/cpmdc_features.h', 'include/cpmdc_restart.h',
+                'include/cpmdc_cp.h', subdir: 'cpmdc')
 
 cpmdc_restart_lib = static_library(
   'cpmdc_restart',
@@ -395,6 +397,33 @@ if get_option('with_tests')
     dependencies: [minimage_dep, math_dep],
   )
   test('geometry-rmsd', geometry_test)
+  # dsyev is in OpenBLAS, or in liblapack beside libblas.
+  linalg_dep = cc.find_library('openblas', required: false)
+  if linalg_dep.found()
+    linalg_deps = [linalg_dep]
+  else
+    linalg_deps = [cc.find_library('lapack', required: true), cc.find_library('blas', required: true)]
+  endif
+  cp_rattle_test = executable(
+    'test_cp_rattle',
+    ['tests/test_cp_rattle.c', 'src/cpmdc_cp.c'],
+    include_directories: inc,
+    dependencies: [math_dep] + linalg_deps,
+    c_args: common_c_args,
+  )
+  test(
+    'cp-rattle',
+    cp_rattle_test,
+    args: [meson.current_source_dir() / 'tests/force_input_water.capnp.txt'],
+  )
+  cp_rattle_bench = executable(
+    'cp-rattle',
+    ['bench/cp_rattle.c', 'src/cpmdc_cp.c'],
+    include_directories: inc,
+    dependencies: [math_dep],
+    c_args: common_c_args,
+    override_options: ['optimization=2'],
+  )
   warm_selector_source = custom_target(
     'warm-selector-source',
     input: 'tools/opencpmd_embed_rwfopt.patch',

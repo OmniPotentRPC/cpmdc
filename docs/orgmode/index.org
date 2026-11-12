@@ -164,6 +164,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals
+   howto/cp-rattle
    howto/debug-deck
    howto/check-forces
    howto/pwscale-ranks

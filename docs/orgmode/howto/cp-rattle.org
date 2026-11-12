@@ -1,0 +1,59 @@
+#+TITLE: Take a Car-Parrinello step with iterative RATTLE
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Goal
+Advance orbitals with velocity Verlet under the orthonormality constraints, and report the conserved energy of that step.
+A host-driven force call still optimises the wavefunction.
+It does not integrate a Car-Parrinello trajectory.
+OpenCPMD orthonormalises a propagation with ~ortho~.
+With ~LOWDIN~ set, ~lowdin~ in ~lowdin_utils~ diagonalises the overlap through ~dspevy~ and applies the symmetric factor of Löwdin (J. Chem. Phys. 18, 365 (1950), doi:10.1063/1.1747632).
+Without that keyword the same routine calls Gram-Schmidt (~rgs~).
+Quantum ESPRESSO ~cp.x~ selects the iterative orthonormalisation with ~orthogonalization = 'ortho'~ and warns that ~Gram-Schmidt~ yields incorrect energies and eigenvalues ([[https://www.quantum-espresso.org/Doc/INPUT_CP.html][cp.x input description]], keywords ~orthogonalization~, ~ortho_eps~, and ~ortho_max~).
+CP2K's production dynamics are Born-Oppenheimer molecular dynamics and the second-generation Car-Parrinello scheme of Kühne and co-workers (J. Chem. Phys. 152, 194103 (2020), doi:10.1063/5.0007045), which keeps the electrons near the ground state with one preconditioned gradient.
+The orbital extrapolation already used between force calls is that Born-Oppenheimer path.
+This page is the constrained Verlet those force calls do not take.
+
+* The step
+~include/cpmdc_cp.h~ declares ~cpmdc_cp_step~.
+The caller passes positions, ionic velocities, coefficient velocities, and a force callback.
+Nothing in ~cpmdc_session_calculate_result()~ calls it.
+~CPMDC_CP_ORTHO_LOWDIN~ builds the symmetric factor by a Jacobi diagonalisation of the overlap.
+~CPMDC_CP_ORTHO_RATTLE~ solves the same constraints iteratively.
+SHAKE (Ryckaert, Ciccotti, and Berendsen, J. Comput. Phys. 23, 327 (1977), doi:10.1016/0021-9991(77)90098-5) corrects the coefficients by a symmetric multiplier in the column space of the coefficients at the start of the step.
+RATTLE (Andersen, J. Comput. Phys. 52, 24 (1983), doi:10.1016/0021-9991(83)90014-1) adds that multiplier to the half-step velocity and, after the second kick, removes the part of the velocity that would change ~C^T C~.
+The conserved energy is the sum of the potential, the ionic kinetic energy, and the fictitious electronic kinetic energy, as in the Car-Parrinello Lagrangian (Car and Parrinello, Phys. Rev. Lett. 55, 2471 (1985), doi:10.1103/PhysRevLett.55.2471; Pastore, Smargiassi, and Buda, Phys. Rev. A 44, 6334 (1991), doi:10.1103/PhysRevA.44.6334).
+A Car-Parrinello step runs no self-consistent field iteration, so the SCF count on this path is zero.
+
+* Water model used for the check
+The ions sit at the geometry in ~tests/force_input_water.capnp.txt~.
+One Bohr is 0.529177210903 Å.
+Each atom carries one s function.
+The on-site energies are -0.60 Ha on oxygen and -0.20 Ha on hydrogen.
+The hopping is ~-0.25 exp(-1.50 (r - r_OH))~ Ha, with ~r_OH~ the oxygen-hydrogen distance of that geometry.
+Two orbitals are occupied and the electronic energy is twice the sum of the two lowest eigenvalues.
+Harmonic bonds with force constants 0.50 Ha/Bohr² (O-H) and 0.10 Ha/Bohr² (H-H) use the bond lengths of the same geometry as their rest lengths, so the molecule vibrates.
+Masses are 16 u and 1 u, with 1 u = 1822.888486209 electron masses.
+The fictitious electronic mass is 400 and the time step is 0.25 atomic units.
+Velocities start at zero and the coefficients start as the eigenvectors of the Hamiltonian.
+LAPACK ~dsyev~ gives -1.936667976738 Ha for that electronic energy.
+~tests/test_cp_rattle.c~ requires the library value to agree within 1e-10 Ha, the ionic and electronic forces to agree with central differences, the orbitals to stay orthonormal to 1e-10, and an 80-step RATTLE trajectory to keep the conserved-energy drift under 2e-7 Ha and to return the ions to 1e-10 Bohr after the velocities are reversed.
+That test run printed:
+
+#+begin_src text
+water_band_energy_ha=-1.936667976738
+rattle_drift_ha=4.921e-08 rattle_return_rms_bohr=1.282e-16 shake_iterations=240
+#+end_src
+
+* Benchmark
+~build/cp-rattle~ is compiled at optimisation level 2, with the project's ~-ffp-contract=off~.
+~build/cp-rattle 2000 40~ times forty repeats of one 2000-step trajectory and reports the maximum departure of the conserved energy from its initial value on that trajectory.
+Both columns below are from one run of that command.
+
+| Path | Time per step (s) | SCF iterations | Overlap iterations per step | Max conserved-energy drift (Ha) |
+|------+-------------------+----------------+-----------------------------+---------------------------------|
+| spectral Löwdin | 3.090078500e-07 | 0 | 0.458500 | 4.314417233e-01 |
+| iterative RATTLE | 3.601468250e-07 | 0 | 3.617000 | 5.410173338e-02 |
+
+On this two-orbital model the Jacobi diagonalisation is the cheaper step.
+The iterative constraint step is the one whose conserved energy stays closer to its initial value.
+The force-call path is unchanged, and RATTLE runs only when the caller selects ~CPMDC_CP_ORTHO_RATTLE~.

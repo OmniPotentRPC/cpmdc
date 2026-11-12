@@ -276,6 +276,14 @@ the operations ~energy~, ~forces~, ~gradient~, and ~stress~, the
 ~PotentialConfig~ arm.
 The [[file:feature-inventory.org][feature inventory]] describes the table.
 
+* Car-Parrinello step
+~include/cpmdc_cp.h~ declares an opt-in velocity Verlet for orthonormal orbitals.
+~cpmdc_cp_step()~ runs only when a caller asks for it.
+~CPMDC_CP_ORTHO_LOWDIN~ diagonalises the overlap.
+~CPMDC_CP_ORTHO_RATTLE~ iterates the SHAKE and RATTLE constraints.
+The session force calls do not use either path.
+The [[file:../howto/cp-rattle.org][RATTLE how-to]] records the water-model check.
+
 * RESTART file library
 ~include/cpmdc_restart.h~ declares a separate static library,
 ~libcpmdc_restart~, that reads and writes CPMD ~RESTART.n~ files without
