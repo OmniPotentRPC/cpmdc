@@ -948,6 +948,19 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
   )
   test(
+    'session-cached-geometry',
+    executable(
+      'test_session_cached_geometry',
+      'tests/test_session_cached_geometry.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [cpmd_parser_params_bin.full_path()],
+    depends: [cpmd_parser_params_bin],
+    suite: ['e2e', 'cmocka'],
+  )
+  test(
     'stress-isolated',
     executable(
       'test_stress_isolated',

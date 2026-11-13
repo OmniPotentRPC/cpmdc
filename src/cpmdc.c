@@ -1424,8 +1424,8 @@ static int session_copy_cached_gradient(const CPMDCSession *session,
                                         const double *cell_ang, int has_cell,
                                         double *grad) {
   unsigned char *used;
-  if (!session || !session->result_cached || !grad ||
-      session->cached_n_atoms != n_atoms)
+  if (!session || !session->result_cached || !grad || !positions ||
+      !atomic_numbers || session->cached_n_atoms != n_atoms)
     return 0;
   if (cell_differs(session->cached_has_cell, session->cached_cell_ang, has_cell,
                    cell_ang))
@@ -1607,7 +1607,10 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
-  if (grad_len_from_atoms(n_atoms, NULL) != 0)
+  /* A missing buffer is a bad call, including on a session that already
+   * stored a result. The cache lookup reads these pointers. */
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
     return fail_msg("invalid arguments");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
