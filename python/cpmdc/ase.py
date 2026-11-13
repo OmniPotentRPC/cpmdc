@@ -2,7 +2,7 @@
 
 Units are ASE units: energy in eV, forces in eV/Angstrom, stress in
 eV/Angstrom^3. Stress is Voigt order ``(xx, yy, zz, yz, xz, xy)`` and is
-the Cartesian tensor the library reports, converted from Hartree/Bohr^3.
+``(1/V) dE/d(strain)``, the ASE sign of the library tensor.
 ``free_energy`` equals ``energy``. The returned energy is the potential
 energy of the step; the library does not separate an electronic entropy.
 

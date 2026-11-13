@@ -392,6 +392,7 @@ class Potential:
     optional row-major cell. It returns ``energy`` in eV, ``forces`` in
     eV/Angstrom with shape (N, 3), and ``stress`` as nine eV/Angstrom^3
     components in row-major order when the library computed a tensor.
+    The stress sign is ASE's, ``(1/V) dE/d(strain)``.
     :meth:`caps` reports that stress may be present and per-atom energies
     are not.
     """
@@ -422,7 +423,12 @@ class Potential:
             "forces": forces_to_ev_per_angstrom(done.forces_h_bohr),
         }
         if done.stress_h_bohr3 is not None:
-            out["stress"] = stress_to_ev_per_angstrom3(done.stress_h_bohr3)
+            # The C tensor uses the OpenCPMD sign, volume * sigma = -dE/d(eps).
+            # rgpot and ASE want sigma = (1/V) dE/d(eps).
+            out["stress"] = [
+                -component
+                for component in stress_to_ev_per_angstrom3(done.stress_h_bohr3)
+            ]
         return out
 
     def close(self) -> None:

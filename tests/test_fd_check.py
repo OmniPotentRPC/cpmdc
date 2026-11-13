@@ -2,9 +2,9 @@
 """Run cpmdc-fd-check on the reference evaluator.
 
 The reference forces are the analytic gradient of its energy, so central
-differences must agree. Its periodic stress is energy / volume on the
-diagonal, not a strain derivative, so --stress must flag it, while the
-numerical virials vyy and vzz must equal -dE/d(eps) of
+differences must agree. Its periodic stress is -dE/d(eps) / volume, the
+OpenCPMD sign, so --stress agrees as well. The numerical virials vyy and
+vzz equal -dE/d(eps) of
 E = sum_i 0.5 k Z_i |r_i|^2 (Bohr) + 1e-10 sum |h|^2 (Angstrom), with
 k = 1e-3 * 40 / 70 and a 10 Angstrom cube. An isolated cell has no stress.
 """
@@ -22,7 +22,7 @@ def main() -> int:
     cases = [
         ("forces", 0, "PASS", [*tight, isolated, step]),
         ("forces", 0, "PASS", [*tight, periodic, step]),
-        ("virial", 1, "MISMATCH", ["--stress", periodic, step]),
+        ("virial", 0, "PASS", ["--stress", periodic, step]),
         ("stress not computed", 2, "", ["--stress", isolated, step]),
     ]
     failures = []

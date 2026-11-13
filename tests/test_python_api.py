@@ -117,6 +117,10 @@ def main() -> int:
     import numpy as np
     from ase import Atoms
     from ase.calculators.calculator import Calculator
+    from ase.calculators.fd import (
+        calculate_numerical_forces,
+        calculate_numerical_stress,
+    )
 
     from cpmdc.ase import CPMDCCalculator
 
@@ -128,6 +132,9 @@ def main() -> int:
     forces = atoms.get_forces()
     if forces.shape != (3, 3):
         raise AssertionError(forces.shape)
+    reference_forces = calculate_numerical_forces(atoms, eps=1.0e-4)
+    if not np.allclose(forces, reference_forces, rtol=1.0e-5, atol=1.0e-8):
+        raise AssertionError(f"forces {forces} ASE finite difference {reference_forces}")
     if atoms.get_potential_energy() != energy:
         raise AssertionError("ASE cache missed the repeated energy")
     free = atoms.calc.get_property("free_energy", atoms)
@@ -145,6 +152,9 @@ def main() -> int:
     stress = periodic_atoms.get_stress()
     if np.asarray(stress).shape != (6,):
         raise AssertionError(stress)
+    reference_stress = calculate_numerical_stress(periodic_atoms, eps=1.0e-4)
+    if not np.allclose(stress, reference_stress, rtol=1.0e-4, atol=1.0e-6):
+        raise AssertionError(f"stress {stress} ASE finite difference {reference_stress}")
     periodic_atoms.calc.close()
 
     mixed = Atoms("OHH", positions=positions, cell=[10.0, 10.0, 10.0], pbc=[True, True, False])

@@ -1927,15 +1927,14 @@ CONTAINS
     END DO
     image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
     image%prop%valid = 1_c_int
-    ! Toy isotropic stress (Ha/Bohr^3) for a periodic cell with a positive
-    ! volume, so PotentialResult.stress is exercised without OpenCPMD.
-    ! An isolated deck has a box volume and no tensor. CPMDC_STRESS=0 skips
-    ! the tensor on a periodic cell as well.
+    ! Strain derivative of this reference energy, Hartree/Bohr^3, with the
+    ! OpenCPMD sign: volume * stress = -dE/d(eps). An isolated deck has a
+    ! box volume and no tensor. CPMDC_STRESS=0 skips the tensor too.
     image%stress%values = 0.0_c_double
     image%stress%valid = 0_c_int
     IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
          .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
-      IF (reference_pef_fill_stress(image, cell, energy_h) /= 0) &
+      IF (reference_pef_fill_stress(image, n_atoms, pos, z, cell, k) /= 0) &
            image%stress%valid = 1_c_int
     END IF
   END SUBROUTINE
@@ -1995,28 +1994,56 @@ CONTAINS
         reference_deck_isolated = .FALSE.
   END FUNCTION
 
-  INTEGER FUNCTION reference_pef_fill_stress(image, cell, energy_h)
+  INTEGER FUNCTION reference_pef_fill_stress(image, n_atoms, pos, z, cell, k)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    REAL(c_double), INTENT(IN) :: cell(*)
-    REAL(c_double), INTENT(IN) :: energy_h
+    INTEGER, INTENT(IN) :: n_atoms
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(real64), INTENT(IN) :: k
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
-    REAL(real64) :: a(3), b(3), c(3), vol, inv_b, sig
-    INTEGER :: i
+    REAL(real64) :: a(3), b(3), cvec(3), h(3, 3), r(3), ded(3, 3)
+    REAL(real64) :: vol, inv_b, z_scale
+    INTEGER :: i, j, ia, vec, slot
     reference_pef_fill_stress = 0
     inv_b = 1.0_real64 / bohr_to_ang
     DO i = 1, 3
-      a(i) = REAL(cell(i), KIND=real64) * inv_b
-      b(i) = REAL(cell(3 + i), KIND=real64) * inv_b
-      c(i) = REAL(cell(6 + i), KIND=real64) * inv_b
+      h(i, 1) = REAL(cell(i), KIND=real64)
+      h(i, 2) = REAL(cell(3 + i), KIND=real64)
+      h(i, 3) = REAL(cell(6 + i), KIND=real64)
+      a(i) = h(i, 1) * inv_b
+      b(i) = h(i, 2) * inv_b
+      cvec(i) = h(i, 3) * inv_b
     END DO
-    vol = ABS(a(1) * (b(2) * c(3) - b(3) * c(2)) + &
-         a(2) * (b(3) * c(1) - b(1) * c(3)) + &
-         a(3) * (b(1) * c(2) - b(2) * c(1)))
+    vol = ABS(a(1) * (b(2) * cvec(3) - b(3) * cvec(2)) + &
+         a(2) * (b(3) * cvec(1) - b(1) * cvec(3)) + &
+         a(3) * (b(1) * cvec(2) - b(2) * cvec(1)))
     IF (vol <= 1.0e-12_real64) RETURN
-    sig = REAL(energy_h, KIND=real64) / vol
-    image%stress%values(1) = REAL(sig, KIND=c_double)
-    image%stress%values(5) = REAL(sig, KIND=c_double)
-    image%stress%values(9) = REAL(sig, KIND=c_double)
+    ded = 0.0_real64
+    DO ia = 1, n_atoms
+      z_scale = REAL(MAX(1, INT(z(ia))), KIND=real64)
+      DO i = 1, 3
+        r(i) = REAL(pos(3 * (ia - 1) + i), KIND=real64)
+      END DO
+      DO i = 1, 3
+        DO j = 1, 3
+          ded(i, j) = ded(i, j) + k * z_scale * r(i) * r(j) * inv_b * inv_b
+        END DO
+      END DO
+    END DO
+    DO vec = 1, 3
+      DO i = 1, 3
+        DO j = 1, 3
+          ded(i, j) = ded(i, j) + 2.0e-10_real64 * h(i, vec) * h(j, vec)
+        END DO
+      END DO
+    END DO
+    slot = 0
+    DO i = 1, 3
+      DO j = 1, 3
+        slot = slot + 1
+        image%stress%values(slot) = REAL(-ded(i, j) / vol, KIND=c_double)
+      END DO
+    END DO
     reference_pef_fill_stress = 1
   END FUNCTION
 
