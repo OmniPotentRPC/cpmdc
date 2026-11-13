@@ -34,6 +34,43 @@ if doxyrest_prefix:
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "xml"]
+# A warning is a failed book.
+warningiserror = True
+
+
+def _reference_well():
+    """Draw the reference-well figure before Sphinx reads the how-to."""
+    import importlib.util
+
+    script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), os.pardir, "render_reference_well.py"
+    )
+    spec = importlib.util.spec_from_file_location("render_reference_well", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_static", "reference-well.svg")
+    if module.main(["--out", dest, "--check"]) != 0:
+        raise SystemExit("reference well was not drawn")
+
+
+def _api_stub():
+    """Keep the C API toctree resolvable before Doxygen has run."""
+    api = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api", "index.rst")
+    if os.path.isfile(api):
+        return
+    os.makedirs(os.path.dirname(api), exist_ok=True)
+    with open(api, "w", encoding="utf-8") as handle:
+        handle.write(
+            "C API\n"
+            "=====\n"
+            "\n"
+            "These pages are filled by Doxygen and Doxyrest.\n"
+            "Until that step has run, the headers under ``include/`` are the API.\n"
+        )
+
+
+_reference_well()
+_api_stub()
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}

@@ -1149,6 +1149,72 @@ test(
     suite: ['docs', 'examples'],
   )
   test(
+    'no-host-paths',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_no_host_paths.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
+    'public-api-docs',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_public_api_docs.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
+    'reference-well',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_well.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'examples'],
+  )
+  test(
+    'python-api',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_python_api.py',
+      meson.current_source_dir(),
+      cpmdc_shared.full_path(),
+      water_params_bin.full_path(),
+      water_periodic_params_bin.full_path(),
+    ],
+    depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
+    suite: ['python', 'e2e'],
+    timeout: 120,
+  )
+  test(
+    'tutorials-run',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_tutorials_run.py',
+      meson.current_source_dir(),
+      meson.current_build_dir(),
+      cpmdc_shared.full_path(),
+      water_params_bin.full_path(),
+    ],
+    depends: [cpmdc_shared, water_params_bin],
+    suite: ['docs', 'examples', 'e2e'],
+    timeout: 180,
+  )
+  test(
+    'c-abi-baseline',
+    find_program('sh'),
+    args: [
+      meson.current_source_dir() / 'scripts/abi_check.sh',
+      cpmdc_shared.full_path(),
+      meson.current_source_dir() / 'scripts/abi_baseline.txt',
+    ],
+    depends: [cpmdc_shared],
+    suite: ['abi'],
+  )
+  test(
     'inventory-docs',
     python,
     args: [

@@ -1,0 +1,33 @@
+#+TITLE: An energy and forces from ASE
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Run the example
+This lesson evaluates the water geometry of the
+[[file:first-energy.org][first tutorial]] with the ASE calculator.
+The default build's reference well supplies the number. No OpenCPMD
+checkout is required.
+
+Build the shared library, then point the example at the params message
+and the library:
+
+#+begin_src bash
+export CPMDC_PARAMS=build/water_blyp_params.bin
+export CPMDC_LIBRARY=build/libcpmdc.so
+export CPMDC_SCHEMA=schema/Potentials.capnp
+export PYTHONPATH=python
+python examples/python/ase_energy.py
+#+end_src
+
+#+begin_src text
+energy_ev=0.059020309570
+natoms=3
+fmax=0.06513409
+#+end_src
+
+~energy_ev~ is the reference energy in eV. ~fmax~ is the largest absolute
+force component in eV/Angstrom. The same geometry without ASE is
+~examples/python/energy.py~, which prints Hartree.
+
+~CPMDCCalculator~ keeps one session. A second ~get_potential_energy~ on
+the same atoms does not recompute. ~get_forces~ returns an array of shape
+~(natoms, 3)~.

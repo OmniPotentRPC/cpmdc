@@ -5,6 +5,8 @@
 /docs/doctrees/
 /docs/source/xml/
 /docs/source/api/
+/docs/source/_static/reference-well.svg
+/tutorial-work/
 /docs/source/crates/
 /docs/source/**/*.rst
 *.o
@@ -15,6 +17,8 @@
 *.gcno
 compile_commands.json
 .cache/
+__pycache__/
+*.pyc
 
 # CPMD runtime output dropped by embed runs
 /RESTART.*

@@ -24,6 +24,7 @@ portable result carrier used by RPC-facing callers.
 | Need | Do this first |
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
+| Call it from ASE or Python | Read [Call cpmdc from Python](docs/orgmode/howto/python.org) and run [examples/python/ase_energy.py](examples/python/ase_energy.py) |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
