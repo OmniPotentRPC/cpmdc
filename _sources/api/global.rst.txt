@@ -43,8 +43,9 @@ Overview
 	typedef struct :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>` :ref:`CPMDCSession<doxid-cpmdc_8h_1a49ff1835247d81d2ea1d2bea854ba239>`;
 	typedef enum :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1af730055345a93286960ba9ef1a3f05b2>` :ref:`CPMDCFeatureKind<doxid-cpmdc__features_8h_1ab8efa8b96095d9bcb86951f47cdf3ddd>`;
 	typedef struct CPMDCFeatureEntry :ref:`CPMDCFeatureEntry<doxid-cpmdc__features_8h_1a78e933e2bdea5d5a752302a384a3137b>`;
-	typedef struct cpmdc_pwscale_problem :target:`cpmdc_pwscale_problem<doxid-cpmdc__pwscale_8h_1af2e92a3b53cdffae89ca1df1fb56b008>`;
-	typedef struct cpmdc_pwscale_stats :target:`cpmdc_pwscale_stats<doxid-cpmdc__pwscale_8h_1ae1d3e6ecadbedaadd25c6828c469d1f3>`;
+	typedef struct cpmdc_pwscale_problem :ref:`cpmdc_pwscale_problem<doxid-cpmdc__pwscale_8h_1af2e92a3b53cdffae89ca1df1fb56b008>`;
+	typedef struct cpmdc_pwscale_stats :ref:`cpmdc_pwscale_stats<doxid-cpmdc__pwscale_8h_1ae1d3e6ecadbedaadd25c6828c469d1f3>`;
+	typedef struct :ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>` :ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`;
 	typedef struct :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>` :ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`;
 
 	// enums
@@ -111,14 +112,17 @@ Overview
 	size_t :ref:`cpmdc_feature_count<doxid-cpmdc__features_8h_1a4cf7e2f669806606c1d1293533b3d38e>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_table<doxid-cpmdc__features_8h_1ae40eb0e96927dc5f3feacc20c3869315>`(void);
 	const :ref:`CPMDCFeatureEntry<doxid-struct_c_p_m_d_c_feature_entry>`* :ref:`cpmdc_feature_find<doxid-cpmdc__features_8h_1a4d2414cdfa87d867cf1ab1e708dfb4ca>`(const char* feature_id);
-	void :target:`cpmdc_pwscale_fill_geometry<doxid-cpmdc__pwscale_8h_1aeeedb48279f3808b778dbaa73e0c794d>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, double* positions_bohr, int* atomic_numbers);
-	int :target:`cpmdc_pwscale_within<doxid-cpmdc__pwscale_8h_1a0ec43d7c5364ec724ad18c808e8bac1b>`(double got, double ref);
-	int :target:`cpmdc_pwscale_sample_check<doxid-cpmdc__pwscale_8h_1af1f7a704c5b99826efc35782bf1e7cea>`(double got_energy, const double* got_forces, double ref_energy, const double* ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double* max_abs_dE, double* max_abs_dF, int* counts_match);
-	int :target:`cpmdc_pwscale_eval<doxid-cpmdc__pwscale_8h_1aa26b7fb52d9d69d7787ce467fa92f418>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
-	int :target:`cpmdc_pwscale_eval_mpi<doxid-cpmdc__pwscale_8h_1a213f0a8929d9ee4d79ee01f0d7323077>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats, const void* comm, size_t comm_bytes);
-	int :target:`cpmdc_pwscale_cuda_compiled<doxid-cpmdc__pwscale_8h_1a03639510eaf220a29c52f381bd66a0ae>`(void);
-	int :target:`cpmdc_pwscale_cuda_device<doxid-cpmdc__pwscale_8h_1a80f63f377b2a8860147d0aa4c912ed60>`(char* name, int namelen);
-	int :target:`cpmdc_pwscale_eval_cuda<doxid-cpmdc__pwscale_8h_1a8a4db6541981b362149742707e0d17a1>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
+	void :ref:`cpmdc_pwscale_fill_geometry<doxid-cpmdc__pwscale_8h_1aeeedb48279f3808b778dbaa73e0c794d>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, double* positions_bohr, int* atomic_numbers);
+	int :ref:`cpmdc_pwscale_within<doxid-cpmdc__pwscale_8h_1a0ec43d7c5364ec724ad18c808e8bac1b>`(double got, double ref);
+	int :ref:`cpmdc_pwscale_sample_check<doxid-cpmdc__pwscale_8h_1af1f7a704c5b99826efc35782bf1e7cea>`(double got_energy, const double* got_forces, double ref_energy, const double* ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double* max_abs_dE, double* max_abs_dF, int* counts_match);
+	int :ref:`cpmdc_pwscale_eval<doxid-cpmdc__pwscale_8h_1aa26b7fb52d9d69d7787ce467fa92f418>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
+	int :ref:`cpmdc_pwscale_eval_mpi<doxid-cpmdc__pwscale_8h_1a213f0a8929d9ee4d79ee01f0d7323077>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats, const void* comm, size_t comm_bytes);
+	int :ref:`cpmdc_pwscale_mpi_bind_create<doxid-cpmdc__pwscale_8h_1ab7b945bb23be4d06e07c3c6f901398c0>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, int dist, const void* comm, size_t comm_bytes, :ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`** out);
+	int :ref:`cpmdc_pwscale_eval_mpi_bound<doxid-cpmdc__pwscale_8h_1a1d9e9bbd64e35972c28b4b9a76363d55>`(:ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`* bind, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
+	void :ref:`cpmdc_pwscale_mpi_bind_free<doxid-cpmdc__pwscale_8h_1acaebb706af88f2965d526a2a3a5288a2>`(:ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`* bind);
+	int :ref:`cpmdc_pwscale_cuda_compiled<doxid-cpmdc__pwscale_8h_1a03639510eaf220a29c52f381bd66a0ae>`(void);
+	int :ref:`cpmdc_pwscale_cuda_device<doxid-cpmdc__pwscale_8h_1a80f63f377b2a8860147d0aa4c912ed60>`(char* name, int namelen);
+	int :ref:`cpmdc_pwscale_eval_cuda<doxid-cpmdc__pwscale_8h_1a8a4db6541981b362149742707e0d17a1>`(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats);
 	:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* :ref:`cpmdc_restart_read_mem<doxid-cpmdc__restart_8h_1ae7b62fa4d0ac1400f7ca88fae6687f2e>`(const void* bytes, size_t nbytes, char* err, size_t err_cap);
 	:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* :ref:`cpmdc_restart_read_path<doxid-cpmdc__restart_8h_1ac5c4295836c617d13898d447a69e5d23>`(const char* path, char* err, size_t err_cap);
 	void :ref:`cpmdc_restart_free<doxid-cpmdc__restart_8h_1a21508759d96038feef8c60585540cef8>`(:ref:`cpmdc_restart<doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9>`* file);
@@ -143,15 +147,15 @@ Overview
 	// macros
 
 	#define :ref:`CPMDC_ABI_VERSION<doxid-cpmdc_8h_1a3e1546a10c3fe2b968f3bfaffd048056>`
-	#define :target:`CPMDC_PWSCALE_DIST_ATOMS<doxid-cpmdc__pwscale_8h_1ab9a65264d36a4e01979135f1141ead89>`
-	#define :target:`CPMDC_PWSCALE_DIST_PW<doxid-cpmdc__pwscale_8h_1a13fa481866d4a87b2d01c4782b84edea>`
-	#define :target:`CPMDC_PWSCALE_ERR_ARG<doxid-cpmdc__pwscale_8h_1ac82f2f7b0f274823edcf64321259fba5>`
-	#define :target:`CPMDC_PWSCALE_ERR_CUDA<doxid-cpmdc__pwscale_8h_1a9d6ec4477e408979ca4738158e65718c>`
-	#define :target:`CPMDC_PWSCALE_ERR_NOCUDA<doxid-cpmdc__pwscale_8h_1a7653fa9f7c9c2722293fc358c4d72938>`
-	#define :target:`CPMDC_PWSCALE_ERR_NOFFTW<doxid-cpmdc__pwscale_8h_1aa85759102bb88dc283a6beebbcab3c8d>`
-	#define :target:`CPMDC_PWSCALE_ERR_NOMPI<doxid-cpmdc__pwscale_8h_1aea31514313ceea46f63f47620ac1dba7>`
-	#define :target:`CPMDC_PWSCALE_OK<doxid-cpmdc__pwscale_8h_1af350559789b2f6fb9758366a716653de>`
-	#define :target:`CPMDC_PWSCALE_RTOL<doxid-cpmdc__pwscale_8h_1a017b29af432a392bcd7cf74b4aa3bed6>`
+	#define :ref:`CPMDC_PWSCALE_DIST_ATOMS<doxid-cpmdc__pwscale_8h_1ab9a65264d36a4e01979135f1141ead89>`
+	#define :ref:`CPMDC_PWSCALE_DIST_PW<doxid-cpmdc__pwscale_8h_1a13fa481866d4a87b2d01c4782b84edea>`
+	#define :ref:`CPMDC_PWSCALE_ERR_ARG<doxid-cpmdc__pwscale_8h_1ac82f2f7b0f274823edcf64321259fba5>`
+	#define :ref:`CPMDC_PWSCALE_ERR_CUDA<doxid-cpmdc__pwscale_8h_1a9d6ec4477e408979ca4738158e65718c>`
+	#define :ref:`CPMDC_PWSCALE_ERR_NOCUDA<doxid-cpmdc__pwscale_8h_1a7653fa9f7c9c2722293fc358c4d72938>`
+	#define :ref:`CPMDC_PWSCALE_ERR_NOFFTW<doxid-cpmdc__pwscale_8h_1aa85759102bb88dc283a6beebbcab3c8d>`
+	#define :ref:`CPMDC_PWSCALE_ERR_NOMPI<doxid-cpmdc__pwscale_8h_1aea31514313ceea46f63f47620ac1dba7>`
+	#define :ref:`CPMDC_PWSCALE_OK<doxid-cpmdc__pwscale_8h_1af350559789b2f6fb9758366a716653de>`
+	#define :ref:`CPMDC_PWSCALE_RTOL<doxid-cpmdc__pwscale_8h_1a017b29af432a392bcd7cf74b4aa3bed6>`
 	#define :ref:`CPMDC_RESTART_ANGSTROM_PER_BOHR<doxid-cpmdc__restart_8h_1af60c430255991bb5fe2489d84b051597>`
 
 .. _details-global:
@@ -289,6 +293,38 @@ Feature namespace represented by a ``:ref:`CPMDCFeatureEntry <doxid-struct_c_p_m
 	typedef struct CPMDCFeatureEntry CPMDCFeatureEntry
 
 One discoverable ABI, parameter, section, or keyword capability.
+
+.. index:: pair: typedef; cpmdc_pwscale_problem
+.. _doxid-cpmdc__pwscale_8h_1af2e92a3b53cdffae89ca1df1fb56b008:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct cpmdc_pwscale_problem cpmdc_pwscale_problem
+
+One scaffold problem: atom count, plane waves, and the Gaussian width.
+
+.. index:: pair: typedef; cpmdc_pwscale_stats
+.. _doxid-cpmdc__pwscale_8h_1ae1d3e6ecadbedaadd25c6828c469d1f3:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct cpmdc_pwscale_stats cpmdc_pwscale_stats
+
+Timers and visit counts from one scaffold evaluation.
+
+.. index:: pair: typedef; cpmdc_pwscale_mpi_bind
+.. _doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	typedef struct :ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>` cpmdc_pwscale_mpi_bind
+
+A problem bound to a communicator for repeated rank force calls.
+
+cpmdc_pwscale_eval_mpi binds, evaluates once, and frees on every call.
 
 .. index:: pair: typedef; cpmdc_restart
 .. _doxid-cpmdc__restart_8h_1a34772f7f4950f85031f3585b7bde72c9:
@@ -849,6 +885,134 @@ Find one feature by stable ID.
 .. rubric:: Returns:
 
 Pointer to the matching table entry, or ``NULL`` when the feature ID is not present.
+
+.. index:: pair: function; cpmdc_pwscale_fill_geometry
+.. _doxid-cpmdc__pwscale_8h_1aeeedb48279f3808b778dbaa73e0c794d:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	void cpmdc_pwscale_fill_geometry(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, double* positions_bohr, int* atomic_numbers)
+
+Fill a deterministic geometry for ``prob``.
+
+A null pointer returns without writing. Positions are Bohr.
+
+.. index:: pair: function; cpmdc_pwscale_within
+.. _doxid-cpmdc__pwscale_8h_1a0ec43d7c5364ec724ad18c808e8bac1b:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_within(double got, double ref)
+
+Return 1 when ``got`` agrees with ``ref`` under CPMDC_PWSCALE_RTOL.
+
+.. index:: pair: function; cpmdc_pwscale_sample_check
+.. _doxid-cpmdc__pwscale_8h_1af1f7a704c5b99826efc35782bf1e7cea:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_sample_check(double got_energy, const double* got_forces, double ref_energy, const double* ref_forces, int n3, long long g_got, long long g_ref, long long a_got, long long a_ref, double* max_abs_dE, double* max_abs_dF, int* counts_match)
+
+Compare one finished sample with the serial reference.
+
+Writes this sample's gaps and whether the visit counts match. Returns 1 only when the energy, every force, and both counts agree. A null buffer or a non-positive ``n3`` returns 0 and writes nothing.
+
+.. index:: pair: function; cpmdc_pwscale_eval
+.. _doxid-cpmdc__pwscale_8h_1aa26b7fb52d9d69d7787ce467fa92f418:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_eval(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats)
+
+Evaluate the scaffold on one rank.
+
+``dist`` selects the split: plane waves, or atoms. ``nthreads`` is the OpenMP team size. One thread is the serial loop. Wall time covers scratch allocation, the arithmetic, and the ordered sum. A null buffer or an unknown ``dist`` returns CPMDC_PWSCALE_ERR_ARG.
+
+.. index:: pair: function; cpmdc_pwscale_eval_mpi
+.. _doxid-cpmdc__pwscale_8h_1a213f0a8929d9ee4d79ee01f0d7323077:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_eval_mpi(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, int dist, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats, const void* comm, size_t comm_bytes)
+
+Evaluate the scaffold on every rank of one communicator.
+
+Every rank passes the same problem. Every rank receives every rank's partial and sums them in rank order. ``nthreads`` is the team inside a rank. ``comm`` NULL selects MPI_COMM_WORLD. A build without MPI returns CPMDC_PWSCALE_ERR_NOMPI. seconds runs from this rank's entry to the arrival of every partial. Each rank holds (ranks + 1) \* (3 \* natoms + 4) doubles for the sum.
+
+.. index:: pair: function; cpmdc_pwscale_mpi_bind_create
+.. _doxid-cpmdc__pwscale_8h_1ab7b945bb23be4d06e07c3c6f901398c0:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_mpi_bind_create(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, int dist, const void* comm, size_t comm_bytes, :ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`** out)
+
+Bind a problem to a communicator.
+
+Collective over ``comm``. Every rank passes the same problem and ``dist``. One collective checks that agreement and every rank's buffers, so the bound calls repeat neither check. ``comm`` NULL selects MPI_COMM_WORLD, and the communicator must outlive the binding. On failure every rank returns the same code and ``out`` is NULL. A build without MPI returns CPMDC_PWSCALE_ERR_NOMPI.
+
+.. index:: pair: function; cpmdc_pwscale_eval_mpi_bound
+.. _doxid-cpmdc__pwscale_8h_1a1d9e9bbd64e35972c28b4b9a76363d55:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_eval_mpi_bound(:ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`* bind, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, int nthreads, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats)
+
+One bound force call.
+
+Collective over the bound communicator, with the result of cpmdc_pwscale_eval_mpi for the same arguments. The call runs one collective, an Allgather of each rank's energy, forces, visit counts, and return code. A failure on one rank, including a missing array, returns an error on every rank.
+
+.. index:: pair: function; cpmdc_pwscale_mpi_bind_free
+.. _doxid-cpmdc__pwscale_8h_1acaebb706af88f2965d526a2a3a5288a2:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	void cpmdc_pwscale_mpi_bind_free(:ref:`cpmdc_pwscale_mpi_bind<doxid-cpmdc__pwscale_8h_1a0223a987ddbff56ff1f5d8ffcae9a964>`* bind)
+
+Release a binding.
+
+Local. Leaves the communicator alone.
+
+.. index:: pair: function; cpmdc_pwscale_cuda_compiled
+.. _doxid-cpmdc__pwscale_8h_1a03639510eaf220a29c52f381bd66a0ae:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_cuda_compiled(void)
+
+Return 1 when this build compiled the CUDA scaffold.
+
+.. index:: pair: function; cpmdc_pwscale_cuda_device
+.. _doxid-cpmdc__pwscale_8h_1a80f63f377b2a8860147d0aa4c912ed60:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_cuda_device(char* name, int namelen)
+
+Write a device name when one is present.
+
+Returns 1 when a device exists.
+
+.. index:: pair: function; cpmdc_pwscale_eval_cuda
+.. _doxid-cpmdc__pwscale_8h_1a8a4db6541981b362149742707e0d17a1:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int cpmdc_pwscale_eval_cuda(const :ref:`cpmdc_pwscale_problem<doxid-structcpmdc__pwscale__problem>`* prob, const double* positions_bohr, const int* atomic_numbers, double* forces_h_bohr, :ref:`cpmdc_pwscale_stats<doxid-structcpmdc__pwscale__stats>`* stats)
+
+Evaluate the scaffold on the CUDA device.
+
+Total seconds include host-to-device, device-to-host, and synchronization. A missing build or a missing device is an error and writes no timing.
 
 .. index:: pair: function; cpmdc_restart_read_mem
 .. _doxid-cpmdc__restart_8h_1ae7b62fa4d0ac1400f7ca88fae6687f2e:
@@ -1657,6 +1821,98 @@ Macros
 Numeric ABI generation of this header.
 
 Matches the shared-library soversion and :ref:`cpmdc_abi_version() <doxid-cpmdc_8h_1a32d9936fa0bb1380d6da4b8c34c4be44>`; bumps only on an incompatible ABI change.
+
+.. index:: pair: define; CPMDC_PWSCALE_DIST_ATOMS
+.. _doxid-cpmdc__pwscale_8h_1ab9a65264d36a4e01979135f1141ead89:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_DIST_ATOMS
+
+Split the atom loop across workers.
+
+.. index:: pair: define; CPMDC_PWSCALE_DIST_PW
+.. _doxid-cpmdc__pwscale_8h_1a13fa481866d4a87b2d01c4782b84edea:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_DIST_PW
+
+Split the plane-wave loop across workers.
+
+.. index:: pair: define; CPMDC_PWSCALE_ERR_ARG
+.. _doxid-cpmdc__pwscale_8h_1ac82f2f7b0f274823edcf64321259fba5:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_ERR_ARG
+
+Argument or collective failure.
+
+.. index:: pair: define; CPMDC_PWSCALE_ERR_CUDA
+.. _doxid-cpmdc__pwscale_8h_1a9d6ec4477e408979ca4738158e65718c:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_ERR_CUDA
+
+A CUDA call failed.
+
+.. index:: pair: define; CPMDC_PWSCALE_ERR_NOCUDA
+.. _doxid-cpmdc__pwscale_8h_1a7653fa9f7c9c2722293fc358c4d72938:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_ERR_NOCUDA
+
+This build has no CUDA.
+
+.. index:: pair: define; CPMDC_PWSCALE_ERR_NOFFTW
+.. _doxid-cpmdc__pwscale_8h_1aa85759102bb88dc283a6beebbcab3c8d:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_ERR_NOFFTW
+
+This build has no FFTW.
+
+.. index:: pair: define; CPMDC_PWSCALE_ERR_NOMPI
+.. _doxid-cpmdc__pwscale_8h_1aea31514313ceea46f63f47620ac1dba7:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_ERR_NOMPI
+
+This build has no MPI.
+
+.. index:: pair: define; CPMDC_PWSCALE_OK
+.. _doxid-cpmdc__pwscale_8h_1af350559789b2f6fb9758366a716653de:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_OK
+
+Status and distribution codes for the scaffold.
+
+.. index:: pair: define; CPMDC_PWSCALE_RTOL
+.. _doxid-cpmdc__pwscale_8h_1a017b29af432a392bcd7cf74b4aa3bed6:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	#define CPMDC_PWSCALE_RTOL
+
+Relative tolerance for energy and force agreement.
+
+A gap is accepted when it is at most this times max(1, |got|, |reference|).
 
 .. index:: pair: define; CPMDC_RESTART_ANGSTROM_PER_BOHR
 .. _doxid-cpmdc__restart_8h_1af60c430255991bb5fe2489d84b051597:

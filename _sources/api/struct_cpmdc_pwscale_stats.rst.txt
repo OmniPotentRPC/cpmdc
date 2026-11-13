@@ -7,23 +7,131 @@ struct cpmdc_pwscale_stats
 .. toctree::
 	:hidden:
 
+Overview
+~~~~~~~~
 
+Timers and visit counts from one scaffold evaluation. :ref:`More...<details-structcpmdc__pwscale__stats>`
 
 
 .. ref-code-block:: cpp
 	:class: doxyrest-overview-code-block
 
+	#include <cpmdc_pwscale.h>
 	
 	struct cpmdc_pwscale_stats {
 		// fields
 	
-		double :target:`energy_h<doxid-structcpmdc__pwscale__stats_1a7a14807852fce94ecfe0fdbfdf831d51>`;
-		double :target:`seconds<doxid-structcpmdc__pwscale__stats_1ad848d03c79610d67889bef05f21ec1c8>`;
-		double :target:`h2d_seconds<doxid-structcpmdc__pwscale__stats_1aed29fc0df10bbef8054a2723073eed09>`;
-		double :target:`d2h_seconds<doxid-structcpmdc__pwscale__stats_1a01bfec00df13a73704092cccbfc288bc>`;
-		long long :target:`g_visited<doxid-structcpmdc__pwscale__stats_1a26d2cd6641bca9ce1cbce6da2cc56e06>`;
-		long long :target:`atom_visits<doxid-structcpmdc__pwscale__stats_1afb600c19ec4c6642381dfe8b744d5872>`;
-		long long :target:`alloc_bytes<doxid-structcpmdc__pwscale__stats_1a2f3a28b50009ded9afc84eda83da5dae>`;
-		int :target:`workers<doxid-structcpmdc__pwscale__stats_1afc299b39f592a94a9834ad079551982d>`;
-		int :target:`mpi_ranks<doxid-structcpmdc__pwscale__stats_1acacebccd52c3c5d87e3f10002c28b1dc>`;
+		double :ref:`energy_h<doxid-structcpmdc__pwscale__stats_1a7a14807852fce94ecfe0fdbfdf831d51>`;
+		double :ref:`seconds<doxid-structcpmdc__pwscale__stats_1ad848d03c79610d67889bef05f21ec1c8>`;
+		double :ref:`h2d_seconds<doxid-structcpmdc__pwscale__stats_1aed29fc0df10bbef8054a2723073eed09>`;
+		double :ref:`d2h_seconds<doxid-structcpmdc__pwscale__stats_1a01bfec00df13a73704092cccbfc288bc>`;
+		long long :ref:`g_visited<doxid-structcpmdc__pwscale__stats_1a26d2cd6641bca9ce1cbce6da2cc56e06>`;
+		long long :ref:`atom_visits<doxid-structcpmdc__pwscale__stats_1afb600c19ec4c6642381dfe8b744d5872>`;
+		long long :ref:`alloc_bytes<doxid-structcpmdc__pwscale__stats_1a2f3a28b50009ded9afc84eda83da5dae>`;
+		int :ref:`workers<doxid-structcpmdc__pwscale__stats_1afc299b39f592a94a9834ad079551982d>`;
+		int :ref:`mpi_ranks<doxid-structcpmdc__pwscale__stats_1acacebccd52c3c5d87e3f10002c28b1dc>`;
 	};
+.. _details-structcpmdc__pwscale__stats:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Timers and visit counts from one scaffold evaluation.
+
+Fields
+------
+
+.. index:: pair: variable; energy_h
+.. _doxid-structcpmdc__pwscale__stats_1a7a14807852fce94ecfe0fdbfdf831d51:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double energy_h
+
+Energy, Hartree.
+
+.. index:: pair: variable; seconds
+.. _doxid-structcpmdc__pwscale__stats_1ad848d03c79610d67889bef05f21ec1c8:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double seconds
+
+Wall time of the evaluated region, seconds.
+
+.. index:: pair: variable; h2d_seconds
+.. _doxid-structcpmdc__pwscale__stats_1aed29fc0df10bbef8054a2723073eed09:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double h2d_seconds
+
+Host-to-device time, seconds.
+
+Zero on the CPU path.
+
+.. index:: pair: variable; d2h_seconds
+.. _doxid-structcpmdc__pwscale__stats_1a01bfec00df13a73704092cccbfc288bc:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double d2h_seconds
+
+Device-to-host time, seconds.
+
+Zero on the CPU path.
+
+.. index:: pair: variable; g_visited
+.. _doxid-structcpmdc__pwscale__stats_1a26d2cd6641bca9ce1cbce6da2cc56e06:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	long long g_visited
+
+Plane waves visited.
+
+.. index:: pair: variable; atom_visits
+.. _doxid-structcpmdc__pwscale__stats_1afb600c19ec4c6642381dfe8b744d5872:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	long long atom_visits
+
+Atom visits.
+
+.. index:: pair: variable; alloc_bytes
+.. _doxid-structcpmdc__pwscale__stats_1a2f3a28b50009ded9afc84eda83da5dae:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	long long alloc_bytes
+
+Bytes allocated for the evaluation.
+
+.. index:: pair: variable; workers
+.. _doxid-structcpmdc__pwscale__stats_1afc299b39f592a94a9834ad079551982d:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int workers
+
+OpenMP team that ran, from omp_get_num_threads, else 1.
+
+.. index:: pair: variable; mpi_ranks
+.. _doxid-structcpmdc__pwscale__stats_1acacebccd52c3c5d87e3f10002c28b1dc:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int mpi_ranks
+
+Communicator size, or 1 when the call is not MPI.
+

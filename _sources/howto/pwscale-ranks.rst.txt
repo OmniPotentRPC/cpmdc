@@ -1,0 +1,160 @@
+=====================================
+Time the plane-wave scaffold on ranks
+=====================================
+
+
+
+Goal
+----
+
+Time the rank path of the opt-in plane-wave scaffold,
+``cpmdc_pwscale_eval_mpi``, without measuring the scheduler instead.
+The scaffold is built by ``make -C bench`` or by
+``meson setup build -Dwith_pwscale=true``.
+It is not on the embed force path.
+
+Give every rank its own core
+----------------------------
+
+``bench/run_pwscale.sh`` exports ``OMP_PROC_BIND=close`` and passes
+``BIND`` to ``mpirun --bind-to``.
+``BIND`` defaults to ``none``, as before.
+With ``none``, each rank's OpenMP runtime pins its thread to the first
+place it sees, so every rank lands on CPU 0 and the ranks take turns.
+Set ``BIND=core`` to give each rank one core:
+
+.. code:: bash
+
+    BIND=core RUNS=9 sh bench/run_pwscale.sh out
+
+Shared-core timings sit on whole scheduler ticks.
+On an 8-core host with ``CONFIG_HZ=250``, 80 of the 81 timed samples at
+2, 4, and 8 ranks with ``BIND=none`` were within 24 us of a multiple of
+4 ms.
+With ``BIND=core`` none of the 81 was within 25 us.
+The library medians of the default strong sweep (96 atoms, 32768 plane
+waves) were 0.0960, 0.180, and 0.416 s, against 0.0747 s for one
+thread without MPI.
+With ``BIND=core`` the same build gave 0.0380, 0.0211, and 0.0143 s.
+
+Bind a problem once
+-------------------
+
+``cpmdc_pwscale_eval_mpi`` checks on every call that the ranks agree on
+the problem.
+A caller that evaluates one problem many times binds it once:
+
+.. code:: c
+
+    cpmdc_pwscale_mpi_bind *bind = NULL;
+    int rc = cpmdc_pwscale_mpi_bind_create(&prob, CPMDC_PWSCALE_DIST_PW,
+                                           NULL, 0, &bind);
+    for (step = 0; rc == CPMDC_PWSCALE_OK && step < nsteps; ++step)
+      rc = cpmdc_pwscale_eval_mpi_bound(bind, pos, z, forces, 1, &stats);
+    cpmdc_pwscale_mpi_bind_free(bind);
+
+Both calls are collective over the communicator, and the
+communicator must outlive the binding.
+A failure on one rank, including a missing array, returns the same
+error on every rank.
+The harness takes ``--bound`` to time this path.
+
+.. table::
+
+    +-----------------------------------------+--------------------+-----------------+
+    | Call                                    | Collectives before | Collectives now |
+    +=========================================+====================+=================+
+    | ``cpmdc_pwscale_eval_mpi``, plane waves | 12                 |               2 |
+    +-----------------------------------------+--------------------+-----------------+
+    | ``cpmdc_pwscale_eval_mpi``, atoms       | 11                 |               2 |
+    +-----------------------------------------+--------------------+-----------------+
+    | ``cpmdc_pwscale_mpi_bind_create``       | none               |               1 |
+    +-----------------------------------------+--------------------+-----------------+
+    | ``cpmdc_pwscale_eval_mpi_bound``        | none               |               1 |
+    +-----------------------------------------+--------------------+-----------------+
+
+``tests/test_pwscale_collectives.c`` counts these through the PMPI shim
+in ``bench/pmpi_count.c``.
+The shim also builds as ``bench/build/libpmpi_count.so``; preload it and
+set ``PMPI_COUNT_REPORT=1`` to print each rank's totals at
+``MPI_Finalize``.
+
+Same bytes on every run
+-----------------------
+
+A bound call runs one ``MPI_Allgather`` of each rank's energy, forces,
+visit counts, and return code.
+Every rank then sums the partials in rank order, the order rank 0 used
+before.
+So every rank holds the same energy and forces, the bytes repeat from
+run to run for a given rank count, and they match the gather and
+broadcast that the call used before.
+They do not depend on how MPI moves the data.
+A different rank count sums different partials, so it agrees with the
+serial loop to ``CPMDC_PWSCALE_RTOL`` and not bitwise.
+Each rank holds ``(ranks + 1) * (3 * natoms + 4)`` doubles for the sum.
+
+The library timer now runs from a rank's entry to the arrival of every
+partial, without the two barriers.
+The harness column ``call_s`` times the whole call on rank 0 after the
+ranks leave a barrier together, so it compares builds whose library
+timers differ.
+
+Compare two builds
+------------------
+
+``bench/run_pwscale_abba.sh A B OUT`` runs the rank sweeps of two harness
+builds in ABBA order, one pass after another, with ``--bind-to core`` and
+no oversubscription.
+``B_ARGS=--bound`` times the bound path on the B side only.
+``bench/pwscale_abba.py`` then prints per configuration the median and
+interquartile range of ``call_s``, the rank efficiency, and how many of
+the A and B pass pairs B won.
+Strong efficiency is T(1) / (n T(n)) and weak efficiency is
+T(1) / T(n), with T(1) the one-rank median of the same side.
+Run the script with the same binary as A and B to see how far two equal
+builds drift on the host.
+
+Figures from one host
+---------------------
+
+These come from an 8-core KVM guest (Intel Xeon, one thread per core,
+Linux 6.12, Open MPI 4.1.6) with 3 ABBA blocks of 9 samples per pass,
+54 samples per side.
+A is the previous library and B the bound path.
+
+At the default size the call takes 9.5 to 81 ms, and the collectives
+are too small a part of it to measure here.
+A run of the same binary on both sides moved the medians by 0.95 to
+1.21 times, and B won as many as 6 of 6 pairs by chance.
+
+.. table::
+
+    +-------+----------+----------+--------------+--------------+
+    | Ranks | Strong A | Strong B | Weak atoms A | Weak atoms B |
+    +=======+==========+==========+==============+==============+
+    |     2 |     1.01 |     0.98 |         0.98 |         0.98 |
+    +-------+----------+----------+--------------+--------------+
+    |     4 |     1.03 |     0.97 |         1.00 |         0.97 |
+    +-------+----------+----------+--------------+--------------+
+    |     8 |     0.76 |     0.89 |         0.92 |         0.91 |
+    +-------+----------+----------+--------------+--------------+
+
+The small problem of the agreement test, 16 atoms and 64 plane waves
+per rank with 99 samples per pass, is set by latency.
+There the strong call at 8 ranks went from 20.1 us to 7.6 us, B won 6
+of 6 pairs, and the run of one binary on both sides gave 0.99 and 4 of
+
+1. 
+
+.. table::
+
+    +-------+----------+----------+--------------+--------------+
+    | Ranks | Strong A | Strong B | Weak atoms A | Weak atoms B |
+    +=======+==========+==========+==============+==============+
+    |     2 |     0.57 |     0.68 |         0.69 |         0.90 |
+    +-------+----------+----------+--------------+--------------+
+    |     4 |     0.24 |     0.51 |         0.46 |         0.64 |
+    +-------+----------+----------+--------------+--------------+
+    |     8 |    0.094 |     0.25 |         0.31 |         0.38 |
+    +-------+----------+----------+--------------+--------------+

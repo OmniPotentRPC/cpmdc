@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="./">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Changelog - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="prev" title="Release" href="contributing/developer/release.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Changelog - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="prev" title="Release" href="contributing/developer/release.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/changelog.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -111,6 +111,7 @@ data-aria-dark="Switch to auto color mode">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/quickstart.html">Quickstart</a></li>
 </ul>
@@ -120,16 +121,19 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="howto/python.html">Call cpmdc from Python</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="reference/python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/environment.html">Environment variables</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/cpmd-options.html">CPMD option mapping</a></li>
@@ -304,131 +308,256 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="2">
 </span><span data-line="3">&lt;!-- towncrier release notes start --&gt;
 </span><span data-line="4">
-</span><span data-line="5"><span class="gu">## [0.3.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.3.0) - 2026-10-01</span>
+</span><span data-line="5"><span class="gu">## [0.4.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.4.0) - 2026-11-13</span>
 </span><span data-line="6">
 </span><span data-line="7"><span class="gu">### Added</span>
 </span><span data-line="8">
-</span><span data-line="9"><span class="k">-</span><span class="w"> </span>Wire public <span class="gs">**capnp-fortran**</span> into the embed apply path: Fortran decodes
-</span><span data-line="10">  serialized <span class="sb">`CPMDParams`</span> (functional / cutOffRy / charge / multiplicity /
-</span><span data-line="11">  cpmdRoot, including system and dft section overrides) via
-</span><span data-line="12">  <span class="sb">`cpmdc_embed_apply_params`</span>. Exploded <span class="sb">`cpmdc_embed_set_config`</span> is unused on the
-</span><span data-line="13">  serialized-params path; C still renders the input deck and geometry merges
-</span><span data-line="14">  still use <span class="sb">`set_deck`</span>. ([#capnp-fortran-apply](https://github.com/OmniPotentRPC/cpmdc/issues/capnp-fortran-apply))
-</span><span data-line="15"><span class="k">-</span><span class="w"> </span>PEF embed enables OpenCPMD <span class="sb">`cntl%tpres`</span>, snapshots Cartesian stress
-</span><span data-line="16">  (<span class="sb">`paiu/omega`</span> as Ha/Bohr^3, row-major 9-vector), exports via
-</span><span data-line="17">  <span class="sb">`cpmdc_last_stress`</span> and <span class="sb">`PotentialResult.stress`</span> with ForceInput unit conversion. ([#embed-pef-stress](https://github.com/OmniPotentRPC/cpmdc/issues/embed-pef-stress))
-</span><span data-line="18"><span class="k">-</span><span class="w"> </span>Add <span class="sb">`tests/test_cpmd_inscan_token_fidelity.py`</span> to check typed-section render
-</span><span data-line="19">  tokens against OpenCPMD input sources (CONSTRAINTS/ISOTOPE/VELOCITIES/…). ([#inscan-token-fidelity](https://github.com/OmniPotentRPC/cpmdc/issues/inscan-token-fidelity))
-</span><span data-line="20"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc-restart`</span> and <span class="sb">`libcpmdc_restart`</span> read and write a CPMD <span class="sb">`RESTART`</span> file,
-</span><span data-line="21">  including an in-place coordinate patch that keeps the wavefunction records. ([#restart-file](https://github.com/OmniPotentRPC/cpmdc/issues/restart-file))
-</span><span data-line="22"><span class="k">-</span><span class="w"> </span><span class="sb">`examples/strasbourg_blyp_ext_pot`</span> runs one BLYP wavefunction optimization for an eOn image. ([#strasbourg-blyp-ext-pot](https://github.com/OmniPotentRPC/cpmdc/issues/strasbourg-blyp-ext-pot))
-</span><span data-line="23"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_adopt_calculator_comm`</span> stores a communicator the host already split and does not call <span class="sb">`MPI_Comm_split`</span>.
-</span><span data-line="24">
-</span><span data-line="25"><span class="gu">### Changed</span>
-</span><span data-line="26">
-</span><span data-line="27"><span class="k">-</span><span class="w"> </span>Cold OpenCPMD SCF prefers Cap&#39;n-rendered <span class="sb">`applied_input_deck`</span> when it includes
-</span><span data-line="28">  real <span class="sb">`&amp;ATOMS`</span> PP lines. Method-only decks (empty C-render <span class="sb">`&amp;ATOMS`</span> placeholder)
-</span><span data-line="29">  keep typed <span class="sb">`&amp;CPMD`</span>/<span class="sb">`&amp;SYSTEM`</span>/<span class="sb">`&amp;DFT`</span> text and merge geometry atoms from the C
-</span><span data-line="30">  arrays instead of rebuilding a minimal BLYP deck. ([#embed-applied-deck-cold](https://github.com/OmniPotentRPC/cpmdc/issues/embed-applied-deck-cold))
-</span><span data-line="31"><span class="k">-</span><span class="w"> </span>Linked and cold-deck OpenCPMD embed paths honor the applied DFT functional,
-</span><span data-line="32">  system charge, and multiplicity from Cap&#39;n Proto apply state (no longer
-</span><span data-line="33">  hard-wire FUNCTIONAL BLYP only). ([#embed-honor-applied-functional](https://github.com/OmniPotentRPC/cpmdc/issues/embed-honor-applied-functional))
-</span><span data-line="34"><span class="k">-</span><span class="w"> </span>A warm in-process call that holds a converged orbital copy returns from the wavefunction setup after the phase factors and does not build a starting guess. It writes no RESTART.1 or LATEST. The cold call still builds the guess. ([#embed-warm-guess-restart](https://github.com/OmniPotentRPC/cpmdc/issues/embed-warm-guess-restart))
-</span><span data-line="35"><span class="k">-</span><span class="w"> </span>The MPI model states that cpmdc has no <span class="sb">`with_mpi`</span> option and takes MPI from the CPMD archive it is linked into. ([#mpi-from-archive](https://github.com/OmniPotentRPC/cpmdc/issues/mpi-from-archive))
-</span><span data-line="36"><span class="k">-</span><span class="w"> </span>A library force call writes no RESTART.1, LATEST, GEOMETRY, or GEOMETRY.xyz. The orbitals for the next call stay in memory.
-</span><span data-line="37">
-</span><span data-line="38"><span class="gu">### Fixed</span>
-</span><span data-line="39">
-</span><span data-line="40"><span class="k">-</span><span class="w"> </span>The OpenCPMD path takes each listed element&#39;s pseudopotential file, LMAX, LOC, and KLEINMAN-BYLANDER from the CPMDParams message. KLEINMAN-BYLANDER is written on that element&#39;s *file line. Elements the message does not list still use the built-in table (H, C, N, O, Si, Ge). Any other element fails with its atomic number. ([#atoms-message-pseudopotentials](https://github.com/OmniPotentRPC/cpmdc/issues/atoms-message-pseudopotentials))
-</span><span data-line="41"><span class="k">-</span><span class="w"> </span>A warm start keeps <span class="sb">`c0`</span> only after the SCF converges. An unconverged ODIIS
-</span><span data-line="42">  pass leaves the previous orbitals, and a PCG MINIMIZE continuation restarts
-</span><span data-line="43">  from that copy. A cutoff, cell, or state-count change drops the saved
-</span><span data-line="44">  orbitals before the next SCF. ([#converged-warm-orbitals](https://github.com/OmniPotentRPC/cpmdc/issues/converged-warm-orbitals))
-</span><span data-line="45"><span class="k">-</span><span class="w"> </span>cpmd.x writes RESTART.1, LATEST, GEOMETRY, and GEOMETRY.xyz in permanentDir, or in scratchDir when permanentDir is empty, or in the host working directory. The pseudopotential directory is left unchanged. ([#cpmd-output-directory](https://github.com/OmniPotentRPC/cpmdc/issues/cpmd-output-directory))
-</span><span data-line="46"><span class="k">-</span><span class="w"> </span>Live OpenCPMD PEF multi-force now requests ionic forces via
-</span><span data-line="47">  <span class="sb">`embed_set_need_forces`</span> (vendored OpenCPMD <span class="sb">`tfor`</span> patch), documents
-</span><span data-line="48">  <span class="sb">`CPMDC_PSEUDO_DIR`</span> cold memfd resolution, and guards the force-export path in
-</span><span data-line="49">  tests. ([#embed-bomd-forces](https://github.com/OmniPotentRPC/cpmdc/issues/embed-bomd-forces))
-</span><span data-line="50"><span class="k">-</span><span class="w"> </span>Live OpenCPMD evaluations retain the converged orbital state that produced the
-</span><span data-line="51">  reported energy and forces instead of applying and saving an extra optimizer
-</span><span data-line="52">  update after the convergence test is satisfied. ([#embed-converged-state](https://github.com/OmniPotentRPC/cpmdc/issues/embed-converged-state))
-</span><span data-line="53"><span class="k">-</span><span class="w"> </span>The stress snapshot is valid only after the tensor was computed for a periodic cell. An isolated cell leaves it unset even when the box volume is positive, and <span class="sb">`CPMDC_STRESS=0`</span> leaves it unset on a periodic cell too. ([#isolated-stress-invalid](https://github.com/OmniPotentRPC/cpmdc/issues/isolated-stress-invalid))
-</span><span data-line="54"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_last_error()`</span> is set by every configuration, session-setup, bind, size, and evaluation call that fails, and cleared when that call succeeds. Snapshot readers and the capabilities size query do not write it. ([#last-error-on-failure](https://github.com/OmniPotentRPC/cpmdc/issues/last-error-on-failure))
-</span><span data-line="55"><span class="k">-</span><span class="w"> </span>The embed path keeps a rendered method deck at the length of the text. A preview or config buffer shorter than that text returns an error instead of a shortened deck. ([#long-method-deck](https://github.com/OmniPotentRPC/cpmdc/issues/long-method-deck))
-</span><span data-line="56"><span class="k">-</span><span class="w"> </span>Rebuild patched OpenCPMD module objects and <span class="sb">`libcpmd.a`</span> through an explicit
-</span><span data-line="57">  dependency-target helper, avoiding a <span class="sb">`make lib`</span> no-op against the existing
-</span><span data-line="58">  <span class="sb">`lib/`</span> directory. ([#opencpmd-rebuild](https://github.com/OmniPotentRPC/cpmdc/issues/opencpmd-rebuild))
-</span><span data-line="59"><span class="k">-</span><span class="w"> </span>A call with neither CPMDC_PSEUDO_DIR nor CPMD_PP_LIBRARY_PATH set now fails with its own message on the result and on cpmdc_last_error. ([#pseudopotential-directory](https://github.com/OmniPotentRPC/cpmdc/issues/pseudopotential-directory))
-</span><span data-line="60"><span class="k">-</span><span class="w"> </span>Atoms of one element may be split in ForceInput. Positions are placed in CPMD species blocks and forces are returned in ForceInput order. ([#species-order-forces](https://github.com/OmniPotentRPC/cpmdc/issues/species-order-forces))
-</span><span data-line="61"><span class="k">-</span><span class="w"> </span>The Sphinx version and release are the project version in meson.build. ([#sphinx-version](https://github.com/OmniPotentRPC/cpmdc/issues/sphinx-version))
-</span><span data-line="62"><span class="k">-</span><span class="w"> </span>The embed link includes <span class="sb">`obj/timetag.o`</span>. OpenCPMD keeps that compilation
-</span><span data-line="63">  stamp out of <span class="sb">`libcpmd.a`</span>, and <span class="sb">`header`</span> calls it. ([#timetag-embed-link](https://github.com/OmniPotentRPC/cpmdc/issues/timetag-embed-link))
-</span><span data-line="64"><span class="k">-</span><span class="w"> </span>The OpenCPMD archive patches follow
-</span><span data-line="65">  [<span class="nt">pull request 9</span>](<span class="na">https://github.com/OpenCPMD/CPMD/pull/9</span>). <span class="sb">`tistopgm`</span> prints
-</span><span data-line="66">  the call stack only when <span class="sb">`trace_depth`</span> lies inside <span class="sb">`trace_names`</span>, so a stop
-</span><span data-line="67">  before <span class="sb">`tistart`</span> writes <span class="sb">`LocalError`</span> instead of faulting. ([#tistopgm-before-tistart](https://github.com/OmniPotentRPC/cpmdc/issues/tistopgm-before-tistart))
-</span><span data-line="68"><span class="k">-</span><span class="w"> </span>A warm OpenCPMD step keeps its orbitals only while the cell matches the cold step. A different cell rebuilds the plane-wave basis. Silicon with an omitted projector channel is rendered as <span class="sb">`LMAX=D LOC=D`</span>. ([#warm-cell-stress](https://github.com/OmniPotentRPC/cpmdc/issues/warm-cell-stress))
-</span><span data-line="69"><span class="k">-</span><span class="w"> </span>A <span class="sb">`common`</span> overlay&#39;s <span class="sb">`scfEnergyToleranceEv`</span> reaches <span class="sb">`CONVERGENCE ORBITALS`</span> as the total-energy change as well as the orbital threshold, so a smeared SCF stops once its energy settles within the tolerance.
-</span><span data-line="70"><span class="k">-</span><span class="w"> </span>A call that needs a second OpenCPMD setup in one process, for a new basis or after a CPMD stop, fails with an error instead of ending the host. OpenCPMD&#39;s <span class="sb">`tistart`</span> executes <span class="sb">`STOP`</span> on its second call, which exited the process with status 0 in the middle of the call, and its setup routines allocate module arrays that nothing frees.
-</span><span data-line="71"><span class="k">-</span><span class="w"> </span>A new session keeps the stored orbitals when the cutoff, cell, charge, multiplicity, functional, deck, and elemental composition match. Reordering the atomic numbers keeps them.
-</span><span data-line="72"><span class="k">-</span><span class="w"> </span>A raw input block that already opens <span class="sb">`&amp;CPMD`</span>, <span class="sb">`&amp;SYSTEM`</span>, <span class="sb">`&amp;DFT`</span>, or <span class="sb">`&amp;ATOMS`</span> is that section. The renderer does not append a second copy, so a periodic <span class="sb">`SYMMETRY 1`</span> block is not followed by the isolated Hockney system.
-</span><span data-line="73"><span class="k">-</span><span class="w"> </span>A session keeps a reordering of the same elements. A repeat of those positions returns the stored energy and forces.
-</span><span data-line="74"><span class="k">-</span><span class="w"> </span>An OpenCPMD stop in the deck setup of an energy and gradient call, such as <span class="sb">`HFX not implemented for HOCKNEY`</span>, ends the call with an error before the SCF. The SCF ran on the half-initialized state and could crash the host.
-</span><span data-line="75"><span class="k">-</span><span class="w"> </span>An energy and gradient call whose orbitals do not converge within MAXITER now fails with a message. OpenCPMD computes no ionic forces then, and the call used to report success with a zero gradient.
-</span><span data-line="76"><span class="k">-</span><span class="w"> </span>An isolated (<span class="sb">`SYMMETRY 0`</span>) deck with a hybrid functional and no Poisson solver gets <span class="sb">`POISSON SOLVER TUCKERMAN`</span> in place of the <span class="sb">`HOCKNEY`</span> default, which OpenCPMD&#39;s exact exchange does not support.
-</span><span data-line="77"><span class="k">-</span><span class="w"> </span>The Cap&#39;n Proto renderer writes <span class="sb">`MULTIPLICITY`</span> into <span class="sb">`&amp;SYSTEM`</span>, from the system section or else from the top-level <span class="sb">`multiplicity`</span>, and a multiplicity above 1 named only in the system section turns on <span class="sb">`LSD`</span>. The deck had no <span class="sb">`MULTIPLICITY`</span> line, so a triplet request ran as the OpenCPMD default spin state.
-</span><span data-line="78"><span class="k">-</span><span class="w"> </span>The archive how-to applies <span class="sb">`opencpmd_embed_geometry.patch`</span> before <span class="sb">`opencpmd_embed_rwfopt.patch`</span>, then <span class="sb">`opencpmd_c_mem_addrs.patch`</span>, and copies <span class="sb">`tools/LINUX-X86_64-GFORTRAN-MPI-PIC`</span> into the clone before <span class="sb">`configure.sh`</span>. That configuration adds <span class="sb">`-fPIC`</span>, links <span class="sb">`-lopenblas`</span>, and adds <span class="sb">`-fallow-argument-mismatch`</span> when <span class="sb">`mpif90`</span> accepts it. The address patch makes <span class="sb">`cGetMemAddrs`</span> return the pointer as <span class="sb">`size_t`</span>.
-</span><span data-line="79"><span class="k">-</span><span class="w"> </span>The installed-package consumer test configures its nested build with the C and Fortran compilers of the outer build, so a compiler launcher in the host&#39;s <span class="sb">`CC`</span> no longer breaks the nested <span class="sb">`meson setup`</span>.
-</span><span data-line="80"><span class="k">-</span><span class="w"> </span>The stopgm hook patch only adds lines. The hook still runs before the call stack is printed, and a handled stop closes the log and returns.
-</span><span data-line="81"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_available()`</span> returns 1 only when OpenCPMD is linked and the runtime is ready. The reference build, a finalized runtime, and the link stub return 0.
-</span><span data-line="82"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/rebuild_opencpmd_embed.sh`</span> rebuilds and re-archives one object per vendored OpenCPMD patch: <span class="sb">`embed_ctrl.mod.o`</span>, <span class="sb">`initrun_driver.mod.o`</span>, and <span class="sb">`c_mem_utils.o`</span> join the list beside <span class="sb">`rinitwf_driver.mod.o`</span>.
-</span><span data-line="83">
-</span><span data-line="84"><span class="gu">### Developer</span>
-</span><span data-line="85">
-</span><span data-line="86"><span class="k">-</span><span class="w"> </span>The effective-config XC fixtures ask for a doublet. Their HO molecule with charge +2 has 5 valence electrons, so the triplet they named cannot exist; it ran only because the renderer never wrote <span class="sb">`MULTIPLICITY`</span>.
-</span><span data-line="87"><span class="k">-</span><span class="w"> </span>The effective-config fixtures run PBE0 through the XC driver (<span class="sb">`USE_XC_DRIVER`</span>, <span class="sb">`FUNCTIONAL HYB_GGA_XC_PBE0`</span>). OpenCPMD refuses old-code PBE0 with LSD, since its VWN correlation has no LSD form; cpmd.x converges the driver deck at -14.72424 Ha.
-</span><span data-line="88"><span class="k">-</span><span class="w"> </span>The session-socket, e2e-single-point, e2e-set-directives-session, e2e-optimizer-session, stress-isolated and effective-config tests run each OpenCPMD setup in a child process and assert on the results it hands back. They exited with status 0 at the second in-process setup, through OpenCPMD&#39;s <span class="sb">`tistart`</span> STOP, so their later assertions never ran against OpenCPMD.
-</span><span data-line="89"><span class="k">-</span><span class="w"> </span>The water parity test compares against -17.13449267 Ha, the energy that cpmd.x and the embed both give for the deck the water fixture renders (agreement to 1e-8). The old reference, -17.04926427 Ha, matched no rendering of that deck.
-</span><span data-line="90">
-</span><span data-line="91">
-</span><span data-line="92"><span class="gu">## [0.2.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.2.0) - 2026-07-03</span>
-</span><span data-line="93">
-</span><span data-line="94"><span class="gu">### Added</span>
+</span><span data-line="9"><span class="k">-</span><span class="w"> </span>A job TOML compiles to the CPMDParams text. The in-process route encodes that text, and the file route renders the same message.
+</span><span data-line="10"><span class="k">-</span><span class="w"> </span>An optional plane-wave scaffold times strong and weak scaling of a structure-factor force, and keeps a CUDA backend behind a build flag that stays off unless requested.
+</span><span data-line="11">  The scaffold stays out of the default build, so an ordinary build does not require OpenMP for it.
+</span><span data-line="12">  It does not change the embed force, the reference potential, or an SCF.
+</span><span data-line="13"><span class="k">-</span><span class="w"> </span>Python <span class="sb">`Session`</span> is a handle over libcpmdc. <span class="sb">`Potential`</span> matches the rgpot evaluate shape, in eV and eV/Angstrom. <span class="sb">`CPMDCCalculator`</span> is an ASE calculator for energy, forces, and a fully periodic stress. The narrative tutorials and both Python examples run in the test suite.
+</span><span data-line="14"><span class="k">-</span><span class="w"> </span>The README and the docs index now name the license and link <span class="sb">`LICENSE`</span>.
+</span><span data-line="15"><span class="k">-</span><span class="w"> </span>The README now points questions and bug reports to the GitHub issue tracker.
+</span><span data-line="16">  The docs index and the troubleshooting guide link it too.
+</span><span data-line="17">  The troubleshooting guide also lists what a new report needs, with a command that prints the version and build options.
+</span><span data-line="18"><span class="k">-</span><span class="w"> </span>The contributing guide now opens with the contributions that are welcome and how to send them.
+</span><span data-line="19">  The README links that guide from Start Here and from a new Contributing section.
+</span><span data-line="20"><span class="k">-</span><span class="w"> </span>The exported <span class="sb">`cpmdc_*`</span> symbols are compared with <span class="sb">`scripts/abi_baseline.txt`</span> on every test run.
+</span><span data-line="21"><span class="k">-</span><span class="w"> </span><span class="sb">`CITATION.cff`</span> gives the citation record for cpmdc.
+</span><span data-line="22">  It names the author, the version, the license, and the repository.
+</span><span data-line="23">  <span class="sb">`pixi run version-sync`</span> regenerates its version from <span class="sb">`version.txt`</span>.
+</span><span data-line="24">  The release check fails when the two differ.
+</span><span data-line="25">  The README and the docs index gain a Citation section.
+</span><span data-line="26">  That section also asks papers with OpenCPMD energies to cite OpenCPMD.
+</span><span data-line="27"><span class="k">-</span><span class="w"> </span><span class="sb">`CPMDC_RANK_CONSENSUS=1`</span> gives every rank of a calculator the energy, gradient, and result snapshots of its rank 0 after each evaluation, so host optimizers that run on every rank step from the same numbers. Every rank fails when one rank failed, and a stored-result repeat counts only when every rank repeats. <span class="sb">`cpmdc_last_rank_spread()`</span> reports the largest energy and gradient difference from rank 0 before the broadcast, with a NaN difference reported as infinity. Unset, every call behaves as before.
+</span><span data-line="28"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc-fd-check`</span> compares the forces of a session with central differences of its energy, after the CP2K <span class="sb">`DEBUG_FORCES`</span> check with <span class="sb">`DX = 1e-3`</span> Bohr.
+</span><span data-line="29">  <span class="sb">`--stress`</span> adds the symmetric-strain check of <span class="sb">`PotentialResult.stress`</span> after <span class="sb">`DEBUG_STRESS_TENSOR`</span>.
+</span><span data-line="30">  The tool is built with the tests and is not installed.
+</span><span data-line="31">  On the reference evaluator the forces and the periodic stress agree to rounding.
+</span><span data-line="32"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc-restart export-con`</span> and <span class="sb">`import-con`</span> are available when Meson is configured with <span class="sb">`-Dwith_readcon=true`</span>. The bridge multiplies by <span class="sb">`CPMDC_RESTART_ANGSTROM_PER_BOHR`</span>, writes a RoundTrip CON, and calls <span class="sb">`cpmdc_restart_set_cell`</span> on import. The default build does not link readcon. The CON file is the geometry that is resumed, and the binary RESTART stays the wavefunction.
+</span><span data-line="33"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_session_select_orbitals()`</span> keeps the converged orbitals per key, so a calculator that evaluates several images of a band or beads of a ring polymer in turn starts each SCF from that image&#39;s or bead&#39;s own previous orbitals. <span class="sb">`tools/opencpmd_embed_rwfopt.patch`</span> adds the per-key table (<span class="sb">`embed_select_orbital_slot`</span>) to OpenCPMD; a basis change frees every key&#39;s orbitals.
+</span><span data-line="34"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/opencpmd_embed_extrapolate.patch`</span> honours <span class="sb">`EXTRAPOLATE WFN`</span> between in-process calls.
+</span><span data-line="35">  OpenCPMD turns the keyword off outside Born-Oppenheimer molecular dynamics.
+</span><span data-line="36">  A host-driven trajectory therefore started each self-consistent field (SCF) from the unchanged orbitals of the last call.
+</span><span data-line="37">  With the patch, <span class="sb">`rwfopt`</span> keeps a ring of the converged orbitals of the previous calls and starts the SCF from the <span class="sb">`extrapwf`</span> prediction of Car-Parrinello molecular dynamics (CPMD), with the always stable predictor-corrector (ASPC) or the polynomial coefficients.
+</span><span data-line="38">  The in-process route reached an SCF iteration count of 297 on a 40-step water trajectory with ASPC of order 4, against 292 for <span class="sb">`cpmd.x`</span> with the same deck and 441 for <span class="sb">`cpmd.x`</span> without extrapolation.
+</span><span data-line="39">  <span class="sb">`CPMDC_SCF_STEPS=1`</span> prints <span class="sb">`cpmdc_wfn_extrapolated K`</span> for a call that started from a prediction over <span class="sb">`K`</span> earlier calls.
+</span><span data-line="40">  Decks without the keyword run as before.
+</span><span data-line="41"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/opencpmd_embed_teardown.patch`</span> adds <span class="sb">`embed_teardown_state`</span> to OpenCPMD. It frees the module arrays, the setup communicators, and the saved orbitals of a setup. It also resets the first-call state of 37 routines on the setup and wavefunction optimisation path. The rebuild helper and the archive how-to apply it after the other patches.
+</span><span data-line="42">
+</span><span data-line="43"><span class="gu">### Changed</span>
+</span><span data-line="44">
+</span><span data-line="45"><span class="k">-</span><span class="w"> </span>Stored orbitals start an SCF only when they converged within <span class="sb">`CPMDC_WARM_RMSD`</span> (root-mean-square distance per atom, default 0.15 Angstrom) of the new geometry; the nearest stored copy of any key is taken, and beyond the limit the deck&#39;s guess starts the SCF. On the Si3N4 OCI-NEB a far key had taken 143 to 530 SCF steps from another image&#39;s orbitals where the guess takes 37 to 63. <span class="sb">`CPMDC_SCF_STEPS=1`</span> also prints where each SCF started. A line that carries a distance also names the donor key and whether the distance used the periodic boundary.
+</span><span data-line="46"><span class="k">-</span><span class="w"> </span>The <span class="sb">`ForceInput`</span> box is the cell: a non-zero box replaces the <span class="sb">`CELL`</span> and <span class="sb">`SYMMETRY`</span> of the deck (<span class="sb">`SYMMETRY 1`</span> for a cubic deck and box, <span class="sb">`SYMMETRY 8`</span> for another orthorhombic box, <span class="sb">`CELL VECTORS`</span> otherwise), as a file-based caller that writes its own cell does. An isolated deck takes only an orthorhombic box. An all-zero box keeps the deck&#39;s cell.
+</span><span data-line="47"><span class="k">-</span><span class="w"> </span>The opt-in scaffold&#39;s <span class="sb">`cpmdc_pwscale_eval_mpi`</span> runs 2 collectives per
+</span><span data-line="48">  call, down from 12 for the plane-wave split and 11 for the atom split.
+</span><span data-line="49">  <span class="sb">`cpmdc_pwscale_mpi_bind_create`</span> checks a problem once, and
+</span><span data-line="50">  <span class="sb">`cpmdc_pwscale_eval_mpi_bound`</span> then runs one <span class="sb">`MPI_Allgather`</span> per call.
+</span><span data-line="51">  Every rank sums the partials in rank order, so energy and forces keep
+</span><span data-line="52">  their bytes, match on every rank, and repeat from run to run.
+</span><span data-line="53">  <span class="sb">`bench/run_pwscale.sh`</span> takes <span class="sb">`BIND=core`</span>.
+</span><span data-line="54">  Its default, <span class="sb">`none`</span> with <span class="sb">`OMP_PROC_BIND=close`</span>, puts every rank on
+</span><span data-line="55">  CPU 0; on an 8-core host 2, 4, and 8 ranks took 0.0960, 0.180, and
+</span><span data-line="56">  0.416 s against 0.0747 s for one thread, and pinned ranks took 0.0380,
+</span><span data-line="57">  0.0211, and 0.0143 s.
+</span><span data-line="58">  At 16 atoms and 64 plane waves an 8-rank strong call went from 20.1 to
+</span><span data-line="59">  7.6 us; at the default size the change stayed within the spread of two
+</span><span data-line="60">  equal builds.
+</span><span data-line="61">  <span class="sb">`bench/run_pwscale_abba.sh`</span> compares two builds in ABBA order, and
+</span><span data-line="62">  <span class="sb">`tests/test_pwscale_collectives.c`</span> counts collectives through a PMPI
+</span><span data-line="63">  shim.
+</span><span data-line="64"><span class="k">-</span><span class="w"> </span>The reference evaluator&#39;s periodic stress changed sign. This is a behaviour change. The tensor was the energy divided by the volume. It is now <span class="sb">`-dE/d(eps) / volume`</span>, the OpenCPMD sign, so <span class="sb">`cpmdc-fd-check --stress`</span> agrees with it. The Python provider flips that sign for ASE and rgpot, which want <span class="sb">`(1/V) dE/d(strain)`</span>.
+</span><span data-line="65"><span class="k">-</span><span class="w"> </span>The x86_64 OpenCPMD PIC file passes <span class="sb">`-march=x86-64`</span>, and the aarch64 file passes <span class="sb">`-march=armv8-a`</span>, on debug and release <span class="sb">`FFLAGS`</span> and <span class="sb">`CFLAGS`</span>.
+</span><span data-line="66">  GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to x86-64-v3 with AVX2 and FMA.
+</span><span data-line="67">  Both files also pass <span class="sb">`-fPIC`</span> and <span class="sb">`-ffp-contract=off`</span>.
+</span><span data-line="68">  cpmdc C and Fortran compile with <span class="sb">`-ffp-contract=off`</span> so a multiply and an add stay separate on every build target.
+</span><span data-line="69">
+</span><span data-line="70"><span class="gu">### Fixed</span>
+</span><span data-line="71">
+</span><span data-line="72"><span class="k">-</span><span class="w"> </span>A positive-volume cell with no isolated keyword is written with cubic or orthorhombic symmetry, or with cell vectors when the box is tilted, while a zero box and a deck that already asks for an isolated system stay on symmetry 0 with the Hockney solver. ([#periodic-cell-symmetry](https://github.com/OmniPotentRPC/cpmdc/issues/periodic-cell-symmetry))
+</span><span data-line="73"><span class="k">-</span><span class="w"> </span>A cell with off-diagonal components no longer stops the host with a Fortran &quot;End of file&quot; while the cold deck is written: the <span class="sb">`CELL VECTORS`</span> rows are joined by newlines inside one record.
+</span><span data-line="74"><span class="k">-</span><span class="w"> </span>A session that already stored a result rejects a null position or atomic-number buffer with <span class="sb">`invalid arguments`</span> instead of reading the pointer.
+</span><span data-line="75"><span class="k">-</span><span class="w"> </span>An opt-in MPI setup failure now returns on every rank together, and an FFT setup failure releases the buffers it already took.
+</span><span data-line="76">  The optional CUDA compile line passes the scaffold include directory, and this change does not run CUDA.
+</span><span data-line="77"><span class="k">-</span><span class="w"> </span>One process can set OpenCPMD up again, for a new basis or after a CPMD stop. The embed calls <span class="sb">`cpmdc_embed_teardown`</span> before a second cold setup and from <span class="sb">`cpmdc_embed_reset_state`</span>. It frees what the first setup allocated, and the second setup gives the energies of a fresh process. A second setup used to stop in <span class="sb">`ratom`</span> with <span class="sb">`allocation problem`</span>, and the embed refused it.
+</span><span data-line="78"><span class="k">-</span><span class="w"> </span>Temporary CON files, parameter messages, and the quickstart encode step use the working directory. The quickstart writes encoded messages under <span class="sb">`tutorial-work/`</span>. A tracked-file check rejects host-local directory names.
+</span><span data-line="79"><span class="k">-</span><span class="w"> </span>The Version section of the README described 0.1.0.
+</span><span data-line="80">  <span class="sb">`version.txt`</span> held 0.3.0.
+</span><span data-line="81">  The section now names the version from <span class="sb">`version.txt`</span>.
+</span><span data-line="82">  <span class="sb">`pixi run version-sync`</span> regenerates that file.
+</span><span data-line="83">  It also points to <span class="sb">`CHANGELOG.md`</span> for the changes in each release.
+</span><span data-line="84"><span class="k">-</span><span class="w"> </span>The <span class="sb">`cpmdc_warm_start`</span> and <span class="sb">`cpmdc_scf_steps`</span> lines of <span class="sb">`CPMDC_SCF_STEPS=1`</span> now reach a standard error that is redirected to a file at the end of each call.
+</span><span data-line="85">  The gfortran runtime buffers that unit when it is a regular file, so the lines used to appear only at exit, or not at all after an abort.
+</span><span data-line="86"><span class="k">-</span><span class="w"> </span>The cold deck writes the caller&#39;s cell with twelve decimals. The CELL ratios b/a and c/a carried six, which moved b or c by up to 7e-6 A in a 14 A cell; <span class="sb">`CELL VECTORS`</span> carried eight.
+</span><span data-line="87"><span class="k">-</span><span class="w"> </span>The first energy tutorial now compiles its host program with <span class="sb">`mpicc`</span> and links it with <span class="sb">`mpif90`</span>.
+</span><span data-line="88">  The wrappers are needed because the default <span class="sb">`libcpmdc.so`</span> links the Message Passing Interface (MPI) library whenever Meson finds one.
+</span><span data-line="89">  The tutorial transcripts now come from a run of version 0.3.0 against both the default build and a patched OpenCPMD archive.
+</span><span data-line="90"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_adopt_calculator_comm`</span> reads rank and size from the communicator the host passed.
+</span><span data-line="91">  When <span class="sb">`ranks_per_calc`</span> is positive that size must match, and the index is the lowest world rank of one aligned block divided by that size.
+</span><span data-line="92">  A later call replaces the communicator while no session exists.
+</span><span data-line="93"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/opencpmd_omp_info.patch`</span> makes every rank of a calculator use the I/O node&#39;s OpenMP report size. A calculator that spans nodes with unequal rank counts otherwise calls <span class="sb">`MPI_Allreduce`</span> with different counts and can stop before the first electronic iteration.
+</span><span data-line="94"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/opencpmd_pcg_step.patch`</span> divides both PCG line-search derivatives by their largest magnitude before finding the root, so a small orbital residual keeps its interpolated step. Equal derivatives keep the trial step. The convergence target is unchanged.
 </span><span data-line="95">
-</span><span data-line="96"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_abi_version()`</span> and <span class="sb">`CPMDC_ABI_VERSION`</span> for numeric ABI gating.
-</span><span data-line="97"><span class="k">-</span><span class="w"> </span>pkg-config (<span class="sb">`cpmdc.pc`</span>) and CMake package config (<span class="sb">`find_package(cpmdc)`</span>)
-</span><span data-line="98">  for the installed library, with namespaced <span class="sb">`include/cpmdc/`</span> headers and a
-</span><span data-line="99">  versioned SONAME.
-</span><span data-line="100"><span class="k">-</span><span class="w"> </span>Release scaffolding: towncrier changelog, cog bump wiring, and
-</span><span data-line="101">  <span class="sb">`scripts/release_assert.py`</span> version-sync gate.
-</span><span data-line="102">
-</span><span data-line="103"><span class="gu">### Changed</span>
-</span><span data-line="104">
-</span><span data-line="105"><span class="k">-</span><span class="w"> </span><span class="sb">`schema/Potentials.capnp`</span> is now the canonical OmniPotentRPC
-</span><span data-line="106">  <span class="sb">`potentials-schema`</span> release (v1.0.1), pinned via meson wrap with a
-</span><span data-line="107">  byte-identical sync test; <span class="sb">`ForceInput`</span> gains the shared per-step
-</span><span data-line="108">  charge/multiplicity override fields.
-</span><span data-line="109"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_version()`</span> reports the project version from the build instead of a
-</span><span data-line="110">  hardcoded string.
-</span><span data-line="111">
-</span><span data-line="112"><span class="gu">### Fixed</span>
-</span><span data-line="113">
-</span><span data-line="114"><span class="k">-</span><span class="w"> </span>The wire <span class="sb">`PotentialResult.hessian`</span> field no longer aliases the nuclear
-</span><span data-line="115">  gradient; gradient data stays on <span class="sb">`gradient`</span>.
-</span><span data-line="116"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_potential_result_flat_size()`</span> now budgets for both natoms*3 lists
-</span><span data-line="117">  (forces and gradient), fixing result writes for systems past a few dozen
-</span><span data-line="118">  atoms.
-</span><span data-line="119">
-</span><span data-line="120"><span class="gu">## [0.1.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.1.0) - 2026-06-28</span>
-</span><span data-line="121">
-</span><span data-line="122"><span class="k">-</span><span class="w"> </span>OpenCPMD driver in the ISO_C embed shell for working E2E single-point and
-</span><span data-line="123">  multi-step session tests without OpenCPMD archives.
-</span><span data-line="124"><span class="k">-</span><span class="w"> </span>Docs tree with Antics analytics, pixi/prek/CI wiring.
-</span><span data-line="125"><span class="k">-</span><span class="w"> </span>Initial OmniPotentRPC <span class="sb">`cpmdc`</span> package modeled on <span class="sb">`nwchemc`</span>.
-</span><span data-line="126"><span class="k">-</span><span class="w"> </span>Cap&#39;n Proto <span class="sb">`ForceInput`</span> / <span class="sb">`PotentialResult`</span> / <span class="sb">`CPMDParams`</span> / <span class="sb">`PotentialConfig`</span>.
-</span><span data-line="127"><span class="k">-</span><span class="w"> </span>Stable C ABI with session direct-call socket entry points.
-</span><span data-line="128"><span class="k">-</span><span class="w"> </span>Fortran <span class="sb">`iso_c_binding`</span> embed shell (<span class="sb">`cpmd_embed_c_api.f90`</span>).
-</span><span data-line="129"><span class="k">-</span><span class="w"> </span>Stub ABI and cmocka tests for parser + result sizing without OpenCPMD.
+</span><span data-line="96"><span class="gu">### Developer</span>
+</span><span data-line="97">
+</span><span data-line="98"><span class="k">-</span><span class="w"> </span>CI calls the rgpot ISA audit on unstripped <span class="sb">`libcpmdc`</span> and the test binaries.
+</span><span data-line="99">  The allowlist names no cpmdc symbol.
+</span><span data-line="100"><span class="k">-</span><span class="w"> </span>Sphinx treats a warning as a failed book. <span class="sb">`docs/render_reference_well.py`</span> draws the reference-well figure from the evaluator formula.
+</span><span data-line="101"><span class="k">-</span><span class="w"> </span>The geometry-aware native orbital selector is the versioned symbol <span class="sb">`embed_choose_warm_start_metric_v2`</span>. The unversioned name stays undefined.
+</span><span data-line="102"><span class="k">-</span><span class="w"> </span>The instruction set architecture (ISA) allowlist names the minimage kernels built for Advanced Vector Extensions (AVX), AVX2 or AVX-512.
+</span><span data-line="103">  minimage calls each kernel only after the Rust standard library reports its features at run time.
+</span><span data-line="104">  The allowlist also names three functions that minimage links but does not define.
+</span><span data-line="105">  One rule matches <span class="sb">`find_impl`</span> and <span class="sb">`find_prefilter_impl`</span> of the AVX2 packed-pair searcher in the <span class="sb">`memchr`</span> crate, which the standard library depends on through the <span class="sb">`object`</span> crate.
+</span><span data-line="106">  The standard library build links both functions and never calls them.
+</span><span data-line="107">  The other rule names <span class="sb">`_xgetbv`</span> from the Rust core library.
+</span><span data-line="108">  It runs only after the processor identification instruction (CPUID) reports that the processor and the operating system support extended state saving.
+</span><span data-line="109">  The portable ISA test rejects an allow rule that is not anchored, uses a wildcard, matches a cpmdc symbol, or states no run-time check.
+</span><span data-line="110"><span class="k">-</span><span class="w"> </span>The meson suite runs every stub-library documentation example. Each fenced block is executed or named with the tool it needs. The Python how-to, the finite-difference check, the Cap&#39;n Proto messages, and the first-energy and ASE lessons run there. CI installs ASE before that suite.
+</span><span data-line="111"><span class="k">-</span><span class="w"> </span>The version is written by hand only in <span class="sb">`version.txt`</span>.
+</span><span data-line="112">  Meson and Sphinx read it, and <span class="sb">`pixi run version-sync`</span> regenerates the other copies with cog.
+</span><span data-line="113">  CI fails when a copy differs.
+</span><span data-line="114"><span class="k">-</span><span class="w"> </span><span class="sb">`pixi run lychee`</span> reads the new <span class="sb">`.lychee.toml`</span>.
+</span><span data-line="115">  It no longer stops on a missing file.
+</span><span data-line="116">  The configuration accepts 429 responses from GitHub.
+</span><span data-line="117">  It retries three times.
+</span><span data-line="118">  It also checks the anchors of links such as <span class="sb">`README.md#citation`</span>.
+</span><span data-line="119">  The contributing guide names the task.
+</span><span data-line="120">
+</span><span data-line="121"><span class="gu">### Miscellaneous</span>
+</span><span data-line="122">
+</span><span data-line="123"><span class="k">-</span><span class="w"> </span><span class="sb">`docs/AUDIT.md`</span> grades the One Good Tutorial checklist again.
+</span><span data-line="124">  The grade sits on top of <span class="sb">`c631ed9`</span>.
+</span><span data-line="125">  Eight items pass, and Acknowledgments does not apply.
+</span><span data-line="126">  The open gaps are the quickstart placement and the missing eOn output.
+</span><span data-line="127">  The inventory tests still require the README tables.
+</span><span data-line="128">
+</span><span data-line="129">
+</span><span data-line="130"><span class="gu">## [0.3.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.3.0) - 2026-10-01</span>
+</span><span data-line="131">
+</span><span data-line="132"><span class="gu">### Added</span>
+</span><span data-line="133">
+</span><span data-line="134"><span class="k">-</span><span class="w"> </span>Wire public <span class="gs">**capnp-fortran**</span> into the embed apply path: Fortran decodes
+</span><span data-line="135">  serialized <span class="sb">`CPMDParams`</span> (functional / cutOffRy / charge / multiplicity /
+</span><span data-line="136">  cpmdRoot, including system and dft section overrides) via
+</span><span data-line="137">  <span class="sb">`cpmdc_embed_apply_params`</span>. Exploded <span class="sb">`cpmdc_embed_set_config`</span> is unused on the
+</span><span data-line="138">  serialized-params path; C still renders the input deck and geometry merges
+</span><span data-line="139">  still use <span class="sb">`set_deck`</span>. ([#capnp-fortran-apply](https://github.com/OmniPotentRPC/cpmdc/issues/capnp-fortran-apply))
+</span><span data-line="140"><span class="k">-</span><span class="w"> </span>PEF embed enables OpenCPMD <span class="sb">`cntl%tpres`</span>, snapshots Cartesian stress
+</span><span data-line="141">  (<span class="sb">`paiu/omega`</span> as Ha/Bohr^3, row-major 9-vector), exports via
+</span><span data-line="142">  <span class="sb">`cpmdc_last_stress`</span> and <span class="sb">`PotentialResult.stress`</span> with ForceInput unit conversion. ([#embed-pef-stress](https://github.com/OmniPotentRPC/cpmdc/issues/embed-pef-stress))
+</span><span data-line="143"><span class="k">-</span><span class="w"> </span>Add <span class="sb">`tests/test_cpmd_inscan_token_fidelity.py`</span> to check typed-section render
+</span><span data-line="144">  tokens against OpenCPMD input sources (CONSTRAINTS/ISOTOPE/VELOCITIES/…). ([#inscan-token-fidelity](https://github.com/OmniPotentRPC/cpmdc/issues/inscan-token-fidelity))
+</span><span data-line="145"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc-restart`</span> and <span class="sb">`libcpmdc_restart`</span> read and write a CPMD <span class="sb">`RESTART`</span> file,
+</span><span data-line="146">  including an in-place coordinate patch that keeps the wavefunction records. ([#restart-file](https://github.com/OmniPotentRPC/cpmdc/issues/restart-file))
+</span><span data-line="147"><span class="k">-</span><span class="w"> </span><span class="sb">`examples/strasbourg_blyp_ext_pot`</span> runs one BLYP wavefunction optimization for an eOn image. ([#strasbourg-blyp-ext-pot](https://github.com/OmniPotentRPC/cpmdc/issues/strasbourg-blyp-ext-pot))
+</span><span data-line="148"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_adopt_calculator_comm`</span> stores a communicator the host already split and does not call <span class="sb">`MPI_Comm_split`</span>.
+</span><span data-line="149">
+</span><span data-line="150"><span class="gu">### Changed</span>
+</span><span data-line="151">
+</span><span data-line="152"><span class="k">-</span><span class="w"> </span>Cold OpenCPMD SCF prefers Cap&#39;n-rendered <span class="sb">`applied_input_deck`</span> when it includes
+</span><span data-line="153">  real <span class="sb">`&amp;ATOMS`</span> PP lines. Method-only decks (empty C-render <span class="sb">`&amp;ATOMS`</span> placeholder)
+</span><span data-line="154">  keep typed <span class="sb">`&amp;CPMD`</span>/<span class="sb">`&amp;SYSTEM`</span>/<span class="sb">`&amp;DFT`</span> text and merge geometry atoms from the C
+</span><span data-line="155">  arrays instead of rebuilding a minimal BLYP deck. ([#embed-applied-deck-cold](https://github.com/OmniPotentRPC/cpmdc/issues/embed-applied-deck-cold))
+</span><span data-line="156"><span class="k">-</span><span class="w"> </span>Linked and cold-deck OpenCPMD embed paths honor the applied DFT functional,
+</span><span data-line="157">  system charge, and multiplicity from Cap&#39;n Proto apply state (no longer
+</span><span data-line="158">  hard-wire FUNCTIONAL BLYP only). ([#embed-honor-applied-functional](https://github.com/OmniPotentRPC/cpmdc/issues/embed-honor-applied-functional))
+</span><span data-line="159"><span class="k">-</span><span class="w"> </span>A warm in-process call that holds a converged orbital copy returns from the wavefunction setup after the phase factors and does not build a starting guess. It writes no RESTART.1 or LATEST. The cold call still builds the guess. ([#embed-warm-guess-restart](https://github.com/OmniPotentRPC/cpmdc/issues/embed-warm-guess-restart))
+</span><span data-line="160"><span class="k">-</span><span class="w"> </span>The MPI model states that cpmdc has no <span class="sb">`with_mpi`</span> option and takes MPI from the CPMD archive it is linked into. ([#mpi-from-archive](https://github.com/OmniPotentRPC/cpmdc/issues/mpi-from-archive))
+</span><span data-line="161"><span class="k">-</span><span class="w"> </span>A library force call writes no RESTART.1, LATEST, GEOMETRY, or GEOMETRY.xyz. The orbitals for the next call stay in memory.
+</span><span data-line="162">
+</span><span data-line="163"><span class="gu">### Fixed</span>
+</span><span data-line="164">
+</span><span data-line="165"><span class="k">-</span><span class="w"> </span>The OpenCPMD path takes each listed element&#39;s pseudopotential file, LMAX, LOC, and KLEINMAN-BYLANDER from the CPMDParams message. KLEINMAN-BYLANDER is written on that element&#39;s *file line. Elements the message does not list still use the built-in table (H, C, N, O, Si, Ge). Any other element fails with its atomic number. ([#atoms-message-pseudopotentials](https://github.com/OmniPotentRPC/cpmdc/issues/atoms-message-pseudopotentials))
+</span><span data-line="166"><span class="k">-</span><span class="w"> </span>A warm start keeps <span class="sb">`c0`</span> only after the SCF converges. An unconverged ODIIS
+</span><span data-line="167">  pass leaves the previous orbitals, and a PCG MINIMIZE continuation restarts
+</span><span data-line="168">  from that copy. A cutoff, cell, or state-count change drops the saved
+</span><span data-line="169">  orbitals before the next SCF. ([#converged-warm-orbitals](https://github.com/OmniPotentRPC/cpmdc/issues/converged-warm-orbitals))
+</span><span data-line="170"><span class="k">-</span><span class="w"> </span>cpmd.x writes RESTART.1, LATEST, GEOMETRY, and GEOMETRY.xyz in permanentDir, or in scratchDir when permanentDir is empty, or in the host working directory. The pseudopotential directory is left unchanged. ([#cpmd-output-directory](https://github.com/OmniPotentRPC/cpmdc/issues/cpmd-output-directory))
+</span><span data-line="171"><span class="k">-</span><span class="w"> </span>Live OpenCPMD PEF multi-force now requests ionic forces via
+</span><span data-line="172">  <span class="sb">`embed_set_need_forces`</span> (vendored OpenCPMD <span class="sb">`tfor`</span> patch), documents
+</span><span data-line="173">  <span class="sb">`CPMDC_PSEUDO_DIR`</span> cold memfd resolution, and guards the force-export path in
+</span><span data-line="174">  tests. ([#embed-bomd-forces](https://github.com/OmniPotentRPC/cpmdc/issues/embed-bomd-forces))
+</span><span data-line="175"><span class="k">-</span><span class="w"> </span>Live OpenCPMD evaluations retain the converged orbital state that produced the
+</span><span data-line="176">  reported energy and forces instead of applying and saving an extra optimizer
+</span><span data-line="177">  update after the convergence test is satisfied. ([#embed-converged-state](https://github.com/OmniPotentRPC/cpmdc/issues/embed-converged-state))
+</span><span data-line="178"><span class="k">-</span><span class="w"> </span>The stress snapshot is valid only after the tensor was computed for a periodic cell. An isolated cell leaves it unset even when the box volume is positive, and <span class="sb">`CPMDC_STRESS=0`</span> leaves it unset on a periodic cell too. ([#isolated-stress-invalid](https://github.com/OmniPotentRPC/cpmdc/issues/isolated-stress-invalid))
+</span><span data-line="179"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_last_error()`</span> is set by every configuration, session-setup, bind, size, and evaluation call that fails, and cleared when that call succeeds. Snapshot readers and the capabilities size query do not write it. ([#last-error-on-failure](https://github.com/OmniPotentRPC/cpmdc/issues/last-error-on-failure))
+</span><span data-line="180"><span class="k">-</span><span class="w"> </span>The embed path keeps a rendered method deck at the length of the text. A preview or config buffer shorter than that text returns an error instead of a shortened deck. ([#long-method-deck](https://github.com/OmniPotentRPC/cpmdc/issues/long-method-deck))
+</span><span data-line="181"><span class="k">-</span><span class="w"> </span>Rebuild patched OpenCPMD module objects and <span class="sb">`libcpmd.a`</span> through an explicit
+</span><span data-line="182">  dependency-target helper, avoiding a <span class="sb">`make lib`</span> no-op against the existing
+</span><span data-line="183">  <span class="sb">`lib/`</span> directory. ([#opencpmd-rebuild](https://github.com/OmniPotentRPC/cpmdc/issues/opencpmd-rebuild))
+</span><span data-line="184"><span class="k">-</span><span class="w"> </span>A call with neither CPMDC_PSEUDO_DIR nor CPMD_PP_LIBRARY_PATH set now fails with its own message on the result and on cpmdc_last_error. ([#pseudopotential-directory](https://github.com/OmniPotentRPC/cpmdc/issues/pseudopotential-directory))
+</span><span data-line="185"><span class="k">-</span><span class="w"> </span>Atoms of one element may be split in ForceInput. Positions are placed in CPMD species blocks and forces are returned in ForceInput order. ([#species-order-forces](https://github.com/OmniPotentRPC/cpmdc/issues/species-order-forces))
+</span><span data-line="186"><span class="k">-</span><span class="w"> </span>The Sphinx version and release are the project version in meson.build. ([#sphinx-version](https://github.com/OmniPotentRPC/cpmdc/issues/sphinx-version))
+</span><span data-line="187"><span class="k">-</span><span class="w"> </span>The embed link includes <span class="sb">`obj/timetag.o`</span>. OpenCPMD keeps that compilation
+</span><span data-line="188">  stamp out of <span class="sb">`libcpmd.a`</span>, and <span class="sb">`header`</span> calls it. ([#timetag-embed-link](https://github.com/OmniPotentRPC/cpmdc/issues/timetag-embed-link))
+</span><span data-line="189"><span class="k">-</span><span class="w"> </span>The OpenCPMD archive patches follow
+</span><span data-line="190">  [<span class="nt">pull request 9</span>](<span class="na">https://github.com/OpenCPMD/CPMD/pull/9</span>). <span class="sb">`tistopgm`</span> prints
+</span><span data-line="191">  the call stack only when <span class="sb">`trace_depth`</span> lies inside <span class="sb">`trace_names`</span>, so a stop
+</span><span data-line="192">  before <span class="sb">`tistart`</span> writes <span class="sb">`LocalError`</span> instead of faulting. ([#tistopgm-before-tistart](https://github.com/OmniPotentRPC/cpmdc/issues/tistopgm-before-tistart))
+</span><span data-line="193"><span class="k">-</span><span class="w"> </span>A warm OpenCPMD step keeps its orbitals only while the cell matches the cold step. A different cell rebuilds the plane-wave basis. Silicon with an omitted projector channel is rendered as <span class="sb">`LMAX=D LOC=D`</span>. ([#warm-cell-stress](https://github.com/OmniPotentRPC/cpmdc/issues/warm-cell-stress))
+</span><span data-line="194"><span class="k">-</span><span class="w"> </span>A <span class="sb">`common`</span> overlay&#39;s <span class="sb">`scfEnergyToleranceEv`</span> reaches <span class="sb">`CONVERGENCE ORBITALS`</span> as the total-energy change as well as the orbital threshold, so a smeared SCF stops once its energy settles within the tolerance.
+</span><span data-line="195"><span class="k">-</span><span class="w"> </span>A call that needs a second OpenCPMD setup in one process, for a new basis or after a CPMD stop, fails with an error instead of ending the host. OpenCPMD&#39;s <span class="sb">`tistart`</span> executes <span class="sb">`STOP`</span> on its second call, which exited the process with status 0 in the middle of the call, and its setup routines allocate module arrays that nothing frees.
+</span><span data-line="196"><span class="k">-</span><span class="w"> </span>A new session keeps the stored orbitals when the cutoff, cell, charge, multiplicity, functional, deck, and elemental composition match. Reordering the atomic numbers keeps them.
+</span><span data-line="197"><span class="k">-</span><span class="w"> </span>A raw input block that already opens <span class="sb">`&amp;CPMD`</span>, <span class="sb">`&amp;SYSTEM`</span>, <span class="sb">`&amp;DFT`</span>, or <span class="sb">`&amp;ATOMS`</span> is that section. The renderer does not append a second copy, so a periodic <span class="sb">`SYMMETRY 1`</span> block is not followed by the isolated Hockney system.
+</span><span data-line="198"><span class="k">-</span><span class="w"> </span>A session keeps a reordering of the same elements. A repeat of those positions returns the stored energy and forces.
+</span><span data-line="199"><span class="k">-</span><span class="w"> </span>An OpenCPMD stop in the deck setup of an energy and gradient call, such as <span class="sb">`HFX not implemented for HOCKNEY`</span>, ends the call with an error before the SCF. The SCF ran on the half-initialized state and could crash the host.
+</span><span data-line="200"><span class="k">-</span><span class="w"> </span>An energy and gradient call whose orbitals do not converge within MAXITER now fails with a message. OpenCPMD computes no ionic forces then, and the call used to report success with a zero gradient.
+</span><span data-line="201"><span class="k">-</span><span class="w"> </span>An isolated (<span class="sb">`SYMMETRY 0`</span>) deck with a hybrid functional and no Poisson solver gets <span class="sb">`POISSON SOLVER TUCKERMAN`</span> in place of the <span class="sb">`HOCKNEY`</span> default, which OpenCPMD&#39;s exact exchange does not support.
+</span><span data-line="202"><span class="k">-</span><span class="w"> </span>The Cap&#39;n Proto renderer writes <span class="sb">`MULTIPLICITY`</span> into <span class="sb">`&amp;SYSTEM`</span>, from the system section or else from the top-level <span class="sb">`multiplicity`</span>, and a multiplicity above 1 named only in the system section turns on <span class="sb">`LSD`</span>. The deck had no <span class="sb">`MULTIPLICITY`</span> line, so a triplet request ran as the OpenCPMD default spin state.
+</span><span data-line="203"><span class="k">-</span><span class="w"> </span>The archive how-to applies <span class="sb">`opencpmd_embed_geometry.patch`</span> before <span class="sb">`opencpmd_embed_rwfopt.patch`</span>, then <span class="sb">`opencpmd_c_mem_addrs.patch`</span>, and copies <span class="sb">`tools/LINUX-X86_64-GFORTRAN-MPI-PIC`</span> into the clone before <span class="sb">`configure.sh`</span>. That configuration adds <span class="sb">`-fPIC`</span>, links <span class="sb">`-lopenblas`</span>, and adds <span class="sb">`-fallow-argument-mismatch`</span> when <span class="sb">`mpif90`</span> accepts it. The address patch makes <span class="sb">`cGetMemAddrs`</span> return the pointer as <span class="sb">`size_t`</span>.
+</span><span data-line="204"><span class="k">-</span><span class="w"> </span>The installed-package consumer test configures its nested build with the C and Fortran compilers of the outer build, so a compiler launcher in the host&#39;s <span class="sb">`CC`</span> no longer breaks the nested <span class="sb">`meson setup`</span>.
+</span><span data-line="205"><span class="k">-</span><span class="w"> </span>The stopgm hook patch only adds lines. The hook still runs before the call stack is printed, and a handled stop closes the log and returns.
+</span><span data-line="206"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_available()`</span> returns 1 only when OpenCPMD is linked and the runtime is ready. The reference build, a finalized runtime, and the link stub return 0.
+</span><span data-line="207"><span class="k">-</span><span class="w"> </span><span class="sb">`tools/rebuild_opencpmd_embed.sh`</span> rebuilds and re-archives one object per vendored OpenCPMD patch: <span class="sb">`embed_ctrl.mod.o`</span>, <span class="sb">`initrun_driver.mod.o`</span>, and <span class="sb">`c_mem_utils.o`</span> join the list beside <span class="sb">`rinitwf_driver.mod.o`</span>.
+</span><span data-line="208">
+</span><span data-line="209"><span class="gu">### Developer</span>
+</span><span data-line="210">
+</span><span data-line="211"><span class="k">-</span><span class="w"> </span>The effective-config XC fixtures ask for a doublet. Their HO molecule with charge +2 has 5 valence electrons, so the triplet they named cannot exist; it ran only because the renderer never wrote <span class="sb">`MULTIPLICITY`</span>.
+</span><span data-line="212"><span class="k">-</span><span class="w"> </span>The effective-config fixtures run PBE0 through the XC driver (<span class="sb">`USE_XC_DRIVER`</span>, <span class="sb">`FUNCTIONAL HYB_GGA_XC_PBE0`</span>). OpenCPMD refuses old-code PBE0 with LSD, since its VWN correlation has no LSD form; cpmd.x converges the driver deck at -14.72424 Ha.
+</span><span data-line="213"><span class="k">-</span><span class="w"> </span>The session-socket, e2e-single-point, e2e-set-directives-session, e2e-optimizer-session, stress-isolated and effective-config tests run each OpenCPMD setup in a child process and assert on the results it hands back. They exited with status 0 at the second in-process setup, through OpenCPMD&#39;s <span class="sb">`tistart`</span> STOP, so their later assertions never ran against OpenCPMD.
+</span><span data-line="214"><span class="k">-</span><span class="w"> </span>The water parity test compares against -17.13449267 Ha, the energy that cpmd.x and the embed both give for the deck the water fixture renders (agreement to 1e-8). The old reference, -17.04926427 Ha, matched no rendering of that deck.
+</span><span data-line="215">
+</span><span data-line="216">
+</span><span data-line="217"><span class="gu">## [0.2.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.2.0) - 2026-07-03</span>
+</span><span data-line="218">
+</span><span data-line="219"><span class="gu">### Added</span>
+</span><span data-line="220">
+</span><span data-line="221"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_abi_version()`</span> and <span class="sb">`CPMDC_ABI_VERSION`</span> for numeric ABI gating.
+</span><span data-line="222"><span class="k">-</span><span class="w"> </span>pkg-config (<span class="sb">`cpmdc.pc`</span>) and CMake package config (<span class="sb">`find_package(cpmdc)`</span>)
+</span><span data-line="223">  for the installed library, with namespaced <span class="sb">`include/cpmdc/`</span> headers and a
+</span><span data-line="224">  versioned SONAME.
+</span><span data-line="225"><span class="k">-</span><span class="w"> </span>Release scaffolding: towncrier changelog, cog bump wiring, and
+</span><span data-line="226">  <span class="sb">`scripts/release_assert.py`</span> version-sync gate.
+</span><span data-line="227">
+</span><span data-line="228"><span class="gu">### Changed</span>
+</span><span data-line="229">
+</span><span data-line="230"><span class="k">-</span><span class="w"> </span><span class="sb">`schema/Potentials.capnp`</span> is now the canonical OmniPotentRPC
+</span><span data-line="231">  <span class="sb">`potentials-schema`</span> release (v1.0.1), pinned via meson wrap with a
+</span><span data-line="232">  byte-identical sync test; <span class="sb">`ForceInput`</span> gains the shared per-step
+</span><span data-line="233">  charge/multiplicity override fields.
+</span><span data-line="234"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_version()`</span> reports the project version from the build instead of a
+</span><span data-line="235">  hardcoded string.
+</span><span data-line="236">
+</span><span data-line="237"><span class="gu">### Fixed</span>
+</span><span data-line="238">
+</span><span data-line="239"><span class="k">-</span><span class="w"> </span>The wire <span class="sb">`PotentialResult.hessian`</span> field no longer aliases the nuclear
+</span><span data-line="240">  gradient; gradient data stays on <span class="sb">`gradient`</span>.
+</span><span data-line="241"><span class="k">-</span><span class="w"> </span><span class="sb">`cpmdc_potential_result_flat_size()`</span> now budgets for both natoms*3 lists
+</span><span data-line="242">  (forces and gradient), fixing result writes for systems past a few dozen
+</span><span data-line="243">  atoms.
+</span><span data-line="244">
+</span><span data-line="245"><span class="gu">## [0.1.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.1.0) - 2026-06-28</span>
+</span><span data-line="246">
+</span><span data-line="247"><span class="k">-</span><span class="w"> </span>OpenCPMD driver in the ISO_C embed shell for working E2E single-point and
+</span><span data-line="248">  multi-step session tests without OpenCPMD archives.
+</span><span data-line="249"><span class="k">-</span><span class="w"> </span>Docs tree with Antics analytics, pixi/prek/CI wiring.
+</span><span data-line="250"><span class="k">-</span><span class="w"> </span>Initial OmniPotentRPC <span class="sb">`cpmdc`</span> package modeled on <span class="sb">`nwchemc`</span>.
+</span><span data-line="251"><span class="k">-</span><span class="w"> </span>Cap&#39;n Proto <span class="sb">`ForceInput`</span> / <span class="sb">`PotentialResult`</span> / <span class="sb">`CPMDParams`</span> / <span class="sb">`PotentialConfig`</span>.
+</span><span data-line="252"><span class="k">-</span><span class="w"> </span>Stable C ABI with session direct-call socket entry points.
+</span><span data-line="253"><span class="k">-</span><span class="w"> </span>Fortran <span class="sb">`iso_c_binding`</span> embed shell (<span class="sb">`cpmd_embed_c_api.f90`</span>).
+</span><span data-line="254"><span class="k">-</span><span class="w"> </span>Stub ABI and cmocka tests for parser + result sizing without OpenCPMD.
 </span></pre></div>
 </div>
 </section>
@@ -533,7 +662,7 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </footer>
-      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/documentation_options.js?v=6c02275b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/target-highlight.js?v=df7d332b"></script>

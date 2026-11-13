@@ -7,19 +7,83 @@ struct cpmdc_pwscale_problem
 .. toctree::
 	:hidden:
 
+Overview
+~~~~~~~~
 
+One scaffold problem: atom count, plane waves, and the Gaussian width. :ref:`More...<details-structcpmdc__pwscale__problem>`
 
 
 .. ref-code-block:: cpp
 	:class: doxyrest-overview-code-block
 
+	#include <cpmdc_pwscale.h>
 	
 	struct cpmdc_pwscale_problem {
 		// fields
 	
-		int :target:`natoms<doxid-structcpmdc__pwscale__problem_1a7fb4e60d99455e48e39c11013cbdbadb>`;
-		int :target:`npw<doxid-structcpmdc__pwscale__problem_1a88999eb7359e52006121c6d0fdb2bdd7>`;
-		double :target:`cell_bohr<doxid-structcpmdc__pwscale__problem_1a5ef7a981f3938defc25799bbe421976b>`;
-		double :target:`alpha<doxid-structcpmdc__pwscale__problem_1aa5b1f2ec2bfe5c66ccc6b07bc70d5c7a>`;
-		double :target:`sigma<doxid-structcpmdc__pwscale__problem_1a16c816c2dea0778bd41933a562e71124>`;
+		int :ref:`natoms<doxid-structcpmdc__pwscale__problem_1a7fb4e60d99455e48e39c11013cbdbadb>`;
+		int :ref:`npw<doxid-structcpmdc__pwscale__problem_1a88999eb7359e52006121c6d0fdb2bdd7>`;
+		double :ref:`cell_bohr<doxid-structcpmdc__pwscale__problem_1a5ef7a981f3938defc25799bbe421976b>`;
+		double :ref:`alpha<doxid-structcpmdc__pwscale__problem_1aa5b1f2ec2bfe5c66ccc6b07bc70d5c7a>`;
+		double :ref:`sigma<doxid-structcpmdc__pwscale__problem_1a16c816c2dea0778bd41933a562e71124>`;
 	};
+.. _details-structcpmdc__pwscale__problem:
+
+Detailed Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+One scaffold problem: atom count, plane waves, and the Gaussian width.
+
+Fields
+------
+
+.. index:: pair: variable; natoms
+.. _doxid-structcpmdc__pwscale__problem_1a7fb4e60d99455e48e39c11013cbdbadb:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int natoms
+
+Number of atoms.
+
+.. index:: pair: variable; npw
+.. _doxid-structcpmdc__pwscale__problem_1a88999eb7359e52006121c6d0fdb2bdd7:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	int npw
+
+Number of plane waves.
+
+.. index:: pair: variable; cell_bohr
+.. _doxid-structcpmdc__pwscale__problem_1a5ef7a981f3938defc25799bbe421976b:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double cell_bohr
+
+Cubic cell edge, Bohr.
+
+.. index:: pair: variable; alpha
+.. _doxid-structcpmdc__pwscale__problem_1aa5b1f2ec2bfe5c66ccc6b07bc70d5c7a:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double alpha
+
+Gaussian exponent.
+
+.. index:: pair: variable; sigma
+.. _doxid-structcpmdc__pwscale__problem_1a16c816c2dea0778bd41933a562e71124:
+
+.. ref-code-block:: cpp
+	:class: doxyrest-title-code-block
+
+	double sigma
+
+Gaussian width.
+

@@ -63,6 +63,9 @@ Start Here
    * - See an energy and forces come out of the C API
      - Build the default library, then link OpenCPMD
      - :doc:`First energy and forces <tutorials/first-energy>`
+   * - Drive the same step from ASE
+     - Point ``CPMDCCalculator`` at a ``CPMDParams`` file
+     - :doc:`An energy and forces from ASE <tutorials/ase-energy>`
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
@@ -173,6 +176,7 @@ An OpenCPMD archive build links the same C ABI surface against ``libcpmd.a``.
    :caption: Tutorials
 
    tutorials/first-energy
+   tutorials/ase-energy
    tutorials/eon-rgpot
    tutorials/quickstart
 
@@ -184,11 +188,13 @@ An OpenCPMD archive build links the same C ABI surface against ``libcpmd.a``.
    howto/opencpmd-archive
    howto/write-cpmdparams
    howto/embedding
+   howto/python
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals
    howto/debug-deck
    howto/check-forces
+   howto/pwscale-ranks
    howto/troubleshooting
 
 .. toctree::
@@ -196,6 +202,7 @@ An OpenCPMD archive build links the same C ABI surface against ``libcpmd.a``.
    :caption: Reference
 
    reference/c-abi
+   reference/python
    reference/environment
    reference/cpmdparams-schema
    reference/cpmd-options

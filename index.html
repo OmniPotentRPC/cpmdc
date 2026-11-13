@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="./">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="First energy and forces through the C API" href="tutorials/first-energy.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="_static/favicon.svg"/><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="First energy and forces through the C API" href="tutorials/first-energy.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -111,6 +111,7 @@ data-aria-dark="Switch to auto color mode">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="tutorials/quickstart.html">Quickstart</a></li>
 </ul>
@@ -120,16 +121,19 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="howto/python.html">Call cpmdc from Python</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="reference/python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/environment.html">Environment variables</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="reference/cpmd-options.html">CPMD option mapping</a></li>
@@ -367,55 +371,59 @@ composition requires a new session.</p>
 <td><p>Build the default library, then link OpenCPMD</p></td>
 <td><p><a class="reference internal" href="tutorials/first-energy.html"><span class="doc">First energy and forces</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Relax a structure from eOn</p></td>
+<tr class="row-odd"><td><p>Drive the same step from ASE</p></td>
+<td><p>Point <code class="docutils literal notranslate"><span class="pre">CPMDCCalculator</span></code> at a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file</p></td>
+<td><p><a class="reference internal" href="tutorials/ase-energy.html"><span class="doc">An energy and forces from ASE</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Relax a structure from eOn</p></td>
 <td><p>Pass a <code class="docutils literal notranslate"><span class="pre">CPMDParams</span></code> file through <code class="docutils literal notranslate"><span class="pre">[RgpotPot]</span> <span class="pre">params_path</span></code></p></td>
 <td><p><a class="reference internal" href="tutorials/eon-rgpot.html"><span class="doc">eOn through rgpot</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Build and test the project</p></td>
+<tr class="row-odd"><td><p>Build and test the project</p></td>
 <td><p>Run the default Meson suite and learn what it covers</p></td>
 <td><p><a class="reference internal" href="tutorials/quickstart.html"><span class="doc">Quickstart</span></a> and <a class="reference internal" href="howto/install.html"><span class="doc">Install and build</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Link a real OpenCPMD archive</p></td>
+<tr class="row-even"><td><p>Link a real OpenCPMD archive</p></td>
 <td><p>Apply the patches in <code class="docutils literal notranslate"><span class="pre">tools/</span></code> and build with <code class="docutils literal notranslate"><span class="pre">-fPIC</span></code></p></td>
 <td><p><a class="reference internal" href="howto/opencpmd-archive.html"><span class="doc">OpenCPMD archive</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Turn a CPMD deck into a message</p></td>
+<tr class="row-odd"><td><p>Turn a CPMD deck into a message</p></td>
 <td><p>Pick typed section fields before raw deck text</p></td>
 <td><p><a class="reference internal" href="howto/write-cpmdparams.html"><span class="doc">Write a CPMDParams message</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Call cpmdc from a host process</p></td>
+<tr class="row-even"><td><p>Call cpmdc from a host process</p></td>
 <td><p>Choose the API path first; new hosts usually want <code class="docutils literal notranslate"><span class="pre">cpmdc_session_calculate_result</span></code></p></td>
 <td><p><a class="reference internal" href="howto/embedding.html"><span class="doc">Embedding cpmdc</span></a> and <a class="reference internal" href="reference/c-abi.html"><span class="doc">C ABI reference</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Run on many ranks</p></td>
+<tr class="row-odd"><td><p>Run on many ranks</p></td>
 <td><p>Bind calculator groups and share the parent rank’s result</p></td>
 <td><p><a class="reference internal" href="howto/mpi.html"><span class="doc">Run under mpirun</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Find out why a call failed or an energy is off</p></td>
+<tr class="row-even"><td><p>Find out why a call failed or an energy is off</p></td>
 <td><p>Write the deck with <code class="docutils literal notranslate"><span class="pre">CPMDC_DECK_OUT</span></code></p></td>
 <td><p><a class="reference internal" href="howto/troubleshooting.html"><span class="doc">Troubleshooting</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Understand what happens inside a call</p></td>
+<tr class="row-odd"><td><p>Understand what happens inside a call</p></td>
 <td><p>Layers, the in-process route, orbitals between calls</p></td>
 <td><p><a class="reference internal" href="explanation/architecture.html"><span class="doc">Architecture</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Build OpenCPMD for more than one CPU</p></td>
+<tr class="row-even"><td><p>Build OpenCPMD for more than one CPU</p></td>
 <td><p>Use the PIC configure file, which passes <code class="docutils literal notranslate"><span class="pre">-march=x86-64</span></code> or <code class="docutils literal notranslate"><span class="pre">-march=armv8-a</span></code></p></td>
 <td><p><a class="reference internal" href="howto/opencpmd-archive.html"><span class="doc">OpenCPMD archive</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>See which instruction sets cpmdc compiles for</p></td>
+<tr class="row-odd"><td><p>See which instruction sets cpmdc compiles for</p></td>
 <td><p>This library has no hot kernel and does not read <code class="docutils literal notranslate"><span class="pre">CPMDC_SIMD</span></code></p></td>
 <td><p><a class="reference internal" href="explanation/simd-paths.html"><span class="doc">SIMD paths and dispatch</span></a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Edit these docs</p></td>
+<tr class="row-even"><td><p>Edit these docs</p></td>
 <td><p>Regenerate generated docs from <code class="docutils literal notranslate"><span class="pre">docs/orgmode</span></code> before building Sphinx</p></td>
 <td><p><a class="reference internal" href="contributing/index.html"><span class="doc">Contributing</span></a></p></td>
 </tr>
-<tr class="row-even"><td><p>Ask a question or report a bug</p></td>
+<tr class="row-odd"><td><p>Ask a question or report a bug</p></td>
 <td><p>Open an issue with the version, the build options, and the failing deck</p></td>
 <td><p><a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/issues">GitHub issue tracker</a></p></td>
 </tr>
-<tr class="row-odd"><td><p>Cite cpmdc in a paper</p></td>
+<tr class="row-even"><td><p>Cite cpmdc in a paper</p></td>
 <td><p>Use the record in <code class="docutils literal notranslate"><span class="pre">CITATION.cff</span></code>, and cite OpenCPMD for its energies</p></td>
 <td><p><a class="reference external" href="https://github.com/OmniPotentRPC/cpmdc/blob/main/CITATION.cff">CITATION.cff</a></p></td>
 </tr>
@@ -513,6 +521,7 @@ The complete table lives in <a class="reference internal" href="reference/cpmd-o
 <p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/quickstart.html">Quickstart</a></li>
 </ul>
@@ -524,11 +533,13 @@ The complete table lives in <a class="reference internal" href="reference/cpmd-o
 <li class="toctree-l1"><a class="reference internal" href="howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="howto/python.html">Call cpmdc from Python</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1"><a class="reference internal" href="howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 </div>
@@ -536,6 +547,7 @@ The complete table lives in <a class="reference internal" href="reference/cpmd-o
 <p class="caption" role="heading"><span class="caption-text">Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reference/python.html">Python API</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reference/environment.html">Environment variables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reference/cpmd-options.html">CPMD option mapping</a></li>
@@ -699,7 +711,7 @@ the root of the repository.</p>
     </div>
   </div>
 </footer>
-      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/documentation_options.js?v=6c02275b"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="_static/target-highlight.js?v=df7d332b"></script>

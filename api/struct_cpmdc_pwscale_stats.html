@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="violet" data-content_root="../">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>struct cpmdc_pwscale_stats - cpmdc 0.3.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Architecture" href="../explanation/architecture.html" /><link rel="prev" title="struct cpmdc_pwscale_problem" href="struct_cpmdc_pwscale_problem.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>struct cpmdc_pwscale_stats - cpmdc 0.4.0 documentation</title><link rel="shortcut icon" href="../_static/favicon.svg"/><link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Architecture" href="../explanation/architecture.html" /><link rel="prev" title="struct cpmdc_pwscale_problem" href="struct_cpmdc_pwscale_problem.html" />
       <link rel="canonical" href="https://cpmdc.rgoswami.me/api/struct_cpmdc_pwscale_stats.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
@@ -111,6 +111,7 @@ data-aria-dark="Switch to auto color mode">
         <div class="globaltoc" data-expand-depth="1"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/first-energy.html">First energy and forces through the C API</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/ase-energy.html">An energy and forces from ASE</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/eon-rgpot.html">Minimise a structure from eOn through rgpot</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../tutorials/quickstart.html">Quickstart</a></li>
 </ul>
@@ -120,16 +121,19 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/opencpmd-archive.html">Build the OpenCPMD archive for embedding</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/write-cpmdparams.html">Write a CPMDParams message</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/embedding.html">Embedding cpmdc</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/python.html">Call cpmdc from Python</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/mpi.html">Run under mpirun</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/wavefunction-optimiser.html">Choose the wavefunction optimiser</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/extrapolate-orbitals.html">Extrapolate the orbitals along a trajectory</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/debug-deck.html">Debug an input with CPMDC<sub>DECK</sub><sub>OUT</sub></a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/check-forces.html">Check forces and stress by finite differences</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../howto/pwscale-ranks.html">Time the plane-wave scaffold on ranks</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../howto/troubleshooting.html">Troubleshooting</a></li>
 </ul>
 <p class="caption" role="heading" aria-level="3"><span class="caption-text">Reference</span></p>
 <ul class="current">
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/c-abi.html">C ABI reference</a></li>
+<li class="toctree-l1 _expand"><a class="reference internal" href="../reference/python.html">Python API</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/environment.html">Environment variables</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmdparams-schema.html">CPMDParams schema fields</a></li>
 <li class="toctree-l1 _expand"><a class="reference internal" href="../reference/cpmd-options.html">CPMD option mapping</a></li>
@@ -205,7 +209,14 @@ data-aria-dark="Switch to auto color mode">
     <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
       <i class="i-lucide close"></i>
     </button>
-    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li><a class="reference internal" href="#fields">Fields</a></li>
+</ul>
+</li>
+</ul>
+</div><a class="js-repo-stats repo-stats flex items-center" href="https://github.com/OmniPotentRPC/cpmdc"
   data-type="github" data-user="OmniPotentRPC" data-repo="cpmdc">
   <span class="w-8 flex items-center justify-around shrink-0 text-3xl">
     <iconify-icon icon="simple-icons:github"></iconify-icon>
@@ -304,19 +315,52 @@ data-aria-dark="Switch to auto color mode">
 <span id="doxid-structcpmdc-pwscale-stats"></span><span id="index-0"></span><h1>struct cpmdc_pwscale_stats<a class="headerlink" href="#struct-cpmdc-pwscale-stats" title="Link to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<pre class="highlight doxyrest-overview-code-block literal-block">struct cpmdc_pwscale_stats {
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Timers and visit counts from one scaffold evaluation. <a class="reference internal" href="#details-structcpmdc-pwscale-stats"><span class="std std-ref">More…</span></a></p>
+<pre class="highlight doxyrest-overview-code-block literal-block">#include <cpmdc_pwscale.h>
+
+struct cpmdc_pwscale_stats {
     // fields
 
-    double <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1a7a14807852fce94ecfe0fdbfdf831d51">energy_h</span>;
-    double <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1ad848d03c79610d67889bef05f21ec1c8">seconds</span>;
-    double <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1aed29fc0df10bbef8054a2723073eed09">h2d_seconds</span>;
-    double <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1a01bfec00df13a73704092cccbfc288bc">d2h_seconds</span>;
-    long long <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1a26d2cd6641bca9ce1cbce6da2cc56e06">g_visited</span>;
-    long long <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1afb600c19ec4c6642381dfe8b744d5872">atom_visits</span>;
-    long long <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1a2f3a28b50009ded9afc84eda83da5dae">alloc_bytes</span>;
-    int <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1afc299b39f592a94a9834ad079551982d">workers</span>;
-    int <span class="doxyrest-code-target target" id="doxid-structcpmdc-pwscale-stats-1acacebccd52c3c5d87e3f10002c28b1dc">mpi_ranks</span>;
+    double <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1a7a14807852fce94ecfe0fdbfdf831d51"><span class="std std-ref">energy_h</span></a>;
+    double <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1ad848d03c79610d67889bef05f21ec1c8"><span class="std std-ref">seconds</span></a>;
+    double <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1aed29fc0df10bbef8054a2723073eed09"><span class="std std-ref">h2d_seconds</span></a>;
+    double <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1a01bfec00df13a73704092cccbfc288bc"><span class="std std-ref">d2h_seconds</span></a>;
+    long long <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1a26d2cd6641bca9ce1cbce6da2cc56e06"><span class="std std-ref">g_visited</span></a>;
+    long long <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1afb600c19ec4c6642381dfe8b744d5872"><span class="std std-ref">atom_visits</span></a>;
+    long long <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1a2f3a28b50009ded9afc84eda83da5dae"><span class="std std-ref">alloc_bytes</span></a>;
+    int <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1afc299b39f592a94a9834ad079551982d"><span class="std std-ref">workers</span></a>;
+    int <a class="reference internal" href="#doxid-structcpmdc-pwscale-stats-1acacebccd52c3c5d87e3f10002c28b1dc"><span class="std std-ref">mpi_ranks</span></a>;
 };</pre>
+</section>
+<section id="detailed-documentation">
+<span id="details-structcpmdc-pwscale-stats"></span><h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading">¶</a></h2>
+<p>Timers and visit counts from one scaffold evaluation.</p>
+<section id="fields">
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1a7a14807852fce94ecfe0fdbfdf831d51"><span id="index-1"></span>double energy_h</pre>
+<p>Energy, Hartree.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1ad848d03c79610d67889bef05f21ec1c8"><span id="index-2"></span>double seconds</pre>
+<p>Wall time of the evaluated region, seconds.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1aed29fc0df10bbef8054a2723073eed09"><span id="index-3"></span>double h2d_seconds</pre>
+<p>Host-to-device time, seconds.</p>
+<p>Zero on the CPU path.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1a01bfec00df13a73704092cccbfc288bc"><span id="index-4"></span>double d2h_seconds</pre>
+<p>Device-to-host time, seconds.</p>
+<p>Zero on the CPU path.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1a26d2cd6641bca9ce1cbce6da2cc56e06"><span id="index-5"></span>long long g_visited</pre>
+<p>Plane waves visited.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1afb600c19ec4c6642381dfe8b744d5872"><span id="index-6"></span>long long atom_visits</pre>
+<p>Atom visits.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1a2f3a28b50009ded9afc84eda83da5dae"><span id="index-7"></span>long long alloc_bytes</pre>
+<p>Bytes allocated for the evaluation.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1afc299b39f592a94a9834ad079551982d"><span id="index-8"></span>int workers</pre>
+<p>OpenMP team that ran, from omp_get_num_threads, else 1.</p>
+<pre class="highlight doxyrest-title-code-block literal-block" id="doxid-structcpmdc-pwscale-stats-1acacebccd52c3c5d87e3f10002c28b1dc"><span id="index-9"></span>int mpi_ranks</pre>
+<p>Communicator size, or 1 when the call is not MPI.</p>
+</section>
+</section>
 </section>
 
         </article><button class="back-to-top" type="button">
@@ -426,7 +470,7 @@ data-aria-dark="Switch to auto color mode">
     </div>
   </div>
 </footer>
-      <script src="../_static/documentation_options.js?v=e259d695"></script>
+      <script src="../_static/documentation_options.js?v=6c02275b"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../_static/target-highlight.js?v=df7d332b"></script>

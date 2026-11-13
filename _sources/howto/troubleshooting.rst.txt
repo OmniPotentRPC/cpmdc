@@ -256,7 +256,7 @@ The default build prints:
 
 ::
 
-    cpmdc 0.3.0
+    cpmdc 0.4.0
     with_cpmd = False
     cpmd_root = ''
     with_readcon = False
