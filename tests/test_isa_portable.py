@@ -231,9 +231,9 @@ def main() -> int:
     require("-march=x86-64" in readme and "-march=armv8-a" in readme, "tools/README.md lacks the baseline march flags", failures)
     require("x86-64-v2" in readme and "x86-64-v3" in readme, "tools/README.md lacks the RHEL GCC defaults", failures)
 
-    news = (root / "docs/newsfragments/+portable-fp-contract.changed.md").read_text(encoding="utf-8")
-    require("-march=x86-64" in news and "-march=armv8-a" in news, "newsfragment lacks the baseline march flags", failures)
-    require("x86-64-v2" in news and "x86-64-v3" in news, "newsfragment lacks the RHEL GCC defaults", failures)
+    notes = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    require("-march=x86-64" in notes and "-march=armv8-a" in notes, "CHANGELOG.md lacks the baseline march flags", failures)
+    require("x86-64-v2" in notes and "x86-64-v3" in notes, "CHANGELOG.md lacks the RHEL GCC defaults", failures)
 
     simd = root / "docs/orgmode/explanation/simd-paths.org"
     require(simd.is_file(), "missing docs/orgmode/explanation/simd-paths.org", failures)

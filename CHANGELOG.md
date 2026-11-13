@@ -2,6 +2,131 @@
 
 <!-- towncrier release notes start -->
 
+## [0.4.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.4.0) - 2026-11-13
+
+### Added
+
+- A job TOML compiles to the CPMDParams text. The in-process route encodes that text, and the file route renders the same message.
+- An optional plane-wave scaffold times strong and weak scaling of a structure-factor force, and keeps a CUDA backend behind a build flag that stays off unless requested.
+  The scaffold stays out of the default build, so an ordinary build does not require OpenMP for it.
+  It does not change the embed force, the reference potential, or an SCF.
+- Python `Session` is a handle over libcpmdc. `Potential` matches the rgpot evaluate shape, in eV and eV/Angstrom. `CPMDCCalculator` is an ASE calculator for energy, forces, and a fully periodic stress. The narrative tutorials and both Python examples run in the test suite.
+- The README and the docs index now name the license and link `LICENSE`.
+- The README now points questions and bug reports to the GitHub issue tracker.
+  The docs index and the troubleshooting guide link it too.
+  The troubleshooting guide also lists what a new report needs, with a command that prints the version and build options.
+- The contributing guide now opens with the contributions that are welcome and how to send them.
+  The README links that guide from Start Here and from a new Contributing section.
+- The exported `cpmdc_*` symbols are compared with `scripts/abi_baseline.txt` on every test run.
+- `CITATION.cff` gives the citation record for cpmdc.
+  It names the author, the version, the license, and the repository.
+  `pixi run version-sync` regenerates its version from `version.txt`.
+  The release check fails when the two differ.
+  The README and the docs index gain a Citation section.
+  That section also asks papers with OpenCPMD energies to cite OpenCPMD.
+- `CPMDC_RANK_CONSENSUS=1` gives every rank of a calculator the energy, gradient, and result snapshots of its rank 0 after each evaluation, so host optimizers that run on every rank step from the same numbers. Every rank fails when one rank failed, and a stored-result repeat counts only when every rank repeats. `cpmdc_last_rank_spread()` reports the largest energy and gradient difference from rank 0 before the broadcast, with a NaN difference reported as infinity. Unset, every call behaves as before.
+- `cpmdc-fd-check` compares the forces of a session with central differences of its energy, after the CP2K `DEBUG_FORCES` check with `DX = 1e-3` Bohr.
+  `--stress` adds the symmetric-strain check of `PotentialResult.stress` after `DEBUG_STRESS_TENSOR`.
+  The tool is built with the tests and is not installed.
+  On the reference evaluator the forces and the periodic stress agree to rounding.
+- `cpmdc-restart export-con` and `import-con` are available when Meson is configured with `-Dwith_readcon=true`. The bridge multiplies by `CPMDC_RESTART_ANGSTROM_PER_BOHR`, writes a RoundTrip CON, and calls `cpmdc_restart_set_cell` on import. The default build does not link readcon. The CON file is the geometry that is resumed, and the binary RESTART stays the wavefunction.
+- `cpmdc_session_select_orbitals()` keeps the converged orbitals per key, so a calculator that evaluates several images of a band or beads of a ring polymer in turn starts each SCF from that image's or bead's own previous orbitals. `tools/opencpmd_embed_rwfopt.patch` adds the per-key table (`embed_select_orbital_slot`) to OpenCPMD; a basis change frees every key's orbitals.
+- `tools/opencpmd_embed_extrapolate.patch` honours `EXTRAPOLATE WFN` between in-process calls.
+  OpenCPMD turns the keyword off outside Born-Oppenheimer molecular dynamics.
+  A host-driven trajectory therefore started each self-consistent field (SCF) from the unchanged orbitals of the last call.
+  With the patch, `rwfopt` keeps a ring of the converged orbitals of the previous calls and starts the SCF from the `extrapwf` prediction of Car-Parrinello molecular dynamics (CPMD), with the always stable predictor-corrector (ASPC) or the polynomial coefficients.
+  The in-process route reached an SCF iteration count of 297 on a 40-step water trajectory with ASPC of order 4, against 292 for `cpmd.x` with the same deck and 441 for `cpmd.x` without extrapolation.
+  `CPMDC_SCF_STEPS=1` prints `cpmdc_wfn_extrapolated K` for a call that started from a prediction over `K` earlier calls.
+  Decks without the keyword run as before.
+- `tools/opencpmd_embed_teardown.patch` adds `embed_teardown_state` to OpenCPMD. It frees the module arrays, the setup communicators, and the saved orbitals of a setup. It also resets the first-call state of 37 routines on the setup and wavefunction optimisation path. The rebuild helper and the archive how-to apply it after the other patches.
+
+### Changed
+
+- Stored orbitals start an SCF only when they converged within `CPMDC_WARM_RMSD` (root-mean-square distance per atom, default 0.15 Angstrom) of the new geometry; the nearest stored copy of any key is taken, and beyond the limit the deck's guess starts the SCF. On the Si3N4 OCI-NEB a far key had taken 143 to 530 SCF steps from another image's orbitals where the guess takes 37 to 63. `CPMDC_SCF_STEPS=1` also prints where each SCF started. A line that carries a distance also names the donor key and whether the distance used the periodic boundary.
+- The `ForceInput` box is the cell: a non-zero box replaces the `CELL` and `SYMMETRY` of the deck (`SYMMETRY 1` for a cubic deck and box, `SYMMETRY 8` for another orthorhombic box, `CELL VECTORS` otherwise), as a file-based caller that writes its own cell does. An isolated deck takes only an orthorhombic box. An all-zero box keeps the deck's cell.
+- The opt-in scaffold's `cpmdc_pwscale_eval_mpi` runs 2 collectives per
+  call, down from 12 for the plane-wave split and 11 for the atom split.
+  `cpmdc_pwscale_mpi_bind_create` checks a problem once, and
+  `cpmdc_pwscale_eval_mpi_bound` then runs one `MPI_Allgather` per call.
+  Every rank sums the partials in rank order, so energy and forces keep
+  their bytes, match on every rank, and repeat from run to run.
+  `bench/run_pwscale.sh` takes `BIND=core`.
+  Its default, `none` with `OMP_PROC_BIND=close`, puts every rank on
+  CPU 0; on an 8-core host 2, 4, and 8 ranks took 0.0960, 0.180, and
+  0.416 s against 0.0747 s for one thread, and pinned ranks took 0.0380,
+  0.0211, and 0.0143 s.
+  At 16 atoms and 64 plane waves an 8-rank strong call went from 20.1 to
+  7.6 us; at the default size the change stayed within the spread of two
+  equal builds.
+  `bench/run_pwscale_abba.sh` compares two builds in ABBA order, and
+  `tests/test_pwscale_collectives.c` counts collectives through a PMPI
+  shim.
+- The reference evaluator's periodic stress changed sign. This is a behaviour change. The tensor was the energy divided by the volume. It is now `-dE/d(eps) / volume`, the OpenCPMD sign, so `cpmdc-fd-check --stress` agrees with it. The Python provider flips that sign for ASE and rgpot, which want `(1/V) dE/d(strain)`.
+- The x86_64 OpenCPMD PIC file passes `-march=x86-64`, and the aarch64 file passes `-march=armv8-a`, on debug and release `FFLAGS` and `CFLAGS`.
+  GCC 11 on RHEL 9 defaults to x86-64-v2, and GCC 14 on RHEL 10 defaults to x86-64-v3 with AVX2 and FMA.
+  Both files also pass `-fPIC` and `-ffp-contract=off`.
+  cpmdc C and Fortran compile with `-ffp-contract=off` so a multiply and an add stay separate on every build target.
+
+### Fixed
+
+- A positive-volume cell with no isolated keyword is written with cubic or orthorhombic symmetry, or with cell vectors when the box is tilted, while a zero box and a deck that already asks for an isolated system stay on symmetry 0 with the Hockney solver. ([#periodic-cell-symmetry](https://github.com/OmniPotentRPC/cpmdc/issues/periodic-cell-symmetry))
+- A cell with off-diagonal components no longer stops the host with a Fortran "End of file" while the cold deck is written: the `CELL VECTORS` rows are joined by newlines inside one record.
+- A session that already stored a result rejects a null position or atomic-number buffer with `invalid arguments` instead of reading the pointer.
+- An opt-in MPI setup failure now returns on every rank together, and an FFT setup failure releases the buffers it already took.
+  The optional CUDA compile line passes the scaffold include directory, and this change does not run CUDA.
+- One process can set OpenCPMD up again, for a new basis or after a CPMD stop. The embed calls `cpmdc_embed_teardown` before a second cold setup and from `cpmdc_embed_reset_state`. It frees what the first setup allocated, and the second setup gives the energies of a fresh process. A second setup used to stop in `ratom` with `allocation problem`, and the embed refused it.
+- Temporary CON files, parameter messages, and the quickstart encode step use the working directory. The quickstart writes encoded messages under `tutorial-work/`. A tracked-file check rejects host-local directory names.
+- The Version section of the README described 0.1.0.
+  `version.txt` held 0.3.0.
+  The section now names the version from `version.txt`.
+  `pixi run version-sync` regenerates that file.
+  It also points to `CHANGELOG.md` for the changes in each release.
+- The `cpmdc_warm_start` and `cpmdc_scf_steps` lines of `CPMDC_SCF_STEPS=1` now reach a standard error that is redirected to a file at the end of each call.
+  The gfortran runtime buffers that unit when it is a regular file, so the lines used to appear only at exit, or not at all after an abort.
+- The cold deck writes the caller's cell with twelve decimals. The CELL ratios b/a and c/a carried six, which moved b or c by up to 7e-6 A in a 14 A cell; `CELL VECTORS` carried eight.
+- The first energy tutorial now compiles its host program with `mpicc` and links it with `mpif90`.
+  The wrappers are needed because the default `libcpmdc.so` links the Message Passing Interface (MPI) library whenever Meson finds one.
+  The tutorial transcripts now come from a run of version 0.3.0 against both the default build and a patched OpenCPMD archive.
+- `cpmdc_adopt_calculator_comm` reads rank and size from the communicator the host passed.
+  When `ranks_per_calc` is positive that size must match, and the index is the lowest world rank of one aligned block divided by that size.
+  A later call replaces the communicator while no session exists.
+- `tools/opencpmd_omp_info.patch` makes every rank of a calculator use the I/O node's OpenMP report size. A calculator that spans nodes with unequal rank counts otherwise calls `MPI_Allreduce` with different counts and can stop before the first electronic iteration.
+- `tools/opencpmd_pcg_step.patch` divides both PCG line-search derivatives by their largest magnitude before finding the root, so a small orbital residual keeps its interpolated step. Equal derivatives keep the trial step. The convergence target is unchanged.
+
+### Developer
+
+- CI calls the rgpot ISA audit on unstripped `libcpmdc` and the test binaries.
+  The allowlist names no cpmdc symbol.
+- Sphinx treats a warning as a failed book. `docs/render_reference_well.py` draws the reference-well figure from the evaluator formula.
+- The geometry-aware native orbital selector is the versioned symbol `embed_choose_warm_start_metric_v2`. The unversioned name stays undefined.
+- The instruction set architecture (ISA) allowlist names the minimage kernels built for Advanced Vector Extensions (AVX), AVX2 or AVX-512.
+  minimage calls each kernel only after the Rust standard library reports its features at run time.
+  The allowlist also names three functions that minimage links but does not define.
+  One rule matches `find_impl` and `find_prefilter_impl` of the AVX2 packed-pair searcher in the `memchr` crate, which the standard library depends on through the `object` crate.
+  The standard library build links both functions and never calls them.
+  The other rule names `_xgetbv` from the Rust core library.
+  It runs only after the processor identification instruction (CPUID) reports that the processor and the operating system support extended state saving.
+  The portable ISA test rejects an allow rule that is not anchored, uses a wildcard, matches a cpmdc symbol, or states no run-time check.
+- The meson suite runs every stub-library documentation example. Each fenced block is executed or named with the tool it needs. The Python how-to, the finite-difference check, the Cap'n Proto messages, and the first-energy and ASE lessons run there. CI installs ASE before that suite.
+- The version is written by hand only in `version.txt`.
+  Meson and Sphinx read it, and `pixi run version-sync` regenerates the other copies with cog.
+  CI fails when a copy differs.
+- `pixi run lychee` reads the new `.lychee.toml`.
+  It no longer stops on a missing file.
+  The configuration accepts 429 responses from GitHub.
+  It retries three times.
+  It also checks the anchors of links such as `README.md#citation`.
+  The contributing guide names the task.
+
+### Miscellaneous
+
+- `docs/AUDIT.md` grades the One Good Tutorial checklist again.
+  The grade sits on top of `c631ed9`.
+  Eight items pass, and Acknowledgments does not apply.
+  The open gaps are the quickstart placement and the missing eOn output.
+  The inventory tests still require the README tables.
+
+
 ## [0.3.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.3.0) - 2026-10-01
 
 ### Added
