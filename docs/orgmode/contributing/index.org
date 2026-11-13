@@ -100,7 +100,7 @@ Start from the test surface:
 Run the focused failure before adding production code:
 
 #+begin_src bash
-CPMD_ROOT=/tmp/OpenCPMD-cpmdc meson test -C build \
+CPMD_ROOT=OpenCPMD-cpmdc meson test -C build \
   params-cp-dft-render features-cmocka feature-inventory \
   cpmd-base-keyword-inventory cpmd-params-field-inventory \
   cpmd-public-abi-inventory cpmd-schema-render-coverage \

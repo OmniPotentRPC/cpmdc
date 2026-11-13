@@ -477,9 +477,9 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
                          const uint64_t expect_ids[3], const double xyz[9], const double vel[9],
                          const double cell[6], const char *golden) {
   char err[256];
-  char con1[] = "/tmp/cpmdc-water-XXXXXX.con";
-  char con2[] = "/tmp/cpmdc-water-XXXXXX.con";
-  char restart_path[] = "/tmp/cpmdc-restart-XXXXXX.bin";
+  char con1[] = "cpmdc-water-XXXXXX.con";
+  char con2[] = "cpmdc-water-XXXXXX.con";
+  char restart_path[] = "cpmdc-restart-XXXXXX.bin";
   int con1_fd;
   int con2_fd;
   cpmdc_restart *file;
@@ -528,7 +528,7 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
   free(second);
   if (golden) {
     if (read_file(golden, &golden_bytes, &golden_n) != 0) {
-      FILE *fp = fopen("/tmp/cpmdc-restart-water.con", "wb");
+      FILE *fp = fopen("cpmdc-restart-water.con", "wb");
       if (fp) {
         fwrite(first, 1, first_n, fp);
         fclose(fp);
@@ -538,7 +538,7 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
       return fail("golden CON is missing");
     }
     if (golden_n != first_n || memcmp(golden_bytes, first, first_n) != 0) {
-      FILE *fp = fopen("/tmp/cpmdc-restart-water.con", "wb");
+      FILE *fp = fopen("cpmdc-restart-water.con", "wb");
       if (fp) {
         fwrite(first, 1, first_n, fp);
         fclose(fp);
@@ -593,7 +593,7 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
     return 1;
   }
   free(image);
-  if (write_temp(bytes, n, "/tmp/cpmdc-restart-XXXXXX.bin", restart_path,
+  if (write_temp(bytes, n, "cpmdc-restart-XXXXXX.bin", restart_path,
                  sizeof restart_path) != 0)
     return fail("temp restart");
   again = cpmdc_restart_read_path(restart_path, err, sizeof err);
@@ -621,9 +621,9 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
 
 static int check_cli(const char *tool, const unsigned char *bytes, size_t n,
                      const char *library_con) {
-  char restart_path[] = "/tmp/cpmdc-cli-XXXXXX.bin";
-  char out_con[] = "/tmp/cpmdc-cli-XXXXXX.con";
-  char out_restart[] = "/tmp/cpmdc-cli-XXXXXX.bin";
+  char restart_path[] = "cpmdc-cli-XXXXXX.bin";
+  char out_con[] = "cpmdc-cli-XXXXXX.con";
+  char out_restart[] = "cpmdc-cli-XXXXXX.bin";
   char cmd[1024];
   unsigned char *cli = NULL;
   unsigned char *lib = NULL;
@@ -696,7 +696,7 @@ int main(int argc, char **argv) {
   const char *ordered_symbols[3] = {NULL, NULL, NULL};
   const uint64_t ordered_ids[3] = {0, 1, 2};
   char err[256];
-  char ordered_con[] = "/tmp/cpmdc-ordered-XXXXXX.con";
+  char ordered_con[] = "cpmdc-ordered-XXXXXX.con";
   cpmdc_restart *ordered_file;
   if (!golden)
     return fail("golden path");

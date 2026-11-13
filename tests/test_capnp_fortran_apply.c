@@ -145,7 +145,7 @@ static void test_session_create_applies_parser_fixture(void **state) {
                sizeof(deck), root, sizeof(root));
   assert_string_equal(functional, "PBE");
   assert_true(fabs(cutoff - 90.0) < 1e-12);
-  assert_string_equal(root, "/opt/cpmd");
+  assert_string_equal(root, "cpmd-root");
   assert_non_null(strstr(deck, "FUNCTIONAL"));
   assert_non_null(strstr(deck, "PBE"));
 
@@ -322,7 +322,7 @@ static int line_equals(const char *deck, const char *exact) {
 static int compose_capture_stderr(int n_atoms, const double *pos, const int *z,
                                   const double *cell, char *deck, int cap,
                                   int *dlen, char *err, size_t errcap) {
-  char path[] = "/tmp/cpmdc-pp-errXXXXXX";
+  char path[] = "cpmdc-pp-errXXXXXX";
   int fd;
   int saved;
   int rc;

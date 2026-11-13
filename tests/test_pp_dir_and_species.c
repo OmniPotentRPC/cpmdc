@@ -46,11 +46,15 @@ static void restore_env(const char *name, const struct saved_env *saved) {
 }
 
 static char *make_temp_dir(void) {
-  char tmpl[] = "/tmp/cpmdc-pp-XXXXXX";
-  char *dir = mkdtemp(tmpl);
-  if (!dir)
+  char cwd[PATH_MAX];
+  char tmpl[PATH_MAX];
+  if (!getcwd(cwd, sizeof(cwd)))
     return NULL;
-  return strdup(dir);
+  if (snprintf(tmpl, sizeof(tmpl), "%s/cpmdc-pp-XXXXXX", cwd) >= (int)sizeof(tmpl))
+    return NULL;
+  if (!mkdtemp(tmpl))
+    return NULL;
+  return strdup(tmpl);
 }
 
 static void remove_tree(const char *dir) {
@@ -191,7 +195,10 @@ static void test_output_cwd_leaves_pseudopotential_directory(void **state) {
   fputs("keep\n", fp);
   fclose(fp);
 
-  assert_int_equal(chdir(host), 0);
+  {
+    int moved = chdir(host);
+    assert_int_equal(moved, 0);
+  }
   assert_int_equal(cpmdc_prepare_pp_cwd(pseudo), 0);
   assert_int_equal(cpmdc_enter_output_cwd(scratch), 0);
   fp = fopen("RESTART.1", "w");
@@ -379,7 +386,7 @@ static int snapshots_equal(const struct dir_ent *a, int na,
 
 static int encode_with_scratch(const char *scratch, char *bin_path,
                                size_t bin_cap) {
-  char text_path[] = "/tmp/cpmdc-params-XXXXXX";
+  char text_path[] = "cpmdc-params-XXXXXX";
   int fd;
   FILE *in;
   FILE *out;
@@ -430,7 +437,7 @@ static int encode_with_scratch(const char *scratch, char *bin_path,
   fprintf(out, "(\n  scratchDir = \"%s\",\n%s", scratch, nl + 1);
   fclose(out);
   free(body);
-  snprintf(bin_path, bin_cap, "/tmp/cpmdc-params-bin-XXXXXX");
+  snprintf(bin_path, bin_cap, "cpmdc-params-bin-XXXXXX");
   fd = mkstemp(bin_path);
   if (fd < 0) {
     unlink(text_path);

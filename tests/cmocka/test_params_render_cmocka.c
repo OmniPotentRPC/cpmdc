@@ -72,7 +72,7 @@ static void test_parser_renders_structured_input(void **state) {
   assert_int_equal(params.charge, 0);
   assert_int_equal(params.multiplicity, 1);
   assert_int_equal(params.memoryMb, 2048);
-  assert_true(text_equals(params.cpmdRoot, "/opt/cpmd"));
+  assert_true(text_equals(params.cpmdRoot, "cpmd-root"));
   assert_true(text_equals(params.scratchDir, "/scratch/cpmd"));
   assert_true(text_equals(params.permanentDir, "/perm/cpmd"));
 

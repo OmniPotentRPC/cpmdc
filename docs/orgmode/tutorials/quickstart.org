@@ -192,10 +192,11 @@ needed:
 Encode a ~CPMDParams~ or ~ForceInput~ text message the same way tests do:
 
 #+begin_src bash
+mkdir -p tutorial-work
 capnp encode schema/Potentials.capnp CPMDParams \
-  < tests/cpmd_params_parser.capnp.txt > /tmp/cpmd_params.bin
+  < tests/cpmd_params_parser.capnp.txt > tutorial-work/cpmd_params.bin
 capnp encode schema/Potentials.capnp ForceInput \
-  < tests/force_input_step_a.capnp.txt > /tmp/force_input.bin
+  < tests/force_input_step_a.capnp.txt > tutorial-work/force_input.bin
 #+end_src
 
 Pass those buffers to ~cpmdc_session_create()~ and
