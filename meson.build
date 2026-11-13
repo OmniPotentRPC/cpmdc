@@ -1190,6 +1190,21 @@ test(
     timeout: 120,
   )
   test(
+    'docs-examples',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_docs_examples.py',
+      meson.current_source_dir(),
+      meson.current_build_dir(),
+      cpmdc_shared.full_path(),
+      water_params_bin.full_path(),
+      fd_check_exe.full_path(),
+    ],
+    depends: [cpmdc_shared, water_params_bin, water_force_bin, fd_check_exe],
+    suite: ['docs', 'examples'],
+    timeout: 180,
+  )
+  test(
     'tutorials-run',
     python,
     args: [

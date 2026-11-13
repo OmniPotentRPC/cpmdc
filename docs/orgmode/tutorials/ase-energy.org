@@ -15,7 +15,7 @@ export CPMDC_PARAMS=build/water_blyp_params.bin
 export CPMDC_LIBRARY=build/libcpmdc.so
 export CPMDC_SCHEMA=schema/Potentials.capnp
 export PYTHONPATH=python
-python examples/python/ase_energy.py
+python3 examples/python/ase_energy.py
 #+end_src
 
 #+begin_src text
