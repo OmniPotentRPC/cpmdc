@@ -130,6 +130,20 @@ is deallocated before ~cpmdc~ reads it.
 A symmetric cluster at a stationary geometry also gives zero forces; displace
 an atom to tell the two apart.
 
+** Forces on atoms with nonlocal projectors are wrong inside a host program
+*Cause:* the host exports its own BLAS or LAPACK. OpenCPMD's calls to
+~dgemm_~ and the rest bind to the first definition in the process, which is
+then the host's, not the BLAS ~libcpmdc~ links. A GROMACS built with its
+bundled BLAS and LAPACK (~-DGMX_EXTERNAL_BLAS=OFF~) is one: inside its
+~mdrun~ the force on the oxygen of a BLYP water came out as -2.79
+Hartree/Bohr along z instead of +0.0223, while the energy and the hydrogen
+forces, which have no nonlocal part, were unchanged.
+
+*Fix:* build the host against the BLAS ~libcpmdc~ links. ~libcpmdc_gromacs~
+stops ~mdrun~ with ~dgemm_ resolves to .../libgromacs...~ when OpenCPMD is
+linked, and ~scripts/ci/build_gromacs_cpmdc.sh~ builds GROMACS against
+the BLAS of ~libcpmdc~ (see [[file:gromacs.org][GROMACS]]).
+
 ** Ranks disagree about forces under mpirun
 *Cause:* only CPMD's parent rank holds the calculator's forces.
 

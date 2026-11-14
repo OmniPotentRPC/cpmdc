@@ -490,7 +490,7 @@ endif
 cpmdc_gromacs_lib = disabler()
 if not get_option('with_gromacs_shim').disabled() and not get_option('with_python')
   gromacs_c_args = common_c_args
-  gromacs_deps = [math_dep]
+  gromacs_deps = [math_dep, dl_dep]
   if mpi_c_dep.found()
     gromacs_c_args += ['-DCPMDC_GROMACS_MPI=1']
     gromacs_deps += [mpi_c_dep]

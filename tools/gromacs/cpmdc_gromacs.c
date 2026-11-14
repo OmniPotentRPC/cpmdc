@@ -51,13 +51,16 @@
  * "cpmdc-gromacs: ..." to stderr and to the CP2K output file GROMACS names,
  * and exits with status 1 (MPI_Abort under MPI).
  */
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 #include "libcp2k.h"
 
 #include "cpmdc.h"
 
 #include <complex.h>
 #include <ctype.h>
+#ifdef __ELF__
+#include <dlfcn.h>
+#endif
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -668,6 +671,21 @@ static void open_session(Env *env) {
     const char *text = cpmdc_last_error();
     die(env, "%s", text && *text ? text : "cpmdc_session_create failed");
   }
+#ifdef __ELF__
+  /* OpenCPMD's BLAS calls bind to the first definition in the process. A
+   * GROMACS built with its bundled BLAS and LAPACK exports dgemm_ and the
+   * rest ahead of the BLAS libcpmdc links, and OpenCPMD's nonlocal
+   * pseudopotential forces come out wrong. */
+  Dl_info info;
+  void *dgemm = dlsym(RTLD_DEFAULT, "dgemm_");
+  if (cpmdc_available() && dgemm && dladdr(dgemm, &info) && info.dli_fname &&
+      strstr(info.dli_fname, "libgromacs"))
+    die(env,
+        "dgemm_ resolves to %s: GROMACS was built with its own BLAS and LAPACK, which take "
+        "the place of the BLAS OpenCPMD links and give wrong forces. Rebuild GROMACS with "
+        "-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON against that BLAS",
+        info.dli_fname);
+#endif
 }
 
 /* Every QM rank: the QM energy and forces, from the same positions and cell

@@ -10,6 +10,9 @@
 #   thread-mpi (default) installs gmx_d; mpi builds against the MPI of
 #   mpicc, mpicxx and mpifort on PATH and installs gmx_mpi_d. That MPI must
 #   be the one libcpmdc_gromacs links.
+# GROMACS links the BLAS libcpmdc links, when it links one (an OpenCPMD
+# build): GROMACS' bundled BLAS and LAPACK export dgemm_ and the rest, and
+# would take the place of OpenCPMD's in the process.
 set -euo pipefail
 
 version=$1
@@ -30,6 +33,13 @@ if [ ! -f "$cp2k_dir/pkgconfig/libcp2k.pc" ]; then
 fi
 export PKG_CONFIG_PATH="$cp2k_dir/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 libdir=$(pkg-config --variable=libdir libcp2k)
+blas=$(ldd "$libdir/libcpmdc.so" | awk '$1 ~ /^lib(openblas|blas|flexiblas|mkl_rt)[.-]/ {print $3; exit}')
+if [ -n "$blas" ]; then
+  blas_args=(-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON
+             "-DGMX_BLAS_USER=$blas" "-DGMX_LAPACK_USER=$blas")
+else
+  blas_args=(-DGMX_EXTERNAL_BLAS=OFF -DGMX_EXTERNAL_LAPACK=OFF)
+fi
 
 case $mpi in
   thread-mpi) mpi_args=(-DGMX_MPI=OFF); gmx=gmx_d ;;
@@ -55,8 +65,7 @@ cmake -S "$work/gromacs-$version" -B "$work/build" -G Ninja \
   "${mpi_args[@]}" \
   -DGMX_GPU=OFF \
   -DGMX_FFT_LIBRARY=fftpack \
-  -DGMX_EXTERNAL_BLAS=OFF \
-  -DGMX_EXTERNAL_LAPACK=OFF \
+  "${blas_args[@]}" \
   -DGMX_CP2K=ON \
   -DCP2K_DIR="$cp2k_dir" \
   -DGMX_USE_PLUMED=OFF \
