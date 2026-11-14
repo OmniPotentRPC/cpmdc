@@ -8,8 +8,11 @@ process globals.
 
 ``CPMDC_LIBRARY``, then ``RGPOT_CPMDC_ENGINE``, then ``RGPOT_CPMD_ENGINE``,
 name the shared library, which is the same order rgpot uses after an
-explicit path. ``CPMDC_SCHEMA`` names ``schema/Potentials.capnp`` when a
-cell is encoded as ``ForceInput``.
+explicit path. A wheel carries its own ``libcpmdc`` in
+``.cpmdc.mesonpy.libs`` beside this package, and that copy is used when
+none of the variables is set. ``CPMDC_SCHEMA`` names
+``schema/Potentials.capnp`` when a cell is encoded as ``ForceInput``; a
+wheel carries that file too.
 """
 
 from __future__ import annotations
@@ -81,6 +84,12 @@ class _CStress(ctypes.Structure):
     ]
 
 
+_PACKAGE_DIR = Path(__file__).resolve().parent
+# meson-python's directory for libraries a wheel installs from libdir.
+_WHEEL_LIBS = _PACKAGE_DIR.parent / ".cpmdc.mesonpy.libs"
+_SHARED_NAMES = ("libcpmdc.so", "libcpmdc.dylib")
+
+
 def _library_names() -> tuple[str, ...]:
     return ("CPMDC_LIBRARY", "RGPOT_CPMDC_ENGINE", "RGPOT_CPMD_ENGINE")
 
@@ -90,7 +99,8 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
 
     An explicit ``path`` wins. Otherwise the environment variables
     ``CPMDC_LIBRARY``, ``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``
-    are tried in that order, then the dynamic linker, then ``build/libcpmdc.so``
+    are tried in that order, then the library a wheel installs beside
+    this package, then the dynamic linker, then ``build/libcpmdc.so``
     in the working directory.
     """
     if path is not None:
@@ -102,6 +112,10 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
         value = os.environ.get(name)
         if value and Path(value).is_file():
             return Path(value)
+    for name in _SHARED_NAMES:
+        bundled = _WHEEL_LIBS / name
+        if bundled.is_file():
+            return bundled
     found = ctypes.util.find_library("cpmdc")
     if found:
         located = Path(found)
@@ -118,7 +132,8 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
 def find_schema(path: str | os.PathLike[str] | None = None) -> Path:
     """Return ``schema/Potentials.capnp``.
 
-    An explicit ``path`` wins, then ``CPMDC_SCHEMA``, then
+    An explicit ``path`` wins, then ``CPMDC_SCHEMA``, then the copy
+    installed inside this package by a wheel, then
     ``schema/Potentials.capnp`` in the working directory.
     """
     if path is not None:
@@ -129,6 +144,9 @@ def find_schema(path: str | os.PathLike[str] | None = None) -> Path:
     env = os.environ.get("CPMDC_SCHEMA")
     if env and Path(env).is_file():
         return Path(env)
+    bundled = _PACKAGE_DIR / "schema" / "Potentials.capnp"
+    if bundled.is_file():
+        return bundled
     relative = Path("schema/Potentials.capnp")
     if relative.is_file():
         return relative
