@@ -143,6 +143,32 @@ jobs:
           name: unstripped-libs-arm64
           path: isa-audit-libs/
 
+  # The only job that links OpenCPMD. Every target of the with_cpmd build
+  # compiles, and extrapolate-wfn, which the reference build skips, has to
+  # pass against the cpmd.x run in tests/golden.
+  opencpmd-embed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: Patched OpenCPMD archive
+        run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd" "${RUNNER_TEMP}/opencpmd-build"
+      - name: Pseudopotentials
+        run: |
+          git init -q "${RUNNER_TEMP}/regtests"
+          git -C "${RUNNER_TEMP}/regtests" fetch -q --depth 1 https://github.com/OpenCPMD/Regtests.git b2b2c64d39da2ecb96857ab9a007f34332db9d1b
+          git -C "${RUNNER_TEMP}/regtests" checkout -q FETCH_HEAD
+          echo "CPMDC_PSEUDO_DIR=${RUNNER_TEMP}/regtests/tests/PP_LIBRARY" >> "$GITHUB_ENV"
+      - name: cpmdc with OpenCPMD
+        run: pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build-cpmd -Dwith_tests=true -Dwith_cpmd=true -Dcpmd_root="${RUNNER_TEMP}/opencpmd-build" && meson compile -C build-cpmd'
+      - name: EXTRAPOLATE WFN against cpmd.x, not skipped
+        run: |
+          pixi run meson test -C build-cpmd extrapolate-wfn --print-errorlogs
+          grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
+
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})
     runs-on: ubuntu-latest
