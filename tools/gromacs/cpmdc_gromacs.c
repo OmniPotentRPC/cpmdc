@@ -989,11 +989,18 @@ void cp2k_set_positions(force_env_t force_env, const double *new_pos, int n_el) 
   env->have_positions = 1;
 }
 
+/* GROMACS 2024 and 2025 send box_d[3 i + j] = box[j][i]; GROMACS 2026 sends
+ * box_d[3 i + j] = box[i][j], one lattice vector after the other, which is
+ * CP2K's layout. A GROMACS box is lower triangular (box[0][1], box[0][2]
+ * and box[1][2] are zero), so the first layout has zeros in elements 3, 6
+ * and 7 and the second in 1, 2 and 5; a rectangular box reads the same
+ * either way. */
 void cp2k_set_cell(force_env_t force_env, const double *new_cell) {
   Env *env = lookup(force_env, "cp2k_set_cell");
+  const int transposed = new_cell[3] == 0.0 && new_cell[6] == 0.0 && new_cell[7] == 0.0;
   for (int a = 0; a < 3; ++a)
     for (int k = 0; k < 3; ++k)
-      env->rows[a][k] = new_cell[3 * k + a];
+      env->rows[a][k] = transposed ? new_cell[3 * k + a] : new_cell[3 * a + k];
 }
 
 void cp2k_get_natom(force_env_t force_env, int *natom) {

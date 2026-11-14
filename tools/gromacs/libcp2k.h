@@ -7,8 +7,10 @@
  * does not call are not provided.
  *
  * Units are CP2K's: positions and cell in Bohr, energy in Hartree, forces
- * in Hartree/Bohr. The cell is the 3x3 matrix with one lattice vector per
- * column, sent row-major (a_x b_x c_x a_y ...).
+ * in Hartree/Bohr. The cell is nine doubles: CP2K's layout, one lattice
+ * vector after the other (a_x a_y a_z b_x ...), as GROMACS 2026 sends it, or
+ * its transpose (a_x b_x c_x a_y ...), as GROMACS 2024 and 2025 send it.
+ * The library tells them apart by the zeros of GROMACS' lower triangular box.
  */
 #ifndef CPMDC_GROMACS_LIBCP2K_H
 #define CPMDC_GROMACS_LIBCP2K_H

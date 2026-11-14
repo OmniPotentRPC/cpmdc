@@ -182,10 +182,14 @@ returns Hartree and Hartree/Bohr.
 
 * Cell and positions
 GROMACS sends every atom, QM and MM, each step, after putting each into
-the box, and the box as ~box_d[3 i + j] = box[j][i]~.
-The library reads that back as one lattice vector per row, the layout of
-~cpmdc_session_calculate_au()~; GROMACS' triclinic box is lower
-triangular, and any shape it accepts passes through.
+the box.
+GROMACS 2024 and 2025 send the box as ~box_d[3 i + j] = box[j][i]~, and
+GROMACS 2026 as ~box_d[3 i + j] = box[i][j]~, one lattice vector after the
+other, which is CP2K's layout.
+GROMACS' box is lower triangular, so the two differ only in where the zeros
+are, and the library reads either back as one lattice vector per row, the
+layout of ~cpmdc_session_calculate_au()~; any triclinic shape GROMACS
+accepts passes through.
 
 A wrapped atom jumps by a lattice vector.
 The library unwraps the QM atoms against their positions of the previous

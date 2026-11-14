@@ -141,12 +141,14 @@ class Shim:
         self.lib.cp2k_get_natom(self.env, ctypes.byref(natom))
         self.natoms = natom.value
 
-    def step(self, x_bohr, box_rows_bohr):
+    def step(self, x_bohr, box_rows_bohr, rows_layout=False):
         n = 3 * self.natoms
         pos = (ctypes.c_double * n)(*np.asarray(x_bohr, float).ravel())
         self.lib.cp2k_set_positions(self.env, pos, n)
-        # QMMMForceProvider: box_d[3 * i + j] = box[j][i].
-        cell = (ctypes.c_double * 9)(*np.asarray(box_rows_bohr, float).T.ravel())
+        # QMMMForceProvider: box_d[3 * i + j] = box[j][i] in GROMACS 2024 and
+        # 2025, box[i][j] in GROMACS 2026.
+        rows = np.asarray(box_rows_bohr, float)
+        cell = (ctypes.c_double * 9)(*(rows if rows_layout else rows.T).ravel())
         self.lib.cp2k_set_cell(self.env, cell)
         self.lib.cp2k_calc_energy_force(self.env)
         energy = ctypes.c_double()
@@ -190,8 +192,9 @@ class ShimCalculator(Calculator):
 
     def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
         super().calculate(atoms, properties, system_changes)
+        # A sheared cell is not lower triangular, which only CP2K's layout can carry.
         energy, _ = self.shim.step(self.atoms.positions / BOHR_TO_ANGSTROM,
-                                   np.asarray(self.atoms.cell) / BOHR_TO_ANGSTROM)
+                                   np.asarray(self.atoms.cell) / BOHR_TO_ANGSTROM, rows_layout=True)
         self.results = {"energy": energy * HARTREE_TO_EV}
 
 
@@ -357,6 +360,40 @@ def test_whole_system_stress_matches_ase(box, periodic_params, tmp_path):
     np.testing.assert_allclose(ours, analytic, rtol=1e-13, atol=1e-15 * scale)
     np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-8 * scale)
     assert "first stress request: available 1" in (tmp_path / "sys.out").read_text()
+
+
+@needs_lib
+def test_gromacs_2026_cell_layout_reads_the_same_box(periodic_params, tmp_path):
+    """GROMACS 2026 sends the lattice vectors one after the other.
+
+    The reference energy depends on the cell only through sum h_ij^2, which
+    a transposed cell keeps; its stress, through h h^T, does not.
+    """
+    x = np.asarray(gc.WATERS_NM) / BOHR_TO_NM
+    rows = TRICLINIC_NM / BOHR_TO_NM
+    out = {}
+    for layout in (False, True):
+        work = tmp_path / str(layout)
+        work.mkdir()
+        inp = setup_env(work, qmi_input(periodic_params), gc.SYMBOLS, [True] * 6, [0.0] * 6, gc.WATERS_NM)
+        shim = Shim(inp, work / "sys.out")
+        out[layout] = (*shim.step(x, rows, rows_layout=layout), shim.stress()[0])
+        shim.close()
+    assert out[True][0] == out[False][0]
+    np.testing.assert_array_equal(out[True][1], out[False][1])
+    np.testing.assert_array_equal(out[True][2], out[False][2])
+    atoms = Atoms(gc.SYMBOLS, positions=x * BOHR_TO_ANGSTROM, cell=rows * BOHR_TO_ANGSTROM, pbc=True)
+    transposed = atoms.copy()
+    transposed.set_cell(rows.T * BOHR_TO_ANGSTROM)
+    with CPMDCCalculator(periodic_params) as calc:
+        atoms.calc = calc
+        ref = atoms.get_stress(voigt=False)
+    with CPMDCCalculator(periodic_params) as calc:
+        transposed.calc = calc
+        wrong = transposed.get_stress(voigt=False)
+    scale = np.abs(ref).max()
+    np.testing.assert_allclose(ase_stress(out[True][2]), ref, rtol=1e-13, atol=1e-15 * scale)
+    assert not np.allclose(wrong, ref, rtol=1e-13, atol=1e-15 * scale)
 
 
 MECHANICAL_TRICLINIC_NM = QMMM_BOX_NM @ np.array([[1, 0, 0], [0.1, 1, 0], [-0.08, 0.12, 1]])
