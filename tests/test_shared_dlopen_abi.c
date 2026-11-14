@@ -79,6 +79,17 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_feature_find",
 };
 
+/* Internal glue from each kind of source: C in libcpmdc, Fortran BIND(C) in
+ * libcpmdc, and Fortran BIND(C) in a static archive linked into it. */
+static const char *const hidden_symbols[] = {
+    "cpmdc_params_render_input_deck",
+    "cpmdc_stop_arm",
+    "cpmdc_note_stop",
+    "cpmdc_embed_init",
+    "cpmdc_embed_energy_grad",
+    "cpmdc_embed_apply_params",
+};
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     fprintf(stderr, "usage: %s /path/to/libcpmdc.so\n", argv[0]);
@@ -95,6 +106,14 @@ int main(int argc, char **argv) {
        i < sizeof(required_abi_symbols) / sizeof(required_abi_symbols[0]);
        ++i) {
     if (required_symbol(handle, required_abi_symbols[i]) == NULL) {
+      dlclose(handle);
+      return 1;
+    }
+  }
+  for (size_t i = 0; i < sizeof(hidden_symbols) / sizeof(hidden_symbols[0]);
+       ++i) {
+    if (dlsym(handle, hidden_symbols[i]) != NULL) {
+      fprintf(stderr, "internal symbol %s is exported\n", hidden_symbols[i]);
       dlclose(handle);
       return 1;
     }
