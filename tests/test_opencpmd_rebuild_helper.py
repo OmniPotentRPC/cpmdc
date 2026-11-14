@@ -70,6 +70,7 @@ def main() -> int:
             "rpiiint_utils.mod.o",
             "rwswap_utils.mod.o",
             "setbasis_utils.mod.o",
+            "stress_utils.mod.o",
             "symtrz_utils.mod.o",
             "tauofr_utils.mod.o",
             "testex_utils.mod.o",
