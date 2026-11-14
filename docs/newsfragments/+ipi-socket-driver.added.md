@@ -1,3 +1,4 @@
 `cpmdc-ipi` (also `python -m cpmdc.ipi`) is a client for the i-PI socket protocol over UNIX and TCP sockets, so i-PI, ASE's `SocketIOCalculator` and `SocketServer`, and through i-PI a LAMMPS `fix ipi` run, can drive one cpmdc session.
 It returns Hartree energies, Hartree/Bohr forces, and the virial `-dE/d(strain)` in Hartree, keeps one `Session` across steps so wavefunction extrapolation still works, and stops with a clear error when the atom count changes; the species come from `--species` or `--structure` because the protocol carries none.
 [Drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org) covers i-PI, ASE, LAMMPS (untested), units, and limits.
+`cpmdc-ipi-c`, built by Meson from `tools/cpmdc_ipi.c` and installed beside `libcpmdc`, is the same client in C on `cpmdc_session_calculate_au()`, for hosts without Python; the pytest suite checks it against ASE, i-PI, and `cpmdc-ipi` to 1e-10.
