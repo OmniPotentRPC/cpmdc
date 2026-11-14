@@ -26,6 +26,9 @@ add_project_arguments(
   '-DCPMDC_SCHEMA_VERSION="' + schema_wrap_version + '"',
   language: 'c',
 )
+# Every in-tree target but libcpmdc compiles the cpmdc sources or links a
+# static archive. libcpmdc adds CPMDC_BUILDING_LIBRARY, which takes precedence.
+add_project_arguments('-DCPMDC_STATIC', language: 'c')
 pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
 dl_dep = dependency('dl', required: false)
@@ -296,15 +299,43 @@ else
   cpmdc_shared_install = {'soversion': meson.project_version().split('.')[0]}
 endif
 
+# Hidden visibility and CPMDC_API decide what the C sources export. gfortran
+# ignores -fvisibility, so the BIND(C) glue and the static archives linked in
+# (capnp, capnp-fortran, minimage, OpenCPMD) are held back by an export list
+# generated from the same CPMDC_API declarations.
+cpmdc_public_headers = files('include/cpmdc.h', 'include/cpmdc_features.h')
+cpmdc_shared_link_depends = []
+if fc.get_linker_id() in ['ld.bfd', 'ld.gold', 'ld.lld', 'ld.mold']
+  cpmdc_export_list = custom_target(
+    'libcpmdc-version-script',
+    input: cpmdc_public_headers,
+    output: 'libcpmdc.map',
+    command: [python, files('scripts/abi_inventory.py'), '--version-script', '@OUTPUT@'],
+  )
+  cpmdc_shared_link_args += ['-Wl,--version-script=' + cpmdc_export_list.full_path()]
+  cpmdc_shared_link_depends += [cpmdc_export_list]
+elif fc.get_linker_id().startswith('ld64')
+  cpmdc_export_list = custom_target(
+    'libcpmdc-exported-symbols',
+    input: cpmdc_public_headers,
+    output: 'libcpmdc.exp',
+    command: [python, files('scripts/abi_inventory.py'), '--exported-symbols-list', '@OUTPUT@'],
+  )
+  cpmdc_shared_link_args += ['-Wl,-exported_symbols_list,' + cpmdc_export_list.full_path()]
+  cpmdc_shared_link_depends += [cpmdc_export_list]
+endif
+
 cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: cpmd_embed_c_args,
+  c_args: cpmd_embed_c_args + ['-DCPMDC_BUILDING_LIBRARY'],
   fortran_args: cpmd_embed_f_args,
+  gnu_symbol_visibility: 'hidden',
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
+  link_depends: cpmdc_shared_link_depends,
   install: true,
   kwargs: cpmdc_shared_install,
 )
@@ -334,7 +365,13 @@ run_target(
   command: [python, files('scripts/abi_inventory.py'), '--write', cpmdc_shared],
 )
 
-install_headers('include/cpmdc.h', 'include/cpmdc_features.h', 'include/cpmdc_restart.h', subdir: 'cpmdc')
+install_headers(
+  'include/cpmdc.h',
+  'include/cpmdc_export.h',
+  'include/cpmdc_features.h',
+  'include/cpmdc_restart.h',
+  subdir: 'cpmdc',
+)
 
 cpmdc_restart_lib = static_library(
   'cpmdc_restart',

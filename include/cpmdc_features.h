@@ -1,4 +1,6 @@
 #pragma once
+#include "cpmdc_export.h"
+
 #include <stddef.h>
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +43,7 @@ typedef struct CPMDCFeatureEntry {
 } CPMDCFeatureEntry;
 
 /** @brief Number of entries returned by `cpmdc_feature_table()`. */
-size_t cpmdc_feature_count(void);
+CPMDC_API size_t cpmdc_feature_count(void);
 
 /**
  * @brief Return the contiguous feature table.
@@ -49,7 +51,7 @@ size_t cpmdc_feature_count(void);
  * The returned pointer has `cpmdc_feature_count()` entries and remains owned by
  * the library.
  */
-const CPMDCFeatureEntry *cpmdc_feature_table(void);
+CPMDC_API const CPMDCFeatureEntry *cpmdc_feature_table(void);
 
 /**
  * @brief Find one feature by stable ID.
@@ -57,7 +59,7 @@ const CPMDCFeatureEntry *cpmdc_feature_table(void);
  * @return Pointer to the matching table entry, or `NULL` when the feature ID is
  * not present.
  */
-const CPMDCFeatureEntry *cpmdc_feature_find(const char *feature_id);
+CPMDC_API const CPMDCFeatureEntry *cpmdc_feature_find(const char *feature_id);
 
 #ifdef __cplusplus
 }

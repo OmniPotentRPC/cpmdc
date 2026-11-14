@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cpmdc_export.h"
 #include "cpmdc_features.h"
 
 #include <stddef.h>
@@ -238,7 +239,7 @@ typedef struct CPMDCSession CPMDCSession;
  * @return 0 on success, -1 on parse or configuration failure.
  *         Failure text is `cpmdc_last_error()`.
  */
-int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
+CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
 
 /**
  * @brief Apply configuration from a `PotentialConfig` message.
@@ -253,7 +254,7 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
  *
  * @return 0 on success, -1 on parse, lowering, or apply failure.
  */
-int cpmdc_configure(const void *config_capnp, size_t config_capnp_size_bytes);
+CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size_bytes);
 
 /**
  * @brief Compute energy and nuclear gradient for an atomic configuration.
@@ -261,27 +262,27 @@ int cpmdc_configure(const void *config_capnp, size_t config_capnp_size_bytes);
  * Positions are Angstrom; gradient is Hartree/Bohr (CPMD ionic forces are
  * negated into a nuclear gradient for API symmetry with nwchemc).
  */
-CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
-                                  const int *atomic_numbers,
-                                  const void *params_capnp,
-                                  size_t params_capnp_size_bytes,
-                                  double *grad_h_bohr);
+CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
+                                            const int *atomic_numbers,
+                                            const void *params_capnp,
+                                            size_t params_capnp_size_bytes,
+                                            double *grad_h_bohr);
 
 /**
  * @brief Compute total energy only (no gradient allocation).
  */
-CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
-                         const int *atomic_numbers, const void *params_capnp,
-                         size_t params_capnp_size_bytes);
+CPMDC_API CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
+                                   const int *atomic_numbers, const void *params_capnp,
+                                   size_t params_capnp_size_bytes);
 
 /**
  * @brief Compute energy and nuclear forces (negative gradient, Hartree/Bohr).
  */
-CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
-                                const int *atomic_numbers,
-                                const void *params_capnp,
-                                size_t params_capnp_size_bytes,
-                                double *forces_h_bohr);
+CPMDC_API CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
+                                          const int *atomic_numbers,
+                                          const void *params_capnp,
+                                          size_t params_capnp_size_bytes,
+                                          double *forces_h_bohr);
 
 /**
  * @brief Bind this rank to one CPMD calculator of @p ranks_per_calc ranks.
@@ -294,7 +295,7 @@ CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang,
  * carries no CPMD backend. Failure text is `cpmdc_last_error()`.
  * A second call returns the same index and does not split again.
  */
-int cpmdc_bind_calculator(int ranks_per_calc);
+CPMDC_API int cpmdc_bind_calculator(int ranks_per_calc);
 
 /**
  * @brief Install a communicator the caller already split.
@@ -325,8 +326,8 @@ int cpmdc_bind_calculator(int ranks_per_calc);
  * thread: `g_live_sessions` and `g_active_session` are process globals, and
  * OpenCPMD state is process-global too.
  */
-int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
-                                int ranks_per_calc);
+CPMDC_API int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
+                                          int ranks_per_calc);
 
 /**
  * @brief Copy the stored calculator communicator into `out`.
@@ -336,7 +337,7 @@ int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
  * stored, and -1 when `out` is null, `nbytes` is not that size, or no
  * communicator has been adopted. Does not write `cpmdc_last_error()`.
  */
-int cpmdc_adopted_comm(void *out, size_t nbytes);
+CPMDC_API int cpmdc_adopted_comm(void *out, size_t nbytes);
 
 /**
  * @brief Create a persistent evaluation session from a Cap'n Proto message.
@@ -345,14 +346,14 @@ int cpmdc_adopted_comm(void *out, size_t nbytes);
  * input buffer after this call returns. Returns NULL on failure; the reason
  * is `cpmdc_last_error()`.
  */
-CPMDCSession *cpmdc_session_create(const void *params_capnp,
-                                   size_t params_capnp_size_bytes);
+CPMDC_API CPMDCSession *cpmdc_session_create(const void *params_capnp,
+                                             size_t params_capnp_size_bytes);
 
 /**
  * @brief Replace Cap'n Proto parameters before the session accepts topology.
  */
-int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
-                             size_t params_capnp_size_bytes);
+CPMDC_API int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
+                                       size_t params_capnp_size_bytes);
 
 /**
  * @brief Create a persistent session from a `PotentialConfig` message.
@@ -360,8 +361,8 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
  * Resolves the config exactly like `cpmdc_configure()` and installs the
  * effective `CPMDParams` on a new session.
  */
-CPMDCSession *cpmdc_session_create_from_config(const void *config_capnp,
-                                               size_t config_capnp_size_bytes);
+CPMDC_API CPMDCSession *cpmdc_session_create_from_config(const void *config_capnp,
+                                                         size_t config_capnp_size_bytes);
 
 /**
  * @brief Configure an existing session from a `PotentialConfig` message.
@@ -369,11 +370,11 @@ CPMDCSession *cpmdc_session_create_from_config(const void *config_capnp,
  * Accepted only before the session evaluates; resolution matches
  * `cpmdc_configure()`.
  */
-int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
-                            size_t config_capnp_size_bytes);
+CPMDC_API int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
+                                      size_t config_capnp_size_bytes);
 
 /** @brief Release a persistent evaluation session. */
-void cpmdc_session_destroy(CPMDCSession *session);
+CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
 
 /**
  * @brief Name the calculation the next evaluations of this session belong to.
@@ -395,7 +396,7 @@ void cpmdc_session_destroy(CPMDCSession *session);
  *
  * @return 0, or -1 when `session` is `NULL`.
  */
-int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
+CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
 
 /**
  * @brief Compute energy and nuclear gradient with session-owned parameters.
@@ -403,19 +404,19 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
  * Positions are Angstrom. The gradient buffer must have `n_atoms * 3` doubles
  * and is filled in Hartree/Bohr.
  */
-CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
-                                          const double *positions_ang,
-                                          const int *atomic_numbers,
-                                          double *grad_h_bohr);
+CPMDC_API CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *session, int n_atoms,
+                                                    const double *positions_ang,
+                                                    const int *atomic_numbers,
+                                                    double *grad_h_bohr);
 
 /**
  * @brief Compute total energy with session-owned parameters.
  *
  * Positions are Angstrom and the returned energy is Hartree.
  */
-CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
-                                 const double *positions_ang,
-                                 const int *atomic_numbers);
+CPMDC_API CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
+                                           const double *positions_ang,
+                                           const int *atomic_numbers);
 
 /**
  * @brief Compute energy and nuclear forces with session-owned parameters.
@@ -423,10 +424,10 @@ CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
  * Positions are Angstrom. The forces buffer must have `n_atoms * 3` doubles and
  * is filled in Hartree/Bohr.
  */
-CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
-                                        const double *positions_ang,
-                                        const int *atomic_numbers,
-                                        double *forces_h_bohr);
+CPMDC_API CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
+                                                  const double *positions_ang,
+                                                  const int *atomic_numbers,
+                                                  double *forces_h_bohr);
 
 /**
  * @brief Compute energy and forces for one Cap'n Proto `ForceInput` step.
@@ -434,7 +435,7 @@ CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_atoms,
  * Session keeps persistent `CPMDParams`; each call supplies geometry. Returned
  * energy/forces use CPMD native units: Hartree and Hartree/Bohr.
  */
-CPMDCResult cpmdc_session_calculate_forces(
+CPMDC_API CPMDCResult cpmdc_session_calculate_forces(
     CPMDCSession *session, const void *force_input_capnp,
     size_t force_input_capnp_size_bytes, double *forces_h_bohr,
     size_t forces_len);
@@ -450,7 +451,7 @@ CPMDCResult cpmdc_session_calculate_forces(
  * writes the required byte count to `potential_result_capnp_size_bytes`, and
  * does not evaluate CPMD.
  */
-CPMDCResult cpmdc_session_calculate_result(
+CPMDC_API CPMDCResult cpmdc_session_calculate_result(
     CPMDCSession *session, const void *force_input_capnp,
     size_t force_input_capnp_size_bytes, void *potential_result_capnp,
     size_t potential_result_capnp_capacity_bytes,
@@ -462,13 +463,13 @@ CPMDCResult cpmdc_session_calculate_result(
  * Multi-step callers should create one session and call
  * `cpmdc_session_calculate_result()` per step.
  */
-CPMDCResult cpmdc_calculate_result(const void *params_capnp,
-                                   size_t params_capnp_size_bytes,
-                                   const void *force_input_capnp,
-                                   size_t force_input_capnp_size_bytes,
-                                   void *potential_result_capnp,
-                                   size_t potential_result_capnp_capacity_bytes,
-                                   size_t *potential_result_capnp_size_bytes);
+CPMDC_API CPMDCResult cpmdc_calculate_result(const void *params_capnp,
+                                             size_t params_capnp_size_bytes,
+                                             const void *force_input_capnp,
+                                             size_t force_input_capnp_size_bytes,
+                                             void *potential_result_capnp,
+                                             size_t potential_result_capnp_capacity_bytes,
+                                             size_t *potential_result_capnp_size_bytes);
 
 /**
  * @brief One-shot Cap'n Proto entry point resolving a full `PotentialConfig`
@@ -478,7 +479,7 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
  * `cpmdc_session_create_from_config()` and call
  * `cpmdc_session_calculate_result()` per step.
  */
-CPMDCResult cpmdc_calculate_result_from_config(
+CPMDC_API CPMDCResult cpmdc_calculate_result_from_config(
     const void *config_capnp, size_t config_capnp_size_bytes,
     const void *force_input_capnp, size_t force_input_capnp_size_bytes,
     void *potential_result_capnp,
@@ -492,7 +493,7 @@ CPMDCResult cpmdc_calculate_result_from_config(
  * the message is invalid or too large for the C ABI. That failure is
  * reported through `cpmdc_last_error()`.
  */
-size_t cpmdc_potential_result_size_for_force_input(
+CPMDC_API size_t cpmdc_potential_result_size_for_force_input(
     const void *force_input_capnp, size_t force_input_capnp_size_bytes);
 
 /**
@@ -509,12 +510,12 @@ size_t cpmdc_potential_result_size_for_force_input(
  * returns -1 with `*capabilities_capnp_size_bytes` set to the required size.
  * That -1 does not write `cpmdc_last_error()`.
  */
-int cpmdc_capabilities_result(void *capabilities_capnp,
-                              size_t capabilities_capnp_capacity_bytes,
-                              size_t *capabilities_capnp_size_bytes);
+CPMDC_API int cpmdc_capabilities_result(void *capabilities_capnp,
+                                        size_t capabilities_capnp_capacity_bytes,
+                                        size_t *capabilities_capnp_size_bytes);
 
 /** @brief Compiled library version string. */
-const char *cpmdc_version(void);
+CPMDC_API const char *cpmdc_version(void);
 
 /**
  * @brief Diagnostic for the most recent public call on this thread that
@@ -538,20 +539,20 @@ const char *cpmdc_version(void);
  * `cpmdc_capabilities_result()` do not write it either. A capabilities
  * return of -1 is the size query.
  */
-const char *cpmdc_last_error(void);
+CPMDC_API const char *cpmdc_last_error(void);
 
 /**
  * @brief Numeric ABI generation of the compiled library.
  *
  * Compare against the CPMDC_ABI_VERSION the consumer compiled with.
  */
-int cpmdc_abi_version(void);
+CPMDC_API int cpmdc_abi_version(void);
 
 /** @brief 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub. */
-int cpmdc_available(void);
+CPMDC_API int cpmdc_available(void);
 
 /** @brief Finalize an owned embedded CPMD runtime. */
-void cpmdc_finalize(void);
+CPMDC_API void cpmdc_finalize(void);
 
 /**
  * @brief Copy the last in-process `ener_com` energy decomposition.
@@ -560,33 +561,33 @@ void cpmdc_finalize(void);
  * point reads that session, including after another session has run.
  * Returns 0 when `out->valid` is set. Values are Hartree.
  */
-int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
+CPMDC_API int cpmdc_last_energy_components(CPMDCEnergyComponents *out);
 
 /** @brief Copy the last energy decomposition stored on @p session. */
-int cpmdc_session_last_energy_components(const CPMDCSession *session,
-                                         CPMDCEnergyComponents *out);
+CPMDC_API int cpmdc_session_last_energy_components(const CPMDCSession *session,
+                                                   CPMDCEnergyComponents *out);
 
 /**
  * @brief Copy the last in-process density integrals.
  *
  * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
  */
-int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
+CPMDC_API int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out);
 
 /** @brief Copy the last density integrals stored on @p session. */
-int cpmdc_session_last_charge_integrals(const CPMDCSession *session,
-                                        CPMDCChargeIntegrals *out);
+CPMDC_API int cpmdc_session_last_charge_integrals(const CPMDCSession *session,
+                                                  CPMDCChargeIntegrals *out);
 
 /**
  * @brief Copy the last multi-state energy catalog.
  *
  * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
  */
-int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
+CPMDC_API int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out);
 
 /** @brief Copy the last multi-state energy catalog stored on @p session. */
-int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
-                                            CPMDCMultiStateEnergies *out);
+CPMDC_API int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
+                                                      CPMDCMultiStateEnergies *out);
 
 /**
  * @brief Copy the last trajectory row.
@@ -594,22 +595,22 @@ int cpmdc_session_last_multi_state_energies(const CPMDCSession *session,
  * Values are Hartree. Returns 0 when `out->valid` is set. Does not write
  * `cpmdc_last_error()`.
  */
-int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
+CPMDC_API int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out);
 
 /** @brief Copy the last trajectory row stored on @p session. */
-int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session,
-                                         CPMDCMDTrajectoryRow *out);
+CPMDC_API int cpmdc_session_last_md_trajectory_row(const CPMDCSession *session,
+                                                   CPMDCMDTrajectoryRow *out);
 
 /**
  * @brief Copy the last property snapshot.
  *
  * Returns 0 when `out->valid` is set. Does not write `cpmdc_last_error()`.
  */
-int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
+CPMDC_API int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
 
 /** @brief Copy the last property snapshot stored on @p session. */
-int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
-                                         CPMDCPropertySnapshot *out);
+CPMDC_API int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
+                                                   CPMDCPropertySnapshot *out);
 
 /**
  * @brief Copy the last stress tensor.
@@ -617,11 +618,11 @@ int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
  * Returns 0 when `out->valid` is set, which is only after stress was computed
  * for a periodic cell. Does not write `cpmdc_last_error()`.
  */
-int cpmdc_last_stress(CPMDCStressTensor *out);
+CPMDC_API int cpmdc_last_stress(CPMDCStressTensor *out);
 
 /** @brief Copy the last stress tensor stored on @p session. */
-int cpmdc_session_last_stress(const CPMDCSession *session,
-                              CPMDCStressTensor *out);
+CPMDC_API int cpmdc_session_last_stress(const CPMDCSession *session,
+                                        CPMDCStressTensor *out);
 
 /**
  * @brief Copy the rank spread of the last evaluation in this process.
@@ -631,7 +632,7 @@ int cpmdc_session_last_stress(const CPMDCSession *session,
  * positions keeps the spread of the evaluation that stored them. Does not
  * write `cpmdc_last_error()`.
  */
-int cpmdc_last_rank_spread(CPMDCRankSpread *out);
+CPMDC_API int cpmdc_last_rank_spread(CPMDCRankSpread *out);
 
 #ifdef __cplusplus
 }
