@@ -1287,16 +1287,22 @@ test(
     suite: ['python', 'e2e'],
     timeout: 120,
   )
+  pytest_env = {
+    'CPMDC_LIBRARY': cpmdc_shared.full_path(),
+    'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
+    'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
+  }
+  pytest_depends = [cpmdc_shared, water_params_bin, water_periodic_params_bin]
+  if not is_disabler(cpmdc_ipi_exe)
+    pytest_env += {'CPMDC_IPI_C': cpmdc_ipi_exe.full_path()}
+    pytest_depends += cpmdc_ipi_exe
+  endif
   test(
     'python-pytest',
     python,
     args: ['-m', 'pytest', '-q', meson.current_source_dir() / 'tests/python'],
-    env: {
-      'CPMDC_LIBRARY': cpmdc_shared.full_path(),
-      'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
-      'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
-    },
-    depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
+    env: pytest_env,
+    depends: pytest_depends,
     suite: ['python', 'e2e'],
     timeout: 300,
   )
