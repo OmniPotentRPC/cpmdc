@@ -49,6 +49,8 @@ returns the stored step. A null or empty input raises; it does not abort
 the interpreter.
 [[file:../howto/python.org][Call cpmdc from Python]] has the property table and
 the rules for units, boundaries, caching, copies, and sessions.
+[[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] covers
+~cpmdc-ipi~.
 
 * Errors
 

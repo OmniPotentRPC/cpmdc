@@ -1,0 +1,206 @@
+#+TITLE: Drive cpmdc over the i-PI socket protocol
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+~cpmdc-ipi~ is a client for the i-PI wire protocol.
+It connects to a server over a UNIX or TCP socket, receives positions and
+cells, and returns energies, forces, and virials from one ~Session~.
+The servers it works with are i-PI, ASE's ~SocketIOCalculator~, and ASE's
+~SocketServer~.
+LAMMPS ~fix ipi~ is a client too, so LAMMPS and cpmdc meet through an i-PI
+server; the last section shows that setup.
+
+The protocol is the one in the i-PI documentation,
+[[https://docs.ipi-code.org/distributed.html][Distributed execution: communication protocol]], with the byte layout of
+i-PI's ~ipi/interfaces/sockets.py~ and ASE's ~ase/calculators/socketio.py~.
+~python/cpmdc/ipi.py~ cites both.
+
+* Start the driver
+~pip install cpmdc~ installs the ~cpmdc-ipi~ command; ~python -m cpmdc.ipi~
+is the same program.
+It needs a ~CPMDParams~ file (see [[file:python.org][Call cpmdc from Python]]) and the
+species in the order the server sends positions, because the protocol
+carries no species:
+
+#+begin_src bash
+cpmdc-ipi --unix water --params water.params.bin --species "O H H"
+cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2
+#+end_src
+
+| Option | Meaning |
+|--------+---------|
+| ~--unix NAME~ | UNIX socket; a bare name gets i-PI's default ~sockets_prefix~, which ASE also uses, and a name with a ~/~ is a path |
+| ~--host H --port P~ | TCP socket; ~--host~ defaults to ~localhost~ |
+| ~--params FILE~ | serialized ~CPMDParams~ |
+| ~--species TEXT~ | ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or atomic numbers ~"8 1 1"~ |
+| ~--structure FILE~ | take the species from a file ASE can read, instead of ~--species~ |
+| ~--cluster~ | ignore the cell the server sends; the deck sets the box |
+| ~--library PATH~ | ~libcpmdc~ to load; otherwise the ~find_library~ order |
+| ~--socket-prefix P~ | prefix for a bare ~--unix~ name, as i-PI's ~-S~ or ~sockets_prefix~ |
+| ~--wait SECONDS~ | retry the connection until the server listens |
+| ~--verbose~ | log each protocol message on standard error |
+
+The driver opens the session before it connects, so a bad ~CPMDParams~
+file fails at once.
+It exits with status 0 after ~EXIT~ or when the server closes the
+connection between messages, and with status 1 and a message on standard
+error otherwise.
+
+* From ASE
+~SocketIOCalculator~ without ~calc~ binds the socket and waits for a client.
+Start ~cpmdc-ipi~ against the same name, then use the calculator as any
+other.
+This relaxes the isolated water message from the Python how-to through a
+UNIX socket:
+
+#+begin_src python
+import subprocess
+import sys
+import uuid
+
+from ase import Atoms
+from ase.calculators.socketio import SocketIOCalculator
+from ase.optimize import BFGS
+
+name = "cpmdc-" + uuid.uuid4().hex[:8]
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water)
+with SocketIOCalculator(unixsocket=name, timeout=60) as calc:
+    driver = subprocess.Popen(
+        [sys.executable, "-m", "cpmdc.ipi", "--unix", name,
+         "--params", "water.params.bin", "--species", "O H H"]
+    )
+    atoms.calc = calc
+    with BFGS(atoms, logfile=None) as opt:
+        opt.run(fmax=0.05, steps=5)
+    print(atoms.get_potential_energy(), atoms.get_forces())
+print("driver exit status", driver.wait())
+#+end_src
+
+~port=31415~ in place of ~unixsocket~, with ~--port 31415~ on the driver,
+uses TCP.
+A fully periodic structure gives ~get_stress()~: ASE turns the virial into
+stress as ~-virial / volume~.
+A structure without a cell is sent as an all-zero cell, which the driver
+takes as a cluster.
+The calculator accepts changes of ~positions~ and ~cell~ only, as ASE's
+socket calculators do; another composition needs a new calculator and a
+new driver.
+~SocketServer~, the class under ~SocketIOCalculator~, works the same way
+for a host that wants the raw ~energy~, ~forces~, and ~virial~.
+
+* From i-PI
+Declare an ~ffsocket~ and point the system at it:
+
+#+begin_src xml
+<simulation verbosity="low">
+  <ffsocket name="cpmdc" mode="unix" pbc="false">
+    <address> water </address>
+  </ffsocket>
+  <system>
+    <initialize nbeads="1">
+      <file mode="xyz"> init.xyz </file>
+    </initialize>
+    <forces><force forcefield="cpmdc"/></forces>
+    <!-- ensemble and motion as usual -->
+  </system>
+</simulation>
+#+end_src
+
+Start i-PI, then one driver per bead:
+
+#+begin_src bash
+i-pi input.xml &
+cpmdc-ipi --unix water --params water.params.bin --species OHH --cluster --wait 60
+#+end_src
+
+i-PI always sends a cell. For an isolated molecule, ~pbc="false"~ keeps i-PI
+from wrapping positions and ~--cluster~ keeps the box in the deck.
+For a periodic deck, drop both and the driver sends the virial, so i-PI
+can run constant-pressure ensembles.
+Leave ~batch_size~ at 1: the driver refuses a batched ~INIT~.
+Wavefunction extrapolation wants each driver to see one continuous
+trajectory; with several beads, start one driver per bead and set
+~matching="lock"~ on the ~ffsocket~ so i-PI keeps each bead on its driver.
+The pytest suite runs a short NVE trajectory through i-PI 3.3.
+
+* With LAMMPS fix ipi
+Untested: LAMMPS was not run for this page.
+~fix ipi~ makes LAMMPS an i-PI client, as ~cpmdc-ipi~ is, so the two cannot
+connect to each other.
+They meet through an i-PI server that sums their forces, for example a
+classical term from LAMMPS added to the cpmdc energy:
+
+#+begin_src xml
+<ffsocket name="cpmdc" mode="unix"> <address> cpmdc </address> </ffsocket>
+<ffsocket name="lammps" mode="unix"> <address> lammps </address> </ffsocket>
+<system>
+  <forces>
+    <force forcefield="cpmdc"/>
+    <force forcefield="lammps"/>
+  </forces>
+</system>
+#+end_src
+
+The LAMMPS input defines its force field and ends in ~fix ipi~; ~unix~
+selects a UNIX socket with the name ~lammps~, and the port is ignored:
+
+#+begin_src text
+units           real
+atom_style      full
+read_data       water.data
+pair_style      lj/cut 10.0
+pair_coeff      * * 0.0 1.0
+pair_coeff      1 1 0.1553 3.166
+fix             1 all ipi lammps 32345 unix
+run             100000000
+#+end_src
+
+#+begin_src bash
+i-pi input.xml &
+cpmdc-ipi --unix cpmdc --params water.params.bin --species OHH --wait 60 &
+lmp -in in.lammps
+#+end_src
+
+The species in i-PI's structure, in the LAMMPS data file, and in
+~--species~ must be in the same order: none of the three clients checks.
+
+* Units
+Everything on the wire is atomic units, and the driver converts nothing
+it returns.
+
+| Quantity | On the wire | cpmdc |
+|----------+-------------+-------|
+| positions | Bohr, ~3N~ reals | to Angstrom with ~BOHR_TO_ANGSTROM~ for ~Session~, which divides it out |
+| cell | h with lattice vectors as columns, Bohr, nine reals row-major | rows are the lattice vectors given to ~Session~ |
+| inverse cell | nine reals row-major | read and ignored |
+| energy | Hartree | ~Evaluation.energy_h~ |
+| forces | Hartree/Bohr, ~3N~ reals | ~Evaluation.forces_h_bohr~ |
+| virial | Hartree, nine reals laid out as the cell | ~-dE/d(strain)~, the library stress times the volume in Bohr^3 |
+
+The virial is what ASE's ~SocketClient~ sends as ~-volume * stress~ and
+what i-PI's ASE driver sends, so ASE's ~stress = -virial / volume~ comes
+back with ASE's sign, ~(1/V) dE/d(strain)~.
+cpmdc converts with CODATA 2018 constants and ASE with CODATA 2014 ones.
+Through ~SocketIOCalculator~ the energy therefore differs from
+~CPMDCCalculator~ by about one part in 10^8, from ASE's conversions on its
+side of the socket.
+With ASE's ~Bohr~ and ~Ha~ set to ~BOHR_TO_ANGSTROM~ and ~HARTREE_TO_EV~
+the two agree to 1e-10, which the pytest suite checks.
+
+* Limits
+- The species are fixed at start. A step with another atom count stops the
+  driver with a message; a change of composition at the same count cannot
+  be seen on the wire, so restart the driver with the new ~--species~.
+- One structure per request: no ~batch_size~ above 1 and no shared-memory
+  (~mode="shm"~) transport.
+- The extra string after the virial is empty.
+- A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
+  periodic cell without a library stress warns once on standard error.
+- A cell that is neither all zero nor three independent vectors stops the
+  driver.
+- The driver is one process with one session. It does not run under
+  ~mpirun~; start several drivers for several beads.
+- There is no C driver. The public C API takes a cell only inside a
+  ~ForceInput~ message, so a C client would have to carry its own Cap'n
+  Proto encoder or need a new exported entry point; the Python driver
+  serves every server above.

@@ -55,6 +55,12 @@ SKIP = {
     "howto/opencpmd-archive.org:6": "configures an OpenCPMD source tree",
     "howto/pwscale-ranks.org:0": "benchmark, not a correctness example",
     "howto/pwscale-ranks.org:1": "fragment, not a complete program",
+    "howto/socket-drivers.org:0": "needs a listening i-PI or ASE server",
+    "howto/socket-drivers.org:2": "i-PI input fragment",
+    "howto/socket-drivers.org:3": "needs i-PI",
+    "howto/socket-drivers.org:4": "i-PI input fragment",
+    "howto/socket-drivers.org:5": "LAMMPS input; untested",
+    "howto/socket-drivers.org:6": "needs i-PI and LAMMPS",
     "howto/troubleshooting.org:0": "reads a caller build directory",
     "howto/wavefunction-optimiser.org:0": "section fragment, not a CPMDParams message",
     "howto/wavefunction-optimiser.org:1": "section fragment, not a CPMDParams message",
@@ -157,6 +163,7 @@ def main() -> int:
     run_keys = {
         "howto/check-forces.org:0",
         *PYTHON_HOWTO,
+        "howto/socket-drivers.org:1",
         "howto/write-cpmdparams.org:0",
         "reference/cpmd-options.org:1",
         "tutorials/ase-energy.org:0",
@@ -197,6 +204,7 @@ def main() -> int:
                 return fail(encoded.stderr)
             for key in PYTHON_HOWTO[1:]:
                 run_python(root, library, params, schema, found[key][1])
+            run_python(root, library, params, schema, found["howto/socket-drivers.org:1"][1])
             encode(schema, "CPMDParams", found["howto/write-cpmdparams.org:0"][1])
             encode(schema, "CPMDParams", found["reference/cpmd-options.org:1"][1])
             encode(schema, "CPMDParams", found["tutorials/first-energy.org:2"][1])

@@ -384,6 +384,7 @@ Read the docs in this order:
   [OpenCPMD archive](docs/orgmode/howto/opencpmd-archive.org),
   [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
   [embedding cpmdc](docs/orgmode/howto/embedding.org),
+  [drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org),
   [run under mpirun](docs/orgmode/howto/mpi.org),
   [choose the wavefunction optimiser](docs/orgmode/howto/wavefunction-optimiser.org),
   [debug a deck](docs/orgmode/howto/debug-deck.org),
