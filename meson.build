@@ -138,7 +138,7 @@ if need_capnp_c
   )
 endif
 
-mpi_c_dep = dependency('mpi', language: 'c', required: false)
+mpi_c_dep = dependency('mpi', language: 'c', required: get_option('with_mpi'))
 stub_c_args = common_c_args + capnp_generated_c_args
 stub_deps = []
 if mpi_c_dep.found()
