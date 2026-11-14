@@ -6,8 +6,11 @@ group that is part of the system or all of it.
 ~libcpmdc_gromacs~ implements the libcp2k C API that GROMACS' CP2K QM/MM
 interface calls, and answers each call with one
 ~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]].
-GROMACS links it in place of CP2K, so ~mdrun~ needs no extra process, no
-socket, and no change to its source.
+GROMACS links it in place of CP2K, so ~mdrun~ needs no extra process and no
+socket.
+Energies and forces need no change to GROMACS' source; the QM virial, and
+so the pressure and NPT, needs a short patch to GROMACS' QM/MM module (see
+[[*Pressure and NPT][Pressure and NPT]]).
 
 | Route | GROMACS side | Needs |
 |-------+--------------+-------|
@@ -16,8 +19,9 @@ socket, and no change to its source.
 The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the
 three call the same libcp2k functions, and 2026 adds
 ~cp2k_get_positions~ and ~cp2k_get_version~, which the library provides.
-The MPI build, the installed library, and the OpenCPMD backend were
-checked with 2025.5.
+The MPI build, the installed library, the OpenCPMD backend, and the
+virial patch were checked with 2025.5; the 2024.6 and 2026.4 patches apply
+and their QM/MM sources compile.
 
 * Why this route
 GROMACS offers four ways to bring outside forces into ~mdrun~.
@@ -51,10 +55,14 @@ that ~libcp2k~ is found only where asked for.
 
 GROMACS' ~cmake/gmxManageCP2K.cmake~ requires ~CP2K_DIR~, prepends
 ~CP2K_DIR/pkgconfig~ to ~PKG_CONFIG_PATH~, and reads ~libcp2k.pc~ there, so
-pass the directory above ~pkgconfig~:
+pass the directory above ~pkgconfig~.
+The ~patch~ line adds the QM virial; ~qmmm-virial-2024.patch~ is for 2024.6
+and 2025.5, ~qmmm-virial-2026.patch~ for 2026.4.
+Without it GROMACS builds and runs NVE and NVT as before:
 
 #+begin_src bash
 meson setup build && meson compile -C build
+patch -p1 -d gromacs-2025.5 < tools/gromacs/patches/qmmm-virial-2024.patch
 cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
   -DGMX_CP2K=ON -DCP2K_DIR=$PWD/build/tools/gromacs
 cmake --build build-gmx --target install
@@ -66,6 +74,7 @@ From an installed cpmdc:
 meson setup build --prefix=$PWD/build/prefix && meson compile -C build
 meson install -C build
 cp2k_dir=$(dirname "$(dirname "$(find build/prefix -path '*/cpmdc/gromacs/pkgconfig/libcp2k.pc')")")
+patch -p1 -d gromacs-2025.5 < tools/gromacs/patches/qmmm-virial-2024.patch
 cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
   -DGMX_CP2K=ON -DCP2K_DIR=$cp2k_dir
 #+end_src
@@ -83,7 +92,8 @@ against, and a GROMACS built against one does not follow the library to
 the other.
 
 ~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX CP2K_DIR [thread-mpi|mpi]~
-downloads a pinned GROMACS release, checks its SHA-256, builds it this way
+downloads a pinned GROMACS release, checks its SHA-256, applies the virial
+patch for that release, builds it this way
 (~mpi~: ~-DGMX_MPI=ON~ with ~mpicc~, ~mpicxx~ and ~mpifort~ from ~PATH~),
 and checks that ~libgromacs~ resolves ~libcpmdc_gromacs~ to the ~libdir~
 of that ~libcp2k.pc~.
@@ -178,6 +188,7 @@ returns Hartree and Hartree/Bohr.
 | length | nm | Bohr | ~BOHR_TO_NM~ = 0.0529177210903 |
 | energy | kJ/mol | Hartree | ~HARTREE_TO_KJ_PER_MOL~ = 2625.4996394798673 |
 | force | kJ/(mol nm) | Hartree/Bohr | ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ = 49614.752589206466 |
+| virial | kJ/mol, ~-0.5 sum r (x) f~ | Hartree, stress times volume | -0.5 ~HARTREE_TO_KJ_PER_MOL~ |
 | QM-MM Coulomb | ~ONE_4PI_EPS0~ kJ nm/(mol e^2) | e^2/Bohr = 1 | the charges are used as they are |
 
 * Cell and positions
@@ -230,14 +241,80 @@ Not implemented:
   ~cpmdc_session_calculate_au()~ takes no external potential, so
   ~EMBEDDING ELECTROSTATIC~ is refused;
 - link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused;
-- the virial: GROMACS adds QM/MM forces through its ~ForceWithVirial~
-  buffer, whose forces enter the virial only through
-  ~addVirialContribution()~, and the QM/MM module never calls it (the
-  GROMACS manual notes the missing virial [4]). The cpmdc virial is not
-  requested, the pressure lacks the QM and QM-MM terms, and NPT is not
-  supported;
 - a relative dielectric constant other than 1 in the QM-MM sum;
 - PDB charges have six decimals, the precision of GROMACS' file.
+
+* Pressure and NPT
+NPT works with a GROMACS patched as in [[*Build][Build]].
+The QM virial is the full tensor, in a cubic or triclinic box, so
+C-rescale, Parrinello-Rahman, and the other barostats see the QM part of
+the pressure whatever coupling type they use; the runs in
+[[*OpenCPMD in GROMACS][OpenCPMD in GROMACS]] use isotropic C-rescale.
+
+GROMACS adds the QM/MM forces through its ~ForceWithVirial~ buffer, whose
+forces enter the virial only through ~addVirialContribution()~, and the
+released QM/MM module never calls it (the GROMACS manual notes the missing
+virial [4]), so an unpatched GROMACS reports a pressure without the QM and
+QM-MM terms.
+The patch makes the module call libcp2k's ~cp2k_get_stress_tensor()~ on
+each step that needs the virial, on the main rank only, since GROMACS sums
+the virial over ranks, and add
+
+#+begin_example
+Xi = -0.5 * sigma * V * HARTREE_TO_KJ_PER_MOL
+#+end_example
+
+in kJ/mol, GROMACS' ~-0.5 sum r (x) f~ convention.
+~sigma~ is CP2K's stress, column-major, in Hartree/Bohr^3, positive under
+compression; ~sigma V~ is the virial ~W = -dE/d(strain)~ of the
+[[file:../reference/c-abi.org][C ABI]] and ASE's stress is ~-sigma~.
+~V~ is the box volume in Bohr^3.
+With no kinetic energy, GROMACS' pressure is then ~sigma~.
+
+~libcpmdc_gromacs~ returns the strain derivative of the energy it returned,
+for a symmetric strain that moves every atom with the box:
+
+- ~CELL PERIODIC~: cpmdc's stress for the cell, from
+  ~cpmdc_session_calculate_au()~;
+- ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms. The
+  deck's cell stays put while the QM atoms move with the box. That fixed
+  cell leaves a small net force and torque on the QM atoms (0.07 eV/Angstrom
+  on OpenCPMD's Hockney water), and a symmetric strain does not see the
+  antisymmetric part;
+- ~EMBEDDING MECHANICAL~ with a box: plus the strain derivative of the
+  QM-MM Ewald sum, its real-space, reciprocal, and background terms.
+
+It reports the stress as unavailable with no box (~pbc = no~), and with
+~CELL PERIODIC~ when cpmdc computes no stress: an isolated deck, or
+~CPMDC_STRESS=0~.
+The patched GROMACS then writes once to ~md.log~ that the QM program
+returned no stress tensor, and the pressure lacks the QM terms;
+~md_cp2k.out~ logs the outcome of the first request.
+
+An NPT mdp adds the barostat to the QM/MM settings above, for example:
+
+#+begin_src text
+integrator       = md
+tcoupl           = v-rescale
+tc-grps          = System
+tau-t            = 0.1
+ref-t            = 300
+pcoupl           = C-rescale
+pcoupltype       = isotropic
+tau-p            = 0.5
+ref-p            = 1.0
+compressibility  = 4.5e-5
+#+end_src
+
+Two cautions:
+
+- with ~CELL PERIODIC~, each new box is a new setup of the deck at its
+  cutoff, so the plane-wave basis changes with the box. OpenCPMD's stress is
+  the derivative at a fixed basis and has no Pulay correction, so converge
+  the cutoff for the stress, not only the energy, before a periodic NPT run;
+- with ~CELL NONE~ the QM region keeps its absolute position in the deck's
+  cell, and the barostat scales coordinates about the origin, so leave room
+  around the QM region for the box to shrink.
 
 * Several ranks
 A thread-MPI GROMACS runs QM/MM on one rank, ~-ntmpi 1~, and calls
@@ -288,6 +365,14 @@ Without GROMACS it still checks the library through ~ctypes~:
 - the mechanical embedding against an independent NumPy Ewald sum in a
   cubic and a triclinic box, its convergence with the precision, a finite
   difference of its forces, and the direct sum without a box;
+- the stress of ~cp2k_get_stress_tensor()~, as ASE's stress: with
+  ~CELL PERIODIC~ against ~CPMDCCalculator~ to 1e-13 and ASE's central
+  difference under a 1e-6 strain of the cell to 1e-8 of its largest
+  element; with ~CELL NONE~, with and without the mechanical embedding,
+  against the same difference of the library's own energy; each in a cubic
+  and a triclinic box, and the box of GROMACS 2026 read the same as that of
+  2024;
+- no stress without a box or for an isolated periodic deck;
 - the error for each refused input.
 
 With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and
@@ -301,6 +386,14 @@ With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and
   atom forces against the reference evaluator plus the NumPy Ewald sum;
 - 2000 NVE steps of each system: the total energy stays within 2e-3 and
   5e-3 of the swing of the potential energy;
+- the virial and pressure of step 0 from rest with ~md-vv~, two QM waters
+  in a cubic and a triclinic box: ~Vir~ equals ~0.5 V sigma~ of
+  ~CPMDCCalculator~'s ASE stress to 1e-9 relative, and ~Pres~ equals
+  ~-sigma~;
+- one QM water among three MM waters with PME, in a cubic and a triclinic
+  box: each element of ~Vir~ equals half the central difference of
+  ~Potential~ under a 1e-5 strain of the box and positions, to 1e-8 of its
+  largest element, so the QM, QM-MM, and classical terms all enter it;
 - generated input, ~EMBEDDING ELECTROSTATIC~, and charged MM atoms without
   an embedding each stop ~mdrun~ with the reason.
 
@@ -311,7 +404,9 @@ with ~-DGMX_MPI=ON~, launched by ~CPMDC_MPIEXEC~ (default ~mpiexec~):
   across the periodic boundary in x and y, on 2 and 4 ranks with
   ~QM_RANKS ALL~ and on 4 with ~QM_RANKS 1~: ~Quantum En.~, ~Potential~
   and ~Total Energy~ of every step and the positions and forces of steps 0,
-  10 and 20 match the one-rank run to 1e-10. The pair list is rebuilt every step without a buffer
+  10 and 20 match the one-rank run to 1e-10, and the virial and pressure
+  of every step to 1e-9 of their largest element, so the QM virial enters
+  once. The pair list is rebuilt every step without a buffer
   (~nstlist = 1~, ~verlet-buffer-tolerance = -1~), so that every
   decomposition sees the same pairs;
 - ~-npme 1~ stops ~mdrun~ with GROMACS' refusal of separate PME ranks.
@@ -385,6 +480,73 @@ With ~QM_RANKS 1~ the QM calculation runs on rank 0 alone, and 4 ranks
 match 1 rank to 3e-13 kJ/mol/nm in the forces and 7e-12 kJ/mol in the
 total energy over 10 steps, at the cost of the SCF time of one rank.
 For 1e-10 agreement with a one-rank run, use ~QM_RANKS 1~.
+
+** Stress
+~tests/python/test_gromacs_opencpmd.py~ compares ~cp2k_get_stress_tensor()~
+with ASE's central difference of the library's own energy under strains of
+the cell, at orbital convergence 1e-8, when ~CPMDC_GROMACS_LIB~ is an
+OpenCPMD build and ~CPMDC_PSEUDO_DIR~ is set.
+With ~CELL PERIODIC~ (~tests/water_blyp_periodic_params.capnp.txt~) the
+strain is 1e-6: each strained cell is a new setup at the deck's cutoff, and
+in the triclinic cell a strain of 1e-4 already takes plane waves across the
+cutoff.
+With ~CELL NONE~ and the mechanical embedding the strain is 1e-5.
+One run, 1 rank, in eV/Angstrom^3:
+
+| Case | Largest stress element | Largest difference | Ratio |
+|------+------------------------+--------------------+-------|
+| ~CELL PERIODIC~, 1 nm cube | 1.889e-2 | 9.703e-9 | 5.1e-7 |
+| ~CELL PERIODIC~, triclinic | 1.927e-2 | 7.553e-9 | 3.9e-7 |
+| ~CELL NONE~ in TIP3P, cube | 2.545e-4 | 5.875e-10 | 2.3e-6 |
+| ~CELL NONE~ in TIP3P, triclinic | 2.545e-4 | 3.096e-9 | 1.2e-5 |
+
+The test allows 1e-6 of the largest element with ~CELL PERIODIC~, where
+the stress also matches ~CPMDCCalculator~ to 1e-7, and 3e-5 with
+~CELL NONE~, where the difference shrinks as the strain squared.
+
+** NPT
+~bench/gromacs_opencpmd_npt.py~ runs NPT on the system above, v-rescale at
+300 K and isotropic C-rescale (or ~--pcoupl Parrinello-Rahman~) at 1 bar
+with ~tau-p~ 0.5 ps, compressibility 4.5e-5 /bar, and 0.5 fs steps, once
+with the QM water and once all classical.
+The deck predicts the orbitals with ASPC of order 4 at orbital convergence
+1e-6.
+~--lattice 4 --spacing 0.31 --minimize~ replaces the 27 waters at
+0.14 g/cm^3 by 64 at 1.00 g/cm^3 in a 1.24 nm box, relaxed classically
+first:
+
+#+begin_src bash
+python bench/gromacs_opencpmd_npt.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
+  --ranks 4 --pseudo-dir $CPMD_ROOT/../Regtests/tests/PP_LIBRARY --steps 4000 \
+  --lattice 4 --spacing 0.31 --minimize
+#+end_src
+
+One run of each system on the 8-core Xeon virtual machine, GROMACS 2025.5
+(double, Open MPI) with the virial patch, C-rescale, 4000 steps (2 ps), the
+QM water on 4 ranks with ~QM_RANKS ALL~, both systems at once; the classical
+control runs on 1 rank.
+Means and standard deviations of the energy frames, every 10 steps, over
+the second picosecond:
+
+| System | Run | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Volume at 0 and 2 ps, nm^3 |
+|--------+-----+--------------+-----------------+---------------+----------------+----------------------------|
+| 27 waters | QM water | 5.946 (0.054) | 135.8 (1.2) | 45 (664) | 311.5 (24.7) | 5.832, 5.853 |
+| 27 waters | classical | 6.022 (0.063) | 134.2 (1.4) | 170 (805) | 329.1 (32.5) | 5.832, 6.261 |
+| 64 waters | QM water | 1.997 (0.027) | 958.9 (12.7) | 410 (4702) | 295.0 (14.9) | 1.907, 1.973 |
+| 64 waters | classical | 2.139 (0.043) | 895.3 (18.6) | -237 (3583) | 295.3 (19.8) | 1.907, 2.134 |
+
+Both QM runs reported the ~opencpmd~ backend and the stress on the first
+request, and ~md.log~ has no missing-stress line.
+The box neither collapses nor runs away with the QM water, and its
+fluctuations are of the same size as in the control.
+In 2 ps neither dense run has settled: both expand from the minimised
+1.00 g/cm^3, the control more, and the pressure of 64 waters swings by
+thousands of bar from frame to frame, so these runs do not resolve a
+density difference between a BLYP and a TIP3P water.
+GROMACS' conserved energy, which includes the thermostat and barostat
+work, drifts by 13.9 kJ/mol/ps with the QM water and 11.1 without in the
+27-water system, and by 188.9 and 143.7 in the 64-water one.
+Each QM run took 6907 s, 1.73 s per step.
 
 * Overhead per step
 ~bench/gromacs_routes.py~ integrates the system of
