@@ -61,12 +61,10 @@ def main() -> int:
         return 2
     root, library_arg, params, periodic = args
     library: str | None = None if library_arg == "-" else library_arg
-    schema: str | None = None
     if installed:
         _installed(root)
     else:
         sys.path.insert(0, str(Path(root) / "python"))
-        schema = str(Path(root) / "schema" / "Potentials.capnp")
 
     from cpmdc import (
         CpmdcError,
@@ -80,7 +78,7 @@ def main() -> int:
         [0.0, -0.7572, -0.4692],
     ]
     numbers = [8, 1, 1]
-    with Session(params, library=library, schema=schema) as session:
+    with Session(params, library=library) as session:
         first = session.energy_forces(positions, numbers)
         again = session.energy_forces(positions, numbers)
         if first.energy_h != again.energy_h:
@@ -123,7 +121,7 @@ def main() -> int:
 
     from cpmdc import Potential
 
-    with Potential(periodic, library=library, schema=schema) as pot:
+    with Potential(periodic, library=library) as pot:
         caps = pot.caps()
         if caps != {"stress": True, "energies": False}:
             raise AssertionError(caps)
@@ -152,7 +150,7 @@ def main() -> int:
     if not issubclass(CPMDCCalculator, Calculator):
         raise AssertionError("CPMDCCalculator is not an ASE Calculator")
     atoms = Atoms("OHH", positions=positions)
-    atoms.calc = CPMDCCalculator(params, library=library, schema=schema)
+    atoms.calc = CPMDCCalculator(params, library=library)
     energy = atoms.get_potential_energy()
     forces = atoms.get_forces()
     if forces.shape != (3, 3):
@@ -173,7 +171,7 @@ def main() -> int:
         cell=[10.0, 10.0, 10.0],
         pbc=True,
     )
-    periodic_atoms.calc = CPMDCCalculator(periodic, library=library, schema=schema)
+    periodic_atoms.calc = CPMDCCalculator(periodic, library=library)
     stress = periodic_atoms.get_stress()
     if np.asarray(stress).shape != (6,):
         raise AssertionError(stress)
@@ -183,7 +181,7 @@ def main() -> int:
     periodic_atoms.calc.close()
 
     mixed = Atoms("OHH", positions=positions, cell=[10.0, 10.0, 10.0], pbc=[True, True, False])
-    mixed.calc = CPMDCCalculator(params, library=library, schema=schema)
+    mixed.calc = CPMDCCalculator(params, library=library)
     try:
         mixed.get_potential_energy()
         raise AssertionError("a mixed periodic cell was accepted")

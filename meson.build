@@ -1216,6 +1216,19 @@ test(
     timeout: 120,
   )
   test(
+    'python-pytest',
+    python,
+    args: ['-m', 'pytest', '-q', meson.current_source_dir() / 'tests/python'],
+    env: {
+      'CPMDC_LIBRARY': cpmdc_shared.full_path(),
+      'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
+      'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
+    },
+    depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
+    suite: ['python', 'e2e'],
+    timeout: 300,
+  )
+  test(
     'docs-examples',
     python,
     args: [

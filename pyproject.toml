@@ -26,6 +26,7 @@ keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
 
 [project.optional-dependencies]
 ase = ["ase>=3.23"]
+test = ["ase>=3.23", "pytest>=7"]
 
 [project.urls]
 Homepage = "https://cpmdc.rgoswami.me"
@@ -46,6 +47,13 @@ install = ["--tags=python-runtime", "--skip-subprojects"]
 # No --include-subprojects: meson dist takes a git wrap from its HEAD and
 # drops the packagefiles overlay and diff_files patch of capnp-fortran.
 # A build from the sdist fetches and patches the wraps like a checkout.
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+addopts = "-p no:cacheprovider"
+filterwarnings = [
+  "ignore:Setting the shape on a NumPy array:DeprecationWarning",
+]
 
 [tool.cibuildwheel]
 build-frontend = "build"
