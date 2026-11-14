@@ -7,13 +7,14 @@ This lesson evaluates the water geometry of the
 The default build's reference well supplies the number. No OpenCPMD
 checkout is required.
 
-Build the shared library, then point the example at the params message
-and the library:
+Configure and compile the default tree with ~-Dwith_tests=true~, as the
+[[file:quickstart.org][quickstart]] does. The build writes the shared
+library and the encoded water message ~build/water_blyp_params.bin~.
+Point the example at both from the root of the checkout:
 
 #+begin_src bash
 export CPMDC_PARAMS=build/water_blyp_params.bin
 export CPMDC_LIBRARY=build/libcpmdc.so
-export CPMDC_SCHEMA=schema/Potentials.capnp
 export PYTHONPATH=python
 python3 examples/python/ase_energy.py
 #+end_src
@@ -24,10 +25,17 @@ natoms=3
 fmax=0.06513409
 #+end_src
 
-~energy_ev~ is the reference energy in eV. ~fmax~ is the largest absolute
-force component in eV/Angstrom. The same geometry without ASE is
-~examples/python/energy.py~, which prints Hartree.
+~energy_ev~ is the reference energy in eV. ~fmax~ here is the largest
+absolute force component in eV/Angstrom; ASE optimizers compare their
+~fmax~ with the largest force norm instead. The same geometry without ASE
+is ~examples/python/energy.py~, which prints Hartree.
+
+With ~pip install "cpmdc[ase]"~ the package and its library come from the
+wheel, so drop ~CPMDC_LIBRARY~ and ~PYTHONPATH~ and keep ~CPMDC_PARAMS~.
 
 ~CPMDCCalculator~ keeps one session. A second ~get_potential_energy~ on
-the same atoms does not recompute. ~get_forces~ returns an array of shape
-~(natoms, 3)~.
+the same atoms does not recompute, and neither does ~get_forces~ after it:
+one step computes both. ~get_forces~ returns an array of shape
+~(natoms, 3)~. [[file:../howto/python.org][Call cpmdc from Python]] lists every
+property, the units, the boundary rules, and how to relax a structure with
+an ASE optimizer.

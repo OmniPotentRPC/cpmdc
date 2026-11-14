@@ -10,26 +10,44 @@ ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~.
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
 | ~CpmdcError~ | failure from the library or from loading it |
-| ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ |
-| ~Session~ | one ~CPMDCSession~ handle |
-| ~Session.energy_forces~ | one geometry, native units |
+| ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
+| ~Session~ | one ~CPMDCSession~ handle; ~schema~ is deprecated and ignored |
+| ~Session.energy_forces~ | one geometry, native units; a cell is encoded as ~ForceInput~ in process |
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
-| ~Session.available~ | true when OpenCPMD is linked |
-| ~Session.close~ | destroy the handle |
-| ~Potential~ | rgpot-shaped provider over one session |
-| ~Potential.evaluate~ | eV, eV/Angstrom, optional stress |
+| ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
+| ~Session.close~ | destroy the handle; a later step raises ~CpmdcError~ |
+| ~Potential~ | rgpot-shaped provider over one session; ~schema~ is deprecated and ignored |
+| ~Potential.evaluate~ | eV, eV/Angstrom, optional row-major stress in eV/Angstrom^3 |
 | ~Potential.caps~ | ~stress~ true, ~energies~ false |
 | ~Potential.close~ | close the owned session |
 | ~find_library~ | explicit path, the three environment variables, the wheel's library, the dynamic linker, then ~build/~ |
-| ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~ |
+| ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~; for ~capnp encode~ of ~CPMDParams~ text |
 | ~forces_to_ev_per_angstrom~ | Hartree/Bohr forces to eV/Angstrom |
-| ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3 |
+| ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3, library sign |
 | ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress |
-| ~CPMDCCalculator.calculate~ | fills energy, free_energy, forces, and stress |
-| ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns |
-| ~CPMDCCalculator.close~ | close that potential |
+| ~CPMDCCalculator.default_parameters~ | ~params~ and ~library~, both ~None~ |
+| ~CPMDCCalculator.calculate~ | fills energy, free_energy, forces, and stress for a periodic cell in one step |
+| ~CPMDCCalculator.set~ | change ~params~ or ~library~, open a new session, clear results, return the changed keys |
+| ~CPMDCCalculator.todict~ | the parameters as JSON data; a ~params~ buffer of bytes is left out |
+| ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
+| ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
+| ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
 
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~. A repeated geometry
 returns the stored step. A null or empty input raises; it does not abort
 the interpreter.
+[[file:../howto/python.org][Call cpmdc from Python]] has the property table and
+the rules for units, boundaries, caching, copies, and sessions.
+
+* Errors
+
+| Condition | Raised |
+|-----------+--------|
+| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CpmdcError~ |
+| missing ~params~ file | ~FileNotFoundError~ |
+| empty positions, a non-finite coordinate, an atomic number outside 1..118 | ~ValueError~ |
+| ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
+| stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
+| an unknown keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~, or ~params=None~ | ~TypeError~ |
+| ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |

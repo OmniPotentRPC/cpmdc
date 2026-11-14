@@ -6,22 +6,44 @@ It loads ~libcpmdc~ with ~ctypes~. Positions are Angstrom.
 ~Session~ returns Hartree and Hartree/Bohr, the native units of the C ABI.
 ~Potential~ returns eV and eV/Angstrom so an rgpot calculator can call
 ~evaluate~ and ~caps~ without importing cpmdc's ASE module.
+~CPMDCCalculator~ in ~cpmdc.ase~ is an ASE calculator over the same session.
 
 * Load the library
 ~pip install "cpmdc[ase]"~ installs the package with its own ~libcpmdc~
 and schema; the [[file:install.org][install page]] lists the wheels.
-From a checkout, set ~CPMDC_LIBRARY~ to the shared library, or pass the
-path to ~Session~.
+The wheel's library is the reference evaluator, a harmonic well about the
+origin, so ~Session.available()~ is false until ~CPMDC_LIBRARY~ names an
+OpenCPMD build.
+From a checkout, set ~CPMDC_LIBRARY~ to ~build/libcpmdc.so~ and
+~PYTHONPATH~ to ~python~, or pass the library path as ~library~.
 The search is the rgpot order: an explicit path, then ~CPMDC_LIBRARY~,
 ~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~, then the wheel's library.
-A periodic cell is encoded as ~ForceInput~, so set ~CPMDC_SCHEMA~ to
-~schema/Potentials.capnp~ or pass that path as ~schema~; an installed
-wheel finds its own copy.
+A periodic cell needs nothing more: the package encodes each step as a
+~ForceInput~ message itself.
 
+* Make a parameters file
+Every session starts from a serialized ~CPMDParams~ message.
+[[file:write-cpmdparams.org][Write a CPMDParams message]] explains the text form.
+The ~capnp~ command encodes it against ~schema/Potentials.capnp~;
+~find_schema~ returns the copy in the wheel, or ~CPMDC_SCHEMA~ when set.
+These commands encode the cluster and the periodic water messages of a
+checkout at ~$CPMDC~ into the working directory:
+
+#+begin_src bash
+schema=$(python3 -c "import cpmdc; print(cpmdc.find_schema())")
+capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_params.capnp.txt" > water.params.bin
+capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_periodic_params.capnp.txt" > water.periodic.bin
+#+end_src
+
+The first message is an isolated molecule (~SYMMETRY 0~ and the Hockney
+Poisson solver). The second is a simple cubic cell (~SYMMETRY 1~), which
+gives a stress tensor.
+
+* Evaluate a step
 #+begin_src python
 from cpmdc import Session
 
-with Session(open("water.params.bin", "rb").read(), library="build/libcpmdc.so") as session:
+with Session("water.params.bin") as session:
     done = session.energy_forces(
         [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]],
         [8, 1, 1],
@@ -32,12 +54,13 @@ print(done.energy_h, done.forces_h_bohr)
 An empty buffer, a message that is not ~CPMDParams~, a missing library, a
 non-finite coordinate, or an atomic number outside 1..118 raises
 ~CpmdcError~ or ~ValueError~. None of those calls abort the process.
+A call on a closed ~Session~ raises ~CpmdcError~.
 ~find_library~ and ~find_schema~ resolve the two paths.
 ~HARTREE_TO_EV~ and ~BOHR_TO_ANGSTROM~ are the conversion constants from
 the C sources. ~forces_to_ev_per_angstrom~ and
 ~stress_to_ev_per_angstrom3~ apply them.
 ~Evaluation~ is the native result: ~energy_h~, ~forces_h_bohr~, and
-~stress_h_bohr3~ when a periodic cell was computed.
+~stress_h_bohr3~ when a periodic cell was computed, otherwise ~None~.
 
 * Use it as an rgpot provider
 ~Potential.evaluate(positions, numbers, box)~ returns ~energy~ in eV,
@@ -50,24 +73,139 @@ this provider can sit behind it.
 #+begin_src python
 from cpmdc import Potential
 
-with Potential(open("water.params.bin", "rb").read()) as pot:
+with Potential("water.params.bin") as pot:
     print(pot.caps())
     print(pot.evaluate([[0.0, 0.0, 0.0], [0.0, 0.0, 0.98]], [8, 1]))
 #+end_src
 
 * Use it as an ASE calculator
-~CPMDCCalculator~ is an ASE ~Calculator~. Energy and free energy are eV
-and are the same value. Forces are eV/Angstrom. Stress, when the cell is
-fully periodic, is Voigt order ~(xx, yy, zz, yz, xz, xy)~ in eV/Angstrom^3.
-A cluster omits the cell. A mixed periodic flag raises ~ValueError~ and
-names the open axes.
+~CPMDCCalculator(params, library=None)~ is an ASE ~Calculator~.
+~params~ is the path of a ~CPMDParams~ file or its bytes.
 
-The smallest program is ~examples/python/ase_energy.py~. The
-[[file:../tutorials/ase-energy.org][ASE tutorial]] runs it.
-~examples/python/energy.py~ is the same step without ASE, in Hartree.
+#+begin_src python
+from ase import Atoms
+from cpmdc.ase import CPMDCCalculator
 
-The reference harmonic well drawn by ~docs/render_reference_well.py~ is
-the shape of an isolated one-atom step at a 70 Ry cutoff:
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water)
+with CPMDCCalculator("water.params.bin") as calc:
+    atoms.calc = calc
+    print(atoms.get_potential_energy())
+    print(atoms.get_forces())
+    print(calc.todict())
+#+end_src
+
+A fully periodic structure with the periodic message also gives stress:
+
+#+begin_src python
+from ase import Atoms
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
+with CPMDCCalculator("water.periodic.bin") as calc:
+    atoms.calc = calc
+    print(atoms.get_stress())
+#+end_src
+
+| Property | ASE call | Unit | Free boundaries | Periodic cell |
+|----------+----------+------+-----------------+---------------|
+| ~energy~ | ~get_potential_energy()~ | eV | yes | yes |
+| ~free_energy~ | ~get_potential_energy(force_consistent=True)~ | eV | equals ~energy~ | equals ~energy~ |
+| ~forces~ | ~get_forces()~ | eV/Angstrom, shape ~(N, 3)~ | yes | yes |
+| ~stress~ | ~get_stress()~ | eV/Angstrom^3, Voigt ~(xx, yy, zz, yz, xz, xy)~ | raises ~PropertyNotImplementedError~ | yes, unless the deck is isolated or ~CPMDC_STRESS=0~ |
+| ~energies~, ~magmom~, ~magmoms~, ~charges~, ~dipole~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
+
+One step computes every supported property at once, so ~get_forces~
+after ~get_potential_energy~ does not evaluate again.
+~free_energy~ is the potential energy of the step: the library does not
+separate an electronic entropy.
+
+* Units, boundaries, and caching
+Units are ASE's. Positions and cells are Angstrom, energies are eV, forces
+are eV/Angstrom, and stress is eV/Angstrom^3.
+The calculator converts from the library's Hartree and Bohr with
+~HARTREE_TO_EV~ and ~BOHR_TO_ANGSTROM~.
+Stress has ASE's sign, (1/V) dE/d(strain): it is positive when the energy
+rises as the cell expands. The library tensor has the opposite, OpenCPMD,
+sign, and the calculator negates it.
+
+Boundaries follow ~atoms.pbc~.
+All three flags false is a cluster: the calculator sends no cell, so the
+~CPMDParams~ deck sets the box and the Poisson solver, and ~atoms.cell~ is
+ignored.
+All three flags true sends ~atoms.cell~ as the periodic cell.
+A periodic structure whose cell does not have three independent vectors
+raises ~ValueError~, and so does a mix of periodic and open axes; the
+message names the open axes.
+Stress needs a periodic cell and a periodic deck.
+Asking for it otherwise raises ~PropertyNotImplementedError~ with the
+reason, and the calculator does not evaluate the step again to find out.
+
+Results are cached as ASE does it.
+A call on an unchanged structure returns the stored step.
+A change of ~positions~, ~numbers~, ~cell~, or ~pbc~ evaluates again.
+~initial_charges~ and ~initial_magmoms~ are not inputs: the charge and the
+multiplicity come from ~CPMDParams~, so a change of them reuses the step.
+~get_property(name, atoms, allow_calculation=False)~ returns the stored
+value, or ~None~ when the step has not been evaluated.
+
+* Parameters, copies, and sessions
+~calc.parameters~ holds ~params~ and ~library~, and ~calc.todict()~ returns
+them for a trajectory or a database row.
+A ~params~ buffer given as bytes is left out of ~todict~, because it is not
+JSON data.
+~calc.set(params=..., library=...)~ returns the keys whose values changed,
+opens a new session for them, and clears the stored results.
+A value that cannot be opened raises and leaves the old session in use.
+Any other key raises ~TypeError~, as does an unknown constructor keyword.
+
+The first step of a session fixes the atom count and the elemental
+composition; a reordering of the same atoms stays on it.
+When a structure with another composition reaches the calculator, it closes
+the session and opens a new one from the same ~params~.
+A session is not shared across threads, because the C library keeps the
+active calculator in process globals.
+
+~copy.copy~, ~copy.deepcopy~, and ~pickle~ keep the parameters and the stored
+results, and the copy opens its own session on its first step.
+~close()~ closes the session, and the next step opens a new one.
+The calculator is a context manager that closes on exit.
+
+The ~schema~ argument of ~Session~, ~Potential~, and ~CPMDCCalculator~ is
+deprecated and ignored, and passing it warns with ~DeprecationWarning~.
+The ~restart~ argument of ~CPMDCCalculator~ is deprecated the same way;
+cpmdc reads no restart file.
+
+* Relax a structure
+ASE optimizers and trajectory writers take the calculator as it is:
+
+#+begin_src python
+from ase import Atoms
+from ase.io import read
+from ase.optimize import BFGS
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water)
+atoms.calc = CPMDCCalculator("water.params.bin")
+with BFGS(atoms, trajectory="water.traj", logfile=None) as opt:
+    opt.run(fmax=0.01)
+frames = read("water.traj", index=":")
+print(len(frames), frames[-1].get_potential_energy())
+print(frames[-1].calc.parameters)
+atoms.calc.close()
+#+end_src
+
+Each frame of the trajectory stores the energy, the forces, the stress when
+the step had one, and the calculator parameters.
+On the reference evaluator the minimum puts every atom at the origin,
+because the well is anchored there and has no repulsion.
+The reference energy is not translation invariant for the same reason.
+It is a check of the plumbing, not a chemical model.
+
+The reference well drawn by ~docs/render_reference_well.py~ is the shape
+of an isolated one-atom step at a 70 Ry cutoff:
 
 #+begin_export rst
 .. figure:: /_static/reference-well.svg
@@ -78,8 +216,3 @@ the shape of an isolated one-atom step at a 70 Ry cutoff:
 
 The curve is zero at the origin and rises on both sides.
 #+end_export
-
-* One session, one composition
-The first successful step fixes the atom count and the elemental
-composition. A later step with a different composition needs a new
-~Session~. The handle is not shared across threads.

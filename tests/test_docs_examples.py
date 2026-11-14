@@ -88,6 +88,9 @@ SKIP = {
     "tutorials/quickstart.org:5": "needs an OpenCPMD build and pseudopotentials",
 }
 
+# The bash block encodes the messages that the Python blocks after it read.
+PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(6)]
+
 
 def blocks(root: Path) -> dict[str, tuple[str, str]]:
     found: dict[str, tuple[str, str]] = {}
@@ -148,17 +151,12 @@ def main() -> int:
             file=sys.stderr,
         )
         return 2
-    root = Path(sys.argv[1])
-    build = Path(sys.argv[2])
-    library = Path(sys.argv[3])
-    params = Path(sys.argv[4])
-    fd_check = Path(sys.argv[5])
+    root, build, library, params, fd_check = (Path(arg).resolve() for arg in sys.argv[1:])
     schema = root / "schema" / "Potentials.capnp"
     found = blocks(root)
     run_keys = {
         "howto/check-forces.org:0",
-        "howto/python.org:0",
-        "howto/python.org:1",
+        *PYTHON_HOWTO,
         "howto/write-cpmdparams.org:0",
         "reference/cpmd-options.org:1",
         "tutorials/ase-energy.org:0",
@@ -180,8 +178,25 @@ def main() -> int:
         os.environ["CPMDC_EXAMPLE_WORK"] = tmp
         work = Path(tmp)
         try:
-            run_python(root, library, params, schema, found["howto/python.org:0"][1])
-            run_python(root, library, params, schema, found["howto/python.org:1"][1])
+            encoded = subprocess.run(
+                ["bash", "-c", found[PYTHON_HOWTO[0]][1]],
+                cwd=work,
+                env={
+                    **os.environ,
+                    "CPMDC": str(root),
+                    "PYTHONPATH": str(root / "python"),
+                    "CPMDC_SCHEMA": str(schema),
+                    "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+                },
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            if encoded.returncode != 0:
+                return fail(encoded.stderr)
+            for key in PYTHON_HOWTO[1:]:
+                run_python(root, library, params, schema, found[key][1])
             encode(schema, "CPMDParams", found["howto/write-cpmdparams.org:0"][1])
             encode(schema, "CPMDParams", found["reference/cpmd-options.org:1"][1])
             encode(schema, "CPMDParams", found["tutorials/first-energy.org:2"][1])

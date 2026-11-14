@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Evaluate one water geometry with the ASE calculator.
 
-Reads CPMDC_PARAMS and, when set, CPMDC_LIBRARY and CPMDC_SCHEMA.
+Reads CPMDC_PARAMS, the path of a serialized CPMDParams file. CPMDC_LIBRARY
+names libcpmdc when it is set; otherwise the library a wheel installed is
+used. Prints the energy in eV, the atom count, and the largest absolute
+force component in eV/Angstrom.
 """
 
 from __future__ import annotations
@@ -27,17 +30,13 @@ def main() -> int:
             [0.0, -0.7572, -0.4692],
         ],
     )
-    atoms.calc = CPMDCCalculator(
-        params,
-        library=os.environ.get("CPMDC_LIBRARY"),
-        schema=os.environ.get("CPMDC_SCHEMA"),
-    )
-    energy = atoms.get_potential_energy()
-    forces = atoms.get_forces()
+    with CPMDCCalculator(params) as calc:
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+        forces = atoms.get_forces()
     print(f"energy_ev={energy:.12f}")
     print(f"natoms={len(atoms)}")
-    print(f"fmax={max(abs(float(v)) for row in forces for v in row):.8f}")
-    atoms.calc.close()
+    print(f"fmax={abs(forces).max():.8f}")
     return 0
 
 
