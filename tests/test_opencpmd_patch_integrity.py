@@ -51,6 +51,7 @@ PATCHES = {
         "src/rpiiint_utils.mod.F90",
         "src/rwswap_utils.mod.F90",
         "src/setbasis_utils.mod.F90",
+        "src/stress_utils.mod.F90",
         "src/symtrz_utils.mod.F90",
         "src/tauofr_utils.mod.F90",
         "src/testex_utils.mod.F90",

@@ -1969,6 +1969,39 @@ index 86d3045..a16a302 100644
      IF (ifirst.NE.0) RETURN
      ! ==--------------------------------------------------------------==
      CALL tiset(procedureN,isub)
+diff --git a/src/stress_utils.mod.F90 b/src/stress_utils.mod.F90
+index 9d86bfa..110edf5 100644
+--- a/src/stress_utils.mod.F90
++++ b/src/stress_utils.mod.F90
+@@ -6,6 +6,7 @@ MODULE stress_utils
+                                              hg
+   USE cvan,                            ONLY: dvan
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE ions,                            ONLY: ions0,&
+                                              ions1
+@@ -102,6 +103,7 @@ CONTAINS
+       il_qg, infm, is, isa0, ishft, isub, iv, ix, iy, iz, j, jv, k, kbeg, &
+       kend, ki, kinc, kj, kk, l, l2, lbecs, li, lj, m, nkpoint
+     INTEGER, SAVE                            :: istart = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: tzero
+     REAL(real_8) :: addesr, addpre, arg, arg1, arg2, erre2, esrtzero, fxx, &
+       rckj, rckk, repand, rlm, rxlm(3), sgc(6), sum, topia, weight, xlm, &
+@@ -113,6 +115,12 @@ CONTAINS
+     REAL(real_8)                             :: t1,t2,t3,t4,t5,t6
+ #endif 
+     ! ==--------------------------------------------------------------==
++    ! After embed_teardown_state, run as the first call in a process: the
++    ! teardown freed becs, betaa, gagk and the rest of str2.
++    IF (embed_seen /= embed_teardowns) THEN
++       istart = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset('    STRESS',isub)
+     IF (cntl%tfdist) CALL stopgm('STRESS','TFDIST NOT IMPLEMENTED',& 
+          __LINE__,__FILE__)
 diff --git a/src/symtrz_utils.mod.F90 b/src/symtrz_utils.mod.F90
 index 9cb260a..09622ab 100644
 --- a/src/symtrz_utils.mod.F90

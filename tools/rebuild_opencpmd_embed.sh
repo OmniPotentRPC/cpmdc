@@ -28,7 +28,7 @@ fi
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
 #   c_mem_utils.o          opencpmd_c_mem_addrs.patch
-#   broyden_utils.mod.o .. opencpmd_embed_teardown.patch, the 32 modules
+#   broyden_utils.mod.o .. opencpmd_embed_teardown.patch, the 33 modules
 #   vpsi_utils.mod.o       whose first-call state the teardown resets
 #   embed_teardown.mod.o   opencpmd_embed_teardown.patch (new module)
 # scex_utils.mod.o carries no patch. gfortran stores a copy of Scex_t in
@@ -37,7 +37,7 @@ fi
 # vtable components, and the next USE rwfopt_utils stops.
 # rwfopt_utils reads embed_have_orbitals from rinitwf_driver and
 # embed_write_files from embed_ctrl; initrun_driver reads both modules.
-# The teardown patch adds embed_teardowns to embed_ctrl, which its 32
+# The teardown patch adds embed_teardowns to embed_ctrl, which its 33
 # modules read, and embed_teardown reads rwfopt_utils, so it is last.
 objects=(
   error_handling.mod.o
@@ -77,6 +77,7 @@ objects=(
   rpiiint_utils.mod.o
   rwswap_utils.mod.o
   setbasis_utils.mod.o
+  stress_utils.mod.o
   symtrz_utils.mod.o
   tauofr_utils.mod.o
   testex_utils.mod.o

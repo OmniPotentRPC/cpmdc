@@ -1,0 +1,1 @@
+A second OpenCPMD setup in one process, after a cell change, no longer crashes in `stress`: `tools/opencpmd_embed_teardown.patch` now resets its first-call flag, so it allocates again the stress arrays the teardown frees. Before, the stress of any cell after the first (an ASE strain difference or cell relaxation, or GROMACS pressure coupling with `CELL PERIODIC`) faulted.
