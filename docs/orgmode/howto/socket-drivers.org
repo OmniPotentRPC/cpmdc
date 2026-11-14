@@ -7,7 +7,8 @@ cells, and returns energies, forces, and virials from one ~Session~.
 The servers it works with are i-PI, ASE's ~SocketIOCalculator~, and ASE's
 ~SocketServer~.
 LAMMPS ~fix ipi~ is a client too, so LAMMPS and cpmdc meet through an i-PI
-server; the last section shows that setup.
+server; a later section shows that setup.
+~cpmdc-ipi-c~ is the same client written in C, for hosts without Python.
 
 The protocol is the one in the i-PI documentation,
 [[https://docs.ipi-code.org/distributed.html][Distributed execution: communication protocol]], with the byte layout of
@@ -164,6 +165,33 @@ lmp -in in.lammps
 The species in i-PI's structure, in the LAMMPS data file, and in
 ~--species~ must be in the same order: none of the three clients checks.
 
+* The C driver
+~cpmdc-ipi-c~ speaks the same protocol from C, through
+~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]], with no Python
+interpreter.
+Meson builds it from ~tools/cpmdc_ipi.c~ on platforms with UNIX sockets and
+installs it in ~bin~ beside ~libcpmdc~; the wheel ships ~cpmdc-ipi~ instead.
+It links ~libcpmdc~ and finds it through its run path, so no
+~--library~ option exists.
+
+#+begin_src bash
+cpmdc-ipi-c --unix water --params water.params.bin --species OHH --cluster --wait 60
+cpmdc-ipi-c --host localhost --port 31415 --params water.params.bin --species "O H H"
+#+end_src
+
+The options are those of ~cpmdc-ipi~ without ~--structure~ and ~--library~:
+~--unix~ or ~--host~ and ~--port~, ~--params~, ~--species~ in the same
+spellings, ~--cluster~, ~--socket-prefix~, ~--wait~, and ~--verbose~.
+A bare ~--unix~ name gets the same default prefix as i-PI, ASE, and
+~cpmdc-ipi~.
+The messages, the exit statuses (0 after ~EXIT~ or a close between
+messages, 1 on an error, 2 for a usage error), the units, and the limits
+below are the same.
+Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and the virial
+agrees to rounding in the cell volume: the pytest suite checks both drivers
+to 1e-10 through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets,
+through a minimal server, and through a short i-PI NVE run.
+
 * Units
 Everything on the wire is atomic units, and the driver converts nothing
 it returns.
@@ -200,7 +228,4 @@ the two agree to 1e-10, which the pytest suite checks.
   driver.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.
-- There is no C driver. The public C API takes a cell only inside a
-  ~ForceInput~ message, so a C client would have to carry its own Cap'n
-  Proto encoder or need a new exported entry point; the Python driver
-  serves every server above.
+- ~cpmdc-ipi-c~ takes the species from ~--species~ only.

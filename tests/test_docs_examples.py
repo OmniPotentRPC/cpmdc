@@ -61,6 +61,7 @@ SKIP = {
     "howto/socket-drivers.org:4": "i-PI input fragment",
     "howto/socket-drivers.org:5": "LAMMPS input; untested",
     "howto/socket-drivers.org:6": "needs i-PI and LAMMPS",
+    "howto/socket-drivers.org:7": "needs a listening i-PI or ASE server",
     "howto/troubleshooting.org:0": "reads a caller build directory",
     "howto/wavefunction-optimiser.org:0": "section fragment, not a CPMDParams message",
     "howto/wavefunction-optimiser.org:1": "section fragment, not a CPMDParams message",

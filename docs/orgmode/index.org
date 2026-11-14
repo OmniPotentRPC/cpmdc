@@ -73,7 +73,7 @@ composition requires a new session.
      - Pick typed section fields before raw deck text
      - :doc:`Write a CPMDParams message <howto/write-cpmdparams>`
    * - Run cpmdc under i-PI or an ASE socket calculator
-     - Start ``cpmdc-ipi`` against the server's socket
+     - Start ``cpmdc-ipi``, or ``cpmdc-ipi-c`` without Python, against the server's socket
      - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
    * - Call cpmdc from a host process
      - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
