@@ -24,6 +24,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 from ase import Atoms
+from ase.calculators.calculator import Calculator, all_changes
+from ase.calculators.fd import calculate_numerical_stress
 from conftest import ROOT
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
 from cpmdc.ase import CPMDCCalculator
@@ -156,9 +158,46 @@ class Shim:
         assert np.array_equal(np.array(back), np.asarray(x_bohr, float).ravel())
         return energy.value, np.array(forces).reshape(-1, 3)
 
+    def stress(self):
+        """cp2k_get_stress_tensor: the 3x3 tensor, Hartree/Bohr^3, and availability."""
+        out = (ctypes.c_double * 9)(*[np.nan] * 9)
+        available = ctypes.c_int(-1)
+        self.lib.cp2k_get_stress_tensor(self.env, out, ctypes.byref(available))
+        # column-major: element [a][b] is out[a + 3 * b]
+        return np.array(out).reshape(3, 3).T, available.value
+
     def close(self):
         self.lib.cp2k_destroy_force_env(self.env)
         self.lib.cp2k_finalize()
+
+
+EV_PER_ANGSTROM3 = HARTREE_TO_EV / BOHR_TO_ANGSTROM**3
+
+
+def ase_stress(shim_stress):
+    """ASE's tensile-positive eV/Angstrom^3 from CP2K's pressure-positive Hartree/Bohr^3."""
+    return -np.asarray(shim_stress) * EV_PER_ANGSTROM3
+
+
+class ShimCalculator(Calculator):
+    """libcpmdc_gromacs as an ASE calculator, for ASE's numerical stress."""
+
+    implemented_properties = ["energy"]
+
+    def __init__(self, shim: "Shim"):
+        super().__init__()
+        self.shim = shim
+
+    def calculate(self, atoms=None, properties=("energy",), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        energy, _ = self.shim.step(self.atoms.positions / BOHR_TO_ANGSTROM,
+                                   np.asarray(self.atoms.cell) / BOHR_TO_ANGSTROM)
+        self.results = {"energy": energy * HARTREE_TO_EV}
+
+
+def numerical_stress(atoms, eps=1e-6):
+    """ASE's central-difference strain derivative, (1/V) dE/d(strain), eV/Angstrom^3."""
+    return calculate_numerical_stress(atoms, eps=eps, voigt=False, force_consistent=False)
 
 
 def ase_au(params: Path, symbols: str, x_bohr, cell_bohr=None):
@@ -291,6 +330,99 @@ def test_mechanical_embedding_without_a_box_is_a_direct_sum(params, tmp_path):
     assert energy == pytest.approx(qm_e + coul, rel=1e-12)
     np.testing.assert_allclose(forces[:3], qm_f + fq, rtol=1e-11, atol=1e-13)
     np.testing.assert_allclose(forces[3:], fm, rtol=1e-11, atol=1e-13)
+
+
+# --- stress -------------------------------------------------------------------
+
+
+@needs_lib
+@pytest.mark.parametrize("box", [CUBE_NM, TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_whole_system_stress_matches_ase(box, periodic_params, tmp_path):
+    """CELL PERIODIC: cpmdc's stress, against CPMDCCalculator and a strain difference."""
+    x = np.asarray(gc.WATERS_NM) / BOHR_TO_NM
+    rows = box / BOHR_TO_NM
+    inp = setup_env(tmp_path, qmi_input(periodic_params), gc.SYMBOLS, [True] * 6, [0.0] * 6, gc.WATERS_NM)
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.step(x, rows)
+    stress, available = shim.stress()
+    shim.close()
+    assert available == 1
+    atoms = Atoms(gc.SYMBOLS, positions=x * BOHR_TO_ANGSTROM, cell=rows * BOHR_TO_ANGSTROM, pbc=True)
+    with CPMDCCalculator(periodic_params) as calc:
+        atoms.calc = calc
+        analytic = atoms.get_stress(voigt=False)
+        numeric = numerical_stress(atoms)
+    ours = ase_stress(stress)
+    scale = np.abs(numeric).max()
+    np.testing.assert_allclose(ours, analytic, rtol=1e-13, atol=1e-15 * scale)
+    np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-8 * scale)
+    assert "first stress request: available 1" in (tmp_path / "sys.out").read_text()
+
+
+MECHANICAL_TRICLINIC_NM = QMMM_BOX_NM @ np.array([[1, 0, 0], [0.1, 1, 0], [-0.08, 0.12, 1]])
+
+
+@needs_lib
+@pytest.mark.parametrize("embedding", ["MECHANICAL", "NONE"])
+@pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_qmmm_stress_matches_ase_numerical_stress(box, embedding, params, tmp_path):
+    """CELL NONE: sum x (x) f of the QM atoms plus the Ewald strain derivative.
+
+    The reference is ASE's central difference of libcpmdc_gromacs' own
+    energy under strains of the cell that scale every atom with it, as
+    GROMACS' pressure coupling does. A fixed EWALD_RCUT keeps the splitting
+    fixed under the strain.
+    """
+    mm_q = [gc.TIP3P[s] for s in "OHH" * 3] if embedding == "MECHANICAL" else [0.0] * 9
+    options = {"embedding": embedding, "ewald_rcut": 0.7, "ewald_precision": 1e-12}
+    if embedding == "MECHANICAL":
+        options["qm_charges"] = QM_CHARGES
+    inp = setup_env(tmp_path, qmi_input(params, **options), "OHH" * 4, [True] * 3 + [False] * 9,
+                    [0.0] * 3 + mm_q, QMMM_NM)
+    shim = Shim(inp, tmp_path / "sys.out")
+    x = QMMM_NM / BOHR_TO_NM
+    rows = box / BOHR_TO_NM
+    _, forces = shim.step(x, rows)
+    stress, available = shim.stress()
+    assert available == 1
+    atoms = Atoms("OHH" * 4, positions=x * BOHR_TO_ANGSTROM, cell=rows * BOHR_TO_ANGSTROM, pbc=True)
+    atoms.calc = ShimCalculator(shim)
+    numeric = numerical_stress(atoms)
+    shim.close()
+    ours = ase_stress(stress)
+    scale = np.abs(numeric).max()
+    np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-8 * scale)
+    if embedding == "NONE":
+        volume = abs(np.linalg.det(rows))
+        expected = x[:3].T @ forces[:3] / volume
+        np.testing.assert_allclose(stress, expected, rtol=1e-14, atol=1e-14 * np.abs(expected).max())
+
+
+@needs_lib
+def test_stress_is_unavailable_without_a_box_or_a_periodic_deck(params, tmp_path):
+    (tmp_path / "a").mkdir()
+    qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES)
+    inp = setup_env(tmp_path / "a", qmi, "OHH" * 4, [True] * 3 + [False] * 9,
+                    [0.0] * 3 + [gc.TIP3P[s] for s in "OHH" * 3], QMMM_NM)
+    shim = Shim(inp, tmp_path / "a" / "sys.out")
+    shim.step(QMMM_NM / BOHR_TO_NM, np.zeros((3, 3)))
+    stress, available = shim.stress()
+    shim.close()
+    assert available == 0
+    np.testing.assert_array_equal(stress, 0.0)
+    assert "first stress request: available 0 (no GROMACS box)" in (tmp_path / "a" / "sys.out").read_text()
+
+    # The cluster deck with the GROMACS box as its cell: cpmdc computes no stress.
+    (tmp_path / "b").mkdir()
+    inp = setup_env(tmp_path / "b", qmi_input(params, cell="PERIODIC"), gc.SYMBOLS, [True] * 6,
+                    [0.0] * 6, gc.WATERS_NM)
+    shim = Shim(inp, tmp_path / "b" / "sys.out")
+    shim.step(np.asarray(gc.WATERS_NM) / BOHR_TO_NM, CUBE_NM / BOHR_TO_NM)
+    stress, available = shim.stress()
+    shim.close()
+    assert available == 0
+    np.testing.assert_array_equal(stress, 0.0)
+    assert "cpmdc computed no stress for this cell" in (tmp_path / "b" / "sys.out").read_text()
 
 
 SCRIPT = textwrap.dedent(

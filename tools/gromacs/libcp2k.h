@@ -34,6 +34,11 @@ void cp2k_set_cell(force_env_t force_env, const double *new_cell);
 void cp2k_get_natom(force_env_t force_env, int *natom);
 void cp2k_get_positions(force_env_t force_env, double *pos, int n_el);
 void cp2k_get_forces(force_env_t force_env, double *force, int n_el);
+/* As in CP2K (2026): the configurational stress after cp2k_calc_energy_force,
+ * nine doubles, column-major, Hartree/Bohr^3, pressure-positive, so that
+ * stress times the cell volume is the virial -dE/d(strain). available is 1
+ * when it was computed and 0, with a zero tensor, when it was not. */
+void cp2k_get_stress_tensor(force_env_t force_env, double *stress_tensor, int *available);
 void cp2k_get_potential_energy(force_env_t force_env, double *e_pot);
 void cp2k_calc_energy_force(force_env_t force_env);
 void cp2k_calc_energy(force_env_t force_env);

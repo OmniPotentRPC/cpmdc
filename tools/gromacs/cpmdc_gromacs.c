@@ -34,6 +34,12 @@
  * that cross the boundary; the QM density is not polarized by the MM
  * charges. &LINK sections (QM-MM covalent bonds) are refused.
  *
+ * Virial: cp2k_get_stress_tensor gives the strain derivative of the energy
+ * returned, for a strain that moves every atom and the box: cpmdc's stress
+ * with CELL PERIODIC, sum x (x) f over the QM atoms with CELL NONE, and the
+ * strain derivative of the Ewald sum. It is unavailable without a box, and
+ * with CELL PERIODIC when cpmdc computes no stress (an isolated deck).
+ *
  * Positions: GROMACS wraps every atom into the box. QM atoms are unwrapped
  * against their previous positions, so each follows a continuous path; with
  * CELL NONE the first step also makes the QM region whole about its first
@@ -127,7 +133,10 @@ typedef struct {
   double rows[3][3];
   int have_positions, have_cell;
   double energy;
-  int evaluated;
+  /* -dE/d(strain) of that energy, Hartree, and whether it is known */
+  double virial[3][3];
+  int have_virial;
+  int evaluated, stress_requests;
 } Env;
 
 static Env g_envs[MAX_ENVS];
@@ -487,13 +496,17 @@ static double ewald_alpha(double rc, double tol) {
 }
 
 /* Coulomb energy between the QM and the MM charges with every periodic
- * image (Ewald), Hartree with positions in Bohr; forces are added. The
- * real-space sum takes every image pair closer than rc, the reciprocal sum
- * every k with |k| <= kmax, and the neutralizing background its QM-MM
- * part, -pi Q_QM Q_MM / (V alpha^2). */
+ * image (Ewald), Hartree with positions in Bohr; forces are added, and so
+ * is -dE/d(strain) to vir. The real-space sum takes every image pair closer
+ * than rc, the reciprocal sum every k with |k| <= kmax, and the
+ * neutralizing background its QM-MM part, -pi Q_QM Q_MM / (V alpha^2).
+ * Under a strain the pair vectors and 1/k follow the cell and the structure
+ * factors do not change: a pair term adds g d_a d_b, a k term
+ * E_k (delta_ab - 2 k_a k_b (1/(4 alpha^2) + 1/k^2)), and the background,
+ * which goes as 1/V, E_bg delta_ab. */
 static double ewald_qm_mm(Env *env, double r[3][3], double rc, double tol,
                           const double *xq, double *fq, const double *xm, double *fm,
-                          double *alpha_out, double *kmax_out) {
+                          double vir[3][3], double *alpha_out, double *kmax_out) {
   const int nq = env->nqm, nm = env->nmm;
   const double *qq = env->qm_charge, *qm = env->mm_charge;
   double inv[3][3], h[3];
@@ -544,6 +557,8 @@ static double ewald_qm_mm(Env *env, double r[3][3], double rc, double tol,
             for (int k = 0; k < 3; ++k) {
               fq[3 * i + k] += g * d[k];
               fm[3 * j + k] -= g * d[k];
+              for (int l = 0; l < 3; ++l)
+                vir[k][l] += g * d[k] * d[l];
             }
           }
     }
@@ -597,7 +612,12 @@ static double ewald_qm_mm(Env *env, double r[3][3], double rc, double tol,
           else
             sm += charge * phase[p];
         }
-        energy += pref * f * creal(sq * conj(sm));
+        const double ek = pref * f * creal(sq * conj(sm));
+        energy += ek;
+        const double c = 2.0 * (inv4a2 + 1.0 / k2);
+        for (int a = 0; a < 3; ++a)
+          for (int b = 0; b < 3; ++b)
+            vir[a][b] += ek * ((a == b ? 1.0 : 0.0) - c * kv[a] * kv[b]);
         for (int p = 0; p < nall; ++p) {
           const double charge = p < nq ? qq[p] : qm[p - nq];
           if (charge == 0.0)
@@ -618,7 +638,10 @@ static double ewald_qm_mm(Env *env, double r[3][3], double rc, double tol,
     sum_q += qq[i];
   for (int j = 0; j < nm; ++j)
     sum_m += qm[j];
-  energy -= PI * sum_q * sum_m / (volume * alpha * alpha);
+  const double background = -PI * sum_q * sum_m / (volume * alpha * alpha);
+  energy += background;
+  for (int a = 0; a < 3; ++a)
+    vir[a][a] += background;
   return energy;
 }
 
@@ -690,7 +713,12 @@ static void open_session(Env *env) {
 
 /* Every QM rank: the QM energy and forces, from the same positions and cell
  * on each. Rank 0 then adds the embedding and fills the forces of every atom,
- * Hartree and Hartree/Bohr. */
+ * Hartree and Hartree/Bohr, and the virial -dE/d(strain) of the energy,
+ * Hartree, for a strain that moves every atom and the GROMACS box with it.
+ * With CELL PERIODIC the QM part is cpmdc's virial, which needs the stress
+ * tensor of a periodic deck; with CELL NONE the QM energy does not depend on
+ * the box, and its part is sum_i x_i (x) f_i over the QM atoms at the
+ * positions cpmdc evaluated. */
 static int evaluate(Env *env, char *why, size_t why_cap) {
   const int nq = env->nqm;
   double inv[3][3];
@@ -716,10 +744,10 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   }
   if (!env->session)
     open_session(env);
-  double qm_energy = 0.0;
+  double qm_energy = 0.0, qm_virial[9] = {0.0};
   if (cpmdc_session_calculate_au(env->session, nq, env->qm_z, env->qm_x,
                                  env->cell_mode == CELL_PERIODIC ? &env->rows[0][0] : NULL,
-                                 &qm_energy, env->qm_f, NULL) != 0) {
+                                 &qm_energy, env->qm_f, qm_virial) != 0) {
     const char *text = cpmdc_last_error();
     snprintf(why, why_cap, "%s", text && *text ? text : "cpmdc_session_calculate_au failed");
     return -1;
@@ -732,6 +760,23 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   }
 
   memset(env->forces, 0, 3 * (size_t)env->natoms * sizeof(double));
+  memset(env->virial, 0, sizeof(env->virial));
+  env->have_virial = periodic;
+  if (env->cell_mode == CELL_PERIODIC) {
+    CPMDCStressTensor stress;
+    if (cpmdc_session_last_stress(env->session, &stress) == 0 && stress.valid) {
+      for (int a = 0; a < 3; ++a)
+        for (int b = 0; b < 3; ++b)
+          env->virial[a][b] = qm_virial[3 * a + b];
+    } else {
+      env->have_virial = 0;
+    }
+  } else {
+    for (int i = 0; i < nq; ++i)
+      for (int a = 0; a < 3; ++a)
+        for (int b = 0; b < 3; ++b)
+          env->virial[a][b] += env->qm_x[3 * i + a] * env->qm_f[3 * i + b];
+  }
   double coulomb = 0.0;
   if (env->embedding == EMBED_MECHANICAL && env->nmm > 0) {
     const int nm = env->nmm;
@@ -746,7 +791,7 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
       rc = env->ewald_rcut_nm > 0.0 ? env->ewald_rcut_nm / BOHR_TO_NM
                                     : fmin(1.0 / BOHR_TO_NM, 0.5 * fmin(h[0], fmin(h[1], h[2])));
       coulomb = ewald_qm_mm(env, env->rows, rc, env->ewald_precision, env->qm_x, fq, xm, fm,
-                            &alpha, &kmax);
+                            env->virial, &alpha, &kmax);
       if (env->log && env->evaluated == 0)
         fprintf(env->log, "ewald rcut_bohr %.17g alpha_per_bohr %.17g kmax_per_bohr %.17g\n",
                 rc, alpha, kmax);
@@ -978,17 +1023,20 @@ void cp2k_calc_energy_force(force_env_t force_env) {
       any |= env->rows[a][k] != 0.0;
   env->have_cell = any;
   char why[1024] = {0};
-  double head[2] = {0.0, 0.0};
+  /* ok, energy, have_virial, virial */
+  double head[12] = {0.0};
   if (qm_rank(env)) {
     if (evaluate(env, why, sizeof(why)) == 0)
       head[0] = 1.0;
     head[1] = env->energy;
+    head[2] = env->have_virial;
+    memcpy(&head[3], &env->virial[0][0], 9 * sizeof(double));
   }
 #ifdef CPMDC_GROMACS_MPI
   /* Rank 0's result is the result: CPMD's other ranks need not agree to the
    * last bit (see the MPI model in the cpmdc documentation). */
   if (env->size > 1) {
-    bcast(env, head, 2, MPI_DOUBLE);
+    bcast(env, head, 12, MPI_DOUBLE);
     if (head[0] == 1.0)
       bcast(env, env->forces, 3 * env->natoms, MPI_DOUBLE);
   }
@@ -999,6 +1047,8 @@ void cp2k_calc_energy_force(force_env_t force_env) {
     die(env, "step failed on rank 0");
   }
   env->energy = head[1];
+  env->have_virial = head[2] == 1.0;
+  memcpy(&env->virial[0][0], &head[3], 9 * sizeof(double));
   env->evaluated += 1;
 }
 
@@ -1019,4 +1069,30 @@ void cp2k_get_forces(force_env_t force_env, double *force, int n_el) {
   if (!env->evaluated)
     die(env, "cp2k_get_forces before cp2k_calc_energy_force");
   memcpy(force, env->forces, (size_t)n_el * sizeof(double));
+}
+
+/* CP2K's contract: the configurational stress, pressure-positive, so that
+ * stress times the cell volume is the virial -dE/d(strain); Hartree/Bohr^3,
+ * column-major. available is 0, with a zero tensor, when it is not known. */
+void cp2k_get_stress_tensor(force_env_t force_env, double *stress_tensor, int *available) {
+  Env *env = lookup(force_env, "cp2k_get_stress_tensor");
+  if (!env->evaluated)
+    die(env, "cp2k_get_stress_tensor before cp2k_calc_energy_force");
+  const double volume = env->have_cell ? fabs(det3(env->rows)) : 0.0;
+  const int known = env->have_virial && volume > 0.0;
+  for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
+      stress_tensor[a + 3 * b] = known ? env->virial[a][b] / volume : 0.0;
+  *available = known;
+  if (env->log && env->stress_requests++ == 0) {
+    if (known)
+      fprintf(env->log, "first stress request: available 1 pressure_hartree_per_bohr3 %.17g\n",
+              (stress_tensor[0] + stress_tensor[4] + stress_tensor[8]) / 3.0);
+    else
+      fprintf(env->log, "first stress request: available 0 (%s)\n",
+              volume <= 0.0 ? "no GROMACS box"
+                            : "cpmdc computed no stress for this cell: the deck is isolated, "
+                              "or CPMDC_STRESS=0");
+    fflush(env->log);
+  }
 }
