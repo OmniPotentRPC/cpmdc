@@ -6,3 +6,5 @@ option('with_python', type: 'boolean', value: false, description: 'Install pytho
 option('with_readcon', type: 'boolean', value: false, description: 'Link readcon-core for export-con and import-con')
 option('with_pwscale', type: 'boolean', value: false, description: 'Build the plane-wave scaling scaffold. It is not on the force path.')
 option('with_pwscale_cuda', type: 'boolean', value: false, description: 'Compile the optional CUDA backend of the plane-wave scaffold.')
+option('with_lammps_plugin', type: 'feature', value: 'auto', description: 'Build cpmdcplugin.so, the LAMMPS plugin with pair_style cpmdc. It needs a C++ compiler, MPI for C++, and the headers of the LAMMPS that loads it.')
+option('lammps_include', type: 'string', value: '', description: 'Directory holding the LAMMPS headers (lammps.h, pair.h). Empty: the include/lammps directory of an importable lammps Python package.')

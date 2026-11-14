@@ -434,6 +434,55 @@ if cc.has_header('sys/un.h')
     install_rpath: get_option('prefix') / get_option('libdir'),
   )
 endif
+# pair_style cpmdc, a LAMMPS plugin and another consumer of the public header
+# only. It is compiled against the headers of the LAMMPS that loads it.
+cpmdc_lammps_plugin = disabler()
+lammps_plugin_opt = get_option('with_lammps_plugin')
+if not lammps_plugin_opt.disabled() and not get_option('with_python')
+  lammps_include = get_option('lammps_include')
+  if lammps_include == ''
+    lammps_probe = run_command(
+      python,
+      [
+        '-c',
+        'import os, lammps; print(os.path.join(os.path.dirname(lammps.__file__), "include", "lammps"))',
+      ],
+      check: false,
+    )
+    if lammps_probe.returncode() == 0
+      lammps_include = lammps_probe.stdout().strip()
+    endif
+  endif
+  have_cpp = add_languages('cpp', required: lammps_plugin_opt, native: false)
+  lammps_plugin_ok = false
+  if have_cpp and lammps_include != ''
+    cpp = meson.get_compiler('cpp')
+    mpi_cpp_dep = dependency('mpi', language: 'cpp', required: lammps_plugin_opt)
+    lammps_inc = include_directories(lammps_include, is_system: true)
+    lammps_plugin_ok = mpi_cpp_dep.found() and cpp.has_header(
+      'pair.h',
+      include_directories: lammps_inc,
+      dependencies: mpi_cpp_dep,
+      args: '-std=c++17',
+    )
+  endif
+  if lammps_plugin_ok
+    cpmdc_lammps_plugin = shared_module(
+      'cpmdcplugin',
+      ['tools/lammps/pair_cpmdc.cpp', 'tools/lammps/cpmdc_plugin.cpp'],
+      name_prefix: '',
+      include_directories: [include_directories('include'), lammps_inc],
+      link_with: cpmdc_shared,
+      dependencies: mpi_cpp_dep,
+      override_options: ['cpp_std=c++17'],
+      install: true,
+      install_dir: get_option('libdir') / 'cpmdc',
+      install_rpath: get_option('prefix') / get_option('libdir'),
+    )
+  elif lammps_plugin_opt.enabled()
+    error('with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package')
+  endif
+endif
 pkgconfig.generate(
   name: 'cpmdc-restart',
   filebase: 'cpmdc-restart',
@@ -1297,6 +1346,10 @@ test(
   if not is_disabler(cpmdc_ipi_exe)
     pytest_env += {'CPMDC_IPI_C': cpmdc_ipi_exe.full_path()}
     pytest_depends += cpmdc_ipi_exe
+  endif
+  if not is_disabler(cpmdc_lammps_plugin)
+    pytest_env += {'CPMDC_LAMMPS_PLUGIN': cpmdc_lammps_plugin.full_path()}
+    pytest_depends += cpmdc_lammps_plugin
   endif
   test(
     'python-pytest',
