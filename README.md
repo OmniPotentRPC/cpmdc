@@ -24,7 +24,7 @@ portable result carrier used by RPC-facing callers.
 | Need | Do this first |
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
-| Call it from ASE or Python | Read [Call cpmdc from Python](docs/orgmode/howto/python.org) and run [examples/python/ase_energy.py](examples/python/ase_energy.py) |
+| Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Call cpmdc from Python](docs/orgmode/howto/python.org) |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
@@ -37,6 +37,20 @@ New RPC and optimizer hosts should start with
 `cpmdc_session_calculate_result()`. It keeps `CPMDParams` method setup in a
 session, accepts one `ForceInput` per step, and writes the same
 `PotentialResult` message used by the RPC layer.
+
+## Python Quickstart
+
+```bash
+pip install "cpmdc[ase]"
+```
+
+Wheels cover Linux x86_64 and aarch64 and macOS arm64, and carry their own
+`libcpmdc`: the default reference evaluator, without OpenCPMD or MPI. Run
+[examples/python/ase_energy.py](examples/python/ase_energy.py) with
+`CPMDC_PARAMS` set to a serialized `CPMDParams` file. To use OpenCPMD, point
+`CPMDC_LIBRARY` at a `-Dwith_cpmd=true` build. The
+[install page](docs/orgmode/howto/install.org#install-the-python-package)
+lists what the wheel needs and how other platforms build from the sdist.
 
 ## Build and Test
 
