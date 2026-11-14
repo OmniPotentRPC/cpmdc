@@ -33,7 +33,7 @@ OpenCPMD still prints its warning, because ~control_test~ keeps ~cntl%textrap~ o
 * Check that it runs
 Run the host with ~CPMDC_SCF_STEPS=1~.
 A call that starts from a prediction writes ~cpmdc_wfn_extrapolated K~ before its ~cpmdc_scf_steps N~ line, with ~K~ the number of orbital sets combined.
-~tests/test_extrapolate_wfn.c~ reads these first lines on the water trajectory of ~tests/golden/water_aspc_bomd.txt~:
+~tests/test_extrapolate_wfn.c~ captures these first lines from the error stream while it steps through the water trajectory of ~tests/golden/water_aspc_bomd.txt~:
 
 #+begin_src text
 cpmdc_warm_start -2 periodic=F

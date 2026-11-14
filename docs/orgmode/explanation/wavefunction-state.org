@@ -92,7 +92,7 @@ A session that never selects a key keeps one stored copy.
 * Distance limit
 Every stored and parked ~c0~ carries the geometry it converged at, the
 Angstrom positions the caller passed.
-Before each SCF, ~embed_choose_warm_start~ measures the root-mean-square
+Before each SCF, ~embed_choose_warm_start_metric_v2~ measures the root-mean-square
 distance per atom from the new geometry to each of them, without alignment.
 The nearest one starts the SCF.
 It is either the store, which holds the selected key's own copy or, when

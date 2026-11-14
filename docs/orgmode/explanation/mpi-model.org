@@ -19,8 +19,10 @@ A rank that skips a call, or evaluates a different geometry, leaves the others
 waiting inside CPMD.
 
 * The communicator CPMD uses
-cpmdc has no ~with_mpi~ option.
-The engine takes MPI from the CPMD archive it is linked into.
+An OpenCPMD build (~-Dwith_cpmd=true~) takes MPI from the CPMD archive it
+is linked into, and always needs it.
+The ~with_mpi~ option only decides whether the default library, the
+reference evaluator, links MPI.
 
 OpenCPMD keeps its world communicator in ~mp_comm_world~.
 ~mp_start~ assigns that variable only when CPMD itself calls ~MPI_Init~.

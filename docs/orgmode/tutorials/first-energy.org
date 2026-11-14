@@ -242,8 +242,13 @@ The program prints its version line, now with ~available=1~.
 CPMD then prints its usual output, which ends with the self-consistent field (SCF) iterations and the energy breakdown.
 The program prints the energy and forces last:
 
+# [[[cog
+# import re
+# version = open("version.txt").read().strip()
+# cog.out(re.sub(r"^cpmdc/\S+", f"cpmdc/{version}", cog.previous, flags=re.M))
+# ]]]
 #+begin_src text
-cpmdc/0.3.0 available=1
+cpmdc/0.4.0 available=1
  ...
  NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
    1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.65
@@ -257,6 +262,7 @@ force[0] =   0.000000   0.000000   0.022496
 force[1] =  -0.000000   0.012514  -0.011962
 force[2] =   0.000000  -0.012514  -0.011962
 #+end_src
+# [[[end]]]
 
 The SCF reached -17.05571670 Hartree at iteration 13.
 The forces are those of an off-equilibrium water geometry: zero along ~x~,

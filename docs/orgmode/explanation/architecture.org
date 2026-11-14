@@ -66,9 +66,10 @@ after the first.
 6. ~cpmdc.c~ negates the gradient into forces, scales energy and forces to
    the requested units, and writes the ~PotentialResult~.
 
-No deck is written to disk.
-The only input file CPMD opens is the in-memory deck; it still writes its own
-restart and geometry files.
+No deck is written to disk unless ~CPMDC_DECK_OUT~ names a file.
+The only input file CPMD opens is the in-memory deck, and a library force
+call writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or ~GEOMETRY.xyz~;
+~cpmd.x~ on the same deck writes them.
 
 * Where the deck comes from
 The deck is rendered from ~CPMDParams~ for three reasons: CPMD's own parsers
