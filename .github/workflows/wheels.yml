@@ -1,0 +1,183 @@
+name: wheels
+
+# Wheels and an sdist for python/cpmdc with libcpmdc bundled. A v* tag
+# publishes them to PyPI; every other trigger only builds and tests.
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+      - "ci/**"
+    paths:
+      - "pyproject.toml"
+      - "meson.build"
+      - "meson_options.txt"
+      - "version.txt"
+      - "python/**"
+      - "schema/**"
+      - "src/**"
+      - "include/**"
+      - "subprojects/**"
+      - "tests/test_python_api.py"
+      - "tests/test_installed_wheel.py"
+      - "scripts/ci/install_capnp_tool.sh"
+      - ".github/workflows/wheels.yml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "meson.build"
+      - "meson_options.txt"
+      - "version.txt"
+      - "python/**"
+      - "schema/**"
+      - "src/**"
+      - "include/**"
+      - "subprojects/**"
+      - "tests/test_python_api.py"
+      - "tests/test_installed_wheel.py"
+      - "scripts/ci/install_capnp_tool.sh"
+      - ".github/workflows/wheels.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # x86_64 and aarch64 manylinux_2_28, and macOS arm64.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      # Build, repair, and test settings are in [tool.cibuildwheel] of
+      # pyproject.toml, so a local cibuildwheel run is the same build.
+      - uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
+        with:
+          output-dir: wheelhouse
+      - name: The wheel carries libcpmdc and the schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(wheelhouse/*.whl)
+          test "${#wheels[@]}" -gt 0 || { echo "no wheels" >&2; exit 1; }
+          for whl in "${wheels[@]}"; do
+            echo "== ${whl}"
+            python3 -m zipfile -l "${whl}" > contents.txt
+            grep -E '\.cpmdc\.mesonpy\.libs/libcpmdc\.(so|dylib)' contents.txt
+            grep -E 'cpmdc/schema/Potentials\.capnp' contents.txt
+            grep -E 'cpmdc/ase\.py' contents.txt
+            if grep -iE 'libmpi' contents.txt; then
+              echo "the default wheel must not bundle MPI" >&2
+              exit 1
+            fi
+          done
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      # meson-python configures the project to write the sdist, so the
+      # compilers and the capnp command must be present.
+      - name: Build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc g++ gfortran capnproto pkg-config
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build --sdist
+          python -m twine check dist/*
+      # A wheel built from the sdist alone proves the sdist is complete.
+      - name: Build and test a wheel from the sdist
+        run: |
+          python -m venv "$RUNNER_TEMP/sdist-check"
+          "$RUNNER_TEMP/sdist-check/bin/python" -m pip install --upgrade pip
+          sdist=$(ls dist/*.tar.gz)
+          "$RUNNER_TEMP/sdist-check/bin/python" -m pip install "${sdist}[ase]"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sdist-check/bin/python" "$GITHUB_WORKSPACE/tests/test_installed_wheel.py" "$GITHUB_WORKSPACE"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    needs: [wheels, sdist]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi-cpmdc
+      url: https://pypi.org/p/cpmdc
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Collect
+        run: ls -la dist/
+      - name: Tag matches version.txt
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          ls dist/ | grep -F "cpmdc-${version}" \
+            || { echo "no artifact for ${version}" >&2; exit 1; }
+          if ls dist/ | grep -v -F "cpmdc-${version}"; then
+            echo "artifacts above are not ${version}" >&2
+            exit 1
+          fi
+      # Trusted publishing needs a PyPI publisher for this repository,
+      # wheels.yml, and the pypi-cpmdc environment. Without one, the
+      # environment's PYPI_TOKEN secret is used instead.
+      - name: Publish with trusted publishing
+        id: oidc
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+          verbose: true
+      - name: PYPI_TOKEN is set
+        if: steps.oidc.outcome == 'failure'
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          test -n "${PYPI_TOKEN}" \
+            || { echo "trusted publishing failed and PYPI_TOKEN is empty" >&2; exit 1; }
+      - name: Publish with PYPI_TOKEN
+        if: steps.oidc.outcome == 'failure'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+          packages-dir: dist/
+          skip-existing: true
+          verbose: true
