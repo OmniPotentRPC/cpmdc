@@ -34,6 +34,11 @@ def require_no_literals() -> None:
         raise SystemExit("meson.build does not read its version from version.txt")
     if re.search(r"^\s*version\s*=", (ROOT / "towncrier.toml").read_text(), re.M):
         raise SystemExit("towncrier.toml carries a version; pass --version instead")
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    if re.search(r"^\s*version\s*=", pyproject, re.M) or not re.search(
+        r'^dynamic\s*=\s*\[\s*"version"\s*\]', pyproject, re.M
+    ):
+        raise SystemExit("pyproject.toml must take its version from meson.build")
 
 
 def cog(*args: str) -> None:
