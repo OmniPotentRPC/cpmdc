@@ -63,11 +63,13 @@ test-command = [
 [tool.cibuildwheel.linux]
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
-environment = { CC = "gcc", CXX = "g++", FC = "gfortran" }
+environment = { CC = "gcc", CXX = "g++", FC = "gfortran", PATH = "$HOME/.cargo/bin:$PATH" }
+# minimage builds its Rust crate with cargo; ci.yml pins the same toolchain.
 before-all = """
 set -eu
 pm=$(command -v dnf || command -v yum)
 "$pm" install -y gcc-gfortran
+curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.99.0 --profile minimal
 bash scripts/ci/install_capnp_tool.sh
 """
 
@@ -78,4 +80,5 @@ environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", FC = "gfortran" }
 before-all = """
 brew list gcc >/dev/null 2>&1 || brew install gcc
 brew list capnp >/dev/null 2>&1 || brew install capnp
+command -v cargo >/dev/null 2>&1 || brew install rust
 """
