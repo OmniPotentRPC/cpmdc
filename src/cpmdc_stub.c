@@ -195,6 +195,23 @@ CPMDCResult cpmdc_session_calculate_result(
   return stub_fail("cpmdc_session_calculate_result");
 }
 
+int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
+                               const int *atomic_numbers,
+                               const double *positions_bohr,
+                               const double *cell_bohr, double *energy_h,
+                               double *forces_h_bohr, double *virial_h) {
+  (void)session;
+  (void)natoms;
+  (void)atomic_numbers;
+  (void)positions_bohr;
+  (void)cell_bohr;
+  (void)energy_h;
+  (void)forces_h_bohr;
+  (void)virial_h;
+  stub_store_error("cpmdc_session_calculate_au");
+  return -1;
+}
+
 CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                    size_t params_capnp_size_bytes,
                                    const void *force_input_capnp,

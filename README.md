@@ -102,6 +102,7 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 | --- | --- |
 | Long-running driver with serialized input and output | `cpmdc_session_create`, then `cpmdc_session_calculate_result` |
 | Long-running native C force loop | `cpmdc_session_energy_forces` |
+| Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
 | Native C compatibility call | `cpmdc_energy_forces` |
 | Runtime capability checks | `cpmdc_feature_find` or `cpmdc_feature_table` |
@@ -142,6 +143,7 @@ For a complete mapping table, see
 | Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
 | Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_select_orbitals`, `cpmdc_session_destroy` |
 | Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
+| Session atomic-unit arrays with an optional cell and virial | `cpmdc_session_calculate_au` |
 | Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
 | One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_calculate_result_from_config`, `cpmdc_potential_result_size_for_force_input` |
 | Capability discovery (Cap'n Proto `Capabilities`) | `cpmdc_capabilities_result` |

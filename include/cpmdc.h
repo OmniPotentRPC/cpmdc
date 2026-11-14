@@ -458,6 +458,48 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
     size_t *potential_result_capnp_size_bytes);
 
 /**
+ * @brief Compute energy, forces, and virial for one step in atomic units.
+ *
+ * The plain-array form of `cpmdc_session_calculate_result()` for callers
+ * without a Cap'n Proto encoder (C, Fortran `BIND(C)`, LAMMPS plugins, i-PI
+ * clients). Every quantity is atomic units:
+ *
+ * - `atomic_numbers`: `natoms` values in 1..118.
+ * - `positions_bohr`: `3 * natoms` doubles, Bohr, atom-major row-major
+ *   (`x0 y0 z0 x1 ...`).
+ * - `cell_bohr`: `NULL` for a system without a cell (the deck's `CELL`
+ *   applies, or a 12 Angstrom cube), or 9 doubles, Bohr, row-major with one
+ *   lattice vector per row (`a_x a_y a_z b_x ...`), the layout of
+ *   `ForceInput.box`. An all-zero cell is a system without a cell too.
+ * - `energy_h`: receives the total energy, Hartree.
+ * - `forces_h_bohr`: receives `3 * natoms` forces, Hartree/Bohr, laid out as
+ *   the positions. Forces are the negative nuclear gradient, `-dE/dR`.
+ * - `virial_h`: `NULL`, or receives 9 doubles, Hartree, row-major, the
+ *   virial `-dE/d(strain)`. It is `|det(cell)|` times the stress of
+ *   `cpmdc_session_last_stress()`, whose sign is `-(1/V) dE/d(strain)`.
+ *   ASE's stress is `-virial / V`; i-PI takes this virial as it is. The
+ *   virial is zero when `cell_bohr` is `NULL` or all zero, and when no
+ *   stress was computed (an isolated deck or `CPMDC_STRESS=0`);
+ *   `cpmdc_session_last_stress()` tells those apart.
+ *
+ * The step is the `cpmdc_session_calculate_result()` step of a `ForceInput`
+ * with `lengthUnit = "bohr"`, `energyUnit = "hartree"`, and the same
+ * positions, atomic numbers, and box (empty for `cell_bohr == NULL`), and
+ * gives the same bits. The session rules apply: the first successful step
+ * fixes the atom count and the composition, and a repeat of the stored
+ * positions and cell returns the stored result.
+ *
+ * @return 0 on success; -1 on a `NULL` session or output, `natoms` outside
+ *         1..`INT_MAX / 3`, a topology change, or a failed evaluation.
+ *         Failure text is `cpmdc_last_error()`.
+ */
+CPMDC_API int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
+                                         const int *atomic_numbers,
+                                         const double *positions_bohr,
+                                         const double *cell_bohr, double *energy_h,
+                                         double *forces_h_bohr, double *virial_h);
+
+/**
  * @brief One-shot Cap'n Proto entry point (params + ForceInput -> PotentialResult).
  *
  * Multi-step callers should create one session and call
@@ -529,7 +571,7 @@ CPMDC_API const char *cpmdc_version(void);
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,
  * `cpmdc_energy_gradient()`, `cpmdc_energy_forces()`, the session variants,
- * and the calculate-result calls). When the call returns `CPMDCResult`, the
+ * `cpmdc_session_calculate_au()`, and the calculate-result calls). When the call returns `CPMDCResult`, the
  * text matches `message`, including a missing pseudopotential directory.
  * Empty after a successful call.
  *

@@ -38,6 +38,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_last_rank_spread=                      | cpmdc.h          | -   | Y        |
 | =cpmdc_last_stress=                           | cpmdc.h          | -   | Y        |
 | =cpmdc_potential_result_size_for_force_input= | cpmdc.h          | -   | Y        |
+| =cpmdc_session_calculate_au=                  | cpmdc.h          | -   | Y        |
 | =cpmdc_session_calculate_forces=              | cpmdc.h          | -   | Y        |
 | =cpmdc_session_calculate_result=              | cpmdc.h          | -   | Y        |
 | =cpmdc_session_configure=                     | cpmdc.h          | -   | Y        |
@@ -59,7 +60,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_version=                               | cpmdc.h          | -   | Y        |
 
 * Summary
-Public declarations: 44
-Exported cpmdc_ symbols: 44
+Public declarations: 45
+Exported cpmdc_ symbols: 45
 Other exported symbols: 0
 Parity: OK

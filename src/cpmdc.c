@@ -1835,6 +1835,59 @@ CPMDCResult cpmdc_session_calculate_result(
   return r;
 }
 
+static double det3_rows(const double *m) {
+  return m[0] * (m[4] * m[8] - m[5] * m[7]) -
+         m[1] * (m[3] * m[8] - m[5] * m[6]) +
+         m[2] * (m[3] * m[7] - m[4] * m[6]);
+}
+
+/* Positions and the cell go to Angstrom with the factor a ForceInput in
+ * "bohr" gets, so this step and that message hand the embed the same bits. */
+int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
+                               const int *atomic_numbers,
+                               const double *positions_bohr,
+                               const double *cell_bohr, double *energy_h,
+                               double *forces_h_bohr, double *virial_h) {
+  size_t n3 = 0;
+  if (!session) {
+    (void)fail_msg("null session");
+    return -1;
+  }
+  if (grad_len_from_atoms(natoms, &n3) != 0 || !atomic_numbers ||
+      !positions_bohr || !energy_h || !forces_h_bohr) {
+    (void)fail_msg("invalid arguments");
+    return -1;
+  }
+  if (session_reserve_step_atoms(session, (size_t)natoms) != 0) {
+    (void)fail_msg("out of memory");
+    return -1;
+  }
+  for (size_t i = 0; i < n3; ++i)
+    session->step_positions_ang[i] = positions_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
+  memcpy(session->step_atomic_numbers, atomic_numbers,
+         (size_t)natoms * sizeof(int));
+  double cell_ang[9] = {0};
+  int has_cell = cell_bohr != NULL;
+  if (has_cell)
+    for (int i = 0; i < 9; ++i)
+      cell_ang[i] = cell_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
+  CPMDCResult r = session_energy_gradient_cell(
+      session, natoms, session->step_positions_ang,
+      session->step_atomic_numbers, cell_ang, has_cell, forces_h_bohr);
+  if (!r.ok)
+    return -1;
+  for (size_t i = 0; i < n3; ++i)
+    forces_h_bohr[i] = -forces_h_bohr[i];
+  *energy_h = r.energy_h;
+  if (virial_h) {
+    double volume = has_cell ? fabs(det3_rows(cell_bohr)) : 0.0;
+    int have = has_cell && session->image.stress.valid;
+    for (int i = 0; i < 9; ++i)
+      virial_h[i] = have ? volume * session->image.stress.values[i] : 0.0;
+  }
+  return 0;
+}
+
 CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                    size_t params_capnp_size_bytes,
                                    const void *force_input_capnp,

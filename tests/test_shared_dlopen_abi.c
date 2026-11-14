@@ -62,6 +62,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_session_last_stress",
     "cpmdc_session_calculate_forces",
     "cpmdc_session_calculate_result",
+    "cpmdc_session_calculate_au",
     "cpmdc_calculate_result",
     "cpmdc_calculate_result_from_config",
     "cpmdc_potential_result_size_for_force_input",

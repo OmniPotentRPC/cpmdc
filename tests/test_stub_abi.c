@@ -37,6 +37,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_last_stress",
     "abi.cpmdc_session_calculate_forces",
     "abi.cpmdc_session_calculate_result",
+    "abi.cpmdc_session_calculate_au",
     "abi.cpmdc_calculate_result",
     "abi.cpmdc_calculate_result_from_config",
     "abi.cpmdc_potential_result_size_for_force_input",
@@ -94,6 +95,9 @@ static void test_stub_reports_unavailable(void **state) {
   CPMDCResult session_result =
       cpmdc_session_calculate_result(NULL, NULL, 0, NULL, 0, NULL);
   assert_int_equal(session_result.ok, 0);
+  assert_int_equal(
+      cpmdc_session_calculate_au(NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL),
+      -1);
   CPMDCResult one_shot =
       cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
   assert_int_equal(one_shot.ok, 0);
@@ -185,6 +189,11 @@ static void test_stub_failing_calls_set_last_error(void **state) {
       cpmdc_session_calculate_result(NULL, NULL, 0, NULL, 0, NULL);
   assert_int_equal(session_result.ok, 0);
   expect_stub_entry("cpmdc_session_calculate_result");
+  double energy_au = 0.0;
+  assert_int_equal(cpmdc_session_calculate_au(NULL, 0, NULL, NULL, NULL,
+                                              &energy_au, NULL, NULL),
+                   -1);
+  expect_stub_entry("cpmdc_session_calculate_au");
   CPMDCResult one_shot = cpmdc_calculate_result(NULL, 0, NULL, 0, NULL, 0, NULL);
   assert_int_equal(one_shot.ok, 0);
   expect_stub_entry("cpmdc_calculate_result");

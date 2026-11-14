@@ -298,6 +298,7 @@
   "cpmdc_session_energy_forces",
   "cpmdc_session_calculate_forces",
   "cpmdc_session_calculate_result",
+  "cpmdc_session_calculate_au",
   "cpmdc_calculate_result",
   "cpmdc_calculate_result_from_config",
   "cpmdc_potential_result_size_for_force_input",
@@ -10877,6 +10878,13 @@
    "feature_id": "abi.cpmdc_session_calculate_result",
    "kind": "abi",
    "name": "cpmdc_session_calculate_result",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_session_calculate_au",
+   "kind": "abi",
+   "name": "cpmdc_session_calculate_au",
    "stub_applicable": true,
    "embed_applicable": true
   },
