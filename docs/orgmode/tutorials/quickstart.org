@@ -200,4 +200,6 @@ capnp encode schema/Potentials.capnp ForceInput \
 #+end_src
 
 Pass those buffers to ~cpmdc_session_create()~ and
-~cpmdc_session_calculate_result()~ from C, Python (~pycapnp~), or ~rgpot~.
+~cpmdc_session_calculate_result()~ from C or ~rgpot~.
+The Python package takes the ~CPMDParams~ file and builds each ~ForceInput~
+itself; see [[file:../howto/python.org][Call cpmdc from Python]].

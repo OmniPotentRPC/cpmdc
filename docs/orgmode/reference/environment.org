@@ -8,7 +8,7 @@
 | ~CPMDC_PSEUDO_DIR~ | ~src/cpmd_embed_c_api.F90~, first call of an OpenCPMD session | directory holding the pseudopotential files named in the deck; ~cpmdc~ changes into it while CPMD reads them, then leaves it before CPMD writes output files |
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
-| ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
+| ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
@@ -85,6 +85,6 @@ decide which ~libcpmdc~ a host loads.
 | Variable | Host | Effect |
 |----------+------+--------|
 | ~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, ~RGPOT_CPMD_ENGINE~ | ~rgpot~ ~CPMDPot~ and ~python/cpmdc~ | path of the ~libcpmdc.so~ to ~dlopen~, tried in that order after an explicit engine path |
-| ~CPMDC_SCHEMA~ | ~python/cpmdc~ | path of ~schema/Potentials.capnp~, used when a cell is encoded as ~ForceInput~ |
+| ~CPMDC_SCHEMA~ | ~python/cpmdc~ ~find_schema~ | path of ~schema/Potentials.capnp~ for encoding ~CPMDParams~ text; a cell needs no schema, because the package encodes ~ForceInput~ itself |
 | ~RGPOT_PARAMS_PATH~ | eOn ~RgpotPot~ builds that read ~params_path~ | overrides ~[RgpotPot] params_path~ |
 | ~OMP_NUM_THREADS~ | OpenMP runtime | threads per rank inside CPMD when OpenCPMD was built with OpenMP |

@@ -39,13 +39,15 @@ Without Pixi, install the same set from your package manager:
 | C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
 | pkg-config | 2.5.1 or newer | dependency lookup |
 | Python 3 | 3.10 or newer | build helpers and tests |
+| ASE, pytest | ASE 3.23 or newer, pytest 7 or newer, from pip | the ~python-api~ and ~python-pytest~ tests |
 | cmocka | 1.1.7 or newer | ~-Dwith_tests=true~ |
 | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | ~-Dwith_cpmd=true~ |
 | FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
 
-Meson fetches three subprojects on the first ~meson setup~: the C Cap'n Proto
-runtime (~c-capnproto~), the shared schema (~potentials-schema~, pinned in
-~subprojects/potentials-schema.wrap~), and ~capnp-fortran~.
+The C Cap'n Proto runtime (~c-capnproto~) is vendored in ~subprojects/~.
+Meson fetches three subprojects on the first ~meson setup~: the shared
+schema (~potentials-schema~, pinned in ~subprojects/potentials-schema.wrap~),
+~capnp-fortran~, and ~minimage~; ~-Dwith_readcon=true~ adds ~readcon-core~.
 On a machine without network access, download them first where the network is
 available:
 
@@ -140,8 +142,11 @@ The second command prints the ~libcpmdc~ inside the installed package.
 That library is the default build: the reference evaluator, without
 OpenCPMD and without MPI, so ~Session.available()~ is false.
 The wheel carries ~libgfortran~ and ~schema/Potentials.capnp~.
-A periodic cell still needs the ~capnp~ command on ~PATH~, which
-encodes the cell as ~ForceInput~.
+A periodic cell needs no other tool: the package encodes each step as
+~ForceInput~ itself.
+The ~capnp~ command is needed only to encode a ~CPMDParams~ text file, and
+~cpmdc.find_schema()~ returns the schema to encode it against.
+The ~test~ extra adds pytest for ~tests/python~.
 To evaluate with OpenCPMD, build ~libcpmdc~ with ~-Dwith_cpmd=true~ and
 set ~CPMDC_LIBRARY~ to it; the variable takes precedence over the copy in
 the wheel.

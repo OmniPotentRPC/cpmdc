@@ -48,7 +48,11 @@ Wheels cover Linux x86_64 and aarch64 and macOS arm64, and carry their own
 `libcpmdc`: the default reference evaluator, without OpenCPMD or MPI. Run
 [examples/python/ase_energy.py](examples/python/ase_energy.py) with
 `CPMDC_PARAMS` set to a serialized `CPMDParams` file. To use OpenCPMD, point
-`CPMDC_LIBRARY` at a `-Dwith_cpmd=true` build. The
+`CPMDC_LIBRARY` at a `-Dwith_cpmd=true` build.
+`cpmdc.ase.CPMDCCalculator` gives energy, free energy, forces, and, for a
+fully periodic cell, stress in ASE units, and works with ASE optimizers and
+trajectories; [Call cpmdc from Python](docs/orgmode/howto/python.org) has the
+property table and the rules for units, boundaries, and caching. The
 [install page](docs/orgmode/howto/install.org#install-the-python-package)
 lists what the wheel needs and how other platforms build from the sdist.
 
