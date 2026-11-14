@@ -163,6 +163,12 @@ def main() -> int:
     )
     run([consumer_bin], env=run_env)
 
+    ipi_client = prefix / "bin" / "cpmdc-ipi-c"
+    if os.name == "posix" and not ipi_client.is_file():
+        raise SystemExit(f"cpmdc-ipi-c not installed under {prefix}")
+    if ipi_client.is_file():
+        run([ipi_client, "--help"], env=run_env)
+
     cmake = shutil.which("cmake")
     if cmake is None:
         print("cmake not found; skipping find_package leg", flush=True)
