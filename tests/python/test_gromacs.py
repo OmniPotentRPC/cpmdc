@@ -517,8 +517,9 @@ def dd_run(tmp_path, params, ranks, qm_ranks="ALL", mdrun_args=("-npme", "0"), *
         tmp_path, positions=dd_positions(), box=DD_BOX_NM, qm_molecules=[DD_QM], qmi=qmi,
         qm_lj=True,
         # A pair list rebuilt every step with no buffer: the Verlet buffer
-        # lets each decomposition miss different pairs between rebuilds.
-        mdp={"rcoulomb": 0.6, "rvdw": 0.6, "rlist": 0.6, "nstlist": 1,
+        # lets each decomposition miss different pairs between rebuilds. The
+        # cutoff is off the lattice spacing, where rounding would decide pairs.
+        mdp={"rcoulomb": 0.55, "rvdw": 0.55, "rlist": 0.55, "nstlist": 1,
              "verlet-buffer-tolerance": -1, "nsteps": 20, "nstxout": 10, "nstvout": 0,
              "nstfout": 10, "nstenergy": 1, "gen-vel": "yes", "gen-temp": 300,
              "gen-seed": 4928},
