@@ -6,6 +6,10 @@
 fields.
 Additive Cap'n Proto fields and new ABI entry points are minor; breaking field
 renumbers or ABI signature changes are major.
+The public C ABI is the ~CPMDC_API~ declarations of ~include/cpmdc.h~ and
+~include/cpmdc_features.h~; ~libcpmdc~ exports nothing else, so hiding a
+symbol no public header declares changes neither the version nor the
+soversion.
 The version is the single line of the root ~version.txt~, and no other file
 carries a hand-written copy.
 Meson reads it with ~files()~, and ~docs/source/conf.py~ reads it for the

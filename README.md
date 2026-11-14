@@ -86,6 +86,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `include/cpmdc_features.h` | runtime feature discovery table |
+| `include/cpmdc_export.h` | `CPMDC_API`, the mark on every exported function |
 | `schema/Potentials.capnp` | `CPMDParams`, `ForceInput`, `PotentialResult`, `PotentialConfig` |
 | `src/cpmdc_params.c` | Cap'n Proto decode and CPMD `INPUT` rendering |
 | `src/cpmdc.c` | session lifecycle, topology checks, units, result writing |

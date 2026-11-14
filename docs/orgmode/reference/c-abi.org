@@ -5,16 +5,56 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~.
 Installed headers live under ~include/cpmdc/~.
 Every function has C linkage, and the header compiles as C and as C++.
-~schema/inventory/surface_map_abi.txt~ records the 44 functions those
-headers declare and every other ~cpmdc_~ symbol the library exports; it is
-generated from the built library, and the ~c-abi-inventory~ test fails when
-the headers, the library, and the file disagree (see the
-[[file:surface-map.org][surface map]]).
+~libcpmdc~ exports those 44 functions and no other symbol; the exported
+symbols section below gives the mechanism.
+~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
+built library, and the ~c-abi-inventory~ test fails when the headers, the
+library, and the file disagree (see the [[file:surface-map.org][surface map]]).
 The header records the ABI generation once, as ~CPMDC_ABI_VERSION~; no
 function carries its own ~@since~ generation.
 The generated [[file:../api/index.org][API pages]] carry the header comments; this page adds
 the units, the return conventions, and the behaviour that the implementation
 in ~src/cpmdc.c~ gives each call.
+
+* Exported symbols
+Every function of ~cpmdc.h~ and ~cpmdc_features.h~ is declared with
+~CPMDC_API~ from ~include/cpmdc_export.h~, and ~libcpmdc~ is compiled with
+hidden visibility (Meson ~gnu_symbol_visibility: 'hidden'~).
+A function without the mark stays inside the library.
+
+| Compiler and macro | ~CPMDC_API~ |
+|--------------------+-------------|
+| GCC or Clang | ~__attribute__((visibility("default")))~ |
+| Windows, ~CPMDC_BUILDING_LIBRARY~ defined | ~__declspec(dllexport)~ |
+| Windows, ~CPMDC_STATIC~ defined | empty |
+| Windows, neither | ~__declspec(dllimport)~ |
+
+The library build defines ~CPMDC_BUILDING_LIBRARY~.
+A host that links the shared library defines neither macro.
+Code that compiles the cpmdc sources or links a static archive defines
+~CPMDC_STATIC~, as every in-tree test does.
+
+gfortran does not apply ~-fvisibility~ to Fortran procedures, so the
+~BIND(C)~ glue in ~src/cpmd_embed_c_api.F90~ and
+~src/cpmdc_embed_apply_params.f90~ would still be exported, as would the
+symbols of the static archives linked into the library (~c-capnproto~,
+~capnp-fortran~, ~minimage~, and ~libcpmd.a~).
+The build therefore also links with an export list that
+~scripts/abi_inventory.py~ writes from the same ~CPMDC_API~ declarations: a
+version script with ~local: *~ for an ELF linker (~ld.bfd~, ~gold~, ~lld~,
+~mold~), and ~-exported_symbols_list~ for ~ld64~ on macOS.
+The list adds no symbol the attribute does not mark: a hidden symbol stays
+hidden whatever the list says.
+The version script names no version node, so the exported names carry no
+symbol version.
+
+Up to 0.4.0, ~libcpmdc~ also exported 56 internal ~cpmdc_~ functions: the
+glue between ~src/cpmdc.c~, the parameter renderer, and the Fortran embed
+(~cpmdc_embed_*~, ~cpmdc_params_*~, ~cpmdc_stop_*~, and the rest).
+No installed header declared them, so they were never part of the ABI, and
+hiding them changes no public function, ~CPMDC_ABI_VERSION~, or the soversion.
+The tests that call them link the static ~cpmdc_embed_shell~ archive or the
+sources directly; the Python package loads only public functions.
 
 * Conventions
 

@@ -143,6 +143,7 @@ schema field renders the accepted deck form, such as ~LBFGS_NTRUST~ for
 | ~schema/Potentials.capnp~ | shared RPC and direct-call wire contract |
 | ~include/cpmdc.h~ | public C ABI and session result entry points |
 | ~include/cpmdc_features.h~ | runtime feature discovery ABI |
+| ~include/cpmdc_export.h~ | ~CPMDC_API~, the mark on every exported function |
 | ~src/cpmdc_params.c~ | Cap'n Proto decode, effective config, CPMD deck rendering |
 | ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result writing |
 | ~src/cpmd_embed_c_api.F90~ | Fortran ~iso_c_binding~ bridge and OpenCPMD archive path |

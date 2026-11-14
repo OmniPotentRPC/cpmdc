@@ -73,7 +73,7 @@ them.
 | ~cpmd-public-abi-inventory~ | a public ~cpmdc_*~ function is missing from ~abi_symbols~, the table, or its implementation in ~src/cpmdc.c~, ~src/cpmdc_stub.c~, or ~src/cpmdc_features.c~ |
 | ~stub-abi-symbol-coverage~ | the stub test does not assert every ~abi_symbols~ row |
 | ~shared-dlopen-symbol-coverage~ | the ~dlopen~ test does not load every ~abi_symbols~ entry from ~libcpmdc.so~ |
-| ~c-abi-inventory~ | ~surface_map_abi.txt~ differs from what the built ~libcpmdc~ and the public headers give, a public declaration is not exported, or an exported ~cpmdc_~ symbol is neither declared publicly nor listed in ~scripts/abi_internal_exports.txt~ |
+| ~c-abi-inventory~ | ~surface_map_abi.txt~ differs from what the built ~libcpmdc~ and the public headers give, a public declaration lacks ~CPMDC_API~ or is not exported, or the library exports any other symbol |
 | ~cpmd-schema-render-coverage~ | a typed ~CPMDCpmdSection~ field has no render mapping |
 | ~cpmd-option-token-coverage~ | an inline option token in a fixture has no render coverage |
 | ~cpmd-typed-render-field-coverage~ | a typed ~cpmd~, ~system~, ~dft~, or ~atoms~ field is absent from the render fixtures and assertions |

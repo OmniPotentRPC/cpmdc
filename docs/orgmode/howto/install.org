@@ -19,7 +19,7 @@ The tests use it to check the ABI without a working evaluator.
 | Artifact | Installed as | Purpose |
 |----------+--------------+---------|
 | ~libcpmdc.so~ | ~lib/libcpmdc.so.MAJOR~ | the C ABI from ~include/cpmdc.h~ |
-| public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_restart.h~ | declarations for hosts |
+| public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | declarations for hosts |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | reader and writer for CPMD ~RESTART~ files |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | command-line front end to ~libcpmdc_restart~ |
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |

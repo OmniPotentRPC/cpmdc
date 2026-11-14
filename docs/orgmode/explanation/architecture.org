@@ -18,7 +18,7 @@ library.
 
 | Layer | Files | Owns |
 |-------+-------+------|
-| Public C ABI | ~include/cpmdc.h~, ~include/cpmdc_features.h~ | the functions, the result structs, the feature table types |
+| Public C ABI | ~include/cpmdc.h~, ~include/cpmdc_features.h~, ~include/cpmdc_export.h~ | the functions, the result structs, the feature table types, the ~CPMDC_API~ export mark |
 | Messages | ~schema/Potentials.capnp~ | ~CPMDParams~, ~ForceInput~, ~PotentialResult~, ~PotentialConfig~, ~Capabilities~ |
 | Decode and render | ~src/cpmdc_params.c~, generated ~capnp-c~ readers | reading messages, rendering the CPMD deck, unit factors |
 | Sessions | ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result messages |
