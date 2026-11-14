@@ -60,6 +60,7 @@ def qmi_input(
     qm_charges: Sequence[float] | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
+    qm_ranks: str | int | None = None,
     charge: int = 0,
     multiplicity: int = 1,
 ) -> str:
@@ -87,6 +88,10 @@ def qmi_input(
     ewald_precision:
         ``erfc(alpha * rcut)``, which also sets the reciprocal-space cutoff.
         The library default is 1e-8.
+    qm_ranks:
+        Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
+        calculation on every rank mdrun gives the interface, as one cpmdc
+        calculator; ``1`` runs it on rank 0 alone while the others wait.
     charge, multiplicity:
         The values GROMACS reads. GROMACS warns when ``charge`` differs from
         the classical charge it removed from the QM atoms; the ``CPMDParams``
@@ -115,6 +120,11 @@ def qmi_input(
         lines.append(f"  EWALD_RCUT {_number(ewald_rcut)}")
     if ewald_precision is not None:
         lines.append(f"  EWALD_PRECISION {_number(ewald_precision)}")
+    if qm_ranks is not None:
+        ranks = str(qm_ranks).upper()
+        if ranks not in ("ALL", "1"):
+            raise ValueError(f"qm_ranks is 'ALL' or 1, not {qm_ranks!r}")
+        lines.append(f"  QM_RANKS {ranks}")
     lines.append("&END CPMDC")
     head = [
         "&GLOBAL",

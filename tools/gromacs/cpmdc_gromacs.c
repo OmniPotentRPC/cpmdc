@@ -24,6 +24,9 @@
  *   QM_CHARGES q ...      classical charge of each QM atom, in index order
  *   EWALD_RCUT r          real-space cutoff of that Coulomb sum, nm
  *   EWALD_PRECISION p     erfc(alpha rcut) and the reciprocal-space cutoff
+ *   QM_RANKS ALL|1        under an MPI GROMACS, run the QM calculation on
+ *                         every rank of the communicator (default) or on
+ *                         rank 0 alone
  *
  * Mechanical embedding: the QM-MM Coulomb energy of the QM_CHARGES and the
  * MM charges, an Ewald sum when the box is periodic and a direct sum when
@@ -35,6 +38,14 @@
  * against their previous positions, so each follows a continuous path; with
  * CELL NONE the first step also makes the QM region whole about its first
  * atom.
+ *
+ * MPI: an MPI GROMACS calls cp2k_create_force_env_comm on each of its
+ * particle-particle ranks with the simulation communicator, and gives every
+ * rank the positions of all atoms. Rank 0 reads the files and broadcasts
+ * the configuration, every QM rank evaluates rank 0's positions and cell on
+ * one CPMD calculator (cpmdc_adopt_calculator_comm), and rank 0's energy
+ * and forces go to every rank. GROMACS refuses separate PME ranks with
+ * QM/MM, so every rank of that communicator makes each call.
  *
  * Errors cannot be returned through this API: the library prints
  * "cpmdc-gromacs: ..." to stderr and to the CP2K output file GROMACS names,
@@ -79,26 +90,34 @@ static const char *const k_symbols[MAX_Z] = {
 
 enum { CELL_DEFAULT = -1, CELL_NONE = 0, CELL_PERIODIC = 1 };
 enum { EMBED_UNSET = -1, EMBED_NONE = 0, EMBED_MECHANICAL = 1 };
+enum { QM_RANKS_ALL = 0, QM_RANKS_ONE = 1 };
 
 typedef struct {
   int used;
   int rank, size;
 #ifdef CPMDC_GROMACS_MPI
   MPI_Comm comm;
+  /* GROMACS initialized MPI, so OpenCPMD does not set up a communicator of
+   * its own and needs one handed over, even on one rank. */
+  int host_mpi;
 #endif
   FILE *log;
-  /* rank 0 */
+  /* every rank that runs the QM calculation */
   char *params;
   size_t params_len;
   CPMDCSession *session;
   int adopted;
-  int cell_mode, embedding;
-  double ewald_rcut_nm, ewald_precision;
-  int nqm, nmm, qm_charges_listed;
-  int *qm_index, *qm_z, *mm_index;
-  double *qm_charge, *mm_charge;
+  int cell_mode, qm_ranks;
+  int nqm;
+  int *qm_index, *qm_z;
   double *qm_x, *qm_prev, *qm_f;
   int have_prev;
+  /* rank 0 */
+  int embedding;
+  double ewald_rcut_nm, ewald_precision;
+  int nmm, qm_charges_listed;
+  int *mm_index;
+  double *qm_charge, *mm_charge;
   /* every rank */
   int natoms;
   double *pos, *forces;
@@ -127,7 +146,7 @@ static void die(Env *env, const char *fmt, ...) {
 #ifdef CPMDC_GROMACS_MPI
   int up = 0;
   MPI_Initialized(&up);
-  if (up && env && env->size > 1)
+  if (up && env && env->host_mpi)
     MPI_Abort(env->comm, 1);
 #endif
   exit(EXIT_FAILURE);
@@ -211,6 +230,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   env->embedding = EMBED_UNSET;
   env->ewald_rcut_nm = 0.0;
   env->ewald_precision = 1e-8;
+  env->qm_ranks = QM_RANKS_ALL;
   env->qm_charge = alloc(env, (size_t)capq, sizeof(double));
   char *save = NULL;
   for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
@@ -274,6 +294,13 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
                  "external point charges; use MECHANICAL or NONE");
       else
         die(env, "&CPMDC EMBEDDING is MECHANICAL or NONE, not %s", w[1]);
+    } else if (strcasecmp(w[0], "QM_RANKS") == 0) {
+      if (strcasecmp(w[1], "ALL") == 0)
+        env->qm_ranks = QM_RANKS_ALL;
+      else if (strcmp(w[1], "1") == 0)
+        env->qm_ranks = QM_RANKS_ONE;
+      else
+        die(env, "&CPMDC QM_RANKS is ALL or 1, not %s", w[1]);
     } else if (strcasecmp(w[0], "EWALD_RCUT") == 0) {
       env->ewald_rcut_nm = number(env, w[1], "EWALD_RCUT");
       if (env->ewald_rcut_nm <= 0.0)
@@ -383,9 +410,6 @@ static void parse_pdb(Env *env, const char *path) {
   } else if (nq != 0) {
     die(env, "&CPMDC QM_CHARGES needs EMBEDDING MECHANICAL");
   }
-  env->qm_x = alloc(env, 3 * (size_t)nqm, sizeof(double));
-  env->qm_prev = alloc(env, 3 * (size_t)nqm, sizeof(double));
-  env->qm_f = alloc(env, 3 * (size_t)nqm, sizeof(double));
 }
 
 /* --- geometry ------------------------------------------------------------ */
@@ -624,11 +648,15 @@ static double direct_qm_mm(Env *env, const double *xq, double *fq, const double 
 
 /* --- one evaluation ------------------------------------------------------ */
 
+/* Ranks that take part in the QM calculation: all of them, or rank 0. */
+static int qm_rank(const Env *env) { return env->rank == 0 || env->qm_ranks == QM_RANKS_ALL; }
+
 static void open_session(Env *env) {
 #ifdef CPMDC_GROMACS_MPI
-  if (env->size > 1 && !env->adopted) {
-    MPI_Comm self = MPI_COMM_SELF;
-    if (cpmdc_adopt_calculator_comm(&self, sizeof(self), 1) != 0 && cpmdc_available()) {
+  if (env->host_mpi && !env->adopted) {
+    MPI_Comm calc = env->qm_ranks == QM_RANKS_ALL ? env->comm : MPI_COMM_SELF;
+    int ranks = env->qm_ranks == QM_RANKS_ALL ? env->size : 1;
+    if (cpmdc_adopt_calculator_comm(&calc, sizeof(calc), ranks) != 0 && cpmdc_available()) {
       const char *text = cpmdc_last_error();
       die(env, "%s", text && *text ? text : "cpmdc_adopt_calculator_comm failed");
     }
@@ -642,7 +670,9 @@ static void open_session(Env *env) {
   }
 }
 
-/* Rank 0: energy and forces of every atom, Hartree and Hartree/Bohr. */
+/* Every QM rank: the QM energy and forces, from the same positions and cell
+ * on each. Rank 0 then adds the embedding and fills the forces of every atom,
+ * Hartree and Hartree/Bohr. */
 static int evaluate(Env *env, char *why, size_t why_cap) {
   const int nq = env->nqm;
   double inv[3][3];
@@ -678,6 +708,10 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   }
   memcpy(env->qm_prev, env->qm_x, 3 * (size_t)nq * sizeof(double));
   env->have_prev = 1;
+  if (env->rank != 0) {
+    env->energy = qm_energy;
+    return 0;
+  }
 
   memset(env->forces, 0, 3 * (size_t)env->natoms * sizeof(double));
   double coulomb = 0.0;
@@ -716,8 +750,9 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
       env->forces[3 * (size_t)env->qm_index[i] + k] += env->qm_f[3 * i + k];
   env->energy = qm_energy + coulomb;
   if (env->log && env->evaluated == 0) {
-    fprintf(env->log, "first step: qm_energy_hartree %.17g coulomb_qm_mm_hartree %.17g\n",
-            qm_energy, coulomb);
+    fprintf(env->log,
+            "first step: backend %s qm_energy_hartree %.17g coulomb_qm_mm_hartree %.17g\n",
+            cpmdc_available() ? "opencpmd" : "reference", qm_energy, coulomb);
     fflush(env->log);
   }
   return 0;
@@ -738,6 +773,42 @@ void cp2k_finalize(void) {}
 
 void cp2k_finalize_without_mpi(void) {}
 
+#ifdef CPMDC_GROMACS_MPI
+static void bcast(Env *env, void *buf, int count, MPI_Datatype type) {
+  if (count > 0 && MPI_Bcast(buf, count, type, 0, env->comm) != MPI_SUCCESS)
+    die(env, "MPI_Bcast failed");
+}
+
+/* Rank 0 read the input and the PDB file; the other ranks get what the QM
+ * calculation needs. GROMACS writes both files on its main rank just before
+ * this call, so only rank 0 may read them. */
+static void share_config(Env *env) {
+  long head[6] = {env->natoms, env->nqm, env->cell_mode, env->qm_ranks,
+                  (long)env->params_len, 0};
+  bcast(env, head, 6, MPI_LONG);
+  if (env->rank != 0) {
+    env->natoms = (int)head[0];
+    env->nqm = (int)head[1];
+    env->cell_mode = (int)head[2];
+    env->qm_ranks = (int)head[3];
+    env->params_len = (size_t)head[4];
+  }
+  if (env->qm_ranks != QM_RANKS_ALL)
+    return;
+  if (env->rank != 0) {
+    env->qm_index = alloc(env, (size_t)env->nqm, sizeof(int));
+    env->qm_z = alloc(env, (size_t)env->nqm, sizeof(int));
+    env->params = alloc(env, env->params_len + 1, 1);
+  }
+  bcast(env, env->qm_index, env->nqm, MPI_INT);
+  bcast(env, env->qm_z, env->nqm, MPI_INT);
+  for (size_t off = 0; off < env->params_len; off += 1 << 30) {
+    size_t n = env->params_len - off < (size_t)1 << 30 ? env->params_len - off : (size_t)1 << 30;
+    bcast(env, env->params + off, (int)n, MPI_BYTE);
+  }
+}
+#endif
+
 static void create(force_env_t *out, const char *input, const char *output, Env *proto) {
   int slot = -1;
   for (int i = 0; i < MAX_ENVS && slot < 0; ++i)
@@ -748,7 +819,6 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
   Env *env = &g_envs[slot];
   *env = *proto;
   env->used = 1;
-  int natoms = 0;
   if (env->rank == 0) {
     if (output && *output) {
       env->log = fopen(output, "w");
@@ -758,24 +828,29 @@ static void create(force_env_t *out, const char *input, const char *output, Env 
     char pdb[4096];
     parse_input(env, input, pdb, sizeof(pdb));
     parse_pdb(env, pdb);
-    natoms = env->natoms;
     if (env->log) {
       fprintf(env->log,
-              "atoms %d qm %d mm %d cell %s embedding %s ewald_precision %.3g ranks %d\n",
+              "atoms %d qm %d mm %d cell %s embedding %s ewald_precision %.3g ranks %d "
+              "qm_ranks %d\n",
               env->natoms, env->nqm, env->nmm,
               env->cell_mode == CELL_PERIODIC ? "PERIODIC" : "NONE",
               env->embedding == EMBED_MECHANICAL ? "MECHANICAL" : "NONE",
-              env->ewald_precision, env->size);
+              env->ewald_precision, env->size,
+              env->qm_ranks == QM_RANKS_ALL ? env->size : 1);
       fflush(env->log);
     }
   }
 #ifdef CPMDC_GROMACS_MPI
   if (env->size > 1)
-    MPI_Bcast(&natoms, 1, MPI_INT, 0, env->comm);
+    share_config(env);
 #endif
-  env->natoms = natoms;
-  env->pos = alloc(env, 3 * (size_t)natoms, sizeof(double));
-  env->forces = alloc(env, 3 * (size_t)natoms, sizeof(double));
+  if (qm_rank(env)) {
+    env->qm_x = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
+    env->qm_prev = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
+    env->qm_f = alloc(env, 3 * (size_t)env->nqm, sizeof(double));
+  }
+  env->pos = alloc(env, 3 * (size_t)env->natoms, sizeof(double));
+  env->forces = alloc(env, 3 * (size_t)env->natoms, sizeof(double));
   *out = slot + 1;
 }
 
@@ -793,9 +868,14 @@ void cp2k_create_force_env_comm(force_env_t *new_force_env, const char *input_fi
                                 const char *output_file_path, int mpi_comm) {
   Env proto = {0};
 #ifdef CPMDC_GROMACS_MPI
-  proto.comm = MPI_Comm_f2c((MPI_Fint)mpi_comm);
-  MPI_Comm_rank(proto.comm, &proto.rank);
-  MPI_Comm_size(proto.comm, &proto.size);
+  MPI_Comm given = MPI_Comm_f2c((MPI_Fint)mpi_comm);
+  MPI_Comm_rank(given, &proto.rank);
+  MPI_Comm_size(given, &proto.size);
+  proto.host_mpi = 1;
+  if (MPI_Comm_dup(given, &proto.comm) != MPI_SUCCESS) {
+    proto.comm = given;
+    die(&proto, "MPI_Comm_dup failed");
+  }
 #else
   (void)mpi_comm;
   (void)new_force_env;
@@ -813,6 +893,12 @@ void cp2k_destroy_force_env(force_env_t force_env) {
     cpmdc_session_destroy(env->session);
   if (env->log)
     fclose(env->log);
+#ifdef CPMDC_GROMACS_MPI
+  int finalized = 0;
+  MPI_Finalized(&finalized);
+  if (env->host_mpi && !finalized)
+    MPI_Comm_free(&env->comm);
+#endif
   free(env->params);
   free(env->qm_index);
   free(env->qm_z);
@@ -842,13 +928,9 @@ void cp2k_set_positions(force_env_t force_env, const double *new_pos, int n_el) 
 
 void cp2k_set_cell(force_env_t force_env, const double *new_cell) {
   Env *env = lookup(force_env, "cp2k_set_cell");
-  int any = 0;
   for (int a = 0; a < 3; ++a)
-    for (int k = 0; k < 3; ++k) {
+    for (int k = 0; k < 3; ++k)
       env->rows[a][k] = new_cell[3 * k + a];
-      any |= env->rows[a][k] != 0.0;
-    }
-  env->have_cell = any;
 }
 
 void cp2k_get_natom(force_env_t force_env, int *natom) {
@@ -865,24 +947,38 @@ void cp2k_calc_energy_force(force_env_t force_env) {
   Env *env = lookup(force_env, "cp2k_calc_energy_force");
   if (!env->have_positions)
     die(env, "cp2k_calc_energy_force before cp2k_set_positions");
+#ifdef CPMDC_GROMACS_MPI
+  /* Every QM rank evaluates rank 0's positions and cell, bit for bit. */
+  if (env->size > 1 && env->qm_ranks == QM_RANKS_ALL) {
+    bcast(env, env->pos, 3 * env->natoms, MPI_DOUBLE);
+    bcast(env, &env->rows[0][0], 9, MPI_DOUBLE);
+  }
+#endif
+  int any = 0;
+  for (int a = 0; a < 3; ++a)
+    for (int k = 0; k < 3; ++k)
+      any |= env->rows[a][k] != 0.0;
+  env->have_cell = any;
   char why[1024] = {0};
   double head[2] = {0.0, 0.0};
-  if (env->rank == 0) {
+  if (qm_rank(env)) {
     if (evaluate(env, why, sizeof(why)) == 0)
       head[0] = 1.0;
     head[1] = env->energy;
   }
 #ifdef CPMDC_GROMACS_MPI
+  /* Rank 0's result is the result: CPMD's other ranks need not agree to the
+   * last bit (see the MPI model in the cpmdc documentation). */
   if (env->size > 1) {
-    MPI_Bcast(head, 2, MPI_DOUBLE, 0, env->comm);
+    bcast(env, head, 2, MPI_DOUBLE);
     if (head[0] == 1.0)
-      MPI_Bcast(env->forces, 3 * env->natoms, MPI_DOUBLE, 0, env->comm);
+      bcast(env, env->forces, 3 * env->natoms, MPI_DOUBLE);
   }
 #endif
   if (head[0] != 1.0) {
     if (env->rank == 0)
       die(env, "step failed: %s", why);
-    die(NULL, "step failed on rank 0");
+    die(env, "step failed on rank 0");
   }
   env->energy = head[1];
   env->evaluated += 1;

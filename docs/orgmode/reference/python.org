@@ -58,7 +58,7 @@ library.
 | ~cpmdc.lammps.UNIT_STYLES~ | LAMMPS unit style to (length per Bohr, energy per Hartree) for ~metal~, ~real~, ~electron~ |
 | ~cpmdc.lammps.unit_factors~ | that pair for one style; ~ValueError~ for any other |
 | ~cpmdc.lammps.box_rows~ | ~boxlo~, ~boxhi~, ~xy~, ~yz~, ~xz~ to the 3x3 cell with one lattice vector per row |
-| ~cpmdc.gromacs.qmi_input~ | text of the grompp ~-qmi~ file: ~params~, then ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~ (nm), ~ewald_precision~, ~charge~, ~multiplicity~ keywords; ~ValueError~ for a value the library would refuse |
+| ~cpmdc.gromacs.qmi_input~ | text of the grompp ~-qmi~ file: ~params~, then ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~ (nm), ~ewald_precision~, ~qm_ranks~ (~"ALL"~ or 1), ~charge~, ~multiplicity~ keywords; ~ValueError~ for a value the library would refuse |
 | ~cpmdc.gromacs.write_qmi~ | write that text to a path and return it |
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence |
