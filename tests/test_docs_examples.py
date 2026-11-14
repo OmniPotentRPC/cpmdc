@@ -42,9 +42,11 @@ SKIP = {
     "howto/install.org:6": "installs from PyPI",
     "howto/install.org:7": "builds and installs a wheel into the caller environment",
     "howto/gromacs.org:0": "reconfigures the tree and builds GROMACS",
-    "howto/gromacs.org:1": "GROMACS mdp fragment",
-    "howto/gromacs.org:3": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
-    "howto/gromacs.org:4": "benchmark, not a correctness example",
+    "howto/gromacs.org:1": "installs into build/prefix and builds GROMACS; CI's gromacs-qmmm (installed) runs it",
+    "howto/gromacs.org:2": "GROMACS mdp fragment",
+    "howto/gromacs.org:4": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
+    "howto/gromacs.org:5": "needs an OpenCPMD build and an MPI GROMACS built against it",
+    "howto/gromacs.org:6": "benchmark, not a correctness example",
     "howto/lammps.org:0": "needs the lammps Python module; tests/python/test_lammps.py runs these steps",
     "howto/lammps.org:1": "reconfigures the tree",
     "howto/lammps.org:2": "LAMMPS input script for lmp and the plugin",
@@ -171,7 +173,7 @@ def main() -> int:
     found = blocks(root)
     run_keys = {
         "howto/check-forces.org:0",
-        "howto/gromacs.org:2",
+        "howto/gromacs.org:3",
         *PYTHON_HOWTO,
         "howto/socket-drivers.org:1",
         "howto/write-cpmdparams.org:0",
@@ -215,9 +217,9 @@ def main() -> int:
             for key in PYTHON_HOWTO[1:]:
                 run_python(root, library, params, schema, found[key][1])
             run_python(root, library, params, schema, found["howto/socket-drivers.org:1"][1])
-            run_python(root, library, params, schema, found["howto/gromacs.org:2"][1])
+            run_python(root, library, params, schema, found["howto/gromacs.org:3"][1])
             if "&CPMDC" not in (work / "cpmdc.inp").read_text(encoding="utf-8"):
-                return fail("howto/gromacs.org:2 wrote no &CPMDC section")
+                return fail("howto/gromacs.org:3 wrote no &CPMDC section")
             encode(schema, "CPMDParams", found["howto/write-cpmdparams.org:0"][1])
             encode(schema, "CPMDParams", found["reference/cpmd-options.org:1"][1])
             encode(schema, "CPMDParams", found["tutorials/first-energy.org:2"][1])

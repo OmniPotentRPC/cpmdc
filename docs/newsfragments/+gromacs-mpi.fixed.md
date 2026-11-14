@@ -1,0 +1,2 @@
+An OpenCPMD build of `libcpmdc` no longer hides the MPI Fortran sentinel common blocks (`MPI_IN_PLACE` and the rest, of Open MPI and MPICH); with private copies, OpenCPMD's in-place collectives overwrote their buffers and the first calculation crashed or hung.
+`scripts/ci/build_gromacs_cpmdc.sh` builds GROMACS against the BLAS `libcpmdc` links instead of GROMACS' bundled BLAS, which took the place of OpenCPMD's and gave wrong forces on atoms with nonlocal pseudopotentials; `libcpmdc_gromacs` stops `mdrun` when it finds that BLAS.

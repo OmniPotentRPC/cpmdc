@@ -16,6 +16,8 @@ socket, and no change to its source.
 The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the
 three call the same libcp2k functions, and 2026 adds
 ~cp2k_get_positions~ and ~cp2k_get_version~, which the library provides.
+The MPI build, the installed library, and the OpenCPMD backend were
+checked with 2025.5.
 
 * Why this route
 GROMACS offers four ways to bring outside forces into ~mdrun~.
@@ -42,11 +44,14 @@ Meson builds ~libcpmdc_gromacs.so~ with ~libcpmdc~
 (~-Dwith_gromacs_shim=auto~, the default; it is off for the Python wheel
 build) and writes ~build/tools/gromacs/pkgconfig/libcp2k.pc~, which points
 GROMACS at the library and at ~tools/gromacs/libcp2k.h~.
-~meson install~ puts the library in ~lib~, the header in
-~include/cpmdc/gromacs~, and the ~.pc~ file in ~lib/cpmdc/gromacs/pkgconfig~.
+~meson install~ puts the library in ~LIBDIR~, the header in
+~include/cpmdc/gromacs~, and the ~.pc~ file in
+~LIBDIR/cpmdc/gromacs/pkgconfig~, apart from cpmdc's own ~cpmdc.pc~, so
+that ~libcp2k~ is found only where asked for.
 
-GROMACS' ~cmake/gmxManageCP2K.cmake~ reads ~CP2K_DIR/pkgconfig/libcp2k.pc~,
-so pass the directory above ~pkgconfig~:
+GROMACS' ~cmake/gmxManageCP2K.cmake~ requires ~CP2K_DIR~, prepends
+~CP2K_DIR/pkgconfig~ to ~PKG_CONFIG_PATH~, and reads ~libcp2k.pc~ there, so
+pass the directory above ~pkgconfig~:
 
 #+begin_src bash
 meson setup build && meson compile -C build
@@ -55,12 +60,42 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
 cmake --build build-gmx --target install
 #+end_src
 
-~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX BUILD~ downloads a pinned
-GROMACS release, checks its SHA-256, builds it this way, and checks that
-~libgromacs_d.so~ links ~libcpmdc_gromacs~.
-GROMACS records the library's run path, so ~gmx_d mdrun~ finds it in the
-build tree; after ~meson install~, rebuild GROMACS against the installed
-~.pc~ file.
+From an installed cpmdc:
+
+#+begin_src bash
+meson setup build --prefix=$PWD/build/prefix && meson compile -C build
+meson install -C build
+cp2k_dir=$(dirname "$(dirname "$(find build/prefix -path '*/cpmdc/gromacs/pkgconfig/libcp2k.pc')")")
+cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
+  -DGMX_CP2K=ON -DCP2K_DIR=$cp2k_dir
+#+end_src
+
+The installed ~libcp2k.pc~ gives ~-L~, ~-Wl,-rpath~ and the two libraries
+in ~Libs~, and ~-I~ for ~include/cpmdc/gromacs~ in ~Cflags~, so any
+pkg-config consumer compiles, links and runs against it with no further
+flags.
+GROMACS takes only the library names, directories, and include
+directories from it, not the ~-Wl,-rpath~; it finds the library at run time
+because it records the directories it linked from as its run path
+(~CMAKE_INSTALL_RPATH_USE_LINK_PATH~).
+Either way ~libgromacs~ names the build tree or the prefix it was built
+against, and a GROMACS built against one does not follow the library to
+the other.
+
+~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX CP2K_DIR [thread-mpi|mpi]~
+downloads a pinned GROMACS release, checks its SHA-256, builds it this way
+(~mpi~: ~-DGMX_MPI=ON~ with ~mpicc~, ~mpicxx~ and ~mpifort~ from ~PATH~),
+and checks that ~libgromacs~ resolves ~libcpmdc_gromacs~ to the ~libdir~
+of that ~libcp2k.pc~.
+
+With OpenCPMD linked, GROMACS must use the BLAS and LAPACK ~libcpmdc~
+links: GROMACS' bundled ones (~-DGMX_EXTERNAL_BLAS=OFF~) export ~dgemm_~
+and the rest from ~libgromacs~, OpenCPMD's calls bind to them, and its
+nonlocal pseudopotential forces come out wrong (see
+[[file:troubleshooting.org][Troubleshooting]]).
+The script passes ~-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON~ and the
+BLAS of ~libcpmdc~ when ~libcpmdc~ links one, and ~libcpmdc_gromacs~ stops
+~mdrun~ when it finds ~dgemm_~ in ~libgromacs~ with OpenCPMD linked.
 
 Build GROMACS in double precision.
 Its QM/MM module stores cpmdc's forces as ~real~, which is ~float~ in a
@@ -113,6 +148,8 @@ The cpmdc settings are a ~&CPMDC~ section inside ~&FORCE_EVAL~:
 | ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
 | ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
 | ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 1e-8 |
+| ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
+| ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
 Everything outside ~&CPMDC~ is checked and otherwise ignored: the method
 is the ~CPMDParams~ deck, not CP2K's ~&DFT~.
@@ -121,8 +158,10 @@ section and is refused.
 
 The library writes one log, the CP2K output file GROMACS names
 (~md_cp2k.out~): the cpmdc version, the atom counts, the cell and
-embedding modes, the Ewald parameters in Bohr, and the first step's QM and
-QM-MM energies.
+embedding modes, the number of ranks and of QM ranks, the Ewald parameters
+in Bohr, and, for the first step, the backend (~opencpmd~, or ~reference~
+for the evaluator of a build without OpenCPMD) and the QM and QM-MM
+energies.
 A refused input or a failed step prints ~cpmdc-gromacs:~ and the reason to
 stderr and to that log and stops ~mdrun~ with status 1, because the libcp2k
 API returns no errors.
@@ -197,14 +236,42 @@ Not implemented:
 - PDB charges have six decimals, the precision of GROMACS' file.
 
 * Several ranks
-The library is built without MPI unless Meson finds MPI for C, and then it
-takes the communicator GROMACS passes to ~cp2k_create_force_env_comm~: rank
-0 reads the input, owns the session, and evaluates; the energy and forces
-go to every rank.
-Before opening the session rank 0 adopts ~MPI_COMM_SELF~ as the calculator
-communicator, as the LAMMPS plugin does.
-A thread-MPI GROMACS calls ~cp2k_create_force_env~ on one rank.
-Only that thread-MPI path, ~-ntmpi 1~, is tested.
+A thread-MPI GROMACS runs QM/MM on one rank, ~-ntmpi 1~, and calls
+~cp2k_create_force_env~; GROMACS refuses more thread-MPI ranks with QM/MM.
+
+A GROMACS built with ~-DGMX_MPI=ON~ calls ~cp2k_create_force_env_comm~ on
+every rank, with the Fortran handle of its simulation communicator, and
+then each step sends every rank the positions of all atoms and reads the
+forces of its home atoms back.
+GROMACS refuses separate PME ranks with QM/MM, so every rank of that
+communicator makes each call and the library can use collectives on it.
+~libcpmdc_gromacs~ is built with MPI when Meson finds MPI for C, the same
+MPI GROMACS is built with, and then:
+
+- duplicates the communicator, so cpmdc's traffic and error handler stay
+  off GROMACS' own;
+- reads the input and the PDB file on rank 0 and broadcasts the atom
+  counts, the QM atoms, and the ~CPMDParams~ message;
+- hands the duplicate to cpmdc with ~cpmdc_adopt_calculator_comm()~ before
+  the first session, with every rank as one calculator (~QM_RANKS ALL~), or
+  ~MPI_COMM_SELF~ on rank 0 (~QM_RANKS 1~). It does so on one rank too:
+  GROMACS has started MPI, and OpenCPMD sets up a communicator only when it
+  starts MPI itself;
+- each step broadcasts rank 0's positions and box, so every QM rank
+  evaluates identical input whatever GROMACS' decomposition, adds the
+  embedding on rank 0, and broadcasts rank 0's energy and forces.
+
+The forces GROMACS reads are therefore identical on every rank, and domain
+decomposition changes which rank applies a force, not its value, including
+for QM molecules whose atoms sit in different domains.
+With ~QM_RANKS 1~, or the reference evaluator, the QM forces are those of a
+one-rank run; with OpenCPMD on several ranks they differ from them by the
+order of its parallel sums (see [[*OpenCPMD in GROMACS][OpenCPMD in GROMACS]]).
+GROMACS reads the energy on its main rank only, so ~Quantum En.~ counts it
+once.
+
+A library built without MPI stops a ~cp2k_create_force_env_comm~ call with
+the reason.
 
 * Checks
 ~tests/python/test_gromacs.py~ runs under Meson's ~python-pytest~.
@@ -233,8 +300,29 @@ With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and
 - generated input, ~EMBEDDING ELECTROSTATIC~, and charged MM atoms without
   an embedding each stop ~mdrun~ with the reason.
 
-The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 this way and fails if any
-of these tests skips.
+With ~gmx_mpi_d~ from ~CPMDC_GMX_MPI~, a double-precision GROMACS built
+with ~-DGMX_MPI=ON~, launched by ~CPMDC_MPIEXEC~ (default ~mpiexec~):
+
+- 20 NVE steps of 64 waters in a 2.4 nm box, one of them QM with its atoms
+  across the periodic boundary in x and y, on 2 and 4 ranks with
+  ~QM_RANKS ALL~ and on 4 with ~QM_RANKS 1~: ~Quantum En.~, ~Potential~
+  and ~Total Energy~ of every step and the positions and forces of steps 0,
+  10 and 20 match the one-rank run to 1e-10. The pair list is rebuilt every step without a buffer
+  (~nstlist = 1~, ~verlet-buffer-tolerance = -1~), so that every
+  decomposition sees the same pairs;
+- ~-npme 1~ stops ~mdrun~ with GROMACS' refusal of separate PME ranks.
+
+~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an
+installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~.
+
+The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 three ways and fails if any
+of its tests skips:
+
+| Route | GROMACS | Tests |
+|-------+---------+-------|
+| ~build~ | thread-MPI, against ~build/tools/gromacs~ | the one-rank tests and the Meson suite |
+| ~installed~ | thread-MPI, against the ~libcp2k.pc~ of ~meson install~ into ~build/prefix~ | the same, with ~libcpmdc~ and ~libcpmdc_gromacs~ from the prefix |
+| ~mpi~ | ~-DGMX_MPI=ON~ with the Open MPI of the pixi environment | the domain decomposition tests |
 
 The reference evaluator of a build without OpenCPMD is a well about the
 origin.
@@ -244,6 +332,55 @@ force takes energy out of NVE, and the QM/MM NVE run gives the QM hydrogens
 a small Lennard-Jones repulsion, because the well does not bind them to
 their oxygen.
 An OpenCPMD energy needs neither.
+
+* OpenCPMD in GROMACS
+~bench/gromacs_opencpmd.py~ runs GROMACS on the OpenCPMD backend: one BLYP
+water (the deck of ~tests/water_blyp_params.capnp.txt~, 50 Ry, Hockney,
+orbital convergence 1e-7) at the centre of the deck's 1 nm cell, among 26
+flexible TIP3P waters in a 1.8 nm box, with ~CELL NONE~, mechanical
+embedding with the TIP3P charges on the QM atoms, PME for MM-MM, and NVE
+at 0.25 fs from 300 K velocities.
+It runs the same system with every water classical as a control, and
+fails unless ~md_cp2k.out~ reports the ~opencpmd~ backend.
+
+#+begin_src bash
+meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=$CPMD_ROOT
+meson compile -C build-cpmd
+scripts/ci/build_gromacs_cpmdc.sh 2025.5 $GMX_PREFIX build-cpmd/tools/gromacs mpi
+python bench/gromacs_opencpmd.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
+  --pseudo-dir $CPMD_ROOT/../Regtests/tests/PP_LIBRARY --ranks 4,1 --steps 200
+#+end_src
+
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open
+MPI 5.0.10, OpenBLAS), OpenCPMD with Open MPI, ~QM_RANKS ALL~, 200 steps
+(50 fs); the 4-rank run shared the machine with other jobs:
+
+| Run | Drift, kJ/mol/ps | Per atom | Largest excursion, kJ/mol | Kinetic energy std, kJ/mol | Wall, s |
+|-----+------------------+----------+---------------------------+----------------------------+---------|
+| OpenCPMD QM water, 4 ranks | 0.768 | 0.00948 | 1.274 | 28.81 | 1079.5 |
+| OpenCPMD QM water, 1 rank | 0.768 | 0.00948 | 1.274 | 28.81 | 2194.0 |
+| all classical, 1 rank | 0.697 | 0.00861 | 1.292 | 28.94 | |
+
+The step-0 QM energy is -17.055716980795 Hartree; ~CPMDCCalculator~ gives
+-17.05571697 for the same water.
+The total energy oscillates by about 1.3 kJ/mol as 105 kJ/mol of kinetic
+energy goes into the flexible O-H bonds; the classical control shows the
+same, and halving the time step divides it by four, so it is leap-frog's
+error, not the QM forces'.
+Over 50 fs the QM water adds 0.07 kJ/mol/ps to the drift of the control.
+
+Between rank counts the QM energy at step 0 agrees to 1.3e-9 kJ/mol and the
+total energy over the run to 2.4e-5 kJ/mol, but the QM atom forces differ
+by 1e-5 kJ/mol/nm at step 0 and 2e-3 at step 200, about 2e-6 of the
+largest force: OpenCPMD distributes its plane waves over the ranks, its
+sums run in a different order, and its SCF stops at a slightly different
+point.
+A tighter orbital convergence does not shrink that difference: at 1e-9 the
+step-0 oxygen forces of 1 and 2 ranks differ by 5e-4 kJ/mol/nm.
+With ~QM_RANKS 1~ the QM calculation runs on rank 0 alone, and 4 ranks
+match 1 rank to 3e-13 kJ/mol/nm in the forces and 7e-12 kJ/mol in the
+total energy over 10 steps, at the cost of the SCF time of one rank.
+For 1e-10 agreement with a one-rank run, use ~QM_RANKS 1~.
 
 * Overhead per step
 ~bench/gromacs_routes.py~ integrates the system of
