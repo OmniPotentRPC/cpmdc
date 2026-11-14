@@ -43,7 +43,9 @@ setup = [
   "-Dwith_mpi=disabled",
 ]
 install = ["--tags=python-runtime", "--skip-subprojects"]
-dist = ["--include-subprojects"]
+# No --include-subprojects: meson dist takes a git wrap from its HEAD and
+# drops the packagefiles overlay and diff_files patch of capnp-fortran.
+# A build from the sdist fetches and patches the wraps like a checkout.
 
 [tool.cibuildwheel]
 build-frontend = "build"
