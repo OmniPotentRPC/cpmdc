@@ -7,6 +7,7 @@
 |------+-------------+-------+--------|
 | Repeated RPC or optimizer steps | ~cpmdc_session_calculate_result~ | one ~CPMDParams~ session, one ~ForceInput~ per step | serialized ~PotentialResult~ |
 | Repeated native C forces | ~cpmdc_session_energy_forces~ | one ~CPMDParams~ session, C coordinate arrays | Hartree plus Hartree/Bohr forces |
+| Repeated periodic steps without Cap'n Proto | ~cpmdc_session_calculate_au~ | one ~CPMDParams~ session, Bohr positions and an optional cell | Hartree, Hartree/Bohr forces, Hartree virial |
 | Single serialized calculation | ~cpmdc_calculate_result~ | ~CPMDParams~ and ~ForceInput~ bytes | serialized ~PotentialResult~ |
 | Scalar compatibility call | ~cpmdc_energy_forces~ | C coordinate arrays plus ~CPMDParams~ bytes | Hartree plus Hartree/Bohr forces |
 | Capability discovery | ~cpmdc_feature_find~ | stable feature ID | ~CPMDCFeatureEntry~ or ~NULL~ |

@@ -5,7 +5,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~.
 Installed headers live under ~include/cpmdc/~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 44 functions and no other symbol; the exported
+~libcpmdc~ exports those 45 functions and no other symbol; the exported
 symbols section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -150,7 +150,7 @@ optimisation.
 ~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
 ~cpmdc_session_create_from_config()~,
 ~cpmdc_session_configure()~, ~cpmdc_potential_result_size_for_force_input()~,
-and every evaluation entry point.
+and every evaluation entry point, ~cpmdc_session_calculate_au()~ among them.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
 missing pseudopotential directory.
 Snapshot readers (~cpmdc_last_stress()~ and the other ~cpmdc_last_*~ /
@@ -254,6 +254,50 @@ The written ~PotentialResult~ carries ~energy~ and ~forces~ in the requested
 units, ~stress~, ~gradient~, ~dipole~, ~polarizability~, and the ~cpmdc~
 extension fields ~energyComponents~, ~chargeIntegrals~, ~multiStateEnergies~,
 and ~mdTrajectoryRow~ with their ~...Valid~ flags.
+
+** Session steps in atomic units
+
+| Function | Output |
+|----------+--------|
+| ~int cpmdc_session_calculate_au(CPMDCSession *s, int natoms, const int *atomic_numbers, const double *positions_bohr, const double *cell_bohr, double *energy_h, double *forces_h_bohr, double *virial_h)~ | energy in Hartree, forces in Hartree/Bohr, the virial in Hartree; 0 or -1 |
+
+This call takes a periodic cell without a Cap'n Proto message.
+Every quantity is in atomic units.
+
+| Argument | Layout |
+|----------+--------|
+| ~atomic_numbers~ | ~natoms~ values |
+| ~positions_bohr~ | ~3 * natoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), Bohr |
+| ~cell_bohr~ | ~NULL~, or nine doubles: row-major 3 by 3, one lattice vector per row (~a_x a_y a_z b_x ...~), Bohr |
+| ~energy_h~ | one double, Hartree |
+| ~forces_h_bohr~ | ~3 * natoms~ doubles, atom-major, Hartree/Bohr, ~-dE/dR~ |
+| ~virial_h~ | ~NULL~, or nine doubles, row-major, Hartree |
+
+~cell_bohr~ follows the ~ForceInput.box~ rules above: ~NULL~ and an all-zero
+cell are a system without a cell, and a non-zero cell replaces the deck's
+~CELL~ lines and ~SYMMETRY~.
+The virial is ~W = -dE/d(strain)~, the strain derivative of the energy taken
+with the opposite sign, so a compressed cell whose energy falls on expansion
+has a positive diagonal.
+It equals ~|det(cell)|~ times the stress of ~cpmdc_session_last_stress()~ and
+of ~PotentialResult.stress~, which is ~-(1/V) dE/d(strain)~ in Hartree/Bohr^3.
+~virial_h~ holds zeros when the cell is ~NULL~ and when the evaluation produced
+no stress, for example for an isolated deck or a cell of zeros.
+ASE's stress is ~-W/V~ and i-PI's virial is ~W~.
+
+Energy, forces, and stress are bit-for-bit those of
+~cpmdc_session_calculate_result()~ for a ~ForceInput~ with ~lengthUnit~
+~bohr~, ~energyUnit~ ~hartree~, the same positions, and ~box~ equal to
+~cell_bohr~: both paths scale Bohr to Angstrom with the same factor and share
+the evaluation and the session's cache.
+The topology and repeat-step rules of the session apply.
+
+It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session (~null
+session~), ~natoms <= 0~ or a ~NULL~ required pointer (~invalid arguments~),
+a topology change, and a failed evaluation.
+On failure the output arrays are left unspecified.
+~libcpmdc-stub~ returns -1 with the stub message.
+~tools/cpmdc_ipi.c~ is an i-PI client on this call (see [[file:../howto/socket-drivers.org][the socket drivers]]).
 
 * One-shot message calls
 
