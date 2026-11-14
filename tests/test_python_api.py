@@ -32,16 +32,41 @@ def _close(left, right, tol):
                 raise AssertionError(f"{left} != {right}")
 
 
+def _installed(root: str) -> None:
+    """The imported package, library, and schema come from site-packages."""
+    import cpmdc
+
+    package = Path(cpmdc.__file__).resolve().parent
+    if package.is_relative_to(Path(root).resolve()):
+        raise AssertionError(f"cpmdc imported from the source tree: {package}")
+    library = cpmdc.find_library().resolve()
+    if library.parent != package.parent / ".cpmdc.mesonpy.libs":
+        raise AssertionError(f"{library} is not the library the wheel installed")
+    schema = cpmdc.find_schema().resolve()
+    if schema != package / "schema" / "Potentials.capnp":
+        raise AssertionError(f"{schema} is not the schema the wheel installed")
+
+
 def main() -> int:
-    if len(sys.argv) != 5:
+    args = sys.argv[1:]
+    installed = bool(args) and args[0] == "--installed"
+    if installed:
+        args = args[1:]
+    if len(args) != 4:
         print(
-            "usage: test_python_api.py SOURCE_ROOT LIBRARY PARAMS PERIODIC",
+            "usage: test_python_api.py [--installed] SOURCE_ROOT LIBRARY PARAMS PERIODIC\n"
+            "--installed tests the importable cpmdc; LIBRARY - uses its own library",
             file=sys.stderr,
         )
         return 2
-    root, library, params, periodic = sys.argv[1:]
-    sys.path.insert(0, str(Path(root) / "python"))
-    schema = str(Path(root) / "schema" / "Potentials.capnp")
+    root, library_arg, params, periodic = args
+    library: str | None = None if library_arg == "-" else library_arg
+    schema: str | None = None
+    if installed:
+        _installed(root)
+    else:
+        sys.path.insert(0, str(Path(root) / "python"))
+        schema = str(Path(root) / "schema" / "Potentials.capnp")
 
     from cpmdc import (
         CpmdcError,
