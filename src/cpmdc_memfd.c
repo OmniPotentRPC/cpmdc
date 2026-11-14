@@ -8,8 +8,16 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-/* Returns fd (>=0) and fills path as /proc/self/fd/N. Caller keeps fd open. */
+/* Returns fd (>=0) and fills path as /proc/self/fd/N. Caller keeps fd open.
+ * memfd_create and /proc/self/fd are Linux only; elsewhere this returns -1. */
 int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_cap) {
+#ifndef __linux__
+  (void)bytes;
+  (void)nbytes;
+  (void)path_out;
+  (void)path_cap;
+  return -1;
+#else
   int fd;
   ssize_t w;
   if (!bytes || nbytes < 0 || !path_out || path_cap < 32)
@@ -28,6 +36,7 @@ int cpmdc_memfd_write(const char *bytes, int nbytes, char *path_out, int path_ca
   }
   snprintf(path_out, (size_t)path_cap, "/proc/self/fd/%d", fd);
   return fd;
+#endif
 }
 
 /* Host CWD saved before leaving it for the pseudopotential library.
