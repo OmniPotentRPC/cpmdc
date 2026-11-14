@@ -72,9 +72,8 @@ def unit_factors(style: str) -> tuple[float, float]:
     try:
         return UNIT_STYLES[style]
     except KeyError:
-        known = ", ".join(sorted(UNIT_STYLES))
         raise ValueError(
-            f"cpmdc supports LAMMPS units {known}; this input uses units {style!r}"
+            f"cpmdc supports LAMMPS units metal, real, and electron; this input uses units {style!r}"
         ) from None
 
 
@@ -222,12 +221,16 @@ class FixExternal:
             lmp.command(f"fix {fix_id} all external pf/callback 1 1")
             lmp.command(f"fix_modify {fix_id} energy yes virial yes")
         lmp.command(f"variable {self._flag} internal 0")
-        lmp.command(f"fix {fix_id}_halt all halt 1 v_{self._flag} > 0.5 error hard message yes")
+        lmp.command(
+            f"fix {fix_id}_halt all halt 1 v_{self._flag} > 0.5 error hard message yes"
+        )
         lmp.set_fix_external_callback(fix_id, self._callback, None)
 
     # --- one step ---------------------------------------------------------
 
-    def _callback(self, _caller: Any, _step: int, nlocal: int, tag: Any, x: Any, f: Any) -> None:
+    def _callback(
+        self, _caller: Any, _step: int, nlocal: int, tag: Any, x: Any, f: Any
+    ) -> None:
         try:
             self._step(int(nlocal), tag, x, f)
         except Exception as exc:
@@ -239,7 +242,9 @@ class FixExternal:
     def _unwrapped(self, nlocal: int, x: Any, rows: np.ndarray) -> np.ndarray:
         xu = np.array(x[:nlocal], dtype=float).reshape(nlocal, 3)
         if self.periodic and nlocal:
-            image = np.asarray(self._lmp.numpy.extract_atom("image")[:nlocal], dtype=np.int64)
+            image = np.asarray(
+                self._lmp.numpy.extract_atom("image")[:nlocal], dtype=np.int64
+            )
             shifts = np.empty((nlocal, 3), dtype=float)
             shifts[:, 0] = (image & self._imgmask) - self._imgmax
             shifts[:, 1] = ((image >> self._imgbits) & self._imgmask) - self._imgmax
@@ -315,7 +320,9 @@ class FixExternal:
                 except Exception as exc:
                     outcome = (str(exc) or type(exc).__name__, 0.0, np.zeros((3, 3)))
                     shares = [np.zeros((part[0].size, 3)) for part in parts]
-            problem, energy, virial = comm.bcast(outcome if self._root else None, root=0)
+            problem, energy, virial = comm.bcast(
+                outcome if self._root else None, root=0
+            )
             forces = comm.scatter(shares, root=0)
             if problem:
                 raise CpmdcError(problem)
