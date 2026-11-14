@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -192,19 +193,31 @@ def test_declaration_without_export_macro_fails(tree: Path, nm: Path) -> None:
 
 
 def test_export_lists_name_exactly_the_public_symbols(tree: Path, tmp_path: Path) -> None:
-    public = load_generator(tree).public_symbols(tree)
+    generator = load_generator(tree)
+    public = generator.public_symbols(tree)
     assert len(public) == len(set(public)) > 0
+    exported = [*public, *generator.MPI_FORTRAN_SENTINELS]
     script = tmp_path / "libcpmdc.map"
     done = run_mode(tree, "--version-script", script)
     assert done.returncode == 0, done.stderr
-    text = script.read_text()
+    text = re.sub(r"/\*.*?\*/", "", script.read_text())
     globals_, locals_ = text.split("global:", 1)[1].split("local:", 1)
-    assert [s.strip(" ;") for s in globals_.split()] == public
+    assert [s.strip(" ;") for s in globals_.split()] == exported
     assert locals_.split() == ["*;", "};"]
     exp = tmp_path / "libcpmdc.exp"
     done = run_mode(tree, "--exported-symbols-list", exp)
     assert done.returncode == 0, done.stderr
-    assert exp.read_text().split() == [f"_{s}" for s in public]
+    assert exp.read_text().split() == [f"_{s}" for s in exported]
+
+
+def test_mpi_fortran_sentinels_need_no_declaration(tree: Path, nm: Path) -> None:
+    # An OpenCPMD libcpmdc exports the MPI library's sentinel common blocks.
+    symbols = nm.with_name("symbols.txt")
+    symbols.write_text(
+        symbols.read_text() + "mpi_fortran_in_place_\nmpipriv1_\nmpifcmb5_\n"
+    )
+    done = run(tree, "--check", tree / "libcpmdc.so", nm)
+    assert done.returncode == 0, done.stderr
 
 
 def test_since_tag_is_recorded(tree: Path, nm: Path) -> None:
