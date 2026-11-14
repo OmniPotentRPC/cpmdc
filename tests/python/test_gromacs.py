@@ -431,7 +431,8 @@ def test_qmmm_stress_matches_ase_numerical_stress(box, embedding, params, tmp_pa
     np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-8 * scale)
     if embedding == "NONE":
         volume = abs(np.linalg.det(rows))
-        expected = x[:3].T @ forces[:3] / volume
+        moment = x[:3].T @ forces[:3]
+        expected = 0.5 * (moment + moment.T) / volume
         np.testing.assert_allclose(stress, expected, rtol=1e-14, atol=1e-14 * np.abs(expected).max())
 
 

@@ -35,10 +35,11 @@
  * charges. &LINK sections (QM-MM covalent bonds) are refused.
  *
  * Virial: cp2k_get_stress_tensor gives the strain derivative of the energy
- * returned, for a strain that moves every atom and the box: cpmdc's stress
- * with CELL PERIODIC, sum x (x) f over the QM atoms with CELL NONE, and the
- * strain derivative of the Ewald sum. It is unavailable without a box, and
- * with CELL PERIODIC when cpmdc computes no stress (an isolated deck).
+ * returned, for a symmetric strain that moves every atom and the box:
+ * cpmdc's stress with CELL PERIODIC, the symmetric part of sum x (x) f over
+ * the QM atoms with CELL NONE, and the strain derivative of the Ewald sum.
+ * It is unavailable without a box, and with CELL PERIODIC when cpmdc
+ * computes no stress (an isolated deck).
  *
  * Positions: GROMACS wraps every atom into the box. QM atoms are unwrapped
  * against their previous positions, so each follows a continuous path; with
@@ -772,10 +773,14 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
       env->have_virial = 0;
     }
   } else {
+    /* The fixed cluster cell leaves a net force and torque on the QM atoms
+     * (OpenCPMD's Hockney water: 0.07 eV/Angstrom), so sum x (x) f is not
+     * symmetric; a symmetric strain sees only its symmetric part. */
     for (int i = 0; i < nq; ++i)
       for (int a = 0; a < 3; ++a)
         for (int b = 0; b < 3; ++b)
-          env->virial[a][b] += env->qm_x[3 * i + a] * env->qm_f[3 * i + b];
+          env->virial[a][b] += 0.5 * (env->qm_x[3 * i + a] * env->qm_f[3 * i + b] +
+                                      env->qm_x[3 * i + b] * env->qm_f[3 * i + a]);
   }
   double coulomb = 0.0;
   if (env->embedding == EMBED_MECHANICAL && env->nmm > 0) {
