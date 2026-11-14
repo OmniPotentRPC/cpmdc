@@ -3,7 +3,8 @@
 
 * Names
 The public names live in ~python/cpmdc~. Importing ~cpmdc~ does not import
-ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~.
+ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~. ~cpmdc.ipi~ is the
+~cpmdc-ipi~ socket driver; it needs ASE only for ~--structure~.
 
 | Name | Role |
 |------+------|
@@ -33,6 +34,15 @@ ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~.
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
+| ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; fixed atomic numbers, optional ~cluster~ |
+| ~Driver.compute~ | one step in atomic units: Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
+| ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
+| ~Driver.close~ | close the session |
+| ~cpmdc.ipi.ProtocolError~ | a ~CpmdcError~ for a message the driver cannot answer |
+| ~cpmdc.ipi.connect~ | open the UNIX or TCP socket to the server, retrying for ~wait~ seconds |
+| ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
+| ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
+| ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
 
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~. A repeated geometry
 returns the stored step. A null or empty input raises; it does not abort
@@ -51,3 +61,4 @@ the rules for units, boundaries, caching, copies, and sessions.
 | stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | an unknown keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
+| a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |

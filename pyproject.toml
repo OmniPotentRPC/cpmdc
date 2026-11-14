@@ -28,6 +28,9 @@ keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
 ase = ["ase>=3.23"]
 test = ["ase>=3.23", "pytest>=7"]
 
+[project.scripts]
+cpmdc-ipi = "cpmdc.ipi:main"
+
 [project.urls]
 Homepage = "https://cpmdc.rgoswami.me"
 Repository = "https://github.com/OmniPotentRPC/cpmdc"
