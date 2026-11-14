@@ -40,6 +40,8 @@ jobs:
         run: pixi run python -m pip install 'ase>=3.23' 'pytest>=7'
       - name: Full meson suite (stub + embed E2E)
         run: pixi run test-stub
+      - name: C ABI inventory matches libcpmdc and the headers
+        run: python3 scripts/abi_inventory.py --check build/libcpmdc.so
       - name: Default restart build does not link readcon
         run: |
           if nm -A build/cpmdc-restart build/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
