@@ -54,7 +54,8 @@ class Evaluation:
     ``energy_h`` is Hartree. ``forces_h_bohr`` is an N by 3 list of
     Hartree/Bohr forces (the negative nuclear gradient). ``stress_h_bohr3``
     is the row-major Cartesian tensor in Hartree/Bohr^3 when the step had a
-    periodic cell, and ``None`` when the library did not compute stress.
+    periodic cell, and ``None`` when the library did not compute stress. It
+    has the OpenCPMD sign, ``-(1/V) dE/d(strain)``, the opposite of ASE's.
     """
 
     def __init__(
@@ -163,7 +164,11 @@ def forces_to_ev_per_angstrom(forces_h_bohr: Sequence[Sequence[float]]) -> list[
 
 
 def stress_to_ev_per_angstrom3(stress_h_bohr3: Sequence[float]) -> list[float]:
-    """Convert a row-major Hartree/Bohr^3 tensor to eV/Angstrom^3."""
+    """Convert a row-major Hartree/Bohr^3 tensor to eV/Angstrom^3.
+
+    The sign is kept; :meth:`Potential.evaluate` negates the result to
+    ASE's ``(1/V) dE/d(strain)``.
+    """
     if len(stress_h_bohr3) != 9:
         raise ValueError("stress must have 9 components")
     scale = HARTREE_TO_EV / (BOHR_TO_ANGSTROM ** 3)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print the reference energy and forces of one isolated step.
+"""Print the energy in Hartree and the atom count of one isolated step.
 
 Usage: energy.py PARAMS_BIN [LIBRARY]
 """
