@@ -1,0 +1,2 @@
+`include/cpmdc_export.h` defines `CPMDC_API`, which marks every public function: default visibility with GCC and Clang, and `dllexport` or `dllimport` on Windows (`CPMDC_STATIC` makes it empty for a static link).
+`libcpmdc` is built with hidden visibility, and on ELF and macOS it also links with an export list that `scripts/abi_inventory.py` writes from the same declarations, because gfortran does not apply `-fvisibility` to the Fortran `BIND(C)` glue.
