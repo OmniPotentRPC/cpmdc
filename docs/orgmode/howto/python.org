@@ -8,11 +8,15 @@ It loads ~libcpmdc~ with ~ctypes~. Positions are Angstrom.
 ~evaluate~ and ~caps~ without importing cpmdc's ASE module.
 
 * Load the library
-Set ~CPMDC_LIBRARY~ to the shared library, or pass the path to ~Session~.
+~pip install "cpmdc[ase]"~ installs the package with its own ~libcpmdc~
+and schema; the [[file:install.org][install page]] lists the wheels.
+From a checkout, set ~CPMDC_LIBRARY~ to the shared library, or pass the
+path to ~Session~.
 The search is the rgpot order: an explicit path, then ~CPMDC_LIBRARY~,
-~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~.
+~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~, then the wheel's library.
 A periodic cell is encoded as ~ForceInput~, so set ~CPMDC_SCHEMA~ to
-~schema/Potentials.capnp~ or pass that path as ~schema~.
+~schema/Potentials.capnp~ or pass that path as ~schema~; an installed
+wheel finds its own copy.
 
 #+begin_src python
 from cpmdc import Session

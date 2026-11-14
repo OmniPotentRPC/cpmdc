@@ -21,8 +21,8 @@ ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~.
 | ~Potential.evaluate~ | eV, eV/Angstrom, optional stress |
 | ~Potential.caps~ | ~stress~ true, ~energies~ false |
 | ~Potential.close~ | close the owned session |
-| ~find_library~ | explicit path, then the three environment variables |
-| ~find_schema~ | ~CPMDC_SCHEMA~ or ~schema/Potentials.capnp~ |
+| ~find_library~ | explicit path, the three environment variables, the wheel's library, the dynamic linker, then ~build/~ |
+| ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~ |
 | ~forces_to_ev_per_angstrom~ | Hartree/Bohr forces to eV/Angstrom |
 | ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3 |
 | ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress |

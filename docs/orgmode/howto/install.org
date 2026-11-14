@@ -79,6 +79,8 @@ meson test -C build --print-errorlogs
 | ~with_tests~ | boolean | ~true~ | build the cmocka suites, contract checks, and ~example_host_step~ |
 | ~with_cpmd~ | boolean | ~false~ | link OpenCPMD instead of the reference evaluator |
 | ~cpmd_root~ | string | empty | OpenCPMD build tree holding ~lib/libcpmd.a~, ~obj/~, and ~src/~ |
+| ~with_mpi~ | feature | ~auto~ | link MPI into the default library; ~disabled~ keeps it serial. ~with_cpmd~ always needs MPI |
+| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it |
 
 ~with_cpmd=true~ only takes effect together with a non-empty ~cpmd_root~.
 Configuration stops when ~DIR/lib/libcpmd.a~ or ~DIR/obj/timetag.o~ is missing.
@@ -121,6 +123,36 @@ The last command prints the project version, which Meson reads from
 Hosts that load the library at run time, such as ~rgpot~, look for it through
 ~CPMDC_LIBRARY~; see the [[file:../reference/environment.org][environment
 reference]].
+
+* Install the Python package
+Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28)
+and macOS arm64 (macOS 15 or newer).
+One wheel per platform serves CPython 3.10 and newer; CI tests 3.10 to 3.13.
+The ~ase~ extra installs ASE for ~cpmdc.ase~:
+
+#+begin_src bash
+pip install "cpmdc[ase]"
+python -c "import cpmdc; print(cpmdc.find_library())"
+#+end_src
+
+The second command prints the ~libcpmdc~ inside the installed package.
+That library is the default build: the reference evaluator, without
+OpenCPMD and without MPI, so ~Session.available()~ is false.
+The wheel carries ~libgfortran~ and ~schema/Potentials.capnp~.
+A periodic cell still needs the ~capnp~ command on ~PATH~, which
+encodes the cell as ~ForceInput~.
+To evaluate with OpenCPMD, build ~libcpmdc~ with ~-Dwith_cpmd=true~ and
+set ~CPMDC_LIBRARY~ to it; the variable takes precedence over the copy in
+the wheel.
+
+On other platforms pip builds the sdist.
+That needs the C, C++, and Fortran compilers, the ~capnp~ command, and
+network access for the Meson subprojects.
+The same build from a checkout:
+
+#+begin_src bash
+pip install ".[ase]"
+#+end_src
 
 * Pixi tasks
 

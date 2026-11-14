@@ -39,6 +39,8 @@ SKIP = {
     "howto/install.org:3": "needs an OpenCPMD build",
     "howto/install.org:4": "needs an OpenCPMD build",
     "howto/install.org:5": "installs into the caller prefix",
+    "howto/install.org:6": "installs from PyPI",
+    "howto/install.org:7": "builds and installs a wheel into the caller environment",
     "howto/mpi.org:0": "needs a multi-rank host and pseudopotentials",
     "howto/mpi.org:1": "fragment, not a complete program",
     "howto/mpi.org:2": "fragment, not a complete program",
