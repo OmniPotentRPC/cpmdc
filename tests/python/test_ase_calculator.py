@@ -74,7 +74,8 @@ def test_units_are_ev_and_angstrom(calc, params):
         native = session.energy_forces(WATER, [8, 1, 1])
     assert atoms.get_potential_energy() == pytest.approx(native.energy_h * HARTREE_TO_EV, rel=1e-14)
     scale = HARTREE_TO_EV / BOHR_TO_ANGSTROM
-    np.testing.assert_allclose(atoms.get_forces(), np.array(native.forces_h_bohr) * scale, rtol=1e-14)
+    expected = np.array(native.forces_h_bohr) * scale
+    np.testing.assert_allclose(atoms.get_forces(), expected, rtol=1e-14)
     assert atoms.get_potential_energy(force_consistent=True) == atoms.get_potential_energy()
     assert atoms.get_forces().shape == (3, 3)
     assert atoms.get_forces().dtype == np.float64
