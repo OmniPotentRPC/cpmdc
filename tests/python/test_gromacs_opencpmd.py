@@ -38,11 +38,18 @@ from test_gromacs import (
 )
 
 
+# The libcpmdc that libcpmdc_gromacs links, which Meson builds and installs
+# beside it; CPMDCCalculator would otherwise search CPMDC_LIBRARY and build/.
+CPMDC_LIB = Path(LIB).parent / "libcpmdc.so" if LIB else None
+
+
 def opencpmd_problem() -> str | None:
     if LIB is None:
         return "libcpmdc_gromacs is not built"
     if not ctypes.CDLL(str(LIB)).cpmdc_available():
         return f"{LIB} is not linked to OpenCPMD"
+    if not CPMDC_LIB.is_file():
+        return f"no libcpmdc beside {LIB}"
     if shutil.which("capnp") is None:
         return "capnp is not on PATH"
     if not os.environ.get("CPMDC_PSEUDO_DIR"):
@@ -112,7 +119,7 @@ def test_opencpmd_whole_system_stress_matches_ase(box, periodic_params, tmp_path
     ours, numeric = shim_and_strain_stress(inp, tmp_path / "sys.out", "OHH", WATER_NM, box,
                                            PERIODIC_STRAIN)
     atoms = Atoms("OHH", positions=WATER_NM * 10.0, cell=box * 10.0, pbc=True)
-    with CPMDCCalculator(periodic_params) as calc:
+    with CPMDCCalculator(periodic_params, library=CPMDC_LIB) as calc:
         atoms.calc = calc
         analytic = atoms.get_stress(voigt=False)
     scale = np.abs(numeric).max()
