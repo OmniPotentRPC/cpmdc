@@ -7,9 +7,13 @@ eV/Angstrom^3. Stress is Voigt order ``(xx, yy, zz, yz, xz, xy)`` and is
 energy of the step; the library does not separate an electronic entropy.
 
 A structure with every periodic flag false is a cluster: the cell is not
-sent. A mixed periodic flag raises ``ValueError`` and names the
-non-periodic axes. The same session is reused, so the atom count and the
-elemental composition stay fixed after the first successful step.
+sent, and the CPMDParams deck sets the boundary conditions. Every flag
+true sends ``atoms.cell`` as the periodic cell; a cell without three
+independent vectors raises ``ValueError``. A mixed periodic flag raises
+``ValueError`` and names the non-periodic axes.
+
+One session serves a run of steps with the same atomic numbers. A step
+with other numbers closes it and opens a new session.
 
 Importing this module imports ASE. ``import cpmdc`` does not.
 """
@@ -25,6 +29,7 @@ from ase.atoms import Atoms
 from ase.calculators.calculator import (
     Calculator,
     Parameters,
+    PropertyNotImplementedError,
     all_changes,
     equal,
 )
@@ -39,9 +44,19 @@ _ASE_KEYS = {
     "directory",
 }
 
+_NO_STRESS_CLUSTER = (
+    "stress needs a fully periodic cell: set atoms.pbc = True and a cell "
+    "with three independent vectors"
+)
+_NO_STRESS_DECK = (
+    "the library computed no stress for this periodic cell: the CPMDParams "
+    "deck describes an isolated system (SYMMETRY 0, POISSON SOLVER, "
+    "ISOLATED MOLECULE, or CLUSTER), or CPMDC_STRESS=0 is set"
+)
+
 
 def _pbc_flags(pbc: Any) -> list[bool]:
-    raw = list(pbc)
+    raw = list(np.atleast_1d(pbc))
     if len(raw) == 1:
         raw = [raw[0], raw[0], raw[0]]
     if len(raw) != 3:
@@ -98,6 +113,8 @@ class CPMDCCalculator(Calculator):
 
     implemented_properties = ["energy", "free_energy", "forces", "stress"]
     default_parameters: dict[str, Any] = {"params": None, "library": None}
+    # Charge and multiplicity come from CPMDParams, not from the Atoms.
+    ignored_changes = {"initial_charges", "initial_magmoms"}
     discard_results_on_any_change = True
 
     def __init__(
@@ -121,6 +138,8 @@ class CPMDCCalculator(Calculator):
             )
         self._potential: Potential | None = None
         self._blob = b""
+        self._numbers: tuple[int, ...] | None = None
+        self._no_stress = ""
         Calculator.__init__(self, **kwargs)
         self.set(params=params, library=library)
 
@@ -183,41 +202,73 @@ class CPMDCCalculator(Calculator):
             del dct["params"]
         return dct
 
+    def reset(self) -> None:
+        """Clear the stored results; the session stays open."""
+        Calculator.reset(self)
+        self._no_stress = ""
+
     def calculate(
         self,
         atoms: Atoms | None = None,
         properties: Sequence[str] = ("energy",),
         system_changes: Any = all_changes,
     ) -> None:
-        """Fill ``self.results``. ``free_energy`` equals ``energy``."""
+        """Fill ``self.results`` with every property of one step.
+
+        Energy, free energy, and forces are always computed; stress is
+        computed for a fully periodic cell. Asking for stress that the
+        step cannot give raises ``PropertyNotImplementedError`` with the
+        reason, without computing the step again.
+        """
+        if "stress" in properties and not system_changes and self._no_stress:
+            raise PropertyNotImplementedError(self._no_stress)
         Calculator.calculate(self, atoms, properties, system_changes)
         assert self.atoms is not None
-        flags = _pbc_flags(self.atoms.pbc)
-        cell: Any = None
-        if any(flags):
-            if not all(flags):
-                names = [axis for axis, flag in zip(("x", "y", "z"), flags) if not flag]
-                raise ValueError(
-                    "cpmdc takes a fully periodic cell; non-periodic axes: "
-                    + ", ".join(names)
-                )
-            cell = self.atoms.cell.array
-        evaluated = self.potential.evaluate(
-            self.atoms.get_positions(),
-            self.atoms.get_atomic_numbers(),
-            cell,
-        )
+        cell = self._periodic_cell(self.atoms)
+        if "stress" in properties and cell is None:
+            self._no_stress = _NO_STRESS_CLUSTER
+            raise PropertyNotImplementedError(_NO_STRESS_CLUSTER)
+        numbers = tuple(int(number) for number in self.atoms.get_atomic_numbers())
+        if self._numbers is not None and numbers != self._numbers:
+            self._release()
+        evaluated = self.potential.evaluate(self.atoms.get_positions(), numbers, cell)
+        self._numbers = numbers
         energy = float(evaluated["energy"])
         self.results["energy"] = energy
         self.results["free_energy"] = energy
         self.results["forces"] = np.asarray(evaluated["forces"], dtype=float)
         if "stress" in evaluated:
             self.results["stress"] = np.asarray(_voigt(evaluated["stress"]), dtype=float)
+            self._no_stress = ""
+        else:
+            self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
+            if "stress" in properties:
+                raise PropertyNotImplementedError(self._no_stress)
+
+    @staticmethod
+    def _periodic_cell(atoms: Atoms) -> np.ndarray | None:
+        flags = _pbc_flags(atoms.pbc)
+        if not any(flags):
+            return None
+        if not all(flags):
+            names = [axis for axis, flag in zip(("x", "y", "z"), flags) if not flag]
+            raise ValueError(
+                "cpmdc takes a fully periodic cell; non-periodic axes: "
+                + ", ".join(names)
+            )
+        lengths = atoms.cell.lengths()
+        if np.any(lengths <= 0.0) or atoms.cell.volume <= 1.0e-8 * float(np.prod(lengths)):
+            raise ValueError(
+                "cpmdc takes a fully periodic cell; atoms.pbc is true but "
+                "atoms.cell does not have three independent vectors"
+            )
+        return atoms.cell.array
 
     def _release(self) -> None:
         if self._potential is not None:
             self._potential.close()
         self._potential = None
+        self._numbers = None
 
     def close(self) -> None:
         """Close the session. The next step opens a new one."""
@@ -232,6 +283,7 @@ class CPMDCCalculator(Calculator):
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state["_potential"] = None
+        state["_numbers"] = None
         state["results"] = dict(self.results)
         state["parameters"] = Parameters(self.parameters)
         state.pop("get_spin_polarized", None)
