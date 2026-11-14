@@ -11,12 +11,20 @@ set NM to use another nm, such as llvm-nm.
 
 --version-script and --exported-symbols-list write the linker export list of
 libcpmdc from the same declarations, for an ELF linker and for ld64.
+
+The export lists also keep the MPI Fortran sentinels global: the COMMON
+blocks behind MPI_IN_PLACE, MPI_BOTTOM, MPI_STATUS_IGNORE and the like,
+which OpenCPMD's ``USE mpi`` puts in libcpmdc. The MPI library recognizes a
+sentinel by its address, so libcpmdc must use the MPI library's block; a
+local copy turns every MPI_IN_PLACE collective into one on a scratch buffer.
+They are not part of the C ABI and the inventory leaves them out.
 """
 
 from __future__ import annotations
 
 import argparse
 import difflib
+import fnmatch
 import os
 import re
 import shlex
@@ -35,6 +43,15 @@ DECLARATION = re.compile(r"(?m)^(?!typedef\b)[A-Za-z_][\w\s*]*?\b(cpmdc_\w+)\s*\
 DOC_BEFORE = re.compile(r"/\*\*((?:(?!\*/).)*)\*/\s*$", re.S)
 SINCE = re.compile(r"[@\\]since\s+(?:ABI\s+)?(\d+)", re.I)
 ABI_GENERATION = re.compile(r"(?m)^\s*#\s*define\s+CPMDC_ABI_VERSION\s+(\d+)\b")
+# Open MPI's mpif-sentinels.h, then MPICH's mpif.h.
+MPI_FORTRAN_SENTINELS = (
+    "mpi_fortran_*",
+    "mpipriv1_",
+    "mpipriv2_",
+    "mpiprivc_",
+    "mpifcmb5_",
+    "mpifcmb9_",
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +119,8 @@ def exported_symbols(library: Path) -> set[str]:
         name = fields[-1].split("@", 1)[0]
         if sys.platform == "darwin" and name.startswith("_"):
             name = name[1:]
+        if any(fnmatch.fnmatchcase(name, p) for p in MPI_FORTRAN_SENTINELS):
+            continue
         symbols.add(name)
     return symbols
 
@@ -128,6 +147,8 @@ def version_script(root: Path) -> str:
         "{",
         "  global:",
         *(f"    {symbol};" for symbol in public_symbols(root)),
+        "    /* MPI Fortran sentinels: the MPI library's copy must win. */",
+        *(f"    {pattern};" for pattern in MPI_FORTRAN_SENTINELS),
         "  local:",
         "    *;",
         "};",
@@ -136,7 +157,8 @@ def version_script(root: Path) -> str:
 
 
 def exported_symbols_list(root: Path) -> str:
-    return "".join(f"_{symbol}\n" for symbol in public_symbols(root))
+    names = [*public_symbols(root), *MPI_FORTRAN_SENTINELS]
+    return "".join(f"_{name}\n" for name in names)
 
 
 def build(root: Path, exported: set[str]) -> tuple[str, list[str]]:

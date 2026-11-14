@@ -228,6 +228,16 @@ nm -D build-cpmd/libcpmdc.so | grep -c ' T cpmdc_'
 #+end_src
 
 The last command counts the exported ~cpmdc_*~ symbols.
+The export list hides every other symbol of the archives except the MPI
+Fortran sentinels: ~USE mpi~ gives OpenCPMD's objects the COMMON blocks
+behind ~MPI_IN_PLACE~, ~MPI_BOTTOM~, and ~MPI_STATUS_IGNORE~
+(~mpi_fortran_*_~ in Open MPI, ~mpipriv1_~ and its siblings in MPICH), and
+the MPI library recognizes a sentinel by the address of its own block.
+Hidden in ~libcpmdc~, they became private copies, and every ~MPI_IN_PLACE~
+collective sent the zeros of that copy instead of the data: with Open MPI 5
+the first SCF faulted in ~gorder~, after ~my_allgather_i~ had overwritten
+the plane-wave counts with zeros.
+Kept global, they resolve to one block per process.
 The first evaluation needs the pseudopotential directory in
 ~CPMDC_PSEUDO_DIR~; the [[file:../tutorials/first-energy.org][first energy
 tutorial]] runs one.
