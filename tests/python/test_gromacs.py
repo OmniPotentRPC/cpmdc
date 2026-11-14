@@ -632,6 +632,90 @@ def test_gromacs_qmmm_nve_conserves_energy(params, tmp_path):
     assert np.abs(table[:, 2] - table[0, 2]).max() / swing < 5e-3
 
 
+TENSOR = ("XX", "XY", "XZ", "YX", "YY", "YZ", "ZX", "ZY", "ZZ")
+EV_TO_KJ_PER_MOL = HARTREE_TO_KJ_PER_MOL / HARTREE_TO_EV
+# GROMACS' c_presfac, bar per kJ/(mol nm^3), against one eV/Angstrom^3.
+EV_PER_ANGSTROM3_TO_BAR = 1.602176634e6
+
+
+def virial_and_pressure(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Vir-XX .. Vir-ZZ (kJ/mol) and Pres-XX .. Pres-ZZ (bar) of the first frame."""
+    table = gc.energies(GMX, workdir, *(f"Vir-{t}" for t in TENSOR), *(f"Pres-{t}" for t in TENSOR))
+    return table[0, 1:10].reshape(3, 3), table[0, 10:19].reshape(3, 3)
+
+
+@needs_gmx
+@pytest.mark.parametrize("box", [CUBE_NM, TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_gromacs_virial_is_the_qm_stress_times_volume(box, periodic_params, tmp_path):
+    """Whole-system QM: GROMACS' virial is -V sigma / 2, and only that.
+
+    md-vv from rest has no kinetic energy at step 0, so the pressure is
+    -2 Xi / V, which is ASE's stress with the sign flipped.
+    """
+    whole_system(tmp_path, periodic_params, box, integrator="md-vv")
+    frame = gc.read_trr(tmp_path / "md.trr")[0]
+    atoms = Atoms(gc.SYMBOLS, positions=frame["x"] * 10.0, cell=frame["box"] * 10.0, pbc=True)
+    with CPMDCCalculator(periodic_params) as calc:
+        atoms.calc = calc
+        sigma = atoms.get_stress(voigt=False)
+    virial, pressure = virial_and_pressure(tmp_path)
+    expected = 0.5 * atoms.get_volume() * sigma * EV_TO_KJ_PER_MOL
+    scale = np.abs(expected).max()
+    np.testing.assert_allclose(virial, expected, rtol=1e-9, atol=1e-12 * scale)
+    np.testing.assert_allclose(pressure, -sigma * EV_PER_ANGSTROM3_TO_BAR, rtol=1e-8,
+                               atol=1e-11 * scale)
+    log = (tmp_path / "md_cp2k.out").read_text()
+    assert "first stress request: available 1" in log
+    assert "returned no stress tensor" not in (tmp_path / "md.log").read_text()
+
+
+def strained(x_nm, box_nm, a, b, h):
+    """Every position and the box under x_a -> x_a + h x_b; a <= b keeps the box lower triangular."""
+    eps = np.zeros((3, 3))
+    eps[a, b] = h
+    deform = np.eye(3) + eps
+    return np.asarray(x_nm) @ deform.T, np.asarray(box_nm) @ deform.T
+
+
+@needs_gmx
+@pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_gromacs_qmmm_virial_is_the_strain_derivative_of_the_energy(box, params, tmp_path):
+    """QM/MM with PME: Xi_ba = dE/d(eps_ab) / 2 over GROMACS' own potential energy.
+
+    The classical terms, the QM energy and the cpmdc QM-MM Ewald sum all
+    enter E; a QM virial left out of GROMACS shows as a mismatch. Fixed
+    PME grids and a fixed EWALD_RCUT keep both splittings fixed under the
+    strain.
+    """
+    qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES, ewald_rcut=0.7,
+                    ewald_precision=1e-12)
+    mdp = {"integrator": "md-vv", "rcoulomb": 0.7, "rvdw": 0.7, "fourier-nx": 24, "fourier-ny": 24,
+           "fourier-nz": 24, "ewald-rtol": 1e-10, "nstxout": 0, "nstvout": 0, "nstfout": 0}
+
+    def potential(work, x_nm, box_nm):
+        gc.write_system(work, positions=x_nm, box=box_nm, qm_molecules=[0], qmi=qmi, mdp=mdp,
+                        qm_lj=True)
+        gc.run(GMX, work)
+        return gc.energies(GMX, work, "Potential")[0, 1]
+
+    # Inside the box: mdrun breaks a water across the boundary of a box
+    # strained to a negative tilt when it makes the molecules whole.
+    x_nm = QMMM_NM + 0.4
+    potential(tmp_path / "0", x_nm, box)
+    virial, _ = virial_and_pressure(tmp_path / "0")
+    h = 1e-5
+    pairs = [(a, b) for a in range(3) for b in range(a, 3)]
+    derivative = np.zeros((3, 3))
+    for a, b in pairs:
+        plus = potential(tmp_path / f"{a}{b}+", *strained(x_nm, box, a, b, h))
+        minus = potential(tmp_path / f"{a}{b}-", *strained(x_nm, box, a, b, -h))
+        derivative[a, b] = (plus - minus) / (2 * h)
+    scale = np.abs(virial).max()
+    for a, b in pairs:
+        assert virial[b, a] == pytest.approx(0.5 * derivative[a, b], abs=1e-8 * scale), (a, b)
+    np.testing.assert_allclose(virial, virial.T, atol=1e-9 * scale)
+
+
 @needs_gmx
 @pytest.mark.parametrize(
     "case, message",
