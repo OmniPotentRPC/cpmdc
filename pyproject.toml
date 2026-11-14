@@ -1,0 +1,79 @@
+[build-system]
+requires = ["meson-python>=0.16", "meson>=1.5.2", "ninja>=1.11"]
+build-backend = "mesonpy"
+
+[project]
+name = "cpmdc"
+# meson-python takes the version from meson.build, which reads version.txt.
+dynamic = ["version"]
+description = "Python and ASE bindings for libcpmdc, the C ABI for embedding OpenCPMD"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Rohit Goswami", email = "rgoswami@ieee.org" }]
+requires-python = ">=3.10"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: C",
+  "Programming Language :: Fortran",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
+
+[project.optional-dependencies]
+ase = ["ase>=3.23"]
+
+[project.urls]
+Homepage = "https://cpmdc.rgoswami.me"
+Repository = "https://github.com/OmniPotentRPC/cpmdc"
+Issues = "https://github.com/OmniPotentRPC/cpmdc/issues"
+Changelog = "https://github.com/OmniPotentRPC/cpmdc/blob/main/CHANGELOG.md"
+
+# The wheel holds the package, libcpmdc, and schema/Potentials.capnp.
+# Headers, pkg-config files, cpmdc-restart, and subproject installs stay
+# with `meson install`. MPI is off so the wheel needs no MPI runtime.
+[tool.meson-python.args]
+setup = [
+  "-Dwith_python=true",
+  "-Dwith_tests=false",
+  "-Dwith_mpi=disabled",
+]
+install = ["--tags=python-runtime", "--skip-subprojects"]
+dist = ["--include-subprojects"]
+
+[tool.cibuildwheel]
+build-frontend = "build"
+# libcpmdc is loaded with ctypes and the package installs nothing to
+# platlib, so meson-python tags one py3-none wheel per platform.
+# cibuildwheel builds it once and tests it under every selected CPython.
+build = "cp310-* cp311-* cp312-* cp313-*"
+skip = ["pp*", "*-musllinux*", "*_i686", "*-win32"]
+test-extras = ["ase"]
+test-command = [
+  "python -c \"import cpmdc, cpmdc.ase; print(cpmdc.find_library(), cpmdc.find_schema())\"",
+  "python {project}/tests/test_installed_wheel.py {project}",
+]
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+environment = { CC = "gcc", CXX = "g++", FC = "gfortran" }
+before-all = """
+set -eu
+pm=$(command -v dnf || command -v yum)
+"$pm" install -y gcc-gfortran
+bash scripts/ci/install_capnp_tool.sh
+"""
+
+[tool.cibuildwheel.macos]
+# Homebrew's libgfortran on macos-15 targets macOS 15.0; delocate rejects
+# it under a lower deployment target.
+environment = { MACOSX_DEPLOYMENT_TARGET = "15.0", FC = "gfortran" }
+before-all = """
+brew list gcc >/dev/null 2>&1 || brew install gcc
+brew list capnp >/dev/null 2>&1 || brew install capnp
+"""
