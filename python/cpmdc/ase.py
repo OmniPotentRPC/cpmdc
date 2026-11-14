@@ -16,13 +16,20 @@ Importing this module imports ASE. ``import cpmdc`` does not.
 
 from __future__ import annotations
 
+import os
+import warnings
 from typing import Any, Sequence
 
 import numpy as np
 from ase.atoms import Atoms
-from ase.calculators.calculator import Calculator, all_changes
+from ase.calculators.calculator import (
+    Calculator,
+    Parameters,
+    all_changes,
+    equal,
+)
 
-from cpmdc import Potential
+from cpmdc import Potential, _warn_schema
 
 _ASE_KEYS = {
     "restart",
@@ -48,22 +55,50 @@ def _voigt(stress: Sequence[float]) -> list[float]:
     return [s[0], s[4], s[8], s[5], s[2], s[1]]
 
 
+def _params_bytes(params: Any) -> bytes:
+    if isinstance(params, (bytes, bytearray, memoryview)):
+        return bytes(params)
+    with open(os.fspath(params), "rb") as handle:
+        return handle.read()
+
+
+def _param_value(key: str, value: Any) -> Any:
+    if value is None:
+        return None
+    if key == "params" and isinstance(value, (bytearray, memoryview)):
+        return bytes(value)
+    if isinstance(value, bytes):
+        return value
+    return os.fspath(value)
+
+
 class CPMDCCalculator(Calculator):
     """ASE calculator that evaluates one cpmdc session in process.
 
     Parameters
     ----------
     params:
-        Serialized ``CPMDParams`` bytes, or a path to that file.
+        Serialized ``CPMDParams`` bytes, or a path to that file. The bytes
+        are read once, when the parameter is set.
     library:
         Path of ``libcpmdc``. The environment search in
         :func:`cpmdc.find_library` is used when this is omitted.
     schema:
-        Path of ``schema/Potentials.capnp``. Required for a periodic cell.
-        ``CPMDC_SCHEMA`` is used when this is omitted.
+        Deprecated and ignored. A cell no longer needs the schema file.
+
+    ``label``, ``directory``, and ``atoms`` are passed to ASE's
+    ``Calculator``. ``restart`` is deprecated: cpmdc reads no restart
+    file. Any other keyword raises ``TypeError``.
+
+    ``parameters`` holds ``params`` and ``library``. :meth:`set` changes
+    them, opens a new session, and clears the stored results. The
+    calculator can be copied, deep-copied, and pickled; a copy opens its
+    own session on its first step.
     """
 
     implemented_properties = ["energy", "free_energy", "forces", "stress"]
+    default_parameters: dict[str, Any] = {"params": None, "library": None}
+    discard_results_on_any_change = True
 
     def __init__(
         self,
@@ -73,17 +108,80 @@ class CPMDCCalculator(Calculator):
         schema: Any = None,
         **kwargs: Any,
     ) -> None:
-        ase_kw = {key: value for key, value in kwargs.items() if key in _ASE_KEYS}
         unknown = [key for key in kwargs if key not in _ASE_KEYS]
         if unknown:
             raise TypeError(f"unknown calculator arguments: {sorted(unknown)}")
-        self._potential = Potential(params, library=library, schema=schema)
-        Calculator.__init__(self, **ase_kw)
+        if schema is not None:
+            _warn_schema(stacklevel=3)
+        if kwargs.get("restart") is not None:
+            warnings.warn(
+                "restart is ignored and will be removed: cpmdc reads no restart file",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self._potential: Potential | None = None
+        self._blob = b""
+        Calculator.__init__(self, **kwargs)
+        self.set(params=params, library=library)
 
     @property
     def potential(self) -> Potential:
-        """The rgpot-shaped potential this calculator evaluates."""
+        """The rgpot-shaped potential this calculator evaluates.
+
+        It is opened on first use after :meth:`close`, a copy, or an
+        unpickle.
+        """
+        if self._potential is None:
+            self._potential = Potential(self._blob, library=self.parameters.get("library"))
         return self._potential
+
+    def set(self, **kwargs: Any) -> dict[str, Any]:
+        """Change ``params`` or ``library`` and return the changed keys.
+
+        A change opens a new session and clears the stored results. The
+        old session stays in use when the new one cannot be opened.
+        ``schema`` is deprecated and ignored. Another key raises
+        ``TypeError``.
+        """
+        if "parameters" in kwargs:
+            loaded = Parameters.read(kwargs.pop("parameters"))
+            loaded.update(kwargs)
+            kwargs = dict(loaded)
+        if "schema" in kwargs:
+            if kwargs.pop("schema") is not None:
+                _warn_schema(stacklevel=3)
+        unknown = [key for key in kwargs if key not in self.default_parameters]
+        if unknown:
+            raise TypeError(f"unknown calculator parameters: {sorted(unknown)}")
+        kwargs = {key: _param_value(key, value) for key, value in kwargs.items()}
+        if "params" in kwargs and kwargs["params"] is None:
+            raise TypeError("params is required: a CPMDParams path or bytes")
+        reopen = any(
+            key in kwargs and not equal(kwargs[key], self.parameters.get(key))
+            for key in ("params", "library")
+        )
+        if reopen:
+            params = kwargs.get("params", self.parameters.get("params"))
+            library = kwargs.get("library", self.parameters.get("library"))
+            blob = _params_bytes(params)
+            potential = Potential(blob, library=library)
+        changed = Calculator.set(self, **kwargs)
+        if reopen:
+            self._release()
+            self._potential = potential
+            self._blob = blob
+        return changed
+
+    def todict(self, skip_default: bool = True) -> dict[str, Any]:
+        """Parameters for a trajectory or a database row.
+
+        A ``params`` buffer given as bytes is not JSON data and is left
+        out; a path is kept.
+        """
+        dct = Calculator.todict(self, skip_default=skip_default)
+        if isinstance(dct.get("params"), bytes):
+            del dct["params"]
+        return dct
 
     def calculate(
         self,
@@ -104,7 +202,7 @@ class CPMDCCalculator(Calculator):
                     + ", ".join(names)
                 )
             cell = self.atoms.cell.array
-        evaluated = self._potential.evaluate(
+        evaluated = self.potential.evaluate(
             self.atoms.get_positions(),
             self.atoms.get_atomic_numbers(),
             cell,
@@ -116,6 +214,29 @@ class CPMDCCalculator(Calculator):
         if "stress" in evaluated:
             self.results["stress"] = np.asarray(_voigt(evaluated["stress"]), dtype=float)
 
+    def _release(self) -> None:
+        if self._potential is not None:
+            self._potential.close()
+        self._potential = None
+
     def close(self) -> None:
-        """Close the session."""
-        self._potential.close()
+        """Close the session. The next step opens a new one."""
+        self._release()
+
+    def __enter__(self) -> CPMDCCalculator:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
+
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        state["_potential"] = None
+        state["results"] = dict(self.results)
+        state["parameters"] = Parameters(self.parameters)
+        state.pop("get_spin_polarized", None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self.get_spin_polarized = self._deprecated_get_spin_polarized
