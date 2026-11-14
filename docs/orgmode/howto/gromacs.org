@@ -249,7 +249,8 @@ NPT works with a GROMACS patched as in [[*Build][Build]].
 The QM virial is the full tensor, in a cubic or triclinic box, so
 C-rescale, Parrinello-Rahman, and the other barostats see the QM part of
 the pressure whatever coupling type they use; the runs in
-[[*OpenCPMD in GROMACS][OpenCPMD in GROMACS]] use isotropic C-rescale.
+[[*OpenCPMD in GROMACS][OpenCPMD in GROMACS]] use isotropic C-rescale and
+Parrinello-Rahman.
 
 GROMACS adds the QM/MM forces through its ~ForceWithVirial~ buffer, whose
 forces enter the virial only through ~addVirialContribution()~, and the
@@ -547,6 +548,21 @@ GROMACS' conserved energy, which includes the thermostat and barostat
 work, drifts by 13.9 kJ/mol/ps with the QM water and 11.1 without in the
 27-water system, and by 188.9 and 143.7 in the 64-water one.
 Each QM run took 6907 s, 1.73 s per step.
+
+With ~--pcoupl Parrinello-Rahman --tau-p 2.0 --steps 2000~ on the 64
+waters, beside a one-rank job for part of the time, the QM run took
+2891 s.
+Over the second half picosecond:
+
+| Run | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Volume at 0 and 1 ps, nm^3 |
+|-----+--------------+-----------------+---------------+----------------+----------------------------|
+| QM water | 1.967 (0.006) | 973.4 (2.9) | -21 (2957) | 273.3 (14.2) | 1.907, 1.978 |
+| classical | 2.015 (0.043) | 950.5 (20.0) | 323 (3048) | 294.6 (12.6) | 1.907, 2.099 |
+
+Both runs start near 205 K, as the 300 K velocities flow into the
+minimised structure; in 1 ps the thermostat has brought the classical run
+near 300 K but not yet the QM run, which the 2 ps C-rescale run above
+reaches.
 
 * Overhead per step
 ~bench/gromacs_routes.py~ integrates the system of
