@@ -29,10 +29,14 @@ from typing import Any, Sequence
 # src/cpmdc.c CPMDC_HARTREE_EV and src/cpmdc_params.h CPMDC_BOHR_TO_ANGSTROM.
 HARTREE_TO_EV = 27.211386245988
 BOHR_TO_ANGSTROM = 0.529177210903
+# CODATA 2018 Hartree energy times the Avogadro constant, in thermochemical
+# kilocalories (4184 J): the energy unit of LAMMPS "real" units.
+HARTREE_TO_KCAL_PER_MOL = 4.3597447222071e-18 * 6.02214076e23 / 4184.0
 
 __all__ = [
     "BOHR_TO_ANGSTROM",
     "HARTREE_TO_EV",
+    "HARTREE_TO_KCAL_PER_MOL",
     "CpmdcError",
     "Evaluation",
     "Potential",
@@ -223,6 +227,56 @@ def _cell(cell: Sequence[Sequence[float]] | Sequence[float] | None) -> list[floa
     return [_finite(value, "cell") for value in raw]  # type: ignore[arg-type]
 
 
+_FORMATS = {ctypes.c_double: "d", ctypes.c_int: "i"}
+
+
+def _contiguous(data: Any, ctype: Any, count: int) -> memoryview | None:
+    try:
+        view = memoryview(data)
+    except TypeError:
+        return None
+    if (
+        view.format.lstrip("@=") != _FORMATS[ctype]
+        or view.itemsize != ctypes.sizeof(ctype)
+        or not view.c_contiguous
+        or view.nbytes != count * view.itemsize
+    ):
+        return None
+    return view
+
+
+def _flat(data: Any) -> list[Any]:
+    flat: list[Any] = []
+    for item in data:
+        if hasattr(item, "__len__"):
+            flat.extend(item)
+        else:
+            flat.append(item)
+    return flat
+
+
+def _in_array(data: Any, ctype: Any, count: int, what: str) -> Any:
+    """``count`` values of ``ctype``; a matching writable buffer is not copied."""
+    view = _contiguous(data, ctype, count)
+    if view is not None:
+        if view.readonly:
+            return (ctype * count).from_buffer_copy(view)
+        return (ctype * count).from_buffer(data)
+    flat = _flat(data)
+    if len(flat) != count:
+        raise ValueError(f"{what} must have {count} values, got {len(flat)}")
+    return (ctype * count)(*flat)
+
+
+def _out_array(data: Any, count: int, what: str) -> tuple[Any, Any]:
+    if data is None:
+        data = array("d", bytes(8 * count))
+    view = _contiguous(data, ctypes.c_double, count)
+    if view is None or view.readonly:
+        raise ValueError(f"{what} must be a writable C-contiguous buffer of {count} doubles")
+    return data, (ctypes.c_double * count).from_buffer(data)
+
+
 # ForceInput in schema/Potentials.capnp: two data words (hasCharge,
 # charge, hasMultiplicity, multiplicity; all zero is the schema default)
 # and five pointers (pos, atmnrs, box, lengthUnit, energyUnit).
@@ -299,6 +353,19 @@ def _load(path: Path) -> ctypes.CDLL:
         ctypes.c_size_t,
     ]
     lib.cpmdc_session_calculate_forces.restype = _CResult
+    lib.cpmdc_session_calculate_au.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.cpmdc_session_calculate_au.restype = ctypes.c_int
+    lib.cpmdc_adopt_calculator_comm.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
+    lib.cpmdc_adopt_calculator_comm.restype = ctypes.c_int
     lib.cpmdc_session_last_stress.argtypes = [
         ctypes.c_void_p,
         ctypes.POINTER(_CStress),
@@ -414,6 +481,50 @@ class Session:
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
         return Evaluation(float(result.energy_h), _rows(force_buf, n_atoms), tensor)
+
+    def calculate_au(
+        self,
+        positions_bohr: Any,
+        atomic_numbers: Any,
+        cell_bohr: Any = None,
+        *,
+        forces: Any = None,
+        virial: Any = None,
+    ) -> tuple[float, Any, Any]:
+        """One step through ``cpmdc_session_calculate_au()``, atomic units.
+
+        ``positions_bohr`` holds ``3 * N`` Bohr coordinates, atom-major, flat
+        or as N rows. ``atomic_numbers`` has N entries. ``cell_bohr`` is
+        ``None`` for a system without a cell, or nine Bohr values (or three
+        rows) with one lattice vector per row. A C-contiguous ``float64`` or
+        ``int32`` buffer of the right size, such as a NumPy array, is passed
+        without a copy.
+
+        Returns ``(energy_h, forces, virial)``: Hartree, ``3 * N``
+        Hartree/Bohr forces ``-dE/dR``, and the nine-component row-major
+        virial ``-dE/d(strain)`` in Hartree, zero without a cell or a
+        stress tensor. ``forces`` and ``virial`` may name writable
+        ``float64`` buffers of ``3 * N`` and nine values to fill in place;
+        otherwise new ``array('d')`` objects are returned.
+        """
+        n_atoms = len(atomic_numbers)
+        if n_atoms < 1:
+            raise ValueError("atomic_numbers must contain at least one atom")
+        numbers = _in_array(atomic_numbers, ctypes.c_int, n_atoms, "atomic_numbers")
+        positions = _in_array(positions_bohr, ctypes.c_double, 3 * n_atoms, "positions_bohr")
+        cell = None if cell_bohr is None else _in_array(cell_bohr, ctypes.c_double, 9, "cell_bohr")
+        forces, force_buf = _out_array(forces, 3 * n_atoms, "forces")
+        virial, virial_buf = _out_array(virial, 9, "virial")
+        energy = ctypes.c_double()
+        if not getattr(self, "_handle", None):
+            raise CpmdcError("the session is closed; open a new Session")
+        status = self._lib.cpmdc_session_calculate_au(
+            self._handle, n_atoms, numbers, positions, cell, ctypes.byref(energy),
+            force_buf, virial_buf,
+        )
+        if status != 0:
+            raise CpmdcError(self._error() or "evaluation failed")
+        return float(energy.value), forces, virial
 
     def close(self) -> None:
         """Destroy the session handle. A second close does nothing."""
