@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import re
 import subprocess
 import sys
 import textwrap
@@ -483,3 +484,95 @@ def test_gromacs_unsupported_configs_stop_mdrun(case, message, params, tmp_path)
     assert done.returncode != 0
     assert "cpmdc-gromacs: " in done.stderr
     assert message in done.stderr
+
+
+# --- MPI GROMACS: domain decomposition --------------------------------------
+
+LAUNCHER, GMX_MPI, GMX_MPI_PROBLEM = (
+    gc.gmx_mpi_problem() if LIB else (None, None, "libcpmdc_gromacs is not built")
+)
+needs_gmx_mpi = pytest.mark.skipif(GMX_MPI is None, reason=GMX_MPI_PROBLEM or "MPI GROMACS")
+
+# 64 waters on a 0.6 nm lattice in a 2.4 nm box. Molecule 0, QM, sits at
+# the origin, where the reference well is shallow, with its hydrogens across
+# x = 0 and y = 0: the periodic boundary, which is a domain boundary of every
+# decomposition.
+DD_BOX_NM = np.eye(3) * 2.4
+DD_QM = 0
+
+
+def dd_positions() -> np.ndarray:
+    x = gc.water_lattice(4, 0.6)
+    x[3 * DD_QM : 3 * DD_QM + 3] = [
+        [0.01, 0.01, 0.01173],
+        [-0.0857, 0.01, -0.0117],
+        [0.0339, -0.0827, -0.0117],
+    ]
+    return x
+
+
+def dd_run(tmp_path, params, ranks, qm_ranks="ALL", mdrun_args=("-npme", "0"), **kw):
+    qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES, qm_ranks=qm_ranks)
+    gc.write_system(
+        tmp_path, positions=dd_positions(), box=DD_BOX_NM, qm_molecules=[DD_QM], qmi=qmi,
+        qm_lj=True,
+        # A pair list rebuilt every step with no buffer: the Verlet buffer
+        # lets each decomposition miss different pairs between rebuilds.
+        mdp={"rcoulomb": 0.6, "rvdw": 0.6, "rlist": 0.6, "nstlist": 1,
+             "verlet-buffer-tolerance": -1, "nsteps": 20, "nstxout": 10, "nstvout": 0,
+             "nstfout": 10, "nstenergy": 1, "gen-vel": "yes", "gen-temp": 300,
+             "gen-seed": 4928},
+    )
+    return gc.run(GMX_MPI, tmp_path, check=False, launcher=LAUNCHER, ranks=ranks,
+                  mdrun_args=["-dlb", "no", *mdrun_args], timeout=600, **kw)
+
+
+def dd_result(path):
+    done = (path / "md.log").read_text()
+    frames = gc.read_trr(path / "md.trr")
+    table = gc.energies(GMX_MPI, path, "Quantum-En.", "Potential", "Total-Energy")
+    return done, frames, table
+
+
+@pytest.fixture(scope="module")
+def single_rank(params, tmp_path_factory):
+    if GMX_MPI is None:
+        pytest.skip(GMX_MPI_PROBLEM)
+    path = tmp_path_factory.mktemp("dd-1")
+    done = dd_run(path, params, 1)
+    assert done.returncode == 0, done.stderr[-3000:]
+    return dd_result(path)
+
+
+@needs_gmx_mpi
+@pytest.mark.parametrize(
+    "ranks, qm_ranks", [(2, "ALL"), (4, "ALL"), (4, "1")], ids=["2-all", "4-all", "4-root"]
+)
+def test_mpi_domain_decomposition_matches_one_rank(ranks, qm_ranks, single_rank, params, tmp_path):
+    done = dd_run(tmp_path, params, ranks, qm_ranks)
+    assert done.returncode == 0, done.stderr[-3000:]
+    log, frames, table = dd_result(tmp_path)
+    grid = re.search(r"Domain decomposition grid (\d+) x (\d+) x (\d+)", log)
+    assert grid and int(grid.group(1)) >= 2, "no decomposition along x"
+    out = (tmp_path / "md_cp2k.out").read_text()
+    assert f"ranks {ranks} qm_ranks {ranks if qm_ranks == 'ALL' else 1}" in out
+    _, ref_frames, ref_table = single_rank
+    assert table.shape == ref_table.shape
+    np.testing.assert_allclose(table[:, 1], ref_table[:, 1], rtol=1e-10, atol=0)
+    np.testing.assert_allclose(table[:, 2:], ref_table[:, 2:], rtol=1e-10, atol=0)
+    assert [f["step"] for f in frames] == [f["step"] for f in ref_frames] == [0, 10, 20]
+    qm = slice(3 * DD_QM, 3 * DD_QM + 3)
+    for frame, ref in zip(frames, ref_frames):
+        np.testing.assert_allclose(frame["x"], ref["x"], rtol=0, atol=1e-10)
+        scale = np.abs(ref["f"]).max()
+        np.testing.assert_allclose(frame["f"], ref["f"], rtol=0, atol=1e-10 * scale)
+        np.testing.assert_allclose(frame["f"][qm], ref["f"][qm], rtol=1e-10, atol=1e-10)
+
+
+@needs_gmx_mpi
+def test_mpi_separate_pme_ranks_are_refused(params, tmp_path):
+    # libcpmdc_gromacs runs collectives on the simulation communicator, which
+    # relies on every rank of it calling the QM/MM interface.
+    done = dd_run(tmp_path, params, 4, mdrun_args=("-npme", "1"))
+    assert done.returncode != 0
+    assert "not compatible with QMMM" in " ".join((done.stderr + done.stdout).split())

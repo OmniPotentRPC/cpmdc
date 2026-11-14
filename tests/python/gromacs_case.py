@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 import os
+import shlex
 import shutil
 import struct
 import subprocess
@@ -82,6 +83,52 @@ def gmx_problem() -> tuple[str | None, str]:
     if "Precision:           double" not in out and "Precision: double" not in out:
         return None, f"{gmx} is not a double-precision build (GMX_DOUBLE=ON)"
     return gmx, ""
+
+
+def gmx_mpi_problem() -> tuple[list[str] | None, str | None, str]:
+    """The MPI launcher and gmx_mpi_d to run, or Nones and why they cannot run.
+
+    ``CPMDC_GMX_MPI`` names a gmx_mpi_d built with ``-DGMX_MPI=ON`` against
+    the MPI that libcpmdc_gromacs links; ``CPMDC_MPIEXEC`` is its launcher, a
+    command line such as ``mpiexec --oversubscribe`` (default ``mpiexec`` on
+    PATH).
+    """
+    gmx = os.environ.get("CPMDC_GMX_MPI") or shutil.which("gmx_mpi_d")
+    if not gmx:
+        return None, None, "no MPI GROMACS: set CPMDC_GMX_MPI or put gmx_mpi_d on PATH"
+    launcher = shlex.split(os.environ.get("CPMDC_MPIEXEC", "")) or [shutil.which("mpiexec")]
+    if not launcher[0]:
+        return None, None, "no MPI launcher: set CPMDC_MPIEXEC or put mpiexec on PATH"
+    try:
+        done = subprocess.run(
+            [gmx, "-quiet", "--version"], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, None, f"{gmx} --version failed: {exc}"
+    out = done.stdout + done.stderr
+    if done.returncode != 0:
+        return None, None, f"{gmx} --version failed: {out.strip()[-300:]}"
+    if "Precision:           double" not in out:
+        return None, None, f"{gmx} is not a double-precision build (GMX_DOUBLE=ON)"
+    if "MPI library:         MPI" not in out:
+        return None, None, f"{gmx} is not built with an external MPI library (GMX_MPI=ON)"
+    return launcher, gmx, ""
+
+
+def water_lattice(n: int, spacing: float, seed: int = 7) -> np.ndarray:
+    """n^3 rigidly placed TIP3P-shaped waters on a cubic lattice, nm."""
+    rng = np.random.default_rng(seed)
+    shape = np.array([[0.0, 0.0, 0.0], [0.09572, 0.0, 0.0],
+                      [0.09572 * math.cos(math.radians(104.52)),
+                       0.09572 * math.sin(math.radians(104.52)), 0.0]])
+    out = []
+    for i in range(n):
+        for j in range(n):
+            for k in range(n):
+                q, _ = np.linalg.qr(rng.normal(size=(3, 3)))
+                centre = (np.array([i, j, k]) + 0.5) * spacing
+                out.extend(centre + shape @ q.T)
+    return np.array(out)
 
 
 def gro_box(rows: np.ndarray) -> str:
@@ -168,10 +215,23 @@ def write_system(
 
 
 def run(
-    gmx: str, workdir: Path, *, check: bool = True, with_qmi: bool = True
+    gmx: str,
+    workdir: Path,
+    *,
+    check: bool = True,
+    with_qmi: bool = True,
+    launcher: Sequence[str] | None = None,
+    ranks: int = 1,
+    mdrun_args: Sequence[str] = (),
+    env_extra: dict[str, str] | None = None,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess:
-    """grompp, then mdrun on one thread-MPI rank; returns mdrun's process."""
-    env = dict(os.environ, GMX_MAXBACKUP="-1")
+    """grompp, then mdrun; returns mdrun's process.
+
+    Without ``launcher``, mdrun runs one thread-MPI rank. With it, ``gmx`` is
+    an MPI build and mdrun runs as ``launcher -n ranks gmx mdrun``.
+    """
+    env = dict(os.environ, GMX_MAXBACKUP="-1", **(env_extra or {}))
     qmi = ["-qmi", "cpmdc.inp"] if with_qmi else []
     grompp = subprocess.run(
         [gmx, "-quiet", "grompp", "-f", "md.mdp", "-c", "conf.gro", "-p", "topol.top",
@@ -180,9 +240,13 @@ def run(
     )
     if grompp.returncode != 0:
         raise RuntimeError(f"grompp failed:\n{grompp.stdout}\n{grompp.stderr}")
+    if launcher is None:
+        command = [gmx, "-quiet", "mdrun", "-deffnm", "md", "-ntmpi", "1"]
+    else:
+        command = [*launcher, "-n", str(ranks), gmx, "-quiet", "mdrun", "-deffnm", "md"]
+    command += ["-ntomp", "1", "-nb", "cpu", *mdrun_args]
     mdrun = subprocess.run(
-        [gmx, "-quiet", "mdrun", "-deffnm", "md", "-ntmpi", "1", "-ntomp", "1", "-nb", "cpu"],
-        cwd=workdir, capture_output=True, text=True, env=env,
+        command, cwd=workdir, capture_output=True, text=True, env=env, timeout=timeout
     )
     if check and mdrun.returncode != 0:
         raise RuntimeError(f"mdrun failed:\n{mdrun.stdout}\n{mdrun.stderr}")
