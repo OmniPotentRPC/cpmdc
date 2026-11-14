@@ -102,6 +102,7 @@ embed calls it once per process.
 
 The extrapolation patch keeps the ~EXTRAPOLATE WFN~ request that ~control_test~ turns off for every job other than Born-Oppenheimer molecular dynamics.
 ~control_test~ copies ~cntl%textrap~ into ~embed_extrap_wfn~ in ~embed_ctrl~ before it does so.
+Only the I/O rank runs ~control_test~, so ~rwfopt~ broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip ~extrapwf~ and the ranks wait on different collectives.
 When that flag is true and a call starts from stored orbitals, ~rwfopt~ passes them to the ~extrapwf~ that the molecular dynamics driver calls between steps.
 That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration.
 ~embed_extrapolation_used~ returns how many sets the last prediction combined.

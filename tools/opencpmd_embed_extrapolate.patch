@@ -33,7 +33,7 @@ index 80ca9e6..1ab8a43 100644
 +
  END MODULE embed_ctrl
 diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
-index 985c887..1638e79 100644
+index 985c887..c27c353 100644
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
 @@ -21,7 +21,8 @@ MODULE rwfopt_utils
@@ -46,7 +46,17 @@ index 985c887..1638e79 100644
    USE elct
    USE enbandpri_utils,                 ONLY: enbandpri
    USE ener
-@@ -158,6 +159,10 @@ MODULE rwfopt_utils
+@@ -56,7 +57,8 @@ MODULE rwfopt_utils
+   USE mm_dimmod
+   USE mm_input
+   USE mm_qmmm_forcedr_utils,           ONLY: mm_qmmm_forcedr
+-  USE mp_interface,                    ONLY: mp_sum
++  USE mp_interface,                    ONLY: mp_bcast,&
++                                             mp_sum
+   USE norm
+   USE parac,                           ONLY: parai,&
+                                              paral
+@@ -158,6 +160,10 @@ MODULE rwfopt_utils
    !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
    !     returns the smallest distance, HUGE when nothing is stored.
    PUBLIC :: embed_choose_warm_start_metric_v2
@@ -57,7 +67,7 @@ index 985c887..1638e79 100644
    INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
    TYPE :: embed_orbital_slot
      INTEGER(embed_key_kind) :: key = 0
-@@ -178,6 +183,15 @@ MODULE rwfopt_utils
+@@ -178,6 +184,15 @@ MODULE rwfopt_utils
    REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
    REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
    LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
@@ -73,7 +83,7 @@ index 985c887..1638e79 100644
    !public :: lseprof
  
  CONTAINS
-@@ -217,6 +231,8 @@ CONTAINS
+@@ -217,6 +232,8 @@ CONTAINS
      embed_have_orbitals = .FALSE.
      embed_have_partial = .FALSE.
      embed_history_set = .FALSE.
@@ -82,7 +92,7 @@ index 985c887..1638e79 100644
      IF (ALLOCATED(embed_c0_store)) THEN
        DEALLOCATE(embed_c0_store,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -300,6 +316,7 @@ CONTAINS
+@@ -300,6 +317,7 @@ CONTAINS
      CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
      INTEGER :: i, ierr
      IF (embed_have_key .AND. key == embed_current_key) RETURN
@@ -90,7 +100,7 @@ index 985c887..1638e79 100644
      ! Park the converged c0 of the key being left. A partial copy is not
      ! a result and stays with the store.
      IF (embed_have_key .AND. embed_have_orbitals .AND. &
-@@ -451,6 +468,7 @@ CONTAINS
+@@ -451,6 +469,7 @@ CONTAINS
        RETURN
      ENDIF
      IF (dist > rmax) THEN
@@ -98,7 +108,7 @@ index 985c887..1638e79 100644
        embed_have_orbitals = .FALSE.
        embed_have_partial = .FALSE.
        source = -1
-@@ -464,6 +482,7 @@ CONTAINS
+@@ -464,6 +483,7 @@ CONTAINS
             __LINE__,__FILE__)
      ENDIF
      embed_c0_store = embed_slots(best)%c0
@@ -106,7 +116,7 @@ index 985c887..1638e79 100644
      embed_store_key = embed_slots(best)%key
      embed_store_s1 = SIZE(embed_c0_store, 1)
      embed_store_s2 = SIZE(embed_c0_store, 2)
-@@ -474,6 +493,64 @@ CONTAINS
+@@ -474,6 +494,69 @@ CONTAINS
      source = 1
    END SUBROUTINE embed_choose_warm_start_metric_v2
  
@@ -133,8 +143,13 @@ index 985c887..1638e79 100644
 +    COMPLEX(real_8), ALLOCATABLE, INTENT(INOUT) :: cx(:,:,:)
 +    CHARACTER(*), PARAMETER :: procedureN = 'embed_extrapolate_orbitals'
 +    REAL(real_8), ALLOCATABLE :: gam(:,:)
-+    INTEGER :: ierr, m, n, nk, ng
++    INTEGER :: ierr, m, n, nk, ng, wanted
 +    embed_xused = 0
++    ! control_test sets embed_extrap_wfn on the I/O rank only; a rank that
++    ! skipped extrapwf would wait in initrun while the others reduce.
++    wanted = MERGE(1, 0, embed_extrap_wfn)
++    CALL mp_bcast(wanted, parai%io_source, parai%cp_grp)
++    embed_extrap_wfn = wanted == 1
 +    IF (.NOT. (embed_extrap_wfn .AND. embed_warm_orbitals .AND. &
 +        embed_have_orbitals)) RETURN
 +    IF (embed_xstate /= 1) THEN
@@ -171,7 +186,7 @@ index 985c887..1638e79 100644
  
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
-@@ -487,7 +564,7 @@ CONTAINS
+@@ -487,7 +570,7 @@ CONTAINS
      CHARACTER(len=11), PARAMETER             :: filename = 'LOCPOT.cube'
  
      CHARACTER(len=30)                        :: filen, tag
@@ -180,7 +195,7 @@ index 985c887..1638e79 100644
                                                  rsave(:), rsave2(:),c2u(:,:)
  
  #if defined(_HAS_CUDA)
-@@ -682,10 +759,15 @@ CONTAINS
+@@ -682,10 +765,15 @@ CONTAINS
      IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
          (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
          CALL embed_restore_orbitals(c0)
@@ -196,7 +211,7 @@ index 985c887..1638e79 100644
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -1303,10 +1385,12 @@ CONTAINS
+@@ -1303,10 +1391,12 @@ CONTAINS
      IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
        CALL embed_save_orbitals(c0)
        embed_have_partial = .FALSE.
