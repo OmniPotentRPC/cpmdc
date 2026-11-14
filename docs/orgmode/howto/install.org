@@ -36,6 +36,7 @@ Without Pixi, install the same set from your package manager:
 | Meson, Ninja | Meson 1.5.2 or newer, Ninja 1.11 or newer | every build |
 | Cap'n Proto (~capnp~ compiler) | 1.0.2 or newer, below 2 | generating the schema readers, encoding messages |
 | C and Fortran compilers | any recent GCC and gfortran | every build |
+| C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
 | pkg-config | 2.5.1 or newer | dependency lookup |
 | Python 3 | 3.10 or newer | build helpers and tests |
 | cmocka | 1.1.7 or newer | ~-Dwith_tests=true~ |
@@ -146,8 +147,9 @@ set ~CPMDC_LIBRARY~ to it; the variable takes precedence over the copy in
 the wheel.
 
 On other platforms pip builds the sdist.
-That needs the C, C++, and Fortran compilers, the ~capnp~ command, and
-network access for the Meson subprojects.
+That needs the C, C++, and Fortran compilers, Rust (~cargo~, for the
+~minimage~ subproject), the ~capnp~ command, and network access for the
+Meson subprojects.
 The same build from a checkout:
 
 #+begin_src bash
