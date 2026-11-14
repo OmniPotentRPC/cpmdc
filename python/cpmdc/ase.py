@@ -12,8 +12,9 @@ true sends ``atoms.cell`` as the periodic cell; a cell without three
 independent vectors raises ``ValueError``. A mixed periodic flag raises
 ``ValueError`` and names the non-periodic axes.
 
-One session serves a run of steps with the same atomic numbers. A step
-with other numbers closes it and opens a new session.
+One session serves a run of steps with the same atom count and elemental
+composition; a reordering stays on it. A step with another composition
+closes it and opens a new session.
 
 Importing this module imports ASE. ``import cpmdc`` does not.
 """
@@ -138,7 +139,7 @@ class CPMDCCalculator(Calculator):
             )
         self._potential: Potential | None = None
         self._blob = b""
-        self._numbers: tuple[int, ...] | None = None
+        self._composition: tuple[int, ...] | None = None
         self._no_stress = ""
         Calculator.__init__(self, **kwargs)
         self.set(params=params, library=library)
@@ -228,11 +229,12 @@ class CPMDCCalculator(Calculator):
         if "stress" in properties and cell is None:
             self._no_stress = _NO_STRESS_CLUSTER
             raise PropertyNotImplementedError(_NO_STRESS_CLUSTER)
-        numbers = tuple(int(number) for number in self.atoms.get_atomic_numbers())
-        if self._numbers is not None and numbers != self._numbers:
+        numbers = [int(number) for number in self.atoms.get_atomic_numbers()]
+        composition = tuple(sorted(numbers))
+        if self._composition is not None and composition != self._composition:
             self._release()
         evaluated = self.potential.evaluate(self.atoms.get_positions(), numbers, cell)
-        self._numbers = numbers
+        self._composition = composition
         energy = float(evaluated["energy"])
         self.results["energy"] = energy
         self.results["free_energy"] = energy
@@ -268,7 +270,7 @@ class CPMDCCalculator(Calculator):
         if self._potential is not None:
             self._potential.close()
         self._potential = None
-        self._numbers = None
+        self._composition = None
 
     def close(self) -> None:
         """Close the session. The next step opens a new one."""
@@ -283,7 +285,7 @@ class CPMDCCalculator(Calculator):
     def __getstate__(self) -> dict[str, Any]:
         state = self.__dict__.copy()
         state["_potential"] = None
-        state["_numbers"] = None
+        state["_composition"] = None
         state["results"] = dict(self.results)
         state["parameters"] = Parameters(self.parameters)
         state.pop("get_spin_polarized", None)

@@ -358,9 +358,15 @@ def test_a_new_composition_opens_a_new_session(calc):
     atoms = water()
     atoms.calc = calc
     first = atoms.get_potential_energy()
+    session = calc.potential
+    reordered = Atoms("HOH", positions=[WATER[1], WATER[0], WATER[2]])
+    reordered.calc = calc
+    assert reordered.get_potential_energy() == pytest.approx(first, rel=1e-14)
+    assert calc.potential is session
     smaller = Atoms("OH", positions=WATER[:2])
     smaller.calc = calc
     smaller.get_potential_energy()
+    assert calc.potential is not session
     assert atoms.get_potential_energy() == first
 
 
