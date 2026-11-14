@@ -224,3 +224,5 @@ pip wheel and i-PI 3.3.1:
 
 The in-process routes time ~run~ inside one process; the i-PI routes use
 i-PI's own per-step timing, so no route counts process startup.
+[[file:gromacs.org][Run GROMACS on cpmdc forces]] times GROMACS on the same system beside
+~pair_style cpmdc~.

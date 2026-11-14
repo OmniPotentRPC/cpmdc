@@ -300,6 +300,8 @@ On failure the output arrays are left unspecified.
 ~tools/cpmdc_ipi.c~ is an i-PI client on this call (see [[file:../howto/socket-drivers.org][the socket drivers]]).
 ~tools/lammps/pair_cpmdc.cpp~, the LAMMPS ~pair_style cpmdc~, and
 ~cpmdc.lammps~ call it once per force evaluation (see [[file:../howto/lammps.org][LAMMPS]]).
+~tools/gromacs/cpmdc_gromacs.c~, ~libcpmdc_gromacs~, calls it once per MD
+step behind the libcp2k API of GROMACS' QM/MM interface (see [[file:../howto/gromacs.org][GROMACS]]).
 
 * One-shot message calls
 

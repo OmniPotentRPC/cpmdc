@@ -78,6 +78,9 @@ composition requires a new session.
    * - Run LAMMPS on cpmdc forces
      - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
      - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
+   * - Run GROMACS on cpmdc forces
+     - Link ``libcpmdc_gromacs`` into GROMACS' CP2K QM/MM interface, for a QM group or the whole system
+     - :doc:`Run GROMACS on cpmdc forces <howto/gromacs>`
    * - Call cpmdc from a host process
      - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
      - :doc:`Embedding cpmdc <howto/embedding>` and :doc:`C ABI reference <reference/c-abi>`
@@ -174,6 +177,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/python
    howto/socket-drivers
    howto/lammps
+   howto/gromacs
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals

@@ -10,6 +10,8 @@ LAMMPS ~fix ipi~ is a client too, so LAMMPS and cpmdc meet through an i-PI
 server; a later section shows that setup.
 For LAMMPS to integrate on cpmdc forces in one process, with less overhead
 per step, see [[file:lammps.org][Run LAMMPS on cpmdc forces]].
+GROMACS has no i-PI client; it reaches cpmdc in process through
+[[file:gromacs.org][its CP2K QM/MM interface]].
 ~cpmdc-ipi-c~ is the same client written in C, for hosts without Python.
 
 The protocol is the one in the i-PI documentation,

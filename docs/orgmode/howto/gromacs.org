@@ -1,0 +1,293 @@
+#+TITLE: Run GROMACS on cpmdc forces
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+GROMACS can integrate on cpmdc energies and forces in process, for a QM
+group that is part of the system or all of it.
+~libcpmdc_gromacs~ implements the libcp2k C API that GROMACS' CP2K QM/MM
+interface calls, and answers each call with one
+~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]].
+GROMACS links it in place of CP2K, so ~mdrun~ needs no extra process, no
+socket, and no change to its source.
+
+| Route | GROMACS side | Needs |
+|-------+--------------+-------|
+| ~libcpmdc_gromacs~ | the CP2K QM/MM interface, ~qmmm-cp2k-*~ mdp options | GROMACS 2024 or later built with ~-DGMX_DOUBLE=ON -DGMX_CP2K=ON~ against cpmdc's ~libcp2k.pc~ |
+
+The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the
+three call the same libcp2k functions, and 2026 adds
+~cp2k_get_positions~ and ~cp2k_get_version~, which the library provides.
+
+* Why this route
+GROMACS offers four ways to bring outside forces into ~mdrun~.
+The choice was made from the GROMACS 2024 to 2026 sources and manuals and
+the MiMiC papers:
+
+| Route | Coupling | What rules it in or out |
+|-------+----------+--------------------------|
+| CP2K QM/MM interface (~GMX_CP2K~) | in process, one C call per step | GROMACS integrates; energy enters ~Quantum En.~ (~F_EQM~) and so the potential and the conserved energy; positions, box, and forces in double precision in a double build. Chosen |
+| MiMiC (~GMX_MIMIC~, ~integrator = mimic~) | two MPI programs over the MiMiC communication library | built for CPMD, but CPMD is the server that integrates and GROMACS a client that returns MM forces (~src/gromacs/mimic/communicator.cpp~); electrostatic embedding is computed against CPMD's density on its grid. A MiMiC client of cpmdc would need CPMD's integrator and MiMiC's embedding inside a session, which the C ABI does not expose, and GROMACS' ~mimic~ integrator reports no kinetic or total energy |
+| neural-network potential (~GMX_NNPOT~, 2025 and later) | in process, a TorchScript model | ~src/gromacs/applied_forces/nnpot/torchmodel.cpp~ casts positions and box to ~float32~, so no model can match a double reference to 1e-10; it adds no virial |
+| PLUMED (native in 2025) | in process | the bias forces and virial reach GROMACS, but ~plumedforceprovider.cpp~ never adds the bias energy to GROMACS' energy terms, so the potential and NVE checks would miss it |
+| i-PI | socket | GROMACS has no i-PI client |
+
+MiMiC couples CPMD to GROMACS with electrostatic embedding and scales to
+thousands of cores [1, 2], through the MiMiC communication library [3];
+it is the route for an MPI-launched CPMD that integrates.
+For GROMACS integrating on cpmdc forces, the CP2K interface is the one
+in-process route that carries the energy, the forces, and the box at full
+precision, and it is the one built and tested here.
+
+* Build
+Meson builds ~libcpmdc_gromacs.so~ with ~libcpmdc~
+(~-Dwith_gromacs_shim=auto~, the default; it is off for the Python wheel
+build) and writes ~build/tools/gromacs/pkgconfig/libcp2k.pc~, which points
+GROMACS at the library and at ~tools/gromacs/libcp2k.h~.
+~meson install~ puts the library in ~lib~, the header in
+~include/cpmdc/gromacs~, and the ~.pc~ file in ~lib/cpmdc/gromacs/pkgconfig~.
+
+GROMACS' ~cmake/gmxManageCP2K.cmake~ reads ~CP2K_DIR/pkgconfig/libcp2k.pc~,
+so pass the directory above ~pkgconfig~:
+
+#+begin_src bash
+meson setup build && meson compile -C build
+cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
+  -DGMX_CP2K=ON -DCP2K_DIR=$PWD/build/tools/gromacs
+cmake --build build-gmx --target install
+#+end_src
+
+~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX BUILD~ downloads a pinned
+GROMACS release, checks its SHA-256, builds it this way, and checks that
+~libgromacs_d.so~ links ~libcpmdc_gromacs~.
+GROMACS records the library's run path, so ~gmx_d mdrun~ finds it in the
+build tree; after ~meson install~, rebuild GROMACS against the installed
+~.pc~ file.
+
+Build GROMACS in double precision.
+Its QM/MM module stores cpmdc's forces as ~real~, which is ~float~ in a
+mixed-precision build, and the 1e-10 agreement below holds only for
+~gmx_d~.
+
+* Set up a run
+The QM group is an index group; ~qmmm-cp2k-qmmethod = INPUT~ makes grompp
+take the cpmdc settings from the file of ~-qmi~:
+
+#+begin_src text
+qmmm-cp2k-active      = true
+qmmm-cp2k-qmgroup     = QM
+qmmm-cp2k-qmmethod    = INPUT
+qmmm-cp2k-qmcharge    = 0
+qmmm-cp2k-qmmultiplicity = 1
+#+end_src
+
+~cpmdc.gromacs.qmi_input()~ writes that file:
+
+#+begin_src python
+from cpmdc.gromacs import write_qmi
+
+write_qmi("cpmdc.inp", "water.params.bin", embedding="MECHANICAL",
+          qm_charges=[-0.834, 0.417, 0.417])
+#+end_src
+
+#+begin_src bash
+gmx_d grompp -f md.mdp -c conf.gro -p topol.top -n index.ndx -qmi cpmdc.inp -o md.tpr
+gmx_d mdrun -deffnm md -ntmpi 1
+#+end_src
+
+The file is CP2K input in form, because grompp checks it for ~CHARGE~,
+~MULTIPLICITY~, ~RUN_TYPE ENERGY_FORCE~, ~COORD_FILE_FORMAT PDB~,
+~CHARGE_EXTENDED TRUE~, and ~COORD_FILE_NAME~ and refuses ~@INCLUDE~.
+GROMACS stores it in the ~.tpr~, writes it out at ~mdrun~ as
+~md_cp2k.inp~ with the name of the PDB file it generates, and passes both
+to the library.
+The PDB file gives each atom's element, whether it is QM or MM, and each MM
+atom's charge.
+The cpmdc settings are a ~&CPMDC~ section inside ~&FORCE_EVAL~:
+
+| Key | Meaning |
+|-----+---------|
+| ~PARAMS path~ | the ~CPMDParams~ message; a relative path is relative to ~mdrun~'s directory. Required |
+| ~CELL PERIODIC~ | send the GROMACS box as the cell; the default when every atom is QM |
+| ~CELL NONE~ | send no cell, so the deck's cell holds the QM region; the default with MM atoms |
+| ~EMBEDDING MECHANICAL~ | add the QM-MM Coulomb energy and forces of ~QM_CHARGES~ and the MM charges |
+| ~EMBEDDING NONE~ | add nothing; allowed only when no MM atom carries a charge |
+| ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
+| ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
+| ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 1e-8 |
+
+Everything outside ~&CPMDC~ is checked and otherwise ignored: the method
+is the ~CPMDParams~ deck, not CP2K's ~&DFT~.
+GROMACS' generated input (~qmmethod = PBE~ or ~BLYP~) has no ~&CPMDC~
+section and is refused.
+
+The library writes one log, the CP2K output file GROMACS names
+(~md_cp2k.out~): the cpmdc version, the atom counts, the cell and
+embedding modes, the Ewald parameters in Bohr, and the first step's QM and
+QM-MM energies.
+A refused input or a failed step prints ~cpmdc-gromacs:~ and the reason to
+stderr and to that log and stops ~mdrun~ with status 1, because the libcp2k
+API returns no errors.
+
+* Units
+cpmdc works in Bohr and Hartree; GROMACS in nm, kJ/mol, and ps.
+GROMACS' QM/MM module converts with its own constants from
+~src/gromacs/math/units.h~ (CODATA 2018), so the library receives Bohr and
+returns Hartree and Hartree/Bohr.
+~cpmdc.gromacs~ reproduces the factors bit for bit:
+
+| Quantity | GROMACS | cpmdc | Factor |
+|----------+---------+-------+--------|
+| length | nm | Bohr | ~BOHR_TO_NM~ = 0.0529177210903 |
+| energy | kJ/mol | Hartree | ~HARTREE_TO_KJ_PER_MOL~ = 2625.4996394798673 |
+| force | kJ/(mol nm) | Hartree/Bohr | ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ = 49614.752589206466 |
+| QM-MM Coulomb | ~ONE_4PI_EPS0~ kJ nm/(mol e^2) | e^2/Bohr = 1 | the charges are used as they are |
+
+* Cell and positions
+GROMACS sends every atom, QM and MM, each step, after putting each into
+the box, and the box as ~box_d[3 i + j] = box[j][i]~.
+The library reads that back as one lattice vector per row, the layout of
+~cpmdc_session_calculate_au()~; GROMACS' triclinic box is lower
+triangular, and any shape it accepts passes through.
+
+A wrapped atom jumps by a lattice vector.
+The library unwraps the QM atoms against their positions of the previous
+step, nearest image, so each follows a continuous path and wavefunction
+extrapolation sees smooth steps.
+With ~CELL NONE~ the first step also puts every QM atom at the nearest image
+of the first one, so the QM region starts whole.
+With ~CELL NONE~ the QM region keeps its absolute position, so it must stay
+inside the deck's cell; the library does not recentre it.
+
+* Embedding
+GROMACS' CP2K interface assumes electrostatic embedding: grompp zeroes the
+charges of the QM atoms, removes the bonds, angles, and dihedrals within
+the QM group, excludes QM-QM Lennard-Jones, and keeps QM-MM Lennard-Jones
+and the bonded terms that cross the boundary.
+The QM-MM Coulomb interaction is then the QM program's job [4].
+
+~libcpmdc_gromacs~ provides mechanical embedding.
+~EMBEDDING MECHANICAL~ adds the Coulomb energy of fixed point charges on the
+QM atoms, ~QM_CHARGES~, with the MM charges of the PDB file, and its forces
+on both sides:
+
+- a periodic box: an Ewald sum with the conventions of GROMACS' PME, the
+  real-space term ~erfc(alpha r)/r~ over every image within ~rcut~, the
+  reciprocal term over ~k~ up to the cutoff above, and the neutralizing
+  background ~-pi Q_QM Q_MM / (V alpha^2)~ of a non-neutral QM or MM part;
+  the QM-QM and MM-MM sums are not included, since GROMACS' PME already has
+  MM-MM and the QM charges are zero in GROMACS;
+- no box: the direct sum.
+
+The returned energy is the QM energy plus that Coulomb energy; both appear
+in ~Quantum En.~.
+An MD step adds ~O(N_k (N_QM + N_MM))~ work for the reciprocal sum.
+
+Not implemented:
+
+- electrostatic embedding: the MM charges do not polarize the QM density.
+  ~cpmdc_session_calculate_au()~ takes no external potential, so
+  ~EMBEDDING ELECTROSTATIC~ is refused;
+- link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused;
+- the virial: GROMACS adds QM/MM forces through its ~ForceWithVirial~
+  buffer, whose forces enter the virial only through
+  ~addVirialContribution()~, and the QM/MM module never calls it (the
+  GROMACS manual notes the missing virial [4]). The cpmdc virial is not
+  requested, the pressure lacks the QM and QM-MM terms, and NPT is not
+  supported;
+- a relative dielectric constant other than 1 in the QM-MM sum;
+- PDB charges have six decimals, the precision of GROMACS' file.
+
+* Several ranks
+The library is built without MPI unless Meson finds MPI for C, and then it
+takes the communicator GROMACS passes to ~cp2k_create_force_env_comm~: rank
+0 reads the input, owns the session, and evaluates; the energy and forces
+go to every rank.
+Before opening the session rank 0 adopts ~MPI_COMM_SELF~ as the calculator
+communicator, as the LAMMPS plugin does.
+A thread-MPI GROMACS calls ~cp2k_create_force_env~ on one rank.
+Only that thread-MPI path, ~-ntmpi 1~, is tested.
+
+* Checks
+~tests/python/test_gromacs.py~ runs under Meson's ~python-pytest~.
+Without GROMACS it still checks the library through ~ctypes~:
+
+- the unit factors against GROMACS' ~units.h~;
+- the energy and forces of the whole system against ~CPMDCCalculator~ to
+  1e-10, in a cubic and a triclinic box;
+- unwrapping across the boundary, and the whole QM region with ~CELL NONE~;
+- the mechanical embedding against an independent NumPy Ewald sum in a
+  cubic and a triclinic box, its convergence with the precision, a finite
+  difference of its forces, and the direct sum without a box;
+- the error for each refused input.
+
+With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and
+~mdrun~:
+
+- one step of two QM waters, the whole system, in a cubic and a triclinic
+  box: ~Quantum En.~ against ~CPMDCCalculator~ to 1e-10 relative and equal
+  to ~Potential~, and the forces to 1e-10 relative, read with
+  ~gmx energy -dp~ and from the double-precision ~.trr~;
+- one QM water among three MM waters with PME: ~Quantum En.~ and the QM
+  atom forces against the reference evaluator plus the NumPy Ewald sum;
+- 2000 NVE steps of each system: the total energy stays within 2e-3 and
+  5e-3 of the swing of the potential energy;
+- generated input, ~EMBEDDING ELECTROSTATIC~, and charged MM atoms without
+  an embedding each stop ~mdrun~ with the reason.
+
+The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 this way and fails if any
+of these tests skips.
+
+The reference evaluator of a build without OpenCPMD is a well about the
+origin.
+Two consequences show in the tests: the mdp sets ~comm-mode = None~,
+because removing the centre-of-mass motion of a system with a net external
+force takes energy out of NVE, and the QM/MM NVE run gives the QM hydrogens
+a small Lennard-Jones repulsion, because the well does not bind them to
+their oxygen.
+An OpenCPMD energy needs neither.
+
+* Overhead per step
+~bench/gromacs_routes.py~ integrates the system of
+~bench/lammps_routes.py~, two water molecules in a 0.9 nm cube on the
+reference evaluator with the periodic deck, NVE at 0.25 fs, through GROMACS
+and through LAMMPS.
+GROMACS runs twice, for 1000 and 1000 + ~STEPS~ steps, and the per-step
+time is the difference of md.log's wall times over ~STEPS~, so startup and
+the first evaluation cancel.
+
+#+begin_src bash
+CPMDC_GMX=gmx_d python bench/gromacs_routes.py --build build --steps 20000 --repeats 7
+#+end_src
+
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double,
+thread-MPI, one rank, one OpenMP thread) and LAMMPS 22 Jul 2025 from the
+pip wheel, 20000 steps, 7 repeats:
+
+| Route | Median, microseconds per step | Raw |
+|-------+-------------------------------+-----|
+| ~Session.calculate_au~ in a Python loop, no integrator | 5.95 | 6.00 5.91 5.92 5.91 6.05 6.02 5.95 |
+| LAMMPS with ~pair_style zero~, no cpmdc | 0.48 | 0.48 0.49 0.49 0.48 0.50 0.48 0.48 |
+| LAMMPS with ~pair_style cpmdc~ | 10.43 | 10.46 10.45 10.43 10.41 10.46 10.42 10.40 |
+| GROMACS, QM/MM off, no interactions | 1.55 | 1.50 1.60 1.55 1.55 1.50 1.50 1.65 |
+| GROMACS with ~libcpmdc_gromacs~, both waters QM | 4.50 | 4.50 4.55 4.50 4.65 4.50 4.60 4.50 |
+
+Over the engine alone, cpmdc adds 2.95 microseconds per step to GROMACS
+and 9.95 to LAMMPS; both include the reference evaluation itself.
+md.log prints wall times to 1 ms, which resolves 0.05 microseconds per
+step over 20000 steps.
+An OpenCPMD step adds the same SCF time to every route.
+
+* References
+1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher,
+   P. Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale
+   Modeling in Computational Chemistry", /J. Chem. Theory Comput./ *15*,
+   3810-3823 (2019), [[https://doi.org/10.1021/acs.jctc.9b00093][doi:10.1021/acs.jctc.9b00093]].
+2. V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti,
+   P. Carloni, U. Rothlisberger, "Extreme Scalability of DFT-Based QM/MM MD
+   Simulations Using MiMiC", /J. Chem. Theory Comput./ *15*, 5601-5613
+   (2019), [[https://doi.org/10.1021/acs.jctc.9b00424][doi:10.1021/acs.jctc.9b00424]].
+3. MCL, the MiMiC Communication Library,
+   [[https://gitlab.com/MiMiC-projects/CommLib][gitlab.com/MiMiC-projects/CommLib]]; GROMACS manual, [[https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html][MiMiC Hybrid Quantum
+   Mechanical/Molecular Mechanical simulations]].
+4. GROMACS manual, [[https://manual.gromacs.org/2025.5/reference-manual/special/qmmm.html][Hybrid Quantum-Classical simulations (QM/MM) with CP2K
+   interface]]; source ~src/gromacs/applied_forces/qmmm/~ of GROMACS 2024.6,
+   2025.5, and 2026.4.
