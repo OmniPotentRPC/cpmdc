@@ -22,8 +22,11 @@ volume at the first and the last step, and for C-rescale the least-squares
 slope of GROMACS' conserved energy, which includes the work of the
 barostat. GMX is a GROMACS built with scripts/ci/build_gromacs_cpmdc.sh
 against an OpenCPMD build of cpmdc, so it carries the virial patch.
+--classical-only runs the control alone, which needs no pseudopotentials
+and costs little enough to run far longer than the QM run.
+bench/npt_block_average.py turns the --json file into block-averaged means.
 
-usage: gromacs_opencpmd_npt.py --gmx GMX --pseudo-dir DIR
+usage: gromacs_opencpmd_npt.py --gmx GMX (--pseudo-dir DIR | --classical-only)
                                [--mpiexec MPIEXEC] [--ranks N]
                                [--pcoupl C-rescale|Parrinello-Rahman]
                                [--lattice N] [--spacing NM] [--minimize]
@@ -176,7 +179,8 @@ def report(label: str, r: dict, conserved: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--gmx", required=True)
-    parser.add_argument("--pseudo-dir", type=Path, required=True)
+    parser.add_argument("--pseudo-dir", type=Path)
+    parser.add_argument("--classical-only", action="store_true")
     parser.add_argument("--mpiexec")
     parser.add_argument("--ranks", type=int, default=1)
     parser.add_argument("--pcoupl", choices=["C-rescale", "Parrinello-Rahman"], default="C-rescale")
@@ -190,30 +194,35 @@ def main() -> int:
     parser.add_argument("--workdir", type=Path)
     parser.add_argument("--json", type=Path)
     args = parser.parse_args()
-    args.pseudo_dir = args.pseudo_dir.resolve()
+    if args.pseudo_dir is None and not args.classical_only:
+        parser.error("the QM run needs --pseudo-dir")
+    args.pseudo_dir = args.pseudo_dir.resolve() if args.pseudo_dir else ""
     if args.mpiexec is None and args.ranks != 1:
         parser.error("--ranks other than 1 needs --mpiexec and an MPI GROMACS")
     args.workdir = (args.workdir or Path(tempfile.mkdtemp(prefix="gromacs-opencpmd-npt-"))).resolve()
     args.workdir.mkdir(parents=True, exist_ok=True)
-    params = deck(args.workdir, args.convergence)
 
     x, box, qm = system(args)
     if args.minimize:
         x = minimized(args, x, box)
     control = run(args, x, box, qm, None)
-    qmmm = run(args, x, box, qm, params)
+    qmmm = None if args.classical_only else run(args, x, box, qm, deck(args.workdir, args.convergence))
     conserved = args.pcoupl == "C-rescale"
     print(f"workdir {args.workdir}")
     print(f"{len(x)} atoms, 3 QM, box {box[0, 0]:g} nm; {args.steps} steps of {args.dt * 1000:g} fs; "
           f"{args.pcoupl} tau-p {args.tau_p:g} ps, v-rescale 300 K; orbital convergence "
           f"{args.convergence:g}; QM run on {args.ranks} rank(s)")
-    print(f"backend {qmmm['backend']}; stress available {qmmm['stress']}; "
-          f"missing stress logged {qmmm['missing stress logged']}")
-    report("QM/MM (one BLYP water)", qmmm, conserved)
+    if qmmm:
+        print(f"backend {qmmm['backend']}; stress available {qmmm['stress']}; "
+              f"missing stress logged {qmmm['missing stress logged']}")
+        report("QM/MM (one BLYP water)", qmmm, conserved)
     report("classical control", control, conserved)
     if args.json:
-        args.json.write_text(json.dumps({"args": {k: str(v) for k, v in vars(args).items()},
-                                         "qmmm": qmmm, "classical": control}, indent=1))
+        runs = {"classical": control} if qmmm is None else {"qmmm": qmmm, "classical": control}
+        args.json.write_text(json.dumps({"args": {k: str(v) for k, v in vars(args).items()}, **runs},
+                                        indent=1))
+    if qmmm is None:
+        return 0
     ok = qmmm["backend"] == "opencpmd" and qmmm["stress"] and not qmmm["missing stress logged"]
     return 0 if ok else 1
 
