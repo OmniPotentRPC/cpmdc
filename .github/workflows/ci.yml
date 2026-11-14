@@ -190,7 +190,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/gromacs-2025.5-${{ matrix.route }}
-          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
+          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/patches/*', 'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
       - name: GROMACS 2025.5, double, GMX_CP2K=ON against libcpmdc_gromacs
         run: |
           prefix="${RUNNER_TEMP}/gromacs-2025.5-${{ matrix.route }}"

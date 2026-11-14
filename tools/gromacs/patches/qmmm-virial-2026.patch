@@ -1,0 +1,70 @@
+--- a/src/gromacs/applied_forces/qmmm/qmmm.cpp
++++ b/src/gromacs/applied_forces/qmmm/qmmm.cpp
+@@ -231,8 +231,7 @@
+ /*! \internal
+  * \brief QMMM module
+  *
+- * Class that implements the QMMM forces and potential
+- * \note the virial calculation is not yet implemented
++ * Class that implements the QMMM forces, potential and virial
+  */
+ class QMMM final : public IMDModule
+ {
+--- a/src/gromacs/applied_forces/qmmm/qmmmforceprovider.cpp
++++ b/src/gromacs/applied_forces/qmmm/qmmmforceprovider.cpp
+@@ -339,6 +339,43 @@
+     }
+ 
+     /*
++     * Virial of the QM and QM/MM energy, -0.5 sum_i x_i (x) f_i in GROMACS' convention.
++     * libcp2k gives the configurational stress, column-major in Hartree/Bohr^3 and
++     * pressure-positive (stress times volume is -dE/d(strain)), so the virial is
++     * -0.5 * stress * volume. GROMACS sums the virial over ranks, so only the main rank
++     * adds it, as it adds the energy.
++     */
++    if (fOutput->forceWithVirial_.computeVirial_ && fInput.mpiComm_.isMainRank())
++    {
++        double stress[9] = { 0.0 };
++        int    available = 0;
++        cp2k_get_stress_tensor(force_env_, stress, &available);
++        if (available)
++        {
++            // The box is lower triangular
++            const double volume = box_[XX][XX] * box_[YY][YY] * box_[ZZ][ZZ]
++                                  / (c_bohr2Nm * c_bohr2Nm * c_bohr2Nm);
++            matrix       virial;
++            for (int i = 0; i < DIM; i++)
++            {
++                for (int j = 0; j < DIM; j++)
++                {
++                    virial[i][j] = static_cast<real>(-0.5 * stress[i + 3 * j] * volume
++                                                     * c_hartree2Kj * c_avogadro);
++                }
++            }
++            fOutput->forceWithVirial_.addVirialContribution(virial);
++        }
++        else if (!reportedMissingStress_)
++        {
++            appendLog(
++                    "The QM program returned no stress tensor: the virial and the pressure "
++                    "lack the QM and QM/MM contributions.");
++            reportedMissingStress_ = true;
++        }
++    }
++
++    /*
+      * Adjust QM translation vector in state_
+      * As coordinates might be re-centered in CP2K
+      */
+--- a/src/gromacs/applied_forces/qmmm/qmmmforceprovider.h
++++ b/src/gromacs/applied_forces/qmmm/qmmmforceprovider.h
+@@ -127,6 +127,9 @@
+ 
+     //! CP2K force environment handle
+     force_env_t force_env_ = -1;
++
++    //! Whether the log says that the QM program returned no stress tensor
++    bool reportedMissingStress_ = false;
+ };
+ 
+ CLANG_DIAGNOSTIC_RESET

@@ -13,17 +13,21 @@
 # GROMACS links the BLAS libcpmdc links, when it links one (an OpenCPMD
 # build): GROMACS' bundled BLAS and LAPACK export dgemm_ and the rest, and
 # would take the place of OpenCPMD's in the process.
+# The source gets tools/gromacs/patches/qmmm-virial-*.patch, which adds the
+# QM and QM/MM virial from cp2k_get_stress_tensor; without it the pressure
+# lacks those terms and pressure coupling is wrong.
 set -euo pipefail
 
 version=$1
 prefix=$2
 cp2k_dir=$(cd "$3" && pwd)
 mpi=${4:-thread-mpi}
+patches=$(cd "$(dirname "$0")/../../tools/gromacs/patches" && pwd)
 
 case $version in
-  2024.6) sha256=7cbad81f51c71a144d646515a7249aa74940b3f68071f51410e3a9473f05b339 ;;
-  2025.5) sha256=7d0c7791675d0171af71dbfb35bfbb90bc4deb08266e62fbdcdac996f1f60174 ;;
-  2026.4) sha256=58eda60979b124fcf9dff8b1b63cedfbc72fdb36d99e921dc1bdc310571098b6 ;;
+  2024.6) sha256=7cbad81f51c71a144d646515a7249aa74940b3f68071f51410e3a9473f05b339 virial=2024 ;;
+  2025.5) sha256=7d0c7791675d0171af71dbfb35bfbb90bc4deb08266e62fbdcdac996f1f60174 virial=2024 ;;
+  2026.4) sha256=58eda60979b124fcf9dff8b1b63cedfbc72fdb36d99e921dc1bdc310571098b6 virial=2026 ;;
   *) echo "no pinned tarball for GROMACS $version" >&2; exit 2 ;;
 esac
 
@@ -57,6 +61,7 @@ tarball="$work/gromacs-$version.tar.gz"
 curl -fsSL --retry 3 -o "$tarball" "https://ftp.gromacs.org/gromacs/gromacs-$version.tar.gz"
 echo "$sha256  $tarball" | sha256sum -c -
 tar xzf "$tarball" -C "$work"
+patch -p1 -d "$work/gromacs-$version" < "$patches/qmmm-virial-$virial.patch"
 
 cmake -S "$work/gromacs-$version" -B "$work/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
