@@ -144,7 +144,20 @@ jobs:
           path: isa-audit-libs/
 
   gromacs-qmmm:
+    name: gromacs-qmmm (${{ matrix.route }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # build: GROMACS against BUILD/tools/gromacs, thread-MPI.
+        # installed: meson install into build/prefix, GROMACS against the
+        #   installed libcp2k.pc found through PKG_CONFIG_PATH, thread-MPI.
+        # mpi: GROMACS with the Open MPI of the pixi environment, mdrun on 1,
+        #   2 and 4 ranks with domain decomposition.
+        route: [build, installed, mpi]
+    env:
+      # Four ranks on a runner that may count fewer cores.
+      CPMDC_MPIEXEC: mpiexec --oversubscribe
     steps:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.3
@@ -155,33 +168,55 @@ jobs:
         run: pixi run python -m pip install 'ase>=3.23' 'pytest>=7'
       - name: cpmdc and libcpmdc_gromacs
         run: |
-          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build && ninja -C build water_blyp_params.bin water_blyp_periodic_params.bin'
+          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true --prefix="$PWD/build/prefix" && meson compile -C build && ninja -C build water_blyp_params.bin water_blyp_periodic_params.bin'
           test -f build/tools/gromacs/pkgconfig/libcp2k.pc
+      - name: meson install
+        if: matrix.route == 'installed'
+        run: |
+          pixi run meson install -C build
+          pc=$(find build/prefix -path '*/cpmdc/gromacs/pkgconfig/libcp2k.pc')
+          test -n "$pc"
+          cp2k_dir=$(dirname "$(dirname "$pc")")
+          libdir=$(PKG_CONFIG_PATH="$cp2k_dir/pkgconfig" pixi run pkg-config --variable=libdir libcp2k)
+          echo "CP2K_DIR=$cp2k_dir" >> "$GITHUB_ENV"
+          echo "CPMDC_LIBRARY=$libdir/libcpmdc.so" >> "$GITHUB_ENV"
+          echo "CPMDC_GROMACS_LIB=$libdir/libcpmdc_gromacs.so" >> "$GITHUB_ENV"
+      - name: Build-tree libraries
+        if: matrix.route != 'installed'
+        run: |
+          echo "CP2K_DIR=$PWD/build/tools/gromacs" >> "$GITHUB_ENV"
+          echo "CPMDC_LIBRARY=$PWD/build/libcpmdc.so" >> "$GITHUB_ENV"
+          echo "CPMDC_GROMACS_LIB=$PWD/build/libcpmdc_gromacs.so" >> "$GITHUB_ENV"
       - uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/gromacs-2025.5
-          key: gromacs-2025.5-cpmdc-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/pkgconfig/*') }}
+          path: ${{ runner.temp }}/gromacs-2025.5-${{ matrix.route }}
+          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
       - name: GROMACS 2025.5, double, GMX_CP2K=ON against libcpmdc_gromacs
         run: |
-          if [ ! -x "${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d" ]; then
-            pixi run scripts/ci/build_gromacs_cpmdc.sh 2025.5 "${RUNNER_TEMP}/gromacs-2025.5" build
+          prefix="${RUNNER_TEMP}/gromacs-2025.5-${{ matrix.route }}"
+          if [ "${{ matrix.route }}" = mpi ]; then
+            mode=mpi gmx="$prefix/bin/gmx_mpi_d" var=CPMDC_GMX_MPI
+          else
+            mode=thread-mpi gmx="$prefix/bin/gmx_d" var=CPMDC_GMX
           fi
+          if [ ! -x "$gmx" ]; then
+            pixi run scripts/ci/build_gromacs_cpmdc.sh 2025.5 "$prefix" "$CP2K_DIR" "$mode"
+          fi
+          echo "$var=$gmx" >> "$GITHUB_ENV"
       - name: GROMACS route tests, none skipped
         run: |
-          export CPMDC_GMX="${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d"
-          export CPMDC_LIBRARY="$PWD/build/libcpmdc.so"
-          export CPMDC_GROMACS_LIB="$PWD/build/libcpmdc_gromacs.so"
+          set -o pipefail
           export CPMDC_TEST_PARAMS="$PWD/build/water_blyp_params.bin"
           export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build/water_blyp_periodic_params.bin"
-          pixi run python -m pytest -q -rs tests/python/test_gromacs.py | tee gromacs-pytest.log
+          if [ "${{ matrix.route }}" = mpi ]; then select=(-k test_mpi); else select=(-k 'not test_mpi'); fi
+          pixi run python -m pytest -q -rs tests/python/test_gromacs.py "${select[@]}" | tee gromacs-pytest.log
           if grep -E '^SKIPPED' gromacs-pytest.log; then
             echo "GROMACS route tests skipped"
             exit 1
           fi
       - name: Full meson suite with GROMACS on PATH
-        run: |
-          export CPMDC_GMX="${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d"
-          pixi run meson test -C build --print-errorlogs
+        if: matrix.route != 'mpi'
+        run: pixi run meson test -C build --print-errorlogs
 
   readcon-restart:
     runs-on: ubuntu-latest

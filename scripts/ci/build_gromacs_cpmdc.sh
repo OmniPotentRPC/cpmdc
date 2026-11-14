@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
-# Build a double-precision, thread-MPI GROMACS whose CP2K QM/MM interface
-# links libcpmdc_gromacs instead of libcp2k, and install it under PREFIX.
-# BUILD is a configured cpmdc meson build directory; GROMACS finds the shim
-# through BUILD/tools/gromacs/pkgconfig/libcp2k.pc.
+# Build a double-precision GROMACS whose CP2K QM/MM interface links
+# libcpmdc_gromacs instead of libcp2k, and install it under PREFIX.
+# CP2K_DIR holds pkgconfig/libcp2k.pc: BUILD/tools/gromacs for a meson
+# build tree, or LIBDIR/cpmdc/gromacs under a meson install prefix. The
+# directory goes first on PKG_CONFIG_PATH, so it wins over a real CP2K.
 #
-# Usage: build_gromacs_cpmdc.sh VERSION PREFIX BUILD
+# Usage: build_gromacs_cpmdc.sh VERSION PREFIX CP2K_DIR [thread-mpi|mpi]
 #   VERSION is 2024.6, 2025.5 or 2026.4 (the pinned tarballs).
+#   thread-mpi (default) installs gmx_d; mpi builds against the MPI of
+#   mpicc, mpicxx and mpifort on PATH and installs gmx_mpi_d. That MPI must
+#   be the one libcpmdc_gromacs links.
 set -euo pipefail
 
 version=$1
 prefix=$2
-build=$(cd "$3" && pwd)
+cp2k_dir=$(cd "$3" && pwd)
+mpi=${4:-thread-mpi}
 
 case $version in
   2024.6) sha256=7cbad81f51c71a144d646515a7249aa74940b3f68071f51410e3a9473f05b339 ;;
@@ -19,10 +24,22 @@ case $version in
   *) echo "no pinned tarball for GROMACS $version" >&2; exit 2 ;;
 esac
 
-if [ ! -f "$build/tools/gromacs/pkgconfig/libcp2k.pc" ]; then
-  echo "$build has no tools/gromacs/pkgconfig/libcp2k.pc; build cpmdc first" >&2
+if [ ! -f "$cp2k_dir/pkgconfig/libcp2k.pc" ]; then
+  echo "$cp2k_dir has no pkgconfig/libcp2k.pc" >&2
   exit 2
 fi
+export PKG_CONFIG_PATH="$cp2k_dir/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+libdir=$(pkg-config --variable=libdir libcp2k)
+
+case $mpi in
+  thread-mpi) mpi_args=(-DGMX_MPI=OFF); gmx=gmx_d ;;
+  mpi)
+    mpi_args=(-DGMX_MPI=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx
+              -DMPI_Fortran_COMPILER=mpifort)
+    gmx=gmx_mpi_d
+    ;;
+  *) echo "the fourth argument is thread-mpi or mpi, not $mpi" >&2; exit 2 ;;
+esac
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -35,13 +52,13 @@ cmake -S "$work/gromacs-$version" -B "$work/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$prefix" \
   -DGMX_DOUBLE=ON \
-  -DGMX_MPI=OFF \
+  "${mpi_args[@]}" \
   -DGMX_GPU=OFF \
   -DGMX_FFT_LIBRARY=fftpack \
   -DGMX_EXTERNAL_BLAS=OFF \
   -DGMX_EXTERNAL_LAPACK=OFF \
   -DGMX_CP2K=ON \
-  -DCP2K_DIR="$build/tools/gromacs" \
+  -DCP2K_DIR="$cp2k_dir" \
   -DGMX_USE_PLUMED=OFF \
   -DGMX_NNPOT=OFF \
   -DGMX_HWLOC=OFF \
@@ -49,6 +66,10 @@ cmake -S "$work/gromacs-$version" -B "$work/build" -G Ninja \
   -DGMX_DEFAULT_SUFFIX=ON \
   -DBUILD_TESTING=OFF
 cmake --build "$work/build" --target install -j "$(nproc 2>/dev/null || echo 2)"
-"$prefix/bin/gmx_d" --version | grep -E 'GROMACS version|Precision'
-ldd "$prefix"/lib*/libgromacs_d.so | grep -q libcpmdc_gromacs ||
-  { echo "libgromacs_d.so does not link libcpmdc_gromacs" >&2; exit 1; }
+"$prefix/bin/$gmx" --version | grep -E 'GROMACS version|Precision|MPI library'
+resolved=$(ldd "$prefix"/lib*/libgromacs*_d.so | awk '$1 == "libcpmdc_gromacs.so" {print $3}')
+if [ "$resolved" != "$libdir/libcpmdc_gromacs.so" ]; then
+  echo "libgromacs resolves libcpmdc_gromacs.so to '$resolved', not $libdir" >&2
+  exit 1
+fi
+echo "libcpmdc_gromacs.so: $resolved"
