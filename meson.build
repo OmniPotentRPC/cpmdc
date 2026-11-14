@@ -345,6 +345,7 @@ if get_option('with_python')
     'python/cpmdc/__init__.py',
     'python/cpmdc/ase.py',
     'python/cpmdc/ipi.py',
+    'python/cpmdc/lammps.py',
     'python/cpmdc/py.typed',
     subdir: 'cpmdc',
   )
