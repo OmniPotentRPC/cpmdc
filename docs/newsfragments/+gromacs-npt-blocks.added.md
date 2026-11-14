@@ -1,0 +1,2 @@
+`bench/npt_block_average.py` discards the detected equilibration of `bench/gromacs_opencpmd_npt.py` runs and gives Flyvbjerg-Petersen block-averaged volume, density and pressure with their blocking curves; `--classical-only` runs the classical control alone.
+[Run GROMACS on cpmdc forces](docs/orgmode/howto/gromacs.org) now reports 15 ps of the 64-water C-rescale runs and a 1 ns classical control from `bench/results/gromacs_npt_crescale_64w.org`: the classical box settles at 921.9 +- 2.6 kg/m^3, and the box with the BLYP water does not settle in 15 ps.
