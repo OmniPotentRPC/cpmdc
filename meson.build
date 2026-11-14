@@ -1638,27 +1638,29 @@ test(
       suite: ['e2e', 'cmocka'],
       timeout: 900,
     )
-
-    water_aspc_params_bin = custom_target(
-      'water_aspc_params_bin',
-      input: 'tests/water_aspc_params.capnp.txt',
-      output: 'water_aspc_params.bin',
-      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
-    )
-    test(
-      'extrapolate-wfn',
-      executable(
-        'test_extrapolate_wfn',
-        'tests/test_extrapolate_wfn.c',
-        dependencies: [cpmdc_embed_shell_dep, math_dep],
-      ),
-      args: [water_aspc_params_bin.full_path(),
-             meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'],
-      depends: [water_aspc_params_bin],
-      suite: ['e2e'],
-      timeout: 900,
-    )
   endif
+
+  # The reference build skips it at run time (cpmdc_available() is 0).
+  water_aspc_params_bin = custom_target(
+    'water_aspc_params_bin',
+    input: 'tests/water_aspc_params.capnp.txt',
+    output: 'water_aspc_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  test(
+    'extrapolate-wfn',
+    executable(
+      'test_extrapolate_wfn',
+      'tests/test_extrapolate_wfn.c',
+      dependencies: [cpmdc_embed_shell_dep, math_dep],
+      c_args: common_c_args,
+    ),
+    args: [water_aspc_params_bin.full_path(),
+           meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'],
+    depends: [water_aspc_params_bin],
+    suite: ['e2e'],
+    timeout: 900,
+  )
 
 
   test(

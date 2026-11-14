@@ -11,6 +11,8 @@
  * SCF iterations must come within 10 percent of cpmd.x with ASPC and
  * below cpmd.x without it.
  */
+#define _POSIX_C_SOURCE 200809L
+
 #include "cpmdc.h"
 
 #include <math.h>
@@ -117,7 +119,7 @@ int main(int argc, char **argv) {
   }
   printf("max |dE|=%.3e scf %d, cpmd.x ASPC %d, cpmd.x none %d\n", worst,
          total, scf_aspc, scf_none);
-  ok = ok && worst < 1e-8 && fabs(total - scf_aspc) <= 0.1 * scf_aspc &&
+  ok = ok && worst < 1e-8 && abs(total - scf_aspc) <= 0.1 * scf_aspc &&
        total < scf_none;
   printf("PASS=%d\n", ok);
   return ok ? 0 : 1;
