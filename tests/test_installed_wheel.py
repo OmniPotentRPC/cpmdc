@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Run the python-api test and the ASE example against an installed cpmdc.
+"""Run the Python tests and the ASE example against an installed cpmdc.
 
 Usage: test_installed_wheel.py SOURCE_ROOT
 
-The source tree supplies only the test inputs. ``cpmdc`` must import from
-site-packages and load the library and schema that the wheel carries, so
-the library variables are cleared and the steps run in a scratch directory.
-``capnp`` must be on PATH to encode the parameter messages.
+The source tree supplies only the test inputs: test_python_api.py, the
+pytest suite in tests/python (which needs pytest, as the ``test`` extra
+installs), and the example. ``cpmdc`` must import from site-packages and
+load the library and schema that the wheel carries, so the library
+variables are cleared and the steps run in a scratch directory. ``capnp``
+must be on PATH to encode the parameter messages.
 """
 
 from __future__ import annotations
@@ -63,6 +65,23 @@ def main() -> int:
             ],
             cwd=work,
             env=env,
+            check=True,
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                str(root / "tests" / "python"),
+            ],
+            cwd=work,
+            env={
+                **env,
+                "CPMDC_TEST_INSTALLED": "1",
+                "CPMDC_TEST_PARAMS": str(params),
+                "CPMDC_TEST_PERIODIC_PARAMS": str(periodic),
+            },
             check=True,
         )
         example = subprocess.run(

@@ -62,7 +62,7 @@ build-frontend = "build"
 # cibuildwheel builds it once and tests it under every selected CPython.
 build = "cp310-* cp311-* cp312-* cp313-*"
 skip = ["pp*", "*-musllinux*", "*_i686", "*-win32"]
-test-extras = ["ase"]
+test-extras = ["test"]
 test-command = [
   "python -c \"import cpmdc, cpmdc.ase; print(cpmdc.find_library(), cpmdc.find_schema())\"",
   "python {project}/tests/test_installed_wheel.py {project}",

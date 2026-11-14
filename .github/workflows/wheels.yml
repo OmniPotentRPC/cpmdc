@@ -25,6 +25,7 @@ on:
       - "subprojects/**"
       - "tests/test_python_api.py"
       - "tests/test_installed_wheel.py"
+      - "tests/python/**"
       - "scripts/ci/install_capnp_tool.sh"
       - ".github/workflows/wheels.yml"
   pull_request:
@@ -40,6 +41,7 @@ on:
       - "subprojects/**"
       - "tests/test_python_api.py"
       - "tests/test_installed_wheel.py"
+      - "tests/python/**"
       - "scripts/ci/install_capnp_tool.sh"
       - ".github/workflows/wheels.yml"
   workflow_dispatch:
