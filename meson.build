@@ -329,6 +329,11 @@ cpmdc_shared_dep = declare_dependency(
   dependencies: cpmdc_params_deps + [cpmdc_apply_f_dep],
 )
 
+run_target(
+  'abi-inventory',
+  command: [python, files('scripts/abi_inventory.py'), '--write', cpmdc_shared],
+)
+
 install_headers('include/cpmdc.h', 'include/cpmdc_features.h', 'include/cpmdc_restart.h', subdir: 'cpmdc')
 
 cpmdc_restart_lib = static_library(
@@ -1267,6 +1272,17 @@ test(
     ],
     depends: [cpmdc_shared],
     suite: ['abi'],
+  )
+  test(
+    'c-abi-inventory',
+    python,
+    args: [
+      meson.current_source_dir() / 'scripts/abi_inventory.py',
+      '--check',
+      cpmdc_shared.full_path(),
+    ],
+    depends: [cpmdc_shared],
+    suite: ['abi', 'inventory'],
   )
   test(
     'inventory-docs',
