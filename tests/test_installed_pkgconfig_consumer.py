@@ -3,6 +3,9 @@
 
 Legs:
 - pkg-config: cc + `pkg-config --cflags --libs cpmdc`
+- libcp2k: cc + `pkg-config --cflags --libs libcp2k` from
+  LIBDIR/cpmdc/gromacs/pkgconfig, the file GROMACS -DGMX_CP2K=ON reads, run
+  without the prefix on LD_LIBRARY_PATH
 - CMake: `find_package(cpmdc CONFIG REQUIRED)` when cmake is available
 
 The nested `meson setup` runs with CC and FC set to the compilers the outer
@@ -38,6 +41,26 @@ int main(void) {
     return 1;
   }
   printf("installed-consumer ok: %s abi=%d\n", version, cpmdc_abi_version());
+  return 0;
+}
+"""
+
+CONSUMER_CP2K_C = r"""
+#include "libcp2k.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+  char version[256] = {0};
+  cp2k_get_version(version, (int)sizeof(version));
+  if (strstr(version, "cpmdc") == NULL) {
+    fprintf(stderr, "unexpected cp2k_get_version: %s\n", version);
+    return 1;
+  }
+  cp2k_init();
+  cp2k_finalize();
+  printf("installed libcp2k consumer ok: %s\n", version);
   return 0;
 }
 """
@@ -168,6 +191,31 @@ def main() -> int:
         raise SystemExit(f"cpmdc-ipi-c not installed under {prefix}")
     if ipi_client.is_file():
         run([ipi_client, "--help"], env=run_env)
+
+    cp2k_pcs = sorted(prefix.rglob("cpmdc/gromacs/pkgconfig/libcp2k.pc"))
+    if not cp2k_pcs:
+        raise SystemExit(f"libcp2k.pc not installed under {prefix}/LIBDIR/cpmdc/gromacs/pkgconfig")
+    cp2k_env = dict(os.environ)
+    cp2k_env["PKG_CONFIG_PATH"] = str(cp2k_pcs[0].parent)
+    cp2k_flags = []
+    for query in ("--cflags", "--libs"):
+        cp2k_flags += subprocess.run(
+            [args.pkg_config, query, "libcp2k"],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=cp2k_env,
+        ).stdout.split()
+    if not any(flag.startswith("-Wl,-rpath,") for flag in cp2k_flags):
+        raise SystemExit(f"libcp2k.pc Libs carry no run path: {cp2k_flags}")
+    cp2k_dir = build_root / "libcp2k-consumer"
+    cp2k_dir.mkdir()
+    (cp2k_dir / "main.c").write_text(CONSUMER_CP2K_C, encoding="utf-8")
+    cp2k_bin = cp2k_dir / "consumer"
+    run([args.cc, cp2k_dir / "main.c", "-o", cp2k_bin] + cp2k_flags + extra_link)
+    bare_env = dict(os.environ)
+    bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
+    run([cp2k_bin], env=bare_env)
 
     cmake = shutil.which("cmake")
     if cmake is None:
