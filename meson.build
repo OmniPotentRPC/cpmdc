@@ -1047,6 +1047,20 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
     timeout: 300,
   )
+  test(
+    'session-calculate-au',
+    executable(
+      'test_session_calculate_au',
+      'tests/test_session_calculate_au.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path(), water_periodic_params_bin.full_path()],
+    depends: [water_params_bin, water_periodic_params_bin],
+    suite: ['abi', 'e2e', 'cmocka'],
+    timeout: 300,
+  )
 
   fd_check_exe = executable(
     'cpmdc-fd-check',
