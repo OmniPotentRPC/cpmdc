@@ -1,0 +1,226 @@
+#+TITLE: Run LAMMPS on cpmdc forces
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+LAMMPS can take its energy, forces, and virial from cpmdc in process, so
+its integrators, thermostats, barostats, minimizers, and output run on a
+cpmdc potential energy surface.
+Two routes call ~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]] once per force
+evaluation; both pass the same numbers to LAMMPS.
+
+| Route | LAMMPS side | Needs |
+|-------+-------------+-------|
+| ~cpmdc.lammps.FixExternal~ | ~fix external pf/callback~ from LAMMPS' Python module | the ~lammps~ Python module (~pip install lammps~ works), ~mpi4py~ for more than one rank |
+| ~pair_style cpmdc~ | a LAMMPS plugin, ~cpmdcplugin.so~, loaded with ~plugin load~ | LAMMPS with the ~PLUGIN~ package and the headers it was built from; no Python |
+| i-PI sockets | ~fix ipi~, a client of an i-PI server | i-PI and ~cpmdc-ipi~; see [[file:socket-drivers.org][the socket drivers]] |
+
+The plugin suits LAMMPS input scripts run by ~lmp~ and has the least
+overhead per step.
+~FixExternal~ suits Python workflows and needs no compiler.
+The socket route keeps cpmdc in a separate process and lets i-PI
+integrate; LAMMPS then contributes forces of its own.
+
+* From Python with fix external
+Define the box, the atoms, and the masses as usual, without a pair style
+for the atoms cpmdc covers, then hand the ~lammps~ object to
+~FixExternal~ with one element per atom type, in type order:
+
+#+begin_src python
+from lammps import lammps
+
+from cpmdc.lammps import FixExternal
+
+lmp = lammps()
+lmp.file("in.setup")  # units metal, box, atoms, masses
+with FixExternal(lmp, "water.params.bin", "O H") as cpmdc:
+    lmp.commands_string("""
+        velocity all create 300 4928
+        fix nve all nve
+        timestep 0.00025
+        thermo 10
+    """)
+    cpmdc.run(1000)
+    print(lmp.get_thermo("pe"), cpmdc.evaluations)
+#+end_src
+
+~FixExternal~ issues ~fix cpmdc all external pf/callback 1 1~ and
+~fix_modify cpmdc energy yes virial yes~, so ~pe~ holds the cpmdc energy
+and ~press~ includes its virial.
+With ~create=False~ it attaches to a ~fix external~ the input already
+defines under ~fix_id~; that fix needs the same two ~fix_modify~ settings.
+~close()~, or leaving the ~with~ block, removes the fixes it added and
+closes the session.
+
+A failed evaluation cannot raise through LAMMPS' C callback.
+~FixExternal~ keeps the error in ~error~, returns zero forces for that
+step, and a ~fix halt~ it adds stops LAMMPS at the end of the step.
+~FixExternal.run()~ then raises ~cpmdc.CpmdcError~ with the library's
+message; a bare ~lmp.command("run ...")~ raises LAMMPS' halt error instead.
+
+Any ~run~ or ~minimize~ works: ~minimize~ uses the cpmdc energy through
+~fix_modify energy yes~.
+
+* From an input script with pair_style cpmdc
+Meson builds ~cpmdcplugin.so~ when a C++ compiler, MPI for C++, and the
+LAMMPS headers are found.
+The headers come from ~-Dlammps_include=DIR~, or from the ~include/lammps~
+directory of an importable ~lammps~ Python package, which the pip wheel
+ships:
+
+#+begin_src bash
+meson setup build -Dwith_lammps_plugin=enabled
+meson setup build -Dwith_lammps_plugin=enabled -Dlammps_include=$LAMMPS_SRC/src
+meson compile -C build
+#+end_src
+
+~meson install~ puts the plugin in ~lib/cpmdc~ under the prefix, with a run
+path to ~libcpmdc~.
+Load it and select the pair style:
+
+#+begin_src text
+plugin load      /path/to/lib/cpmdc/cpmdcplugin.so
+units            metal
+read_data        water.data
+pair_style       cpmdc water.params.bin
+pair_coeff       * * O H
+fix              nve all nve
+timestep         0.00025
+run              1000
+#+end_src
+
+LAMMPS also loads every ~*plugin.so~ in the directories of
+~LAMMPS_PLUGIN_PATH~ at startup.
+~pair_coeff * *~ takes one element symbol or atomic number per atom type.
+The pair style needs no cutoff and requests no neighbor list.
+A failed evaluation stops LAMMPS with ~pair_style cpmdc:~ and the library's
+message.
+
+The plugin is a C++ shared object compiled against one LAMMPS: build it
+with the headers of the LAMMPS that loads it.
+LAMMPS' integer sizes must match, so pass ~-Dcpp_args=-DLAMMPS_BIGBIG~ for a
+LAMMPS built with ~LAMMPS_BIGBIG~.
+The plugin and LAMMPS must also share one MPI library; the pip wheel links
+an MPICH-compatible ~libmpi.so.12~.
+The plugin links only ~libcpmdc~'s public C ABI.
+LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary
+built against its headers.
+
+* Units
+cpmdc works in Bohr and Hartree.
+Both routes convert with the constants of ~python/cpmdc~ (CODATA 2018,
+with the thermochemical calorie, 4.184 J, for ~real~):
+
+| LAMMPS ~units~ | Length per Bohr | Energy per Hartree | Forces | Virial | Pressure |
+|----------------+-----------------+--------------------+--------+----------------------+----------|
+| ~metal~ | ~BOHR_TO_ANGSTROM~ Angstrom | ~HARTREE_TO_EV~ eV | eV/Angstrom | eV | bar |
+| ~real~ | ~BOHR_TO_ANGSTROM~ Angstrom | ~HARTREE_TO_KCAL_PER_MOL~ kcal/mol | kcal/(mol Angstrom) | kcal/mol | atm |
+| ~electron~ | 1 Bohr | 1 Hartree | Hartree/Bohr | Hartree | Pa |
+
+Any other unit style is refused before the first step with an error that
+names the three; ~FixExternal~ raises ~ValueError~.
+LAMMPS converts the virial to pressure with its own ~nktv2p~.
+
+* Cell and positions
+LAMMPS keeps a restricted triclinic box: ~a~ along x, ~b~ in the xy plane.
+cpmdc takes one lattice vector per row of a row-major 3 by 3 cell, so the
+cell sent is
+
+| Row | LAMMPS | ~domain->h~ |
+|-----+--------+-------------|
+| ~a~ | ~(lx, 0, 0)~ | ~(h[0], 0, 0)~ |
+| ~b~ | ~(xy, ly, 0)~ | ~(h[5], h[1], 0)~ |
+| ~c~ | ~(xz, yz, lz)~ | ~(h[4], h[3], h[2])~ |
+
+with ~lx = xhi - xlo~ and the tilt factors ~xy~, ~xz~, ~yz~.
+An orthogonal box is the case with zero tilts.
+The positions are LAMMPS' Cartesian coordinates unwrapped with the image
+flags, ~x + ix a + iy b + iz c~, so each atom follows a continuous path
+across the boundaries and wavefunction extrapolation sees smooth steps.
+The box origin ~(xlo, ylo, zlo)~ is not subtracted.
+A box with all three axes periodic sends the cell; a box with none sends
+no cell, and the ~CPMDParams~ deck sets the box.
+A box with some axes periodic and others not is refused; ~FixExternal~
+raises ~ValueError~.
+
+* Virial and pressure
+cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.
+LAMMPS' global virial of a pair style or of ~fix_modify virial yes~ has the
+same sign and units of energy, ~W = sum r f~ for a pair potential, so both
+routes pass ~W~ times the energy factor, symmetrized, as ~xx yy zz xy xz
+yz~.
+The pressure LAMMPS prints is then ~P = (sum m v v + W) / V~ in its
+pressure units; a compressed cell has a positive diagonal of ~W~ and a
+positive pressure.
+~fix npt~ and ~fix nph~ use it as they use any pair virial.
+~compute pressure NULL virial~ reports the virial part alone, ~W / V~ in
+pressure units.
+
+* Several MPI ranks
+Under ~mpirun~ LAMMPS spreads the atoms over its ranks, and cpmdc still
+evaluates the whole system once per step:
+
+- World rank 0 owns the one ~CPMDCSession~. Before it opens the session it
+  adopts ~MPI_COMM_SELF~ as the calculator communicator, so an OpenCPMD
+  build runs on rank 0 alone and never waits in a collective for ranks
+  that do not call it.
+- Each step gathers every rank's positions and atom types, by atom ID,
+  onto rank 0; rank 0 evaluates; the energy, the virial, and all forces go
+  back to every rank, which keeps the forces of the atoms it owns.
+- The other ranks wait during the evaluation, so extra ranks speed up only
+  LAMMPS' own work. The traffic per step is ~O(N)~ doubles.
+- Atom IDs must be the integers 1..N, as LAMMPS assigns them; after
+  ~delete_atoms~ or ~fix evaporate~, renumber with ~reset_atoms id~.
+- A step with a new elemental composition opens a new session.
+
+~FixExternal~ needs ~mpi4py~ for this, and ~comm=~ when the ~lammps~ object
+was created on a communicator other than ~MPI.COMM_WORLD~.
+The plugin uses LAMMPS' own ~world~ communicator.
+Running one cpmdc evaluation on several ranks under the same LAMMPS is not
+part of either route.
+
+* Checks
+~tests/python/test_lammps.py~ runs both routes under Meson's ~python-pytest~
+and checks:
+
+- energy, forces, and virial against ~CPMDCCalculator~ to 1e-10, in a cubic
+  and a triclinic box and without a cell, under ~metal~, ~real~, and
+  ~electron~;
+- each of the six virial components against a central difference of the
+  energy under strain on the triclinic box;
+- the type-to-element map, unwrapping across the boundary, and ~press~
+  against the virial trace;
+- energy drift of a short NVE run and of the extended energy of an NPT run;
+- the error for each refused input and a failed step;
+- two ranks against one, under ~mpiexec~.
+
+The module skips with a reason when the ~lammps~ module cannot start, and
+the plugin cases skip when ~cpmdcplugin.so~ is not built.
+The reference evaluator of a build without OpenCPMD is a harmonic well
+about the origin, which is not translation invariant; NPT runs on it need
+~fixedpoint 0 0 0~, which an OpenCPMD energy does not.
+
+* Overhead per step
+~bench/lammps_routes.py~ integrates two water molecules in a 9 Angstrom
+cubic box (~metal~, NVE) through each route and reports the median wall
+time per step over fresh repeats, with the raw values.
+With the reference evaluator this is coupling overhead: an OpenCPMD step
+adds the same SCF time to every route.
+
+#+begin_src bash
+python bench/lammps_routes.py --build build --steps 2000 --repeats 7
+#+end_src
+
+One run on an 8-core Xeon virtual machine with LAMMPS 22 Jul 2025 from the
+pip wheel and i-PI 3.3.1:
+
+| Route | Median, microseconds per step |
+|-------+-------------------------------|
+| ~Session.calculate_au~ in a Python loop, no integrator | 7.4 |
+| LAMMPS with ~pair_style zero~, no cpmdc | 0.65 |
+| ~pair_style cpmdc~ | 7.1 |
+| ~FixExternal~ | 87 |
+| ~FixExternal~ through ASE's ~SocketServer~ and ~cpmdc-ipi-c~ | 253 |
+| i-PI with ~cpmdc-ipi-c~ | 231 |
+| i-PI with ~cpmdc-ipi-c~ and LAMMPS ~fix ipi~ | 318 |
+
+The in-process routes time ~run~ inside one process; the i-PI routes use
+i-PI's own per-step timing, so no route counts process startup.

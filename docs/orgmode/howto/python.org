@@ -7,6 +7,8 @@ It loads ~libcpmdc~ with ~ctypes~. Positions are Angstrom.
 ~Potential~ returns eV and eV/Angstrom so an rgpot calculator can call
 ~evaluate~ and ~caps~ without importing cpmdc's ASE module.
 ~CPMDCCalculator~ in ~cpmdc.ase~ is an ASE calculator over the same session.
+~Session.calculate_au~ takes Bohr and returns the virial as well, and
+~cpmdc.lammps~ drives LAMMPS with it (see [[file:lammps.org][Run LAMMPS on cpmdc forces]]).
 
 * Load the library
 ~pip install "cpmdc[ase]"~ installs the package with its own ~libcpmdc~

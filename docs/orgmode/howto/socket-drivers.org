@@ -8,6 +8,8 @@ The servers it works with are i-PI, ASE's ~SocketIOCalculator~, and ASE's
 ~SocketServer~.
 LAMMPS ~fix ipi~ is a client too, so LAMMPS and cpmdc meet through an i-PI
 server; a later section shows that setup.
+For LAMMPS to integrate on cpmdc forces in one process, with less overhead
+per step, see [[file:lammps.org][Run LAMMPS on cpmdc forces]].
 ~cpmdc-ipi-c~ is the same client written in C, for hosts without Python.
 
 The protocol is the one in the i-PI documentation,
@@ -125,7 +127,10 @@ trajectory; with several beads, start one driver per bead and set
 The pytest suite runs a short NVE trajectory through i-PI 3.3.
 
 * With LAMMPS fix ipi
-Untested: LAMMPS was not run for this page.
+Untested as written: LAMMPS was not run with this input.
+~bench/lammps_routes.py~ runs the same arrangement with ~pair_style zero~.
+In it i-PI integrates; for LAMMPS to integrate, use the in-process routes
+of [[file:lammps.org][Run LAMMPS on cpmdc forces]].
 ~fix ipi~ makes LAMMPS an i-PI client, as ~cpmdc-ipi~ is, so the two cannot
 connect to each other.
 They meet through an i-PI server that sums their forces, for example a

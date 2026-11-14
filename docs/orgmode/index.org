@@ -75,6 +75,9 @@ composition requires a new session.
    * - Run cpmdc under i-PI or an ASE socket calculator
      - Start ``cpmdc-ipi``, or ``cpmdc-ipi-c`` without Python, against the server's socket
      - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
+   * - Run LAMMPS on cpmdc forces
+     - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
+     - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
    * - Call cpmdc from a host process
      - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
      - :doc:`Embedding cpmdc <howto/embedding>` and :doc:`C ABI reference <reference/c-abi>`
@@ -170,6 +173,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/embedding
    howto/python
    howto/socket-drivers
+   howto/lammps
    howto/mpi
    howto/wavefunction-optimiser
    howto/extrapolate-orbitals

@@ -24,6 +24,7 @@ portable result carrier used by RPC-facing callers.
 | Need | Do this first |
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
+| Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
 | Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Call cpmdc from Python](docs/orgmode/howto/python.org) |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
@@ -85,6 +86,9 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `include/cpmdc_restart.h` | C reader and writer for a CPMD `RESTART` file |
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
+| `tools/lammps/` | `cpmdcplugin.so`, the LAMMPS plugin with `pair_style cpmdc` |
+| `python/cpmdc/` | the Python package: `Session`, the ASE calculator, the i-PI driver, and `cpmdc.lammps` |
+| `bench/lammps_routes.py` | per-step overhead of the LAMMPS and i-PI routes |
 | `include/cpmdc_features.h` | runtime feature discovery table |
 | `include/cpmdc_export.h` | `CPMDC_API`, the mark on every exported function |
 | `schema/Potentials.capnp` | `CPMDParams`, `ForceInput`, `PotentialResult`, `PotentialConfig` |
@@ -103,6 +107,7 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 | Long-running driver with serialized input and output | `cpmdc_session_create`, then `cpmdc_session_calculate_result` |
 | Long-running native C force loop | `cpmdc_session_energy_forces` |
 | Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
+| LAMMPS integrating on cpmdc forces | `pair_style cpmdc` or `cpmdc.lammps.FixExternal`, both on `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
 | Native C compatibility call | `cpmdc_energy_forces` |
 | Runtime capability checks | `cpmdc_feature_find` or `cpmdc_feature_table` |

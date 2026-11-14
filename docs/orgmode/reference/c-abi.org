@@ -298,6 +298,8 @@ a topology change, and a failed evaluation.
 On failure the output arrays are left unspecified.
 ~libcpmdc-stub~ returns -1 with the stub message.
 ~tools/cpmdc_ipi.c~ is an i-PI client on this call (see [[file:../howto/socket-drivers.org][the socket drivers]]).
+~tools/lammps/pair_cpmdc.cpp~, the LAMMPS ~pair_style cpmdc~, and
+~cpmdc.lammps~ call it once per force evaluation (see [[file:../howto/lammps.org][LAMMPS]]).
 
 * One-shot message calls
 

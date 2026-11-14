@@ -5,15 +5,19 @@
 The public names live in ~python/cpmdc~. Importing ~cpmdc~ does not import
 ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~. ~cpmdc.ipi~ is the
 ~cpmdc-ipi~ socket driver; it needs ASE only for ~--structure~.
+~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it
+imports neither LAMMPS nor ~mpi4py~ until a run needs them.
 
 | Name | Role |
 |------+------|
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
+| ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
 | ~CpmdcError~ | failure from the library or from loading it |
 | ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
 | ~Session~ | one ~CPMDCSession~ handle; ~schema~ is deprecated and ignored |
 | ~Session.energy_forces~ | one geometry, native units; a cell is encoded as ~ForceInput~ in process |
+| ~Session.calculate_au~ | one step through ~cpmdc_session_calculate_au()~ from Bohr positions, atomic numbers, and an optional cell in Bohr with one vector per row; returns the energy in Hartree, ~3N~ forces in Hartree/Bohr, and the nine-component row-major virial ~-dE/d(strain)~ in Hartree; C-contiguous ~float64~ inputs pass without a copy, and writable ~forces=~ and ~virial=~ buffers are filled in place |
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
@@ -43,6 +47,15 @@ ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~. ~cpmdc.ipi~ is the
 | ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
 | ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
 | ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
+| ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~ keywords |
+| ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CpmdcError~ for a failed step |
+| ~FixExternal.close~ | close the session and remove the fixes it added; also on leaving a ~with~ block |
+| ~FixExternal.error~, ~energy~, ~evaluations~ | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |
+| ~FixExternal.periodic~, ~type_numbers~, ~units~ | whether the cell is sent, the atomic number of each atom type, the LAMMPS unit style |
+| ~cpmdc.lammps.UNIT_STYLES~ | LAMMPS unit style to (length per Bohr, energy per Hartree) for ~metal~, ~real~, ~electron~ |
+| ~cpmdc.lammps.unit_factors~ | that pair for one style; ~ValueError~ for any other |
+| ~cpmdc.lammps.box_rows~ | ~boxlo~, ~boxhi~, ~xy~, ~yz~, ~xz~ to the 3x3 cell with one lattice vector per row |
+| ~cpmdc.lammps.type_numbers~ | atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence |
 
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~. A repeated geometry
 returns the stored step. A null or empty input raises; it does not abort
@@ -50,7 +63,7 @@ the interpreter.
 [[file:../howto/python.org][Call cpmdc from Python]] has the property table and
 the rules for units, boundaries, caching, copies, and sessions.
 [[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] covers
-~cpmdc-ipi~.
+~cpmdc-ipi~, and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]] covers ~cpmdc.lammps~.
 
 * Errors
 
@@ -64,3 +77,6 @@ the rules for units, boundaries, caching, copies, and sessions.
 | an unknown keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
 | a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
+| ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CpmdcError~; ~ValueError~ for the sizes |
+| ~FixExternal~ on a unit style other than ~metal~, ~real~, ~electron~, on a box with mixed periodicity, or with the wrong number of elements | ~ValueError~ |
+| ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CpmdcError~ |

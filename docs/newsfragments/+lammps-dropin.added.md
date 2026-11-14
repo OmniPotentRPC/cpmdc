@@ -1,0 +1,6 @@
+LAMMPS can integrate on cpmdc forces in process, through two routes on `cpmdc_session_calculate_au()`.
+`cpmdc.lammps.FixExternal` attaches one session to a `fix external pf/callback` of a `lammps` Python object, and `cpmdcplugin.so`, built by Meson from `tools/lammps/` when the LAMMPS headers are found (`-Dwith_lammps_plugin`, `-Dlammps_include`), adds `pair_style cpmdc` to any LAMMPS with the `PLUGIN` package.
+Both convert `metal`, `real`, and `electron` units and refuse other styles, send the restricted triclinic box as a row-major cell with positions unwrapped by image flags, and return the energy, forces, and the virial `-dE/d(strain)` so `fix npt` sees the cpmdc pressure; under `mpirun`, world rank 0 owns the session and gathers the atoms by ID.
+`Session.calculate_au()` exposes the C call to Python, and `HARTREE_TO_KCAL_PER_MOL` joins the unit constants.
+[Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) covers both routes, units, the cell and virial conventions, and the MPI rule; `tests/python/test_lammps.py` checks them against `CPMDCCalculator` with the lammps pip wheel, and `bench/lammps_routes.py` measures their per-step overhead against the i-PI socket routes.
+The C ABI is unchanged.
