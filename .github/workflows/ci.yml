@@ -143,6 +143,46 @@ jobs:
           name: unstripped-libs-arm64
           path: isa-audit-libs/
 
+  gromacs-qmmm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: ASE for the reference calculator
+        run: pixi run python -m pip install 'ase>=3.23' 'pytest>=7'
+      - name: cpmdc and libcpmdc_gromacs
+        run: |
+          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build && ninja -C build water_blyp_params.bin water_blyp_periodic_params.bin'
+          test -f build/tools/gromacs/pkgconfig/libcp2k.pc
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/gromacs-2025.5
+          key: gromacs-2025.5-cpmdc-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/pkgconfig/*') }}
+      - name: GROMACS 2025.5, double, GMX_CP2K=ON against libcpmdc_gromacs
+        run: |
+          if [ ! -x "${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d" ]; then
+            pixi run scripts/ci/build_gromacs_cpmdc.sh 2025.5 "${RUNNER_TEMP}/gromacs-2025.5" build
+          fi
+      - name: GROMACS route tests, none skipped
+        run: |
+          export CPMDC_GMX="${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d"
+          export CPMDC_LIBRARY="$PWD/build/libcpmdc.so"
+          export CPMDC_GROMACS_LIB="$PWD/build/libcpmdc_gromacs.so"
+          export CPMDC_TEST_PARAMS="$PWD/build/water_blyp_params.bin"
+          export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build/water_blyp_periodic_params.bin"
+          pixi run python -m pytest -q -rs tests/python/test_gromacs.py | tee gromacs-pytest.log
+          if grep -E '^SKIPPED' gromacs-pytest.log; then
+            echo "GROMACS route tests skipped"
+            exit 1
+          fi
+      - name: Full meson suite with GROMACS on PATH
+        run: |
+          export CPMDC_GMX="${RUNNER_TEMP}/gromacs-2025.5/bin/gmx_d"
+          pixi run meson test -C build --print-errorlogs
+
   readcon-restart:
     runs-on: ubuntu-latest
     steps:
