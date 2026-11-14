@@ -641,8 +641,8 @@ EV_PER_ANGSTROM3_TO_BAR = 1.602176634e6
 
 def virial_and_pressure(workdir: Path) -> tuple[np.ndarray, np.ndarray]:
     """Vir-XX .. Vir-ZZ (kJ/mol) and Pres-XX .. Pres-ZZ (bar) of the first frame."""
-    table = gc.energies(GMX, workdir, *(f"Vir-{t}" for t in TENSOR), *(f"Pres-{t}" for t in TENSOR))
-    return table[0, 1:10].reshape(3, 3), table[0, 10:19].reshape(3, 3)
+    columns = gc.energy_columns(GMX, workdir, *(f"{q}-{t}" for q in ("Vir", "Pres") for t in TENSOR))
+    return tuple(np.array([columns[f"{q}-{t}"][0] for t in TENSOR]).reshape(3, 3) for q in ("Vir", "Pres"))
 
 
 @needs_gmx
@@ -786,7 +786,8 @@ def dd_result(path):
     done = (path / "md.log").read_text()
     frames = gc.read_trr(path / "md.trr")
     table = gc.energies(GMX_MPI, path, "Quantum-En.", "Potential", "Total-Energy")
-    return done, frames, table
+    tensors = gc.energy_columns(GMX_MPI, path, *(f"{q}-{t}" for q in ("Vir", "Pres") for t in TENSOR))
+    return done, frames, table, tensors
 
 
 @pytest.fixture(scope="module")
@@ -806,15 +807,19 @@ def single_rank(params, tmp_path_factory):
 def test_mpi_domain_decomposition_matches_one_rank(ranks, qm_ranks, single_rank, params, tmp_path):
     done = dd_run(tmp_path, params, ranks, qm_ranks)
     assert done.returncode == 0, done.stderr[-3000:]
-    log, frames, table = dd_result(tmp_path)
+    log, frames, table, tensors = dd_result(tmp_path)
     grid = re.search(r"Domain decomposition grid (\d+) x (\d+) x (\d+)", log)
     assert grid and int(grid.group(1)) >= 2, "no decomposition along x"
     out = (tmp_path / "md_cp2k.out").read_text()
     assert f"ranks {ranks} qm_ranks {ranks if qm_ranks == 'ALL' else 1}" in out
-    _, ref_frames, ref_table = single_rank
+    _, ref_frames, ref_table, ref_tensors = single_rank
     assert table.shape == ref_table.shape
     np.testing.assert_allclose(table[:, 1], ref_table[:, 1], rtol=1e-10, atol=0)
     np.testing.assert_allclose(table[:, 2:], ref_table[:, 2:], rtol=1e-10, atol=0)
+    # The QM virial enters once, from the main rank, whatever the rank count.
+    for name, ref in ref_tensors.items():
+        np.testing.assert_allclose(tensors[name], ref, rtol=0, atol=1e-9 * np.abs(ref).max(),
+                                   err_msg=name)
     assert [f["step"] for f in frames] == [f["step"] for f in ref_frames] == [0, 10, 20]
     qm = slice(3 * DD_QM, 3 * DD_QM + 3)
     for frame, ref in zip(frames, ref_frames):

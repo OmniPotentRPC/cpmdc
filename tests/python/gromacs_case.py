@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import shlex
 import shutil
 import struct
@@ -311,6 +312,16 @@ def energies(gmx: str, workdir: Path, *terms: str) -> np.ndarray:
         if line and line[0] not in "#@"
     ]
     return np.array(rows)
+
+
+def energy_columns(gmx: str, workdir: Path, *terms: str) -> dict[str, np.ndarray]:
+    """``Time`` and each of ``terms`` by name: gmx energy writes md.edr's order, not ours."""
+    table = energies(gmx, workdir, *terms)
+    text = (workdir / "energy.xvg").read_text()
+    legends = [s.replace(" ", "-") for s in re.findall(r'^@ s\d+ legend "(.*)"$', text, re.M)]
+    if sorted(legends) != sorted(terms):
+        raise RuntimeError(f"gmx energy printed {legends}, not {list(terms)}")
+    return {"Time": table[:, 0], **{name: table[:, i + 1] for i, name in enumerate(legends)}}
 
 
 # --- QM-MM Coulomb -------------------------------------------------------
