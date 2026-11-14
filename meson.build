@@ -344,6 +344,7 @@ if get_option('with_python')
   py.install_sources(
     'python/cpmdc/__init__.py',
     'python/cpmdc/ase.py',
+    'python/cpmdc/gromacs.py',
     'python/cpmdc/ipi.py',
     'python/cpmdc/lammps.py',
     'python/cpmdc/py.typed',
@@ -482,6 +483,33 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
   elif lammps_plugin_opt.enabled()
     error('with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package')
   endif
+endif
+# libcpmdc_gromacs serves the libcp2k C API that GROMACS' QM/MM module calls
+# (GROMACS configured with -DGMX_CP2K=ON -DCP2K_DIR=<dir holding
+# pkgconfig/libcp2k.pc>). It is a consumer of the public header only.
+cpmdc_gromacs_lib = disabler()
+if not get_option('with_gromacs_shim').disabled() and not get_option('with_python')
+  gromacs_c_args = common_c_args
+  gromacs_deps = [math_dep]
+  if mpi_c_dep.found()
+    gromacs_c_args += ['-DCPMDC_GROMACS_MPI=1']
+    gromacs_deps += [mpi_c_dep]
+  endif
+  cpmdc_gromacs_lib = shared_library(
+    'cpmdc_gromacs',
+    'tools/gromacs/cpmdc_gromacs.c',
+    link_with: cpmdc_shared,
+    include_directories: include_directories('include'),
+    dependencies: gromacs_deps,
+    c_args: gromacs_c_args,
+    override_options: ['c_std=c11'],
+    install: true,
+    install_rpath: get_option('prefix') / get_option('libdir'),
+  )
+  install_headers('tools/gromacs/libcp2k.h', subdir: 'cpmdc' / 'gromacs')
+  # GROMACS reads ${CP2K_DIR}/pkgconfig/libcp2k.pc: CP2K_DIR is
+  # build/tools/gromacs here and <libdir>/cpmdc/gromacs once installed.
+  subdir('tools/gromacs/pkgconfig')
 endif
 pkgconfig.generate(
   name: 'cpmdc-restart',
@@ -1350,6 +1378,10 @@ test(
   if not is_disabler(cpmdc_lammps_plugin)
     pytest_env += {'CPMDC_LAMMPS_PLUGIN': cpmdc_lammps_plugin.full_path()}
     pytest_depends += cpmdc_lammps_plugin
+  endif
+  if not is_disabler(cpmdc_gromacs_lib)
+    pytest_env += {'CPMDC_GROMACS_LIB': cpmdc_gromacs_lib.full_path()}
+    pytest_depends += cpmdc_gromacs_lib
   endif
   test(
     'python-pytest',
