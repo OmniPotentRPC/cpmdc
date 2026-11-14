@@ -10,9 +10,9 @@ process globals.
 name the shared library, which is the same order rgpot uses after an
 explicit path. A wheel carries its own ``libcpmdc`` in
 ``.cpmdc.mesonpy.libs`` beside this package, and that copy is used when
-none of the variables is set. ``CPMDC_SCHEMA`` names
-``schema/Potentials.capnp`` when a cell is encoded as ``ForceInput``; a
-wheel carries that file too.
+none of the variables is set. A cell is encoded as ``ForceInput`` in
+process. :func:`find_schema` returns ``schema/Potentials.capnp``, which a
+wheel also carries, for encoding ``CPMDParams`` text with ``capnp encode``.
 """
 
 from __future__ import annotations
@@ -20,7 +20,8 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import os
-import subprocess
+import struct
+import warnings
 from array import array
 from pathlib import Path
 from typing import Any, Sequence
@@ -217,36 +218,55 @@ def _cell(cell: Sequence[Sequence[float]] | Sequence[float] | None) -> list[floa
     return [_finite(value, "cell") for value in raw]  # type: ignore[arg-type]
 
 
-def _encode(schema: Path, struct: str, text: str) -> bytes:
-    try:
-        proc = subprocess.run(
-            ["capnp", "encode", str(schema), struct],
-            input=text.encode("utf-8"),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-    except OSError as exc:
-        raise CpmdcError("capnp encode is not available") from exc
-    if proc.returncode != 0:
-        detail = proc.stderr.decode("utf-8", "replace").strip()
-        raise CpmdcError(detail or "capnp encode failed")
-    if not proc.stdout:
-        raise CpmdcError("capnp encode wrote an empty message")
-    return proc.stdout
+# ForceInput in schema/Potentials.capnp: two data words (hasCharge,
+# charge, hasMultiplicity, multiplicity; all zero is the schema default)
+# and five pointers (pos, atmnrs, box, lengthUnit, energyUnit).
+_FORCE_INPUT_DATA_WORDS = 2
+_FORCE_INPUT_POINTERS = 5
+_ELEMENT_BYTE = 2
+_ELEMENT_FOUR_BYTES = 4
+_ELEMENT_EIGHT_BYTES = 5
 
 
-def _force_input_text(flat: array, numbers: array, cell: list[float] | None) -> str:
-    pos = ", ".join(f"{value:.16g}" for value in flat)
-    atomic = ", ".join(str(int(value)) for value in numbers)
-    lines = ["(", f"  pos = [{pos}],", f"  atmnrs = [{atomic}],"]
+def _force_input_message(flat: array, numbers: array, cell: list[float] | None) -> bytes:
+    """Single-segment Cap'n Proto ``ForceInput``, laid out as ``capnp encode`` does."""
+    lists: list[tuple[int, int, bytes]] = [
+        (_ELEMENT_EIGHT_BYTES, len(flat), struct.pack(f"<{len(flat)}d", *flat)),
+        (_ELEMENT_FOUR_BYTES, len(numbers), struct.pack(f"<{len(numbers)}i", *numbers)),
+    ]
     if cell is not None:
-        box = ", ".join(f"{value:.16g}" for value in cell)
-        lines.append(f"  box = [{box}],")
-    lines.append('  lengthUnit = "angstrom",')
-    lines.append('  energyUnit = "hartree",')
-    lines.append(")")
-    return "\n".join(lines) + "\n"
+        lists.append((_ELEMENT_EIGHT_BYTES, 9, struct.pack("<9d", *cell)))
+    for text in ("angstrom", "hartree"):
+        raw = text.encode("ascii") + b"\0"
+        lists.append((_ELEMENT_BYTE, len(raw), raw))
+    struct_word = 1
+    first_pointer = struct_word + _FORCE_INPUT_DATA_WORDS
+    body = bytearray(8 * (_FORCE_INPUT_DATA_WORDS + _FORCE_INPUT_POINTERS))
+    pointers: dict[int, int] = {}
+    next_word = first_pointer + _FORCE_INPUT_POINTERS
+    slots = [0, 1, 2, 3, 4] if cell is not None else [0, 1, 3, 4]
+    for slot, (size, count, payload) in zip(slots, lists):
+        pointer_word = first_pointer + slot
+        offset = next_word - (pointer_word + 1)
+        pointers[slot] = ((offset << 2) | 1) | ((size | (count << 3)) << 32)
+        padded = payload + b"\0" * (-len(payload) % 8)
+        body += padded
+        next_word += len(padded) // 8
+    for slot, value in pointers.items():
+        start = 8 * (_FORCE_INPUT_DATA_WORDS + slot)
+        body[start : start + 8] = struct.pack("<Q", value)
+    root = struct.pack("<Q", (_FORCE_INPUT_DATA_WORDS | (_FORCE_INPUT_POINTERS << 16)) << 32)
+    segment = root + bytes(body)
+    return struct.pack("<II", 0, len(segment) // 8) + segment
+
+
+def _warn_schema(stacklevel: int) -> None:
+    warnings.warn(
+        "the schema argument is ignored and will be removed: cpmdc encodes "
+        "ForceInput in process and needs no schema file",
+        DeprecationWarning,
+        stacklevel=stacklevel,
+    )
 
 
 def _load(path: Path) -> ctypes.CDLL:
@@ -309,6 +329,10 @@ class Session:
     file. The session copies the bytes. Close it when the geometry series
     is finished. A change of atom count or elemental composition is an
     error from the library; start another session.
+
+    ``schema`` is deprecated and ignored: a cell is encoded as
+    ``ForceInput`` in process, so no schema file or ``capnp`` command is
+    needed.
     """
 
     def __init__(
@@ -318,11 +342,12 @@ class Session:
         library: str | os.PathLike[str] | None = None,
         schema: str | os.PathLike[str] | None = None,
     ) -> None:
+        if schema is not None:
+            _warn_schema(stacklevel=3)
         blob = Path(params).read_bytes() if not isinstance(params, bytes) else params
         if not blob:
             raise CpmdcError("CPMDParams buffer is empty")
         self._lib = _load(find_library(library))
-        self._schema = schema
         buffer = ctypes.create_string_buffer(blob)
         handle = self._lib.cpmdc_session_create(buffer, len(blob))
         if not handle:
@@ -357,7 +382,8 @@ class Session:
         ``positions`` is Angstrom, shape (N, 3). ``atomic_numbers`` has one
         entry per atom, in 1..118. ``cell`` is an Angstrom 3x3 matrix, or
         nine numbers in row-major order. Omit it for an isolated system.
-        A cell is sent as ``ForceInput`` and needs the Cap'n Proto schema.
+        A cell is sent as a ``ForceInput`` message built in process.
+        A closed session raises :class:`CpmdcError`.
         """
         n_atoms, flat = _positions(positions)
         numbers = _numbers(atomic_numbers, n_atoms)
@@ -365,14 +391,15 @@ class Session:
         force_buf = (ctypes.c_double * (n_atoms * 3))()
         pos_buf = (ctypes.c_double * (n_atoms * 3))(*flat)
         num_buf = (ctypes.c_int * n_atoms)(*numbers)
+        if not getattr(self, "_handle", None):
+            raise CpmdcError("the session is closed; open a new Session")
         if box is None:
             result = self._lib.cpmdc_session_energy_forces(
                 self._handle, n_atoms, pos_buf, num_buf, force_buf
             )
         else:
-            schema = find_schema(self._schema)
-            encoded = _encode(schema, "ForceInput", _force_input_text(flat, numbers, box))
-            payload = ctypes.create_string_buffer(encoded)
+            encoded = _force_input_message(flat, numbers, box)
+            payload = ctypes.create_string_buffer(encoded, len(encoded))
             result = self._lib.cpmdc_session_calculate_forces(
                 self._handle, payload, len(encoded), force_buf, n_atoms * 3
             )
@@ -412,7 +439,7 @@ class Potential:
     components in row-major order when the library computed a tensor.
     The stress sign is ASE's, ``(1/V) dE/d(strain)``.
     :meth:`caps` reports that stress may be present and per-atom energies
-    are not.
+    are not. ``schema`` is deprecated and ignored, as for :class:`Session`.
     """
 
     def __init__(
@@ -422,7 +449,9 @@ class Potential:
         library: str | os.PathLike[str] | None = None,
         schema: str | os.PathLike[str] | None = None,
     ) -> None:
-        self._session = Session(params, library=library, schema=schema)
+        if schema is not None:
+            _warn_schema(stacklevel=3)
+        self._session = Session(params, library=library)
 
     def caps(self) -> dict[str, bool]:
         """Capabilities an rgpot calculator consults before a step."""
