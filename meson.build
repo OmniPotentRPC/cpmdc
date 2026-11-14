@@ -284,6 +284,18 @@ cpmdc_embed_shell = static_library(
   install: false,
 )
 
+if get_option('with_python')
+  py = import('python').find_installation(pure: true)
+  py_pkg_dir = py.get_install_dir() / 'cpmdc'
+  # meson-python moves a library in libdir to .cpmdc.mesonpy.libs beside the
+  # package, where cpmdc.find_library looks. A wheel stores no symlinks, so
+  # the library has no soversion. Nothing goes to platlib: the wheel has no
+  # extension module and is tagged py3-none-<platform>.
+  cpmdc_shared_install = {'install_tag': 'python-runtime'}
+else
+  cpmdc_shared_install = {'soversion': meson.project_version().split('.')[0]}
+endif
+
 cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
@@ -293,9 +305,23 @@ cpmdc_shared = shared_library(
   fortran_args: cpmd_embed_f_args,
   objects: cpmd_extra_objects,
   link_args: cpmdc_shared_link_args,
-  soversion: meson.project_version().split('.')[0],
   install: true,
+  kwargs: cpmdc_shared_install,
 )
+
+if get_option('with_python')
+  py.install_sources(
+    'python/cpmdc/__init__.py',
+    'python/cpmdc/ase.py',
+    'python/cpmdc/py.typed',
+    subdir: 'cpmdc',
+  )
+  install_data(
+    'schema/Potentials.capnp',
+    install_dir: py_pkg_dir / 'schema',
+    install_tag: 'python-runtime',
+  )
+endif
 
 cpmdc_shared_dep = declare_dependency(
   link_with: cpmdc_shared,
