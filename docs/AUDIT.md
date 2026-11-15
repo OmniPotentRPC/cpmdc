@@ -245,3 +245,27 @@ the environment reference for `explanation/isolated-cells.org`. The landing
 page links to the reference tables instead of copying them.
 `reference/surface-map.org` stays in the reference: it lists what the
 library exports and parses.
+
+## On develop
+
+The audit commits now sit on develop at `c200389`, which adds the ASE
+calculator `cpmdc.ase` and its how-to, `howto/ase.org`. The rename to
+`CPMDCError` reaches the calculator: `CalculationFailed` is a `CPMDCError`,
+and the how-to and the calculator tests use the new name. `docs-examples`
+runs the blocks of the how-to.
+
+The checks now cover the calculator. `reference-contract` skipped
+`cpmdc.ase`, which had no `__all__`, and read no class members. It now
+requires an `__all__` in every module of `python/cpmdc`, and each public
+member of an exported class in the Python reference, which gained
+`CPMDCCalculator.implemented_properties`, `ignored_changes`, and
+`discard_results_on_any_change`. `readme-navigation` searched the whole
+README, so it passed while the Documentation section left out
+`howto/ase.org`. It now reads that section alone, and the section lists the
+page. The ASE newsfragment gives its page path as code, so lychee still
+finds no broken link inside the tree.
+
+`prek run --all-files` passes, because the whitespace hooks skip the
+OpenCPMD and GROMACS patches, whose blank context lines they broke. Every
+Org page that the audit touches passes `snapper --check` at
+`max_width = 80`.
