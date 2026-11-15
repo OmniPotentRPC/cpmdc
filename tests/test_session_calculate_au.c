@@ -199,7 +199,7 @@ static void au_child(void *vctx, void *vout) {
   for (int i = 0; i < c->steps; ++i) {
     struct au_step *s = &o->step[i];
     int rc = cpmdc_session_calculate_au(
-        session, N_ATOMS, k_numbers, k_steps[i], step_cell(c, i),
+        session, N_ATOMS, k_steps[i], k_numbers, step_cell(c, i),
         &s->energy, s->forces, s->virial);
     snprintf(s->message, sizeof(s->message), "%s", cpmdc_last_error());
     if (rc != 0)
@@ -288,32 +288,32 @@ static void errors_child(void *vctx, void *vout) {
   double energy = 0.0;
   double forces[3 * N_ATOMS];
   const double *pos = k_steps[0];
-  o->null_session = cpmdc_session_calculate_au(NULL, N_ATOMS, k_numbers, pos,
+  o->null_session = cpmdc_session_calculate_au(NULL, N_ATOMS, pos, k_numbers,
                                                NULL, &energy, forces, NULL);
   snprintf(o->null_session_text, sizeof(o->null_session_text), "%s",
            cpmdc_last_error());
   CPMDCSession *session = open_session(path);
   if (!session)
     return;
-  o->no_atoms = cpmdc_session_calculate_au(session, 0, k_numbers, pos, NULL,
+  o->no_atoms = cpmdc_session_calculate_au(session, 0, pos, k_numbers, NULL,
                                            &energy, forces, NULL);
   snprintf(o->no_atoms_text, sizeof(o->no_atoms_text), "%s",
            cpmdc_last_error());
-  o->no_energy = cpmdc_session_calculate_au(session, N_ATOMS, k_numbers, pos,
+  o->no_energy = cpmdc_session_calculate_au(session, N_ATOMS, pos, k_numbers,
                                             NULL, NULL, forces, NULL);
-  o->no_forces = cpmdc_session_calculate_au(session, N_ATOMS, k_numbers, pos,
+  o->no_forces = cpmdc_session_calculate_au(session, N_ATOMS, pos, k_numbers,
                                             NULL, &energy, NULL, NULL);
-  o->first = cpmdc_session_calculate_au(session, N_ATOMS, k_numbers, pos, NULL,
+  o->first = cpmdc_session_calculate_au(session, N_ATOMS, pos, k_numbers, NULL,
                                         &energy, forces, NULL);
   o->virial_optional = cpmdc_last_error()[0] == '\0';
   o->changed_count = cpmdc_session_calculate_au(
-      session, N_ATOMS - 1, k_numbers, k_steps[1], NULL, &energy,
+      session, N_ATOMS - 1, k_steps[1], k_numbers, NULL, &energy,
       forces, NULL);
   snprintf(o->changed_count_text, sizeof(o->changed_count_text), "%s",
            cpmdc_last_error());
   static const int other[N_ATOMS] = {8, 8, 1};
   o->changed_species = cpmdc_session_calculate_au(
-      session, N_ATOMS, other, k_steps[1], NULL, &energy, forces,
+      session, N_ATOMS, k_steps[1], other, NULL, &energy, forces,
       NULL);
   cpmdc_session_destroy(session);
 }

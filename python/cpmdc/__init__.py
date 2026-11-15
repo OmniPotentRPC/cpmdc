@@ -356,8 +356,8 @@ def _load(path: Path) -> ctypes.CDLL:
     lib.cpmdc_session_calculate_au.argtypes = [
         ctypes.c_void_p,
         ctypes.c_int,
-        ctypes.POINTER(ctypes.c_int),
         ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_int),
         ctypes.POINTER(ctypes.c_double),
         ctypes.POINTER(ctypes.c_double),
         ctypes.POINTER(ctypes.c_double),
@@ -519,7 +519,7 @@ class Session:
         if not getattr(self, "_handle", None):
             raise CpmdcError("the session is closed; open a new Session")
         status = self._lib.cpmdc_session_calculate_au(
-            self._handle, n_atoms, numbers, positions, cell, ctypes.byref(energy),
+            self._handle, n_atoms, positions, numbers, cell, ctypes.byref(energy),
             force_buf, virial_buf,
         )
         if status != 0:

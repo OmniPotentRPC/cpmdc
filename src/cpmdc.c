@@ -1843,9 +1843,9 @@ static double det3_rows(const double *m) {
 
 /* Positions and the cell go to Angstrom with the factor a ForceInput in
  * "bohr" gets, so this step and that message hand the embed the same bits. */
-int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
-                               const int *atomic_numbers,
+int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                const double *positions_bohr,
+                               const int *atomic_numbers,
                                const double *cell_bohr, double *energy_h,
                                double *forces_h_bohr, double *virial_h) {
   size_t n3 = 0;
@@ -1853,26 +1853,26 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
     (void)fail_msg("null session");
     return -1;
   }
-  if (grad_len_from_atoms(natoms, &n3) != 0 || !atomic_numbers ||
+  if (grad_len_from_atoms(n_atoms, &n3) != 0 || !atomic_numbers ||
       !positions_bohr || !energy_h || !forces_h_bohr) {
     (void)fail_msg("invalid arguments");
     return -1;
   }
-  if (session_reserve_step_atoms(session, (size_t)natoms) != 0) {
+  if (session_reserve_step_atoms(session, (size_t)n_atoms) != 0) {
     (void)fail_msg("out of memory");
     return -1;
   }
   for (size_t i = 0; i < n3; ++i)
     session->step_positions_ang[i] = positions_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
   memcpy(session->step_atomic_numbers, atomic_numbers,
-         (size_t)natoms * sizeof(int));
+         (size_t)n_atoms * sizeof(int));
   double cell_ang[9] = {0};
   int has_cell = cell_bohr != NULL;
   if (has_cell)
     for (int i = 0; i < 9; ++i)
       cell_ang[i] = cell_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
   CPMDCResult r = session_energy_gradient_cell(
-      session, natoms, session->step_positions_ang,
+      session, n_atoms, session->step_positions_ang,
       session->step_atomic_numbers, cell_ang, has_cell, forces_h_bohr);
   if (!r.ok)
     return -1;

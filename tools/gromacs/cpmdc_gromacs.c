@@ -746,7 +746,7 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   if (!env->session)
     open_session(env);
   double qm_energy = 0.0, qm_virial[9] = {0.0};
-  if (cpmdc_session_calculate_au(env->session, nq, env->qm_z, env->qm_x,
+  if (cpmdc_session_calculate_au(env->session, nq, env->qm_x, env->qm_z,
                                  env->cell_mode == CELL_PERIODIC ? &env->rows[0][0] : NULL,
                                  &qm_energy, env->qm_f, qm_virial) != 0) {
     const char *text = cpmdc_last_error();

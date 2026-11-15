@@ -195,15 +195,15 @@ CPMDCResult cpmdc_session_calculate_result(
   return stub_fail("cpmdc_session_calculate_result");
 }
 
-int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
-                               const int *atomic_numbers,
+int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                const double *positions_bohr,
+                               const int *atomic_numbers,
                                const double *cell_bohr, double *energy_h,
                                double *forces_h_bohr, double *virial_h) {
   (void)session;
-  (void)natoms;
-  (void)atomic_numbers;
+  (void)n_atoms;
   (void)positions_bohr;
+  (void)atomic_numbers;
   (void)cell_bohr;
   (void)energy_h;
   (void)forces_h_bohr;
