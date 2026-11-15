@@ -64,6 +64,9 @@ The margin applies with ~off~ too, so by default an atom outside the cell
 fails the call instead of running with density across a face;
 ~CPMDC_RECENTER_MARGIN=-1~ lets it run, as releases before the recentring
 did.
+~cpmd.x~ keeps the deck's coordinates, so a comparison with it needs
+~CPMDC_RECENTER=off~, and ~CPMDC_RECENTER_MARGIN=-1~ for atoms outside the
+cell; the ~water-capnp-cli-parity~ and ~extrapolate-wfn~ tests set both.
 
 ~CPMDC_SCF_STEPS=1~ writes one line, ~cpmdc_scf_steps N~, for each SCF that
 returns.
