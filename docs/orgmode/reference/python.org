@@ -4,7 +4,7 @@
 * Names
 The public names live in ~python/cpmdc~.
 Importing ~cpmdc~ does not import ASE.
-Import ~cpmdc.ase~ for ~CPMDCCalculator~.
+Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
 ~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
 ~--structure~.
 ~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it imports
@@ -34,15 +34,15 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~; for ~capnp encode~ of ~CPMDParams~ text |
 | ~forces_to_ev_per_angstrom~ | Hartree/Bohr forces to eV/Angstrom |
 | ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3, library sign |
-| ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress |
+| ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress; keywords ~params~ and ~library~, and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
 | ~CPMDCCalculator.default_parameters~ | ~params~ and ~library~, both ~None~ |
-| ~CPMDCCalculator.calculate~ | fills energy, free_energy, forces, and stress for a periodic cell in one step |
-| ~CPMDCCalculator.set~ | change ~params~ or ~library~, open a new session, clear results, return the changed keys |
+| ~CPMDCCalculator.calculate~ | one step with ~directory~ as the working directory; fills energy, free_energy, forces, and stress for a periodic cell |
+| ~CPMDCCalculator.set~ | change ~params~ or ~library~, open a new session, clear results, return a dictionary of the changed parameters; ~parameters~ reads a saved file, and any other key raises ~TypeError~ |
 | ~CPMDCCalculator.todict~ | the parameters as JSON data; a ~params~ buffer of bytes is left out |
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
-| ~cpmdc.ase.CalculationFailed~ | a step the library rejected; both ASE's ~CalculationFailed~ and ~CpmdcError~ |
+| ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CpmdcError~, with the step's working directory in the message |
 | ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; fixed atomic numbers, optional ~cluster~ |
 | ~Driver.compute~ | one step in atomic units: Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
 | ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
@@ -68,8 +68,9 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~.
 A repeated geometry returns the stored step.
 A null or empty input raises; it does not abort the interpreter.
-[[file:../howto/python.org][Call cpmdc from Python]] has the property table and
-the rules for units, boundaries, caching, copies, and sessions.
+[[file:../howto/ase.org][Use cpmdc as an ASE calculator]] has the property table
+and the rules for units, boundaries, caching, the working directory, copies, and
+sessions.
 [[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]]
 covers ~cpmdc-ipi~, and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]]
 covers ~cpmdc.lammps~.
@@ -79,11 +80,13 @@ covers ~cpmdc.lammps~.
 | Condition | Raised |
 |-----------+--------|
 | empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CpmdcError~ |
+| a ~CPMDCCalculator~ step that the library rejects | ~cpmdc.ase.CalculationFailed~, which is a ~CpmdcError~ and ASE's ~CalculationFailed~ |
 | missing ~params~ file | ~FileNotFoundError~ |
 | empty positions, a non-finite coordinate, an atomic number outside 1..118 | ~ValueError~ |
 | ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
+| a ~CPMDCCalculator~ step without atoms | ~ValueError~ |
 | stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
-| an unknown keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~, or ~params=None~ | ~TypeError~ |
+| a keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~ other than ~params~, ~library~, and ASE's own, such as ~charge~ or ~multiplicity~; no ~params~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
 | a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
 | ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CpmdcError~; ~ValueError~ for the sizes |

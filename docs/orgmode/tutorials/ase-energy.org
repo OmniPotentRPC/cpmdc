@@ -39,5 +39,6 @@ so drop ~CPMDC_LIBRARY~ and ~PYTHONPATH~ and keep ~CPMDC_PARAMS~.
 A second ~get_potential_energy~ on the same atoms does not recompute, and
 neither does ~get_forces~ after it: one step computes both.
 ~get_forces~ returns an array of shape ~(natoms, 3)~.
-[[file:../howto/python.org][Call cpmdc from Python]] lists every property, the
-units, the boundary rules, and how to relax a structure with an ASE optimizer.
+[[file:../howto/ase.org][Use cpmdc as an ASE calculator]] lists every property,
+the units, the boundary rules, and the working directory, and shows how to relax
+a structure and its cell with an ASE optimizer.

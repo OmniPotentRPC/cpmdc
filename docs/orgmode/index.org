@@ -60,6 +60,9 @@ composition requires a new session.
    * - Drive the same step from ASE
      - Point ``CPMDCCalculator`` at a ``CPMDParams`` file
      - :doc:`An energy and forces from ASE <tutorials/ase-energy>`
+   * - Relax a structure or a cell, or run dynamics, in ASE
+     - Set ``atoms.calc`` to ``CPMDCCalculator`` and run any ASE optimizer, cell filter, or integrator
+     - :doc:`Use cpmdc as an ASE calculator <howto/ase>`
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
@@ -178,6 +181,7 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    howto/write-cpmdparams
    howto/embedding
    howto/python
+   howto/ase
    howto/socket-drivers
    howto/lammps
    howto/gromacs

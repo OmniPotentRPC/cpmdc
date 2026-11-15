@@ -25,7 +25,7 @@ portable result carrier used by RPC-facing callers.
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
 | Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
-| Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Call cpmdc from Python](docs/orgmode/howto/python.org) |
+| Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org), or [Call cpmdc from Python](docs/orgmode/howto/python.org) without ASE |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
@@ -51,10 +51,11 @@ Wheels cover Linux x86_64 and aarch64 and macOS arm64, and carry their own
 `CPMDC_PARAMS` set to a serialized `CPMDParams` file. To use OpenCPMD, point
 `CPMDC_LIBRARY` at a `-Dwith_cpmd=true` build.
 `cpmdc.ase.CPMDCCalculator` gives energy, free energy, forces, and, for a
-fully periodic cell, stress in ASE units, and works with ASE optimizers and
-trajectories; [Call cpmdc from Python](docs/orgmode/howto/python.org) has the
-property table and the rules for units, boundaries, and caching. The
-[install page](docs/orgmode/howto/install.org#install-the-python-package)
+fully periodic cell, stress in ASE units, and works with ASE optimizers, cell
+filters, and trajectories;
+[Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org) has the property
+table and the rules for units, boundaries, caching, and the working directory.
+The [install page](docs/orgmode/howto/install.org#install-the-python-package)
 lists what the wheel needs and how other platforms build from the sdist.
 
 ## Build and Test

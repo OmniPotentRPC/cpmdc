@@ -179,7 +179,7 @@ class CPMDCCalculator(Calculator):
         return self._potential
 
     def set(self, **kwargs: Any) -> dict[str, Any]:
-        """Change ``params`` or ``library`` and return the changed keys.
+        """Change ``params`` or ``library``; return the changed parameters.
 
         A change opens a new session and clears the stored results. The
         old session stays in use when the new one cannot be opened.

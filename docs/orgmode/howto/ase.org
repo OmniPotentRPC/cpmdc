@@ -1,0 +1,308 @@
+#+TITLE: Use cpmdc as an ASE calculator
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+~cpmdc.ase.CPMDCCalculator~ is an ASE calculator that evaluates each step in the
+Python process, through one cpmdc session.
+Set ~atoms.calc~ to it as to any other ASE calculator: ASE's optimizers, cell
+filters, molecular dynamics, and trajectory files use it unchanged.
+It starts no ~cpmd.x~ process and writes no input file.
+[[file:python.org][Call cpmdc from Python]] covers ~Session~ and ~Potential~,
+the same library without ASE.
+
+* Make the parameters files
+The calculator takes the method from a serialized ~CPMDParams~ message: the
+functional, the cutoff, the charge, the multiplicity, the pseudopotentials, and
+the boundary conditions of an isolated system.
+[[file:write-cpmdparams.org][Write a CPMDParams message]] explains the text
+form.
+These commands encode the isolated and the periodic water of a checkout at
+~$CPMDC~ into the working directory:
+
+#+begin_src bash
+schema=$(python3 -c "import cpmdc; print(cpmdc.find_schema())")
+capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_params.capnp.txt" > water.params.bin
+capnp encode "$schema" CPMDParams < "$CPMDC/tests/water_blyp_periodic_params.capnp.txt" > water.periodic.bin
+#+end_src
+
+~water.params.bin~ is one molecule with ~SYMMETRY 0~ and the Hockney Poisson
+solver.
+~water.periodic.bin~ is a simple cubic cell, ~SYMMETRY 1~, which gives a stress
+tensor.
+The examples on this page run on the reference evaluator of the default build
+and of the wheel.
+On OpenCPMD they need ~CPMDC_LIBRARY~ to name the build and ~CPMDC_PSEUDO_DIR~
+to name the pseudopotential directory.
+
+* Evaluate a structure
+#+begin_src python
+from ase import Atoms
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water)
+with CPMDCCalculator("water.params.bin") as calc:
+    atoms.calc = calc
+    print(atoms.get_potential_energy())
+    print(atoms.get_forces())
+    print(calc.todict())
+#+end_src
+
+~params~ is the path of a ~CPMDParams~ file or its bytes, and the calculator
+reads the file once, when the parameter is set.
+~library~ is the path of ~libcpmdc~; without it the calculator searches the
+places that [[file:python.org][Call cpmdc from Python]] lists.
+One step computes the energy, the forces, and the stress when the step has one,
+so ~get_forces~ after ~get_potential_energy~ does not evaluate again:
+
+| Property | ASE call | Unit | Free boundaries | Periodic cell |
+|----------+----------+------+-----------------+---------------|
+| ~energy~ | ~get_potential_energy()~ | eV | yes | yes |
+| ~free_energy~ | ~get_potential_energy(force_consistent=True)~ | eV | equals ~energy~ | equals ~energy~ |
+| ~forces~ | ~get_forces()~ | eV/Angstrom, shape ~(N, 3)~ | yes | yes |
+| ~stress~ | ~get_stress()~ | eV/Angstrom^3, Voigt ~(xx, yy, zz, yz, xz, xy)~ | raises ~PropertyNotImplementedError~ | yes, unless the deck is isolated or ~CPMDC_STRESS=0~ |
+| ~energies~, ~magmom~, ~magmoms~, ~charges~, ~dipole~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
+
+~free_energy~ is the potential energy of the step, because the library does not
+separate an electronic entropy.
+The library returns no atomic energies, charges, magnetic moments, or dipole, so
+~implemented_properties~ lists only the first four rows.
+
+* Compute stress in a periodic cell
+All three ~pbc~ flags true send ~atoms.cell~ to the library as the periodic
+cell:
+
+#+begin_src python
+from ase import Atoms
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
+with CPMDCCalculator("water.periodic.bin") as calc:
+    atoms.calc = calc
+    print(atoms.get_stress())
+    print(atoms.get_stress(voigt=False))
+#+end_src
+
+Units are ASE's: positions and cells in Angstrom, energies in eV, forces in
+eV/Angstrom, and stress in eV/Angstrom^3.
+The calculator converts from the library's Hartree and Bohr with ~HARTREE_TO_EV~
+and ~BOHR_TO_ANGSTROM~.
+Stress has ASE's sign: the derivative of the energy with respect to strain,
+divided by the volume.
+It is positive when the energy rises as the cell expands.
+The library returns the tensor with the opposite sign, the OpenCPMD convention,
+and the calculator negates it.
+
+The ~pbc~ flags choose the boundaries:
+
+| ~atoms.pbc~ and ~atoms.cell~ | Step | Stress |
+|------------------------------+------+--------|
+| all false | no cell is sent: the deck sets the box and the Poisson solver, and ~atoms.cell~ is ignored | raises ~PropertyNotImplementedError~ |
+| all true, three independent cell vectors | ~atoms.cell~ is sent as the periodic cell | computed when the deck is periodic |
+| all true, fewer than three independent cell vectors | raises ~ValueError~ | |
+| a mix of true and false | raises ~ValueError~ that names the open axes | |
+
+A periodic cell with an isolated deck, such as ~water.params.bin~, gives the
+energy and the forces.
+Asking that step for stress raises ~PropertyNotImplementedError~ with the
+reason, and the calculator does not evaluate the step again to find it out.
+
+* Relax a structure
+This relaxes the positions of the isolated water and writes a trajectory:
+
+#+begin_src python
+from ase import Atoms
+from ase.io import read
+from ase.optimize import BFGS
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water)
+atoms.calc = CPMDCCalculator("water.params.bin")
+with BFGS(atoms, trajectory="water.traj", logfile=None) as opt:
+    opt.run(fmax=0.01)
+frames = read("water.traj", index=":")
+print(len(frames), frames[-1].get_potential_energy())
+print(frames[-1].calc.parameters)
+atoms.calc.close()
+#+end_src
+
+Each frame of the trajectory stores the energy, the forces, the stress when the
+step had one, and the calculator parameters, so ~read~ returns them without the
+library.
+
+With the periodic message, a cell filter relaxes the cell on the stress as well:
+
+#+begin_src python
+from ase import Atoms
+from ase.filters import FrechetCellFilter
+from ase.optimize import BFGS
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
+with CPMDCCalculator("water.periodic.bin") as calc:
+    atoms.calc = calc
+    with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+        opt.run(fmax=0.01, steps=50)
+    print(opt.nsteps, atoms.get_volume(), atoms.cell.lengths())
+#+end_src
+
+On the reference evaluator the minimum puts every atom at the origin, because
+the well is anchored there and has no repulsion.
+The reference energy is not translation invariant for the same reason.
+The cell filter then shrinks the cell along y and z, the axes along which the
+atoms sit off the origin.
+These runs check that forces and stress reach the optimizer; the reference well
+is not a chemical model.
+On OpenCPMD each new cell starts a cold SCF with the full CPMD setup, as
+[[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
+explains, so a cell relaxation costs more per step than a relaxation of the
+positions.
+
+The reference well drawn by ~docs/render_reference_well.py~ is the shape of an
+isolated one-atom step at a 70 Ry cutoff:
+
+#+begin_export rst
+.. figure:: /_static/reference-well.svg
+   :alt: Reference harmonic well, energy against displacement
+
+   Reference well for one hydrogen atom. The script writes this figure
+   from the evaluator formula.
+
+The curve is zero at the origin and rises on both sides.
+#+end_export
+
+* Check the forces and the stress
+ASE's finite differences test that the forces and the stress are derivatives of
+the energy:
+
+#+begin_src python
+import numpy as np
+from ase import Atoms
+from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
+atoms.rattle(0.05, seed=1)
+with CPMDCCalculator("water.periodic.bin") as calc:
+    atoms.calc = calc
+    forces = calculate_numerical_forces(atoms, eps=1e-3)
+    stress = calculate_numerical_stress(atoms, eps=1e-5)
+    print(np.abs(atoms.get_forces() - forces).max())
+    print(np.abs(atoms.get_stress() - stress).max())
+#+end_src
+
+The example evaluates 31 steps: two for each of the nine coordinates, two for
+each of the six strain components, and the analytic step.
+On the reference evaluator both differences are below 1e-13.
+On OpenCPMD the SCF tolerance sets them.
+At these steps the OpenCPMD runs of ~tests/python/test_ase_calculator.py~ allow
+a force error of 2e-3 eV/Angstrom and a stress error of 1e-4 eV/Angstrom^3.
+
+* Reuse a step
+Results are cached as in ASE's own calculators.
+A call on an unchanged structure returns the stored step.
+A change of ~positions~, ~numbers~, ~cell~, or ~pbc~ evaluates the structure
+again, and ~calc.calculation_required(atoms, properties)~ returns true for such
+a structure until it is evaluated.
+A change of ~initial_charges~ or ~initial_magmoms~ reuses the step, because the
+calculator does not read them.
+~calc.reset()~ clears the stored step and keeps the session open.
+~calc.get_property(name, atoms, allow_calculation=False)~ returns the stored
+value, or ~None~ when that structure has not been evaluated.
+
+* Set the charge, the multiplicity, and the method
+The ~charge~ and ~multiplicity~ fields of the ~CPMDParams~ message set the
+charge and the spin, beside the functional, the cutoff, and the
+pseudopotentials.
+The calculator has no keyword for any of them, and it does not read
+~atoms.get_initial_charges()~ or ~atoms.get_initial_magnetic_moments()~.
+A keyword such as ~charge~, ~multiplicity~, or ~xc~ raises ~TypeError~ in the
+constructor and in ~set()~, and the message names the key and points at
+~params~.
+To change the method, encode another message and pass it to ~set()~; this
+example switches to the periodic message:
+
+#+begin_src python
+from cpmdc.ase import CPMDCCalculator
+
+try:
+    CPMDCCalculator("water.params.bin", charge=-1)
+except TypeError as exc:
+    print(exc)
+with CPMDCCalculator("water.params.bin") as calc:
+    print(calc.set(params="water.periodic.bin"))
+    print(calc.todict())
+#+end_src
+
+~set()~ returns a dictionary of the parameters that changed, with their new
+values.
+A new ~params~ or ~library~ opens a new session and clears the stored results.
+A value that cannot be opened raises and leaves the old session in use.
+
+* Choose the working directory
+Each step runs with ~calc.directory~ as the working directory of the process,
+and the process returns to its own directory afterwards.
+~directory~ defaults to ~"."~, which changes nothing.
+~label="run/water"~ sets ~directory~ to ~"run"~, as it does for every ASE
+calculator; the prefix, ~water~, is unused.
+ASE's ~Calculator.calculate~ creates the directory on the first step when it
+does not exist.
+
+Two relative paths resolve against ~directory~:
+
+- a relative ~CPMDC_PSEUDO_DIR~ or ~CPMD_PP_LIBRARY_PATH~, read on the first
+  step of each session, so give an absolute path when calculators run in more
+  than one directory;
+- the ~RESTART.1~ that a deck with ~RESTART WAVEFUNCTION~ reads on a cold start,
+  unless the message sets ~permanentDir~ or ~scratchDir~, which CPMD then works
+  in.
+
+A library step writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or ~GEOMETRY.xyz~,
+and the orbitals for the next step stay in memory.
+~params~ is read when it is set, relative to the directory of the process at
+that moment, not to ~directory~.
+The ~restart~ argument is deprecated and ignored, and passing it warns with
+~DeprecationWarning~.
+
+The working directory belongs to the process, so another thread that opens a
+relative path during a step opens it under ~directory~.
+Calls into the library must already come from one thread at a time, because it
+keeps one CPMD state per process, as the
+[[file:../reference/c-abi.org][C ABI reference]] says.
+
+* Handle errors
+| Condition | Raised |
+|-----------+--------|
+| a step that the library rejects, such as one without a pseudopotential directory | ~cpmdc.ase.CalculationFailed~ |
+| a keyword other than ~params~, ~library~, and ASE's own; no ~params~ | ~TypeError~ |
+| stress where the step has none; ~energies~, ~magmoms~, ~charges~, or ~dipole~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
+| mixed ~pbc~ flags, or a periodic cell without three independent vectors | ~ValueError~ |
+| a step on a calculator without atoms | ~ValueError~ |
+| a ~params~ file that does not exist | ~FileNotFoundError~ |
+
+~CalculationFailed~ is both ASE's ~CalculationFailed~ and ~cpmdc.CpmdcError~, so
+code that catches either one for another calculator catches it unchanged.
+Its message names the working directory of the step and gives the library's
+reason.
+The calculator stays usable, and the next call evaluates the step again.
+
+* Sessions and copies
+The first step of a session fixes the atom count and the elemental composition,
+and a reordering of the same atoms stays on it.
+When a structure with another composition reaches the calculator, it closes the
+session and opens a new one from the same ~params~.
+
+~calc.parameters~ holds ~params~ and ~library~.
+~calc.todict()~ returns them for a trajectory or a database row, and leaves out
+a ~params~ buffer given as bytes, because bytes are not JSON data.
+~CPMDCCalculator(**calc.todict())~ builds an equal calculator, and
+~CPMDCCalculator(parameters="calc.ase")~ reads a file written by
+~calc.parameters.write("calc.ase")~.
+
+~copy.copy~, ~copy.deepcopy~, and ~pickle~ keep the parameters and the stored
+results, and the copy opens its own session on its first step.
+~close()~ closes the session, and the next step opens a new one.
+The calculator is a context manager that closes on exit.

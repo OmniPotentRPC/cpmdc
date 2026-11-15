@@ -109,8 +109,9 @@ SKIP = {
     "tutorials/quickstart.org:5": "needs an OpenCPMD build and pseudopotentials",
 }
 
-# The bash block encodes the messages that the Python blocks after it read.
-PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(6)]
+# The bash block of each page encodes the messages that its Python blocks read.
+PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(3)]
+ASE_HOWTO = [f"howto/ase.org:{index}" for index in range(7)]
 
 
 def blocks(root: Path) -> dict[str, tuple[str, str]]:
@@ -179,6 +180,7 @@ def main() -> int:
         "howto/check-forces.org:0",
         "howto/gromacs.org:3",
         *PYTHON_HOWTO,
+        *ASE_HOWTO,
         "howto/socket-drivers.org:1",
         "howto/write-cpmdparams.org:0",
         "reference/cpmd-options.org:1",
@@ -201,24 +203,25 @@ def main() -> int:
         os.environ["CPMDC_EXAMPLE_WORK"] = tmp
         work = Path(tmp)
         try:
-            encoded = subprocess.run(
-                ["bash", "-c", found[PYTHON_HOWTO[0]][1]],
-                cwd=work,
-                env={
-                    **os.environ,
-                    "CPMDC": str(root),
-                    "PYTHONPATH": str(root / "python"),
-                    "CPMDC_SCHEMA": str(schema),
-                    "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
-                },
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-            )
-            if encoded.returncode != 0:
-                return fail(encoded.stderr)
-            for key in PYTHON_HOWTO[1:]:
+            for key in (PYTHON_HOWTO[0], ASE_HOWTO[0]):
+                encoded = subprocess.run(
+                    ["bash", "-c", found[key][1]],
+                    cwd=work,
+                    env={
+                        **os.environ,
+                        "CPMDC": str(root),
+                        "PYTHONPATH": str(root / "python"),
+                        "CPMDC_SCHEMA": str(schema),
+                        "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+                    },
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=False,
+                )
+                if encoded.returncode != 0:
+                    return fail(encoded.stderr)
+            for key in PYTHON_HOWTO[1:] + ASE_HOWTO[1:]:
                 run_python(root, library, params, schema, found[key][1])
             run_python(root, library, params, schema, found["howto/socket-drivers.org:1"][1])
             run_python(root, library, params, schema, found["howto/gromacs.org:3"][1])
