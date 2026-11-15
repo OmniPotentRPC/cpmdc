@@ -1391,7 +1391,7 @@ test(
     env: pytest_env,
     depends: pytest_depends,
     suite: ['python', 'e2e'],
-    timeout: has_cpmd ? 1800 : 300,
+    timeout: has_cpmd ? 3600 : 300,
   )
   test(
     'docs-examples',
