@@ -43,6 +43,7 @@ public change:
 | Public header docs coverage | ~meson test -C build cpmd-public-header-docs-coverage --print-errorlogs~ |
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
 | README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
+| Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
 
 ~scripts/ci/fetch_pseudopotentials.sh pp~ writes the pseudopotentials that
@@ -87,6 +88,12 @@ API docs to describe the serialized ~CPMDParams~ input surface.
 ~examples-documented~ requires public docs to point at the runnable
 ~examples/host_step.c~ host program. ~readme-navigation~ keeps the README and
 quickstart docs focused on entry paths, work-loop labels, and current wording.
+~reference-contract~ requires every function, type, enum constant, and macro
+of ~cpmdc.h~, ~cpmdc_features.h~, and ~cpmdc_restart.h~ in the
+[[file:../reference/c-abi.org][C ABI reference]], each function with its parameter list in
+a table row, every public Python name outside ~cpmdc.ase~ in the
+[[file:../reference/python.org][Python reference]], and no ~cpmdc_~ name in the README or the
+Org pages that no public header declares.
 
 * Add a typed CPMD keyword
 Use a typed field when a CPMD control has stable structure, affects ordinary
@@ -149,6 +156,7 @@ schema field renders the accepted deck form, such as ~LBFGS_NTRUST~ for
 | ~include/cpmdc.h~ | public C ABI and session result entry points |
 | ~include/cpmdc_features.h~ | runtime feature discovery ABI |
 | ~include/cpmdc_export.h~ | ~CPMDC_API~, the mark on every exported function |
+| ~include/cpmdc_restart.h~, ~src/cpmdc_restart.c~ | ~libcpmdc_restart~, the RESTART file reader and writer |
 | ~src/cpmdc_params.c~ | Cap'n Proto decode, effective config, CPMD deck rendering |
 | ~src/cpmdc.c~ | session lifecycle, topology guard, unit conversion, result writing |
 | ~src/cpmd_embed_c_api.F90~ | Fortran ~iso_c_binding~ bridge and OpenCPMD archive path |

@@ -2,8 +2,12 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 The public C ABI (application binary interface) of ~libcpmdc~ is declared in
-~include/cpmdc.h~ and ~include/cpmdc_features.h~.
-Installed headers live under ~include/cpmdc/~.
+~include/cpmdc.h~ and ~include/cpmdc_features.h~, with the export mark in
+~include/cpmdc_export.h~.
+~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see
+[[*RESTART file library][RESTART file library]]).
+Installed headers live under ~include/cpmdc/~; include them as
+~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
 ~libcpmdc~ exports those 45 functions and no other symbol; the exported
 symbols section below gives the mechanism.
@@ -48,12 +52,12 @@ hidden whatever the list says.
 The version script names no version node, so the exported names carry no
 symbol version.
 
-Up to 0.4.0, ~libcpmdc~ also exported 56 internal ~cpmdc_~ functions: the
-glue between ~src/cpmdc.c~, the parameter renderer, and the Fortran embed
-(~cpmdc_embed_*~, ~cpmdc_params_*~, ~cpmdc_stop_*~, and the rest).
+Up to 0.4.0, ~libcpmdc~ also exported 56 internal functions with the
+~cpmdc_~ prefix: the glue between ~src/cpmdc.c~, the parameter renderer, and
+the Fortran embed.
 No installed header declared them, so they were never part of the ABI, and
 hiding them changes no public function, ~CPMDC_ABI_VERSION~, or the soversion.
-The tests that call them link the static ~cpmdc_embed_shell~ archive or the
+The tests that call them link a static archive of the library sources or the
 sources directly; the Python package loads only public functions.
 
 * Conventions
@@ -65,8 +69,14 @@ sources directly; the Python package loads only public functions.
 | Energy in ~CPMDCResult~ | Hartree |
 | Gradient and force arrays | Hartree/Bohr; forces are the negative gradient |
 | ~PotentialResult~ values | energy in ~ForceInput.energyUnit~, forces in ~energyUnit~ per ~lengthUnit~, stress in ~energyUnit~ per ~lengthUnit~ cubed |
-| ~int~ setup calls | 0 on success, -1 on failure |
+| ~int~ calls | 0 on success, -1 on failure; ~cpmdc_bind_calculator~ returns the calculator index (0 or more) instead of 0 |
 | ~CPMDCResult~ calls | ~ok~ non-zero on success; ~message~ holds ~"ok"~ or the reason |
+| pointer returns | ~NULL~ on failure (~cpmdc_session_create~, ~cpmdc_session_create_from_config~) or when not found (~cpmdc_feature_find~) |
+| ~size_t~ returns | 0 on failure (~cpmdc_potential_result_size_for_force_input~) |
+| failure text | ~cpmdc_last_error()~, per thread, for the calls listed under [[*Library status][Library status]]; snapshot getters do not write it |
+| names | functions ~cpmdc_~ and snake case, types ~CPMDC~ and CamelCase, macros and enum constants ~CPMDC_~ and upper case |
+| argument order | session, atom count, positions, atomic numbers, cell, then the outputs; a size follows the buffer it measures |
+| unit suffixes | ~_ang~ Angstrom, ~_bohr~ Bohr, ~_h~ Hartree, ~_h_bohr~ Hartree/Bohr, ~_bytes~ bytes |
 | Ownership | the caller owns every buffer it passes; the library copies what it keeps |
 | Threads | one process-wide CPMD state; serialize calls into one library instance |
 
@@ -119,6 +129,7 @@ Each snapshot struct starts with ~int valid~, set by a successful evaluation.
 | ~CPMDCMDTrajectoryRow~ | ~count~ doubles in ~values[32]~: ~etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC~ | Hartree |
 | ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units |
 | ~CPMDCStressTensor~ | row-major ~values[9]~, ~paiu/omega~ | Hartree/Bohr^3 |
+| ~CPMDCRankSpread~ | ~ranks~, ~energy_h~, ~gradient_h_bohr~ (see [[*Results of the last evaluation][Results of the last evaluation]]) | Hartree, Hartree/Bohr |
 
 With OpenCPMD linked, ~CPMDCEnergyComponents~ fills ~etot~, ~ekin~,
 ~epseu~, ~enl~, ~eht~, and ~exc~; the other fields stay zero.
@@ -200,8 +211,8 @@ starts from a cold SCF.
 | Function | Output |
 |----------+--------|
 | ~CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang, const int *atomic_numbers, const void *params, size_t size)~ | energy |
-| ~CPMDCResult cpmdc_energy_gradient(..., double *grad_h_bohr)~ | energy and gradient |
-| ~CPMDCResult cpmdc_energy_forces(..., double *forces_h_bohr)~ | energy and forces |
+| ~CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang, const int *atomic_numbers, const void *params, size_t size, double *grad_h_bohr)~ | energy and gradient |
+| ~CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_ang, const int *atomic_numbers, const void *params, size_t size, double *forces_h_bohr)~ | energy and forces |
 
 The output array holds ~3 * n_atoms~ doubles.
 
@@ -237,8 +248,8 @@ A different method or composition runs setup on the next evaluation (see
 | Function | Output |
 |----------+--------|
 | ~CPMDCResult cpmdc_session_energy(CPMDCSession *s, int n_atoms, const double *positions_ang, const int *atomic_numbers)~ | energy |
-| ~CPMDCResult cpmdc_session_energy_gradient(..., double *grad_h_bohr)~ | energy and gradient |
-| ~CPMDCResult cpmdc_session_energy_forces(..., double *forces_h_bohr)~ | energy and forces |
+| ~CPMDCResult cpmdc_session_energy_gradient(CPMDCSession *s, int n_atoms, const double *positions_ang, const int *atomic_numbers, double *grad_h_bohr)~ | energy and gradient |
+| ~CPMDCResult cpmdc_session_energy_forces(CPMDCSession *s, int n_atoms, const double *positions_ang, const int *atomic_numbers, double *forces_h_bohr)~ | energy and forces |
 
 These calls pass no cell: the deck's ~CELL~ applies, or a 12 Angstrom cube
 when the deck has none.
@@ -333,11 +344,11 @@ session has run.
 | Plain | Per session |
 |-------+-------------|
 | ~int cpmdc_last_energy_components(CPMDCEnergyComponents *out)~ | ~int cpmdc_session_last_energy_components(const CPMDCSession *s, CPMDCEnergyComponents *out)~ |
-| ~int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out)~ | ~cpmdc_session_last_charge_integrals~ |
-| ~int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)~ | ~cpmdc_session_last_multi_state_energies~ |
-| ~int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)~ | ~cpmdc_session_last_md_trajectory_row~ |
-| ~int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)~ | ~cpmdc_session_last_property_snapshot~ |
-| ~int cpmdc_last_stress(CPMDCStressTensor *out)~ | ~cpmdc_session_last_stress~ |
+| ~int cpmdc_last_charge_integrals(CPMDCChargeIntegrals *out)~ | ~int cpmdc_session_last_charge_integrals(const CPMDCSession *s, CPMDCChargeIntegrals *out)~ |
+| ~int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)~ | ~int cpmdc_session_last_multi_state_energies(const CPMDCSession *s, CPMDCMultiStateEnergies *out)~ |
+| ~int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)~ | ~int cpmdc_session_last_md_trajectory_row(const CPMDCSession *s, CPMDCMDTrajectoryRow *out)~ |
+| ~int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)~ | ~int cpmdc_session_last_property_snapshot(const CPMDCSession *s, CPMDCPropertySnapshot *out)~ |
+| ~int cpmdc_last_stress(CPMDCStressTensor *out)~ | ~int cpmdc_session_last_stress(const CPMDCSession *s, CPMDCStressTensor *out)~ |
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and
@@ -359,6 +370,8 @@ Both are taken before every rank receives rank 0's values, and a NaN
 difference is reported as infinity.
 A repeat of the stored positions keeps the spread of the evaluation that
 stored them.
+The spread belongs to the process, not to a session, so it has no
+~cpmdc_session_~ form.
 See [[file:environment.org][environment variables]].
 
 * Discovery
