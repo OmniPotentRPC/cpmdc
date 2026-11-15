@@ -539,7 +539,11 @@ The first command writes the energy frames of both runs, every 10 steps, to
 ~npt.json~; the second runs the classical control alone for 1 ns, which
 takes minutes; the third discards each run's equilibration, block-averages
 the rest, and writes the tables below.
-The JSON files and the run directories stay out of the repository.
+The JSON files and the run directories stay out of the repository; for
+the run below, ~bench/results/gromacs_npt_crescale_64w_blocks.csv~ and
+~_windows.csv~ hold the block averages and window means at full precision,
+and ~_runs.json~ the per-run summaries and arguments of both JSON files
+without their frames or paths.
 
 *** 64 waters over 15 ps
 One run on the 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open
