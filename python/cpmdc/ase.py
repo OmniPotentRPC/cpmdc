@@ -12,6 +12,12 @@ true sends ``atoms.cell`` as the periodic cell; a cell without three
 independent vectors raises ``ValueError``. A mixed periodic flag raises
 ``ValueError`` and names the non-periodic axes.
 
+The CPMDParams message holds the method, including the charge and the
+multiplicity; ``initial_charges`` and ``initial_magmoms`` are not read.
+Each step runs with ``directory`` as the working directory, so CPMD
+reads and writes there when the message sets neither ``permanentDir``
+nor ``scratchDir``.
+
 One session serves a run of steps with the same atom count and elemental
 composition; a reordering stays on it. A step with another composition
 closes it and opens a new session.
@@ -23,28 +29,34 @@ from __future__ import annotations
 
 import os
 import warnings
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any, Sequence
 
 import numpy as np
 from ase.atoms import Atoms
 from ase.calculators.calculator import (
+    CalculationFailed as _ASECalculationFailed,
     Calculator,
     Parameters,
     PropertyNotImplementedError,
     all_changes,
     equal,
 )
+from ase.utils import workdir
 
-from cpmdc import Potential, _warn_schema
+from cpmdc import CpmdcError, Potential, _warn_schema
 
-_ASE_KEYS = {
-    "restart",
-    "ignore_bad_restart_file",
-    "label",
-    "atoms",
-    "directory",
-}
-
+_NEED_PARAMS = "params is required: a CPMDParams path or bytes"
+_METHOD_IN_PARAMS = (
+    "the charge, the multiplicity, the functional, the cutoff, and every "
+    "other method setting come from the CPMDParams message in params"
+)
+_RESTART_IGNORED = (
+    "restart is ignored and will be removed: a cpmdc step writes no restart "
+    "file; a CPMDParams deck with RESTART WAVEFUNCTION reads RESTART.1 on a "
+    "cold start"
+)
+_NO_ATOMS = "the calculator has no atoms: set atoms.calc = calc, or pass atoms"
 _NO_STRESS_CLUSTER = (
     "stress needs a fully periodic cell: set atoms.pbc = True and a cell "
     "with three independent vectors"
@@ -54,6 +66,15 @@ _NO_STRESS_DECK = (
     "deck describes an isolated system (SYMMETRY 0, POISSON SOLVER, "
     "ISOLATED MOLECULE, or CLUSTER), or CPMDC_STRESS=0 is set"
 )
+
+
+class CalculationFailed(CpmdcError, _ASECalculationFailed):
+    """A step that the library could not evaluate.
+
+    It is both ASE's ``CalculationFailed`` and :class:`cpmdc.CpmdcError`,
+    so either ``except`` clause catches it. The message names the working
+    directory of the step and gives the library's reason.
+    """
 
 
 def _pbc_flags(pbc: Any) -> list[bool]:
@@ -88,6 +109,11 @@ def _param_value(key: str, value: Any) -> Any:
     return os.fspath(value)
 
 
+def _working_directory(directory: str) -> AbstractContextManager[Any]:
+    # workdir() calls os.getcwd(), which raises when the current directory was deleted.
+    return nullcontext() if directory == "." else workdir(directory)
+
+
 class CPMDCCalculator(Calculator):
     """ASE calculator that evaluates one cpmdc session in process.
 
@@ -95,16 +121,21 @@ class CPMDCCalculator(Calculator):
     ----------
     params:
         Serialized ``CPMDParams`` bytes, or a path to that file. The bytes
-        are read once, when the parameter is set.
+        are read once, when the parameter is set. The message holds the
+        method: functional, cutoff, charge, multiplicity, and the
+        boundary conditions of a cluster.
     library:
         Path of ``libcpmdc``. The environment search in
         :func:`cpmdc.find_library` is used when this is omitted.
-    schema:
-        Deprecated and ignored. A cell no longer needs the schema file.
 
-    ``label``, ``directory``, and ``atoms`` are passed to ASE's
-    ``Calculator``. ``restart`` is deprecated: cpmdc reads no restart
-    file. Any other keyword raises ``TypeError``.
+    Every keyword goes to ASE's ``Calculator.__init__``: ``directory``,
+    ``label``, and ``atoms`` as ASE defines them, ``parameters`` for a
+    file written by ``Parameters.write``, and ``params`` and ``library``,
+    which it passes to :meth:`set`. Another keyword raises ``TypeError``.
+    ``schema`` and ``restart`` are deprecated and ignored.
+
+    Each step runs with ``directory`` as the working directory. The
+    calculator writes no files of its own there.
 
     ``parameters`` holds ``params`` and ``library``. :meth:`set` changes
     them, opens a new session, and clears the stored results. The
@@ -118,31 +149,23 @@ class CPMDCCalculator(Calculator):
     ignored_changes = {"initial_charges", "initial_magmoms"}
     discard_results_on_any_change = True
 
-    def __init__(
-        self,
-        params: Any,
-        *,
-        library: Any = None,
-        schema: Any = None,
-        **kwargs: Any,
-    ) -> None:
-        unknown = [key for key in kwargs if key not in _ASE_KEYS]
-        if unknown:
-            raise TypeError(f"unknown calculator arguments: {sorted(unknown)}")
-        if schema is not None:
+    def __init__(self, params: Any = None, *, library: Any = None, **kwargs: Any) -> None:
+        if kwargs.pop("schema", None) is not None:
             _warn_schema(stacklevel=3)
-        if kwargs.get("restart") is not None:
-            warnings.warn(
-                "restart is ignored and will be removed: cpmdc reads no restart file",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        if kwargs.pop("restart", None) is not None:
+            warnings.warn(_RESTART_IGNORED, DeprecationWarning, stacklevel=2)
         self._potential: Potential | None = None
         self._blob = b""
         self._composition: tuple[int, ...] | None = None
         self._no_stress = ""
+        # A value left as None would override a parameters= file.
+        if params is not None:
+            kwargs["params"] = params
+        if library is not None:
+            kwargs["library"] = library
         Calculator.__init__(self, **kwargs)
-        self.set(params=params, library=library)
+        if self.parameters.get("params") is None:
+            raise TypeError(_NEED_PARAMS)
 
     @property
     def potential(self) -> Potential:
@@ -160,8 +183,9 @@ class CPMDCCalculator(Calculator):
 
         A change opens a new session and clears the stored results. The
         old session stays in use when the new one cannot be opened.
+        ``parameters`` names a file written by ``Parameters.write``.
         ``schema`` is deprecated and ignored. Another key raises
-        ``TypeError``.
+        ``TypeError``, because the CPMDParams message holds the method.
         """
         if "parameters" in kwargs:
             loaded = Parameters.read(kwargs.pop("parameters"))
@@ -170,18 +194,20 @@ class CPMDCCalculator(Calculator):
         if "schema" in kwargs:
             if kwargs.pop("schema") is not None:
                 _warn_schema(stacklevel=3)
-        unknown = [key for key in kwargs if key not in self.default_parameters]
+        unknown = sorted(key for key in kwargs if key not in self.default_parameters)
         if unknown:
-            raise TypeError(f"unknown calculator parameters: {sorted(unknown)}")
+            raise TypeError(f"unknown calculator parameters: {unknown}; {_METHOD_IN_PARAMS}")
         kwargs = {key: _param_value(key, value) for key, value in kwargs.items()}
         if "params" in kwargs and kwargs["params"] is None:
-            raise TypeError("params is required: a CPMDParams path or bytes")
+            raise TypeError(_NEED_PARAMS)
         reopen = any(
             key in kwargs and not equal(kwargs[key], self.parameters.get(key))
             for key in ("params", "library")
         )
         if reopen:
             params = kwargs.get("params", self.parameters.get("params"))
+            if params is None:
+                raise TypeError(_NEED_PARAMS)
             library = kwargs.get("library", self.parameters.get("library"))
             blob = _params_bytes(params)
             potential = Potential(blob, library=library)
@@ -211,20 +237,26 @@ class CPMDCCalculator(Calculator):
     def calculate(
         self,
         atoms: Atoms | None = None,
-        properties: Sequence[str] = ("energy",),
+        properties: Sequence[str] | None = None,
         system_changes: Any = all_changes,
     ) -> None:
         """Fill ``self.results`` with every property of one step.
 
         Energy, free energy, and forces are always computed; stress is
-        computed for a fully periodic cell. Asking for stress that the
+        computed for a fully periodic cell. The step runs with
+        ``directory`` as the working directory. Asking for stress that the
         step cannot give raises ``PropertyNotImplementedError`` with the
-        reason, without computing the step again.
+        reason, without computing the step again. A step that the library
+        rejects raises :class:`CalculationFailed`.
         """
+        if not properties:
+            properties = ["energy"]
         if "stress" in properties and not system_changes and self._no_stress:
             raise PropertyNotImplementedError(self._no_stress)
         Calculator.calculate(self, atoms, properties, system_changes)
-        assert self.atoms is not None
+        if self.atoms is None:
+            raise ValueError(_NO_ATOMS)
+        self._no_stress = ""
         cell = self._periodic_cell(self.atoms)
         if "stress" in properties and cell is None:
             self._no_stress = _NO_STRESS_CLUSTER
@@ -233,7 +265,13 @@ class CPMDCCalculator(Calculator):
         composition = tuple(sorted(numbers))
         if self._composition is not None and composition != self._composition:
             self._release()
-        evaluated = self.potential.evaluate(self.atoms.get_positions(), numbers, cell)
+        potential = self.potential
+        try:
+            with _working_directory(self.directory):
+                evaluated = potential.evaluate(self.atoms.get_positions(), numbers, cell)
+        except CpmdcError as exc:
+            where = os.path.abspath(self.directory)
+            raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
         self._composition = composition
         energy = float(evaluated["energy"])
         self.results["energy"] = energy
@@ -241,7 +279,6 @@ class CPMDCCalculator(Calculator):
         self.results["forces"] = np.asarray(evaluated["forces"], dtype=float)
         if "stress" in evaluated:
             self.results["stress"] = np.asarray(_voigt(evaluated["stress"]), dtype=float)
-            self._no_stress = ""
         else:
             self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
             if "stress" in properties:

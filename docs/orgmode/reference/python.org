@@ -41,6 +41,7 @@ library.
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
+| ~cpmdc.ase.CalculationFailed~ | a step the library rejected; both ASE's ~CalculationFailed~ and ~CpmdcError~ |
 | ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; fixed atomic numbers, optional ~cluster~ |
 | ~Driver.compute~ | one step in atomic units: Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
 | ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
