@@ -47,7 +47,7 @@ import sys
 import time
 from typing import IO, Any, Sequence
 
-from cpmdc import BOHR_TO_ANGSTROM, CpmdcError, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session
 
 __all__ = [
     "Driver",
@@ -75,7 +75,7 @@ _NUMBER = {symbol: index + 1 for index, symbol in enumerate(_SYMBOLS)}
 _FORMULA_PART = re.compile(r"([A-Z][a-z]?)(\d*)")
 
 
-class ProtocolError(CpmdcError):
+class ProtocolError(CPMDCError):
     """The server sent a message this driver cannot answer."""
 
 
@@ -151,7 +151,7 @@ def connect(
             return sock
         except (FileNotFoundError, ConnectionRefusedError) as exc:
             if time.monotonic() >= deadline:
-                raise CpmdcError(f"cannot connect to {where}: {exc}") from exc
+                raise CPMDCError(f"cannot connect to {where}: {exc}") from exc
             time.sleep(0.05)
 
 
@@ -227,8 +227,8 @@ class Driver:
     """Answer i-PI requests from one :class:`cpmdc.Session`.
 
     ``params`` is a ``CPMDParams`` path or its bytes, as for
-    :class:`cpmdc.Session`. ``numbers`` are the atomic numbers in the order
-    the server sends positions. ``cluster=True`` ignores the cell the server
+    :class:`cpmdc.Session`. ``atomic_numbers`` are the atomic numbers in the
+    order the server sends positions. ``cluster=True`` ignores the cell the server
     sends, so the deck sets the box; otherwise an all-zero cell (what ASE
     sends for a structure without a cell) is a cluster and any other cell is
     periodic. ``log`` receives one line per protocol message.
@@ -237,16 +237,16 @@ class Driver:
     def __init__(
         self,
         params: bytes | str | os.PathLike[str],
-        numbers: Sequence[int],
+        atomic_numbers: Sequence[int],
         *,
         library: str | os.PathLike[str] | None = None,
         cluster: bool = False,
         log: IO[str] | None = None,
     ) -> None:
-        self.numbers = [int(number) for number in numbers]
-        if not self.numbers:
-            raise ValueError("numbers must name at least one atom")
-        for number in self.numbers:
+        self.atomic_numbers = [int(number) for number in atomic_numbers]
+        if not self.atomic_numbers:
+            raise ValueError("atomic_numbers must name at least one atom")
+        for number in self.atomic_numbers:
             if not 1 <= number <= len(_SYMBOLS):
                 raise ValueError(f"atomic number {number} is outside 1..{len(_SYMBOLS)}")
         self.cluster = cluster
@@ -274,21 +274,22 @@ class Driver:
         return rows
 
     def _check_count(self, n_atoms: int) -> None:
-        if n_atoms != len(self.numbers):
+        if n_atoms != len(self.atomic_numbers):
             raise ProtocolError(
                 f"the server sent {n_atoms} atoms, but this driver was started for "
-                f"{len(self.numbers)}; the i-PI protocol carries no species, so a "
+                f"{len(self.atomic_numbers)}; the i-PI protocol carries no species, so a "
                 "changed atom count or composition needs a new cpmdc-ipi process "
                 "with matching --species"
             )
 
     def compute(
-        self, cell: Sequence[float], positions: Sequence[float]
+        self, positions: Sequence[float], cell: Sequence[float]
     ) -> tuple[float, list[float], list[float]]:
         """Energy, forces, and virial for one step, in atomic units.
 
-        ``cell`` is the wire's nine reals: h, lattice vectors as columns,
-        row-major, in Bohr. ``positions`` are 3N Bohr. The result is the
+        ``positions`` are 3N Bohr. ``cell`` is the wire's nine reals: h,
+        lattice vectors as columns, row-major, in Bohr; the arguments come
+        in the order of :meth:`cpmdc.Session.calculate_au`, not the wire's. The result is the
         energy in Hartree, 3N forces in Hartree/Bohr, and the row-major
         virial ``-dE/d(strain)`` in Hartree, zero for a cluster.
         """
@@ -300,7 +301,7 @@ class Driver:
         coords = [
             [positions[3 * i + k] * BOHR_TO_ANGSTROM for k in range(3)] for i in range(n_atoms)
         ]
-        done = self._session.energy_forces(coords, self.numbers, rows)
+        done = self._session.energy_forces(coords, self.atomic_numbers, rows)
         forces = [component for row in done.forces_h_bohr for component in row]
         virial = [0.0] * 9
         if rows is not None and done.stress_h_bohr3 is not None:
@@ -370,7 +371,7 @@ class Driver:
                     raise ProtocolError(f"POSDATA announced {n_atoms} atoms")
                 self._check_count(n_atoms)
                 positions = wire.reals(3 * n_atoms, "POSDATA")
-                pending = self.compute(cell, positions)
+                pending = self.compute(positions, cell)
                 initialised = True
             elif head == "GETFORCE":
                 if pending is None:
@@ -406,7 +407,7 @@ def _structure_numbers(path: str) -> list[int]:
     try:
         from ase.io import read
     except ImportError as exc:
-        raise CpmdcError("--structure needs ASE: pip install 'cpmdc[ase]'") from exc
+        raise CPMDCError("--structure needs ASE: pip install 'cpmdc[ase]'") from exc
     atoms: Any = read(path)
     return [int(number) for number in atoms.get_atomic_numbers()]
 
@@ -472,7 +473,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.verbose:
             print(f"cpmdc-ipi: {steps} steps", file=sys.stderr)
         return 0
-    except (CpmdcError, ValueError, OSError) as exc:
+    except (CPMDCError, ValueError, OSError) as exc:
         print(f"cpmdc-ipi: error: {exc}", file=sys.stderr)
         return 1
 

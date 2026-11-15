@@ -44,7 +44,7 @@ from ase.calculators.calculator import (
 )
 from ase.utils import workdir
 
-from cpmdc import CpmdcError, Potential, _warn_schema
+from cpmdc import CPMDCError, Potential, _warn_schema
 
 _NEED_PARAMS = "params is required: a CPMDParams path or bytes"
 _METHOD_IN_PARAMS = (
@@ -68,10 +68,10 @@ _NO_STRESS_DECK = (
 )
 
 
-class CalculationFailed(CpmdcError, _ASECalculationFailed):
+class CalculationFailed(CPMDCError, _ASECalculationFailed):
     """A step that the library could not evaluate.
 
-    It is both ASE's ``CalculationFailed`` and :class:`cpmdc.CpmdcError`,
+    It is both ASE's ``CalculationFailed`` and :class:`cpmdc.CPMDCError`,
     so either ``except`` clause catches it. The message names the working
     directory of the step and gives the library's reason.
     """
@@ -269,7 +269,7 @@ class CPMDCCalculator(Calculator):
         try:
             with _working_directory(self.directory):
                 evaluated = potential.evaluate(self.atoms.get_positions(), numbers, cell)
-        except CpmdcError as exc:
+        except CPMDCError as exc:
             where = os.path.abspath(self.directory)
             raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
         self._composition = composition

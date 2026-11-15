@@ -67,7 +67,7 @@ def main() -> int:
         sys.path.insert(0, str(Path(root) / "python"))
 
     from cpmdc import (
-        CpmdcError,
+        CPMDCError,
         Session,
         forces_to_ev_per_angstrom,
     )
@@ -109,17 +109,17 @@ def main() -> int:
     try:
         Session(b"", library=library)
         raise AssertionError("an empty params buffer was accepted")
-    except CpmdcError:
+    except CPMDCError:
         pass
     try:
         Session(b"not a message", library=library)
         raise AssertionError("a garbage params buffer was accepted")
-    except CpmdcError:
+    except CPMDCError:
         pass
     try:
         Session(params, library=str(Path(root) / "missing-libcpmdc.so"))
         raise AssertionError("a missing library was accepted")
-    except CpmdcError:
+    except CPMDCError:
         pass
 
     from cpmdc import Potential

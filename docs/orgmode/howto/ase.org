@@ -283,7 +283,7 @@ keeps one CPMD state per process, as the
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |
 
-~CalculationFailed~ is both ASE's ~CalculationFailed~ and ~cpmdc.CpmdcError~, so
+~CalculationFailed~ is both ASE's ~CalculationFailed~ and ~cpmdc.CPMDCError~, so
 code that catches either one for another calculator catches it unchanged.
 Its message names the working directory of the step and gives the library's
 reason.

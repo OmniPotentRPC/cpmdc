@@ -37,7 +37,7 @@ __all__ = [
     "BOHR_TO_ANGSTROM",
     "HARTREE_TO_EV",
     "HARTREE_TO_KCAL_PER_MOL",
-    "CpmdcError",
+    "CPMDCError",
     "Evaluation",
     "Potential",
     "Session",
@@ -48,8 +48,21 @@ __all__ = [
 ]
 
 
-class CpmdcError(RuntimeError):
+class CPMDCError(RuntimeError):
     """The C library rejected a call, or the host could not load it."""
+
+
+def __getattr__(name: str) -> Any:
+    # CpmdcError, released in 0.4.0, is the same class under its old name.
+    if name == "CpmdcError":
+        warnings.warn(
+            "cpmdc.CpmdcError is deprecated and will be removed; use cpmdc.CPMDCError, "
+            "the same class",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return CPMDCError
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class Evaluation:
@@ -112,7 +125,7 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
     if path is not None:
         candidate = Path(path)
         if not candidate.is_file():
-            raise CpmdcError(f"cpmdc library not found: {path}")
+            raise CPMDCError(f"cpmdc library not found: {path}")
         return candidate
     for name in _library_names():
         value = os.environ.get(name)
@@ -130,7 +143,7 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
     for relative in (Path("build/libcpmdc.so"), Path("build/libcpmdc.dylib")):
         if relative.is_file():
             return relative
-    raise CpmdcError(
+    raise CPMDCError(
         "cpmdc library not found. Set CPMDC_LIBRARY to the shared library."
     )
 
@@ -145,7 +158,7 @@ def find_schema(path: str | os.PathLike[str] | None = None) -> Path:
     if path is not None:
         candidate = Path(path)
         if not candidate.is_file():
-            raise CpmdcError(f"CPMD schema not found: {path}")
+            raise CPMDCError(f"CPMD schema not found: {path}")
         return candidate
     env = os.environ.get("CPMDC_SCHEMA")
     if env and Path(env).is_file():
@@ -156,7 +169,7 @@ def find_schema(path: str | os.PathLike[str] | None = None) -> Path:
     relative = Path("schema/Potentials.capnp")
     if relative.is_file():
         return relative
-    raise CpmdcError(
+    raise CPMDCError(
         "CPMD schema not found. Set CPMDC_SCHEMA to schema/Potentials.capnp."
     )
 
@@ -332,7 +345,7 @@ def _load(path: Path) -> ctypes.CDLL:
     try:
         lib = ctypes.CDLL(str(path))
     except OSError as exc:
-        raise CpmdcError(f"failed to load {path}") from exc
+        raise CPMDCError(f"failed to load {path}") from exc
     lib.cpmdc_session_create.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
     lib.cpmdc_session_create.restype = ctypes.c_void_p
     lib.cpmdc_session_destroy.argtypes = [ctypes.c_void_p]
@@ -418,12 +431,12 @@ class Session:
             _warn_schema(stacklevel=3)
         blob = Path(params).read_bytes() if not isinstance(params, bytes) else params
         if not blob:
-            raise CpmdcError("CPMDParams buffer is empty")
+            raise CPMDCError("CPMDParams buffer is empty")
         self._lib = _load(find_library(library))
         buffer = ctypes.create_string_buffer(blob)
         handle = self._lib.cpmdc_session_create(buffer, len(blob))
         if not handle:
-            raise CpmdcError(self._error() or "cpmdc_session_create failed")
+            raise CPMDCError(self._error() or "cpmdc_session_create failed")
         self._handle = handle
 
     def _error(self) -> str:
@@ -455,7 +468,7 @@ class Session:
         entry per atom, in 1..118. ``cell`` is an Angstrom 3x3 matrix, or
         nine numbers in row-major order. Omit it for an isolated system.
         A cell is sent as a ``ForceInput`` message built in process.
-        A closed session raises :class:`CpmdcError`.
+        A closed session raises :class:`CPMDCError`.
         """
         n_atoms, flat = _positions(positions)
         numbers = _numbers(atomic_numbers, n_atoms)
@@ -464,7 +477,7 @@ class Session:
         pos_buf = (ctypes.c_double * (n_atoms * 3))(*flat)
         num_buf = (ctypes.c_int * n_atoms)(*numbers)
         if not getattr(self, "_handle", None):
-            raise CpmdcError("the session is closed; open a new Session")
+            raise CPMDCError("the session is closed; open a new Session")
         if box is None:
             result = self._lib.cpmdc_session_energy_forces(
                 self._handle, n_atoms, pos_buf, num_buf, force_buf
@@ -476,7 +489,7 @@ class Session:
                 self._handle, payload, len(encoded), force_buf, n_atoms * 3
             )
         if not result.ok:
-            raise CpmdcError(_message(result) or self._error() or "evaluation failed")
+            raise CPMDCError(_message(result) or self._error() or "evaluation failed")
         stress = _CStress()
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
@@ -517,13 +530,13 @@ class Session:
         virial, virial_buf = _out_array(virial, 9, "virial")
         energy = ctypes.c_double()
         if not getattr(self, "_handle", None):
-            raise CpmdcError("the session is closed; open a new Session")
+            raise CPMDCError("the session is closed; open a new Session")
         status = self._lib.cpmdc_session_calculate_au(
             self._handle, n_atoms, positions, numbers, cell, ctypes.byref(energy),
             force_buf, virial_buf,
         )
         if status != 0:
-            raise CpmdcError(self._error() or "evaluation failed")
+            raise CPMDCError(self._error() or "evaluation failed")
         return float(energy.value), forces, virial
 
     def close(self) -> None:

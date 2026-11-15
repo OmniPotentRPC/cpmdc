@@ -10,7 +10,7 @@ import pytest
 from conftest import ROOT, WATER
 
 import cpmdc
-from cpmdc import CpmdcError, Potential, Session
+from cpmdc import CPMDCError, Potential, Session
 
 
 def _force_input_text(flat, numbers, cell) -> str:
@@ -59,8 +59,17 @@ def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
 def test_closed_session_raises(params):
     session = Session(params)
     session.close()
-    with pytest.raises(CpmdcError, match="closed"):
+    with pytest.raises(CPMDCError, match="closed"):
         session.energy_forces(WATER, [8, 1, 1])
+
+
+def test_old_error_name_is_the_same_class():
+    with pytest.warns(DeprecationWarning, match="CPMDCError"):
+        old = cpmdc.CpmdcError
+    assert old is CPMDCError
+    assert "CpmdcError" not in cpmdc.__all__
+    with pytest.raises(AttributeError):
+        cpmdc.NoSuchName
 
 
 def test_repeated_geometry_is_deterministic(params):

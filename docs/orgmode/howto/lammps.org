@@ -53,7 +53,7 @@ closes the session.
 A failed evaluation cannot raise through LAMMPS' C callback.
 ~FixExternal~ keeps the error in ~error~, returns zero forces for that
 step, and a ~fix halt~ it adds stops LAMMPS at the end of the step.
-~FixExternal.run()~ then raises ~cpmdc.CpmdcError~ with the library's
+~FixExternal.run()~ then raises ~cpmdc.CPMDCError~ with the library's
 message; a bare ~lmp.command("run ...")~ raises LAMMPS' halt error instead.
 
 Any ~run~ or ~minimize~ works: ~minimize~ uses the cpmdc energy through

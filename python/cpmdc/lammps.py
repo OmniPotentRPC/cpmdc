@@ -35,7 +35,7 @@ A failed evaluation cannot raise through LAMMPS. The callback stores it in
 :attr:`FixExternal.error`, sends zero forces, and sets a LAMMPS internal
 variable that a ``fix halt`` added beside the fix turns into a LAMMPS error
 at the end of that step. :meth:`FixExternal.run` raises the stored error
-as :class:`cpmdc.CpmdcError`.
+as :class:`cpmdc.CPMDCError`.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ from cpmdc import (
     BOHR_TO_ANGSTROM,
     HARTREE_TO_EV,
     HARTREE_TO_KCAL_PER_MOL,
-    CpmdcError,
+    CPMDCError,
     Session,
     _load,
     find_library,
@@ -85,7 +85,7 @@ def box_rows(
     return np.array([[lx, 0.0, 0.0], [xy, ly, 0.0], [xz, yz, lz]], dtype=float)
 
 
-def type_numbers(elements: str | Sequence[str | int], ntypes: int) -> np.ndarray:
+def type_numbers(elements: str | Sequence[str | int], n_types: int) -> np.ndarray:
     """Atomic number of each LAMMPS atom type, from one entry per type.
 
     ``elements`` is a string of symbols or numbers (``"O H"``, ``"8 1"``) or
@@ -98,9 +98,9 @@ def type_numbers(elements: str | Sequence[str | int], ntypes: int) -> np.ndarray
         if len(found) != 1:
             raise ValueError(f"{item!r} must name one element for one atom type")
         numbers.extend(found)
-    if len(numbers) != ntypes:
+    if len(numbers) != n_types:
         raise ValueError(
-            f"elements names {len(numbers)} atom types, but the LAMMPS box has {ntypes}"
+            f"elements names {len(numbers)} atom types, but the LAMMPS box has {n_types}"
         )
     return np.asarray(numbers, dtype=np.int32)
 
@@ -110,13 +110,13 @@ def _mpi_world(comm: Any, size: int) -> Any:
         try:
             from mpi4py import MPI
         except ImportError as exc:
-            raise CpmdcError(
+            raise CPMDCError(
                 f"LAMMPS runs on {size} MPI ranks; cpmdc.lammps needs mpi4py to "
                 "gather the atoms on rank 0"
             ) from exc
         comm = MPI.COMM_WORLD
     if comm.Get_size() != size:
-        raise CpmdcError(
+        raise CPMDCError(
             f"comm has {comm.Get_size()} ranks, but LAMMPS runs on {size}; pass "
             "the communicator the lammps object was created with"
         )
@@ -134,7 +134,7 @@ def _adopt_self(library: str | os.PathLike[str] | None) -> None:
         # an OpenCPMD build would run collectives on the world.
         if lib.cpmdc_available():
             text = lib.cpmdc_last_error()
-            raise CpmdcError(
+            raise CPMDCError(
                 (text.decode("utf-8", "replace") if text else "")
                 or "cpmdc_adopt_calculator_comm failed"
             )
@@ -214,7 +214,7 @@ class FixExternal:
         if self._comm is not None:
             problem = self._comm.bcast(problem, root=0)
         if problem:
-            raise CpmdcError(problem)
+            raise CPMDCError(problem)
         self._flag = f"{fix_id}_failed"
         self._created = create
         if create:
@@ -258,7 +258,7 @@ class FixExternal:
         """Rank 0: energy, forces in tag order, and the 3x3 virial, LAMMPS units."""
         natoms = tags.size
         if natoms == 0 or tags.min() != 1 or tags.max() != natoms:
-            raise CpmdcError(
+            raise CPMDCError(
                 f"cpmdc needs atom IDs 1..N; LAMMPS holds {natoms} atoms with IDs "
                 f"{tags.min() if natoms else '-'}..{tags.max() if natoms else '-'}"
             )
@@ -325,7 +325,7 @@ class FixExternal:
             )
             forces = comm.scatter(shares, root=0)
             if problem:
-                raise CpmdcError(problem)
+                raise CPMDCError(problem)
         f[:nlocal] = forces
         sym = 0.5 * (virial + virial.T)
         lmp.fix_external_set_energy_global(self.fix_id, float(energy))
@@ -339,7 +339,7 @@ class FixExternal:
     # --- control ----------------------------------------------------------
 
     def run(self, steps: int, *keywords: str) -> None:
-        """``run steps keywords...``; raise :class:`CpmdcError` for a failed step."""
+        """``run steps keywords...``; raise :class:`CPMDCError` for a failed step."""
         command = " ".join(["run", str(int(steps)), *keywords])
         try:
             self._lmp.command(command)
@@ -350,12 +350,12 @@ class FixExternal:
         if self.error is not None:
             raise self._take_error()
 
-    def _take_error(self) -> CpmdcError:
+    def _take_error(self) -> CPMDCError:
         error, self.error = self.error, None
         self._lmp.set_internal_variable(self._flag, 0.0)
-        if isinstance(error, CpmdcError):
+        if isinstance(error, CPMDCError):
             return error
-        return CpmdcError(f"cpmdc step failed: {error}")
+        return CPMDCError(f"cpmdc step failed: {error}")
 
     def close(self) -> None:
         """Close the session and remove the fixes this object added."""

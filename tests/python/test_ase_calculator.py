@@ -34,7 +34,7 @@ from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
 from conftest import ROOT, WATER
 
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CpmdcError, Potential, Session
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CPMDCError, Potential, Session
 from cpmdc.ase import CPMDCCalculator
 
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
@@ -557,7 +557,7 @@ def test_a_failed_step_raises_calculation_failed(params, tmp_path, monkeypatch):
 
     def flaky(self, *args, **kwargs):
         if broken[0]:
-            raise CpmdcError("SCF did not converge")
+            raise CPMDCError("SCF did not converge")
         return evaluate(self, *args, **kwargs)
 
     monkeypatch.setattr(Potential, "evaluate", flaky)
@@ -568,7 +568,7 @@ def test_a_failed_step_raises_calculation_failed(params, tmp_path, monkeypatch):
         atoms.calc = calc
         with pytest.raises(CalculationFailed, match="SCF did not converge") as failed:
             atoms.get_potential_energy()
-        assert isinstance(failed.value, CpmdcError)
+        assert isinstance(failed.value, CPMDCError)
         assert str(here / "run") in str(failed.value)
         assert Path.cwd() == here
         assert calc.results == {}

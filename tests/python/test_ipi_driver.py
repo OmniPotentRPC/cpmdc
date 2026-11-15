@@ -514,7 +514,7 @@ def test_compute_virial_sign(periodic_params):
     h = (np.array(TRICLINIC).T / BOHR_TO_ANGSTROM).ravel()
     pos = (np.array(WATER) / BOHR_TO_ANGSTROM).ravel()
     with Driver(periodic_params, [8, 1, 1]) as driver:
-        energy, forces, virial = driver.compute(h, pos)
+        energy, forces, virial = driver.compute(pos, h)
     with Session(periodic_params) as session:
         done = session.energy_forces(WATER, [8, 1, 1], TRICLINIC)
     volume = abs(np.linalg.det(np.array(TRICLINIC))) / BOHR_TO_ANGSTROM**3
@@ -526,7 +526,7 @@ def test_compute_virial_sign(periodic_params):
 def test_compute_rejects_another_atom_count(params):
     with Driver(params, [8, 1, 1]) as driver:
         with pytest.raises(ProtocolError, match="carries no species"):
-            driver.compute([0.0] * 9, [0.0] * 6)
+            driver.compute([0.0] * 6, [0.0] * 9)
 
 
 def test_species_parsing():

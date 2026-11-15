@@ -159,7 +159,7 @@ def wire(cell_rows_ang, positions_ang) -> tuple[np.ndarray, np.ndarray]:
 def python_step(params: Path, cell_rows_ang, positions_ang, cluster: bool = False):
     h, pos = wire(cell_rows_ang, positions_ang)
     with Driver(params, [8, 1, 1], cluster=cluster) as driver:
-        energy, forces, virial = driver.compute(h, pos)
+        energy, forces, virial = driver.compute(pos, h)
     # The driver sends the virial laid out as the cell, which MiniServer
     # transposes back.
     return energy, np.reshape(forces, (3, 3)), np.reshape(virial, (3, 3))

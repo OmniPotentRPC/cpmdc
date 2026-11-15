@@ -59,10 +59,12 @@ print(done.energy_h, done.forces_h_bohr)
 #+end_src
 
 An empty buffer, a message that is not ~CPMDParams~, a missing library, a
-non-finite coordinate, or an atomic number outside 1..118 raises ~CpmdcError~ or
+non-finite coordinate, or an atomic number outside 1..118 raises ~CPMDCError~ or
 ~ValueError~.
 None of those calls abort the process.
-A call on a closed ~Session~ raises ~CpmdcError~.
+A call on a closed ~Session~ raises ~CPMDCError~.
+~CpmdcError~, the name of that class up to 0.4.0, still works but warns with
+~DeprecationWarning~; catch ~CPMDCError~ instead.
 ~find_library~ and ~find_schema~ resolve the two paths.
 ~HARTREE_TO_EV~ and ~BOHR_TO_ANGSTROM~ are the conversion constants from the C
 sources.

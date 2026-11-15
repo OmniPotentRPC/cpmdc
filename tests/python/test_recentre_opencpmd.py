@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 from conftest import WATER
 
-from cpmdc import CpmdcError, Session
+from cpmdc import CPMDCError, Session
 
 NUMBERS = [8, 1, 1]
 BOX = 10.0
@@ -91,24 +91,24 @@ def test_off_shows_the_fixed_cell(params, monkeypatch):
 def test_margin_refuses_an_atom_near_a_face(params, monkeypatch):
     monkeypatch.setenv("CPMDC_RECENTER", "off")
     monkeypatch.setenv("CPMDC_RECENTER_MARGIN", "1.0")
-    with Session(params) as session, pytest.raises(CpmdcError, match="CPMDC_RECENTER_MARGIN"):
+    with Session(params) as session, pytest.raises(CPMDCError, match="CPMDC_RECENTER_MARGIN"):
         session.energy_forces(_water(SHIFTS["near_face"]).tolist(), NUMBERS)
 
 
 def test_off_refuses_an_atom_outside_the_cell(params, monkeypatch):
     monkeypatch.setenv("CPMDC_RECENTER", "off")
-    with Session(params) as session, pytest.raises(CpmdcError, match=r"-0\.757 Angstrom"):
+    with Session(params) as session, pytest.raises(CPMDCError, match=r"-0\.757 Angstrom"):
         session.energy_forces(_water(SHIFTS["straddling"]).tolist(), NUMBERS)
 
 
 def test_margin_applies_after_the_shift(params, monkeypatch):
     monkeypatch.setenv("CPMDC_RECENTER_MARGIN", "4.5")
-    with Session(params) as session, pytest.raises(CpmdcError, match="enlarge the cell"):
+    with Session(params) as session, pytest.raises(CPMDCError, match="enlarge the cell"):
         session.energy_forces(_water(SHIFTS["near_face"]).tolist(), NUMBERS)
 
 
 @pytest.mark.parametrize(("name", "value"), [("CPMDC_RECENTER", "middle"), ("CPMDC_RECENTER_MARGIN", "wide")])
 def test_unparsed_setting_fails_the_call(params, monkeypatch, name, value):
     monkeypatch.setenv(name, value)
-    with Session(params) as session, pytest.raises(CpmdcError, match="CPMDC_RECENTER"):
+    with Session(params) as session, pytest.raises(CPMDCError, match="CPMDC_RECENTER"):
         session.energy_forces(_water(SHIFTS["centred"]).tolist(), NUMBERS)
