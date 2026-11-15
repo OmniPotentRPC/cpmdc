@@ -183,3 +183,15 @@ install how-to moved to the reference page `reference/build-options.org`.
 The README Documentation section links every page under `docs/orgmode`, and
 `readme-navigation` fails when one is missing. `tutorials/eon-rgpot.org`
 still shows no `results.dat`.
+
+The GROMACS and LAMMPS how-tos keep their steps. Their interface conventions
+are in `reference/gromacs.org` and `reference/lammps.org`, their route choice
+and measured runs in `explanation/md-engines.org`, and their test
+descriptions in the contributing guide. The patch internals of the OpenCPMD
+archive how-to, and the force-export account of the embedding how-to, are in
+`explanation/opencpmd-patches.org`. The embedding how-to links to the C ABI
+reference for the contracts it used to repeat. The recentring physics left
+the environment reference for `explanation/isolated-cells.org`. The landing
+page links to the reference tables instead of copying them.
+`reference/surface-map.org` stays in the reference: it lists what the
+library exports and parses.
