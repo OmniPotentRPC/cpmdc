@@ -69,7 +69,6 @@ OPENCPMD = {
     "tutorials/first-energy.org:11": "the OpenCPMD pseudopotentials",
     "tutorials/first-energy.org:12": "an OpenCPMD build and pseudopotentials",
     "tutorials/first-energy.org:13": "transcript of an OpenCPMD run",
-    "tutorials/quickstart.org:5": "an OpenCPMD build and pseudopotentials",
 }
 
 # key -> why this process cannot run it
@@ -88,6 +87,10 @@ SKIP = {
     "contributing/index.org:3": "docs build needs the docs pixi environment",
     "contributing/index.org:4": "docs export needs emacs and ox-rst",
     "contributing/index.org:5": "link check needs lychee",
+    "tutorials/quickstart.org:0": "pixi run test-stub would re-enter this suite",
+    "tutorials/quickstart.org:1": "reconfigures the tree",
+    "tutorials/quickstart.org:2": "example-host-step is its own meson test",
+    "tutorials/quickstart.org:3": "expected transcript",
     "howto/debug-deck.org:1": "diffs a caller-supplied reference deck",
     "howto/embedding.org:1": "expected transcript, not a command",
     "howto/extrapolate-orbitals.org:0": "section fragment, not a CPMDParams message",
@@ -98,6 +101,7 @@ SKIP = {
     "howto/install.org:5": "installs into the caller prefix",
     "howto/install.org:6": "installs from PyPI",
     "howto/install.org:7": "builds and installs a wheel into the caller environment",
+    "howto/install.org:8": "docs build needs the docs pixi environment",
     "howto/gromacs.org:0": "reconfigures the tree and builds GROMACS",
     "howto/gromacs.org:1": "installs into build/prefix and builds GROMACS; CI's gromacs-qmmm (installed) runs it",
     "howto/gromacs.org:2": "GROMACS mdp fragment",
@@ -110,7 +114,7 @@ SKIP = {
     "howto/lammps.org:3": "benchmark, not a correctness example",
     "howto/mpi.org:3": "needs the caller's MPI host on 16 ranks",
     "howto/pwscale-ranks.org:0": "benchmark, not a correctness example",
-    "howto/pwscale-ranks.org:1": "needs -Dwith_pwscale=true; test-pwscale-mpi-bind compiles the same calls",
+    "howto/pwscale-ranks.org:1": "needs -Dwith_pwscale=true; pwscale-agreement makes the same calls",
     "howto/socket-drivers.org:0": "needs a listening i-PI or ASE server",
     "howto/socket-drivers.org:2": "i-PI input fragment",
     "howto/socket-drivers.org:3": "needs i-PI",
@@ -128,11 +132,6 @@ SKIP = {
     "tutorials/first-energy.org:1": "opens a pixi shell outside the checkout",
     "tutorials/first-energy.org:6": "expected transcript",
     "tutorials/first-energy.org:9": "expected transcript",
-    "tutorials/quickstart.org:0": "pixi run test-stub would re-enter this suite",
-    "tutorials/quickstart.org:1": "reconfigures the tree",
-    "tutorials/quickstart.org:2": "example-host-step is its own meson test",
-    "tutorials/quickstart.org:3": "expected transcript",
-    "tutorials/quickstart.org:4": "re-runs the e2e suite",
 }
 
 # C fragments: hoisted includes, then the body inside a function after PRELUDE.
@@ -177,6 +176,7 @@ PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(6)]
 
 RUN = {
     "README.md:6",
+    "tutorials/quickstart.org:4",
     "howto/check-forces.org:0",
     "howto/debug-deck.org:0",
     "howto/gromacs.org:3",
@@ -198,7 +198,6 @@ RUN = {
     "tutorials/first-energy.org:5",
     "tutorials/first-energy.org:7",
     "tutorials/first-energy.org:8",
-    "tutorials/quickstart.org:6",
 }
 
 # meson test options that take a value
@@ -642,8 +641,8 @@ def main() -> int:
                 return fail("tutorials/eon-rgpot.org:2 params_path names no file in eon-water")
             shell("tutorials/eon-rgpot.org:4", found["tutorials/eon-rgpot.org:4"].body, eon, env)
 
-            quick = found["tutorials/quickstart.org:6"].body.replace("tutorial-work", tmp)
-            shell("tutorials/quickstart.org:6", quick, root, env)
+            quick = found["tutorials/quickstart.org:4"].body.replace("tutorial-work", tmp)
+            shell("tutorials/quickstart.org:4", quick, root, env)
             shell("howto/check-forces.org:0", at_build(found["howto/check-forces.org:0"].body, build), root, env)
             ase_out = shell(
                 "tutorials/ase-energy.org:0",

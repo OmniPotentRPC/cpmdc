@@ -171,3 +171,15 @@ reference pages first.
 `pixi run lychee` now reads `.lychee.toml` and checks 71 links.
 The two links to `CITATION.cff` on the `main` branch fail until that
 file lands there.
+
+## Diataxis follow-up
+
+`tutorials/quickstart.org` is now the how-to "Build and test cpmdc" and sits
+in the How-To toctree. Its file stays under `tutorials/`, so its published
+address and the links to it keep working. Its OpenCPMD section points at the
+install how-to, its common failures moved to the troubleshooting how-to, and
+its three test tables are one. The Meson options and Pixi tasks of the
+install how-to moved to the reference page `reference/build-options.org`.
+The README Documentation section links every page under `docs/orgmode`, and
+`readme-navigation` fails when one is missing. `tutorials/eon-rgpot.org`
+still shows no `results.dat`.
