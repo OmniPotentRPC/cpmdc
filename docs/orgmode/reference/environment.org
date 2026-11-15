@@ -38,28 +38,14 @@ and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.
 
-An isolated deck (~SYMMETRY 0~, a Poisson solver, ~CLUSTER~, ~SURFACE~ or
-~POLYMER~) holds the density on a box of fixed size with its origin at a
-corner, so a host whose atoms drift towards a face, or leave the box, puts
-density across that face.
-With ~CPMDC_RECENTER~ at ~mass~ or ~geometry~ the energy is that of the
-atoms moved to the middle of the box, a function of their relative
-positions only, and the forces are its gradient with respect to the
-caller's coordinates: the net force the grid leaves is projected out, the
-fraction of it each atom carries given by its weight in the centre.
-Energy, forces and ~sum_i x_i (x) f_i~ then do not change when the caller
-translates every atom.
-On one BLYP water in the 10 Angstrom Hockney box with ~off~, a hydrogen
-0.5 Angstrom from a face raises the energy by 5.0e-4 Hartree, a hydrogen
-0.5 Angstrom past it lowers it by 8.4e-3 Hartree with a net force of
-0.17 Hartree/Bohr, and the water about the corner lowers it by
-7.9e-2 Hartree; with ~mass~ all of these give the energy of the centred
-molecule to 1.1e-14 Hartree (~bench/results/cluster_drift_scan.org~).
+~CPMDC_RECENTER~ acts on an isolated deck (~SYMMETRY 0~, a Poisson solver,
+~CLUSTER~, ~SURFACE~ or ~POLYMER~); a periodic deck is not moved.
 A slab (~SURFACE~) moves only along its normal and a wire (~POLYMER~) only
 across its axis.
+With ~mass~ or ~geometry~, energy, forces and ~sum_i x_i (x) f_i~ do not
+change when the caller translates every atom.
 Warm-start distances and stored orbitals use the moved coordinates; the
 caller's arrays are not changed.
-A periodic deck is not moved.
 The margin applies with ~off~ too, so by default an atom outside the cell
 fails the call instead of running with density across a face;
 ~CPMDC_RECENTER_MARGIN=-1~ lets it run, as releases before the recentring
@@ -67,6 +53,8 @@ did.
 ~cpmd.x~ keeps the deck's coordinates, so a comparison with it needs
 ~CPMDC_RECENTER=off~, and ~CPMDC_RECENTER_MARGIN=-1~ for atoms outside the
 cell; the ~water-capnp-cli-parity~ and ~extrapolate-wfn~ tests set both.
+[[file:../explanation/isolated-cells.org][Atoms in an isolated cell]] explains why the library moves the atoms and
+what drift costs without it.
 
 ~CPMDC_SCF_STEPS=1~ writes one line, ~cpmdc_scf_steps N~, for each SCF that
 returns.
