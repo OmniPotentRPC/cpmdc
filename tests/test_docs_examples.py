@@ -48,7 +48,7 @@ ORG_TITLE = re.compile(r"^#\+TITLE:.*$", re.M)
 OPENCPMD = {
     "README.md:9": "an OpenCPMD build",
     "contributing/index.org:1": "an OpenCPMD source tree",
-    "howto/embedding.org:5": "libcpmdc from an OpenCPMD build and pseudopotentials",
+    "howto/embedding.org:4": "libcpmdc from an OpenCPMD build and pseudopotentials",
     "explanation/md-engines.org:0": "an OpenCPMD build and an MPI GROMACS built against it",
     "explanation/md-engines.org:1": "an OpenCPMD build and an MPI GROMACS built against it",
     "howto/install.org:3": "an OpenCPMD build",
@@ -140,7 +140,6 @@ COMPILE = {
     "howto/embedding.org:0",
     "howto/embedding.org:2",
     "howto/embedding.org:3",
-    "howto/embedding.org:4",
     "howto/mpi.org:1",
     "howto/mpi.org:2",
     "howto/mpi.org:4",

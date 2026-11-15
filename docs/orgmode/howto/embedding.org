@@ -160,36 +160,24 @@ frontends.
 It avoids reparsing method setup on every step and gives the runtime one place
 to enforce topology consistency.
 
-* Result Buffer Contract
-Serialized result calls write an unpacked flat ~PotentialResult~. Size the
-output buffer from the step message before evaluating:
+* Rules a host follows
+[[file:../reference/c-abi.org][The C ABI reference]] states each call's contract; these are the ones that
+shape a host loop:
 
-#+begin_src c
-size_t needed = cpmdc_potential_result_size_for_force_input(
-    force_input_bytes, force_input_size);
-unsigned char *out = malloc(needed);
-size_t wrote = 0;
-
-CPMDCResult r = cpmdc_session_calculate_result(
-    session, force_input_bytes, force_input_size, out, needed, &wrote);
-#+end_src
-
-~needed == 0~ means the ~ForceInput~ message is invalid or too large for the C
-ABI. If ~needed~ is positive but the supplied capacity is smaller, the call
-returns ~ok == 0~, writes the required byte count to ~wrote~, and skips
-evaluation.
-
-* Session Lifetime
-~cpmdc_session_create()~ copies the serialized ~CPMDParams~ buffer. Callers may
-free or reuse their original input bytes after the session is created.
-
-The first successful session evaluation fixes the topology: atom count and
-elemental composition. A reordering of those elements stays on the session.
-Later steps may change coordinates, the optional 3 by 3 cell, and requested
-units. A different composition or atom count requires a new ~CPMDCSession~.
-
-~cpmdc_session_set_params()~ can replace method setup only before topology is
-accepted. Once a step has succeeded, method changes also need a new session.
+- Size the ~PotentialResult~ buffer with
+  ~cpmdc_potential_result_size_for_force_input()~ before each serialized
+  call, as in the example above. A return of 0 means the ~ForceInput~ is
+  invalid; a short buffer gives ~ok == 0~ with the needed size in ~wrote~.
+- ~cpmdc_session_create()~ copies the ~CPMDParams~ bytes, so the caller may
+  free them at once.
+- The first successful step fixes the atom count and the elemental
+  composition. Change them, or the method after that step, by creating a new
+  ~CPMDCSession~; ~cpmdc_session_set_params()~ only works before it.
+- The native array calls take Angstrom and return Hartree and Hartree/Bohr;
+  ~cpmdc_session_calculate_au()~ takes Bohr. ~PotentialResult~ values use the units the
+  ~ForceInput~ names (for example ~eV~ and ~eV/angstrom~).
+- ~cpmdc_last_energy_components()~ reads the energy terms of the last
+  evaluation in Hartree, without parsing CLI ~ENERGY~ files.
 
 * CPMD Input Ownership
 ~CPMDParams~ owns method and backend setup.
@@ -250,22 +238,6 @@ first SCF of a session from the patched file; the OpenCPMD path ignores
 restarted coordinates, velocities, and geometry, because each step supplies
 them.
 
-* Units
-After a successful in-process evaluation (~cpmdc_session_energy_forces~,
-~cpmdc_session_calculate_result~, or one-shot ~cpmdc_energy*~), call
-~cpmdc_last_energy_components~ to read the OpenCPMD ~ener_com~ snapshot
-(~etot~, ~ekin~, ~epseu~, ~enl~, ~eht~, ~exc~, and the rest) in Hartree
-without parsing CLI ~ENERGY~ files. ~etot~ matches ~CPMDCResult.energy_h~ for
-that step.
-
-Native evaluation units on ~CPMDCResult.energy_h~ and force buffers are Hartree
-and Hartree/Bohr.
-~PotentialResult~ energy and forces are converted to ~ForceInput.energyUnit~ and
-~energyUnit / lengthUnit~ (for example ~eV~ and ~eV/angstrom~).
-
-~ForceInput.pos~ and ~ForceInput.box~ use ~ForceInput.lengthUnit~. The native
-array calls take positions in Angstrom regardless of the schema defaults.
-
 * OpenCPMD Runtime Inputs
 Archive builds require ~-Dwith_cpmd=true~ and ~-Dcpmd_root=/path/to/OpenCPMD~.
 That tree must contain ~lib/libcpmd.a~ and the OpenCPMD object/include files
@@ -282,41 +254,9 @@ neither set, the first evaluation fails.
 ~CPMDParams~; see [[file:debug-deck.org][debugging a deck]] for what the OpenCPMD
 path adds before CPMD parses it.
 
-* Nuclear forces from repeated SCF calls
-A live OpenCPMD link evaluates each geometry with fixed nuclei (~OPTIMIZE
-WAVEFUNCTION~) and then exports nuclear forces from ~coor%fion~, the same
-Born-Oppenheimer force definition as a single-point force evaluation after the
-SCF (self-consistent field).
-
-On the embed path the Fortran bridge always calls ~embed_set_need_forces(.TRUE.)~
-before ~wfopts~.
-The same subroutine calls ~embed_set_write_files(.FALSE.)~, so the force call
-writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or ~GEOMETRY.xyz~.
-~cpmd.x~ leaves that flag true.
-OpenCPMD must be patched so ~rwfopt~ sets
-~tfor = (iprint_force == 1) .OR. embed_need_forces~. Without that, OpenCPMD
-zeros ~fion~ after ~forcedr~ when ~tfor~ is false and the C force buffer stays
-all zeros even though the energy is finite. ~rwfopt~ frees a surviving ~fion~
-before its own ~ALLOCATE~, so the bridge's ~IF (ALLOCATED(fion))~ guard is
-optional.
-
-Warm calls (same process, same cell, same method, same elemental
-composition, new ~ForceInput~ positions):
-
-1. First force call of the process: cold setup once, from the in-memory deck.
-   The SCF sets ~embed_set_warm_orbitals~ so a converged ~c0~ is stored.
-   Restore does nothing until that copy exists.
-2. Later calls, including a new session and a reordering of the same atomic
-   numbers: update ~tau0~ from C arrays, ~phfac~, full SCF from the retained
-   orbitals, no second setup. An unconverged ODIIS pass does not replace the
-   stored ~c0~. The same call then continues once with ~PCG MINIMIZE~ from
-   that previous converged copy, and the call still counts as warm.
-3. Every call requests forces through ~embed_set_need_forces~ and keeps the
-   deck's ~MAXITER~; ~tests/test_embed_warm_no_nomore_clamp.py~ and
-   ~tests/test_embed_bomd_force_export.py~ guard both.
-
-[[file:../explanation/wavefunction-state.org][Wavefunction state]] explains what makes a call cold or
-warm.
+* Check forces from a live link
+[[file:../explanation/opencpmd-patches.org::*Nuclear forces from repeated SCF calls][Nuclear forces from repeated SCF calls]] explains how a live
+OpenCPMD link exports forces and what makes a call warm.
 
 Prefer an off-equilibrium water or similar system when checking forces.
 Some tightly packed cluster geometries can report a zero nuclear gradient even

@@ -431,6 +431,7 @@ Read the docs in this order:
   [file route against in-process route](docs/orgmode/explanation/routes.org),
   [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
   [MPI model](docs/orgmode/explanation/mpi-model.org),
+  [atoms in an isolated cell](docs/orgmode/explanation/isolated-cells.org),
   [cpmdc inside MD engines](docs/orgmode/explanation/md-engines.org),
   [how the OpenCPMD patches work](docs/orgmode/explanation/opencpmd-patches.org),
   [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)

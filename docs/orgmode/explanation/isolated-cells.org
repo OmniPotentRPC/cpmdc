@@ -1,0 +1,31 @@
+#+TITLE: Atoms in an isolated cell
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+An isolated deck (~SYMMETRY 0~, a Poisson solver, ~CLUSTER~, ~SURFACE~ or
+~POLYMER~) holds the density on a box of fixed size with its origin at a
+corner, so a host whose atoms drift towards a face, or leave the box, puts
+density across that face.
+The energy then depends on where the molecule sits in the box, not only on
+its shape, and an MD host sees a force that pushes the molecule about.
+
+* What recentring computes
+With ~CPMDC_RECENTER~ at ~mass~ or ~geometry~ the energy is that of the
+atoms moved to the middle of the box, a function of their relative
+positions only, and the forces are its gradient with respect to the
+caller's coordinates: the net force the grid leaves is projected out, the
+fraction of it each atom carries given by its weight in the centre.
+Energy, forces and ~sum_i x_i (x) f_i~ then do not change when the caller
+translates every atom.
+
+* What drift costs without it
+On one BLYP water in the 10 Angstrom Hockney box with ~off~, a hydrogen
+0.5 Angstrom from a face raises the energy by 5.0e-4 Hartree, a hydrogen
+0.5 Angstrom past it lowers it by 8.4e-3 Hartree with a net force of
+0.17 Hartree/Bohr, and the water about the corner lowers it by
+7.9e-2 Hartree; with ~mass~ all of these give the energy of the centred
+molecule to 1.1e-14 Hartree (~bench/results/cluster_drift_scan.org~).
+[[file:md-engines.org][cpmdc inside MD engines]] shows the same effect in GROMACS runs before and
+after recentring.
+
+[[file:../reference/environment.org][The environment reference]] lists the values of ~CPMDC_RECENTER~ and
+~CPMDC_RECENTER_MARGIN~ and the rules they follow.
