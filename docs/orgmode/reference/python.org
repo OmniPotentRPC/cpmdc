@@ -16,7 +16,8 @@ library.
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
 | ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
-| ~CpmdcError~ | failure from the library or from loading it |
+| ~CPMDCError~ | failure from the library or from loading it |
+| ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
 | ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
 | ~Session~ | one ~CPMDCSession~ handle; ~schema~ is deprecated and ignored |
 | ~Session.energy_forces~ | one geometry, native units; a cell is encoded as ~ForceInput~ in process |
@@ -24,7 +25,7 @@ library.
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
-| ~Session.close~ | destroy the handle; a later step raises ~CpmdcError~ |
+| ~Session.close~ | destroy the handle; a later step raises ~CPMDCError~ |
 | ~Potential~ | rgpot-shaped provider over one session; ~schema~ is deprecated and ignored |
 | ~Potential.evaluate~ | eV, eV/Angstrom, optional row-major stress in eV/Angstrom^3 |
 | ~Potential.caps~ | ~stress~ true, ~energies~ false |
@@ -41,17 +42,17 @@ library.
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
-| ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; fixed atomic numbers, optional ~cluster~ |
-| ~Driver.compute~ | one step in atomic units: Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
+| ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; ~params~, the fixed ~atomic_numbers~, then the ~library~, ~cluster~, and ~log~ keywords |
+| ~Driver.compute~ | one step from ~3N~ Bohr positions and the wire's cell ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
 | ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
 | ~Driver.close~ | close the session |
-| ~cpmdc.ipi.ProtocolError~ | a ~CpmdcError~ for a message the driver cannot answer |
+| ~cpmdc.ipi.ProtocolError~ | a ~CPMDCError~ for a message the driver cannot answer |
 | ~cpmdc.ipi.connect~ | open the UNIX or TCP socket to the server, retrying for ~wait~ seconds |
 | ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
 | ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
 | ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
 | ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~ keywords |
-| ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CpmdcError~ for a failed step |
+| ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CPMDCError~ for a failed step |
 | ~FixExternal.close~ | close the session and remove the fixes it added; also on leaving a ~with~ block |
 | ~FixExternal.error~, ~energy~, ~evaluations~ | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |
 | ~FixExternal.periodic~, ~type_numbers~, ~units~ | whether the cell is sent, the atomic number of each atom type, the LAMMPS unit style |
@@ -61,7 +62,7 @@ library.
 | ~cpmdc.gromacs.qmi_input~ | text of the grompp ~-qmi~ file: ~params~, then ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~ (nm), ~ewald_precision~, ~qm_ranks~ (~"ALL"~ or 1), ~charge~, ~multiplicity~ keywords; ~ValueError~ for a value the library would refuse |
 | ~cpmdc.gromacs.write_qmi~ | write that text to a path and return it |
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
-| ~cpmdc.lammps.type_numbers~ | atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence |
+| ~cpmdc.lammps.type_numbers~ | ~type_numbers(elements, n_types)~: atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence; ~ValueError~ unless there are ~n_types~ |
 
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~. A repeated geometry
 returns the stored step. A null or empty input raises; it does not abort
@@ -75,7 +76,7 @@ the rules for units, boundaries, caching, copies, and sessions.
 
 | Condition | Raised |
 |-----------+--------|
-| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CpmdcError~ |
+| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CPMDCError~ |
 | missing ~params~ file | ~FileNotFoundError~ |
 | empty positions, a non-finite coordinate, an atomic number outside 1..118 | ~ValueError~ |
 | ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
@@ -83,6 +84,6 @@ the rules for units, boundaries, caching, copies, and sessions.
 | an unknown keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
 | a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
-| ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CpmdcError~; ~ValueError~ for the sizes |
+| ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CPMDCError~; ~ValueError~ for the sizes |
 | ~FixExternal~ on a unit style other than ~metal~, ~real~, ~electron~, on a box with mixed periodicity, or with the wrong number of elements | ~ValueError~ |
-| ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CpmdcError~ |
+| ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CPMDCError~ |

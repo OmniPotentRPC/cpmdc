@@ -1,0 +1,1 @@
+The Python modules new since 0.4.0 take their arguments as `Session` does: `cpmdc.ipi.Driver(params, atomic_numbers, ...)` names the atomic numbers `atomic_numbers` (also its attribute), `Driver.compute(positions, cell)` takes the positions before the i-PI cell, and `cpmdc.lammps.type_numbers(elements, n_types)` names the type count `n_types`.

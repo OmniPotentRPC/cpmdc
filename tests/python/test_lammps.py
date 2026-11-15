@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from conftest import ROOT
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CpmdcError
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CPMDCError
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_factors
 
@@ -427,10 +427,10 @@ def test_failed_step_stops_the_run(periodic_params):
         assert driver.evaluations == 3
 
         def broken(*_args, **_kwargs):
-            raise CpmdcError("SCF did not converge")
+            raise CPMDCError("SCF did not converge")
 
         driver._session.calculate_au = broken
-        with pytest.raises(CpmdcError, match="SCF did not converge"):
+        with pytest.raises(CPMDCError, match="SCF did not converge"):
             driver.run(5)
         assert lmp.extract_global("ntimestep") == 3
         assert driver.error is None
@@ -444,7 +444,7 @@ def test_bad_params_raise_before_the_run(tmp_path, periodic_params):
     try:
         garbage = tmp_path / "garbage.bin"
         garbage.write_bytes(b"\x00" * 3)
-        with pytest.raises(CpmdcError):
+        with pytest.raises(CPMDCError):
             FixExternal(lmp, garbage, "O H")
     finally:
         lmp.close()
