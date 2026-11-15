@@ -75,7 +75,8 @@ int cpmdc_adopt_resolve(const void *comm, size_t comm_bytes, int ranks_per_calc,
   hi = v[1];
   any_live = v[2];
   if (any_live) {
-    set_err(err, errcap, "CPMD calculator bind refused: a session is live");
+    set_err(err, errcap,
+            "CPMD calculator bind refused: a session has evaluated");
     return -1;
   }
   if (hi - lo + 1 != size || lo % size != 0) {

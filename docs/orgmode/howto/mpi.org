@@ -126,11 +126,15 @@ split, and the caller of bind cannot free that one.
 ~cpmdc_bind_calculator~ remains the split for a host that has not split.
 That split still runs once per process.
 
-A later adopt replaces the communicator when no ~CPMDCSession~ exists.
-Destroy every session first.
-If any rank of the group has a live session, every rank returns -1,
-~cpmdc_last_error()~ says a session is live, and the stored communicator
-stays as it was.
+A later adopt replaces the communicator when no live ~CPMDCSession~ has
+started an evaluation.
+A session that was created but has not evaluated does not block it.
+rgpot creates its session before it binds calculator groups, and relies on
+this.
+To replace the communicator after an evaluation, destroy every session first.
+If any rank of the group has a live session that has evaluated, every rank
+returns -1, ~cpmdc_last_error()~ says a session has evaluated, and the stored
+communicator stays as it was.
 That refusal is the same collective as the index, so one rank does not
 return while another waits.
 The index is the same rule for 1 group of 4 ranks, 2 groups of 2, and 4

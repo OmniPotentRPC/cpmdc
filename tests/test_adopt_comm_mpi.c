@@ -340,32 +340,51 @@ int main(int argc, char **argv) {
   }
   MPI_Allreduce(&have_session, &all_have, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
   if (all_have) {
+    /* rgpot creates its session before it binds calculator groups. A
+     * session that has not evaluated holds no CPMD state, so the adopt
+     * goes through.
+     */
+    expect_group(single, 1, g_world, "adopt before the first evaluation");
+    mark("adopt with a session that has not evaluated");
+  }
+#if !defined(CPMDC_HAS_CPMD)
+  if (all_have) {
+    const double pos[9] = {5.0, 5.0,    5.1173, 5.0, 5.7572,
+                           4.5308, 5.0, 4.2428, 4.5308};
+    const int z[3] = {8, 1, 1};
+    double grad[9];
     int before = -1;
     int refused;
     MPI_Comm before_comm = MPI_COMM_NULL;
+    CPMDCResult r = cpmdc_session_energy_gradient(session, 3, pos, z, grad);
+    check(r.ok, "evaluation before the refused adopt");
     check(cpmdc_adopted_comm(&before_comm, sizeof(before_comm)) == 0,
-          "comm before the live-session adopt");
+          "comm before the evaluated-session adopt");
     if (before_comm != MPI_COMM_NULL)
       MPI_Comm_size(before_comm, &before);
     refused = cpmdc_adopt_calculator_comm(&world, sizeof(world), 4);
-    check(refused < 0, "live session allowed a rebind");
+    check(refused < 0, "evaluated session allowed a rebind");
     err = cpmdc_last_error();
-    check(err && strstr(err, "session is live"), "live session last_error");
+    check(err && strstr(err, "session has evaluated"),
+          "evaluated session last_error");
     {
       MPI_Comm after = MPI_COMM_NULL;
       int after_size = -1;
       check(cpmdc_adopted_comm(&after, sizeof(after)) == 0,
-            "live session cleared the communicator");
+            "evaluated session cleared the communicator");
       if (after != MPI_COMM_NULL)
         MPI_Comm_size(after, &after_size);
-      check(after_size == before, "live session replaced the communicator");
+      check(after_size == before,
+            "evaluated session replaced the communicator");
     }
+    mark("evaluated session refuses a rebind");
   }
+#endif
   if (session)
     cpmdc_session_destroy(session);
   if (all_have) {
     expect_group(world, 4, 0, "rebind after session destroy");
-    mark("rebind with no live session");
+    mark("rebind after the session is destroyed");
   } else if (g_world == 0 && params_path) {
     printf("skip live-session rebind: session_create failed\n");
   }

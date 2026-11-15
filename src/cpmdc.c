@@ -133,6 +133,8 @@ struct CPMDCSession {
   double cached_cell_ang[9];
   /** Non-zero when the embed layer has accepted the effective config. */
   int embed_configured;
+  /** Non-zero once the session has started an evaluation. */
+  int evaluated;
   /** Non-zero once cpmdc_session_select_orbitals() named a key. */
   int has_orbital_key;
   /** The calculation whose stored orbitals the next SCF starts from. */
@@ -143,6 +145,9 @@ struct CPMDCSession {
 
 static CPMDCSession *g_active_session = NULL;
 static int g_live_sessions = 0;
+/* Live sessions that have started an evaluation. Only these tie CPMD state
+ * to the stored communicator, so only these block an adopt. */
+static int g_evaluated_sessions = 0;
 static CPMDCEmbedImage g_image;
 
 static CPMDCEmbedImage *active_image(void) {
@@ -1589,6 +1594,8 @@ void cpmdc_session_destroy(CPMDCSession *session) {
     return;
   if (g_live_sessions > 0)
     g_live_sessions--;
+  if (session->evaluated && g_evaluated_sessions > 0)
+    g_evaluated_sessions--;
   if (g_active_session == session)
     g_active_session = NULL;
   free(session->params_bytes);
@@ -1632,6 +1639,10 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("CPMD embed not available");
   if (session->has_orbital_key)
     cpmdc_embed_select_orbitals(session->orbital_key);
+  if (!session->evaluated) {
+    session->evaluated = 1;
+    g_evaluated_sessions++;
+  }
   {
     CPMDCResult evaluated = energy_gradient_cell_with_params(
         session->params_bytes, session->params_size,
@@ -1986,7 +1997,7 @@ int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
   int index = -1;
   err[0] = '\0';
   if (cpmdc_adopt_resolve(comm, comm_bytes, ranks_per_calc,
-                          g_live_sessions > 0, &index, err, sizeof(err)) !=
+                          g_evaluated_sessions > 0, &index, err, sizeof(err)) !=
       0) {
     cpmdc_store_error(err[0] != '\0' ? err : "CPMD calculator bind refused");
     return -1;

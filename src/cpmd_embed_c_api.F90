@@ -157,7 +157,7 @@ MODULE cpmd_embed_c_api
   ! The flag records that this process has stored a calculator communicator.
   ! cpmdc_embed_bind_calculator splits once.
   ! cpmdc_embed_store_comm may replace that communicator. The C caller
-  ! refuses the replacement while a session is live.
+  ! refuses the replacement while a session that has evaluated is live.
   LOGICAL, SAVE :: embed_calculator_bound = .FALSE.
   ! The saved c0 matches one cutoff, cell, charge, multiplicity,
   ! functional, deck, and elemental composition. A later call with a
