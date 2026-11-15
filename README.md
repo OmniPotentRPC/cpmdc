@@ -118,44 +118,19 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 
 ## Map a CPMD Input Line
 
-When translating a CPMD manual line, separate the writable schema carrier from
-the discovery row:
-
-| Manual line | Writable carrier | Discovery row |
-| --- | --- | --- |
-| `OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE` | `params.inputSections.cpmd.optimizeGeometryOptions` and `optimizeGeometrySample` | `catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL`, `catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ`, `catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION` |
-| `NOSE IONS ULTRA MASSIVE T0` | `params.inputSections.cpmd.noseIonsOptions` | `catalog.cpmd.NOSE_IONS_ULTRA`, `catalog.cpmd.NOSE_IONS_MASSIVE`, `catalog.cpmd.NOSE_IONS_T0` |
-| `BOX WALLS` inside `&SYSTEM` | `params.inputSections.system.boxWalls` | `params.inputSections.system.boxWalls` |
-| `&VDW ... EMPIRICAL CORRECTION ...` | `inputSections.vdw.directives` and `subsections` | `catalog.section.VDW` |
+The [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) gives the
+writable schema carrier and the discovery row for each CPMD manual line.
 
 Use the `params.*` feature ID when the schema owns a typed field. Use
 `catalog.cpmd.*` for recognized `&CPMD` keywords or inline option spellings
 that render through an existing text field. Use `catalog.section.*` only to
 check section support.
 
-For a complete mapping table, see
-[`docs/orgmode/reference/cpmd-options.org`](docs/orgmode/reference/cpmd-options.org).
-
 ## Public ABI Surface
 
-| Group | Symbols |
-| --- | --- |
-| Library status | `cpmdc_version`, `cpmdc_abi_version`, `cpmdc_available`, `cpmdc_finalize`, `cpmdc_last_error` |
-| PotentialConfig setup | `cpmdc_configure`, `cpmdc_session_create_from_config`, `cpmdc_session_configure` |
-| Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
-| Periodic-cell stress (Hartree/Bohr³) | `cpmdc_last_stress` |
-| Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
-| The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
-| Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
-| MPI rank groups (one calculator per group) | `cpmdc_bind_calculator`, `cpmdc_adopt_calculator_comm`, `cpmdc_adopted_comm` |
-| Rank spread of one calculator under `CPMDC_RANK_CONSENSUS=1` | `cpmdc_last_rank_spread` |
-| Global params and coordinate arrays | `cpmdc_set_params`, `cpmdc_energy`, `cpmdc_energy_gradient`, `cpmdc_energy_forces` |
-| Session lifecycle | `cpmdc_session_create`, `cpmdc_session_set_params`, `cpmdc_session_select_orbitals`, `cpmdc_session_destroy` |
-| Session coordinate arrays | `cpmdc_session_energy`, `cpmdc_session_energy_gradient`, `cpmdc_session_energy_forces` |
-| Session atomic-unit arrays with an optional cell and virial | `cpmdc_session_calculate_au` |
-| Session Cap'n Proto steps | `cpmdc_session_calculate_forces`, `cpmdc_session_calculate_result` |
-| One-shot Cap'n Proto steps | `cpmdc_calculate_result`, `cpmdc_calculate_result_from_config`, `cpmdc_potential_result_size_for_force_input` |
-| Capability discovery (Cap'n Proto `Capabilities`) | `cpmdc_capabilities_result` |
+The [C ABI reference](docs/orgmode/reference/c-abi.org) lists every exported
+function by group, with its contract. `feature-inventory` fails when that page
+does not name a public function.
 
 New RPC-style callers should use the session result path:
 
@@ -282,26 +257,10 @@ deck form.
 
 ## Inventory Verification
 
-The default Meson suite includes inventory checks that keep the schema, feature
-table, renderer, README, and reference docs aligned:
-
-| Test | Contract |
-| --- | --- |
-| `feature-inventory` | `schema/inventory/cpmd_features.json` agrees with `schema/Potentials.capnp`, `src/cpmdc_features.c`, public headers, README, and CPMD option docs |
-| `cpmd-base-keyword-inventory` | every base `&CPMD` keyword in `schema/inventory/cpmd_cp_keywords.txt` has a normalized `catalog.cpmd.*` feature row |
-| `cpmd-params-field-inventory` | every top-level `CPMDParams` schema field has a matching `params.*` feature row, and duplicate inventory IDs/lists plus C feature table duplicates are rejected |
-| `cpmd-public-abi-inventory` | every public `cpmdc_*` header function is listed in `abi_symbols`, documented through the feature table, and implemented in `src/cpmdc.c`, `src/cpmdc_stub.c`, or `src/cpmdc_features.c` |
-| `stub-abi-symbol-coverage` | the standalone stub test asserts every `abi_symbols` feature row is present and stub-applicable |
-| `shared-dlopen-symbol-coverage` | the shared-library `dlopen` test loads every `abi_symbols` entry from `libcpmdc.so` |
-| `cpmd-schema-render-coverage` | every typed `CPMDCpmdSection` field, except `directives`, has a catalog render mapping in `tests/test_params_cp_dft_render.c` |
-| `cpmd-option-token-coverage` | inline option tokens in Cap'n Proto fixtures have catalog render coverage |
-| `cpmd-typed-render-field-coverage` | typed `cpmd`, `system`, `dft`, and `atoms` fields are mentioned by render fixtures or render assertions |
-| `cpmd-long-tail-section-coverage` | every `CPMDDirectiveSection` union arm is present in the long-tail fixture, render assertions, and option reference |
-| `cpmd-escape-hatch-coverage` | `inputBlocks`, `generic`, `set`, and `raw` stay covered by schema, fixtures, render tests, and option docs |
-| `cpmd-embedding-docs-coverage` | embedding docs name the public ABI feature IDs plus typed, long-tail, and escape-hatch `CPMDParams` carriers |
-| `cpmd-public-header-docs-coverage` | generated C API docs keep the public header tied to the serialized `CPMDParams` input surface |
-| `examples-documented` | public docs point to the runnable `examples/host_step.c` host program |
-| `readme-navigation` | README and the build-and-test how-to keep clear entry paths, work-loop labels, and current wording |
+The default Meson suite includes inventory checks that keep the schema, the
+feature table, the renderer, and the reference pages aligned. The
+[feature inventory reference](docs/orgmode/reference/feature-inventory.org)
+lists each test and what makes it fail.
 
 Run the focused inventory group with:
 
@@ -324,42 +283,11 @@ section inventory.
 
 ## Feature ID namespaces
 
-Feature IDs separate writable schema fields from parser/catalog capability
-rows:
-
-| Namespace | Meaning |
-| --- | --- |
-| `abi.*` | exported C ABI symbols |
-| `params.*` | top-level `CPMDParams` fields |
-| `params.inputSections.*` | typed fields and directive carriers inside `CPMDInputSection` |
-| `catalog.cpmd.*` | named `&CPMD` keyword capability rows |
-| `catalog.dft.*` | named `&DFT` keyword capability rows |
-| `catalog.section.*` | OpenCPMD section names discovered from parser `inscan('&SECTION')` calls |
-
-Use `params.inputSections.system.*` for structured `&SYSTEM` controls such as
-cell, cutoff, Poisson, KPOINTS, CDFT, pressure, and stress fields.
-`catalog.section.SYSTEM` means the `&SYSTEM` deck section is recognized as a
-section kind; individual `&SYSTEM` controls stay under
-`params.inputSections.system.*` rather than a separate `catalog.system.*`
-namespace.
-Use `params.inputSections.atoms.*` for pseudopotential entries and fixed
-non-coordinate `&ATOMS` keywords; geometry coordinates remain in each
-`ForceInput` step.
-
-Manual keyword names do not always map to a `catalog.cpmd.*` feature ID. Use
-the field namespace when the renderer owns a typed section field:
-
-| Manual name | Feature or field ID | Rendered deck form |
-| --- | --- | --- |
-| `BOX WALLS` | `params.inputSections.system.boxWalls` | `&SYSTEM` / `BOX WALLS` |
-| `MODIFIED GOEDECKER` | `params.inputSections.system.modifiedGoedecker` | `&SYSTEM` / `MODIFIED GOEDECKER` |
-| `MODIFIED GOEDECKER PARAMETERS` | `params.inputSections.system.modifiedGoedeckerParameters` | `&SYSTEM` / `MODIFIED GOEDECKER PARAMETERS` |
-| `SOC` | `catalog.cpmd.SOC` and `params.inputSections.cpmd.spinOrbitCouplingStates` | `&CPMD` / `SPIN-ORBIT COUPLING` |
-
-`FFTW WISDOM` is not a typed feature row because the OpenCPMD manual source
-comments out that keyword and the parser tree used for inventory probing has no
-matching branch. Use `inputSections.raw` or `inputBlocks` only for a downstream
-tree that still accepts it.
+The [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) defines the
+feature ID namespaces. It also says when a manual keyword maps to a typed field
+instead of a `catalog.cpmd.*` row, and which keywords have no feature row. The
+[feature inventory reference](docs/orgmode/reference/feature-inventory.org)
+gives the kind of each namespace in the C feature table.
 
 ## OpenCPMD Archive Build
 
