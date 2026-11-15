@@ -45,6 +45,11 @@ public change:
 | README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
 
+~scripts/ci/fetch_pseudopotentials.sh pp~ writes the pseudopotentials that
+suite reads into ~pp~, ~Si_MT_BLYP.psp~ from ~PP_LIBRARY/pseudo~ included;
+point ~CPMDC_PSEUDO_DIR~ there.
+On one core the OpenCPMD build runs ~python-pytest~ in about half an hour.
+
 Params render coverage lives under ~tests/cmocka/~ and uses cmocka assertions on
 generated Cap'n Proto types (~read_CPMDParams~, deck substrings) only.
 Session tests use encoded ~CPMDParams~ and ~ForceInput~ fixtures from
