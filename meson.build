@@ -1356,6 +1356,15 @@ test(
     suite: ['docs'],
   )
   test(
+    'reference-contract',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_contract.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'abi'],
+  )
+  test(
     'reference-well',
     python,
     args: [

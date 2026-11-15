@@ -70,11 +70,12 @@ A standalone ~cpmd.x~ leaves the pointer null and links without ~libcpmdc~.
 While an evaluation is armed, ~libcpmdc~ stores a catch in the pointer.
 The catch records the code and returns 1, and ~cpmdc~ reports the stop as a
 failed call (see [[file:troubleshooting.org][troubleshooting]]).
-~cpmdc_embed_catch~ and ~cpmdc_note_stop~ are defined in ~libcpmdc~ and
-resolved when ~libcpmd.a~ links into it; they are not exported.
+The catch and the code it records live in ~src/cpmd_stop_intercept.c~,
+inside ~libcpmdc~, and resolve when ~libcpmd.a~ links into it; they are
+internal and not exported.
 The calculator split does not need a patch: ~mp_start~ assigns
 ~mp_comm_world~ only when CPMD itself calls ~MPI_Init~, and
-~cpmdc_embed_bind_calculator~ initialises MPI and stores its communicator
+~cpmdc_bind_calculator()~ initialises MPI and stores its communicator
 before that. A module flag, ~embed_calculator_bound~, makes a second bind
 return the same index.
 The timer patch changes ~tistopgm~.
@@ -84,7 +85,7 @@ call-stack walk indexes ~trace_names~ from that value, so a ~stopgm~ before
 The walk runs only when the depth is inside ~SIZE(tname%trace_names)~.
 
 The teardown patch adds the module ~embed_teardown~ and its routine
-~embed_teardown_state~, which ~cpmdc_embed_teardown~ calls.
+~embed_teardown_state~, which ~libcpmdc~ calls before a second setup.
 It frees the saved orbitals, the communicators ~set_cp_grp~ built, and
 every ~ALLOCATABLE~ module variable and module-variable component that a
 ~USE~ reaches, outside the timer, stop, and CUDA device modules.
