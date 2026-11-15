@@ -114,13 +114,12 @@ jobs:
             build-essential gfortran pkg-config python3 python3-venv \
             capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
             ninja-build file
-      - name: Meson
+      # meson finds python3 on PATH, which is this venv, so the test packages go here too.
+      - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
-      - name: ASE and i-PI for the calculator and socket tests
-        run: python3 -m pip install --user 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
       - name: Full meson suite
         run: |
           . scripts/with_baseline_flags.sh
