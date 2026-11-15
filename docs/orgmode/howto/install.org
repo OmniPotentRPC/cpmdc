@@ -12,8 +12,9 @@ The build has two modes, selected by the Meson option ~with_cpmd~:
 | OpenCPMD | ~-Dwith_cpmd=true -Dcpmd_root=DIR~ | OpenCPMD linked from ~DIR/lib/libcpmd.a~ | 1 |
 
 Both modes export the same symbols.
-A third target, ~libcpmdc_stub.a~, is a link-only placeholder: every call
-fails and ~cpmdc_available()~ returns 0.
+A third target,
+~libcpmdc_stub.a~, is a link-only placeholder: every call fails and ~cpmdc_available()~
+returns 0.
 The tests use it to check the ABI without a working evaluator.
 
 | Artifact | Installed as | Purpose |
@@ -49,8 +50,8 @@ Without Pixi, install the same set from your package manager:
 | FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
 
 The C Cap'n Proto runtime (~c-capnproto~) is vendored in ~subprojects/~.
-Meson fetches three subprojects on the first ~meson setup~: the shared
-schema (~potentials-schema~, pinned in ~subprojects/potentials-schema.wrap~),
+Meson fetches three subprojects on the first ~meson setup~: the shared schema
+(~potentials-schema~, pinned in ~subprojects/potentials-schema.wrap~),
 ~capnp-fortran~, and ~minimage~; ~-Dwith_readcon=true~ adds ~readcon-core~.
 On a machine without network access, download them first where the network is
 available:
@@ -79,8 +80,8 @@ meson compile -C build
 meson test -C build --print-errorlogs
 #+end_src
 
-The [[file:../reference/build-options.org][build reference]] lists every
-Meson option, installed artifact, and Pixi task.
+The [[file:../reference/build-options.org][build reference]] lists every Meson
+option, installed artifact, and Pixi task.
 
 * Build against OpenCPMD
 The OpenCPMD archive needs the patches in ~tools/~ and position-independent
@@ -98,11 +99,11 @@ export CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY
 meson test -C build-cpmd --print-errorlogs
 #+end_src
 
-Configuration stops when ~$CPMD_ROOT/lib/libcpmd.a~ or
-~$CPMD_ROOT/obj/timetag.o~ is missing.
+Configuration stops when
+~$CPMD_ROOT/lib/libcpmd.a~ or ~$CPMD_ROOT/obj/timetag.o~ is missing.
 The live tests run OpenCPMD, which reads the pseudopotentials from
-~CPMDC_PSEUDO_DIR~ (see the [[file:../reference/environment.org][environment
-reference]]).
+~CPMDC_PSEUDO_DIR~ (see the
+[[file:../reference/environment.org][environment reference]]).
 
 The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS when
 OpenBLAS is absent), FFTW3 when found, ~libgfortran~, and ~libquadmath~.
@@ -124,12 +125,12 @@ pkg-config --modversion cpmdc
 The last command prints the project version, which Meson reads from
 ~version.txt~.
 Hosts that load the library at run time, such as ~rgpot~, look for it through
-~CPMDC_LIBRARY~; see the [[file:../reference/environment.org][environment
-reference]].
+~CPMDC_LIBRARY~; see the
+[[file:../reference/environment.org][environment reference]].
 
 * Install the Python package
-Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28)
-and macOS arm64 (macOS 15 or newer).
+Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28) and
+macOS arm64 (macOS 15 or newer).
 One wheel per platform serves CPython 3.10 and newer; CI tests 3.10 to 3.13.
 The ~ase~ extra installs ASE for ~cpmdc.ase~:
 
@@ -139,22 +140,21 @@ python -c "import cpmdc; print(cpmdc.find_library())"
 #+end_src
 
 The second command prints the ~libcpmdc~ inside the installed package.
-That library is the default build: the reference evaluator, without
-OpenCPMD and without MPI, so ~Session.available()~ is false.
+That library is the default build: the reference evaluator, without OpenCPMD and
+without MPI, so ~Session.available()~ is false.
 The wheel carries ~libgfortran~ and ~schema/Potentials.capnp~.
 A periodic cell needs no other tool: the package encodes each step as
 ~ForceInput~ itself.
 The ~capnp~ command is needed only to encode a ~CPMDParams~ text file, and
 ~cpmdc.find_schema()~ returns the schema to encode it against.
 The ~test~ extra adds pytest for ~tests/python~.
-To evaluate with OpenCPMD, build ~libcpmdc~ with ~-Dwith_cpmd=true~ and
-set ~CPMDC_LIBRARY~ to it; the variable takes precedence over the copy in
-the wheel.
+To evaluate with OpenCPMD, build ~libcpmdc~ with
+~-Dwith_cpmd=true~ and set ~CPMDC_LIBRARY~ to it; the variable takes precedence
+over the copy in the wheel.
 
 On other platforms pip builds the sdist.
-That needs the C, C++, and Fortran compilers, Rust (~cargo~, for the
-~minimage~ subproject), the ~capnp~ command, and network access for the
-Meson subprojects.
+That needs the C, C++, and Fortran compilers, Rust (~cargo~, for the ~minimage~
+subproject), the ~capnp~ command, and network access for the Meson subprojects.
 The same build from a checkout:
 
 #+begin_src bash

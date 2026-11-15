@@ -15,19 +15,19 @@
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
 
-The first call of an OpenCPMD session fails when neither
-~CPMDC_PSEUDO_DIR~ nor ~CPMD_PP_LIBRARY_PATH~ names an existing directory.
-The result message and ~cpmdc_last_error()~ name that directory; the call
-does not report an unconverged SCF.
+The first call of an OpenCPMD session fails when neither ~CPMDC_PSEUDO_DIR~ nor
+~CPMD_PP_LIBRARY_PATH~ names an existing directory.
+The result message and ~cpmdc_last_error()~ name that directory; the call does
+not report an unconverged SCF.
 While ~cpmdc~ is in the pseudopotential directory it also sets
-~CPMD_PP_LIBRARY_PATH~ and ~PP_LIBRARY_PATH~ to that directory with a
-trailing slash, for OpenCPMD's own lookup.
-The change of directory is needed because OpenCPMD's ~get_pplib~ takes
-~argv[2]~ as the library path whenever the process has more than one
-argument, which most hosts do.
+~CPMD_PP_LIBRARY_PATH~ and ~PP_LIBRARY_PATH~ to that directory with a trailing
+slash, for OpenCPMD's own lookup.
+The change of directory is needed because OpenCPMD's ~get_pplib~ takes ~argv[2]~
+as the library path whenever the process has more than one argument, which most
+hosts do.
 Once the pseudopotential files are read, the working directory becomes
-~permanentDir~ if that field is set, otherwise ~scratchDir~, otherwise the
-host directory from before the call.
+~permanentDir~ if that field is set, otherwise ~scratchDir~, otherwise the host
+directory from before the call.
 A library force call writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or
 ~GEOMETRY.xyz~ there.
 ~cpmd.x~ writes those files in that directory.
@@ -42,19 +42,18 @@ snapshot stays invalid for them even when the box volume is positive.
 ~CLUSTER~, ~SURFACE~ or ~POLYMER~); a periodic deck is not moved.
 A slab (~SURFACE~) moves only along its normal and a wire (~POLYMER~) only
 across its axis.
-With ~mass~ or ~geometry~, energy, forces and ~sum_i x_i (x) f_i~ do not
-change when the caller translates every atom.
-Warm-start distances and stored orbitals use the moved coordinates; the
-caller's arrays are not changed.
-The margin applies with ~off~ too, so by default an atom outside the cell
-fails the call instead of running with density across a face;
-~CPMDC_RECENTER_MARGIN=-1~ lets it run, as releases before the recentring
-did.
+With ~mass~ or ~geometry~, energy, forces and ~sum_i x_i (x) f_i~ do not change
+when the caller translates every atom.
+Warm-start distances and stored orbitals use the moved coordinates; the caller's
+arrays are not changed.
+The margin applies with ~off~ too, so by default an atom outside the cell fails
+the call instead of running with density across a face;
+~CPMDC_RECENTER_MARGIN=-1~ lets it run, as releases before the recentring did.
 ~cpmd.x~ keeps the deck's coordinates, so a comparison with it needs
-~CPMDC_RECENTER=off~, and ~CPMDC_RECENTER_MARGIN=-1~ for atoms outside the
-cell; the ~water-capnp-cli-parity~ and ~extrapolate-wfn~ tests set both.
-[[file:../explanation/isolated-cells.org][Atoms in an isolated cell]] explains why the library moves the atoms and
-what drift costs without it.
+~CPMDC_RECENTER=off~, and ~CPMDC_RECENTER_MARGIN=-1~ for atoms outside the cell;
+the ~water-capnp-cli-parity~ and ~extrapolate-wfn~ tests set both.
+[[file:../explanation/isolated-cells.org][Atoms in an isolated cell]] explains
+why the library moves the atoms and what drift costs without it.
 
 ~CPMDC_SCF_STEPS=1~ writes one line, ~cpmdc_scf_steps N~, for each SCF that
 returns.
@@ -65,22 +64,28 @@ orbitals, -1 the deck's guess because every stored geometry lies beyond
 ~CPMDC_WARM_RMSD~) and the nearest distance ~D~ in Angstrom, or
 ~cpmdc_warm_start -2~ when nothing is stored.
 Lines with a distance also include ~donor_key=K~, the key whose converged
-orbitals supply the selected history, and ~periodic=T~ or ~periodic=F~,
-the native boundary model used for the distance. A rejected history's donor
-key describes the nearest stored candidate, not an accepted warm start.
-A call whose orbitals start from the ~EXTRAPOLATE WFN~ prediction writes ~cpmdc_wfn_extrapolated K~ before its ~cpmdc_scf_steps~ line, with ~K~ the number of earlier converged orbital sets that the prediction combined.
-Each line is flushed as it is written, so a log file shows it while the host runs.
+orbitals supply the selected history, and ~periodic=T~ or ~periodic=F~, the
+native boundary model used for the distance.
+A rejected history's donor key describes the nearest stored candidate, not an
+accepted warm start.
+A call whose orbitals start from the ~EXTRAPOLATE WFN~ prediction writes
+~cpmdc_wfn_extrapolated K~ before its ~cpmdc_scf_steps~ line, with ~K~ the
+number of earlier converged orbital sets that the prediction combined.
+Each line is flushed as it is written, so a log file shows it while the host
+runs.
 
-~CPMDC_WARM_RMSD~ is the distance limit of [[file:../explanation/wavefunction-state.org][the stored orbitals]] (section Distance limit).
+~CPMDC_WARM_RMSD~ is the distance limit of
+[[file:../explanation/wavefunction-state.org][the stored orbitals]] (section
+Distance limit).
 A value that does not parse as a number keeps the default.
 
 ~CPMDC_RANK_CONSENSUS=1~ adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or ~MPI_COMM_WORLD~ when
 neither call was made.
-Every rank fails when one rank failed, and every rank resets its CPMD state
-when one rank stopped.
-A repeat of the stored positions returns the stored result only when every
-rank repeats.
+Every rank fails when one rank failed, and every rank resets its CPMD state when
+one rank stopped.
+A repeat of the stored positions returns the stored result only when every rank
+repeats.
 ~cpmdc_last_rank_spread()~ then reports the largest energy and gradient
 difference from rank 0 before the broadcast.
 Set it to the same value on every rank.
@@ -113,8 +118,8 @@ These change results on purpose and must be unset in ordinary runs.
 | ~CPMDC_PWSCALE_POISON_RUN~ | ~bench/pwscale_harness.c~ (~pwscale-logger~) | adds 1 Hartree to the energy of that run number, to check the logger rejects it |
 | ~CPMDC_ORG_EXPORT~ | ~docs/export.el~ | ~pandoc~ exports the Org pages with pandoc instead of ox-rst |
 
-The live tests of an OpenCPMD build (~meson test -C build-cpmd~) run
-~libcpmdc~, so they need ~CPMDC_PSEUDO_DIR~ like any other host.
+The live tests of an OpenCPMD build (~meson test -C build-cpmd~) run ~libcpmdc~,
+so they need ~CPMDC_PSEUDO_DIR~ like any other host.
 
 * Read by hosts that load libcpmdc
 These belong to the host, not to ~cpmdc~, and are listed here because they

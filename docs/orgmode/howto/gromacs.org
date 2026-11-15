@@ -1,15 +1,13 @@
 #+TITLE: Run GROMACS on cpmdc forces
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-GROMACS can integrate on cpmdc energies and forces in process, for a QM
-group that is part of the system or all of it.
-~libcpmdc_gromacs~ implements the libcp2k C API that GROMACS' CP2K QM/MM
-interface calls, and answers each call with one
-~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]].
-GROMACS links it in place of CP2K, so ~mdrun~ needs no extra process and no
-socket.
-Energies and forces need no change to GROMACS' source; the QM virial, and
-so the pressure and NPT, needs a short patch to GROMACS' QM/MM module (see
+GROMACS can integrate on cpmdc energies and forces in process, for a QM group
+that is part of the system or all of it.
+~libcpmdc_gromacs~ implements the libcp2k C API that GROMACS' CP2K QM/MM interface calls, and answers each call with one ~cpmdc_session_calculate_au()~
+of the [[file:../reference/c-abi.org][C ABI]]. GROMACS links it in place of
+CP2K, so ~mdrun~ needs no extra process and no socket. Energies and forces need
+no change to GROMACS' source; the QM virial, and so the pressure and NPT, needs
+a short patch to GROMACS' QM/MM module (see
 [[*Pressure and NPT][Pressure and NPT]]).
 
 | Route | GROMACS side | Needs |
@@ -21,28 +19,29 @@ input keys, units, cell, embedding, and virial conventions, and
 [[file:../explanation/md-engines.org][cpmdc inside MD engines]] explains why
 this route and reports runs on OpenCPMD.
 
-The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the
-three call the same libcp2k functions, and 2026 adds
-~cp2k_get_positions~ and ~cp2k_get_version~, which the library provides.
-The MPI build, the installed library, the OpenCPMD backend, and the
-virial patch were checked with 2025.5; the 2024.6 and 2026.4 patches apply
-and their QM/MM sources compile.
+The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the three
+call the same libcp2k functions, and 2026 adds ~cp2k_get_positions~ and
+~cp2k_get_version~, which the library provides.
+The MPI build, the installed library, the OpenCPMD backend, and the virial patch
+were checked with 2025.5; the 2024.6 and 2026.4 patches apply and their QM/MM
+sources compile.
 
 * Build
-Meson builds ~libcpmdc_gromacs.so~ with ~libcpmdc~
-(~-Dwith_gromacs_shim=auto~, the default; it is off for the Python wheel
-build) and writes ~build/tools/gromacs/pkgconfig/libcp2k.pc~, which points
-GROMACS at the library and at ~tools/gromacs/libcp2k.h~.
+Meson builds ~libcpmdc_gromacs.so~ with ~libcpmdc~ (~-Dwith_gromacs_shim=auto~,
+the default; it is off for the Python wheel build) and writes
+~build/tools/gromacs/pkgconfig/libcp2k.pc~, which points GROMACS at the library
+and at ~tools/gromacs/libcp2k.h~.
 ~meson install~ puts the library in ~LIBDIR~, the header in
-~include/cpmdc/gromacs~, and the ~.pc~ file in
-~LIBDIR/cpmdc/gromacs/pkgconfig~, apart from cpmdc's own ~cpmdc.pc~, so
-that ~libcp2k~ is found only where asked for.
+~include/cpmdc/gromacs~, and the ~.pc~ file in ~LIBDIR/cpmdc/gromacs/pkgconfig~,
+apart from cpmdc's own ~cpmdc.pc~, so that ~libcp2k~ is found only where asked
+for.
 
-GROMACS' ~cmake/gmxManageCP2K.cmake~ requires ~CP2K_DIR~, prepends
-~CP2K_DIR/pkgconfig~ to ~PKG_CONFIG_PATH~, and reads ~libcp2k.pc~ there, so
-pass the directory above ~pkgconfig~.
-The ~patch~ line adds the QM virial; ~qmmm-virial-2024.patch~ is for 2024.6
-and 2025.5, ~qmmm-virial-2026.patch~ for 2026.4.
+GROMACS'
+~cmake/gmxManageCP2K.cmake~ requires ~CP2K_DIR~, prepends ~CP2K_DIR/pkgconfig~
+to ~PKG_CONFIG_PATH~, and reads ~libcp2k.pc~ there, so pass the directory above
+~pkgconfig~.
+The ~patch~ line adds the QM virial; ~qmmm-virial-2024.patch~ is for 2024.6 and
+2025.5, ~qmmm-virial-2026.patch~ for 2026.4.
 Without it GROMACS builds and runs NVE and NVT as before:
 
 #+begin_src bash
@@ -64,42 +63,37 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
   -DGMX_CP2K=ON -DCP2K_DIR=$cp2k_dir
 #+end_src
 
-The installed ~libcp2k.pc~ gives ~-L~, ~-Wl,-rpath~ and the two libraries
-in ~Libs~, and ~-I~ for ~include/cpmdc/gromacs~ in ~Cflags~, so any
-pkg-config consumer compiles, links and runs against it with no further
-flags.
-GROMACS takes only the library names, directories, and include
-directories from it, not the ~-Wl,-rpath~; it finds the library at run time
-because it records the directories it linked from as its run path
+The installed ~libcp2k.pc~ gives ~-L~, ~-Wl,-rpath~ and the two libraries in
+~Libs~, and ~-I~ for ~include/cpmdc/gromacs~ in ~Cflags~, so any pkg-config
+consumer compiles, links and runs against it with no further flags.
+GROMACS takes only the library names, directories, and include directories from
+it, not the ~-Wl,-rpath~; it finds the library at run time because it records
+the directories it linked from as its run path
 (~CMAKE_INSTALL_RPATH_USE_LINK_PATH~).
-Either way ~libgromacs~ names the build tree or the prefix it was built
-against, and a GROMACS built against one does not follow the library to
-the other.
+Either way ~libgromacs~ names the build tree or the prefix it was built against,
+and a GROMACS built against one does not follow the library to the other.
 
-~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX CP2K_DIR [thread-mpi|mpi]~
-downloads a pinned GROMACS release, checks its SHA-256, applies the virial
-patch for that release, builds it this way
-(~mpi~: ~-DGMX_MPI=ON~ with ~mpicc~, ~mpicxx~ and ~mpifort~ from ~PATH~),
-and checks that ~libgromacs~ resolves ~libcpmdc_gromacs~ to the ~libdir~
-of that ~libcp2k.pc~.
+~scripts/ci/build_gromacs_cpmdc.sh VERSION PREFIX CP2K_DIR [thread-mpi|mpi]~ downloads a pinned GROMACS release, checks its SHA-256, applies the virial patch for that release, builds it this way (~mpi~: ~-DGMX_MPI=ON~
+with ~mpicc~, ~mpicxx~ and ~mpifort~ from ~PATH~), and checks that ~libgromacs~
+resolves ~libcpmdc_gromacs~ to the ~libdir~ of that ~libcp2k.pc~.
 
-With OpenCPMD linked, GROMACS must use the BLAS and LAPACK ~libcpmdc~
-links: GROMACS' bundled ones (~-DGMX_EXTERNAL_BLAS=OFF~) export ~dgemm_~
-and the rest from ~libgromacs~, OpenCPMD's calls bind to them, and its
-nonlocal pseudopotential forces come out wrong (see
+With OpenCPMD linked, GROMACS must use the BLAS and LAPACK ~libcpmdc~ links:
+GROMACS' bundled ones (~-DGMX_EXTERNAL_BLAS=OFF~) export ~dgemm_~ and the rest
+from ~libgromacs~, OpenCPMD's calls bind to them, and its nonlocal
+pseudopotential forces come out wrong (see
 [[file:troubleshooting.org][Troubleshooting]]).
-The script passes ~-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON~ and the
-BLAS of ~libcpmdc~ when ~libcpmdc~ links one, and ~libcpmdc_gromacs~ stops
-~mdrun~ when it finds ~dgemm_~ in ~libgromacs~ with OpenCPMD linked.
+The script passes ~-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON~ and the BLAS
+of ~libcpmdc~ when ~libcpmdc~ links one, and
+~libcpmdc_gromacs~ stops ~mdrun~ when it finds ~dgemm_~ in ~libgromacs~ with
+OpenCPMD linked.
 
 Build GROMACS in double precision.
 Its QM/MM module stores cpmdc's forces as ~real~, which is ~float~ in a
-mixed-precision build, and the 1e-10 agreement below holds only for
-~gmx_d~.
+mixed-precision build, and the 1e-10 agreement below holds only for ~gmx_d~.
 
 * Set up a run
-The QM group is an index group; ~qmmm-cp2k-qmmethod = INPUT~ makes grompp
-take the cpmdc settings from the file of ~-qmi~:
+The QM group is an index group; ~qmmm-cp2k-qmmethod = INPUT~ makes grompp take
+the cpmdc settings from the file of ~-qmi~:
 
 #+begin_src text
 qmmm-cp2k-active      = true
@@ -123,10 +117,10 @@ gmx_d grompp -f md.mdp -c conf.gro -p topol.top -n index.ndx -qmi cpmdc.inp -o m
 gmx_d mdrun -deffnm md -ntmpi 1
 #+end_src
 
-The file of ~-qmi~ holds a ~&CPMDC~ section inside ~&FORCE_EVAL~:
-~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the
-cell and the QM-MM Coulomb term, ~QM_CHARGES~ gives the QM atoms' classical
-charges, and ~QM_RANKS~ the ranks of an MPI GROMACS.
+The file of ~-qmi~ holds a ~&CPMDC~ section inside
+~&FORCE_EVAL~: ~PARAMS~ names the ~CPMDParams~ message, ~CELL~ and ~EMBEDDING~ choose the cell and the QM-MM Coulomb term, ~QM_CHARGES~
+gives the QM atoms' classical charges, and ~QM_RANKS~ the ranks of an MPI
+GROMACS.
 The [[file:../reference/gromacs.org][reference]] lists every key and what the
 library writes to ~md_cp2k.out~.
 GROMACS' own generated input (~qmmethod = PBE~ or ~BLYP~) has no ~&CPMDC~
@@ -134,11 +128,11 @@ section and is refused.
 
 * Pressure and NPT
 NPT works with a GROMACS patched as in [[*Build][Build]].
-The QM virial is the full tensor, in a cubic or triclinic box, so
-C-rescale, Parrinello-Rahman, and the other barostats see the QM part of
-the pressure whatever coupling type they use; the runs in
-[[file:../explanation/md-engines.org][the OpenCPMD runs]] use isotropic C-rescale and
-Parrinello-Rahman.
+The QM virial is the full tensor, in a cubic or triclinic box, so C-rescale,
+Parrinello-Rahman, and the other barostats see the QM part of the pressure
+whatever coupling type they use; the runs in
+[[file:../explanation/md-engines.org][the OpenCPMD runs]] use isotropic
+C-rescale and Parrinello-Rahman.
 
 An unpatched GROMACS reports a pressure without the QM and QM-MM terms.
 The [[file:../reference/gromacs.org][reference]] gives the virial the library
@@ -161,30 +155,31 @@ compressibility  = 4.5e-5
 
 Two cautions:
 
-- with ~CELL PERIODIC~, each new box is a new setup of the deck at its
-  cutoff, so the plane-wave basis changes with the box. OpenCPMD's stress is
-  the derivative at a fixed basis and has no Pulay correction, so converge
-  the cutoff for the stress, not only the energy, before a periodic NPT run;
-- with ~CELL NONE~ the deck's cell has to hold the QM region and its
-  density, not the region's path: cpmdc centres the region in it on each
-  step.
+- with ~CELL PERIODIC~, each new box is a new setup of the deck at its cutoff,
+  so the plane-wave basis changes with the box.
+  OpenCPMD's stress is the derivative at a fixed basis and has no Pulay
+  correction, so converge the cutoff for the stress, not only the energy, before
+  a periodic NPT run;
+- with ~CELL NONE~ the deck's cell has to hold the QM region and its density,
+  not the region's path: cpmdc centres the region in it on each step.
 
 * Several ranks
-A thread-MPI GROMACS runs QM/MM on one rank: pass ~-ntmpi 1~, because
-GROMACS refuses more thread-MPI ranks with QM/MM.
+A thread-MPI GROMACS runs
+QM/MM on one rank: pass ~-ntmpi 1~, because GROMACS refuses more thread-MPI ranks with QM/MM.
 
-For more ranks, build GROMACS with ~-DGMX_MPI=ON~ against the MPI that
-~libcpmdc_gromacs~ links (~scripts/ci/build_gromacs_cpmdc.sh~ with ~mpi~),
-and do not ask for separate PME ranks, which GROMACS refuses with QM/MM.
+For more ranks, build GROMACS with
+~-DGMX_MPI=ON~ against the MPI that ~libcpmdc_gromacs~ links
+(~scripts/ci/build_gromacs_cpmdc.sh~ with ~mpi~), and do not ask for separate
+PME ranks, which GROMACS refuses with QM/MM.
 Then choose ~QM_RANKS~ in ~&CPMDC~:
 
 - ~QM_RANKS ALL~, the default, runs one cpmdc calculator on every rank of
-  ~mdrun~; with OpenCPMD the forces differ from a one-rank run by the order
-  of its parallel sums;
-- ~QM_RANKS 1~ runs the QM calculation on rank 0 alone and matches a
-  one-rank run to 1e-10, at the SCF time of one rank.
+  ~mdrun~; with OpenCPMD the forces differ from a one-rank run by the order of
+  its parallel sums;
+- ~QM_RANKS 1~ runs the QM calculation on rank 0 alone and matches a one-rank
+  run to 1e-10, at the SCF time of one rank.
 
-A ~libcpmdc_gromacs~ built without MPI stops ~mdrun~ on an MPI GROMACS with
-the reason.
+A ~libcpmdc_gromacs~ built without MPI stops ~mdrun~ on an MPI GROMACS with the
+reason.
 The [[file:../reference/gromacs.org][reference]] describes how the library
 shares each step across the ranks.

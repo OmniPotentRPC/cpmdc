@@ -8,8 +8,8 @@ The message carries method setup only.
 Coordinates, species, and the cell of each step travel in ~ForceInput~.
 
 * Write the message as Cap'n Proto text
-Cap'n Proto text is the shortest way to write a message by hand, and the
-~capnp~ tool encodes it without any code.
+Cap'n Proto text is the shortest way to write a message by hand, and the ~capnp~
+tool encodes it without any code.
 This message describes a closed-shell Si and N cluster in a 14 Angstrom cube,
 BLYP at 70 Ry, with Kleinman-Bylander pseudopotentials:
 
@@ -36,8 +36,8 @@ BLYP at 70 Ry, with Kleinman-Bylander pseudopotentials:
 )
 #+end_src
 
-Save it as ~cluster.params.txt~ and encode it against the schema in the
-~cpmdc~ checkout:
+Save it as ~cluster.params.txt~ and encode it against the schema in the ~cpmdc~
+checkout:
 
 #+begin_src bash
 capnp encode schema/Potentials.capnp CPMDParams \
@@ -46,13 +46,14 @@ capnp encode schema/Potentials.capnp CPMDParams \
 
 ~capnp encode~ writes the unpacked flat stream that every ~cpmdc~ entry point
 reads.
-It rejects a field name that is not in the schema, so a typo fails here and
-not inside CPMD.
+It rejects a field name that is not in the schema, so a typo fails here and not
+inside CPMD.
 
 * Map deck lines to fields
 Each deck line has one preferred carrier.
-Look for a typed field first; the [[file:../reference/cpmd-options.org][option
-mapping]] lists every one of them with its feature ID.
+Look for a typed field first; the
+[[file:../reference/cpmd-options.org][option mapping]] lists every one of them
+with its feature ID.
 
 | Deck line | Section | Field |
 |-----------+---------+-------|
@@ -71,11 +72,11 @@ mapping]] lists every one of them with its feature ID.
 | ~GC-CUTOFF~ / ~1.0d-7~ | ~dft~ | ~gcCutoff = 1.0e-7~ |
 | ~*Si_MT_BLYP.psp KLEINMAN-BYLANDER~ / ~LMAX=D LOC=D~ | ~atoms~ | ~( element = "Si", path = "Si_MT_BLYP.psp", lmax = 2, loc = 2, kleinmanBylander = true )~ |
 
-~lmax~, ~loc~, and ~skip~ take the channel as an integer: 0 renders ~S~, 1
-~P~, 2 ~D~, 3 ~F~.
+~lmax~, ~loc~, and ~skip~ take the channel as an integer: 0 renders ~S~, 1 ~P~,
+2 ~D~, 3 ~F~.
 A keyword without a typed field goes into that section's ~directives~ list:
-~keyword~ is the line, and each entry of ~args~ becomes one indented line
-below it.
+~keyword~ is the line, and each entry of ~args~ becomes one indented line below
+it.
 
 * Defaults that change the physics
 Four defaults decide what CPMD computes when the message leaves them out.
@@ -90,24 +91,22 @@ Four defaults decide what CPMD computes when the message leaves them out.
 Set each of them on purpose.
 A raw ~inputBlocks~ entry or a ~raw~ section that already opens ~&CPMD~,
 ~&SYSTEM~, ~&DFT~, or ~&ATOMS~ is that section.
-The default writer does not open the same name again, so a periodic
-~SYMMETRY 1~ block is not followed by ~SYMMETRY 0~ and
-~POISSON SOLVER HOCKNEY~.
+The default writer does not open the same name again, so a periodic ~SYMMETRY 1~
+block is not followed by ~SYMMETRY 0~ and ~POISSON SOLVER HOCKNEY~.
 The caller's box is the cell.
 A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
-~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another
-orthorhombic box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with
-off-diagonal components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD
-refuses beside it.
-An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and
-takes only an orthorhombic box; another box fails the call.
+~SYMMETRY~: a cubic deck and a cubic box keep ~SYMMETRY 1~, another orthorhombic
+box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with off-diagonal
+components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD refuses beside it.
+An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and takes
+only an orthorhombic box; another box fails the call.
 Without ~ANGSTROM~ the box goes in as Bohr.
-An all-zero box is a system without a cell: the deck's ~CELL~ stays, or a
-12 Angstrom cube when the deck has none.
+An all-zero box is a system without a cell: the deck's ~CELL~ stays, or a 12
+Angstrom cube when the deck has none.
 
 * Check the rendered deck
-~CPMDC_DECK_OUT~ writes the deck ~cpmdc~ renders from the message, so the
-check needs no OpenCPMD:
+~CPMDC_DECK_OUT~ writes the deck ~cpmdc~ renders from the message, so the check
+needs no OpenCPMD:
 
 #+begin_src bash
 CPMDC_DECK_OUT=cluster.inp build/example_host_step \
@@ -146,5 +145,5 @@ An element the message does not list uses this table:
 An element in neither the message nor the table fails the evaluation.
 The message names the atomic number.
 A method deck whose ~&ATOMS~ block already has coordinate lines, for example
-from ~inputBlocks~, is passed to CPMD unchanged; each step then overwrites
-only the positions.
+from ~inputBlocks~, is passed to CPMD unchanged; each step then overwrites only
+the positions.

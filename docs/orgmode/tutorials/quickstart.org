@@ -2,14 +2,14 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Goal
-Build the default library from a checkout, run its tests, and pick the
-smallest test for a change.
+Build the default library from a checkout, run its tests, and pick the smallest
+test for a change.
 No OpenCPMD checkout is needed.
 
 * Build and run the default suite
 The default build compiles the parser, the generated Cap'n Proto readers, the
-shared ~libcpmdc~, the feature table, the session runtime, and the
-deterministic reference evaluator.
+shared ~libcpmdc~, the feature table, the session runtime, and the deterministic
+reference evaluator.
 
 Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
 pkg-config with your system package manager, or use the checked-in Pixi
@@ -54,8 +54,8 @@ separate ~meson compile~.
 Run the full suite before publishing a change.
 ~--print-errorlogs~ keeps cmocka assertion output and OpenCPMD diagnostics
 attached to the failed test.
-The [[file:../contributing/index.org][contributing guide]] lists the test
-behind each contract.
+The [[file:../contributing/index.org][contributing guide]] lists the test behind
+each contract.
 
 The suites group the tests by layer:
 
@@ -66,9 +66,9 @@ The suites group the tests by layer:
 - ~socket~ :: ~ForceInput~ sizing and session ~PotentialResult~ buffer contract
 - ~e2e~ :: one-shot and session calls through the deterministic reference
   evaluator; ~e2e-single-point~ runs ~cpmdc_calculate_result~ and
-  ~cpmdc_energy_forces~ on one ~ForceInput~, and ~e2e-optimizer-session~
-  runs three geometry steps on one ~CPMDCSession~, the topology rejection,
-  and a second session for a change of species
+  ~cpmdc_energy_forces~ on one ~ForceInput~, and ~e2e-optimizer-session~ runs
+  three geometry steps on one ~CPMDCSession~, the topology rejection, and a
+  second session for a change of species
 - ~docs~ :: the documentation examples and the reference contract
 
 cmocka is resolved through pkg-config.
@@ -99,9 +99,9 @@ message=...
 #+end_src
 
 The Meson test feeds the example from the fixture binaries of the E2E suites,
-encoded from ~tests/cpmd_params_parser.capnp.txt~, or
-~tests/water_blyp_params.capnp.txt~ in a build that links OpenCPMD, and
-~tests/force_input_step_a.capnp.txt~.
+encoded from
+~tests/cpmd_params_parser.capnp.txt~, or ~tests/water_blyp_params.capnp.txt~ in
+a build that links OpenCPMD, and ~tests/force_input_step_a.capnp.txt~.
 
 * Encode Cap'n Proto fixtures
 Encode a ~CPMDParams~ or ~ForceInput~ text message the same way the tests do:
@@ -120,14 +120,15 @@ The Python package takes the ~CPMDParams~ file and builds each ~ForceInput~
 itself; see [[file:../howto/python.org][Call cpmdc from Python]].
 
 * Build against OpenCPMD
-The same C ABI links against a patched OpenCPMD archive instead of the
-reference evaluator.
+The same C ABI links against a patched OpenCPMD archive instead of the reference
+evaluator.
 Build the archive as the [[file:../howto/opencpmd-archive.org][archive how-to]]
-describes, then follow [[file:../howto/install.org][the install how-to]] to configure
-~build-cpmd~ with ~-Dwith_cpmd=true~.
-With ~with_cpmd=true~ the water Cap'n Proto parity tests are added and the
-long E2E tests run the linked archive.
-When a build or a call fails, see [[file:../howto/troubleshooting.org][troubleshooting]].
+describes, then follow [[file:../howto/install.org][the install how-to]] to
+configure ~build-cpmd~ with ~-Dwith_cpmd=true~.
+With ~with_cpmd=true~ the water Cap'n Proto parity tests are added and the long
+E2E tests run the linked archive.
+When a build or a call fails, see
+[[file:../howto/troubleshooting.org][troubleshooting]].
 
 * Read next
 

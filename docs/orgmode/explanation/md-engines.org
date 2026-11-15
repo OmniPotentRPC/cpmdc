@@ -1,18 +1,14 @@
 #+TITLE: cpmdc inside MD engines
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-This page explains why GROMACS reaches cpmdc through its CP2K QM/MM
-interface, reports runs of that route on OpenCPMD, and compares the cost per
-step of the LAMMPS and GROMACS routes.
-The steps are in [[file:../howto/gromacs.org][Run GROMACS on cpmdc forces]]
-and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]]; the conventions
-are in the [[file:../reference/gromacs.org][GROMACS]] and
-[[file:../reference/lammps.org][LAMMPS]] interface references.
+This page explains why GROMACS reaches cpmdc through its CP2K
+QM/MM interface, reports runs of that route on OpenCPMD, and compares the cost per step of the LAMMPS and GROMACS routes. The steps are in [[file:../howto/gromacs.org][Run GROMACS on cpmdc forces]] and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]]; the conventions are in the [[file:../reference/gromacs.org][GROMACS]] and [[file:../reference/lammps.org][LAMMPS]]
+interface references.
 
 * Why the GROMACS CP2K interface
 GROMACS offers four ways to bring outside forces into ~mdrun~.
-The choice was made from the GROMACS 2024 to 2026 sources and manuals and
-the MiMiC papers:
+The choice was made from the GROMACS 2024 to 2026 sources and manuals and the
+MiMiC papers:
 
 | Route | Coupling | What rules it in or out |
 |-------+----------+--------------------------|
@@ -23,21 +19,20 @@ the MiMiC papers:
 | i-PI | socket | GROMACS has no i-PI client |
 
 MiMiC couples CPMD to GROMACS with electrostatic embedding and scales to
-thousands of cores [1, 2], through the MiMiC communication library [3];
-it is the route for an MPI-launched CPMD that integrates.
+thousands of cores [1, 2], through the MiMiC communication library [3]; it is
+the route for an MPI-launched CPMD that integrates.
 For GROMACS integrating on cpmdc forces, the CP2K interface is the one
 in-process route that carries the energy, the forces, and the box at full
 precision, and it is the one built and tested here.
 
 * OpenCPMD in GROMACS
-~bench/gromacs_opencpmd.py~ runs GROMACS on the OpenCPMD backend: one BLYP
-water (the deck of ~tests/water_blyp_params.capnp.txt~, 50 Ry, Hockney,
-orbital convergence 1e-7) at the centre of the deck's 1 nm cell, among 26
-flexible TIP3P waters in a 1.8 nm box, with ~CELL NONE~, mechanical
-embedding with the TIP3P charges on the QM atoms, PME for MM-MM, and NVE
-at 0.25 fs from 300 K velocities.
-It runs the same system with every water classical as a control, and
-fails unless ~md_cp2k.out~ reports the ~opencpmd~ backend.
+~bench/gromacs_opencpmd.py~ runs GROMACS on the OpenCPMD backend: one BLYP water (the deck of ~tests/water_blyp_params.capnp.txt~,
+50 Ry, Hockney, orbital convergence 1e-7) at the centre of the deck's 1 nm cell,
+among 26 flexible TIP3P waters in a 1.8 nm box, with ~CELL NONE~, mechanical
+embedding with the TIP3P charges on the QM atoms, PME for MM-MM, and NVE at 0.25
+fs from 300 K velocities.
+It runs the same system with every water classical as a control, and fails
+unless ~md_cp2k.out~ reports the ~opencpmd~ backend.
 
 #+begin_src bash
 meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root=$CPMD_ROOT
@@ -47,9 +42,9 @@ python bench/gromacs_opencpmd.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiex
   --pseudo-dir $CPMD_ROOT/../Regtests/tests/PP_LIBRARY --ranks 4,1 --steps 200
 #+end_src
 
-One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open
-MPI 5.0.10, OpenBLAS), OpenCPMD with Open MPI, ~QM_RANKS ALL~, 200 steps
-(50 fs); the 4-rank run shared the machine with other jobs:
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open MPI
+5.0.10, OpenBLAS), OpenCPMD with Open MPI, ~QM_RANKS ALL~, 200 steps (50 fs);
+the 4-rank run shared the machine with other jobs:
 
 | Run | Drift, kJ/mol/ps | Per atom | Largest excursion, kJ/mol | Kinetic energy std, kJ/mol | Wall, s |
 |-----+------------------+----------+---------------------------+----------------------------+---------|
@@ -59,34 +54,31 @@ MPI 5.0.10, OpenBLAS), OpenCPMD with Open MPI, ~QM_RANKS ALL~, 200 steps
 
 The step-0 QM energy is -17.055716980795 Hartree; ~CPMDCCalculator~ gives
 -17.05571697 for the same water.
-The total energy oscillates by about 1.3 kJ/mol as 105 kJ/mol of kinetic
-energy goes into the flexible O-H bonds; the classical control shows the
-same, and halving the time step divides it by four, so it is leap-frog's
-error, not the QM forces'.
+The total energy oscillates by about 1.3 kJ/mol as 105 kJ/mol of kinetic energy
+goes into the flexible O-H bonds; the classical control shows the same, and
+halving the time step divides it by four, so it is leap-frog's error, not the QM
+forces'.
 Over 50 fs the QM water adds 0.07 kJ/mol/ps to the drift of the control.
 
-Between rank counts the QM energy at step 0 agrees to 1.3e-9 kJ/mol and the
-total energy over the run to 2.4e-5 kJ/mol, but the QM atom forces differ
-by 1e-5 kJ/mol/nm at step 0 and 2e-3 at step 200, about 2e-6 of the
-largest force: OpenCPMD distributes its plane waves over the ranks, its
-sums run in a different order, and its SCF stops at a slightly different
-point.
+Between rank counts the QM energy at step 0 agrees to 1.3e-9
+kJ/mol and the total energy over the run to 2.4e-5 kJ/mol, but the QM atom
+forces differ by 1e-5 kJ/mol/nm at step 0 and 2e-3 at step 200, about 2e-6 of
+the largest force: OpenCPMD distributes its plane waves over the ranks, its sums
+run in a different order, and its SCF stops at a slightly different point.
 A tighter orbital convergence does not shrink that difference: at 1e-9 the
 step-0 oxygen forces of 1 and 2 ranks differ by 5e-4 kJ/mol/nm.
-With ~QM_RANKS 1~ the QM calculation runs on rank 0 alone, and 4 ranks
-match 1 rank to 3e-13 kJ/mol/nm in the forces and 7e-12 kJ/mol in the
-total energy over 10 steps, at the cost of the SCF time of one rank.
+With ~QM_RANKS 1~ the QM calculation runs on rank 0 alone, and 4 ranks match 1
+rank to 3e-13 kJ/mol/nm in the forces and 7e-12 kJ/mol in the total energy over
+10 steps, at the cost of the SCF time of one rank.
 For 1e-10 agreement with a one-rank run, use ~QM_RANKS 1~.
 
 ** Stress
-~tests/python/test_gromacs_opencpmd.py~ compares ~cp2k_get_stress_tensor()~
-with ASE's central difference of the library's own energy under strains of
-the cell, at orbital convergence 1e-8, when ~CPMDC_GROMACS_LIB~ is an
-OpenCPMD build and ~CPMDC_PSEUDO_DIR~ is set.
-With ~CELL PERIODIC~ (~tests/water_blyp_periodic_params.capnp.txt~) the
-strain is 1e-6: each strained cell is a new setup at the deck's cutoff, and
-in the triclinic cell a strain of 1e-4 already takes plane waves across the
-cutoff.
+~tests/python/test_gromacs_opencpmd.py~ compares
+~cp2k_get_stress_tensor()~ with ASE's central difference of the library's own energy under strains of the cell, at orbital convergence 1e-8, when ~CPMDC_GROMACS_LIB~ is an OpenCPMD build and ~CPMDC_PSEUDO_DIR~
+is set.
+With ~CELL PERIODIC~ (~tests/water_blyp_periodic_params.capnp.txt~) the strain
+is 1e-6: each strained cell is a new setup at the deck's cutoff, and in the
+triclinic cell a strain of 1e-4 already takes plane waves across the cutoff.
 With ~CELL NONE~ and the mechanical embedding the strain is 1e-5.
 One run, 1 rank, in eV/Angstrom^3:
 
@@ -97,20 +89,16 @@ One run, 1 rank, in eV/Angstrom^3:
 | ~CELL NONE~ in TIP3P, cube | 2.545e-4 | 5.875e-10 | 2.3e-6 |
 | ~CELL NONE~ in TIP3P, triclinic | 2.545e-4 | 3.096e-9 | 1.2e-5 |
 
-The test allows 1e-6 of the largest element with ~CELL PERIODIC~, where
-the stress also matches ~CPMDCCalculator~ to 1e-7, and 3e-5 with
-~CELL NONE~, where the difference shrinks as the strain squared.
+The test allows 1e-6 of the largest element with ~CELL PERIODIC~, where the
+stress also matches ~CPMDCCalculator~ to 1e-7, and 3e-5 with ~CELL NONE~, where
+the difference shrinks as the strain squared.
 
 ** NPT
-~bench/gromacs_opencpmd_npt.py~ runs NPT on the system above, v-rescale at
-300 K and isotropic C-rescale (or ~--pcoupl Parrinello-Rahman~) at 1 bar
-with ~tau-p~ 0.5 ps, compressibility 4.5e-5 /bar, and 0.5 fs steps, once
-with the QM water and once all classical.
-The deck predicts the orbitals with ASPC of order 4 at orbital convergence
-1e-6.
-~--lattice 4 --spacing 0.31 --minimize~ replaces the 27 waters at
-0.14 g/cm^3 by 64 at 1.00 g/cm^3 in a 1.24 nm box, relaxed classically
-first:
+~bench/gromacs_opencpmd_npt.py~ runs NPT on the system above, v-rescale at 300 K
+and isotropic C-rescale (or ~--pcoupl Parrinello-Rahman~) at 1 bar with ~tau-p~
+0.5 ps, compressibility 4.5e-5
+/bar, and 0.5 fs steps, once with the QM water and once all classical. The deck predicts the orbitals with ASPC of order 4 at orbital convergence 1e-6. ~--lattice 4 --spacing 0.31 --minimize~ replaces the 27 waters at 0.14 g/cm^3
+by 64 at 1.00 g/cm^3 in a 1.24 nm box, relaxed classically first:
 
 #+begin_src bash
 python bench/gromacs_opencpmd_npt.py --gmx $GMX_PREFIX/bin/gmx_mpi_d --mpiexec mpiexec \
@@ -124,20 +112,20 @@ python bench/npt_block_average.py npt.json --reference npt-long.json \
 #+end_src
 
 The first command writes the energy frames of both runs, every 10 steps, to
-~npt.json~; the second runs the classical control alone for 1 ns, which
-takes minutes; the third discards each run's equilibration, block-averages
-the rest, and writes the tables below.
-The JSON files and the run directories stay out of the repository; for
-the run below, ~bench/results/gromacs_npt_crescale_64w_blocks.csv~ and
-~_windows.csv~ hold the block averages and window means at full precision,
-and ~_runs.json~ the per-run summaries and arguments of both JSON files
-without their frames or paths.
+~npt.json~; the second runs the classical control alone for 1 ns, which takes
+minutes; the third discards each run's equilibration, block-averages the rest,
+and writes the tables below.
+The JSON files and the run directories stay out of the repository; for the run
+below, ~bench/results/gromacs_npt_crescale_64w_blocks.csv~ and
+~_windows.csv~ hold the block averages and window means at full precision, and ~_runs.json~
+the per-run summaries and arguments of both JSON files without their frames or
+paths.
 
 *** 64 waters over 15 ps
-One run on the 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open
-MPI 5.0.10, OpenBLAS) with the virial patch, OpenCPMD with Open MPI, the
-QM water on 8 ranks with ~QM_RANKS ALL~ and nothing else on the machine
-beyond seconds of analysis; the classical controls run on 1 rank.
+One run on the 8-core Xeon virtual machine, GROMACS 2025.5 (double, Open MPI
+5.0.10, OpenBLAS) with the virial patch, OpenCPMD with Open MPI, the QM water on
+8 ranks with ~QM_RANKS ALL~ and nothing else on the machine beyond seconds of
+analysis; the classical controls run on 1 rank.
 The library recentres the QM water in its cluster cell on every call
 (~CPMDC_RECENTER~ in
 [[file:../reference/environment.org][environment variables]]).
@@ -145,12 +133,12 @@ The QM run took 19875 s of wall time by ~md.log~, 0.66 s per step.
 It reported the ~opencpmd~ backend and the stress on the first request, and
 ~md.log~ has no missing-stress line.
 
-~bench/npt_block_average.py~ discards, for each run, the latest start in
-its first half that maximises the number of uncorrelated frames after it
-(Chodera, J. Chem. Theory Comput. 12, 1799 (2016)) over volume, density and
-pressure, and at least four ~tau-p~, 2 ps.
-The error is the Flyvbjerg-Petersen standard error of the mean at the
-coarsest blocking level with at least 8 blocks.
+~bench/npt_block_average.py~ discards, for each run, the latest start in its
+first half that maximises the number of uncorrelated frames after it (Chodera,
+J. Chem. Theory Comput. 12, 1799 (2016)) over volume, density and pressure, and
+at least four ~tau-p~, 2 ps.
+The error is the Flyvbjerg-Petersen standard error of the mean at the coarsest
+blocking level with at least 8 blocks.
 Generated into ~bench/results/gromacs_npt_crescale_64w.org~:
 
 | Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Wall, s |
@@ -185,8 +173,8 @@ The standard error of the mean against the block length:
 | classical, long | Density, kg/m^3 | 0.09 | 0.18 | 0.36 | 0.69 | 1.25 | 1.93 | 2.48 | 3.41 |
 | classical, long | Pressure, bar | 9.1 | 7.8 | 10.5 | 13.3 | 15.7 | 18.6 | 19.4 | 26.0 |
 
-Means over 1 ps windows of the 15 ps runs, and over 100 ps windows of the
-1 ns control:
+Means over 1 ps windows of the 15 ps runs, and over 100 ps windows of the 1 ns
+control:
 
 | Window, ps | QM water volume, nm^3 | QM water density, kg/m^3 | QM water pressure, bar | classical volume, nm^3 | classical density, kg/m^3 | classical pressure, bar |
 |------------+-----------------------+--------------------------+------------------------+------------------------+---------------------------+-------------------------|
@@ -219,68 +207,56 @@ Means over 1 ps windows of the 15 ps runs, and over 100 ps windows of the
 | 800-900 | 2.1180 | 905.6 | -109 |
 | 900-1000 | 2.1017 | 912.7 | -14 |
 
-The classical box has settled: over 1 ns its pressure, -13 +- 26 bar,
-matches the 1 bar of the barostat, and its density, 918.5 +- 3.4 kg/m^3,
-is that of this flexible TIP3P with 0.55 nm cut-offs in a 64-water box.
-Its blocking error still grows from 20 to 82 ps blocks, so that error is a
-lower bound too; it puts the statistical inefficiency of the volume at
-7.2 ps, and the volume of 64 waters fluctuates by 0.09 nm^3, so a 15 ps
-run holds few independent samples.
-The 15 ps control, 906.3 +- 7.7 kg/m^3, is 1.5 errors from it; its 1 ps
-window means of the volume span 0.20 nm^3 from 2 ps on.
+The classical box has settled: over 1 ns its pressure, -13 +- 26 bar, matches
+the 1 bar of the barostat, and its density, 918.5 +- 3.4
+kg/m^3, is that of this flexible TIP3P with 0.55 nm cut-offs in a 64-water box. Its blocking error still grows from 20 to 82 ps blocks, so that error is a lower bound too; it puts the statistical inefficiency of the volume at 7.2 ps, and the volume of 64 waters fluctuates by 0.09 nm^3, so a 15 ps run holds few independent samples. The 15 ps control, 906.3 +- 7.7 kg/m^3,
+is 1.5 errors from it; its 1 ps window means of the volume span 0.20 nm^3 from 2
+ps on.
 
-The QM run, 931.4 +- 7.3 kg/m^3, is 1.6 combined errors above the 1 ns
+The QM run, 931.4 +- 7.3 kg/m^3, is 1.6 combined errors above the 1 ns control.
+From 2 ps on its 1 ps window means of the volume span 0.17 nm^3, 1.99 to 2.16
+nm^3, without a trend: the last window, 2.078 nm^3, lies inside the range of the
+first ones, and the box ends at 2.044 nm^3.
+Its blocking error, like that of the 15 ps control, still grows at the largest
+block, so it is a lower bound, and the mean pressure, 310 +- 128 bar, is 2.4 of
+those errors from 1 bar.
+The barostat follows the pressure GROMACS reports: the least-squares slope of
+the change of ln V from one frame to the next against the pressure is 1.049
+times compressibility x 5 fs / ~tau-p~ with the QM water and 1.005 times in the
 control.
-From 2 ps on its 1 ps window means of the volume span 0.17 nm^3, 1.99 to
-2.16 nm^3, without a trend: the last window, 2.078 nm^3, lies inside the
-range of the first ones, and the box ends at 2.044 nm^3.
-Its blocking error, like that of the 15 ps control, still grows at the
-largest block, so it is a lower bound, and the mean pressure,
-310 +- 128 bar, is 2.4 of those errors from 1 bar.
-The barostat follows the pressure GROMACS reports: the least-squares slope
-of the change of ln V from one frame to the next against the pressure is
-1.049 times compressibility x 5 fs / ~tau-p~ with the QM water and 1.005
-times in the control.
-From 1 ps on, the 1 ps window means of ~Quantum En.~ lie within 15.5 kJ/mol
-of each other, without a step.
-GROMACS' conserved energy drifts by 191.5 kJ/mol/ps with the QM water and
-181.5 in the control, so the drift is not from the QM water.
-The final ~md.gro~ puts the QM oxygen at (0.511, 0.455, 0.892) nm, 0.44 nm
-from where it started after the minimisation, with its nearest oxygens
-0.269, 0.281 and 0.299 nm away, against 0.274, 0.283 and 0.304 nm for the
-same water in the control.
+From 1 ps on, the 1 ps window means of ~Quantum En.~ lie within 15.5
+kJ/mol of each other, without a step. GROMACS' conserved energy drifts by 191.5 kJ/mol/ps
+with the QM water and 181.5 in the control, so the drift is not from the QM
+water.
+The final ~md.gro~ puts the QM oxygen at (0.511, 0.455, 0.892) nm, 0.44 nm from
+where it started after the minimisation, with its nearest oxygens 0.269, 0.281
+and 0.299 nm away, against 0.274, 0.283 and 0.304 nm for the same water in the
+control.
 
 **** Before recentring
-The first run of these commands, on a library that kept the QM region's
-absolute position in its cell, gave the QM water 844.6 +- 14.3 kg/m^3
-(2.2761 +- 0.0390 nm^3, -337 +- 171 bar, 5.7 ps discarded): its box held
-1.98 to 2.08 nm^3 for 6 ps, then grew to 2.5 nm^3 by 13 ps while the
-pressure turned more negative, and its final QM oxygen sat 0.2 nm from a
-face of the 1 nm cluster cell.
-A water diffuses half a nanometre or more in 15 ps, as the one above did.
-~bench/cluster_drift_scan.py~ moves a BLYP water towards a face of the
-deck's 10 Angstrom Hockney cell; ~bench/results/cluster_drift_scan.org~
-has the tables.
-On that library the energy moves by -3.9e-5 Hartree with the outer
-hydrogen 3 Angstrom from the face, -2.8e-4 at 1 Angstrom, +5.0e-4 at
-0.5 Angstrom and -8.4e-3 at 0.5 Angstrom past it, where the net force is
-0.17 Hartree/Bohr.
-The trace of ~sum x (x) f~ goes from +0.049 Hartree at the centre to
-+0.093 at 1 Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between
-those two is 1300 bar on a 2.1 nm^3 box, against the -13 +- 26 bar of the
-control, and past the face it is +3.2 Hartree.
-The barostat scales coordinates about the origin, so a growing box also
-moves a QM water that is off the origin towards a face.
-With recentring every one of those positions gives the energy of the
-centred water to 1.1e-14 Hartree and its forces to 3.4e-14 Hartree/Bohr,
-the forces sum to zero, and the trace is 0.062214 Hartree at all of them.
+The first run of these commands, on a library that kept the QM region's absolute
+position in its cell, gave the QM water 844.6 +- 14.3
+kg/m^3 (2.2761 +- 0.0390 nm^3, -337 +- 171 bar, 5.7 ps discarded): its box held 1.98 to 2.08 nm^3 for 6 ps, then grew to 2.5 nm^3 by 13 ps while the pressure turned more negative, and its final QM oxygen sat 0.2 nm from a face of the 1 nm cluster cell. A water diffuses half a nanometre or more in 15 ps, as the one above did. ~bench/cluster_drift_scan.py~
+moves a BLYP water towards a face of the deck's 10 Angstrom Hockney cell;
+~bench/results/cluster_drift_scan.org~ has the tables. On that library the
+energy moves by -3.9e-5 Hartree with the outer hydrogen 3 Angstrom from the
+face, -2.8e-4 at 1 Angstrom, +5.0e-4 at 0.5 Angstrom and -8.4e-3 at 0.5 Angstrom
+past it, where the net force is 0.17 Hartree/Bohr.
+The trace of ~sum x (x) f~ goes from +0.049 Hartree at the centre to +0.093 at 1
+Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between those two is 1300
+bar on a 2.1 nm^3 box, against the -13 +- 26 bar of the control, and past the
+face it is +3.2 Hartree.
+The barostat scales coordinates about the origin, so a growing box also moves a
+QM water that is off the origin towards a face.
+With recentring every one of those positions gives the energy of the centred
+water to 1.1e-14 Hartree and its forces to 3.4e-14 Hartree/Bohr, the forces sum
+to zero, and the trace is 0.062214 Hartree at all of them.
 
 *** 2 ps runs
-One run of each system, C-rescale, 4000 steps (2 ps), the QM water on 4
-ranks with ~QM_RANKS ALL~, both systems at once; the classical control
-runs on 1 rank.
-Means and standard deviations of the energy frames, every 10 steps, over
-the second picosecond:
+One run of each system, C-rescale, 4000 steps (2 ps), the QM water on 4 ranks
+with ~QM_RANKS ALL~, both systems at once; the classical control runs on 1 rank.
+Means and standard deviations of the energy frames, every 10 steps, over the
+second picosecond:
 
 | System | Run | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Volume at 0 and 2 ps, nm^3 |
 |--------+-----+--------------+-----------------+---------------+----------------+----------------------------|
@@ -289,16 +265,15 @@ the second picosecond:
 
 Both QM runs reported the ~opencpmd~ backend and the stress on the first
 request, and ~md.log~ has no missing-stress line.
-GROMACS' conserved energy, which includes the thermostat and barostat
-work, drifts by 13.9 kJ/mol/ps with the QM water and 11.1 without in the
-27-water system.
-The 64-water runs of this length, which the 15 ps runs above replace,
-had not settled.
+GROMACS' conserved energy, which includes the thermostat and barostat work,
+drifts by 13.9 kJ/mol/ps with the QM water and 11.1 without in the 27-water
+system.
+The 64-water runs of this length, which the 15 ps runs above replace, had not
+settled.
 Each QM run took 6907 s, 1.73 s per step.
 
-With ~--pcoupl Parrinello-Rahman --tau-p 2.0 --steps 2000~ on the 64
-waters, beside a one-rank job for part of the time, the QM run took
-2891 s.
+With ~--pcoupl Parrinello-Rahman --tau-p 2.0 --steps 2000~ on the 64 waters,
+beside a one-rank job for part of the time, the QM run took 2891 s.
 Over the second half picosecond:
 
 | Run | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Volume at 0 and 1 ps, nm^3 |
@@ -306,25 +281,25 @@ Over the second half picosecond:
 | QM water | 1.967 (0.006) | 973.4 (2.9) | -21 (2957) | 273.3 (14.2) | 1.907, 1.978 |
 | classical | 2.015 (0.043) | 950.5 (20.0) | 323 (3048) | 294.6 (12.6) | 1.907, 2.099 |
 
-Both runs start near 205 K, as the 300 K velocities flow into the
-minimised structure; in 1 ps the thermostat has brought the classical run
-near 300 K but not yet the QM run, which the 15 ps C-rescale run above
-reaches within its second picosecond.
+Both runs start near 205 K, as the 300 K velocities flow into the minimised
+structure; in 1 ps the thermostat has brought the classical run near 300 K but
+not yet the QM run, which the 15 ps C-rescale run above reaches within its
+second picosecond.
 
 * Overhead per step
 ** LAMMPS routes
-~bench/lammps_routes.py~ integrates two water molecules in a 9 Angstrom
-cubic box (~metal~, NVE) through each route and reports the median wall
-time per step over fresh repeats, with the raw values.
-With the reference evaluator this is coupling overhead: an OpenCPMD step
-adds the same SCF time to every route.
+~bench/lammps_routes.py~ integrates two water molecules in a 9 Angstrom cubic
+box (~metal~, NVE) through each route and reports the median wall time per step
+over fresh repeats, with the raw values.
+With the reference evaluator this is coupling overhead: an OpenCPMD step adds
+the same SCF time to every route.
 
 #+begin_src bash
 python bench/lammps_routes.py --build build --steps 2000 --repeats 7
 #+end_src
 
-One run on an 8-core Xeon virtual machine with LAMMPS 22 Jul 2025 from the
-pip wheel and i-PI 3.3.1:
+One run on an 8-core Xeon virtual machine with LAMMPS 22 Jul 2025 from the pip
+wheel and i-PI 3.3.1:
 
 | Route | Median, microseconds per step |
 |-------+-------------------------------|
@@ -336,27 +311,26 @@ pip wheel and i-PI 3.3.1:
 | i-PI with ~cpmdc-ipi-c~ | 231 |
 | i-PI with ~cpmdc-ipi-c~ and LAMMPS ~fix ipi~ | 318 |
 
-The in-process routes time ~run~ inside one process; the i-PI routes use
-i-PI's own per-step timing, so no route counts process startup.
+The in-process routes time ~run~ inside one process; the i-PI routes use i-PI's
+own per-step timing, so no route counts process startup.
 The GROMACS table below times GROMACS on the same system beside
 ~pair_style cpmdc~.
 
 ** GROMACS routes
-~bench/gromacs_routes.py~ integrates the system of
-~bench/lammps_routes.py~, two water molecules in a 0.9 nm cube on the
-reference evaluator with the periodic deck, NVE at 0.25 fs, through GROMACS
-and through LAMMPS.
-GROMACS runs twice, for 1000 and 1000 + ~STEPS~ steps, and the per-step
-time is the difference of md.log's wall times over ~STEPS~, so startup and
-the first evaluation cancel.
+~bench/gromacs_routes.py~ integrates the system of ~bench/lammps_routes.py~, two
+water molecules in a 0.9 nm cube on the reference evaluator with the periodic
+deck, NVE at 0.25 fs, through GROMACS and through LAMMPS.
+GROMACS runs twice, for 1000 and 1000 + ~STEPS~ steps, and the per-step time is
+the difference of md.log's wall times over ~STEPS~, so startup and the first
+evaluation cancel.
 
 #+begin_src bash
 CPMDC_GMX=gmx_d python bench/gromacs_routes.py --build build --steps 20000 --repeats 7
 #+end_src
 
-One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double,
-thread-MPI, one rank, one OpenMP thread) and LAMMPS 22 Jul 2025 from the
-pip wheel, 20000 steps, 7 repeats:
+One run on an 8-core Xeon virtual machine, GROMACS 2025.5 (double, thread-MPI,
+one rank, one OpenMP thread) and LAMMPS 22 Jul 2025 from the pip wheel, 20000
+steps, 7 repeats:
 
 | Route | Median, microseconds per step | Raw |
 |-------+-------------------------------+-----|
@@ -366,22 +340,23 @@ pip wheel, 20000 steps, 7 repeats:
 | GROMACS, QM/MM off, no interactions | 1.55 | 1.50 1.60 1.55 1.55 1.50 1.50 1.65 |
 | GROMACS with ~libcpmdc_gromacs~, both waters QM | 4.50 | 4.50 4.55 4.50 4.65 4.50 4.60 4.50 |
 
-Over the engine alone, cpmdc adds 2.95 microseconds per step to GROMACS
-and 9.95 to LAMMPS; both include the reference evaluation itself.
-md.log prints wall times to 1 ms, which resolves 0.05 microseconds per
-step over 20000 steps.
+Over the engine alone, cpmdc adds 2.95 microseconds per step to GROMACS and 9.95
+to LAMMPS; both include the reference evaluation itself. md.log prints wall
+times to 1 ms, which resolves 0.05 microseconds per step over 20000 steps.
 An OpenCPMD step adds the same SCF time to every route.
 
 * References
 * References
-1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher,
-   P. Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale
-   Modeling in Computational Chemistry", /J. Chem. Theory Comput./ *15*,
-   3810-3823 (2019), [[https://doi.org/10.1021/acs.jctc.9b00093][doi:10.1021/acs.jctc.9b00093]].
-2. V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti,
-   P. Carloni, U. Rothlisberger, "Extreme Scalability of DFT-Based QM/MM MD
-   Simulations Using MiMiC", /J. Chem. Theory Comput./ *15*, 5601-5613
-   (2019), [[https://doi.org/10.1021/acs.jctc.9b00424][doi:10.1021/acs.jctc.9b00424]].
+1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher, P.
+   Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale Modeling
+   in Computational Chemistry", /J. Chem. Theory Comput./ *15*, 3810-3823
+   (2019),
+   [[https://doi.org/10.1021/acs.jctc.9b00093][doi:10.1021/acs.jctc.9b00093]].
+2. V. Bolnykh, J. M. H. Olsen, S. Meloni, M. P. Bircher, E. Ippoliti, P.
+   Carloni, U. Rothlisberger, "Extreme Scalability of DFT-Based QM/MM MD
+   Simulations Using MiMiC", /J. Chem. Theory Comput./ *15*, 5601-5613 (2019),
+   [[https://doi.org/10.1021/acs.jctc.9b00424][doi:10.1021/acs.jctc.9b00424]].
 3. MCL, the MiMiC Communication Library,
-   [[https://gitlab.com/MiMiC-projects/CommLib][gitlab.com/MiMiC-projects/CommLib]]; GROMACS manual, [[https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html][MiMiC Hybrid Quantum
-   Mechanical/Molecular Mechanical simulations]].
+   [[https://gitlab.com/MiMiC-projects/CommLib][gitlab.com/MiMiC-projects/CommLib]];
+   GROMACS manual,
+   [[https://manual.gromacs.org/2025.5/reference-manual/special/mimic-qmmm.html][MiMiC Hybrid Quantum Mechanical/Molecular Mechanical simulations]].

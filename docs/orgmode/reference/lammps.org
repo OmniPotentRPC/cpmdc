@@ -4,13 +4,13 @@
 Both routes of [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]],
 ~cpmdc.lammps.FixExternal~ and ~pair_style cpmdc~, pass the same numbers to
 LAMMPS.
-This page gives their units, the cell and positions they send, and the
-virial they return.
+This page gives their units, the cell and positions they send, and the virial
+they return.
 
 * Units
 cpmdc works in Bohr and Hartree.
-Both routes convert with the constants of ~python/cpmdc~ (CODATA 2018,
-with the thermochemical calorie, 4.184 J, for ~real~):
+Both routes convert with the constants of ~python/cpmdc~ (CODATA 2018, with the
+thermochemical calorie, 4.184 J, for ~real~):
 
 | LAMMPS ~units~ | Length per Bohr | Energy per Hartree | Forces | Virial | Pressure |
 |----------------+-----------------+--------------------+--------+----------------------+----------|
@@ -18,14 +18,13 @@ with the thermochemical calorie, 4.184 J, for ~real~):
 | ~real~ | ~BOHR_TO_ANGSTROM~ Angstrom | ~HARTREE_TO_KCAL_PER_MOL~ kcal/mol | kcal/(mol Angstrom) | kcal/mol | atm |
 | ~electron~ | 1 Bohr | 1 Hartree | Hartree/Bohr | Hartree | Pa |
 
-Any other unit style is refused before the first step with an error that
-names the three; ~FixExternal~ raises ~ValueError~.
+Any other unit style is refused before the first step with an error that names
+the three; ~FixExternal~ raises ~ValueError~.
 LAMMPS converts the virial to pressure with its own ~nktv2p~.
 
 * Cell and positions
-LAMMPS keeps a restricted triclinic box: ~a~ along x, ~b~ in the xy plane.
-cpmdc takes one lattice vector per row of a row-major 3 by 3 cell, so the
-cell sent is
+LAMMPS keeps a restricted triclinic box: ~a~ along x, ~b~ in the xy plane. cpmdc
+takes one lattice vector per row of a row-major 3 by 3 cell, so the cell sent is
 
 | Row | LAMMPS | ~domain->h~ |
 |-----+--------+-------------|
@@ -35,24 +34,22 @@ cell sent is
 
 with ~lx = xhi - xlo~ and the tilt factors ~xy~, ~xz~, ~yz~.
 An orthogonal box is the case with zero tilts.
-The positions are LAMMPS' Cartesian coordinates unwrapped with the image
-flags, ~x + ix a + iy b + iz c~, so each atom follows a continuous path
-across the boundaries and wavefunction extrapolation sees smooth steps.
+The positions are LAMMPS' Cartesian coordinates unwrapped with the image flags,
+~x + ix a + iy b + iz c~, so each atom follows a continuous path across the
+boundaries and wavefunction extrapolation sees smooth steps.
 The box origin ~(xlo, ylo, zlo)~ is not subtracted.
-A box with all three axes periodic sends the cell; a box with none sends
-no cell, and the ~CPMDParams~ deck sets the box.
-A box with some axes periodic and others not is refused; ~FixExternal~
-raises ~ValueError~.
+A box with all three axes periodic sends the cell; a box with none sends no
+cell, and the ~CPMDParams~ deck sets the box.
+A box with some axes periodic and others not is refused; ~FixExternal~ raises
+~ValueError~.
 
 * Virial and pressure
 cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.
-LAMMPS' global virial of a pair style or of ~fix_modify virial yes~ has the
-same sign and units of energy, ~W = sum r f~ for a pair potential, so both
-routes pass ~W~ times the energy factor, symmetrized, as ~xx yy zz xy xz
-yz~.
-The pressure LAMMPS prints is then ~P = (sum m v v + W) / V~ in its
-pressure units; a compressed cell has a positive diagonal of ~W~ and a
-positive pressure.
+LAMMPS' global virial of a pair style or of ~fix_modify virial yes~ has the same
+sign and units of energy, ~W = sum r f~ for a pair potential, so both routes
+pass ~W~ times the energy factor, symmetrized, as ~xx yy zz xy xz yz~.
+The pressure LAMMPS prints is then ~P = (sum m v v + W) / V~ in its pressure
+units; a compressed cell has a positive diagonal of ~W~ and a positive pressure.
 ~fix npt~ and ~fix nph~ use it as they use any pair virial.
 ~compute pressure NULL virial~ reports the virial part alone, ~W / V~ in
 pressure units.
