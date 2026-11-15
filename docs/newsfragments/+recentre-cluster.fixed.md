@@ -1,3 +1,4 @@
 On an isolated OpenCPMD deck each evaluation moves the atoms rigidly to the middle of the deck's cell, by their centre of mass, and removes the net force the fixed cell leaves, so energy, forces and `sum x (x) f` no longer depend on where a host puts the atoms.
 A BLYP water 0.5 Angstrom from a face of its 10 Angstrom Hockney cell had been 5.0e-4 Hartree off, and one 0.5 Angstrom past a face 8.4e-3 Hartree off with a net force of 0.17 Hartree/Bohr, which entered the `CELL NONE` virial of `libcpmdc_gromacs` as the QM region diffused in NPT runs.
 `CPMDC_RECENTER` chooses `mass`, `geometry` or `off`, and `CPMDC_RECENTER_MARGIN` makes a call fail when an atom ends up closer than that many Angstrom to a face.
+The 64-water C-rescale QM/MM run whose box had grown to 2.5 nm^3 in 15 ps, a mean of 844.6 kg/m^3, now holds 931.4 +- 7.3 kg/m^3, against 918.5 +- 3.4 kg/m^3 for the 1 ns classical control.
