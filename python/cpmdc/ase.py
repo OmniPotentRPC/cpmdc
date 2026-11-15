@@ -46,6 +46,8 @@ from ase.utils import workdir
 
 from cpmdc import CPMDCError, Potential, _warn_schema
 
+__all__ = ["CPMDCCalculator", "CalculationFailed"]
+
 _NEED_PARAMS = "params is required: a CPMDParams path or bytes"
 _METHOD_IN_PARAMS = (
     "the charge, the multiplicity, the functional, the cutoff, and every "

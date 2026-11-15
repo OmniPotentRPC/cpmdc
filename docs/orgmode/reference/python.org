@@ -37,6 +37,9 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3, library sign |
 | ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress; keywords ~params~ and ~library~, and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
 | ~CPMDCCalculator.default_parameters~ | ~params~ and ~library~, both ~None~ |
+| ~CPMDCCalculator.implemented_properties~ | ~energy~, ~free_energy~, ~forces~, and ~stress~ |
+| ~CPMDCCalculator.ignored_changes~ | ~initial_charges~ and ~initial_magmoms~: a change of either keeps the stored results, because ~params~ sets the charge and the multiplicity |
+| ~CPMDCCalculator.discard_results_on_any_change~ | ~True~: a parameter that ~set~ changes clears the stored results |
 | ~CPMDCCalculator.calculate~ | one step with ~directory~ as the working directory; fills energy, free_energy, forces, and stress for a periodic cell |
 | ~CPMDCCalculator.set~ | change ~params~ or ~library~, open a new session, clear results, return a dictionary of the changed parameters; ~parameters~ reads a saved file, and any other key raises ~TypeError~ |
 | ~CPMDCCalculator.todict~ | the parameters as JSON data; a ~params~ buffer of bytes is left out |

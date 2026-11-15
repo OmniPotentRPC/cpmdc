@@ -5,8 +5,10 @@ Every function, type, enum constant, and macro of the installed headers
 cpmdc.h, cpmdc_features.h, and cpmdc_restart.h must appear in
 docs/orgmode/reference/c-abi.org; a function must appear with its
 parameter list in a table row, which is where that page states a contract.
-Every public name of the Python modules other than cpmdc.ase must appear in
-docs/orgmode/reference/python.org.
+Every module of python/cpmdc must list its public functions and classes in
+__all__. Every name in __all__, and every public member that an exported
+class defines, must appear in docs/orgmode/reference/python.org; a member
+appears as ~Class.member~ or ~module.Class.member~.
 
 The README and the Org pages may not present any other cpmdc_ identifier
 as a C symbol: a name that is hidden in libcpmdc or gone from the headers.
@@ -27,8 +29,6 @@ HEADERS = ("include/cpmdc.h", "include/cpmdc_features.h", "include/cpmdc_restart
 OTHER_HEADERS = ("include/cpmdc_export.h", "include/cpmdc_pwscale.h")
 # Written to stderr under CPMDC_SCF_STEPS=1; see reference/environment.org.
 LOG_TOKENS = {"cpmdc_scf_steps", "cpmdc_warm_start", "cpmdc_wfn_extrapolated"}
-# Python modules whose public names belong to the ASE calculator's own page.
-PYTHON_SKIP = {"ase.py"}
 
 
 def strip_comments(text: str) -> str:
@@ -106,25 +106,56 @@ def check_mentions(root: Path, public: set[str], failures: list[str]) -> None:
             failures.append(f"{rel}: names {name}, which no public header declares")
 
 
-def python_public(path: Path) -> set[str]:
+def class_members(node: ast.ClassDef) -> set[str]:
+    names = set()
+    for item in node.body:
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.add(item.name)
+        elif isinstance(item, ast.Assign):
+            names |= {target.id for target in item.targets if isinstance(target, ast.Name)}
+        elif isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
+            names.add(item.target.id)
+    return {name for name in names if not name.startswith("_")}
+
+
+def python_public(path: Path) -> tuple[set[str] | None, dict[str, set[str]]]:
+    """__all__ of a module, None without one, and the public members of each class."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    exported = None
+    defined: dict[str, set[str]] = {}
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(
             isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
         ):
-            return {elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)}
-    return set()
+            exported = {elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)}
+        elif isinstance(node, ast.ClassDef):
+            defined[node.name] = class_members(node)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            defined[node.name] = set()
+    return exported, defined
 
 
 def check_python(root: Path, failures: list[str]) -> None:
     reference = (root / "docs/orgmode/reference/python.org").read_text(encoding="utf-8")
     for path in sorted((root / "python/cpmdc").glob("*.py")):
-        if path.name in PYTHON_SKIP:
-            continue
+        rel = path.relative_to(root).as_posix()
         module = "cpmdc" if path.name == "__init__.py" else f"cpmdc.{path.stem}"
-        for name in sorted(python_public(path)):
-            if not re.search(rf"~(?:{re.escape(module)}\.)?{re.escape(name)}\b", reference):
+        exported, defined = python_public(path)
+        if exported is None:
+            failures.append(f"{rel}: no __all__ lists the public names")
+            continue
+        for name in sorted(set(defined) - exported):
+            if not name.startswith("_"):
+                failures.append(f"{rel}: public {name} is missing from __all__")
+        for name in sorted(exported):
+            named = rf"~(?:{re.escape(module)}\.)?{re.escape(name)}"
+            if not re.search(rf"{named}\b", reference):
                 failures.append(f"reference/python.org: {module}.{name} is not named")
+            for member in sorted(defined.get(name, ())):
+                if not re.search(rf"{named}\.{re.escape(member)}\b", reference):
+                    failures.append(
+                        f"reference/python.org: {module}.{name}.{member} is not named"
+                    )
 
 
 def main() -> int:

@@ -92,9 +92,10 @@ build-and-test how-to focused on entry paths, work-loop labels, and current word
 ~reference-contract~ requires every function, type, enum constant, and macro
 of ~cpmdc.h~, ~cpmdc_features.h~, and ~cpmdc_restart.h~ in the
 [[file:../reference/c-abi.org][C ABI reference]], each function with its parameter list in
-a table row, every public Python name outside ~cpmdc.ase~ in the
-[[file:../reference/python.org][Python reference]], and no ~cpmdc_~ name in the README or the
-Org pages that no public header declares.
+a table row, an ~__all__~ in every ~python/cpmdc~ module that lists its public
+functions and classes, each of those names and each public member of an
+exported class in the [[file:../reference/python.org][Python reference]], and no ~cpmdc_~ name in
+the README or the Org pages that no public header declares.
 ~docs-examples~ classifies every code block of the README and the Org pages.
 It runs the blocks the default build can run, compiles the C fragments against
 ~include/~, and lists the rest in ~tests/test_docs_examples.py~: blocks that
