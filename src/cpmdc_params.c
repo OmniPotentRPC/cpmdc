@@ -5751,4 +5751,3 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   *potential_result_size_bytes = (size_t)wrote;
   return 0;
 }
-

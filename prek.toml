@@ -15,9 +15,11 @@ exclude = """(?x)(
 
 [[repos]]
 repo = "builtin"
+# A blank context line of a unified diff is one space, so the whitespace
+# fixers would break the patches that the OpenCPMD and GROMACS builds apply.
 hooks = [
-  { id = "trailing-whitespace" },
-  { id = "end-of-file-fixer" },
+  { id = "trailing-whitespace", exclude = "\\.patch$" },
+  { id = "end-of-file-fixer", exclude = "\\.patch$" },
   { id = "check-yaml" },
   { id = "check-toml" },
   { id = "check-merge-conflict" },
