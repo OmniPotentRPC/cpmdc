@@ -6,6 +6,7 @@ This tutorial relaxes the water molecule of the
 call going through ~rgpot~ into ~libcpmdc~ inside the ~eonclient~ process.
 It reuses ~water.params.bin~ from that tutorial and the OpenCPMD build of
 ~libcpmdc~ in ~$CPMDC/build-cpmd~.
+Run every command in the Pixi shell that the first tutorial opened.
 
 * What connects to what
 eOn's ~RGPOT~ potential loads rgpot's ~CPMDPot~, which opens ~libcpmdc.so~
@@ -28,7 +29,72 @@ To keep a molecule isolated, the message has to ask for it.
 This run uses ~water.params.bin~, which sets ~poissonSolver = "HOCKNEY"~, and
 stays isolated.
 
+* Build eonclient
+This section builds rgpot and eOn into one prefix with the compilers and
+libraries of cpmdc's Pixi environment.
+eOn's own ~pixi.toml~ does not load under Pixi 0.84.2: its task ~mkeon~
+depends on an environment ~eon~ that the file does not define.
+cpmdc's environment has no Eigen, and eOn needs Eigen 3.4.
+Install it as a separate Pixi environment:
+
+#+begin_src bash
+pixi global install 'eigen>=3.4,<3.5'
+#+end_src
+
+Work in the directory that holds the cpmdc checkout and ~cpmdc-tutorial~:
+
+#+begin_src bash
+cd "$CPMDC/.."
+export EON_PREFIX=$PWD/eon-prefix
+export PKG_CONFIG_PATH=$EON_PREFIX/lib/pkgconfig:$CONDA_PREFIX/lib/pkgconfig:$HOME/.pixi/envs/eigen/share/pkgconfig
+#+end_src
+
+~$CONDA_PREFIX/lib/pkgconfig~ is on the list because Meson can pick a system
+~pkg-config~ that does not search the Pixi environment.
+Build rgpot with MPI and install it:
+
+#+begin_src bash
+git clone https://github.com/OmniPotentRPC/rgpot.git
+cd rgpot
+git checkout 5fec533f
+meson setup bbdir --prefix="$EON_PREFIX" --libdir=lib \
+  -Dwith_rpc=true -Dwith_mpi=enabled -Dwith_fortran_pots=enabled \
+  -Dwith_expr=true -Dwith_tests=false
+meson install -C bbdir
+cd ..
+#+end_src
+
+~with_rpc~ builds ~CPMDPot~.
+~with_mpi~ builds ~librgpot_mpi~, which rgpot loads only when the client runs
+under ~mpirun~.
+eOn's configure stops when the installed rgpot has no Fortran potentials.
+~with_expr~ matches the rgpot that eOn builds when it finds none installed.
+Then build eOn against the installed rgpot:
+
+#+begin_src bash
+git clone https://github.com/TheochemUI/eOn.git eon
+cd eon
+git checkout 579738a93
+meson setup bbdir --prefix="$EON_PREFIX" --libdir=lib -Dwith_mpi=enabled
+meson install -C bbdir
+cd ..
+export PATH=$EON_PREFIX/bin:$PATH
+#+end_src
+
+Meson reports ~rgpot found: YES 3.7.0~ and uses the installed rgpot instead of
+its own copy.
+~-Dwith_mpi=enabled~ makes eOn build ~librgpot_pot_mpi~, which starts MPI for
+the calculator groups and ends it at exit.
+eOn builds that library when ~rgpot.pc~ defines ~RGPOT_HAS_MPI~ or when its
+own ~with_mpi~ is on.
+rgpot 5fec533f puts the define in ~rgpot-mpi.pc~ instead, so ~with_mpi~ is
+the switch that works here.
+The same ~eonclient~ runs on one rank without ~mpirun~.
+
 * Prepare the run directory
+Start in the directory that holds ~cpmdc-tutorial~, the one ~cd "$CPMDC/.."~
+chose above:
+
 #+begin_src bash
 mkdir -p eon-water
 cd eon-water
@@ -104,10 +170,64 @@ When the run ends, the directory holds:
 | File | Contents |
 |------+----------|
 | ~min.con~ | the relaxed structure |
-| ~results.dat~ | the termination status, the potential name, the number of force calls, and the final energy in eV |
+| ~results.dat~ | the termination status, the potential name, the number of force calls, the final energy in eV, and build provenance |
 
 eOn works in eV and Angstrom; rgpot converts from the Hartree and
 Hartree/Bohr values that ~cpmdc~ returns.
+
+** Output of a run
+These versions produced the output below:
+
+| Component | Version |
+|-----------+---------|
+| cpmdc | 0.4.0, this tree |
+| OpenCPMD | ~062582b~ with the patches of the [[file:../howto/opencpmd-archive.org][archive how-to]] |
+| rgpot | ~5fec533f~, version 3.7.0 |
+| eOn | ~579738a93~, version 3.6.0 |
+| OpenCPMD Regtests | ~b2b2c64~ |
+| Toolchain | Pixi 0.84.2, GCC 14.3.0, Open MPI 5.0.10, Cap'n Proto 1.4.0, OpenBLAS 0.3.34, Eigen 3.4.0 |
+
+The minimisation made 7 force calls.
+The first call took 13 SCF iterations and reached -17.05583351 Hartree, the
+energy of the first tutorial.
+The six later calls took 7 to 9 iterations each.
+The last call reached -17.05647005 Hartree.
+~results.dat~ held:
+
+#+begin_src text
+0 termination_reason
+GOOD termination_reason_text
+minimization job_type
+RGPOT potential_type
+7 total_force_calls
+-4.641301944953e+02 potential_energy
+CG optimizer
+4.305014106300e+01 time_seconds
+3.694104500000e+01 user_time
+8.380482000000e+00 system_time
+cg optimizer_backend
+eon.optimizer.v1 optimizer_provenance_schema
+eon.compatibility.v1 compatibility_schema
+3 compatibility_readcon_spec_version
+0.14.9 compatibility_readcon_min_version
+0.2.3 compatibility_eon_schema_min_version
+1.10.4 compatibility_rgpycrumbs_min_version
+1.9.17 compatibility_chemparseplot_min_version
+eon engine_id
+3.6.0 engine_version
+579738a93 engine_build_identity
+rgpot rgpot_name
+eon.rgpot.v1 rgpot_schema
+3.2.0 rgpot_version
+#+end_src
+
+The final energy is -464.1301944953 eV.
+The three timing lines depend on the machine.
+~engine_build_identity~ is the eOn commit.
+~rgpot_version~ is a constant compiled into eOn (~rgpot_pin~), not the
+version of the rgpot it loaded, which was 3.7.0.
+In ~min.con~ the oxygen sits at z = 5.1332 Angstrom and the hydrogens at
+y = 5.7620 and 4.2380, z = 4.5229.
 
 * Change the method
 Edit ~water.params.txt~, encode it again, and rerun; eOn needs no other
@@ -133,7 +253,26 @@ mpirun -np 4 eonclient
 #+end_src
 
 Every rank runs the whole client.
-Only CPMD's parent rank holds the calculator's result, so the client must take
-each result from that rank and must finalize MPI at exit; check that your eOn
-and rgpot builds do both, as [[file:../howto/mpi.org][running under mpirun]]
-explains, before trusting a multi-rank run.
+rgpot binds the four ranks into one calculator and hands its communicator to
+~cpmdc_adopt_calculator_comm()~.
+Only CPMD's parent rank holds the calculator's result.
+eOn broadcasts that result to every rank, and rgpot finalizes MPI at exit.
+[[file:../howto/mpi.org][Running under mpirun]] explains these rules.
+
+With the build above and the same files, CPMD split each SCF over four
+processors, and only the parent rank printed.
+Each call took as many SCF iterations as on one rank.
+~results.dat~ again reported ~GOOD~ and 7 force calls, with
+~-4.641301944941e+02 potential_energy~, 1.2e-9 eV from the one-rank energy.
+~mpirun~ returned 0.
+
+Before cpmdc accepted an adopt while a session had not evaluated yet, every
+rank stopped here, because rgpot creates its session before it binds the
+ranks:
+
+#+begin_src text
+eonclient: fatal error: RGPOT(cpmdc): ranks_per_image=0 does not divide the MPI world into calculator groups
+#+end_src
+
+With rgpot and eOn built without MPI, the four ranks finished the
+minimisation, but they exited without ~MPI_Finalize~ and ~mpirun~ returned 1.

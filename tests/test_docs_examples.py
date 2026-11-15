@@ -10,7 +10,8 @@ Each fenced block in README.md and under docs/orgmode is classified once:
 - or named in SKIP with the other tool or input it needs.
 
 A new block fails until it is one of these. Every shell block, run or not, is
-also checked against the tree: meson -D options, pixi tasks and environments,
+also checked against the tree: meson -D options (except in the blocks of
+OTHER_MESON_PROJECT, which configure another project), pixi tasks and environments,
 meson test names and suites, repository paths, build outputs, and i-PI
 species strings must exist.
 """
@@ -63,8 +64,9 @@ OPENCPMD = {
     "howto/opencpmd-archive.org:6": "an OpenCPMD source tree",
     "howto/wavefunction-optimiser.org:2": "an OpenCPMD source tree",
     "reference/feature-inventory.org:2": "an OpenCPMD source tree",
-    "tutorials/eon-rgpot.org:3": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
-    "tutorials/eon-rgpot.org:5": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
+    "tutorials/eon-rgpot.org:7": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
+    "tutorials/eon-rgpot.org:8": "transcript of an OpenCPMD run with eonclient",
+    "tutorials/eon-rgpot.org:10": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
     "tutorials/first-energy.org:10": "an OpenCPMD build",
     "tutorials/first-energy.org:11": "the OpenCPMD pseudopotentials",
     "tutorials/first-energy.org:12": "an OpenCPMD build and pseudopotentials",
@@ -128,10 +130,22 @@ SKIP = {
     "reference/cpmd-options.org:0": "re-runs the inventory suite",
     "reference/feature-inventory.org:1": "re-runs the inventory suite",
     "tutorials/ase-energy.org:1": "expected transcript",
+    "tutorials/eon-rgpot.org:0": "installs Eigen with pixi global",
+    "tutorials/eon-rgpot.org:1": "sets the environment of the eonclient build",
+    "tutorials/eon-rgpot.org:2": "clones and builds rgpot",
+    "tutorials/eon-rgpot.org:3": "clones and builds eOn",
+    "tutorials/eon-rgpot.org:11": "error transcript, not a command",
     "tutorials/first-energy.org:0": "clones the repository",
     "tutorials/first-energy.org:1": "opens a pixi shell outside the checkout",
     "tutorials/first-energy.org:6": "expected transcript",
     "tutorials/first-energy.org:9": "expected transcript",
+}
+
+# key -> the other project whose meson setup the block runs. Its -D options
+# are that project's, so they are not checked against meson_options.txt.
+OTHER_MESON_PROJECT = {
+    "tutorials/eon-rgpot.org:2": "rgpot",
+    "tutorials/eon-rgpot.org:3": "eOn",
 }
 
 # C fragments: hoisted includes, then the body inside a function after PRELUDE.
@@ -189,10 +203,10 @@ RUN = {
     "howto/write-cpmdparams.org:2",
     "reference/cpmd-options.org:1",
     "tutorials/ase-energy.org:0",
-    "tutorials/eon-rgpot.org:0",
-    "tutorials/eon-rgpot.org:1",
-    "tutorials/eon-rgpot.org:2",
     "tutorials/eon-rgpot.org:4",
+    "tutorials/eon-rgpot.org:5",
+    "tutorials/eon-rgpot.org:6",
+    "tutorials/eon-rgpot.org:9",
     "tutorials/first-energy.org:2",
     "tutorials/first-energy.org:3",
     "tutorials/first-energy.org:4",
@@ -310,7 +324,7 @@ class Tree:
                     return f"path {candidate} does not exist"
         return None
 
-    def problems(self, body: str) -> list[str]:
+    def problems(self, body: str, own_meson: bool = True) -> list[str]:
         found = []
         text = body.replace("\\\n", " ")
         loops = {
@@ -337,7 +351,8 @@ class Tree:
                     except ValueError as exc:
                         found.append(f"--species {tokens[index + 1]!r}: {exc}")
             for start in [i for i, t in enumerate(tokens) if t == "meson"]:
-                found += self.meson_problems(tokens[start + 1 :])
+                if own_meson:
+                    found += self.meson_problems(tokens[start + 1 :])
             for start in [i for i, t in enumerate(tokens) if t == "pixi"]:
                 found += self.pixi_problems(tokens[start + 1 :])
         return found
@@ -498,7 +513,7 @@ def classify(found: dict[str, Block]) -> list[str]:
     known = set().union(*buckets)
     for key in sorted(set(found) - known):
         errors.append(f"unclassified docs block: {key}")
-    for key in sorted(known - set(found)):
+    for key in sorted((known | set(OTHER_MESON_PROJECT)) - set(found)):
         errors.append(f"classified block does not exist: {key}")
     for index, bucket in enumerate(buckets):
         for other in buckets[index + 1 :]:
@@ -527,7 +542,8 @@ def main() -> int:
     tree = Tree(root, build)
     for key, block in sorted(found.items()):
         if block.lang in SHELL:
-            errors += [f"{key}: {problem}" for problem in tree.problems(block.body)]
+            own = key not in OTHER_MESON_PROJECT
+            errors += [f"{key}: {problem}" for problem in tree.problems(block.body, own)]
     if errors:
         return fail("\n".join(errors))
 
@@ -624,24 +640,24 @@ def main() -> int:
                 return fail(f"first-energy example mismatch ({why}):\n" + out)
 
             shell(
-                "tutorials/eon-rgpot.org:0",
-                found["tutorials/eon-rgpot.org:0"].body,
+                "tutorials/eon-rgpot.org:4",
+                found["tutorials/eon-rgpot.org:4"].body,
                 work,
                 env,
             )
             eon = work / "eon-water"
-            (eon / "pos.con").write_text(found["tutorials/eon-rgpot.org:1"].body + "\n", encoding="utf-8")
-            (eon / "config.ini").write_text(found["tutorials/eon-rgpot.org:2"].body + "\n", encoding="utf-8")
+            (eon / "pos.con").write_text(found["tutorials/eon-rgpot.org:5"].body + "\n", encoding="utf-8")
+            (eon / "config.ini").write_text(found["tutorials/eon-rgpot.org:6"].body + "\n", encoding="utf-8")
             from ase.io import read
 
             symbols = read(eon / "pos.con", format="eon").get_chemical_symbols()
             if symbols != ["O", "H", "H"]:
-                return fail(f"tutorials/eon-rgpot.org:1 reads as {symbols}")
+                return fail(f"tutorials/eon-rgpot.org:5 reads as {symbols}")
             config = configparser.ConfigParser()
             config.read(eon / "config.ini")
             if not (eon / config["RgpotPot"]["params_path"]).is_file():
-                return fail("tutorials/eon-rgpot.org:2 params_path names no file in eon-water")
-            shell("tutorials/eon-rgpot.org:4", found["tutorials/eon-rgpot.org:4"].body, eon, env)
+                return fail("tutorials/eon-rgpot.org:6 params_path names no file in eon-water")
+            shell("tutorials/eon-rgpot.org:9", found["tutorials/eon-rgpot.org:9"].body, eon, env)
 
             quick = found["tutorials/quickstart.org:4"].body.replace("tutorial-work", tmp)
             shell("tutorials/quickstart.org:4", quick, root, env)
