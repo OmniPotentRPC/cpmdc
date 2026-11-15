@@ -36,6 +36,19 @@ A scalar message with a positive cell is periodic.
 Put ~poissonSolver = "HOCKNEY"~ or ~symmetry = 0~ in the message when the
 molecule is isolated.
 
+** The energy of a cluster depends on where its atoms are
+*Cause:* ~CPMDC_RECENTER=off~ on an isolated deck.
+The deck's cell has its origin at a corner and a fixed size, so atoms near a
+face, or outside the cell, put density across the face: the energy moves,
+by up to 8e-2 Hartree for one water, the forces gain a net force, and a virial built from ~sum x (x) f~ shifts by
+the position times that force.
+
+*Fix:* leave ~CPMDC_RECENTER~ unset (~mass~), or set it to ~geometry~, which
+moves the atoms to the middle of the cell on each call.
+Set ~CPMDC_RECENTER_MARGIN~ to the clearance the density needs, for example
+3 Angstrom, to make a cell that is too small for the region fail instead
+(see [[file:../reference/environment.org][environment variables]]).
+
 ** The energy changes when only the cell changes
 *Cause:* a cell that differs from the previous call's cell makes the next call
 cold: ~cpmdc~ clears the stored orbitals and runs CPMD's full setup again.

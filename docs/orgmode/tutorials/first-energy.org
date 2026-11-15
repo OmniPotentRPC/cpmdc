@@ -251,23 +251,26 @@ The program prints the energy and forces last:
 cpmdc/0.4.0 available=1
  ...
  NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
-   1  4.085E-02   5.186E-03     -16.731427    0.000E+00      0.65
+   1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58
  ...
-  13  4.451E-06   6.419E-07     -17.055717   -1.354E-08      0.61
+  13  4.114E-06   6.390E-07     -17.055834   -1.331E-08      0.58
  ...
- (K+E1+L+N+X)           TOTAL ENERGY =          -17.05571670 A.U.
+ (K+E1+L+N+X)           TOTAL ENERGY =          -17.05583351 A.U.
  ...
-energy_h=-17.05571670
-force[0] =   0.000000   0.000000   0.022496
-force[1] =  -0.000000   0.012514  -0.011962
-force[2] =   0.000000  -0.012514  -0.011962
+energy_h=-17.05583351
+force[0] =   0.000000   0.000000   0.023856
+force[1] =  -0.000000   0.012501  -0.011928
+force[2] =  -0.000000  -0.012501  -0.011928
 #+end_src
 # [[[end]]]
 
-The SCF reached -17.05571670 Hartree at iteration 13.
+The SCF reached -17.05583351 Hartree at iteration 13.
 The forces are those of an off-equilibrium water geometry: zero along ~x~,
 the direction normal to the molecular plane, and mirror-symmetric in ~y~.
-The ~x~ components round to zero at six decimals, and one keeps its minus sign.
+The ~x~ components round to zero at six decimals, and two keep their minus sign.
+They also sum to zero: cpmdc moves the molecule to the middle of its isolated
+cell before each evaluation and removes the net force the fixed cell would
+otherwise add (see [[file:../reference/environment.org][CPMDC_RECENTER]]).
 The iteration timings in the ~TCPU~ column depend on the machine.
 
 * What you built

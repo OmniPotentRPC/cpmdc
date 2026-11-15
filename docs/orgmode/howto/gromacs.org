@@ -208,8 +208,14 @@ step, nearest image, so each follows a continuous path and wavefunction
 extrapolation sees smooth steps.
 With ~CELL NONE~ the first step also puts every QM atom at the nearest image
 of the first one, so the QM region starts whole.
-With ~CELL NONE~ the QM region keeps its absolute position, so it must stay
-inside the deck's cell; the library does not recentre it.
+With ~CELL NONE~ cpmdc moves the QM region to the middle of the deck's
+cell on every step, by its centre of mass, and removes the net force the
+cell would leave (~CPMDC_RECENTER~ in
+[[file:../reference/environment.org][environment variables]]), so the QM
+energy and forces do not depend on where the region has diffused to.
+The cell must still hold the region with room for its density;
+~CPMDC_RECENTER_MARGIN~ makes a step fail when an atom comes closer to a
+face than that.
 
 * Embedding
 GROMACS' CP2K interface assumes electrostatic embedding: grompp zeroes the
@@ -278,10 +284,12 @@ for a symmetric strain that moves every atom with the box:
 - ~CELL PERIODIC~: cpmdc's stress for the cell, from
   ~cpmdc_session_calculate_au()~;
 - ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms. The
-  deck's cell stays put while the QM atoms move with the box. That fixed
-  cell leaves a small net force and torque on the QM atoms (0.07 eV/Angstrom
-  on OpenCPMD's Hockney water), and a symmetric strain does not see the
-  antisymmetric part;
+  QM forces sum to zero, since cpmdc removes the net force of the isolated
+  cell, so the sum does not depend on the origin of ~x~. Without that
+  (~CPMDC_RECENTER=off~) a QM region at ~X~ with net force ~F~ adds
+  ~X (x) F~, which grows as the region drifts and as the barostat scales
+  it away from the origin. The grid still leaves a small torque, and a
+  symmetric strain does not see the antisymmetric part;
 - ~EMBEDDING MECHANICAL~ with a box: plus the strain derivative of the
   QM-MM Ewald sum, its real-space, reciprocal, and background terms.
 
@@ -313,9 +321,9 @@ Two cautions:
   cutoff, so the plane-wave basis changes with the box. OpenCPMD's stress is
   the derivative at a fixed basis and has no Pulay correction, so converge
   the cutoff for the stress, not only the energy, before a periodic NPT run;
-- with ~CELL NONE~ the QM region keeps its absolute position in the deck's
-  cell, and the barostat scales coordinates about the origin, so leave room
-  around the QM region for the box to shrink.
+- with ~CELL NONE~ the deck's cell has to hold the QM region and its
+  density, not the region's path: cpmdc centres the region in it on each
+  step.
 
 * Several ranks
 A thread-MPI GROMACS runs QM/MM on one rank, ~-ntmpi 1~, and calls
@@ -648,12 +656,27 @@ from the centre of the 1 nm cluster cell it started at and 0.2 nm from its
 face, unless it crossed a face of the box, and its nearest oxygens 0.294,
 0.314 and 0.334 nm away, against 0.261 and 0.263 for the same water in the
 control.
-With ~CELL NONE~ the library keeps the QM region's absolute position, and
-a water diffuses half a nanometre or more in 15 ps, so a longer run of
-this setup takes the QM water to the edge of its cell; these runs do not
-show whether the expansion comes from that or from the BLYP water itself.
-A density of a BLYP water in TIP3P needs a QM region that stays inside its
-cell for the whole run.
+These runs predate the recentring of isolated decks: the library kept the
+QM region's absolute position in its cell, and a water diffuses half a
+nanometre or more in 15 ps.
+~bench/cluster_drift_scan.py~ moves a BLYP water towards a face of the
+deck's 10 Angstrom Hockney cell; ~bench/results/cluster_drift_scan.org~
+has the tables.
+On the library of these runs the energy moves by -3.9e-5 Hartree with the
+outer hydrogen 3 Angstrom from the face, -2.8e-4 at 1 Angstrom, +5.0e-4 at
+0.5 Angstrom and -8.4e-3 at 0.5 Angstrom past it, where the net force is
+0.17 Hartree/Bohr.
+The trace of ~sum x (x) f~ goes from +0.049 Hartree at the centre to
++0.093 at 1 Angstrom and -0.099 at 0.5 Angstrom; the 0.19 Hartree between
+those two is 1300 bar on a 2.1 nm^3 box, against the -12 +- 15 bar of the
+control, and past the face it is +3.2 Hartree.
+The barostat scales coordinates about the origin, so a growing box also
+moves a QM water that is off the origin towards a face.
+With recentring every one of those positions gives the energy of the
+centred water to 1.1e-14 Hartree and its forces to 3.4e-14 Hartree/Bohr,
+the forces sum to zero, and the trace is 0.062214 Hartree at all of them.
+The expansion of the QM run is therefore not evidence about the BLYP
+water; the 15 ps C-rescale run has not been repeated with recentring.
 
 *** 2 ps runs
 One run of each system, C-rescale, 4000 steps (2 ps), the QM water on 4

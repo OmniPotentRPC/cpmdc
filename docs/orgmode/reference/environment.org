@@ -11,6 +11,8 @@
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
+| ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ keeps the caller's coordinates; any other value fails the call |
+| ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
 
 The first call of an OpenCPMD session fails when neither
@@ -35,6 +37,33 @@ The pseudopotential directory is left unchanged.
 and forces, and the stress snapshot stays invalid.
 Isolated cells never compute stress, whatever the variable says, and the
 snapshot stays invalid for them even when the box volume is positive.
+
+An isolated deck (~SYMMETRY 0~, a Poisson solver, ~CLUSTER~, ~SURFACE~ or
+~POLYMER~) holds the density on a box of fixed size with its origin at a
+corner, so a host whose atoms drift towards a face, or leave the box, puts
+density across that face.
+With ~CPMDC_RECENTER~ at ~mass~ or ~geometry~ the energy is that of the
+atoms moved to the middle of the box, a function of their relative
+positions only, and the forces are its gradient with respect to the
+caller's coordinates: the net force the grid leaves is projected out, the
+fraction of it each atom carries given by its weight in the centre.
+Energy, forces and ~sum_i x_i (x) f_i~ then do not change when the caller
+translates every atom.
+On one BLYP water in the 10 Angstrom Hockney box with ~off~, a hydrogen
+0.5 Angstrom from a face raises the energy by 5.0e-4 Hartree, a hydrogen
+0.5 Angstrom past it lowers it by 8.4e-3 Hartree with a net force of
+0.17 Hartree/Bohr, and the water about the corner lowers it by
+7.9e-2 Hartree; with ~mass~ all of these give the energy of the centred
+molecule to 1.1e-14 Hartree (~bench/results/cluster_drift_scan.org~).
+A slab (~SURFACE~) moves only along its normal and a wire (~POLYMER~) only
+across its axis.
+Warm-start distances and stored orbitals use the moved coordinates; the
+caller's arrays are not changed.
+A periodic deck is not moved.
+The margin applies with ~off~ too, so by default an atom outside the cell
+fails the call instead of running with density across a face;
+~CPMDC_RECENTER_MARGIN=-1~ lets it run, as releases before the recentring
+did.
 
 ~CPMDC_SCF_STEPS=1~ writes one line, ~cpmdc_scf_steps N~, for each SCF that
 returns.

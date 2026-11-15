@@ -221,6 +221,10 @@ A later step with a different count or composition fails with ~topology change
 requires a new session~ before CPMD runs.
 A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
+cell before each evaluation and the net force is removed, so a rigid
+translation of every atom changes neither the energy nor the forces (see
+~CPMDC_RECENTER~ in [[file:environment.org][environment variables]]).
 An evaluation with the same positions returns the stored energy and forces.
 A session evaluated after another session in the same process reuses the
 stored orbitals when the functional, deck, cutoff, cell, charge, multiplicity,
