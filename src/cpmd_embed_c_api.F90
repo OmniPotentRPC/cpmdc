@@ -397,12 +397,17 @@ CONTAINS
   FUNCTION cpmdc_embed_teardown() RESULT(ok) BIND(C, NAME='cpmdc_embed_teardown')
 #if defined(CPMDC_HAS_CPMD)
     USE embed_teardown, ONLY: embed_teardown_state
+    USE rmas, ONLY: rmass, rmass_t
 #endif
     INTEGER(c_int) :: ok
     ok = 1_c_int
 #if defined(CPMDC_HAS_CPMD)
     IF (.NOT. cpmd_set_up) RETURN
     CALL embed_teardown_state()
+    ! The pseudopotential readers set a species mass only while it is zero,
+    ! so the next deck's species would keep this deck's masses, and the
+    ! centre of mass of embed_recentre_cluster would be wrong.
+    rmass = rmass_t()
     CALL clear_embed_basis_latch()
     cpmd_set_up = .FALSE.
 #endif
