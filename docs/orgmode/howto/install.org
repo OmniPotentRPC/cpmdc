@@ -39,7 +39,7 @@ Without Pixi, install the same set from your package manager:
 | C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
 | pkg-config | 2.5.1 or newer | dependency lookup |
 | Python 3 | 3.10 or newer | build helpers and tests |
-| ASE, pytest | ASE 3.23 or newer, pytest 7 or newer, from pip | the ~python-api~ and ~python-pytest~ tests |
+| ASE, pytest, i-PI | ASE 3.23 or newer, pytest 7 or newer, i-PI 3.3 or newer | the ~python-api~ and ~python-pytest~ tests |
 | cmocka | 1.1.7 or newer | ~-Dwith_tests=true~ |
 | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | ~-Dwith_cpmd=true~ |
 | FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
