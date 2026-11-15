@@ -25,6 +25,10 @@ The tests use it to check the ABI without a working evaluator.
 | pkg-config files | ~cpmdc.pc~, ~cpmdc-restart.pc~ | compiler and linker flags |
 | CMake package | ~cpmdcConfig.cmake~ | imported target ~cpmdc::cpmdc~ |
 
+The optional tools (~cpmdc-ipi-c~, the LAMMPS plugin, and ~libcpmdc_gromacs~)
+are listed with the options that build them in the
+[[file:../reference/build-options.org][build reference]].
+
 ~MAJOR~ is the soversion, the first field of ~version.txt~.
 
 * Requirements
@@ -75,19 +79,8 @@ meson compile -C build
 meson test -C build --print-errorlogs
 #+end_src
 
-* Meson options
-
-| Option | Type | Default | Effect |
-|--------+------+---------+--------|
-| ~with_tests~ | boolean | ~true~ | build the cmocka suites, contract checks, and ~example_host_step~ |
-| ~with_cpmd~ | boolean | ~false~ | link OpenCPMD instead of the reference evaluator |
-| ~cpmd_root~ | string | empty | OpenCPMD build tree holding ~lib/libcpmd.a~, ~obj/~, and ~src/~ |
-| ~with_mpi~ | feature | ~auto~ | link MPI into the default library; ~disabled~ keeps it serial. ~with_cpmd~ always needs MPI |
-| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it |
-
-~with_cpmd=true~ only takes effect together with a non-empty ~cpmd_root~.
-Configuration stops when ~DIR/lib/libcpmd.a~ or ~DIR/obj/timetag.o~ is missing.
-OpenCPMD keeps ~timetag~ outside the archive, and ~header~ calls it.
+The [[file:../reference/build-options.org][build reference]] lists every
+Meson option, installed artifact, and Pixi task.
 
 * Build against OpenCPMD
 The OpenCPMD archive needs the patches in ~tools/~ and position-independent
@@ -101,8 +94,15 @@ meson setup build-cpmd \
   -Dcpmd_root="$CPMD_ROOT" \
   -Dwith_tests=true
 meson compile -C build-cpmd
+export CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY
 meson test -C build-cpmd --print-errorlogs
 #+end_src
+
+Configuration stops when ~$CPMD_ROOT/lib/libcpmd.a~ or
+~$CPMD_ROOT/obj/timetag.o~ is missing.
+The live tests run OpenCPMD, which reads the pseudopotentials from
+~CPMDC_PSEUDO_DIR~ (see the [[file:../reference/environment.org][environment
+reference]]).
 
 The link uses the MPI Fortran dependency, OpenBLAS (or LAPACK and BLAS when
 OpenBLAS is absent), FFTW3 when found, ~libgfortran~, and ~libquadmath~.
@@ -161,21 +161,11 @@ The same build from a checkout:
 pip install ".[ase]"
 #+end_src
 
-* Pixi tasks
+* Build the docs
+#+begin_src bash
+pixi run -e docs docbld
+#+end_src
 
-| Task | Environment | Runs |
-|------+-------------+------|
-| ~test-stub~ | default | configure ~build/~, compile, full Meson suite |
-| ~test-cmocka~ | default | the ~cmocka~ suite only |
-| ~test-e2e~ | default | the ~e2e~ suite only (single point and optimizer session) |
-| ~test-stub-sanitize~ | default | full suite in ~build-sanitize/~ under AddressSanitizer and UndefinedBehaviorSanitizer |
-| ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
-| ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |
-| ~lychee~ | default | link check over README, ~docs/orgmode~, and news fragments |
-| ~release-assert~, ~version-sync~, ~towncrier-draft~, ~release-cog-dry~ | default | release metadata checks, and ~version.txt~ copies |
-| ~mkrst~ | ~docs~ | export ~docs/orgmode~ to ~docs/source~ RST |
-| ~doxybuild~ | ~docs~ | Doxygen XML and Doxyrest pages for the public headers |
-| ~sphinxbld~, ~docbld~ | ~docs~ | ~mkrst~, ~doxybuild~, then the Sphinx HTML site in ~docs/build~ |
-
-Run a docs task with ~pixi run -e docs docbld~.
+The [[file:../reference/build-options.org][build reference]] lists the other
+Pixi tasks.
 The published site is [[https://cpmdc.rgoswami.me][cpmdc.rgoswami.me]].

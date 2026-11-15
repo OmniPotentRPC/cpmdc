@@ -63,6 +63,15 @@ def main() -> int:
     failures.extend(
         reject_text(root / "docs/orgmode/tutorials/quickstart.org", ["green Meson"])
     )
+    readme_text = readme.read_text(encoding="utf-8")
+    base = root / "docs" / "orgmode"
+    for page in sorted(base.rglob("*.org")):
+        rel = page.relative_to(root).as_posix()
+        # changelog.org wraps CHANGELOG.md, which the README links itself.
+        if page.name in ("index.org", "changelog.org") and page.parent == base:
+            continue
+        if f"]({rel})" not in readme_text:
+            failures.append(f"README.md Documentation does not link {rel}")
     if failures:
         print("\n".join(failures), file=sys.stderr)
         return 1

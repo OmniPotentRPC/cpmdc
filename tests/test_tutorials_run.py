@@ -98,12 +98,12 @@ def first_energy(root: Path, library_dir: Path) -> int:
     return 0
 
 
-def quickstart(root: Path) -> int:
+def build_and_test(root: Path) -> int:
     text = (root / "docs/orgmode/tutorials/quickstart.org").read_text(encoding="utf-8")
     bash = [block for block in blocks(text, "bash") if "capnp encode" in block]
     if not bash:
-        return fail("quickstart has no capnp encode example")
-    with tempfile.TemporaryDirectory(prefix="cpmdc-quick-") as tmp:
+        return fail("the build-and-test how-to has no capnp encode example")
+    with tempfile.TemporaryDirectory(prefix="cpmdc-build-test-") as tmp:
         script = bash[0].replace("tutorial-work", tmp)
         proc = subprocess.run(
             ["bash", "-c", script],
@@ -116,7 +116,7 @@ def quickstart(root: Path) -> int:
         if proc.returncode != 0:
             return fail(proc.stderr)
         if not Path(tmp, "cpmd_params.bin").is_file() or not Path(tmp, "force_input.bin").is_file():
-            return fail("quickstart encode did not write both messages")
+            return fail("the build-and-test encode did not write both messages")
     return 0
 
 
@@ -170,7 +170,7 @@ def main() -> int:
     schema = root / "schema" / "Potentials.capnp"
     for step in (
         lambda: first_energy(root, library_dir),
-        lambda: quickstart(root),
+        lambda: build_and_test(root),
         lambda: python_examples(root, library, params, schema),
     ):
         status = step()

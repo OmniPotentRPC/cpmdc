@@ -125,6 +125,15 @@ A different elemental composition runs setup.
 
 *Fix:* allocate ~cpmdc_potential_result_size_for_force_input()~ bytes.
 
+** ~invalid ForceInput result units~
+*Cause:* the ~lengthUnit~ or ~energyUnit~ of the ~ForceInput~ is not a unit
+string ~cpmdc~ knows.
+The call fails before it evaluates.
+
+*Fix:* use one of the unit strings of the [[file:../reference/c-abi.org][C ABI
+reference]], such as ~angstrom~, ~bohr~, ~eV~, or ~hartree~; case does not
+matter.
+
 ** ~CPMD embed not available~
 *Cause:* the library was finalized with ~cpmdc_finalize()~, or the session
 could not apply its configuration.
@@ -187,6 +196,14 @@ ranks still running when one exits without ~MPI_Finalize~.
 
 *Fix:* apply ~opencpmd_embed_rwfopt.patch~,
 then rebuild with ~tools/rebuild_opencpmd_embed.sh~.
+
+** ~capnp encode~ rejects a message
+*Cause:* the text names a field that is not in the schema, or it is encoded
+against the wrong root type.
+
+*Fix:* encode against ~schema/Potentials.capnp~ with the root type the text
+holds, ~CPMDParams~ or ~ForceInput~; the error names the field it could not
+find.
 
 ** CPMD cannot find ~O_MT_BLYP.psp~
 *Cause:* the pseudopotential directory is not set.

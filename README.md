@@ -143,7 +143,7 @@ For a complete mapping table, see
 | Library status | `cpmdc_version`, `cpmdc_abi_version`, `cpmdc_available`, `cpmdc_finalize`, `cpmdc_last_error` |
 | PotentialConfig setup | `cpmdc_configure`, `cpmdc_session_create_from_config`, `cpmdc_session_configure` |
 | Post-SCF energy decomposition (`ener_com`, Hartree) | `cpmdc_last_energy_components` |
-| Periodic-cell stress (Hartree/Bohr\u00b3) | `cpmdc_last_stress` |
+| Periodic-cell stress (Hartree/Bohr³) | `cpmdc_last_stress` |
 | Charge integrals / multi-state / MD row / PROP snapshot | `cpmdc_last_charge_integrals`, `cpmdc_last_multi_state_energies`, `cpmdc_last_md_trajectory_row`, `cpmdc_last_property_snapshot` |
 | The same results for one session, after other sessions ran | `cpmdc_session_last_energy_components`, `cpmdc_session_last_stress`, `cpmdc_session_last_charge_integrals`, `cpmdc_session_last_multi_state_energies`, `cpmdc_session_last_md_trajectory_row`, `cpmdc_session_last_property_snapshot` |
 | Feature discovery | `cpmdc_feature_count`, `cpmdc_feature_table`, `cpmdc_feature_find` |
@@ -301,7 +301,7 @@ table, renderer, README, and reference docs aligned:
 | `cpmd-embedding-docs-coverage` | embedding docs name the public ABI feature IDs plus typed, long-tail, and escape-hatch `CPMDParams` carriers |
 | `cpmd-public-header-docs-coverage` | generated C API docs keep the public header tied to the serialized `CPMDParams` input surface |
 | `examples-documented` | public docs point to the runnable `examples/host_step.c` host program |
-| `readme-navigation` | README and quickstart docs keep clear entry paths, work-loop labels, and current wording |
+| `readme-navigation` | README and the build-and-test how-to keep clear entry paths, work-loop labels, and current wording |
 
 Run the focused inventory group with:
 
@@ -395,32 +395,43 @@ The published site is [cpmdc.rgoswami.me](https://cpmdc.rgoswami.me).
 
 Read the docs in this order:
 
-- [First energy and forces](docs/orgmode/tutorials/first-energy.org): a C
-  host from the default build to a real OpenCPMD energy
-- [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org): a minimisation
+- Tutorials: [first energy and forces](docs/orgmode/tutorials/first-energy.org),
+  a C host from the default build to a real OpenCPMD energy;
+  [an energy and forces from ASE](docs/orgmode/tutorials/ase-energy.org);
+  [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org), a minimisation
   driven by eOn with a `CPMDParams` file
-- [Quickstart](docs/orgmode/tutorials/quickstart.org): build, tests, and common
-  environment failures
 - How-tos: [install and build](docs/orgmode/howto/install.org),
+  [build and test cpmdc](docs/orgmode/tutorials/quickstart.org),
   [OpenCPMD archive](docs/orgmode/howto/opencpmd-archive.org),
   [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
   [embedding cpmdc](docs/orgmode/howto/embedding.org),
+  [call cpmdc from Python](docs/orgmode/howto/python.org),
   [drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org),
+  [run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org),
+  [run GROMACS on cpmdc forces](docs/orgmode/howto/gromacs.org),
   [run under mpirun](docs/orgmode/howto/mpi.org),
   [choose the wavefunction optimiser](docs/orgmode/howto/wavefunction-optimiser.org),
+  [extrapolate the orbitals](docs/orgmode/howto/extrapolate-orbitals.org),
   [debug a deck](docs/orgmode/howto/debug-deck.org),
+  [check forces and stress](docs/orgmode/howto/check-forces.org),
+  [time the plane-wave scaffold](docs/orgmode/howto/pwscale-ranks.org),
   [troubleshooting](docs/orgmode/howto/troubleshooting.org)
 - Reference: [C ABI](docs/orgmode/reference/c-abi.org),
+  [Python API](docs/orgmode/reference/python.org),
   [environment variables](docs/orgmode/reference/environment.org),
+  [build options, artifacts, and Pixi tasks](docs/orgmode/reference/build-options.org),
   [CPMDParams fields](docs/orgmode/reference/cpmdparams-schema.org),
   [CPMD option mapping](docs/orgmode/reference/cpmd-options.org),
   [feature inventory](docs/orgmode/reference/feature-inventory.org),
+  [public C surface map](docs/orgmode/reference/surface-map.org),
   [glossary](docs/orgmode/reference/glossary.org)
 - Explanation: [architecture](docs/orgmode/explanation/architecture.org),
   [file route against in-process route](docs/orgmode/explanation/routes.org),
   [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
   [MPI model](docs/orgmode/explanation/mpi-model.org),
   [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)
+- [Contributing](docs/orgmode/contributing/index.org): the checks behind each
+  contract, and the [release checklist](docs/orgmode/contributing/developer/release.org)
 
 Build the documentation site with:
 

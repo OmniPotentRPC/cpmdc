@@ -42,7 +42,7 @@ public change:
 | Embedding docs coverage | ~meson test -C build cpmd-embedding-docs-coverage --print-errorlogs~ |
 | Public header docs coverage | ~meson test -C build cpmd-public-header-docs-coverage --print-errorlogs~ |
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
-| README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
+| README and build-and-test navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
 | Every README and Org code block runs, compiles, or names why not | ~meson test -C build docs-examples --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
@@ -88,7 +88,7 @@ carrier IDs used by host authors.
 API docs to describe the serialized ~CPMDParams~ input surface.
 ~examples-documented~ requires public docs to point at the runnable
 ~examples/host_step.c~ host program. ~readme-navigation~ keeps the README and
-quickstart docs focused on entry paths, work-loop labels, and current wording.
+build-and-test how-to focused on entry paths, work-loop labels, and current wording.
 ~reference-contract~ requires every function, type, enum constant, and macro
 of ~cpmdc.h~, ~cpmdc_features.h~, and ~cpmdc_restart.h~ in the
 [[file:../reference/c-abi.org][C ABI reference]], each function with its parameter list in
