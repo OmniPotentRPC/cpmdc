@@ -104,6 +104,105 @@ Every shell block, run or not, must name meson options, pixi tasks, meson
 tests and suites, repository paths, and build outputs that exist.
 A new block fails the test until it is classified.
 
+* GROMACS tests
+~tests/python/test_gromacs.py~ runs under Meson's ~python-pytest~.
+Without GROMACS it still checks the library through ~ctypes~:
+
+- the unit factors against GROMACS' ~units.h~;
+- the energy and forces of the whole system against ~CPMDCCalculator~ to
+  1e-10, in a cubic and a triclinic box;
+- unwrapping across the boundary, and the whole QM region with ~CELL NONE~;
+- the mechanical embedding against an independent NumPy Ewald sum in a
+  cubic and a triclinic box, its convergence with the precision, a finite
+  difference of its forces, and the direct sum without a box;
+- the stress of ~cp2k_get_stress_tensor()~, as ASE's stress: with
+  ~CELL PERIODIC~ against ~CPMDCCalculator~ to 1e-13 and ASE's central
+  difference under a 1e-6 strain of the cell to 1e-8 of its largest
+  element; with ~CELL NONE~, with and without the mechanical embedding,
+  against the same difference of the library's own energy; each in a cubic
+  and a triclinic box, and the box of GROMACS 2026 read the same as that of
+  2024;
+- no stress without a box or for an isolated periodic deck;
+- the error for each refused input.
+
+With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and
+~mdrun~:
+
+- one step of two QM waters, the whole system, in a cubic and a triclinic
+  box: ~Quantum En.~ against ~CPMDCCalculator~ to 1e-10 relative and equal
+  to ~Potential~, and the forces to 1e-10 relative, read with
+  ~gmx energy -dp~ and from the double-precision ~.trr~;
+- one QM water among three MM waters with PME: ~Quantum En.~ and the QM
+  atom forces against the reference evaluator plus the NumPy Ewald sum;
+- 2000 NVE steps of each system: the total energy stays within 2e-3 and
+  5e-3 of the swing of the potential energy;
+- the virial and pressure of step 0 from rest with ~md-vv~, two QM waters
+  in a cubic and a triclinic box: ~Vir~ equals ~0.5 V sigma~ of
+  ~CPMDCCalculator~'s ASE stress to 1e-9 relative, and ~Pres~ equals
+  ~-sigma~;
+- one QM water among three MM waters with PME, in a cubic and a triclinic
+  box: each element of ~Vir~ equals half the central difference of
+  ~Potential~ under a 1e-5 strain of the box and positions, to 1e-8 of its
+  largest element, so the QM, QM-MM, and classical terms all enter it;
+- generated input, ~EMBEDDING ELECTROSTATIC~, and charged MM atoms without
+  an embedding each stop ~mdrun~ with the reason.
+
+With ~gmx_mpi_d~ from ~CPMDC_GMX_MPI~, a double-precision GROMACS built
+with ~-DGMX_MPI=ON~, launched by ~CPMDC_MPIEXEC~ (default ~mpiexec~):
+
+- 20 NVE steps of 64 waters in a 2.4 nm box, one of them QM with its atoms
+  across the periodic boundary in x and y, on 2 and 4 ranks with
+  ~QM_RANKS ALL~ and on 4 with ~QM_RANKS 1~: ~Quantum En.~, ~Potential~
+  and ~Total Energy~ of every step and the positions and forces of steps 0,
+  10 and 20 match the one-rank run to 1e-10, and the virial and pressure
+  of every step to 1e-9 of their largest element, so the QM virial enters
+  once. The pair list is rebuilt every step without a buffer
+  (~nstlist = 1~, ~verlet-buffer-tolerance = -1~), so that every
+  decomposition sees the same pairs;
+- ~-npme 1~ stops ~mdrun~ with GROMACS' refusal of separate PME ranks.
+
+~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an
+installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~.
+
+The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 three ways and fails if any
+of its tests skips:
+
+| Route | GROMACS | Tests |
+|-------+---------+-------|
+| ~build~ | thread-MPI, against ~build/tools/gromacs~ | the one-rank tests and the Meson suite |
+| ~installed~ | thread-MPI, against the ~libcp2k.pc~ of ~meson install~ into ~build/prefix~ | the same, with ~libcpmdc~ and ~libcpmdc_gromacs~ from the prefix |
+| ~mpi~ | ~-DGMX_MPI=ON~ with the Open MPI of the pixi environment | the domain decomposition tests |
+
+The reference evaluator of a build without OpenCPMD is a well about the
+origin.
+Two consequences show in the tests: the mdp sets ~comm-mode = None~,
+because removing the centre-of-mass motion of a system with a net external
+force takes energy out of NVE, and the QM/MM NVE run gives the QM hydrogens
+a small Lennard-Jones repulsion, because the well does not bind them to
+their oxygen.
+An OpenCPMD energy needs neither.
+
+* LAMMPS tests
+~tests/python/test_lammps.py~ runs both routes under Meson's ~python-pytest~
+and checks:
+
+- energy, forces, and virial against ~CPMDCCalculator~ to 1e-10, in a cubic
+  and a triclinic box and without a cell, under ~metal~, ~real~, and
+  ~electron~;
+- each of the six virial components against a central difference of the
+  energy under strain on the triclinic box;
+- the type-to-element map, unwrapping across the boundary, and ~press~
+  against the virial trace;
+- energy drift of a short NVE run and of the extended energy of an NPT run;
+- the error for each refused input and a failed step;
+- two ranks against one, under ~mpiexec~.
+
+The module skips with a reason when the ~lammps~ module cannot start, and
+the plugin cases skip when ~cpmdcplugin.so~ is not built.
+The reference evaluator of a build without OpenCPMD is a harmonic well
+about the origin, which is not translation invariant; NPT runs on it need
+~fixedpoint 0 0 0~, which an OpenCPMD energy does not.
+
 * Add a typed CPMD keyword
 Use a typed field when a CPMD control has stable structure, affects ordinary
 host inputs, or should be discoverable through ~cpmdc_feature_find()~. Use

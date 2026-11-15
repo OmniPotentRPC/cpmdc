@@ -418,6 +418,8 @@ Read the docs in this order:
   [troubleshooting](docs/orgmode/howto/troubleshooting.org)
 - Reference: [C ABI](docs/orgmode/reference/c-abi.org),
   [Python API](docs/orgmode/reference/python.org),
+  [GROMACS interface](docs/orgmode/reference/gromacs.org),
+  [LAMMPS interface](docs/orgmode/reference/lammps.org),
   [environment variables](docs/orgmode/reference/environment.org),
   [build options, artifacts, and Pixi tasks](docs/orgmode/reference/build-options.org),
   [CPMDParams fields](docs/orgmode/reference/cpmdparams-schema.org),
@@ -429,6 +431,8 @@ Read the docs in this order:
   [file route against in-process route](docs/orgmode/explanation/routes.org),
   [wavefunction state](docs/orgmode/explanation/wavefunction-state.org),
   [MPI model](docs/orgmode/explanation/mpi-model.org),
+  [cpmdc inside MD engines](docs/orgmode/explanation/md-engines.org),
+  [how the OpenCPMD patches work](docs/orgmode/explanation/opencpmd-patches.org),
   [SIMD paths and dispatch](docs/orgmode/explanation/simd-paths.org)
 - [Contributing](docs/orgmode/contributing/index.org): the checks behind each
   contract, and the [release checklist](docs/orgmode/contributing/developer/release.org)
