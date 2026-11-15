@@ -1,0 +1,3 @@
+The Meson suite passes against an OpenCPMD build: `session-cached-geometry` uses the cluster water deck, the OpenCPMD tests that run SCFs on one core get longer timeouts, `docs-examples` and `tutorials-run` link and run against the build directory under test and compare an OpenCPMD transcript by its energy and forces, and `python-api` uses finite-difference tolerances and a strain that suit an SCF and OpenCPMD's fixed-basis stress.
+`scripts/ci/fetch_pseudopotentials.sh` assembles the pseudopotentials the tests read, `Si_MT_BLYP.psp` included, from the pinned Regtests checkout.
+`tests/python/test_recentre_opencpmd.py` checks that a cluster translated across its isolated cell keeps its energy, forces and virial, and `bench/cluster_drift_scan.py` prints the same scan.
