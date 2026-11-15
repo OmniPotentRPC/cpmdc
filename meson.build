@@ -11,6 +11,18 @@ add_project_arguments(
   language: 'c',
 )
 fc = meson.get_compiler('fortran')
+# An ASan libcpmdc loaded by ctypes aborts unless the ASan runtime is the
+# first library of the interpreter process.
+asan_preload_env = {}
+if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
+  asan_preload_env = {
+    'LD_PRELOAD': run_command(
+      cc.cmd_array(),
+      '-print-file-name=libasan.so',
+      check: true,
+    ).stdout().strip(),
+  }
+endif
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
 schema_wrap_version = run_command(
@@ -1362,11 +1374,12 @@ test(
       water_params_bin.full_path(),
       water_periodic_params_bin.full_path(),
     ],
+    env: asan_preload_env,
     depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
     suite: ['python', 'e2e'],
     timeout: has_cpmd ? 900 : 120,
   )
-  pytest_env = {
+  pytest_env = asan_preload_env + {
     'CPMDC_LIBRARY': cpmdc_shared.full_path(),
     'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
@@ -1404,6 +1417,7 @@ test(
       water_params_bin.full_path(),
       fd_check_exe.full_path(),
     ],
+    env: asan_preload_env,
     depends: [cpmdc_shared, water_params_bin, water_force_bin, fd_check_exe],
     suite: ['docs', 'examples'],
     timeout: has_cpmd ? 900 : 180,
@@ -1418,6 +1432,7 @@ test(
       cpmdc_shared.full_path(),
       water_params_bin.full_path(),
     ],
+    env: asan_preload_env,
     depends: [cpmdc_shared, water_params_bin],
     suite: ['docs', 'examples', 'e2e'],
     timeout: has_cpmd ? 900 : 180,
