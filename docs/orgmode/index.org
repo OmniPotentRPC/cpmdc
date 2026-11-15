@@ -16,8 +16,8 @@
 #+end_export
 
 * Overview
-~cpmdc~ is the C ABI layer for embedding [[https://github.com/OpenCPMD/CPMD][OpenCPMD]] in
-OmniPotentRPC tools.
+~cpmdc~ is the C ABI layer for embedding
+[[https://github.com/OpenCPMD/CPMD][OpenCPMD]] in OmniPotentRPC tools.
 It keeps the public boundary small and language-neutral.
 Hosts pass method setup once, pass geometry for each calculation step, and get
 native C results or a serialized result message back.
@@ -112,8 +112,10 @@ composition requires a new session.
 #+end_export
 
 * Questions and bug reports
-Ask questions and report bugs on the [[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
-Check [[file:howto/troubleshooting.org][Troubleshooting]] first, because it lists known failures with their fixes.
+Ask questions and report bugs on the
+[[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
+Check [[file:howto/troubleshooting.org][Troubleshooting]] first, because it
+lists known failures with their fixes.
 Its last section lists what to put in a new report.
 
 * Build and Test
@@ -143,7 +145,8 @@ Use ~params.*~ IDs when a typed schema field owns the value.
 Use ~catalog.cpmd.*~ rows for recognized ~&CPMD~ keywords and inline option
 spellings that render through an existing text field.
 Use ~catalog.section.*~ rows to check whole-section support.
-The complete table lives in [[file:reference/cpmd-options.org][CPMD option mapping]].
+The complete table lives in
+[[file:reference/cpmd-options.org][CPMD option mapping]].
 
 * Runtime Contracts
 
@@ -229,20 +232,20 @@ Cite cpmdc with the record in
 at the root of the repository.
 It gives the author, the version, the license, and the repository in the
 [[https://citation-file-format.github.io][Citation File Format]].
-GitHub reads that file and offers the record as "Cite this repository"
-on the repository page, as the
+GitHub reads that file and offers the record as "Cite this repository" on the
+repository page, as the
 [[https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files][GitHub documentation on citation files]]
 describes.
 The record carries no digital object identifier (DOI).
 
-An OpenCPMD archive build computes its energies and forces with
-OpenCPMD, so a paper that reports them cites OpenCPMD as well.
+An OpenCPMD archive build computes its energies and forces with OpenCPMD, so a
+paper that reports them cites OpenCPMD as well.
 OpenCPMD ships no citation file; name it with its repository,
-[[https://github.com/OpenCPMD/CPMD][github.com/OpenCPMD/CPMD]], and the
-version or commit that the archive was built from.
+[[https://github.com/OpenCPMD/CPMD][github.com/OpenCPMD/CPMD]], and the version
+or commit that the archive was built from.
 
 * License
 cpmdc is released under the ~MIT License~.
 The full terms are in
-[[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]] at
-the root of the repository.
+[[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]] at the
+root of the repository.

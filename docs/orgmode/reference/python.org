@@ -2,14 +2,15 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Names
-The public names live in ~python/cpmdc~. Importing ~cpmdc~ does not import
-ASE. Import ~cpmdc.ase~ for ~CPMDCCalculator~. ~cpmdc.ipi~ is the
-~cpmdc-ipi~ socket driver; it needs ASE only for ~--structure~.
-~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it
-imports neither LAMMPS nor ~mpi4py~ until a run needs them.
-~cpmdc.gromacs~ writes the grompp ~-qmi~ input of ~libcpmdc_gromacs~ and
-holds GROMACS' unit factors; it imports nothing outside the standard
-library.
+The public names live in ~python/cpmdc~.
+Importing ~cpmdc~ does not import ASE.
+Import ~cpmdc.ase~ for ~CPMDCCalculator~.
+~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
+~--structure~.
+~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it imports
+neither LAMMPS nor ~mpi4py~ until a run needs them.
+~cpmdc.gromacs~ writes the grompp ~-qmi~ input of ~libcpmdc_gromacs~ and holds
+GROMACS' unit factors; it imports nothing outside the standard library.
 
 | Name | Role |
 |------+------|
@@ -64,13 +65,14 @@ library.
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence |
 
-~free_energy~ on ~CPMDCCalculator~ equals ~energy~. A repeated geometry
-returns the stored step. A null or empty input raises; it does not abort
-the interpreter.
+~free_energy~ on ~CPMDCCalculator~ equals ~energy~.
+A repeated geometry returns the stored step.
+A null or empty input raises; it does not abort the interpreter.
 [[file:../howto/python.org][Call cpmdc from Python]] has the property table and
 the rules for units, boundaries, caching, copies, and sessions.
-[[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] covers
-~cpmdc-ipi~, and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]] covers ~cpmdc.lammps~.
+[[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]]
+covers ~cpmdc-ipi~, and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]]
+covers ~cpmdc.lammps~.
 
 * Errors
 
