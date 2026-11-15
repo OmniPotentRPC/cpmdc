@@ -5,13 +5,13 @@
 
 | Variable | Read in | Effect |
 |----------+---------+--------|
-| ~CPMDC_PSEUDO_DIR~ | ~src/cpmd_embed_c_api.F90~, first call of an OpenCPMD session | directory holding the pseudopotential files named in the deck; ~cpmdc~ changes into it while CPMD reads them, then leaves it before CPMD writes output files |
+| ~CPMDC_PSEUDO_DIR~ | ~src/cpmdc_embed_host.c~, first call of an OpenCPMD session | directory holding the pseudopotential files named in the deck; ~cpmdc~ changes into it while CPMD reads them, then leaves it before CPMD writes output files |
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
-| ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ keeps the caller's coordinates; any other value fails the call |
+| ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ or ~0~ keeps the caller's coordinates; ~MASS~, ~GEOMETRY~ and ~OFF~ are accepted too; any other value fails the call |
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
 
@@ -98,6 +98,13 @@ difference from rank 0 before the broadcast.
 Set it to the same value on every rank.
 A build without MPI ignores it.
 
+* Test hooks in libcpmdc
+These change results on purpose and must be unset in ordinary runs.
+
+| Variable | Read in | Effect |
+|----------+---------+--------|
+| ~CPMDC_PWSCALE_MPI_FAULT~ | ~src/cpmdc_pwscale.c~, builds with ~-Dwith_pwscale=true~ and MPI (~pwscale-mpi-fault~) | ~gather~ drops rank 0's gather buffer when the bind is created; ~team~ fails the last rank's team; every rank still reports the failure |
+
 * Read by the tests and tools
 
 | Variable | Read by | Effect |
@@ -106,6 +113,17 @@ A build without MPI ignores it.
 | ~CPMD_SRC~, then ~OPENCPMD_SRC~ | ~tests/test_cpmd_inscan_token_fidelity.py~ | OpenCPMD source tree for the parser token check |
 | ~CPMDC_CPMD_EXE~, then ~CPMD_ROOT~ | ~tools/cpmd_root_probe.py~ | the ~cpmd.x~ to check, or the tree whose ~bin/cpmd.x~ it checks |
 | ~MAKE~, ~AR~ | ~tools/rebuild_opencpmd_embed.sh~ | the Make and archiver programs; default ~make~ and ~ar~ |
+| ~CPMDC_TEST_PARAMS~, ~CPMDC_TEST_PERIODIC_PARAMS~ | ~tests/python/conftest.py~ (~python-pytest~) | encoded cluster and periodic water ~CPMDParams~; without them the text messages in ~tests/~ are encoded with ~capnp~ |
+| ~CPMDC_TEST_INSTALLED~ | ~tests/python/conftest.py~ | ~1~ tests the installed package instead of ~python/~ of the checkout |
+| ~CPMDC_IPI_C~ | ~tests/python/test_ipi_c_driver.py~ | the ~cpmdc-ipi-c~ to test; default ~build/cpmdc-ipi-c~ |
+| ~CPMDC_LAMMPS_PLUGIN~ | ~tests/python/test_lammps.py~ | the ~cpmdcplugin.so~ to load; default ~build/cpmdcplugin.so~ |
+| ~CPMDC_GROMACS_LIB~ | ~tests/python/test_gromacs.py~, ~test_gromacs_opencpmd.py~ | the ~libcpmdc_gromacs.so~ to load; default ~build/libcpmdc_gromacs.so~ |
+| ~CPMDC_GMX~ | ~tests/python/gromacs_case.py~, ~bench/gromacs_routes.py~ | the double-precision ~gmx_d~ built against ~libcp2k.pc~; default ~gmx_d~ on ~PATH~ |
+| ~CPMDC_GMX_MPI~, ~CPMDC_MPIEXEC~ | ~tests/python/gromacs_case.py~ | an MPI ~gmx_mpi_d~ and its launcher; default ~gmx_mpi_d~ and ~mpiexec~ on ~PATH~ |
+| ~CPMDC_EXAMPLE_WORK~ | ~tests/test_docs_examples.py~ | set by the test itself to its scratch directory |
+| ~CPMDC_PWSCALE_FFT_FAULT~ | ~bench/pwscale_fft.c~ (~pwscale-fft-fail~) | names an FFT setup step that must fail, to check the cleanup path |
+| ~CPMDC_PWSCALE_POISON_RUN~ | ~bench/pwscale_harness.c~ (~pwscale-logger~) | adds 1 Hartree to the energy of that run number, to check the logger rejects it |
+| ~CPMDC_ORG_EXPORT~ | ~docs/export.el~ | ~pandoc~ exports the Org pages with pandoc instead of ox-rst |
 
 The live tests of an OpenCPMD build (~meson test -C build-cpmd~) run
 ~libcpmdc~, so they need ~CPMDC_PSEUDO_DIR~ like any other host.
@@ -117,6 +135,7 @@ decide which ~libcpmdc~ a host loads.
 | Variable | Host | Effect |
 |----------+------+--------|
 | ~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, ~RGPOT_CPMD_ENGINE~ | ~rgpot~ ~CPMDPot~ and ~python/cpmdc~ | path of the ~libcpmdc.so~ to ~dlopen~, tried in that order after an explicit engine path |
+| ~CPMDC_PARAMS~ | ~examples/python/ase_energy.py~ | encoded ~CPMDParams~ the example reads; the [[file:../tutorials/ase-energy.org][ASE tutorial]] sets it |
 | ~CPMDC_SCHEMA~ | ~python/cpmdc~ ~find_schema~ | path of ~schema/Potentials.capnp~ for encoding ~CPMDParams~ text; a cell needs no schema, because the package encodes ~ForceInput~ itself |
 | ~RGPOT_PARAMS_PATH~ | eOn ~RgpotPot~ builds that read ~params_path~ | overrides ~[RgpotPot] params_path~ |
 | ~OMP_NUM_THREADS~ | OpenMP runtime | threads per rank inside CPMD when OpenCPMD was built with OpenMP |

@@ -14,8 +14,10 @@
 - Cap'n Proto :: The serialization format of every message ~cpmdc~ reads or
   writes. ~capnp encode~ turns a text message into the binary form.
 - Cold call :: An evaluation that runs CPMD's full setup and starts the SCF
-  without stored orbitals: the first call of a session, a changed cell, or a
-  re-configured session.
+  without stored orbitals: the first call of the process, or a call that
+  changes the functional, deck, cell, cutoff, charge, multiplicity, atom
+  count, or elemental composition. A new session with the same setup is warm
+  (see [[file:../explanation/wavefunction-state.org][wavefunction state]]).
 - CPMD :: Car-Parrinello Molecular Dynamics, the plane-wave density
   functional code; ~cpmdc~ embeds its OpenCPMD distribution.
 - ~CPMDParams~ :: The message holding method setup: functional, cutoff, and

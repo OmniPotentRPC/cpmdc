@@ -248,8 +248,9 @@ static CPMDCResult fail_msg(const char *msg) {
   return r;
 }
 
-/* CPMDC_DECK_OUT names a file that receives each deck cpmdc hands to CPMD,
- * overwritten per deck, so a caller can read what CPMD parsed. */
+/* CPMDC_DECK_OUT names a file that receives each method deck cpmdc renders
+ * from a message, overwritten per render. The deck the OpenCPMD path composes
+ * from it with the step's geometry is not written. */
 static void write_deck_if_requested(const char *deck) {
   const char *path = getenv("CPMDC_DECK_OUT");
   if (!path || !*path || !deck)
