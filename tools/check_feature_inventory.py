@@ -18,7 +18,7 @@ SHARED_ABI_C = ROOT / "src" / "cpmdc_capabilities.c"
 SEC_ALLOW = ROOT / "schema" / "inventory" / "opencpmd_sections.txt"
 CPMD_CP_KEYWORDS = ROOT / "schema" / "inventory" / "cpmd_cp_keywords.txt"
 CPMD_OPTIONS_DOC = ROOT / "docs" / "orgmode" / "reference" / "cpmd-options.org"
-README = ROOT / "README.md"
+C_ABI_DOC = ROOT / "docs" / "orgmode" / "reference" / "c-abi.org"
 
 def probe_inscan_sections(cpmd_root: Path) -> set[str]:
     secs: set[str] = set()
@@ -131,7 +131,7 @@ def main() -> int:
     cpmdc_c = CPMDC_C.read_text(encoding="utf-8")
     stub_c = STUB_C.read_text(encoding="utf-8")
     cpmd_options_doc = CPMD_OPTIONS_DOC.read_text(encoding="utf-8")
-    readme = README.read_text(encoding="utf-8")
+    c_abi_doc = C_ABI_DOC.read_text(encoding="utf-8")
     errors: list[str] = []
 
     add_duplicate_errors(
@@ -371,8 +371,8 @@ def main() -> int:
             errors.append(f"header missing {sym}")
         if f'"abi.{sym}"' not in features_c:
             errors.append(f"C table missing abi.{sym}")
-        if sym not in readme:
-            errors.append(f"README missing ABI symbol {sym}")
+        if not re.search(rf"(?<!\w){re.escape(sym)}(?!\w)", c_abi_doc):
+            errors.append(f"C ABI reference missing ABI symbol {sym}")
 
     abi_symbols = set(inv.get("abi_symbols", []))
     for sym in sorted(fid[4:] for fid in fids if fid.startswith("abi.")):
@@ -407,16 +407,18 @@ def main() -> int:
     if "inputBlocks" not in schema or "raw" not in schema:
         errors.append("schema missing escape hatches")
 
-    readme_namespace_terms = (
+    namespace_terms = (
         "Feature ID namespaces",
         "params.inputSections.system.*",
         "catalog.cpmd.*",
         "catalog.dft.*",
         "catalog.section.SYSTEM",
     )
-    for term in readme_namespace_terms:
-        if term not in readme:
-            errors.append(f"README missing feature namespace guidance term: {term}")
+    for term in namespace_terms:
+        if term not in cpmd_options_doc:
+            errors.append(
+                f"CPMD option reference missing feature namespace term: {term}"
+            )
 
     if errors:
         print("FAIL")

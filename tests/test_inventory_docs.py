@@ -44,11 +44,11 @@ def main() -> int:
         "readme-navigation",
     ]
     failures: list[str] = []
-    failures.extend(require_text(root / "README.md", inventory_guards))
-    failures.extend(require_text(root / "README.md", docs_guards))
+    failures.extend(require_text(root / "docs/orgmode/reference/feature-inventory.org", inventory_guards))
+    failures.extend(require_text(root / "docs/orgmode/reference/feature-inventory.org", docs_guards))
     failures.extend(
         require_text(
-            root / "README.md",
+            root / "docs/orgmode/reference/feature-inventory.org",
             [
                 "src/cpmdc.c",
                 "src/cpmdc_stub.c",

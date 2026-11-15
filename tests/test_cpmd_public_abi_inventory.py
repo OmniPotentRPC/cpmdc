@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -17,6 +18,9 @@ ADDED_SYMBOL = "cpmdc_uninventoried_demo"
 UNIMPLEMENTED_SYMBOL = "cpmdc_unimplemented_demo"
 EXTRA_TABLE_SYMBOL = "cpmdc_extra_table_demo"
 UNLISTED_FEATURE_SYMBOL = "cpmdc_unlisted_feature_demo"
+# A prefix of cpmdc_session_create_from_config, so a substring match would
+# still find it after the omission.
+OMITTED_DOC_SYMBOL = "cpmdc_session_create"
 
 
 def load_checker(repo: Path):
@@ -94,12 +98,20 @@ def write_features_c_with_extra_symbol(repo: Path, tmpdir: Path, symbol: str) ->
     return path
 
 
-def write_readme_with_extra_symbol(repo: Path, tmpdir: Path, symbol: str) -> Path:
-    path = tmpdir / "README.md"
+def write_c_abi_doc_with_extra_symbol(repo: Path, tmpdir: Path, symbol: str) -> Path:
+    path = tmpdir / "c-abi.org"
     path.write_text(
-        (repo / "README.md").read_text(encoding="utf-8") + f"\n`{symbol}`\n",
+        (repo / "docs/orgmode/reference/c-abi.org").read_text(encoding="utf-8")
+        + f"\n~{symbol}~\n",
         encoding="utf-8",
     )
+    return path
+
+
+def write_c_abi_doc_without_symbol(repo: Path, tmpdir: Path, symbol: str) -> Path:
+    text = (repo / "docs/orgmode/reference/c-abi.org").read_text(encoding="utf-8")
+    path = tmpdir / "c-abi.org"
+    path.write_text(re.sub(rf"\b{re.escape(symbol)}\b", "omitted", text), encoding="utf-8")
     return path
 
 
@@ -155,7 +167,7 @@ def main() -> int:
             FEATURES_C=write_features_c_with_extra_symbol(
                 repo, tmpdir, UNIMPLEMENTED_SYMBOL
             ),
-            README=write_readme_with_extra_symbol(
+            C_ABI_DOC=write_c_abi_doc_with_extra_symbol(
                 repo, tmpdir, UNIMPLEMENTED_SYMBOL
             ),
         )
@@ -201,6 +213,19 @@ def main() -> int:
     )
     if code == 0 or expected not in output:
         print("expected public ABI unlisted feature failure")
+        print(output)
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="cpmd-public-abi-doc-omission-") as raw:
+        tmpdir = Path(raw)
+        code, output = run_checker_with_paths(
+            checker,
+            C_ABI_DOC=write_c_abi_doc_without_symbol(repo, tmpdir, OMITTED_DOC_SYMBOL),
+        )
+
+    expected = f"C ABI reference missing ABI symbol {OMITTED_DOC_SYMBOL}"
+    if code == 0 or expected not in output:
+        print("expected C ABI reference omission failure")
         print(output)
         return 1
     return 0
