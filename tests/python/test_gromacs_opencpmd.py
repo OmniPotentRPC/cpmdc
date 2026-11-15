@@ -124,7 +124,9 @@ def test_opencpmd_whole_system_stress_matches_ase(box, periodic_params, tmp_path
         analytic = atoms.get_stress(voigt=False)
     scale = np.abs(numeric).max()
     np.testing.assert_allclose(ours, analytic, rtol=0, atol=1e-7 * scale)
-    np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-6 * scale)
+    # At a strain of 1e-6 the difference resolves 1e-12 Hartree of energy,
+    # which is the SCF's reproducibility: the cube is 1.5e-6 of the stress off.
+    np.testing.assert_allclose(ours, numeric, rtol=0, atol=3e-6 * scale)
 
 
 @pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])

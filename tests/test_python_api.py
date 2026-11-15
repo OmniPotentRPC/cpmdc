@@ -85,7 +85,7 @@ def main() -> int:
             raise AssertionError("a repeated geometry changed the energy")
         if not session.version().startswith("cpmdc/"):
             raise AssertionError(session.version())
-        # An OpenCPMD SCF stops at a 1e-6 orbital-gradient threshold, so its
+        # The test decks stop the SCF at a 1e-5 orbital gradient, so its
         # finite-difference energies carry about 1e-3 eV/Angstrom of noise.
         opencpmd = session.available()
         converted = forces_to_ev_per_angstrom(first.forces_h_bohr)
