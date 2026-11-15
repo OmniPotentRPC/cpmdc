@@ -133,34 +133,11 @@ The default build does not need an OpenCPMD checkout.
 It uses a deterministic reference evaluator to test the public ABI, parser,
 feature table, sessions, result sizing, and unit conversion.
 
-* Map A CPMD Input Line
-The main rule is to separate writable schema fields from capability/discovery
-rows.
-
-| Manual line | Writable carrier | Discovery row |
-|-------------+------------------+---------------|
-| ~OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE~ | ~params.inputSections.cpmd.optimizeGeometryOptions~ plus ~optimizeGeometrySample~ | ~catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL~, ~catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ~, ~catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION~ |
-| ~NOSE IONS ULTRA MASSIVE T0~ | ~params.inputSections.cpmd.noseIonsOptions~ | ~catalog.cpmd.NOSE_IONS_ULTRA~, ~catalog.cpmd.NOSE_IONS_MASSIVE~, ~catalog.cpmd.NOSE_IONS_T0~ |
-| ~BOX WALLS~ in ~&SYSTEM~ | ~params.inputSections.system.boxWalls~ | ~params.inputSections.system.boxWalls~ |
-| ~&VDW~ with nested ~EMPIRICAL CORRECTION~ | ~inputSections.vdw.directives~ and ~subsections~ | ~catalog.section.VDW~ |
-
-Use ~params.*~ IDs when a typed schema field owns the value.
-Use ~catalog.cpmd.*~ rows for recognized ~&CPMD~ keywords and inline option
-spellings that render through an existing text field.
-Use ~catalog.section.*~ rows to check whole-section support.
-The complete table lives in
-[[file:reference/cpmd-options.org][CPMD option mapping]].
-
-* Runtime Contracts
-
-| Concern | Carrier | Public entry points |
-|---------+---------+---------------------|
-| Method setup | serialized ~CPMDParams~ | ~cpmdc_session_create~, ~cpmdc_session_set_params~, ~cpmdc_set_params~ |
-| Geometry step | serialized ~ForceInput~ or C arrays | ~cpmdc_session_calculate_result~, ~cpmdc_session_calculate_forces~, ~cpmdc_session_energy_forces~ |
-| Result carrier | serialized ~PotentialResult~ or native C values | ~cpmdc_session_calculate_result~, ~cpmdc_calculate_result~, ~CPMDCResult~ |
-| Runtime discovery | stable feature IDs | ~cpmdc_feature_count~, ~cpmdc_feature_table~, ~cpmdc_feature_find~ |
-
-An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
+* Reference at a glance
+[[file:reference/c-abi.org][The C ABI reference]] lists every public call with its contract, and
+[[file:reference/cpmd-options.org][CPMD option mapping]] says which ~CPMDParams~ field or feature ID carries
+each line of the CPMD manual.
+An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 
 #+begin_export rst
 .. toctree::
