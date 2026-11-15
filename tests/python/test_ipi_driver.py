@@ -226,12 +226,16 @@ def socket_calculator(kind: str, clients, params: Path, *extra: str) -> SocketIO
 
 
 def assert_same(left: Atoms, right: Atoms, stress: bool, scf: bool = False) -> None:
-    """``scf``: an OpenCPMD SCF in each process, converged to about 1e-7 eV."""
+    """``scf``: an OpenCPMD SCF in each process from different orbitals.
+
+    The test decks stop at a 1e-5 orbital gradient, which leaves about
+    1e-7 eV in the energy and 1e-3 eV/Angstrom in the forces.
+    """
     tol = 1e-6 if scf else 1e-10
     assert left.get_potential_energy() == pytest.approx(
         right.get_potential_energy(), rel=1e-10, abs=tol
     )
-    np.testing.assert_allclose(left.get_forces(), right.get_forces(), rtol=1e-10, atol=100 * tol if scf else tol)
+    np.testing.assert_allclose(left.get_forces(), right.get_forces(), rtol=1e-10, atol=2e-3 if scf else tol)
     if stress:
         np.testing.assert_allclose(left.get_stress(), right.get_stress(), rtol=1e-10, atol=1e-10)
 
