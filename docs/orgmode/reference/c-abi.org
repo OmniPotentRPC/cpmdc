@@ -16,9 +16,10 @@ built library, and the ~c-abi-inventory~ test fails when the headers, the
 library, and the file disagree (see the [[file:surface-map.org][surface map]]).
 The header records the ABI generation once, as ~CPMDC_ABI_VERSION~; no
 function carries its own ~@since~ generation.
-The generated [[file:../api/index.org][API pages]] carry the header comments; this page adds
-the units, the return conventions, and the behaviour that the implementation
-in ~src/cpmdc.c~ gives each call.
+The header comments, which the documentation site renders as the generated
+API pages, carry the declarations; this page adds the units, the return
+conventions, and the behaviour that the implementation in ~src/cpmdc.c~ gives
+each call.
 
 * Exported symbols
 Every function of ~cpmdc.h~ and ~cpmdc_features.h~ is declared with
@@ -85,7 +86,8 @@ Length: ~angstrom~, ~angstroms~, ~a~, ~aa~, ~bohr~, ~au~, ~a.u.~, ~atomic~,
 ~nm~, ~nanometer~.
 Energy: ~hartree~, ~ha~, ~au~, ~a.u.~, ~ev~, ~electronvolt~, ~ry~, ~rydberg~,
 ~kj/mol~, ~kjmol~, ~kcal/mol~, ~kcalmol~.
-The schema defaults are ~angstrom~ and ~eV~.
+The schema defaults are ~angstrom~ and ~eV~; a unit set to the empty string
+reads as ~angstrom~ or ~hartree~.
 ~ForceInput.box~ is empty or nine values, a row-major 3 by 3 cell in
 ~lengthUnit~, one lattice vector per row.
 The caller's box is the cell.
@@ -310,10 +312,11 @@ the evaluation and the session's cache.
 The topology and repeat-step rules of the session apply.
 
 It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session (~null
-session~), ~n_atoms <= 0~ or a ~NULL~ required pointer (~invalid arguments~),
+session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a ~NULL~ required pointer
+(~invalid arguments~),
 a topology change, and a failed evaluation.
 On failure the output arrays are left unspecified.
-~libcpmdc-stub~ returns -1 with the stub message.
+The stub archive ~libcpmdc_stub.a~ returns -1 with the stub message.
 ~tools/cpmdc_ipi.c~ is an i-PI client on this call (see [[file:../howto/socket-drivers.org][the socket drivers]]).
 ~tools/lammps/pair_cpmdc.cpp~, the LAMMPS ~pair_style cpmdc~, and
 ~cpmdc.lammps~ call it once per force evaluation (see [[file:../howto/lammps.org][LAMMPS]]).

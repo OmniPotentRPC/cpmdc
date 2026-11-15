@@ -152,8 +152,8 @@ if (session != NULL) {
 #+end_src
 
 When ~potential_result_capacity~ is too small, ~ok == 0~, the required byte count
-is written to ~potential_result_size~, and OpenCPMD is not evaluated (same
-contract as ~nwchemc_session_calculate_result~).
+is written to ~potential_result_size~, and OpenCPMD is not evaluated, the
+same contract as the session result call of the NWChem library ~nwchemc~.
 
 Use the session path for optimizers, molecular dynamics drivers, and RPC
 frontends.

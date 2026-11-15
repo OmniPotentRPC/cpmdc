@@ -118,9 +118,10 @@ cat cluster.inp
 ~step.bin~ is any encoded ~ForceInput~; the default build evaluates it with the
 reference evaluator after the deck is written.
 Compare ~cluster.inp~ line by line against the deck you started from.
-On the OpenCPMD path a second deck, the one CPMD parses with the geometry
-merged in, overwrites the first; the [[file:debug-deck.org][deck debugging
-how-to]] shows both.
+The file holds this method deck only.
+On the OpenCPMD path CPMD parses a second deck, with the geometry merged in,
+that is not written; the [[file:debug-deck.org][deck debugging how-to]] lists
+what that path changes.
 
 * Where the geometry-dependent lines go
 The OpenCPMD path writes ~&ATOMS~ itself from each step's atomic numbers and
