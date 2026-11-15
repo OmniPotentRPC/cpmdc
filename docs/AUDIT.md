@@ -172,6 +172,56 @@ reference pages first.
 The two links to `CITATION.cff` on the `main` branch fail until that
 file lands there.
 
+### Gaps seven and eight
+
+This part grades gaps seven and eight again on top of commit `c6cccb2`.
+Both are closed.
+
+Gap seven is closed. `tutorials/eon-rgpot.org` now shows the
+`results.dat`, the final energy of -464.1301944953 eV, and the versions
+of a real run: rgpot `5fec533f` (3.7.0), eOn `579738a93` (3.6.0),
+OpenCPMD `062582b` with the archive patches, GCC 14.3.0, Open MPI
+5.0.10, and Cap'n Proto 1.4.0.
+The run fixed four steps that did not work as written:
+
+- The page did not say how to build `eonclient`.
+  It now has a section that builds rgpot and eOn into one prefix.
+- The `pixi.toml` of eOn does not parse under Pixi 0.84.2, so the page
+  builds eOn in the cpmdc Pixi environment, with Eigen 3.4 from
+  `pixi global`.
+- eOn builds the MPI rgpot potential only when it is configured with
+  `-Dwith_mpi=enabled`, because `RGPOT_HAS_MPI` is in `rgpot-mpi.pc`
+  and not in `rgpot.pc`.
+- On four ranks, every rank stopped with
+  `ranks_per_image=0 does not divide the MPI world`.
+  rgpot opens the cpmdc session before eOn binds the calculator
+  communicator, and `cpmdc_adopt_calculator_comm` refused any live
+  session.
+  It now refuses only a session that has evaluated, and
+  the `adopt-comm` tests cover both cases.
+  The four-rank run ends 1.2e-9 eV from the one-rank energy.
+
+The first call of that minimisation reaches -17.05583351 Hartree, and the
+OpenCPMD half of `tutorials/first-energy.org` ran again with the same
+toolchain and matched the energy and forces on its page.
+`results.dat` reports `rgpot_version` 3.2.0, which is a constant compiled
+into eOn and not the version of the linked rgpot.
+
+Gap eight is closed. The README links to `reference/c-abi.org`,
+`reference/cpmd-options.org`, and `reference/feature-inventory.org`
+instead of copying their tables.
+`feature-inventory` now requires each ABI symbol, as a whole word, in the
+C ABI reference, and each namespace term in the option reference.
+`inventory-docs` requires each inventory and docs test in the feature
+inventory reference, which now lists all of them.
+`cpmd-public-abi-inventory` removes `cpmdc_session_create` from a copy of
+the C ABI reference and expects the check to fail.
+
+Five newsfragments linked to pages by paths that only resolve from the
+repository root, so lychee failed on them.
+They now give the paths as code, and lychee finds no broken link inside
+the tree.
+
 ## Diataxis follow-up
 
 `tutorials/quickstart.org` is now the how-to "Build and test cpmdc" and sits
@@ -182,7 +232,7 @@ its three test tables are one. The Meson options and Pixi tasks of the
 install how-to moved to the reference page `reference/build-options.org`.
 The README Documentation section links every page under `docs/orgmode`, and
 `readme-navigation` fails when one is missing. `tutorials/eon-rgpot.org`
-still shows no `results.dat`.
+shows the `results.dat` of a real run.
 
 The GROMACS and LAMMPS how-tos keep their steps. Their interface conventions
 are in `reference/gromacs.org` and `reference/lammps.org`, their route choice
