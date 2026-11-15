@@ -53,7 +53,7 @@ hidden whatever the list says.
 The version script names no version node, so the exported names carry no
 symbol version.
 
-Up to 0.4.0, ~libcpmdc~ also exported 56 internal functions with the
+Releases up to and including 0.4.0 also export 56 internal functions with the
 ~cpmdc_~ prefix: the glue between ~src/cpmdc.c~, the parameter renderer, and
 the Fortran embed.
 No installed header declared them, so they were never part of the ABI, and
