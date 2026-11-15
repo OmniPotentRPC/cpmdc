@@ -165,6 +165,8 @@ CPMDCSession *session =
 
 size_t capacity = cpmdc_potential_result_size_for_force_input(
     force_input_bytes, force_input_size);
+unsigned char *potential_result_bytes = malloc(capacity);
+size_t potential_result_size = 0;
 
 CPMDCResult result = cpmdc_session_calculate_result(
     session,
@@ -173,9 +175,17 @@ CPMDCResult result = cpmdc_session_calculate_result(
     potential_result_bytes,
     capacity,
     &potential_result_size);
+if (!result.ok)
+  fprintf(stderr, "step failed: %s\n", result.message);
 
+free(potential_result_bytes);
 cpmdc_session_destroy(session);
 ```
+
+`params_bytes` and `force_input_bytes` hold serialized `CPMDParams` and
+`ForceInput` messages; `result.energy_h` is in Hartree and the
+`PotentialResult` in `potential_result_bytes` uses the units the
+`ForceInput` names.
 
 `cpmdc_session_create()` copies the serialized params buffer. The first
 successful session evaluation fixes the atom count and the elemental

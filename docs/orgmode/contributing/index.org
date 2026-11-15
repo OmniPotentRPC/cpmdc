@@ -44,6 +44,7 @@ public change:
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
 | README and quickstart navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
+| Every README and Org code block runs, compiles, or names why not | ~meson test -C build docs-examples --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
 
 ~scripts/ci/fetch_pseudopotentials.sh pp~ writes the pseudopotentials that
@@ -94,6 +95,14 @@ of ~cpmdc.h~, ~cpmdc_features.h~, and ~cpmdc_restart.h~ in the
 a table row, every public Python name outside ~cpmdc.ase~ in the
 [[file:../reference/python.org][Python reference]], and no ~cpmdc_~ name in the README or the
 Org pages that no public header declares.
+~docs-examples~ classifies every code block of the README and the Org pages.
+It runs the blocks the default build can run, compiles the C fragments against
+~include/~, and lists the rest in ~tests/test_docs_examples.py~: blocks that
+need OpenCPMD in ~OPENCPMD~, whose surrounding text must say so, and the others
+in ~SKIP~ with the tool or input they need.
+Every shell block, run or not, must name meson options, pixi tasks, meson
+tests and suites, repository paths, and build outputs that exist.
+A new block fails the test until it is classified.
 
 * Add a typed CPMD keyword
 Use a typed field when a CPMD control has stable structure, affects ordinary

@@ -341,9 +341,30 @@ static int check_geo1(const char *path) {
   return 0;
 }
 
+/* The docs examples run cpmdc-restart on this sample: three atoms with
+ * coordinates and velocities, which the geo1 fixture does not carry. */
+static int write_sample(const char *path) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("build");
+  FILE *fp = fopen(path, "wb");
+  if (fp == NULL) {
+    free(bytes);
+    return fail("open sample");
+  }
+  size_t wrote = fwrite(bytes, 1, n, fp);
+  free(bytes);
+  if (fclose(fp) != 0 || wrote != n)
+    return fail("write sample");
+  return 0;
+}
+
 int main(int argc, char **argv) {
   unsigned char *bytes = NULL;
   size_t n = 0;
+  if (argc == 3 && strcmp(argv[1], "--write-sample") == 0)
+    return write_sample(argv[2]);
   if (build_sample(&bytes, &n, 0, 1) != 0)
     return fail("build");
   if (check_sample(bytes, n, 0) != 0) {

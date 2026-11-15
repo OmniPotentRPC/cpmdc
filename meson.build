@@ -592,15 +592,16 @@ if get_option('with_tests')
     ] + fc.cmd_array(),
     depends: warm_selector_source,
   )
+  restart_test_exe = executable(
+    'test_cpmd_restart',
+    'tests/test_cpmd_restart.c',
+    dependencies: [cpmdc_restart_dep],
+    include_directories: inc,
+    c_args: common_c_args,
+  )
   test(
     'restart-file',
-    executable(
-      'test_cpmd_restart',
-      'tests/test_cpmd_restart.c',
-      dependencies: [cpmdc_restart_dep],
-      include_directories: inc,
-      c_args: common_c_args,
-    ),
+    restart_test_exe,
     suite: ['restart'],
     args: [meson.current_source_dir() / 'tests/restart_geo1.bin'],
   )
@@ -1425,9 +1426,18 @@ test(
       cpmdc_shared.full_path(),
       water_params_bin.full_path(),
       fd_check_exe.full_path(),
+      restart_test_exe.full_path(),
     ],
     env: asan_preload_env,
-    depends: [cpmdc_shared, water_params_bin, water_force_bin, fd_check_exe],
+    depends: [
+      cpmdc_shared,
+      water_params_bin,
+      water_force_bin,
+      fd_check_exe,
+      restart_test_exe,
+      cpmdc_restart_exe,
+      example_host_step,
+    ],
     suite: ['docs', 'examples'],
     timeout: has_cpmd ? 900 : 180,
   )
