@@ -7,8 +7,9 @@
  * Rank and size come from comm. When ranks_per_calc > 0 that size must
  * equal it. The group must be one aligned block of that many world ranks.
  * The index is the lowest world rank in the block divided by the size.
- * live is nonzero when this rank has a CPMDCSession. The call reduces that
- * flag with the rank bounds, and any live session fails the whole group.
+ * live is nonzero when this rank has a CPMDCSession that has started an
+ * evaluation. The call reduces that flag with the rank bounds, and any such
+ * session fails the whole group.
  * Returns 0 and writes *index_out on success. Returns -1 and writes err
  * on failure. Does not store the handle.
  */

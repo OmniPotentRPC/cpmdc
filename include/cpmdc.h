@@ -318,14 +318,16 @@ CPMDC_API int cpmdc_bind_calculator(int ranks_per_calc);
  * communicator until the last session is destroyed or a later adopt replaces
  * it. An adopt after `cpmdc_bind_calculator` replaces the communicator that
  * call split, and the caller of bind cannot free that one.
- * A later call replaces the communicator when no `CPMDCSession` exists. If
- * any rank of the group has a live session, every rank returns -1 and the
- * stored communicator stays as it was.
+ * A later call replaces the communicator when no live `CPMDCSession` has
+ * started an evaluation. A session that was created but has not evaluated
+ * does not block the call. If any rank of the group has a live session that
+ * has evaluated, every rank returns -1 and the stored communicator stays as
+ * it was.
  * Returns -1 when `comm` is null, `comm_bytes` is not the size of an
  * `MPI_Comm`, MPI is not initialized, or this build has no MPI. Failure
  * text is `cpmdc_last_error()`.
  * Call adopt, `cpmdc_session_create`, and `cpmdc_session_destroy` from one
- * thread: `g_live_sessions` and `g_active_session` are process globals, and
+ * thread: `g_evaluated_sessions` and `g_active_session` are process globals, and
  * OpenCPMD state is process-global too.
  */
 CPMDC_API int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
