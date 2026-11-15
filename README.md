@@ -334,6 +334,7 @@ Read the docs in this order:
   [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
   [embedding cpmdc](docs/orgmode/howto/embedding.org),
   [call cpmdc from Python](docs/orgmode/howto/python.org),
+  [use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org),
   [drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org),
   [run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org),
   [run GROMACS on cpmdc forces](docs/orgmode/howto/gromacs.org),
