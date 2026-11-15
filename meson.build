@@ -1569,6 +1569,9 @@ test(
     timeout: 900,
   )
 
+  # Golden values from cpmd.x, which keeps the deck's coordinates in the
+  # isolated cell: compare without the recentring, with atoms outside it.
+  cpmd_x_parity_env = {'CPMDC_RECENTER': 'off', 'CPMDC_RECENTER_MARGIN': '-1'}
   if has_cpmd
     test(
       'water-capnp-cli-parity',
@@ -1579,6 +1582,7 @@ test(
       ),
       args: [water_params_bin.full_path(), water_force_bin.full_path()],
       depends: [water_params_bin, water_force_bin],
+      env: cpmd_x_parity_env,
       suite: ['e2e', 'water'],
       timeout: 600,
     )
@@ -1659,6 +1663,7 @@ test(
     args: [water_aspc_params_bin.full_path(),
            meson.current_source_dir() / 'tests/golden/water_aspc_bomd.txt'],
     depends: [water_aspc_params_bin],
+    env: cpmd_x_parity_env,
     suite: ['e2e'],
     timeout: 900,
   )
