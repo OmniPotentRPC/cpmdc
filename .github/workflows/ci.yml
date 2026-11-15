@@ -36,8 +36,6 @@ jobs:
         with:
           pixi-version: latest
           cache: true
-      - name: ASE and i-PI for the calculator and socket tests
-        run: pixi run python -m pip install 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
       - name: Full meson suite (stub + embed E2E)
         run: pixi run test-stub
       - name: C ABI inventory matches libcpmdc and the headers
@@ -188,8 +186,6 @@ jobs:
         with:
           pixi-version: latest
           cache: true
-      - name: ASE for the reference calculator
-        run: pixi run python -m pip install 'ase>=3.23' 'pytest>=7'
       - name: cpmdc and libcpmdc_gromacs
         run: |
           pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true --prefix="$PWD/build/prefix" && meson compile -C build && ninja -C build water_blyp_params.bin water_blyp_periodic_params.bin'
