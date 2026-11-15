@@ -17,7 +17,7 @@ extern "C" {
  * path unless a separate flag compiles the CUDA backend.
  *
  * Parallel and serial energies and forces agree when every absolute gap is
- * at most CPMDC_PWSCALE_RTOL * max(1, |got|, |reference|).
+ * at most CPMDC_PWSCALE_RTOL * max(1, fabs(got), fabs(reference)).
  * The scale follows the larger magnitude, then the floor of 1.
  * Visit counts match exactly.
  * The ordered reduction is what the tolerance covers. It is not a bitwise claim.
@@ -45,7 +45,7 @@ extern "C" {
 
 /**
  * Relative tolerance for energy and force agreement.
- * A gap is accepted when it is at most this times max(1, |got|, |reference|).
+ * A gap is accepted when it is at most this times max(1, fabs(got), fabs(reference)).
  */
 #define CPMDC_PWSCALE_RTOL 1e-8
 
