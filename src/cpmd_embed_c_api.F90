@@ -144,6 +144,13 @@ MODULE cpmd_embed_c_api
     CHARACTER(KIND=c_char) :: cpmd_root(1024)
     CHARACTER(KIND=c_char) :: output_dir(1024)
   END TYPE
+  ! The rigid shift of one call on an isolated deck; see embed_recentre_cluster.
+  TYPE :: embed_recentring
+    LOGICAL :: applied = .FALSE.
+    REAL(real64) :: shift_ang(3) = 0.0_real64
+    REAL(real64) :: proj(3, 3) = 0.0_real64
+    REAL(real64), ALLOCATABLE :: weights(:)
+  END TYPE
 #if defined(CPMDC_HAS_CPMD)
   REAL(c_double), SAVE :: tcpu0 = 0.0_c_double, twall0 = 0.0_c_double
   ! mp_start assigns mp_comm_world only when it calls MPI_Init.
@@ -2074,7 +2081,7 @@ CONTAINS
     image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
   END SUBROUTINE
 
-  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
+  SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_species_order_map, cpmdc_note_embed_failure
     USE coor, ONLY: tau0
     USE ions, ONLY: ions0, ions1
@@ -2083,6 +2090,7 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: pos(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     INTEGER(c_int), INTENT(OUT) :: origin(*)
+    TYPE(embed_recentring), INTENT(OUT) :: recentre
     INTEGER, INTENT(OUT) :: ierr
     INTEGER :: is, ia, k, slot, j, astat
     INTEGER(c_int), ALLOCATABLE :: species_z(:), species_n(:)
@@ -2119,8 +2127,191 @@ CONTAINS
         END DO
       END DO
     END DO
-    ierr = 0
+    CALL embed_recentre_cluster(n_atoms, origin, recentre, ierr)
   END SUBROUTINE
+
+  ! An isolated deck (SYMMETRY 0, a Poisson solver, CLUSTER, SURFACE or
+  ! POLYMER) describes its density on a box of fixed size with its origin
+  ! at a corner. A region that drifts toward a face of that box puts
+  ! density across it, and the energy, forces, and any virial from them
+  ! go wrong: one BLYP water whose outer hydrogen is 0.5 Angstrom from a
+  ! face of the 10 Angstrom Hockney box is off by 5e-4 Hartree, and by
+  ! 8e-3 Hartree with a net force of 0.17 Hartree/Bohr when it is 0.5
+  ! Angstrom past it.
+  ! Each call therefore moves the atoms rigidly so that their centre of
+  ! mass (CPMDC_RECENTER=mass, the default) or of geometry
+  ! (CPMDC_RECENTER=geometry) is at the centre of the box along every
+  ! non-periodic lattice vector; CPMDC_RECENTER=off keeps the caller's
+  ! coordinates. The energy is then a function of the shifted coordinates
+  ! y_i = x_i + s(x), and its gradient with respect to the caller's x_i is
+  ! g_i - w_i P sum_j g_j, with w the weights of that centre and P the
+  ! projector on the shifted directions; embed_project_gradient applies it.
+  ! That is the residual net force of the grid removed, so energy, forces,
+  ! and sum_i x_i (x) f_i do not change when the caller translates the
+  ! atoms. CPMDC_RECENTER_MARGIN (Angstrom, default 0) is the least
+  ! distance an atom may keep from a face of the box after the shift; a
+  ! closer atom fails the call. A negative margin turns the check off.
+  SUBROUTINE embed_recentre_cluster(n_atoms, origin, recentre, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
+    USE coor, ONLY: tau0
+    USE ions, ONLY: ions0, ions1
+    USE isos, ONLY: isos1, isos3
+    USE metr, ONLY: metr_com
+    USE rmas, ONLY: rmass
+    USE cnst, ONLY: fbohr
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: origin(*)
+    TYPE(embed_recentring), INTENT(OUT) :: recentre
+    INTEGER, INTENT(OUT) :: ierr
+    INTEGER :: policy, is, ia, slot, j, k, m, astat
+    LOGICAL :: free_axis(3)
+    REAL(real64) :: margin, total, centre(3), frac(3), shift(3), height, gap, closest
+    CHARACTER(LEN=256) :: msg
+    CHARACTER(LEN=12) :: num(2)
+    ierr = 1
+    recentre%applied = .FALSE.
+    recentre%shift_ang = 0.0_real64
+    recentre%proj = 0.0_real64
+    policy = recentre_policy()
+    margin = recentre_margin()
+    IF (policy < 0 .OR. margin /= margin) THEN
+      CALL cpmdc_note_embed_failure('CPMDC_RECENTER is mass, geometry, or off, and '// &
+           'CPMDC_RECENTER_MARGIN a number of Angstrom'//c_null_char)
+      RETURN
+    END IF
+    ierr = 0
+    IF (.NOT. isos1%tclust) RETURN
+    free_axis = .TRUE.
+    IF (isos1%toned) free_axis(1) = .FALSE.
+    IF (isos1%ttwod) THEN
+      free_axis = .FALSE.
+      free_axis(isos3%snormal) = .TRUE.
+    END IF
+    IF (policy > 0) THEN
+      ALLOCATE(recentre%weights(n_atoms), STAT=astat)
+      IF (astat /= 0) THEN
+        CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
+        ierr = 1
+        RETURN
+      END IF
+      total = 0.0_real64
+      centre = 0.0_real64
+      slot = 0
+      DO is = 1, ions1%nsp
+        DO ia = 1, ions0%na(is)
+          slot = slot + 1
+          j = INT(origin(slot)) + 1
+          recentre%weights(j) = 1.0_real64
+          IF (policy == 2) recentre%weights(j) = rmass%pma0(is)
+          total = total + recentre%weights(j)
+          centre = centre + recentre%weights(j) * tau0(:, ia, is)
+        END DO
+      END DO
+      IF (.NOT. total > 0.0_real64) THEN
+        CALL cpmdc_note_embed_failure('CPMDC_RECENTER=mass found no atomic masses'//c_null_char)
+        ierr = 1
+        RETURN
+      END IF
+      recentre%weights = recentre%weights / total
+      centre = centre / total
+      ! ht(k,:) is lattice vector k and htm1 its inverse, so x = s ht and
+      ! s = x htm1 in rows.
+      DO k = 1, 3
+        frac(k) = DOT_PRODUCT(centre, metr_com%htm1(:, k))
+      END DO
+      shift = 0.0_real64
+      DO k = 1, 3
+        IF (free_axis(k)) shift = shift + (0.5_real64 - frac(k)) * metr_com%ht(k, :)
+      END DO
+      DO is = 1, ions1%nsp
+        DO ia = 1, ions0%na(is)
+          tau0(:, ia, is) = tau0(:, ia, is) + shift
+        END DO
+      END DO
+      DO m = 1, 3
+        DO j = 1, 3
+          DO k = 1, 3
+            IF (free_axis(k)) recentre%proj(m, j) = recentre%proj(m, j) + &
+                 metr_com%htm1(m, k) * metr_com%ht(k, j)
+          END DO
+        END DO
+      END DO
+      recentre%shift_ang = shift / fbohr
+      recentre%applied = .TRUE.
+    END IF
+    IF (margin < 0.0_real64) RETURN
+    closest = HUGE(1.0_real64)
+    DO k = 1, 3
+      IF (.NOT. free_axis(k)) CYCLE
+      height = 1.0_real64 / NORM2(metr_com%htm1(:, k))
+      DO is = 1, ions1%nsp
+        DO ia = 1, ions0%na(is)
+          frac(k) = DOT_PRODUCT(tau0(:, ia, is), metr_com%htm1(:, k))
+          gap = MIN(frac(k), 1.0_real64 - frac(k)) * height / fbohr
+          closest = MIN(closest, gap)
+        END DO
+      END DO
+    END DO
+    IF (closest < margin) THEN
+      WRITE(num(1), '(F12.3)') closest
+      WRITE(num(2), '(F12.3)') margin
+      WRITE(msg, '(5A)') 'an atom is ', TRIM(ADJUSTL(num(1))), &
+           ' Angstrom from a face of the isolated cell (negative outside it), closer than '// &
+           'CPMDC_RECENTER_MARGIN ', TRIM(ADJUSTL(num(2))), ': enlarge the cell or set CPMDC_RECENTER'
+      CALL cpmdc_note_embed_failure(TRIM(msg)//c_null_char)
+      ierr = 1
+    END IF
+  END SUBROUTINE
+
+  ! The gradient of E(x + s(x)) from the gradient at the shifted positions.
+  SUBROUTINE embed_project_gradient(n_atoms, recentre, grad)
+    INTEGER, INTENT(IN) :: n_atoms
+    TYPE(embed_recentring), INTENT(IN) :: recentre
+    REAL(c_double), INTENT(INOUT) :: grad(*)
+    REAL(real64) :: total(3), along(3)
+    INTEGER :: i
+    IF (.NOT. recentre%applied) RETURN
+    total = 0.0_real64
+    DO i = 1, n_atoms
+      total = total + REAL(grad(3*i-2:3*i), KIND=real64)
+    END DO
+    along = MATMUL(recentre%proj, total)
+    DO i = 1, n_atoms
+      grad(3*i-2:3*i) = REAL(REAL(grad(3*i-2:3*i), KIND=real64) - &
+           recentre%weights(i) * along, KIND=c_double)
+    END DO
+  END SUBROUTINE
+
+  ! 2 mass, 1 geometry, 0 off, -1 unknown.
+  INTEGER FUNCTION recentre_policy() RESULT(policy)
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st, n
+    policy = 2
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_RECENTER', v, LENGTH=n, STATUS=st)
+    IF (st /= 0 .OR. n == 0) RETURN
+    SELECT CASE (TRIM(ADJUSTL(v)))
+    CASE ('mass', 'MASS')
+      policy = 2
+    CASE ('geometry', 'GEOMETRY')
+      policy = 1
+    CASE ('off', 'OFF', '0')
+      policy = 0
+    CASE DEFAULT
+      policy = -1
+    END SELECT
+  END FUNCTION
+
+  ! NaN when the value does not parse.
+  REAL(real64) FUNCTION recentre_margin() RESULT(margin)
+    USE, INTRINSIC :: ieee_arithmetic, ONLY: ieee_value, ieee_quiet_nan
+    CHARACTER(LEN=64) :: v
+    INTEGER :: st, n, ios
+    margin = 0.0_real64
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_RECENTER_MARGIN', v, LENGTH=n, STATUS=st)
+    IF (st /= 0 .OR. n == 0) RETURN
+    READ(v, *, IOSTAT=ios) margin
+    IF (ios /= 0) margin = ieee_value(margin, ieee_quiet_nan)
+  END FUNCTION
 
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
@@ -2151,6 +2342,7 @@ CONTAINS
     INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:), warm_geo(:)
+    TYPE(embed_recentring) :: recentre
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
     INTEGER :: inwfun_deck, ibench_deck, warm_source
@@ -2180,7 +2372,7 @@ CONTAINS
       CALL cpmdc_note_embed_failure('out of memory'//c_null_char)
       RETURN
     END IF
-    CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, ierr)
+    CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
     IF (ierr /= 0) RETURN
     ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
     ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
@@ -2223,7 +2415,7 @@ CONTAINS
     ! of the interleaving of species in a caller's coordinate array.
     DO slot = 1, n_atoms
       j = INT(origin(slot)) + 1
-      warm_geo(3*slot-2:3*slot) = pos(3*j-2:3*j)
+      warm_geo(3*slot-2:3*slot) = pos(3*j-2:3*j) + recentre%shift_ang
     END DO
     ! metr_com%ht contains lattice rows in Bohr, including deck-only cells.
     DO i = 1, 3
@@ -2324,6 +2516,7 @@ CONTAINS
         END DO
         CALL cpmdc_scatter_species_gradient(INT(n_atoms, KIND=c_int), origin, &
              species_grad, grad)
+        CALL embed_project_gradient(n_atoms, recentre, grad)
       END IF
     END IF
     ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
