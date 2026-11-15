@@ -270,7 +270,8 @@ the direction normal to the molecular plane, and mirror-symmetric in ~y~.
 The ~x~ components round to zero at six decimals, and two keep their minus sign.
 They also sum to zero: cpmdc moves the molecule to the middle of its isolated
 cell before each evaluation and removes the net force the fixed cell would
-otherwise add (see [[file:../reference/environment.org][CPMDC_RECENTER]]).
+otherwise add; [[file:../explanation/isolated-cells.org][atoms in an isolated cell]] explains why, and
+[[file:../reference/environment.org][the environment reference]] lists the ~CPMDC_RECENTER~ settings.
 The iteration timings in the ~TCPU~ column depend on the machine.
 
 * What you built

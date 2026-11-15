@@ -1,0 +1,1 @@
+The Sphinx build is warning-free again: the first-energy tutorial no longer puts `CPMDC_RECENTER` in a link description, where the RST export read the underscore as a subscript, and the `cpmdc_pwscale.h` comments write the tolerance with `fabs()` instead of `|x|`, which Doxyrest exported as RST substitutions.
