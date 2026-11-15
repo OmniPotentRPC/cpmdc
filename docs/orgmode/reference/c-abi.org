@@ -263,18 +263,20 @@ and ~mdTrajectoryRow~ with their ~...Valid~ flags.
 
 | Function | Output |
 |----------+--------|
-| ~int cpmdc_session_calculate_au(CPMDCSession *s, int natoms, const int *atomic_numbers, const double *positions_bohr, const double *cell_bohr, double *energy_h, double *forces_h_bohr, double *virial_h)~ | energy in Hartree, forces in Hartree/Bohr, the virial in Hartree; 0 or -1 |
+| ~int cpmdc_session_calculate_au(CPMDCSession *s, int n_atoms, const double *positions_bohr, const int *atomic_numbers, const double *cell_bohr, double *energy_h, double *forces_h_bohr, double *virial_h)~ | energy in Hartree, forces in Hartree/Bohr, the virial in Hartree; 0 or -1 |
 
 This call takes a periodic cell without a Cap'n Proto message.
+Its arguments come in the order of ~cpmdc_session_energy_forces()~: the atom
+count, the positions, then the atomic numbers.
 Every quantity is in atomic units.
 
 | Argument | Layout |
 |----------+--------|
-| ~atomic_numbers~ | ~natoms~ values |
-| ~positions_bohr~ | ~3 * natoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), Bohr |
+| ~positions_bohr~ | ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), Bohr |
+| ~atomic_numbers~ | ~n_atoms~ values in 1..118 |
 | ~cell_bohr~ | ~NULL~, or nine doubles: row-major 3 by 3, one lattice vector per row (~a_x a_y a_z b_x ...~), Bohr |
 | ~energy_h~ | one double, Hartree |
-| ~forces_h_bohr~ | ~3 * natoms~ doubles, atom-major, Hartree/Bohr, ~-dE/dR~ |
+| ~forces_h_bohr~ | ~3 * n_atoms~ doubles, atom-major, Hartree/Bohr, ~-dE/dR~ |
 | ~virial_h~ | ~NULL~, or nine doubles, row-major, Hartree |
 
 ~cell_bohr~ follows the ~ForceInput.box~ rules above: ~NULL~ and an all-zero
@@ -297,7 +299,7 @@ the evaluation and the session's cache.
 The topology and repeat-step rules of the session apply.
 
 It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session (~null
-session~), ~natoms <= 0~ or a ~NULL~ required pointer (~invalid arguments~),
+session~), ~n_atoms <= 0~ or a ~NULL~ required pointer (~invalid arguments~),
 a topology change, and a failed evaluation.
 On failure the output arrays are left unspecified.
 ~libcpmdc-stub~ returns -1 with the stub message.

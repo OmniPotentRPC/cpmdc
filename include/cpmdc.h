@@ -160,7 +160,7 @@ typedef struct CPMDCMDTrajectoryRow {
  *
  * - dipole[3]: OpenCPMD `ddip%pdipole` (a.u.) when linked; PEF zeros
  * - polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
- * - hessian[]: nuclear gradient dE/dR packed as [natoms*3] (full Hessian needs
+ * - hessian[]: nuclear gradient dE/dR packed as [n_atoms*3] (full Hessian needs
  *   dedicated PROP/Hessian run; gradient is always available after force eval)
  */
 typedef struct CPMDCPropertySnapshot {
@@ -168,7 +168,7 @@ typedef struct CPMDCPropertySnapshot {
   int valid;
   /** Number of doubles copied into `hessian`. */
   size_t hessian_count;
-  /** Nuclear gradient dE/dR, packed as `natoms * 3`. */
+  /** Nuclear gradient dE/dR, packed as `n_atoms * 3`. */
   double hessian[4096];
   /** Number of doubles copied into `dipole`. */
   size_t dipole_count;
@@ -462,17 +462,19 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  *
  * The plain-array form of `cpmdc_session_calculate_result()` for callers
  * without a Cap'n Proto encoder (C, Fortran `BIND(C)`, LAMMPS plugins, i-PI
- * clients). Every quantity is atomic units:
+ * clients). The arguments come in the order of
+ * `cpmdc_session_energy_forces()`: atom count, positions, atomic numbers.
+ * Every quantity is atomic units:
  *
- * - `atomic_numbers`: `natoms` values in 1..118.
- * - `positions_bohr`: `3 * natoms` doubles, Bohr, atom-major row-major
+ * - `positions_bohr`: `3 * n_atoms` doubles, Bohr, atom-major row-major
  *   (`x0 y0 z0 x1 ...`).
+ * - `atomic_numbers`: `n_atoms` values in 1..118.
  * - `cell_bohr`: `NULL` for a system without a cell (the deck's `CELL`
  *   applies, or a 12 Angstrom cube), or 9 doubles, Bohr, row-major with one
  *   lattice vector per row (`a_x a_y a_z b_x ...`), the layout of
  *   `ForceInput.box`. An all-zero cell is a system without a cell too.
  * - `energy_h`: receives the total energy, Hartree.
- * - `forces_h_bohr`: receives `3 * natoms` forces, Hartree/Bohr, laid out as
+ * - `forces_h_bohr`: receives `3 * n_atoms` forces, Hartree/Bohr, laid out as
  *   the positions. Forces are the negative nuclear gradient, `-dE/dR`. On
  *   an isolated OpenCPMD deck the atoms are first moved to the middle of the
  *   deck's cell and the net force is removed (`CPMDC_RECENTER`), so the
@@ -492,13 +494,13 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * fixes the atom count and the composition, and a repeat of the stored
  * positions and cell returns the stored result.
  *
- * @return 0 on success; -1 on a `NULL` session or output, `natoms` outside
+ * @return 0 on success; -1 on a `NULL` session or output, `n_atoms` outside
  *         1..`INT_MAX / 3`, a topology change, or a failed evaluation.
  *         Failure text is `cpmdc_last_error()`.
  */
-CPMDC_API int cpmdc_session_calculate_au(CPMDCSession *session, int natoms,
-                                         const int *atomic_numbers,
+CPMDC_API int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                          const double *positions_bohr,
+                                         const int *atomic_numbers,
                                          const double *cell_bohr, double *energy_h,
                                          double *forces_h_bohr, double *virial_h);
 

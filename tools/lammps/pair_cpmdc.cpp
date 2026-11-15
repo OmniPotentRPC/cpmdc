@@ -262,7 +262,7 @@ void PairCPMDC::compute(int eflag, int vflag)
       double cell_bohr[9];
       for (int i = 0; i < 9; i++) cell_bohr[i] = cell[i] / length_per_bohr;
       const bool periodic = domain->xperiodic && domain->yperiodic && domain->zperiodic;
-      if (cpmdc_session_calculate_au(session, natoms, numbers.data(), positions.data(),
+      if (cpmdc_session_calculate_au(session, natoms, positions.data(), numbers.data(),
                                      periodic ? cell_bohr : nullptr, &head[1], forces.data(),
                                      &head[2]) == 0) {
         head[0] = 1.0;

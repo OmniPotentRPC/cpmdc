@@ -450,7 +450,7 @@ static int compute(struct driver *d, const double *h, const double *positions) {
   int periodic = 0;
   if (cell_rows(d, h, rows, &periodic) != 0)
     return -1;
-  if (cpmdc_session_calculate_au(d->session, d->natoms, d->numbers, positions,
+  if (cpmdc_session_calculate_au(d->session, d->natoms, positions, d->numbers,
                                  periodic ? rows : NULL, &d->energy, d->forces,
                                  d->virial) != 0) {
     const char *why = cpmdc_last_error();
