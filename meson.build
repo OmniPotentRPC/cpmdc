@@ -885,6 +885,7 @@ if get_option('with_tests')
       force_input_step_a_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],
+    timeout: has_cpmd ? 300 : 30,
   )
 
   test(
@@ -1363,7 +1364,7 @@ test(
     ],
     depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
     suite: ['python', 'e2e'],
-    timeout: 120,
+    timeout: has_cpmd ? 900 : 120,
   )
   pytest_env = {
     'CPMDC_LIBRARY': cpmdc_shared.full_path(),
@@ -1390,7 +1391,7 @@ test(
     env: pytest_env,
     depends: pytest_depends,
     suite: ['python', 'e2e'],
-    timeout: 300,
+    timeout: has_cpmd ? 1800 : 300,
   )
   test(
     'docs-examples',
@@ -1405,7 +1406,7 @@ test(
     ],
     depends: [cpmdc_shared, water_params_bin, water_force_bin, fd_check_exe],
     suite: ['docs', 'examples'],
-    timeout: 180,
+    timeout: has_cpmd ? 900 : 180,
   )
   test(
     'tutorials-run',
@@ -1419,7 +1420,7 @@ test(
     ],
     depends: [cpmdc_shared, water_params_bin],
     suite: ['docs', 'examples', 'e2e'],
-    timeout: 180,
+    timeout: has_cpmd ? 900 : 180,
   )
   test(
     'c-abi-baseline',
