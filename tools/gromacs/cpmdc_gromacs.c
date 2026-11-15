@@ -773,9 +773,10 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
       env->have_virial = 0;
     }
   } else {
-    /* The fixed cluster cell leaves a net force and torque on the QM atoms
-     * (OpenCPMD's Hockney water: 0.07 eV/Angstrom), so sum x (x) f is not
-     * symmetric; a symmetric strain sees only its symmetric part. */
+    /* cpmdc removes the net force of an isolated deck, so this sum does not
+     * depend on the origin of x unless CPMDC_RECENTER=off. The cluster grid
+     * still leaves a torque, so sum x (x) f is not symmetric; a symmetric
+     * strain sees only its symmetric part. */
     for (int i = 0; i < nq; ++i)
       for (int a = 0; a < 3; ++a)
         for (int b = 0; b < 3; ++b)
