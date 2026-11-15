@@ -192,6 +192,8 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
 
    reference/c-abi
    reference/python
+   reference/gromacs
+   reference/lammps
    reference/environment
    reference/build-options
    reference/cpmdparams-schema
@@ -209,6 +211,8 @@ An OpenCPMD archive build links the same C ABI surface against ~libcpmd.a~.
    explanation/routes
    explanation/wavefunction-state
    explanation/mpi-model
+   explanation/md-engines
+   explanation/opencpmd-patches
    explanation/simd-paths
 
 .. toctree::

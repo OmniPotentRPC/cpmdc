@@ -14,10 +14,14 @@ evaluation; both pass the same numbers to LAMMPS.
 | i-PI sockets | ~fix ipi~, a client of an i-PI server | i-PI and ~cpmdc-ipi~; see [[file:socket-drivers.org][the socket drivers]] |
 
 The plugin suits LAMMPS input scripts run by ~lmp~ and has the least
-overhead per step.
+overhead per step (see [[file:../explanation/md-engines.org][cpmdc inside MD
+engines]]).
 ~FixExternal~ suits Python workflows and needs no compiler.
 The socket route keeps cpmdc in a separate process and lets i-PI
 integrate; LAMMPS then contributes forces of its own.
+
+The [[file:../reference/lammps.org][LAMMPS interface reference]] gives the
+unit styles, the cell, and the virial both routes use.
 
 * From Python with fix external
 Define the box, the atoms, and the masses as usual, without a pair style
@@ -105,56 +109,6 @@ The plugin links only ~libcpmdc~'s public C ABI.
 LAMMPS is GPL-2.0; check its terms before you distribute a plugin binary
 built against its headers.
 
-* Units
-cpmdc works in Bohr and Hartree.
-Both routes convert with the constants of ~python/cpmdc~ (CODATA 2018,
-with the thermochemical calorie, 4.184 J, for ~real~):
-
-| LAMMPS ~units~ | Length per Bohr | Energy per Hartree | Forces | Virial | Pressure |
-|----------------+-----------------+--------------------+--------+----------------------+----------|
-| ~metal~ | ~BOHR_TO_ANGSTROM~ Angstrom | ~HARTREE_TO_EV~ eV | eV/Angstrom | eV | bar |
-| ~real~ | ~BOHR_TO_ANGSTROM~ Angstrom | ~HARTREE_TO_KCAL_PER_MOL~ kcal/mol | kcal/(mol Angstrom) | kcal/mol | atm |
-| ~electron~ | 1 Bohr | 1 Hartree | Hartree/Bohr | Hartree | Pa |
-
-Any other unit style is refused before the first step with an error that
-names the three; ~FixExternal~ raises ~ValueError~.
-LAMMPS converts the virial to pressure with its own ~nktv2p~.
-
-* Cell and positions
-LAMMPS keeps a restricted triclinic box: ~a~ along x, ~b~ in the xy plane.
-cpmdc takes one lattice vector per row of a row-major 3 by 3 cell, so the
-cell sent is
-
-| Row | LAMMPS | ~domain->h~ |
-|-----+--------+-------------|
-| ~a~ | ~(lx, 0, 0)~ | ~(h[0], 0, 0)~ |
-| ~b~ | ~(xy, ly, 0)~ | ~(h[5], h[1], 0)~ |
-| ~c~ | ~(xz, yz, lz)~ | ~(h[4], h[3], h[2])~ |
-
-with ~lx = xhi - xlo~ and the tilt factors ~xy~, ~xz~, ~yz~.
-An orthogonal box is the case with zero tilts.
-The positions are LAMMPS' Cartesian coordinates unwrapped with the image
-flags, ~x + ix a + iy b + iz c~, so each atom follows a continuous path
-across the boundaries and wavefunction extrapolation sees smooth steps.
-The box origin ~(xlo, ylo, zlo)~ is not subtracted.
-A box with all three axes periodic sends the cell; a box with none sends
-no cell, and the ~CPMDParams~ deck sets the box.
-A box with some axes periodic and others not is refused; ~FixExternal~
-raises ~ValueError~.
-
-* Virial and pressure
-cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.
-LAMMPS' global virial of a pair style or of ~fix_modify virial yes~ has the
-same sign and units of energy, ~W = sum r f~ for a pair potential, so both
-routes pass ~W~ times the energy factor, symmetrized, as ~xx yy zz xy xz
-yz~.
-The pressure LAMMPS prints is then ~P = (sum m v v + W) / V~ in its
-pressure units; a compressed cell has a positive diagonal of ~W~ and a
-positive pressure.
-~fix npt~ and ~fix nph~ use it as they use any pair virial.
-~compute pressure NULL virial~ reports the virial part alone, ~W / V~ in
-pressure units.
-
 * Several MPI ranks
 Under ~mpirun~ LAMMPS spreads the atoms over its ranks, and cpmdc still
 evaluates the whole system once per step:
@@ -177,53 +131,3 @@ was created on a communicator other than ~MPI.COMM_WORLD~.
 The plugin uses LAMMPS' own ~world~ communicator.
 Running one cpmdc evaluation on several ranks under the same LAMMPS is not
 part of either route.
-
-* Checks
-~tests/python/test_lammps.py~ runs both routes under Meson's ~python-pytest~
-and checks:
-
-- energy, forces, and virial against ~CPMDCCalculator~ to 1e-10, in a cubic
-  and a triclinic box and without a cell, under ~metal~, ~real~, and
-  ~electron~;
-- each of the six virial components against a central difference of the
-  energy under strain on the triclinic box;
-- the type-to-element map, unwrapping across the boundary, and ~press~
-  against the virial trace;
-- energy drift of a short NVE run and of the extended energy of an NPT run;
-- the error for each refused input and a failed step;
-- two ranks against one, under ~mpiexec~.
-
-The module skips with a reason when the ~lammps~ module cannot start, and
-the plugin cases skip when ~cpmdcplugin.so~ is not built.
-The reference evaluator of a build without OpenCPMD is a harmonic well
-about the origin, which is not translation invariant; NPT runs on it need
-~fixedpoint 0 0 0~, which an OpenCPMD energy does not.
-
-* Overhead per step
-~bench/lammps_routes.py~ integrates two water molecules in a 9 Angstrom
-cubic box (~metal~, NVE) through each route and reports the median wall
-time per step over fresh repeats, with the raw values.
-With the reference evaluator this is coupling overhead: an OpenCPMD step
-adds the same SCF time to every route.
-
-#+begin_src bash
-python bench/lammps_routes.py --build build --steps 2000 --repeats 7
-#+end_src
-
-One run on an 8-core Xeon virtual machine with LAMMPS 22 Jul 2025 from the
-pip wheel and i-PI 3.3.1:
-
-| Route | Median, microseconds per step |
-|-------+-------------------------------|
-| ~Session.calculate_au~ in a Python loop, no integrator | 7.4 |
-| LAMMPS with ~pair_style zero~, no cpmdc | 0.65 |
-| ~pair_style cpmdc~ | 7.1 |
-| ~FixExternal~ | 87 |
-| ~FixExternal~ through ASE's ~SocketServer~ and ~cpmdc-ipi-c~ | 253 |
-| i-PI with ~cpmdc-ipi-c~ | 231 |
-| i-PI with ~cpmdc-ipi-c~ and LAMMPS ~fix ipi~ | 318 |
-
-The in-process routes time ~run~ inside one process; the i-PI routes use
-i-PI's own per-step timing, so no route counts process startup.
-[[file:gromacs.org][Run GROMACS on cpmdc forces]] times GROMACS on the same system beside
-~pair_style cpmdc~.

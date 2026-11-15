@@ -1,4 +1,4 @@
-"""bench/npt_block_average.py on series whose answers are known, and the howto table it generated."""
+"""bench/npt_block_average.py on series whose answers are known, and the explanation table it generated."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ nba = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(nba)
 
 SUMMARY = ROOT / "bench" / "results" / "gromacs_npt_crescale_64w.org"
-HOWTO = ROOT / "docs" / "orgmode" / "howto" / "gromacs.org"
+EXPLANATION = ROOT / "docs" / "orgmode" / "explanation" / "md-engines.org"
 
 
 def ar1(n: int, phi: float, seed: int) -> np.ndarray:
@@ -59,9 +59,9 @@ def test_equilibration_start_stays_in_the_first_half():
     assert t0 <= 200
 
 
-def test_howto_carries_the_generated_table():
+def test_explanation_carries_the_generated_table():
     rows = [line for line in SUMMARY.read_text().splitlines() if line.startswith("|")]
     assert rows
-    howto = HOWTO.read_text()
-    missing = [row for row in rows if row not in howto]
+    page = EXPLANATION.read_text()
+    missing = [row for row in rows if row not in page]
     assert not missing, missing
