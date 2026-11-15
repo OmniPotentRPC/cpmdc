@@ -1118,8 +1118,8 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args,
     ),
-    args: [cpmd_parser_params_bin.full_path()],
-    depends: [cpmd_parser_params_bin],
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
     suite: ['e2e', 'cmocka'],
   )
   test(
