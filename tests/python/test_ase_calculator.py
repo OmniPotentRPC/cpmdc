@@ -12,19 +12,29 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import pickle
+import shutil
+import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
 from ase import Atoms
-from ase.calculators.calculator import Calculator, PropertyNotImplementedError
+from ase.calculators.calculator import (
+    CalculationFailed,
+    Calculator,
+    PropertyNotImplementedError,
+)
 from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
+from ase.calculators.test import gradient_test
+from ase.filters import FrechetCellFilter
 from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
-from conftest import WATER
+from conftest import ROOT, WATER
 
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Potential, Session
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CpmdcError, Potential, Session
 from cpmdc.ase import CPMDCCalculator
 
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
@@ -61,6 +71,43 @@ def periodic_calc(periodic_params):
         yield calculator
 
 
+@pytest.fixture
+def cwds(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """The working directory of each library evaluation."""
+    seen: list[Path] = []
+    evaluate = Potential.evaluate
+
+    def recorded(self, *args, **kwargs):
+        seen.append(Path.cwd())
+        return evaluate(self, *args, **kwargs)
+
+    monkeypatch.setattr(Potential, "evaluate", recorded)
+    return seen
+
+
+@pytest.fixture(scope="module")
+def cluster_variant(tmp_path_factory: pytest.TempPathFactory):
+    """Encode the cluster water message with one field changed."""
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("put capnp on PATH to encode a CPMDParams variant")
+    source = (ROOT / "tests" / "water_blyp_params.capnp.txt").read_text(encoding="utf-8")
+
+    def encode(old: str = "", new: str = "") -> Path:
+        assert old in source
+        done = subprocess.run(
+            [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+            input=source.replace(old, new).encode("utf-8"),
+            stdout=subprocess.PIPE,
+            check=True,
+        )
+        target = tmp_path_factory.mktemp("variant") / "water.params.bin"
+        target.write_bytes(done.stdout)
+        return target
+
+    return encode
+
+
 def test_is_an_ase_calculator(calc, params):
     assert isinstance(calc, Calculator)
     assert calc.implemented_properties == ["energy", "free_energy", "forces", "stress"]
@@ -84,6 +131,33 @@ def test_units_are_ev_and_angstrom(calc, params):
     assert atoms.get_forces().dtype == np.float64
 
 
+def test_a_periodic_step_matches_session_and_potential(periodic_calc, periodic_params, opencpmd):
+    atoms = water(cell=TRICLINIC, pbc=True)
+    atoms.rattle(0.05, seed=19)
+    atoms.calc = periodic_calc
+    energy, forces, stress = atoms.get_potential_energy(), atoms.get_forces(), atoms.get_stress()
+    numbers = [int(number) for number in atoms.numbers]
+    with Session(periodic_params) as session:
+        native = session.energy_forces(atoms.positions, numbers, atoms.cell.array)
+    with Potential(periodic_params) as pot:
+        provider = pot.evaluate(atoms.positions, numbers, atoms.cell.array)
+    assert native.stress_h_bohr3 is not None
+    tensor = -np.reshape(native.stress_h_bohr3, (3, 3)) * HARTREE_TO_EV / BOHR_TO_ANGSTROM**3
+    voigt = [tensor[0, 0], tensor[1, 1], tensor[2, 2], tensor[1, 2], tensor[0, 2], tensor[0, 1]]
+    scf = dict(rel=0, abs=1e-5) if opencpmd else dict(rel=1e-14)
+    assert energy == pytest.approx(native.energy_h * HARTREE_TO_EV, **scf)
+    assert energy == pytest.approx(provider["energy"], **scf)
+    force_atol = 1e-3 if opencpmd else 0.0
+    expected = np.array(native.forces_h_bohr) * HARTREE_TO_EV / BOHR_TO_ANGSTROM
+    np.testing.assert_allclose(forces, expected, rtol=1e-14, atol=force_atol)
+    np.testing.assert_allclose(forces, provider["forces"], rtol=1e-14, atol=force_atol)
+    stress_atol = 1e-4 if opencpmd else 0.0
+    np.testing.assert_allclose(stress, voigt, rtol=1e-12, atol=stress_atol)
+    np.testing.assert_allclose(
+        atoms.get_stress(voigt=False).ravel(), provider["stress"], rtol=1e-12, atol=stress_atol
+    )
+
+
 @pytest.mark.parametrize("periodic", [False, True])
 def test_forces_match_finite_differences(params, periodic_params, opencpmd, periodic):
     if periodic:
@@ -101,6 +175,17 @@ def test_forces_match_finite_differences(params, periodic_params, opencpmd, peri
         numeric = calculate_numerical_forces(atoms, eps=1.0e-4)
         np.testing.assert_allclose(forces, numeric, rtol=1.0e-6, atol=1.0e-9)
     atoms.calc.close()
+
+
+def test_ase_gradient_test(calc, opencpmd):
+    """ase.calculators.test.gradient_test, down to a 1e-8 Angstrom step."""
+    if opencpmd:
+        pytest.skip("steps below 1e-4 Angstrom are inside the SCF tolerance")
+    atoms = water()
+    atoms.rattle(0.05, seed=7)
+    atoms.calc = calc
+    analytic, numeric = gradient_test(atoms)
+    np.testing.assert_allclose(analytic, numeric, rtol=0, atol=1.0e-6)
 
 
 @pytest.mark.parametrize("cell", [CUBE, TRICLINIC], ids=["cubic", "triclinic"])
@@ -244,6 +329,39 @@ def test_allow_calculation_false(calc, calls):
     assert len(calls) == 1
 
 
+def test_calculation_required_follows_the_stored_step(periodic_calc, calls):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    every = ["energy", "free_energy", "forces", "stress"]
+    assert periodic_calc.calculation_required(atoms, ["energy"])
+    atoms.get_forces()
+    assert not periodic_calc.calculation_required(atoms, every)
+    for change in ("positions", "cell", "numbers"):
+        moved = atoms.copy()
+        if change == "positions":
+            moved.positions[2, 1] += 0.01
+        elif change == "cell":
+            moved.set_cell(np.array(CUBE) * 0.99)
+        else:
+            moved.numbers = [1, 8, 1]
+        assert periodic_calc.calculation_required(moved, ["energy"])
+    assert len(calls) == 1
+
+
+def test_reset_clears_the_step_and_keeps_the_session(calc, calls, opencpmd):
+    atoms = water()
+    atoms.calc = calc
+    energy = atoms.get_potential_energy()
+    session = calc.potential
+    calc.reset()
+    assert calc.results == {}
+    assert calc.atoms is None
+    assert calc.calculation_required(atoms, ["energy"])
+    assert atoms.get_potential_energy() == pytest.approx(energy, rel=0, abs=1e-5 if opencpmd else 0)
+    assert calc.potential is session
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize("name", ["energies", "magmom", "magmoms", "charges", "dipole"])
 def test_unsupported_properties_raise(calc, name):
     atoms = water()
@@ -332,9 +450,135 @@ def test_set_rejects_bad_input_and_keeps_the_session(calc, params):
     assert moved.get_potential_energy() != energy
 
 
-def test_unknown_constructor_arguments_raise(params):
-    with pytest.raises(TypeError, match="unknown calculator arguments"):
-        CPMDCCalculator(params, xc="PBE")
+@pytest.mark.parametrize("key, value", [("charge", -1), ("multiplicity", 3), ("xc", "PBE")])
+def test_method_keywords_point_at_cpmdparams(params, key, value):
+    message = rf"unknown calculator parameters: \['{key}'\].*CPMDParams"
+    with pytest.raises(TypeError, match=message):
+        CPMDCCalculator(params, **{key: value})
+    with CPMDCCalculator(params) as calc:
+        with pytest.raises(TypeError, match=message):
+            calc.set(**{key: value})
+        assert key not in calc.parameters
+
+
+def test_params_are_required():
+    with pytest.raises(TypeError, match="params is required"):
+        CPMDCCalculator()
+
+
+def test_keywords_go_through_calculator_init(params, tmp_path):
+    with CPMDCCalculator(params=params) as calc:
+        assert calc.parameters["params"] == str(params)
+        saved = tmp_path / "calc.ase"
+        calc.parameters.write(saved)
+    with CPMDCCalculator(parameters=str(saved)) as loaded:
+        assert loaded.parameters == calc.parameters
+    atoms = water()
+    with CPMDCCalculator(params, atoms=atoms) as attached:
+        assert atoms.calc is attached
+        assert np.isfinite(atoms.get_potential_energy())
+
+
+def test_todict_rebuilds_an_equal_calculator(calc, opencpmd):
+    atoms = water()
+    atoms.calc = calc
+    energy = atoms.get_potential_energy()
+    with CPMDCCalculator(**calc.todict()) as rebuilt:
+        assert rebuilt.todict() == calc.todict()
+        other = water()
+        other.calc = rebuilt
+        assert other.get_potential_energy() == pytest.approx(
+            energy, rel=0, abs=1e-5 if opencpmd else 0
+        )
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [("charge = 0,", "charge = 2,"), ("multiplicity = 1,", "multiplicity = 3,")],
+    ids=["charge", "multiplicity"],
+)
+def test_charge_and_multiplicity_come_from_cpmdparams(cluster_variant, opencpmd, old, new):
+    if opencpmd:
+        pytest.skip("a charged or open-shell water is a separate OpenCPMD SCF")
+    plain = cluster_variant()
+    atoms = water()
+    with CPMDCCalculator(plain) as calc:
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+        tagged = water()
+        tagged.set_initial_charges([2.0, 0.0, 0.0])
+        tagged.set_initial_magnetic_moments([2.0, 0.0, 0.0])
+        with CPMDCCalculator(plain) as fresh:
+            tagged.calc = fresh
+            assert tagged.get_potential_energy() == energy
+        assert calc.set(params=cluster_variant(old, new)) != {}
+        assert calc.results == {}
+        assert atoms.get_potential_energy() != energy
+
+
+def test_steps_run_in_the_calculator_directory(params, tmp_path, monkeypatch, cwds, opencpmd):
+    monkeypatch.chdir(tmp_path)
+    here = Path.cwd()
+    atoms = water()
+    with CPMDCCalculator(params) as calc:
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+    moved = water()
+    with CPMDCCalculator(params, directory="run") as calc:
+        moved.calc = calc
+        assert moved.get_potential_energy() == pytest.approx(
+            energy, rel=0, abs=1e-5 if opencpmd else 0
+        )
+    assert cwds == [here, here / "run"]
+    assert Path.cwd() == here
+
+
+def test_label_names_the_directory(params, tmp_path, monkeypatch, cwds):
+    monkeypatch.chdir(tmp_path)
+    atoms = water()
+    with CPMDCCalculator(params, label="run/water") as calc:
+        assert (calc.directory, calc.prefix) == ("run", "water")
+        atoms.calc = calc
+        atoms.get_potential_energy()
+    assert cwds == [Path.cwd() / "run"]
+
+
+def test_restart_is_ignored(params):
+    with pytest.warns(DeprecationWarning, match="restart is ignored"):
+        calc = CPMDCCalculator(params, restart="old/run")
+    assert calc.directory == "."
+    assert calc.label is None
+    calc.close()
+
+
+def test_a_failed_step_raises_calculation_failed(params, tmp_path, monkeypatch):
+    evaluate = Potential.evaluate
+    broken = [True]
+
+    def flaky(self, *args, **kwargs):
+        if broken[0]:
+            raise CpmdcError("SCF did not converge")
+        return evaluate(self, *args, **kwargs)
+
+    monkeypatch.setattr(Potential, "evaluate", flaky)
+    monkeypatch.chdir(tmp_path)
+    here = Path.cwd()
+    atoms = water()
+    with CPMDCCalculator(params, directory="run") as calc:
+        atoms.calc = calc
+        with pytest.raises(CalculationFailed, match="SCF did not converge") as failed:
+            atoms.get_potential_energy()
+        assert isinstance(failed.value, CpmdcError)
+        assert str(here / "run") in str(failed.value)
+        assert Path.cwd() == here
+        assert calc.results == {}
+        broken[0] = False
+        assert np.isfinite(atoms.get_potential_energy())
+
+
+def test_a_step_without_atoms_raises(calc):
+    with pytest.raises(ValueError, match="no atoms"):
+        calc.get_potential_energy()
 
 
 @pytest.mark.parametrize("how", ["copy", "deepcopy", "pickle"])
@@ -432,3 +676,14 @@ def test_bfgs_trajectory_stores_periodic_stress(periodic_calc, tmp_path):
         assert opt.run(fmax=0.01, steps=200)
     last = read(path, index=-1)
     np.testing.assert_allclose(last.get_stress(), atoms.get_stress())
+
+
+def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_calc):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    atoms.calc = periodic_calc
+    start = atoms.get_potential_energy()
+    with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+        opt.run(fmax=0.01, steps=4)
+    assert atoms.get_potential_energy() < start
+    assert not np.allclose(atoms.cell.array, CUBE)
