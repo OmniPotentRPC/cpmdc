@@ -13,6 +13,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from transcripts import ase_mismatch, mismatch, opencpmd_linked
+
 BLOCK = re.compile(r"#\+begin_src (\w+)\n(.*?)\n#\+end_src", re.S | re.I)
 
 # file relative to docs/orgmode, block index -> why this process cannot run it
@@ -270,8 +272,9 @@ def main() -> int:
             )
             if proc.returncode != 0:
                 return fail(proc.stdout + proc.stderr)
+            ase_block = found["tutorials/ase-energy.org:0"][1].replace("build/", f"{build}/")
             ase = subprocess.run(
-                ["bash", "-c", found["tutorials/ase-energy.org:0"][1]],
+                ["bash", "-c", ase_block],
                 cwd=root,
                 env=env,
                 stdout=subprocess.PIPE,
@@ -279,13 +282,19 @@ def main() -> int:
                 text=True,
                 check=False,
             )
-            if ase.returncode != 0 or "energy_ev=" not in ase.stdout:
+            if ase.returncode != 0:
                 return fail(ase.stderr + ase.stdout)
+            why = ase_mismatch(
+                ase.stdout, found["tutorials/ase-energy.org:1"][1], opencpmd_linked(str(library))
+            )
+            if why:
+                return fail(f"tutorials/ase-energy.org:0 ({why}):\n" + ase.stdout)
             (work / "first_forces.c").write_text(
                 found["tutorials/first-energy.org:7"][1] + "\n", encoding="utf-8"
             )
+            link = found["tutorials/first-energy.org:8"][1].replace('"$CPMDC/build"', f'"{build}"')
             ran = subprocess.run(
-                ["bash", "-c", found["tutorials/first-energy.org:8"][1]],
+                ["bash", "-c", link],
                 cwd=work,
                 env=env,
                 stdout=subprocess.PIPE,
@@ -295,14 +304,12 @@ def main() -> int:
             )
             if ran.returncode != 0:
                 return fail(ran.stderr + ran.stdout)
-            expect = [
-                line.rstrip()
-                for line in found["tutorials/first-energy.org:9"][1].splitlines()
-                if line.strip()
-            ]
-            got = [line.rstrip() for line in ran.stdout.splitlines() if line.strip()]
-            if got != expect:
-                return fail("first-energy example mismatch:\n" + ran.stdout)
+            why = mismatch(
+                ran.stdout,
+                [found["tutorials/first-energy.org:9"][1], found["tutorials/first-energy.org:11"][1]],
+            )
+            if why:
+                return fail(f"first-energy example mismatch ({why}):\n" + ran.stdout)
         except RuntimeError as exc:
             return fail(str(exc))
     print(f"ran {len(run_keys)} docs examples, skipped {len(SKIP)}")

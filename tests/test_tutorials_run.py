@@ -10,6 +10,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from transcripts import ase_mismatch, mismatch, opencpmd_linked
+
 
 def blocks(text: str, lang: str) -> list[str]:
     pattern = rf"#\+begin_src {lang}\n(.*?)\n#\+end_src"
@@ -90,10 +92,9 @@ def first_energy(root: Path, library_dir: Path) -> int:
         )
         if ran.returncode != 0:
             return fail(ran.stderr + ran.stdout)
-        got = [line.rstrip() for line in ran.stdout.splitlines() if line.strip()]
-        expect = [line.rstrip() for line in transcripts[0].splitlines() if line.strip()]
-        if got != expect:
-            return fail("first-energy transcript mismatch:\n" + ran.stdout + "\nexpected:\n" + transcripts[0])
+        why = mismatch(ran.stdout, transcripts)
+        if why:
+            return fail(f"first-energy transcript mismatch ({why}):\n" + ran.stdout)
     return 0
 
 
@@ -144,10 +145,9 @@ def python_examples(root: Path, library: Path, params: Path, schema: Path) -> in
     transcripts = [block for block in blocks(tutorial, "text") if "energy_ev=" in block]
     if not transcripts:
         return fail("ase-energy tutorial has no transcript")
-    got = [line.rstrip() for line in ase.stdout.splitlines() if line.strip()]
-    expect = [line.rstrip() for line in transcripts[0].splitlines() if line.strip()]
-    if got != expect:
-        return fail("ase-energy transcript mismatch:\n" + ase.stdout)
+    why = ase_mismatch(ase.stdout, transcripts[0], opencpmd_linked(str(library)))
+    if why:
+        return fail(f"ase-energy transcript mismatch ({why}):\n" + ase.stdout)
     if "examples/python/ase_energy.py" not in tutorial:
         return fail("ase-energy tutorial does not run the example")
     eon = (root / "docs/orgmode/tutorials/eon-rgpot.org").read_text(encoding="utf-8")
