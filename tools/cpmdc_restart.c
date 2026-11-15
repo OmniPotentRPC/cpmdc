@@ -35,7 +35,7 @@ static int want_angstrom(int argc, char **argv) {
   return 0;
 }
 
-static int print_triples(const cpmdc_restart *file, int which, int angstrom) {
+static int print_triples(const CPMDCRestart *file, int which, int angstrom) {
   int n = cpmdc_restart_ncoords(file);
   double *xyz;
   int rc;
@@ -158,7 +158,7 @@ static int read_xyz(const char *path, double **out, int *n3, int angstrom, char 
   return 0;
 }
 
-static int cmd_info(const cpmdc_restart *file) {
+static int cmd_info(const CPMDCRestart *file) {
   double cell[6];
   int ibrav = 0, indpg = 0;
   const int *na = NULL;
@@ -199,7 +199,7 @@ static int cmd_info(const cpmdc_restart *file) {
 
 int main(int argc, char **argv) {
   char err[256];
-  cpmdc_restart *file;
+  CPMDCRestart *file;
   int angstrom;
   const char *cmd;
   if (argc < 3) {

@@ -135,7 +135,7 @@ static int build_sample(unsigned char **out, size_t *nout, int stream, int with_
 
 static int check_sample(const unsigned char *bytes, size_t n, int expect_stream) {
   char err[256];
-  cpmdc_restart *file;
+  CPMDCRestart *file;
   double cell[6];
   double xyz[9];
   double vel[9];
@@ -246,7 +246,7 @@ static int check_split_header(void) {
   int32_t m1 = -10, m2 = 70;
   int32_t count = 0;
   char err[256];
-  cpmdc_restart *file;
+  CPMDCRestart *file;
   memset(part1, ' ', sizeof part1);
   memset(part2, ' ', sizeof part2);
   memcpy(part1, " STUTTGART", 10);
@@ -265,7 +265,9 @@ static int check_split_header(void) {
     cpmdc_restart_free(file);
     return fail("split header text");
   }
-  cpmdc_restart_free(file);
+  /* 0.4.0 callers spell the type cpmdc_restart; it must stay the same type. */
+  cpmdc_restart *old_name = file;
+  cpmdc_restart_free(old_name);
   return 0;
 }
 
@@ -290,7 +292,7 @@ static int check_bad_magic(void) {
 
 static int check_geo1(const char *path) {
   char err[256];
-  cpmdc_restart *file;
+  CPMDCRestart *file;
   double cell[6];
   double taui[21];
   const int *na = NULL;
