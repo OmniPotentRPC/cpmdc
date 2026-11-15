@@ -473,7 +473,10 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  *   `ForceInput.box`. An all-zero cell is a system without a cell too.
  * - `energy_h`: receives the total energy, Hartree.
  * - `forces_h_bohr`: receives `3 * natoms` forces, Hartree/Bohr, laid out as
- *   the positions. Forces are the negative nuclear gradient, `-dE/dR`.
+ *   the positions. Forces are the negative nuclear gradient, `-dE/dR`. On
+ *   an isolated OpenCPMD deck the atoms are first moved to the middle of the
+ *   deck's cell and the net force is removed (`CPMDC_RECENTER`), so the
+ *   energy and forces do not depend on where the caller puts the atoms.
  * - `virial_h`: `NULL`, or receives 9 doubles, Hartree, row-major, the
  *   virial `-dE/d(strain)`. It is `|det(cell)|` times the stress of
  *   `cpmdc_session_last_stress()`, whose sign is `-(1/V) dE/d(strain)`.
