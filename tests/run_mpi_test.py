@@ -49,6 +49,15 @@ def supports_oversubscribe(launcher: str) -> bool:
     return probed.returncode == 0
 
 
+def btl_exclusion(asan: bool) -> str:
+    """Open MPI 4's openib BTL probes RDMA devices it has no parameters
+    for, such as the Azure MANA NIC of GitHub runners, and mpirun can then
+    abort with ORTE_ERROR_LOG: Out of resource in show_help.c. Open MPI 5
+    has no openib and ignores the name.
+    """
+    return "^uct,openib" if asan else "^openib"
+
+
 def launch_env() -> dict[str, str]:
     """Environment for the launcher and its ranks.
 
@@ -61,10 +70,10 @@ def launch_env() -> dict[str, str]:
     """
     env = os.environ.copy()
     env["OMPI_MCA_memory"] = "^patcher"
+    env["OMPI_MCA_btl"] = btl_exclusion(bool(env.get("ASAN_OPTIONS")))
     if env.get("ASAN_OPTIONS"):
         env["OMPI_MCA_pml"] = "^ucx"
         env["OMPI_MCA_osc"] = "^ucx"
-        env["OMPI_MCA_btl"] = "^uct"
     parts = [
         part
         for part in env.get("ASAN_OPTIONS", "").split(":")
@@ -81,21 +90,9 @@ def openmpi_mca_args(launcher: str, asan: bool) -> list[str]:
     ``OMPI_MCA_*`` in the environment is not enough on every runner.
     ``mpirun --mca`` reaches the ranks directly. MPICH has no ``--mca``.
     """
-    flags = ["--mca", "memory", "^patcher"]
+    flags = ["--mca", "memory", "^patcher", "--mca", "btl", btl_exclusion(asan)]
     if asan:
-        flags.extend(
-            [
-                "--mca",
-                "pml",
-                "^ucx",
-                "--mca",
-                "osc",
-                "^ucx",
-                "--mca",
-                "btl",
-                "^uct",
-            ]
-        )
+        flags.extend(["--mca", "pml", "^ucx", "--mca", "osc", "^ucx"])
     try:
         probed = subprocess.run(
             [launcher, *flags, "-n", "1", "true"],
