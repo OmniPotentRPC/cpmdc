@@ -1,0 +1,1 @@
+`cpmdc_restart.h` and the C ABI reference state the failure return of every RESTART function (-1, or `NULL` with the reason in `err`), that `cpmdc_restart_write_mem` returns a `malloc` buffer for `free`, and that velocities are Bohr per atomic unit of time, not Bohr; the reference gives each function its own contract instead of a list of names.

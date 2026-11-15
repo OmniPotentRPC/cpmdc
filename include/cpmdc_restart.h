@@ -19,8 +19,9 @@ extern "C" {
  * stores an 8-byte file position in that header record; a classic header
  * that is only the integer is accepted too.
  *
- * Coordinates, velocities, and the initial geometry are Bohr, in the order
- * wv30 writes tau0: species, then atom, then x,y,z. Multiply a Bohr value
+ * Coordinates and the initial geometry are Bohr, and velocities are Bohr per
+ * atomic unit of time, in the order wv30 writes tau0: species, then atom,
+ * then x,y,z. Multiply a Bohr value
  * by CPMDC_RESTART_ANGSTROM_PER_BOHR to get angstroms, and divide by the
  * same macro on the way back. OpenCPMD names the reciprocal
  * 1/0.529177210859 as cnst%fbohr. The restart bridge uses the macro in
@@ -30,12 +31,27 @@ extern "C" {
  * Replacing coordinates rewrites those 24-byte records and leaves every
  * other record, including plane-wave coefficients, byte for byte. The host
  * endianness must match the Fortran file (little endian on x86_64 gfortran).
+ *
+ * Every `int` function returns 0 on success and -1 on failure, except
+ * cpmdc_restart_is_stream() and cpmdc_restart_ncoords(), which return a
+ * value. The library keeps no error state: the readers and writers write a
+ * diagnostic into the caller's `err` buffer, and the other functions fail
+ * on a NULL image, a NULL required pointer, a section the image lacks, or
+ * a count that does not match the image.
  */
 
 /** Angstroms per Bohr. Multiply a Bohr coordinate by this macro. */
 #define CPMDC_RESTART_ANGSTROM_PER_BOHR 0.529177210859
 
 /** Opaque RESTART image. */
+typedef struct cpmdc_restart CPMDCRestart;
+
+/**
+ * Deprecated name of CPMDCRestart, the same type.
+ *
+ * Kept for code written against 0.4.0; new code names CPMDCRestart, as the
+ * types of cpmdc.h are named.
+ */
 typedef struct cpmdc_restart cpmdc_restart;
 
 /**
@@ -45,10 +61,10 @@ typedef struct cpmdc_restart cpmdc_restart;
  * @param nbytes Number of bytes in `bytes`.
  * @param err Diagnostic buffer. May be NULL.
  * @param err_cap Capacity of `err`, including the terminating NUL.
- * @return The image, or NULL on failure.
+ * @return The image, or NULL on failure with the reason in `err`.
  */
-cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
-                                      char *err, size_t err_cap);
+CPMDCRestart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
+                                     char *err, size_t err_cap);
 
 /**
  * @brief Read a RESTART image from a filesystem path.
@@ -56,44 +72,45 @@ cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes,
  * @param path Filesystem path of the RESTART file.
  * @param err Diagnostic buffer. May be NULL.
  * @param err_cap Capacity of `err`, including the terminating NUL.
- * @return The image, or NULL on failure.
+ * @return The image, or NULL on failure with the reason in `err`.
  */
-cpmdc_restart *cpmdc_restart_read_path(const char *path, char *err,
-                                       size_t err_cap);
+CPMDCRestart *cpmdc_restart_read_path(const char *path, char *err,
+                                      size_t err_cap);
 
 /**
  * @brief Release an image returned by the readers.
  *
  * @param file Image to free. May be NULL.
  */
-void cpmdc_restart_free(cpmdc_restart *file);
+void cpmdc_restart_free(CPMDCRestart *file);
 
 /**
  * @brief Report whether the image uses the continuing-record stream layout.
  *
  * @param file Image to query.
- * @return 1 when `file` uses that layout, 0 otherwise.
+ * @return 1 when `file` uses that layout, 0 otherwise or for a NULL image.
  */
-int cpmdc_restart_is_stream(const cpmdc_restart *file);
+int cpmdc_restart_is_stream(const CPMDCRestart *file);
 
 /**
  * @brief Section 1 header text.
  *
  * @param file Image to query.
- * @return The header, or NULL when the image has none.
+ * @return The header, owned by the image, or NULL when the image has none
+ *         or is NULL.
  */
-const char *cpmdc_restart_header(const cpmdc_restart *file);
+const char *cpmdc_restart_header(const CPMDCRestart *file);
 
 /**
  * @brief Report one section's record count.
  *
  * @param file Image to query.
- * @param section 1-based section index.
- * @param count Receives the integer in the section header, or 0 when the
- *        section is empty.
- * @return 0 when the section is present.
+ * @param section 1-based section index, 1..99.
+ * @param count Receives the integer in the section header (1 for section
+ *        1), or 0 when the section is empty. May be NULL.
+ * @return 0 when the section is present, -1 otherwise.
  */
-int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count);
+int cpmdc_restart_section(const CPMDCRestart *file, int section, int *count);
 
 /**
  * @brief Read the cell description.
@@ -102,10 +119,10 @@ int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count);
  * @param ibrav Receives the stored `ibrav`. May be NULL.
  * @param indpg Receives the stored `indpg`. May be NULL.
  * @param celldm Receives the six lattice parameters. Required.
- * @return 0 when the cell section is present.
+ * @return 0 when the cell section is present, -1 otherwise.
  */
-int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
-                       double celldm[6]);
+int cpmdc_restart_cell(const CPMDCRestart *file, int *ibrav, int *indpg,
+                      double celldm[6]);
 
 /**
  * @brief Read the species counts.
@@ -114,10 +131,10 @@ int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
  * @param nsp Receives the stored species count. May be NULL.
  * @param na_per_species Points at the image's own array. May be NULL.
  *        Valid until the image is freed or rewritten.
- * @return 0 when the species section is present.
+ * @return 0 when the species section is present, -1 otherwise.
  */
-int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
-                          const int **na_per_species);
+int cpmdc_restart_species(const CPMDCRestart *file, int *nsp,
+                         const int **na_per_species);
 
 /**
  * @brief Expand one symbol per species into CPMD coordinate order.
@@ -130,82 +147,91 @@ int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
  * @param nspecies Must equal the stored species count.
  * @param atom_symbols Receives `n_atoms` pointers. Required.
  * @param n_atoms Must equal the coordinate count.
- * @return 0 on success.
+ * @return 0 on success; -1 on a NULL argument, a species count other than
+ *         `nspecies`, an empty symbol, or an atom count other than
+ *         `n_atoms`.
  */
-int cpmdc_restart_expand_species_symbols(const cpmdc_restart *file,
-                                         const char *const *species_symbols,
-                                         int nspecies, const char **atom_symbols,
-                                         int n_atoms);
+int cpmdc_restart_expand_species_symbols(const CPMDCRestart *file,
+                                        const char *const *species_symbols,
+                                        int nspecies, const char **atom_symbols,
+                                        int n_atoms);
 
 /**
  * @brief Number of coordinate triples in section 4.
  *
  * @param file Image to query.
- * @return The triple count, or 0 when that section is empty.
+ * @return The triple count, or 0 when that section is empty or the image
+ *         is NULL.
  */
-int cpmdc_restart_ncoords(const cpmdc_restart *file);
+int cpmdc_restart_ncoords(const CPMDCRestart *file);
 
 /**
  * @brief Copy coordinates in Bohr.
  *
  * @param file Image to query.
  * @param xyz Receives `ncoords * 3` doubles.
- * @param n3 Capacity of `xyz` in doubles.
- * @return 0 on success.
+ * @param n3 Size of `xyz` in doubles; must equal `ncoords * 3`.
+ * @return 0 on success; -1 on a NULL argument, another `n3`, or a
+ *         malformed record.
  */
-int cpmdc_restart_coordinates(const cpmdc_restart *file, double *xyz, int n3);
+int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3);
 
 /**
- * @brief Copy velocities in Bohr.
+ * @brief Copy velocities in Bohr per atomic unit of time.
  *
  * @param file Image to query.
  * @param xyz Receives `ncoords * 3` doubles.
- * @param n3 Capacity of `xyz` in doubles.
- * @return 0 on success.
+ * @param n3 Size of `xyz` in doubles; must equal `ncoords * 3`.
+ * @return 0 on success; -1 on a NULL argument, another `n3`, or a
+ *         malformed record.
  */
-int cpmdc_restart_velocities(const cpmdc_restart *file, double *xyz, int n3);
+int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3);
 
 /**
  * @brief Copy the initial geometry in Bohr.
  *
  * @param file Image to query.
  * @param xyz Receives `ncoords * 3` doubles.
- * @param n3 Capacity of `xyz` in doubles.
- * @return 0 on success.
+ * @param n3 Size of `xyz` in doubles; must equal `ncoords * 3`.
+ * @return 0 on success; -1 on a NULL argument, another `n3`, or a
+ *         malformed record.
  */
-int cpmdc_restart_initial_coordinates(const cpmdc_restart *file, double *xyz,
-                                      int n3);
+int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz,
+                                     int n3);
 
 /**
  * @brief Replace coordinates, leaving every other record unchanged.
  *
  * @param file Image to modify.
  * @param xyz `n3` doubles, `ncoords * 3`, in Bohr.
- * @param n3 Number of doubles in `xyz`.
- * @return 0 on success.
+ * @param n3 Number of doubles in `xyz`; must equal `ncoords * 3`.
+ * @return 0 on success; -1 on a NULL argument or another `n3`, which
+ *         leaves the image unchanged.
  */
-int cpmdc_restart_set_coordinates(cpmdc_restart *file, const double *xyz,
-                                  int n3);
+int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz,
+                                 int n3);
 
 /**
  * @brief Replace velocities, leaving every other record unchanged.
  *
  * @param file Image to modify.
- * @param xyz `n3` doubles, in Bohr.
- * @param n3 Number of doubles in `xyz`.
- * @return 0 on success.
+ * @param xyz `n3` doubles, `ncoords * 3`, in Bohr per atomic unit of time.
+ * @param n3 Number of doubles in `xyz`; must equal `ncoords * 3`.
+ * @return 0 on success; -1 on a NULL argument or another `n3`, which
+ *         leaves the image unchanged.
  */
-int cpmdc_restart_set_velocities(cpmdc_restart *file, const double *xyz,
-                                 int n3);
+int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz,
+                                int n3);
 
 /**
  * @brief Replace the cell lattice parameters.
  *
  * @param file Image to modify.
  * @param celldm Six lattice parameters.
- * @return 0 on success.
+ * @return 0 on success; -1 on a NULL argument or an image without a cell
+ *         section.
  */
-int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]);
+int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6]);
 
 /**
  * @brief Read the cutoff section.
@@ -221,11 +247,11 @@ int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]);
  * @param nr1s Receives the stored `nr1s`. May be NULL.
  * @param nr2s Receives the stored `nr2s`. May be NULL.
  * @param nr3s Receives the stored `nr3s`. May be NULL.
- * @return 0 when the section is present.
+ * @return 0 when the section is present, -1 otherwise.
  */
-int cpmdc_restart_cutoff(const cpmdc_restart *file, double *ecut, double *cdual,
-                         int *dual_flag, int *nel, int *nr1s, int *nr2s,
-                         int *nr3s);
+int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual,
+                        int *dual_flag, int *nel, int *nr1s, int *nr2s,
+                        int *nr3s);
 
 /**
  * @brief Read the electronic-state counts.
@@ -237,23 +263,24 @@ int cpmdc_restart_cutoff(const cpmdc_restart *file, double *ecut, double *cdual,
  * @param ngwl Receives the stored `ngwl`. May be NULL.
  * @param nhg Receives the stored `nhg`. May be NULL.
  * @param nhgl Receives the stored `nhgl`. May be NULL.
- * @return 0 when the section is present.
+ * @return 0 when the section is present, -1 otherwise.
  */
-int cpmdc_restart_states(const cpmdc_restart *file, int *n, int *nkpts,
-                         int *ngw, int *ngwl, int *nhg, int *nhgl);
+int cpmdc_restart_states(const CPMDCRestart *file, int *n, int *nkpts,
+                        int *ngw, int *ngwl, int *nhg, int *nhgl);
 
 /**
  * @brief Write the image to a newly allocated buffer.
  *
  * @param file Image to write.
- * @param bytes Receives a buffer the caller frees.
+ * @param bytes Receives a buffer from `malloc` that the caller releases
+ *        with `free`.
  * @param nbytes Receives the number of bytes written.
  * @param err Diagnostic buffer. May be NULL.
  * @param err_cap Capacity of `err`, including the terminating NUL.
- * @return 0 on success.
+ * @return 0 on success, -1 with the reason in `err`.
  */
-int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes,
-                            size_t *nbytes, char *err, size_t err_cap);
+int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes,
+                           size_t *nbytes, char *err, size_t err_cap);
 
 /**
  * @brief Write the image to a filesystem path.
@@ -262,10 +289,10 @@ int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes,
  * @param path Destination path.
  * @param err Diagnostic buffer. May be NULL.
  * @param err_cap Capacity of `err`, including the terminating NUL.
- * @return 0 on success.
+ * @return 0 on success, -1 with the reason in `err`.
  */
-int cpmdc_restart_write_path(const cpmdc_restart *file, const char *path,
-                             char *err, size_t err_cap);
+int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path,
+                            char *err, size_t err_cap);
 
 #ifdef __cplusplus
 }

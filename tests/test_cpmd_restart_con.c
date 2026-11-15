@@ -482,8 +482,8 @@ static int check_fixture(const unsigned char *bytes, size_t n, const char *const
   char restart_path[] = "cpmdc-restart-XXXXXX.bin";
   int con1_fd;
   int con2_fd;
-  cpmdc_restart *file;
-  cpmdc_restart *again;
+  CPMDCRestart *file;
+  CPMDCRestart *again;
   unsigned char *first = NULL;
   unsigned char *second = NULL;
   unsigned char *rewritten = NULL;
@@ -697,7 +697,7 @@ int main(int argc, char **argv) {
   const uint64_t ordered_ids[3] = {0, 1, 2};
   char err[256];
   char ordered_con[] = "cpmdc-ordered-XXXXXX.con";
-  cpmdc_restart *ordered_file;
+  CPMDCRestart *ordered_file;
   if (!golden)
     return fail("golden path");
   if (build_water(&mixed, &mixed_n, mixed_xyz, mixed_vel, cell, mixed_na) != 0)

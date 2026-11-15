@@ -59,7 +59,7 @@ int cpmdc_restart_con_to_celldm(const double lengths[3], const double angles[3],
  *
  * @return 0 on success.
  */
-int cpmdc_restart_con_export(const cpmdc_restart *file, const char *con_path,
+int cpmdc_restart_con_export(const CPMDCRestart *file, const char *con_path,
                              const char *const *atom_symbols, int n_atoms,
                              char *err, size_t err_cap);
 
@@ -72,7 +72,7 @@ int cpmdc_restart_con_export(const cpmdc_restart *file, const char *con_path,
  *
  * @return 0 on success.
  */
-int cpmdc_restart_con_import(cpmdc_restart *file, const char *con_path, char *err,
+int cpmdc_restart_con_import(CPMDCRestart *file, const char *con_path, char *err,
                              size_t err_cap);
 
 #ifdef __cplusplus

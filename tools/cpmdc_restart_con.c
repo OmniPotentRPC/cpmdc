@@ -135,7 +135,7 @@ static void scale_bohr(double *xyz, int n3) {
     xyz[i] = cpmdc_restart_bohr_to_angstrom(xyz[i]);
 }
 
-int cpmdc_restart_con_export(const cpmdc_restart *file, const char *con_path,
+int cpmdc_restart_con_export(const CPMDCRestart *file, const char *con_path,
                              const char *const *atom_symbols, int n_atoms, char *err,
                              size_t err_cap) {
   double *xyz = NULL;
@@ -276,7 +276,7 @@ static int scatter_component(const double *grouped, const uint64_t *ids, uintptr
   return 0;
 }
 
-int cpmdc_restart_con_import(cpmdc_restart *file, const char *con_path, char *err,
+int cpmdc_restart_con_import(CPMDCRestart *file, const char *con_path, char *err,
                              size_t err_cap) {
   struct RKRConFrame *frame = NULL;
   struct CFrame *view = NULL;

@@ -8,7 +8,7 @@ static int unavailable(char *err, size_t err_cap) {
   return -1;
 }
 
-int cpmdc_restart_con_export(const cpmdc_restart *file, const char *con_path,
+int cpmdc_restart_con_export(const CPMDCRestart *file, const char *con_path,
                              const char *const *atom_symbols, int n_atoms, char *err,
                              size_t err_cap) {
   (void)file;
@@ -18,7 +18,7 @@ int cpmdc_restart_con_export(const cpmdc_restart *file, const char *con_path,
   return unavailable(err, err_cap);
 }
 
-int cpmdc_restart_con_import(cpmdc_restart *file, const char *con_path, char *err,
+int cpmdc_restart_con_import(CPMDCRestart *file, const char *con_path, char *err,
                              size_t err_cap) {
   (void)file;
   (void)con_path;

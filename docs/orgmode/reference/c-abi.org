@@ -381,19 +381,46 @@ The [[file:feature-inventory.org][feature inventory]] describes the table.
 ~include/cpmdc_restart.h~ declares a separate static library,
 ~libcpmdc_restart~, that reads and writes CPMD ~RESTART.n~ files without
 OpenCPMD.
+Its functions are not marked ~CPMDC_API~ and are not part of ~libcpmdc~;
+link ~libcpmdc_restart~ (~pkg-config cpmdc-restart~) to use them.
 
-| Group | Functions |
-|-------+-----------|
-| open and close | ~cpmdc_restart_read_mem~, ~cpmdc_restart_read_path~, ~cpmdc_restart_free~ |
-| inspect | ~cpmdc_restart_is_stream~, ~cpmdc_restart_header~, ~cpmdc_restart_section~, ~cpmdc_restart_cell~, ~cpmdc_restart_species~, ~cpmdc_restart_ncoords~, ~cpmdc_restart_cutoff~, ~cpmdc_restart_states~ |
-| read coordinates | ~cpmdc_restart_coordinates~, ~cpmdc_restart_velocities~, ~cpmdc_restart_initial_coordinates~ |
-| edit | ~cpmdc_restart_set_coordinates~, ~cpmdc_restart_set_velocities~, ~cpmdc_restart_set_cell~ |
-| write | ~cpmdc_restart_write_mem~, ~cpmdc_restart_write_path~ |
+| Item | Convention |
+|------+------------|
+| ~CPMDCRestart~ | opaque image of one file, from a reader, released with ~cpmdc_restart_free~ |
+| ~cpmdc_restart~ | deprecated name of ~CPMDCRestart~, the same type; kept for 0.4.0 callers |
+| ~CPMDC_RESTART_ANGSTROM_PER_BOHR~ | 0.529177210859, Angstrom per Bohr; multiply a Bohr value by it, divide an Angstrom value by it |
+| ~int~ returns | 0 on success, -1 on failure, except ~cpmdc_restart_is_stream~ and ~cpmdc_restart_ncoords~ |
+| errors | no error state in the library; readers and writers write the reason into the caller's ~err~ buffer of ~err_cap~ bytes, which may be ~NULL~ |
+| units | coordinates and the initial geometry in Bohr, velocities in Bohr per atomic unit of time, in CPMD species order |
 
-Coordinates are Bohr in CPMD species order; ~CPMDC_RESTART_ANGSTROM_PER_BOHR~
-is 0.529177210859.
-Editing coordinates rewrites only those records and copies the wavefunction
-records unchanged.
+| Function | Contract |
+|----------+----------|
+| ~CPMDCRestart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes, char *err, size_t err_cap)~ | parse an image from memory; the image owns a copy; ~NULL~ with the reason in ~err~ |
+| ~CPMDCRestart *cpmdc_restart_read_path(const char *path, char *err, size_t err_cap)~ | read and parse a file; ~NULL~ with the reason in ~err~ |
+| ~void cpmdc_restart_free(CPMDCRestart *file)~ | release an image; ~NULL~ is accepted |
+| ~int cpmdc_restart_is_stream(const CPMDCRestart *file)~ | 1 when the file uses continuing (negative-marker) records, 0 otherwise or for ~NULL~ |
+| ~const char *cpmdc_restart_header(const CPMDCRestart *file)~ | the section 1 header text, owned by the image; ~NULL~ when absent |
+| ~int cpmdc_restart_section(const CPMDCRestart *file, int section, int *count)~ | the record count of section 1..99 in ~*count~ (1 for section 1, 0 for an empty one); -1 when the section is absent |
+| ~int cpmdc_restart_cell(const CPMDCRestart *file, int *ibrav, int *indpg, double celldm[6])~ | ~ibrav~, ~indpg~ (each may be ~NULL~) and the six ~celldm~ values; -1 without a cell section |
+| ~int cpmdc_restart_species(const CPMDCRestart *file, int *nsp, const int **na_per_species)~ | the species count and a pointer to the image's atom count per species, valid until the image is freed; -1 without a species section |
+| ~int cpmdc_restart_expand_species_symbols(const CPMDCRestart *file, const char *const *species_symbols, int nspecies, const char **atom_symbols, int n_atoms)~ | one symbol pointer per coordinate, aliasing ~species_symbols~; -1 when ~nspecies~ or ~n_atoms~ disagrees with the image or a symbol is empty |
+| ~int cpmdc_restart_ncoords(const CPMDCRestart *file)~ | the number of coordinate triples in section 4; 0 when empty or for ~NULL~ |
+| ~int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3)~ | copy the coordinates, Bohr; ~n3~ must be ~3 * ncoords~ |
+| ~int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3)~ | copy the velocities, Bohr per atomic unit of time; same size rule |
+| ~int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz, int n3)~ | copy the initial geometry of section 6, Bohr; same size rule |
+| ~int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3)~ | replace the coordinate records, Bohr; another ~n3~ returns -1 and leaves the image unchanged |
+| ~int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz, int n3)~ | replace the velocity records, Bohr per atomic unit of time; same rule |
+| ~int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6])~ | replace the six lattice parameters; -1 without a cell section |
+| ~int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual, int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s)~ | the section 7 cutoff, real dual factor ~cdual~, logical ~dual_flag~ (0 or 1), ~nel~, and grid sizes; each output may be ~NULL~; -1 without the section |
+| ~int cpmdc_restart_states(const CPMDCRestart *file, int *n, int *nkpts, int *ngw, int *ngwl, int *nhg, int *nhgl)~ | the state, k-point and plane-wave counts; each output may be ~NULL~; -1 without the section |
+| ~int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbytes, char *err, size_t err_cap)~ | serialize the image into a ~malloc~ buffer the caller releases with ~free~ |
+| ~int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path, char *err, size_t err_cap)~ | write the image to ~path~ |
+
+Editing coordinates or velocities rewrites only those 24-byte records and
+copies every other record, the wavefunction among them, byte for byte.
+The host endianness must match the file (little endian for gfortran on
+x86_64 and aarch64).
 The ~cpmdc-restart~ command exposes ~info~, ~positions~, ~velocities~,
 ~patch-positions~, and ~patch-velocities~, with ~--angstrom~ for Angstrom
-input and output.
+input and output (Angstrom per atomic unit of time for velocities), and,
+in a ~-Dwith_readcon=true~ build, ~export-con~ and ~import-con~.

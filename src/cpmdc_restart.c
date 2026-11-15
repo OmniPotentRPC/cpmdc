@@ -218,7 +218,7 @@ static int section_count_of(const struct rec *r, int32_t *count) {
   return 0;
 }
 
-static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
+static int index_sections(CPMDCRestart *file, char *err, size_t err_cap) {
   size_t i;
   const unsigned char *h;
   size_t hlen;
@@ -281,7 +281,7 @@ static int index_sections(cpmdc_restart *file, char *err, size_t err_cap) {
 }
 
 /* INT32-C: sec_start + offset is formed in size_t. A signed sum near INT_MAX is a different record. */
-static struct rec *rec_at(cpmdc_restart *file, int section, int offset) {
+static struct rec *rec_at(CPMDCRestart *file, int section, int offset) {
   size_t idx;
   if (!file || section < 1 || section > CPMDC_RESTART_MAX_SECTIONS || offset < 0)
     return NULL;
@@ -293,7 +293,7 @@ static struct rec *rec_at(cpmdc_restart *file, int section, int offset) {
   return &file->recs[idx];
 }
 
-static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
+static int decode_typed(CPMDCRestart *file, char *err, size_t err_cap) {
   if (file->sec_nrec[2] == 3) {
     const struct rec *sym = rec_at(file, 2, 1);
     const struct rec *cell = rec_at(file, 2, 2);
@@ -401,9 +401,9 @@ static int decode_typed(cpmdc_restart *file, char *err, size_t err_cap) {
   return 0;
 }
 
-static cpmdc_restart *from_bytes(const void *bytes, size_t nbytes, char *err,
-                                 size_t err_cap) {
-  cpmdc_restart *file;
+static CPMDCRestart *from_bytes(const void *bytes, size_t nbytes, char *err,
+                                size_t err_cap) {
+  CPMDCRestart *file;
   if (!bytes && nbytes) {
     set_err(err, err_cap, "null restart buffer");
     return NULL;
@@ -426,16 +426,16 @@ static cpmdc_restart *from_bytes(const void *bytes, size_t nbytes, char *err,
   return file;
 }
 
-cpmdc_restart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes, char *err,
-                                      size_t err_cap) {
+CPMDCRestart *cpmdc_restart_read_mem(const void *bytes, size_t nbytes, char *err,
+                                     size_t err_cap) {
   return from_bytes(bytes, nbytes, err, err_cap);
 }
 
-cpmdc_restart *cpmdc_restart_read_path(const char *path, char *err, size_t err_cap) {
+CPMDCRestart *cpmdc_restart_read_path(const char *path, char *err, size_t err_cap) {
   FILE *fp;
   unsigned char *buf = NULL;
   size_t n = 0, cap = 0;
-  cpmdc_restart *file;
+  CPMDCRestart *file;
   unsigned char chunk[1 << 16];
   if (!path) {
     set_err(err, err_cap, "null path");
@@ -470,7 +470,7 @@ cpmdc_restart *cpmdc_restart_read_path(const char *path, char *err, size_t err_c
   return file;
 }
 
-void cpmdc_restart_free(cpmdc_restart *file) {
+void cpmdc_restart_free(CPMDCRestart *file) {
   if (!file)
     return;
   free(file->na);
@@ -478,15 +478,15 @@ void cpmdc_restart_free(cpmdc_restart *file) {
   free(file);
 }
 
-int cpmdc_restart_is_stream(const cpmdc_restart *file) {
+int cpmdc_restart_is_stream(const CPMDCRestart *file) {
   return file && file->stream;
 }
 
-const char *cpmdc_restart_header(const cpmdc_restart *file) {
+const char *cpmdc_restart_header(const CPMDCRestart *file) {
   return file ? file->header : NULL;
 }
 
-int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count) {
+int cpmdc_restart_section(const CPMDCRestart *file, int section, int *count) {
   int32_t raw;
   if (!file || section < 1 || section > CPMDC_RESTART_MAX_SECTIONS ||
       file->sec_start[section] < 0)
@@ -503,7 +503,7 @@ int cpmdc_restart_section(const cpmdc_restart *file, int section, int *count) {
   return 0;
 }
 
-int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
+int cpmdc_restart_cell(const CPMDCRestart *file, int *ibrav, int *indpg,
                        double celldm[6]) {
   if (!file || !file->has_cell || !celldm)
     return -1;
@@ -515,7 +515,7 @@ int cpmdc_restart_cell(const cpmdc_restart *file, int *ibrav, int *indpg,
   return 0;
 }
 
-int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
+int cpmdc_restart_species(const CPMDCRestart *file, int *nsp,
                           const int **na_per_species) {
   if (!file || file->nsp <= 0 || !file->na)
     return -1;
@@ -526,7 +526,7 @@ int cpmdc_restart_species(const cpmdc_restart *file, int *nsp,
   return 0;
 }
 
-int cpmdc_restart_expand_species_symbols(const cpmdc_restart *file,
+int cpmdc_restart_expand_species_symbols(const CPMDCRestart *file,
                                          const char *const *species_symbols,
                                          int nspecies, const char **atom_symbols,
                                          int n_atoms) {
@@ -553,7 +553,7 @@ int cpmdc_restart_expand_species_symbols(const cpmdc_restart *file,
   return 0;
 }
 
-int cpmdc_restart_ncoords(const cpmdc_restart *file) {
+int cpmdc_restart_ncoords(const CPMDCRestart *file) {
   if (!file || file->sec_nrec[4] < 1)
     return 0;
   return file->sec_nrec[4] - 1;
@@ -576,7 +576,7 @@ static int triples_span(int sec_nrec, int sec_start, int *n_out, int *start_out)
   return 0;
 }
 
-static int copy_triples(const cpmdc_restart *file, int section, double *xyz, int n3) {
+static int copy_triples(const CPMDCRestart *file, int section, double *xyz, int n3) {
   int n;
   int start;
   if (!file || !xyz)
@@ -597,7 +597,7 @@ static int copy_triples(const cpmdc_restart *file, int section, double *xyz, int
   return 0;
 }
 
-static int store_triples(cpmdc_restart *file, int section, const double *xyz, int n3) {
+static int store_triples(CPMDCRestart *file, int section, const double *xyz, int n3) {
   int n;
   int start;
   if (!file || !xyz)
@@ -615,27 +615,27 @@ static int store_triples(cpmdc_restart *file, int section, const double *xyz, in
   return 0;
 }
 
-int cpmdc_restart_coordinates(const cpmdc_restart *file, double *xyz, int n3) {
+int cpmdc_restart_coordinates(const CPMDCRestart *file, double *xyz, int n3) {
   return copy_triples(file, 4, xyz, n3);
 }
 
-int cpmdc_restart_velocities(const cpmdc_restart *file, double *xyz, int n3) {
+int cpmdc_restart_velocities(const CPMDCRestart *file, double *xyz, int n3) {
   return copy_triples(file, 5, xyz, n3);
 }
 
-int cpmdc_restart_initial_coordinates(const cpmdc_restart *file, double *xyz, int n3) {
+int cpmdc_restart_initial_coordinates(const CPMDCRestart *file, double *xyz, int n3) {
   return copy_triples(file, 6, xyz, n3);
 }
 
-int cpmdc_restart_set_coordinates(cpmdc_restart *file, const double *xyz, int n3) {
+int cpmdc_restart_set_coordinates(CPMDCRestart *file, const double *xyz, int n3) {
   return store_triples(file, 4, xyz, n3);
 }
 
-int cpmdc_restart_set_velocities(cpmdc_restart *file, const double *xyz, int n3) {
+int cpmdc_restart_set_velocities(CPMDCRestart *file, const double *xyz, int n3) {
   return store_triples(file, 5, xyz, n3);
 }
 
-int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]) {
+int cpmdc_restart_set_cell(CPMDCRestart *file, const double celldm[6]) {
   struct rec *r;
   if (!file || !file->has_cell || !celldm || file->sec_nrec[2] != 3)
     return -1;
@@ -647,7 +647,7 @@ int cpmdc_restart_set_cell(cpmdc_restart *file, const double celldm[6]) {
   return 0;
 }
 
-int cpmdc_restart_cutoff(const cpmdc_restart *file, double *ecut, double *cdual,
+int cpmdc_restart_cutoff(const CPMDCRestart *file, double *ecut, double *cdual,
                          int *dual_flag, int *nel, int *nr1s, int *nr2s, int *nr3s) {
   if (!file || !file->has_cut)
     return -1;
@@ -668,7 +668,7 @@ int cpmdc_restart_cutoff(const cpmdc_restart *file, double *ecut, double *cdual,
   return 0;
 }
 
-int cpmdc_restart_states(const cpmdc_restart *file, int *n, int *nkpts, int *ngw,
+int cpmdc_restart_states(const CPMDCRestart *file, int *n, int *nkpts, int *ngw,
                          int *ngwl, int *nhg, int *nhgl) {
   if (!file || !file->has_states)
     return -1;
@@ -720,7 +720,7 @@ static int emit_record(unsigned char **buf, size_t *len, size_t *cap,
   return 0;
 }
 
-int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes, size_t *nbytes,
+int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbytes,
                             char *err, size_t err_cap) {
   unsigned char *buf = NULL;
   size_t len = 0, cap = 0;
@@ -742,7 +742,7 @@ int cpmdc_restart_write_mem(const cpmdc_restart *file, void **bytes, size_t *nby
   return 0;
 }
 
-int cpmdc_restart_write_path(const cpmdc_restart *file, const char *path, char *err,
+int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path, char *err,
                              size_t err_cap) {
   void *bytes = NULL;
   size_t n = 0;
