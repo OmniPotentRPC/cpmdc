@@ -3,6 +3,9 @@
 The default build evaluates the reference well: a harmonic well about the
 origin, ``E = sum_i 0.5 k Z_i |r_i|^2`` plus small deck and cell terms.
 It is exact to differentiate but not translation invariant.
+With OpenCPMD linked the same cases run on an SCF, which converges the
+energy to about 1e-7 eV, so comparisons that are exact on the reference
+well take a tolerance there.
 """
 
 from __future__ import annotations
@@ -82,7 +85,7 @@ def test_units_are_ev_and_angstrom(calc, params):
 
 
 @pytest.mark.parametrize("periodic", [False, True])
-def test_forces_match_finite_differences(params, periodic_params, periodic):
+def test_forces_match_finite_differences(params, periodic_params, opencpmd, periodic):
     if periodic:
         atoms = water(cell=TRICLINIC, pbc=True)
         atoms.calc = CPMDCCalculator(periodic_params)
@@ -91,25 +94,29 @@ def test_forces_match_finite_differences(params, periodic_params, periodic):
         atoms.calc = CPMDCCalculator(params)
     atoms.rattle(0.05, seed=3)
     forces = atoms.get_forces()
-    numeric = calculate_numerical_forces(atoms, eps=1.0e-4)
-    np.testing.assert_allclose(forces, numeric, rtol=1.0e-6, atol=1.0e-9)
+    if opencpmd:
+        numeric = calculate_numerical_forces(atoms, eps=1.0e-3)
+        np.testing.assert_allclose(forces, numeric, rtol=0, atol=2.0e-3)
+    else:
+        numeric = calculate_numerical_forces(atoms, eps=1.0e-4)
+        np.testing.assert_allclose(forces, numeric, rtol=1.0e-6, atol=1.0e-9)
     atoms.calc.close()
 
 
 @pytest.mark.parametrize("cell", [CUBE, TRICLINIC], ids=["cubic", "triclinic"])
-def test_stress_matches_numerical_stress(periodic_calc, cell):
+def test_stress_matches_numerical_stress(periodic_calc, opencpmd, cell):
     atoms = water(cell=cell, pbc=True)
     atoms.rattle(0.05, seed=5)
     atoms.calc = periodic_calc
     stress = atoms.get_stress()
     assert stress.shape == (6,)
     numeric = calculate_numerical_stress(atoms, eps=1.0e-5)
-    np.testing.assert_allclose(stress, numeric, rtol=1.0e-5, atol=1.0e-10)
+    np.testing.assert_allclose(stress, numeric, rtol=1.0e-5, atol=1.0e-4 if opencpmd else 1.0e-10)
     full = atoms.get_stress(voigt=False)
     np.testing.assert_allclose(full, full.T)
 
 
-def test_stress_has_the_ase_sign(periodic_calc):
+def test_stress_has_the_ase_sign(periodic_calc, opencpmd):
     """sigma = (1/V) dE/d(strain): the reference energy rises on expansion."""
     atoms = water(cell=CUBE, pbc=True)
     atoms.calc = periodic_calc
@@ -125,10 +132,10 @@ def test_stress_has_the_ase_sign(periodic_calc):
         energies.append(strained.get_potential_energy())
     expected = (energies[0] - energies[1]) / (2.0 * eps * atoms.get_volume())
     assert sxx > 0.0
-    assert sxx == pytest.approx(expected, rel=1e-6)
+    assert sxx == pytest.approx(expected, rel=1e-2 if opencpmd else 1e-6)
 
 
-def test_translation_moves_along_the_forces(calc):
+def test_translation_moves_along_the_forces(calc, opencpmd):
     """A rigid shift changes the energy by the work of the mean force.
 
     The relation is exact for a quadratic energy and holds with both sides
@@ -140,7 +147,9 @@ def test_translation_moves_along_the_forces(calc):
     e0, f0 = atoms.get_potential_energy(), atoms.get_forces()
     atoms.translate(shift)
     e1, f1 = atoms.get_potential_energy(), atoms.get_forces()
-    assert e1 - e0 == pytest.approx(-0.5 * np.sum((f0 + f1) * shift), rel=1e-9, abs=1e-14)
+    assert e1 - e0 == pytest.approx(
+        -0.5 * np.sum((f0 + f1) * shift), rel=1e-9, abs=1e-9 if opencpmd else 1e-14
+    )
 
 
 def test_reference_well_is_anchored_at_the_origin(calc, opencpmd):
@@ -170,7 +179,10 @@ def test_translation_invariance(params, periodic_params, opencpmd, periodic):
         atoms.calc = CPMDCCalculator(params)
         shift = np.array([0.3, -0.2, 0.5])
     e0, f0 = atoms.get_potential_energy(), atoms.get_forces()
-    np.testing.assert_allclose(f0.sum(axis=0), 0.0, atol=1e-3)
+    if not periodic:
+        # cpmdc removes the net force of an isolated cell. A periodic deck
+        # keeps the grid's, 0.09 eV/Angstrom along z for this water at 50 Ry.
+        np.testing.assert_allclose(f0.sum(axis=0), 0.0, atol=1e-10)
     atoms.translate(shift)
     assert atoms.get_potential_energy() == pytest.approx(e0, abs=1e-5)
     np.testing.assert_allclose(atoms.get_forces(), f0, atol=1e-3)
@@ -195,20 +207,26 @@ def test_unchanged_atoms_reuse_the_step(calc, calls):
     "change",
     ["positions", "numbers", "cell", "pbc"],
 )
-def test_a_system_change_recomputes(periodic_calc, calls, change):
+def test_a_system_change_recomputes(periodic_calc, calls, opencpmd, change):
     atoms = water(cell=CUBE, pbc=True)
     atoms.calc = periodic_calc
     first = atoms.get_potential_energy()
     if change == "positions":
         atoms.positions[1, 0] += 0.01
     elif change == "numbers":
-        atoms.numbers = [8, 1, 3]
+        # The OpenCPMD deck has pseudopotentials for O and H only.
+        atoms.numbers = [1, 8, 1] if opencpmd else [8, 1, 3]
     elif change == "cell":
         atoms.set_cell(np.array(CUBE) * 1.01)
     else:
         atoms.pbc = False
     assert periodic_calc.check_state(atoms) == [change]
-    assert atoms.get_potential_energy() != first
+    if opencpmd and change == "pbc":
+        # Without a cell the periodic deck keeps its own 10 Angstrom cube,
+        # which is CUBE, so OpenCPMD gives the same energy again.
+        atoms.get_potential_energy()
+    else:
+        assert atoms.get_potential_energy() != first
     assert len(calls) == 2
 
 
@@ -320,7 +338,7 @@ def test_unknown_constructor_arguments_raise(params):
 
 
 @pytest.mark.parametrize("how", ["copy", "deepcopy", "pickle"])
-def test_copies_keep_results_and_own_a_session(periodic_calc, how):
+def test_copies_keep_results_and_own_a_session(periodic_calc, opencpmd, how):
     atoms = water(cell=CUBE, pbc=True)
     atoms.calc = periodic_calc
     energy, stress = atoms.get_potential_energy(), atoms.get_stress()
@@ -338,12 +356,12 @@ def test_copies_keep_results_and_own_a_session(periodic_calc, how):
     moved.positions[0, 0] += 0.01
     moved.calc = clone
     assert moved.get_potential_energy() != energy
-    np.testing.assert_allclose(clone.get_stress(atoms), stress)
+    np.testing.assert_allclose(clone.get_stress(atoms), stress, atol=1e-5 if opencpmd else 0)
     assert periodic_calc.results.get("energy") == energy
     clone.close()
 
 
-def test_close_then_reuse(calc):
+def test_close_then_reuse(calc, opencpmd):
     atoms = water()
     atoms.calc = calc
     energy = atoms.get_potential_energy()
@@ -352,10 +370,10 @@ def test_close_then_reuse(calc):
     atoms.positions[0, 0] += 0.01
     atoms.get_potential_energy()
     atoms.positions[0, 0] -= 0.01
-    assert atoms.get_potential_energy() == energy
+    assert atoms.get_potential_energy() == pytest.approx(energy, rel=0, abs=1e-5 if opencpmd else 0)
 
 
-def test_a_new_composition_opens_a_new_session(calc):
+def test_a_new_composition_opens_a_new_session(calc, opencpmd):
     atoms = water()
     atoms.calc = calc
     first = atoms.get_potential_energy()
@@ -368,7 +386,7 @@ def test_a_new_composition_opens_a_new_session(calc):
     smaller.calc = calc
     smaller.get_potential_energy()
     assert calc.potential is not session
-    assert atoms.get_potential_energy() == first
+    assert atoms.get_potential_energy() == pytest.approx(first, rel=0, abs=1e-5 if opencpmd else 0)
 
 
 def test_deprecated_arguments_warn(params):

@@ -51,6 +51,12 @@ LIB = library_path()
 GMX, GMX_PROBLEM = gc.gmx_problem() if LIB else (None, "libcpmdc_gromacs is not built")
 needs_lib = pytest.mark.skipif(LIB is None, reason="libcpmdc_gromacs is not built")
 needs_gmx = pytest.mark.skipif(GMX is None, reason=GMX_PROBLEM or "GROMACS")
+OPENCPMD = LIB is not None and bool(ctypes.CDLL(str(LIB)).cpmdc_available())
+# Strain derivatives to 1e-8 of the stress need the reference evaluator;
+# test_gromacs_opencpmd.py runs these cases on OpenCPMD with a tight SCF.
+reference_precision = pytest.mark.skipif(
+    OPENCPMD, reason="OpenCPMD is linked; test_gromacs_opencpmd.py covers it"
+)
 
 CUBE_NM = np.diag([1.2, 1.2, 1.2])
 TRICLINIC_NM = np.array([[1.2, 0.0, 0.0], [0.16, 1.13, 0.0], [-0.09, 0.12, 1.25]])
@@ -247,8 +253,11 @@ def test_qm_atoms_are_unwrapped_against_the_previous_step(periodic_params, tmp_p
     energy, forces = shim.step(wrapped, rows)
     shim.close()
     ref_e, ref_f = ase_au(periodic_params, gc.SYMBOLS, moved, rows)
-    jump_e, _ = ase_au(periodic_params, gc.SYMBOLS, wrapped, rows)
-    assert abs(jump_e - ref_e) > 1e-3
+    if not OPENCPMD:
+        # The reference well is anchored at the origin, so a wrapped atom
+        # changes its energy; a periodic OpenCPMD deck does not see the wrap.
+        jump_e, _ = ase_au(periodic_params, gc.SYMBOLS, wrapped, rows)
+        assert abs(jump_e - ref_e) > 1e-3
     assert energy == pytest.approx(ref_e, rel=1e-12)
     np.testing.assert_allclose(forces, ref_f, rtol=1e-11, atol=1e-13)
 
@@ -339,6 +348,7 @@ def test_mechanical_embedding_without_a_box_is_a_direct_sum(params, tmp_path):
 
 
 @needs_lib
+@reference_precision
 @pytest.mark.parametrize("box", [CUBE_NM, TRICLINIC_NM], ids=["cube", "triclinic"])
 def test_whole_system_stress_matches_ase(box, periodic_params, tmp_path):
     """CELL PERIODIC: cpmdc's stress, against CPMDCCalculator and a strain difference."""
@@ -400,6 +410,7 @@ MECHANICAL_TRICLINIC_NM = QMMM_BOX_NM @ np.array([[1, 0, 0], [0.1, 1, 0], [-0.08
 
 
 @needs_lib
+@reference_precision
 @pytest.mark.parametrize("embedding", ["MECHANICAL", "NONE"])
 @pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
 def test_qmmm_stress_matches_ase_numerical_stress(box, embedding, params, tmp_path):

@@ -225,17 +225,19 @@ def socket_calculator(kind: str, clients, params: Path, *extra: str) -> SocketIO
     return calc
 
 
-def assert_same(left: Atoms, right: Atoms, stress: bool) -> None:
+def assert_same(left: Atoms, right: Atoms, stress: bool, scf: bool = False) -> None:
+    """``scf``: an OpenCPMD SCF in each process, converged to about 1e-7 eV."""
+    tol = 1e-6 if scf else 1e-10
     assert left.get_potential_energy() == pytest.approx(
-        right.get_potential_energy(), rel=1e-10, abs=1e-10
+        right.get_potential_energy(), rel=1e-10, abs=tol
     )
-    np.testing.assert_allclose(left.get_forces(), right.get_forces(), rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(left.get_forces(), right.get_forces(), rtol=1e-10, atol=100 * tol if scf else tol)
     if stress:
         np.testing.assert_allclose(left.get_stress(), right.get_stress(), rtol=1e-10, atol=1e-10)
 
 
 @pytest.mark.parametrize("kind", ["unix", "inet"])
-def test_cluster_round_trip_matches_direct(kind, params, clients, codata2018):
+def test_cluster_round_trip_matches_direct(kind, params, clients, codata2018, opencpmd):
     calc = socket_calculator(kind, clients, params)
     direct = CPMDCCalculator(params)
     with calc, direct:
@@ -246,7 +248,7 @@ def test_cluster_round_trip_matches_direct(kind, params, clients, codata2018):
             through = atoms.copy()
             through.calc = calc
             atoms.calc = direct
-            assert_same(through, atoms, stress=False)
+            assert_same(through, atoms, stress=False, scf=opencpmd)
             with pytest.raises(Exception):
                 through.get_stress()
 

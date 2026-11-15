@@ -183,7 +183,7 @@ def test_full_handshake_and_exit(mini, socket_dir, params, drivers):
     assert code == 0, err
 
 
-def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, drivers):
+def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, drivers, opencpmd):
     client = drivers("c", "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
                      "--species", "OHH")
     mini.accept()
@@ -192,8 +192,13 @@ def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, dr
     for cell in (TRICLINIC, CUBE, np.array(CUBE) * 0.95):
         energy, forces, virial, _ = mini.step(cell, WATER)
         expected = python_step(periodic_params, cell, WATER)
-        assert energy == expected[0]
-        np.testing.assert_array_equal(forces, expected[1])
+        if opencpmd:
+            # Two processes run the same SCF; they agree to the last bits.
+            assert energy == pytest.approx(expected[0], rel=1e-12)
+            np.testing.assert_allclose(forces, expected[1], rtol=1e-10, atol=1e-14)
+        else:
+            assert energy == expected[0]
+            np.testing.assert_array_equal(forces, expected[1])
         np.testing.assert_allclose(virial, expected[2], rtol=1e-10, atol=1e-16)
         assert np.abs(virial).max() > 0.0
     mini.send(mini.header("EXIT"))
