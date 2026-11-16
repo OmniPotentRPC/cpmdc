@@ -43,9 +43,13 @@ of the molecular centres of mass (with the masses of the state file), which
 leaves out the intramolecular forces.
 
 table writes Org tables of the block-averaged volume, density and pressure of
-each run that did not stop (bench/npt_block_average.py: the detected
-equilibration discarded, Flyvbjerg-Petersen standard error), of the runs
-that stopped, and of the cost per step; --json also writes the means and the
+each run (bench/npt_block_average.py: the detected equilibration discarded,
+at least --min-discard-ps of a run that starts from a box and
+--branch-discard-ps of one that starts from a state, Flyvbjerg-Petersen
+standard error); of the runs that stopped or hold less than
+--min-production-ps after that, with the density at their start and end; of
+the cost per step; and of the density every --branch-step-ps after the start
+of each run that starts from a state. --json also writes the means and the
 window means that docs/render_constant_cutoff_npt.py draws.
 
 capnp must be on PATH and CPMDC_PSEUDO_DIR must name the pseudopotential
@@ -63,8 +67,10 @@ usage: constant_cutoff_npt.py start --out BOX.xyz [--waters 32] [--density 1.0]
        constant_cutoff_npt.py pressure --library LIB --start BOX.xyz|RUN.state.npz
                                        [--conv 1e-6] [--output FILE] BASIS [BASIS ...]
        constant_cutoff_npt.py table RUN.json [RUN.json ...] [--json OUT]
-                                    [--discard-ps PS] [--window-ps 0.5]
-                                    [--plot-window-ps 0.1] [--output FILE]
+                                    [--discard-ps PS] [--min-discard-ps 0.5]
+                                    [--branch-discard-ps 0.05] [--min-production-ps 0.1]
+                                    [--window-ps 0.1] [--plot-window-ps 0.02]
+                                    [--branch-step-ps 0.01] [--output FILE]
 """
 
 from __future__ import annotations
@@ -438,7 +444,7 @@ def pressure(args: argparse.Namespace) -> int:
 
 def label(meta: dict) -> str:
     if meta["e0"] is None:
-        return f"{meta['cutoff']:g} Ry"
+        return f"{meta['cutoff']:g} Ry, no constant cutoff"
     return f"{meta['cutoff']:g} Ry, E0 {meta['e0']:g} Ry"
 
 
@@ -482,23 +488,44 @@ def cost_rows(runs: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
+def branch_rows(runs: list[tuple[str, dict]], step_ps: float) -> list[str]:
+    """The density every step_ps after the start of each run that starts from the state of another."""
+    branches = [(name, data) for name, data in runs if data["args"].get("start_ps")]
+    if not branches:
+        return []
+    columns = [{round(float(t), 6): float(rho) for t, rho in zip(data["time_ps"], data["Density"])}
+               for _, data in branches]
+    end = max(float(data["time_ps"][-1]) for _, data in branches)
+    marks = [round(k * step_ps, 6) for k in range(int(np.floor(end / step_ps + 1e-9)) + 1)]
+    head = " | ".join(f"{name}, kg/m^3" for name, _ in branches)
+    lines = [f"| After the start, ps | {head} |", "|-" + "-+-" * len(branches) + "-|"]
+    for mark in marks:
+        cells = [f"{column[mark]:.1f}" if mark in column else "" for column in columns]
+        lines.append(f"| {mark:g} | " + " | ".join(cells) + " |")
+    return lines
+
+
 def table(args: argparse.Namespace) -> int:
     loaded = [json.loads(path.read_text()) for path in args.runs]
     meta = loaded[0]["args"]
-    finished, stopped, plotted = [], [], []
+    finished, unaveraged, plotted = [], [], []
     for data in loaded:
         name = label(data["args"])
         data["wall_s"] = float(np.sum(data["step_wall_s"]))
-        entry = {"label": name, "cutoff": data["args"]["cutoff"], "e0": data["args"]["e0"],
-                 "start_ps": data["args"].get("start_ps", 0.0), "length_ps": float(data["time_ps"][-1]),
-                 "windows": windows(data, args.plot_window_ps), "stopped": data["stopped"]}
-        if data["stopped"] is None:
-            result = analyse(data, args.discard_ps, args.min_discard_ps, args.window_ps, args.min_blocks)
+        start_ps = data["args"].get("start_ps", 0.0)
+        floor = args.branch_discard_ps if start_ps else args.min_discard_ps
+        length = float(data["time_ps"][-1])
+        entry = {"label": name, "cutoff": data["args"]["cutoff"], "e0": data["args"]["e0"], "start_ps": start_ps,
+                 "length_ps": length, "windows": windows(data, args.plot_window_ps), "stopped": data["stopped"]}
+        if data["stopped"] is None and length - floor >= args.min_production_ps - 1e-9:
+            result = analyse(data, args.discard_ps, floor, args.window_ps, args.min_blocks)
             finished.append((name, result))
             entry.update(mean=result["terms"]["Density"]["mean"], sem=result["terms"]["Density"]["sem"],
                          discard_ps=result["discard_ps"])
         else:
-            stopped.append((name, data))
+            why = data["stopped"] or (f"{length:g} ps, less than {floor:g} ps to discard and "
+                                      f"{args.min_production_ps:g} ps to average")
+            unaveraged.append((name, data, why))
         plotted.append(entry)
     lines = [
         "# Generated by bench/constant_cutoff_npt.py table; do not edit by hand.",
@@ -510,18 +537,24 @@ def table(args: argparse.Namespace) -> int:
     ]
     if finished:
         lines += ["", *summary_rows(finished)]
-    if stopped:
-        lines += ["", "| Run | Steps | Stopped | Density at the start, kg/m^3 | Density at the stop, kg/m^3 |",
-                  "|-----+-------+---------+------------------------------+-----------------------------|"]
-        for name, data in stopped:
-            lines.append(f"| {name} | {len(data['time_ps']) - 1} | {data['stopped']} | "
-                         f"{data['Density'][0]:.1f} | {data['Density'][-1]:.1f} |")
+    if unaveraged:
+        lines += ["", "| Run | Start | Steps | No mean | Density at the start, kg/m^3 | Density at the end, kg/m^3 | "
+                  "Mean pressure, bar |",
+                  "|-----+-------+-------+---------+------------------------------+----------------------------+"
+                  "--------------------|"]
+        for name, data, why in unaveraged:
+            lines.append(f"| {name} | {start_of(data['args'])} | {len(data['time_ps']) - 1} | {why} | "
+                         f"{data['Density'][0]:.1f} | {data['Density'][-1]:.1f} | "
+                         f"{np.mean(data['Pressure'][1:]):.0f} |")
     named = [(label(d["args"]), d) for d in loaded]
     lines += ["", *cost_rows(named)]
     if finished:
         lines += ["", *detail_rows(finished), "", "Standard error of the mean against block length:", "",
                   *curve_rows(finished, args.min_blocks)]
     lines += ["", "Mean density over consecutive windows:", "", *density_window_rows(named, args.window_ps)]
+    rows = branch_rows(named, args.branch_step_ps)
+    if rows:
+        lines += ["", "Density after the start of each run that starts from the state of another:", "", *rows]
     text = "\n".join(lines) + "\n"
     if args.output:
         args.output.write_text(text)
@@ -570,9 +603,12 @@ def main() -> int:
     p = sub.add_parser("table")
     p.add_argument("runs", type=Path, nargs="+")
     p.add_argument("--discard-ps", type=float)
-    p.add_argument("--min-discard-ps", type=float, default=0.5)
-    p.add_argument("--window-ps", type=float, default=0.5)
-    p.add_argument("--plot-window-ps", type=float, default=0.1)
+    p.add_argument("--min-discard-ps", type=float, default=0.5, help="of a run that starts from a box")
+    p.add_argument("--branch-discard-ps", type=float, default=0.05, help="of a run that starts from a state")
+    p.add_argument("--min-production-ps", type=float, default=0.1)
+    p.add_argument("--window-ps", type=float, default=0.1)
+    p.add_argument("--plot-window-ps", type=float, default=0.02)
+    p.add_argument("--branch-step-ps", type=float, default=0.01)
     p.add_argument("--min-blocks", type=int, default=8)
     p.add_argument("--output", type=Path)
     p.add_argument("--json", type=Path)
