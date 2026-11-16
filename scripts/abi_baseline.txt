@@ -41,6 +41,7 @@ cpmdc_session_last_multi_state_energies
 cpmdc_session_last_property_snapshot
 cpmdc_session_last_stress
 cpmdc_session_select_orbitals
+cpmdc_session_set_constant_cutoff
 cpmdc_session_set_params
 cpmdc_set_params
 cpmdc_version

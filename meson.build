@@ -1797,6 +1797,29 @@ test(
     output: 'params_system_controls.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  test(
+    'constant-cutoff-deck',
+    executable(
+      'test_constant_cutoff_deck',
+      'tests/test_constant_cutoff_deck.c',
+      dependencies: [cpmdc_embed_shell_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    args: [
+      water_periodic_params_bin.full_path(),
+      params_scalar_blyp_bin.full_path(),
+      params_raw_periodic_bin.full_path(),
+      params_system_controls_bin.full_path(),
+    ],
+    depends: [
+      water_periodic_params_bin,
+      params_scalar_blyp_bin,
+      params_raw_periodic_bin,
+      params_system_controls_bin,
+    ],
+    suite: ['params'],
+  )
   params_system_kpoints_monkhorst_bin = custom_target(
     'params_system_kpoints_monkhorst_bin',
     input: 'tests/params_system_kpoints_monkhorst.capnp.txt',

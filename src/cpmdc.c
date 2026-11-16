@@ -107,6 +107,10 @@ struct CPMDCSession {
   CPMDCScalarOverrides overrides;
   char overrides_functional[64];
   int has_overrides;
+  /** cpmdc_session_set_constant_cutoff() E0, A, and sigma in Ry; E0 0 => off. */
+  double constant_cutoff_ry;
+  double constant_cutoff_height_ry;
+  double constant_cutoff_width_ry;
   /** OpenCPMD source or build tree hint. */
   char cpmd_root[1024];
   /** Non-zero once the session has accepted one topology. */
@@ -303,7 +307,14 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
            cpmdc_params_text_or(view.cpmdRoot, ""));
   if (cpmdc_params_render_input_deck_alloc(root, overrides, &deck) != 0) {
     cpmdc_params_release(&arena);
-    cpmdc_store_error("CPMDParams deck render failed");
+    const char *reason = cpmdc_params_render_reason();
+    if (reason[0] != '\0') {
+      char msg[512];
+      snprintf(msg, sizeof(msg), "CPMDParams deck render failed: %s", reason);
+      cpmdc_store_error(msg);
+    } else {
+      cpmdc_store_error("CPMDParams deck render failed");
+    }
     return -1;
   }
   write_deck_if_requested(deck);
@@ -1489,6 +1500,23 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
+/* The overrides a session renders its deck with: the common overlay and the
+ * constant cutoff. NULL when it has neither. */
+static const CPMDCScalarOverrides *
+session_render_overrides(const CPMDCSession *session,
+                         CPMDCScalarOverrides *scratch) {
+  if (session->constant_cutoff_ry <= 0.0)
+    return session->has_overrides ? &session->overrides : NULL;
+  if (session->has_overrides)
+    *scratch = session->overrides;
+  else
+    memset(scratch, 0, sizeof(*scratch));
+  scratch->constant_cutoff_ry = session->constant_cutoff_ry;
+  scratch->constant_cutoff_height_ry = session->constant_cutoff_height_ry;
+  scratch->constant_cutoff_width_ry = session->constant_cutoff_width_ry;
+  return scratch;
+}
+
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes) {
   if (!params_capnp || params_capnp_size_bytes == 0) {
@@ -1559,8 +1587,9 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
     session->has_overrides = 0;
   }
   char *deck = NULL;
+  CPMDCScalarOverrides render;
   if (apply_params_buffer(params_capnp, params_capnp_size_bytes,
-                          session->has_overrides ? &session->overrides : NULL,
+                          session_render_overrides(session, &render),
                           session->functional, sizeof(session->functional),
                           &session->cutoff_ry, &session->charge,
                           &session->multiplicity, &deck, session->cpmd_root,
@@ -1587,6 +1616,48 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
                              size_t params_capnp_size_bytes) {
   return cpmdc_session_set_params_ov(session, params_capnp,
                                      params_capnp_size_bytes, NULL);
+}
+
+int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry,
+                                      double height_ry, double width_ry) {
+  if (!session) {
+    cpmdc_store_error("invalid session");
+    return -1;
+  }
+  if (!isfinite(cutoff_ry) || !isfinite(height_ry) || !isfinite(width_ry)) {
+    cpmdc_store_error("constant cutoff values must be finite");
+    return -1;
+  }
+  if (session->topology_fixed) {
+    cpmdc_store_error("session topology is already fixed");
+    return -1;
+  }
+  double saved[3] = {session->constant_cutoff_ry,
+                     session->constant_cutoff_height_ry,
+                     session->constant_cutoff_width_ry};
+  int on = cutoff_ry > 0.0;
+  session->constant_cutoff_ry = on ? cutoff_ry : 0.0;
+  session->constant_cutoff_height_ry = on && height_ry > 0.0 ? height_ry : 0.0;
+  session->constant_cutoff_width_ry = on && width_ry > 0.0 ? width_ry : 0.0;
+  char *deck = NULL;
+  CPMDCScalarOverrides render;
+  if (apply_params_buffer(session->params_bytes, session->params_size,
+                          session_render_overrides(session, &render),
+                          session->functional, sizeof(session->functional),
+                          &session->cutoff_ry, &session->charge,
+                          &session->multiplicity, &deck, session->cpmd_root,
+                          sizeof(session->cpmd_root)) != 0) {
+    free(deck);
+    session->constant_cutoff_ry = saved[0];
+    session->constant_cutoff_height_ry = saved[1];
+    session->constant_cutoff_width_ry = saved[2];
+    return -1;
+  }
+  free(session->input_deck);
+  session->input_deck = deck;
+  session->embed_configured = 0;
+  cpmdc_store_error("");
+  return 0;
 }
 
 void cpmdc_session_destroy(CPMDCSession *session) {

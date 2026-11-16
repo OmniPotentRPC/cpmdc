@@ -360,6 +360,28 @@ CPMDC_API int cpmdc_session_set_params(CPMDCSession *session, const void *params
                                        size_t params_capnp_size_bytes);
 
 /**
+ * @brief Evaluate the session with a constant-cutoff kinetic functional.
+ *
+ * The session deck gains `&SYSTEM CONSTANT CUTOFF`, which replaces G^2 in the
+ * kinetic energy by G^2 + A [1 + erf((G^2 - E0) / sigma)] (Bernasconi et al.,
+ * J. Phys. Chem. Solids 56, 501 (1995)). Energy and stress then belong to the
+ * constant cutoff E0 while the plane-wave basis keeps the deck's cutoff, so
+ * the stress carries no Pulay stress and follows the energy across a change
+ * of cell. All values are Rydberg. `cutoff_ry` is E0; zero or less turns the
+ * functional off. `height_ry` is A; zero or less selects 50 times the deck's
+ * cutoff. `width_ry` is sigma; zero or less selects E0 / 10. E0 + 2 sigma must
+ * not exceed the deck's cutoff.
+ *
+ * @return 0, or -1 when `session` is `NULL`, a value is not finite, the
+ * session has accepted a topology, E0 + 2 sigma exceeds the deck's cutoff,
+ * the message also sets `system.constantCutoff`, or the message gives
+ * `&SYSTEM` as raw text. The session keeps its previous setting on failure,
+ * and the reason is `cpmdc_last_error()`.
+ */
+CPMDC_API int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry,
+                                                double height_ry, double width_ry);
+
+/**
  * @brief Create a persistent session from a `PotentialConfig` message.
  *
  * Resolves the config exactly like `cpmdc_configure()` and installs the

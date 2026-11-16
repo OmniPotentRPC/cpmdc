@@ -110,6 +110,40 @@ static int text_has_word_ci(capn_text text, const char *word) {
 
 /* Set when an append does not fit. Distinct from a rejected deck field. */
 static _Thread_local int g_deck_overflow;
+static _Thread_local const char *g_render_reason;
+static _Thread_local char g_render_reason_text[192];
+
+const char *cpmdc_params_render_reason(void) {
+  return g_render_reason ? g_render_reason : "";
+}
+
+/* The CONSTANT CUTOFF of CPMDCScalarOverrides, which the generated &SYSTEM
+ * section writes once. */
+struct ConstantCutoffRequest {
+  double cutoff_ry;
+  double height_ry;
+  double width_ry;
+  int emitted;
+};
+
+static struct ConstantCutoffRequest
+constant_cutoff_request(const CPMDCScalarOverrides *overrides) {
+  struct ConstantCutoffRequest cc = {0.0, 0.0, 0.0, 0};
+  if (overrides && overrides->constant_cutoff_ry > 0.0) {
+    cc.cutoff_ry = overrides->constant_cutoff_ry;
+    cc.height_ry = overrides->constant_cutoff_height_ry;
+    cc.width_ry = overrides->constant_cutoff_width_ry;
+  }
+  return cc;
+}
+
+static int constant_cutoff_unplaced(const struct ConstantCutoffRequest *cc) {
+  if (cc->cutoff_ry <= 0.0 || cc->emitted)
+    return 0;
+  g_render_reason = "a constant cutoff needs the &SYSTEM section that cpmdc "
+                    "renders; this message gives &SYSTEM as raw text";
+  return 1;
+}
 
 static int append_fmt(char *dst, size_t dst_size, size_t *used, const char *fmt,
                       ...) {
@@ -710,7 +744,7 @@ static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
     int override_ncell, int cluster_hfx, struct RenderSetList *sets, int emit_symmetry,
-    int force_vectors) {
+    int force_vectors, struct ConstantCutoffRequest *cc) {
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
@@ -862,6 +896,27 @@ static int render_system_section_with_cell(
     if (append_f64_list_line(dst, dst_size, used, &sys->constantCutoff, 3) !=
         0)
       return -1;
+  }
+  if (cc && cc->cutoff_ry > 0.0 && !cc->emitted) {
+    if (n_constant_cutoff > 0) {
+      g_render_reason = "a constant cutoff was requested and the message "
+                        "also sets system.constantCutoff";
+      return -1;
+    }
+    double width = cc->width_ry > 0.0 ? cc->width_ry : 0.1 * cc->cutoff_ry;
+    double height = cc->height_ry > 0.0 ? cc->height_ry : 50.0 * cutoff;
+    if (cc->cutoff_ry + 2.0 * width > cutoff) {
+      snprintf(g_render_reason_text, sizeof g_render_reason_text,
+               "the constant cutoff %.6g Ry plus twice its width %.6g Ry "
+               "exceeds the plane-wave cutoff %.6g Ry of the deck",
+               cc->cutoff_ry, width, cutoff);
+      g_render_reason = g_render_reason_text;
+      return -1;
+    }
+    if (append_fmt(dst, dst_size, used, " CONSTANT CUTOFF\n  %.10g %.10g %.10g\n",
+                   height, width, cc->cutoff_ry) != 0)
+      return -1;
+    cc->emitted = 1;
   }
   if (sys->boxWalls != 0.0) {
     if (append_fmt(dst, dst_size, used, " BOX WALLS\n  %.10g\n",
@@ -1421,10 +1476,11 @@ static int render_system_section_with_cell(
 static int render_system_section(char *dst, size_t dst_size, size_t *used,
                                  struct CPMDSystemSection *sys,
                                  double default_cutoff, int default_charge,
-                                 int cluster_hfx, struct RenderSetList *sets) {
+                                 int cluster_hfx, struct RenderSetList *sets,
+                                 struct ConstantCutoffRequest *cc) {
   return render_system_section_with_cell(dst, dst_size, used, sys,
                                          default_cutoff, default_charge, NULL, 0,
-                                         cluster_hfx, sets, 1, 0);
+                                         cluster_hfx, sets, 1, 0, cc);
 }
 
 static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
@@ -4645,6 +4701,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
                                       const CPMDCScalarOverrides *overrides,
                                       char *dst, size_t dst_size) {
   g_deck_overflow = 0;
+  g_render_reason = NULL;
+  struct ConstantCutoffRequest cc = constant_cutoff_request(overrides);
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0)
     return -1;
   dst[0] = '\0';
@@ -4733,7 +4791,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       if (body.multiplicity <= 1)
         body.multiplicity = mult;
       if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
-                                cluster_hfx, &sets) != 0)
+                                cluster_hfx, &sets, &cc) != 0)
         return -1;
       break;
     }
@@ -4885,7 +4943,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
                                         charge, NULL, 0, cluster_hfx, &sets, emit_symmetry,
-                                        0) != 0)
+                                        0, &cc) != 0)
       return -1;
   }
   if (!has_dft) {
@@ -4901,6 +4959,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       return -1;
   }
   if (render_remaining_set_sections(dst, dst_size, &used, &sets) != 0)
+    return -1;
+  if (constant_cutoff_unplaced(&cc))
     return -1;
 
   return 0;
@@ -5066,6 +5126,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
     const double *positions_ang, const int *atomic_numbers,
     const double *cell_ang, int has_cell, char *dst, size_t dst_size) {
   g_deck_overflow = 0;
+  g_render_reason = NULL;
+  struct ConstantCutoffRequest cc = constant_cutoff_request(overrides);
   if (params.p.type == CAPN_NULL || !dst || dst_size == 0 || n_atoms <= 0 ||
       !positions_ang || !atomic_numbers)
     return -1;
@@ -5159,7 +5221,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
               has_cell ? cell_ang : NULL, has_cell ? 9 : 0, cluster_hfx, &sets, 1,
-              has_cell ? 1 : 0) != 0)
+              has_cell ? 1 : 0, &cc) != 0)
         return -1;
       break;
     }
@@ -5322,7 +5384,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
     def.multiplicity = mult;
     if (render_system_section_with_cell(dst, dst_size, &used, &def, cutoff,
                                         charge, box, nbox, cluster_hfx, &sets, emit_symmetry,
-                                        force_vectors) != 0)
+                                        force_vectors, &cc) != 0)
       return -1;
   }
   if (!has_dft) {
@@ -5337,6 +5399,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
       return -1;
   }
   if (render_remaining_set_sections(dst, dst_size, &used, &sets) != 0)
+    return -1;
+  if (constant_cutoff_unplaced(&cc))
     return -1;
   return 0;
 }

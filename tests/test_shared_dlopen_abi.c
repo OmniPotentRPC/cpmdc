@@ -42,6 +42,7 @@ static const char *const required_abi_symbols[] = {
     "cpmdc_adopted_comm",
     "cpmdc_session_create",
     "cpmdc_session_set_params",
+    "cpmdc_session_set_constant_cutoff",
     "cpmdc_session_destroy",
     "cpmdc_session_select_orbitals",
     "cpmdc_session_energy_gradient",

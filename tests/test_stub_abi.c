@@ -17,6 +17,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_adopted_comm",
     "abi.cpmdc_session_create",
     "abi.cpmdc_session_set_params",
+    "abi.cpmdc_session_set_constant_cutoff",
     "abi.cpmdc_session_destroy",
     "abi.cpmdc_session_select_orbitals",
     "abi.cpmdc_session_energy_gradient",
@@ -147,6 +148,8 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   expect_stub_entry("cpmdc_session_create");
   assert_int_equal(cpmdc_session_set_params(NULL, NULL, 0), -1);
   expect_stub_entry("cpmdc_session_set_params");
+  assert_int_equal(cpmdc_session_set_constant_cutoff(NULL, 30.0, 0.0, 0.0), -1);
+  expect_stub_entry("cpmdc_session_set_constant_cutoff");
   assert_null(cpmdc_session_create_from_config(NULL, 0));
   expect_stub_entry("cpmdc_session_create_from_config");
   assert_int_equal(cpmdc_session_configure(NULL, NULL, 0), -1);

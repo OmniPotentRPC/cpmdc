@@ -34,6 +34,7 @@ builds, implemented for the stub, and present as an ~abi.*~ feature row.
 | ~cpmdc_adopted_comm~ | MPI | Y | Y | Y | Y |
 | ~cpmdc_session_create~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_set_params~ | setup | Y | Y | Y | Y |
+| ~cpmdc_session_set_constant_cutoff~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_destroy~ | lifecycle | Y | Y | Y | Y |
 | ~cpmdc_session_select_orbitals~ | setup | Y | Y | Y | Y |
 | ~cpmdc_session_energy_gradient~ | step, arrays | Y | Y | Y | Y |
@@ -80,8 +81,8 @@ and ~include/cpmdc_features.h~.
 It lists the 45 public functions with their header, the ABI generation
 (~CPMDC_ABI_VERSION~, 0), and a ~@since~ column that stays ~-~ until a
 declaration records a later generation.
-~libcpmdc~ exports exactly those symbols: internal glue is hidden (see
-[[file:c-abi.org][the C ABI reference]] for ~CPMDC_API~ and the export list).
+~libcpmdc~ exports exactly those symbols: internal glue is hidden (see [[file:c-abi.org][the C ABI reference]]
+for ~CPMDC_API~ and the export list).
 
 The ~c-abi-inventory~ test, in the ~abi~ and ~inventory~ suites, and the CI stub
 job fail when the file differs from what the built library and the headers give,

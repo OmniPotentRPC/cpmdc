@@ -22,7 +22,15 @@ typedef struct CPMDCScalarOverrides {
   int charge;
   int has_multiplicity;
   int multiplicity;
+  /* CONSTANT CUTOFF E0, A, and sigma in Ry. constant_cutoff_ry <= 0 => none;
+   * a height or width <= 0 => 50 times the basis cutoff, or E0 / 10. */
+  double constant_cutoff_ry;
+  double constant_cutoff_height_ry;
+  double constant_cutoff_width_ry;
 } CPMDCScalarOverrides;
+
+/** Why the last render on this thread rejected the message; "" if unknown. */
+const char *cpmdc_params_render_reason(void);
 
 int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
                                   size_t functional_size, double *cutoff_ry,

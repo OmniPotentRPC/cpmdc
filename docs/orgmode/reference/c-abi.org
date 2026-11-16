@@ -3,8 +3,7 @@
 
 The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~, with the export mark in ~include/cpmdc_export.h~.
-~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see
-[[*RESTART file library][RESTART file library]]).
+~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see [[*RESTART file library][RESTART file library]]).
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
@@ -161,6 +160,7 @@ optimisation.
 ~cpmdc_session_create_from_config()~, ~cpmdc_session_configure()~,
 ~cpmdc_potential_result_size_for_force_input()~, and every evaluation entry
 point, ~cpmdc_session_calculate_au()~ among them.
+~cpmdc_session_set_constant_cutoff()~ writes it too.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
 missing pseudopotential directory.
 Snapshot readers (~cpmdc_last_stress()~ and the other
@@ -222,9 +222,23 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~CPMDCSession *cpmdc_session_create(const void *params, size_t size)~ | copy and render ~CPMDParams~; ~NULL~ on a decode or render failure |
 | ~CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)~ | resolve a ~PotentialConfig~ like ~cpmdc_configure()~, then create a session |
 | ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters; -1 once the session has accepted a topology |
+| ~int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)~ | add ~CONSTANT CUTOFF~ to the rendered ~&SYSTEM~; ~cutoff_ry <= 0~ removes it; same topology rule |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
 | ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | the next evaluations start from the orbitals stored under ~key~; -1 for a ~NULL~ session |
+
+~cpmdc_session_set_constant_cutoff()~ sets the constant-cutoff kinetic
+functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +
+erf((G^2 - E0) / sigma)], with ~cutoff_ry~ as E0, ~height_ry~ as A, and
+~width_ry~ as sigma, all in Ry.
+A height or width of 0 selects 50 times the deck cutoff, or E0 / 10.
+The stress then carries no Pulay stress.
+The call returns -1 and writes ~cpmdc_last_error()~ when a value is not finite,
+when E0 + 2 sigma exceeds the deck cutoff, when the message gives ~&SYSTEM~ as
+raw text, or when it already sets ~system.constantCutoff~; the session keeps its
+previous setting.
+It survives a later ~cpmdc_session_set_params()~.
+The link stub returns -1.
 
 The first successful step fixes the atom count and the elemental composition.
 A later step with a different count or composition fails with
@@ -233,14 +247,12 @@ A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
-of every atom changes neither the energy nor the forces (see ~CPMDC_RECENTER~ in
-[[file:environment.org][environment variables]]).
+of every atom changes neither the energy nor the forces (see ~CPMDC_RECENTER~ in [[file:environment.org][environment variables]]).
 An evaluation with the same positions returns the stored energy and forces.
 A session evaluated after another session in the same process reuses the stored
 orbitals when the functional, deck, cutoff, cell, charge, multiplicity, and
 elemental composition match.
-A different method or composition runs setup on the next evaluation (see
-[[file:../explanation/wavefunction-state.org][wavefunction state]]).
+A different method or composition runs setup on the next evaluation (see [[file:../explanation/wavefunction-state.org][wavefunction state]]).
 
 ** Session array steps
 

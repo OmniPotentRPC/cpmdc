@@ -126,6 +126,16 @@ int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
   return -1;
 }
 
+int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry,
+                                      double height_ry, double width_ry) {
+  (void)session;
+  (void)cutoff_ry;
+  (void)height_ry;
+  (void)width_ry;
+  stub_store_error("cpmdc_session_set_constant_cutoff");
+  return -1;
+}
+
 void cpmdc_session_destroy(CPMDCSession *session) { (void)session; }
 
 int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
