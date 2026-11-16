@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -22,7 +23,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from conftest import ROOT
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CPMDCError
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, ConstantCutoff, CPMDCError
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_factors
 
@@ -127,13 +128,13 @@ def finish(handles) -> None:
     lmp.close()
 
 
-def ase_reference(params: Path, positions, cell) -> dict:
+def ase_reference(params: Path, positions, cell, **calculator) -> dict:
     """eV, eV/Angstrom, and the virial -dE/d(strain) in eV, xx yy zz xy xz yz."""
     atoms = Atoms(SYMBOLS, positions=positions)
     if cell is not None:
         atoms.cell = cell
         atoms.pbc = True
-    with CPMDCCalculator(params) as calc:
+    with CPMDCCalculator(params, **calculator) as calc:
         atoms.calc = calc
         out = {"pe": atoms.get_potential_energy(), "forces": atoms.get_forces()}
         if cell is not None:
@@ -249,6 +250,52 @@ def test_thermo_pressure_is_the_virial(route, periodic_params):
     # No velocities: the pressure is the trace of the virial over 3V.
     trace = sum(got["virial"][:3])
     assert pressure == pytest.approx(trace / (3.0 * volume) * nktv2p, rel=1e-12)
+
+
+# A, sigma, and E0 in Ry, the order of system.constantCutoff.
+CONSTANT_CUTOFF = (2000.0, 3.0, 30.0)
+
+
+@pytest.fixture(scope="module")
+def constant_cutoff_params(tmp_path_factory) -> Path:
+    """The periodic water message with system.constantCutoff."""
+    if shutil.which("capnp") is None:
+        pytest.skip("capnp is not on PATH")
+    text = (ROOT / "tests" / "water_blyp_periodic_params.capnp.txt").read_text()
+    text, count = re.subn(
+        r"(cell = \[[^\]]*\])", r"\1, constantCutoff = [%r, %r, %r]" % CONSTANT_CUTOFF, text
+    )
+    assert count == 1
+    target = tmp_path_factory.mktemp("constant-cutoff") / "water_constant_cutoff.bin"
+    target.write_bytes(subprocess.run(
+        ["capnp", "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=text.encode(), stdout=subprocess.PIPE, check=True,
+    ).stdout)
+    return target
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_constant_cutoff_virial_matches_ase(
+    route, opencpmd, periodic_params, constant_cutoff_params
+):
+    """system.constantCutoff reaches the virial that LAMMPS integrates.
+
+    It is the virial of CPMDCCalculator with the same functional from its
+    constant_cutoff keyword, and lies far from the fixed-basis virial of
+    the plain deck, which carries the Pulay stress.
+    """
+    if not opencpmd:
+        pytest.skip("the reference well has no plane waves")
+    got, handles = run_inline(spec(route, "metal", constant_cutoff_params, cell=CUBE))
+    finish(handles)
+    height, width, cutoff = CONSTANT_CUTOFF
+    corrected = ase_reference(
+        periodic_params, WATERS, CUBE,
+        constant_cutoff=ConstantCutoff(cutoff, height_ry=height, width_ry=width),
+    )
+    assert_matches(got, corrected, "metal")
+    fixed = ase_reference(periodic_params, WATERS, CUBE)
+    assert np.mean(np.subtract(fixed["virial"], got["virial"])[:3]) < -5.0
 
 
 # --- dynamics -----------------------------------------------------------

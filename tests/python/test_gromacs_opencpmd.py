@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from conftest import ROOT
-from cpmdc import BOHR_TO_ANGSTROM
+from cpmdc import BOHR_TO_ANGSTROM, ConstantCutoff
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.gromacs import BOHR_TO_NM, qmi_input
 from test_gromacs import (
@@ -74,11 +74,14 @@ CUBE_NM = np.eye(3)
 TRICLINIC_NM = np.array([[1.0, 0.0, 0.0], [0.13, 0.94, 0.0], [-0.075, 0.1, 1.04]])
 
 
-def tight(source: str, tmp: Path) -> Path:
+def tight(source: str, tmp: Path, constant_cutoff: tuple[float, float, float] | None = None) -> Path:
+    """The message with a tight SCF, and system.constantCutoff = [A, sigma, E0] when given."""
     text = (ROOT / "tests" / source).read_text()
     text = re.sub(r"convergenceOrbitals = [0-9.eE+-]+", f"convergenceOrbitals = {CONVERGENCE:g}", text)
     text = re.sub(r"maxStep = \d+", "maxStep = 300", text)
     text = re.sub(r"maxIter = \d+", "maxIter = 300", text)
+    if constant_cutoff is not None:
+        text = re.sub(r"(cell = \[[^\]]*\])", r"\1, constantCutoff = [%r, %r, %r]" % constant_cutoff, text)
     target = tmp / (Path(source).stem + ".bin")
     target.write_bytes(subprocess.run(
         ["capnp", "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
@@ -95,6 +98,16 @@ def cluster_params(tmp_path_factory):
 @pytest.fixture(scope="module")
 def periodic_params(tmp_path_factory):
     return tight("water_blyp_periodic_params.capnp.txt", tmp_path_factory.mktemp("periodic"))
+
+
+# A, sigma, and E0 in Ry, the order of system.constantCutoff.
+CONSTANT_CUTOFF = (2000.0, 3.0, 30.0)
+
+
+@pytest.fixture(scope="module")
+def constant_cutoff_params(tmp_path_factory):
+    return tight("water_blyp_periodic_params.capnp.txt", tmp_path_factory.mktemp("constant-cutoff"),
+                 CONSTANT_CUTOFF)
 
 
 def shim_and_strain_stress(inp: Path, out: Path, symbols: str, x_nm, box_nm, strain):
@@ -127,6 +140,33 @@ def test_opencpmd_whole_system_stress_matches_ase(box, periodic_params, tmp_path
     # At a strain of 1e-6 the difference resolves 1e-12 Hartree of energy,
     # which is the SCF's reproducibility: the cube is 1.5e-6 of the stress off.
     np.testing.assert_allclose(ours, numeric, rtol=0, atol=3e-6 * scale)
+
+
+def test_opencpmd_constant_cutoff_stress_matches_ase(constant_cutoff_params, periodic_params, tmp_path):
+    """system.constantCutoff through the drop-in: the stress GROMACS couples to.
+
+    It is the stress of CPMDCCalculator with the same functional from its
+    constant_cutoff keyword, and lies far from the fixed-basis stress of the
+    plain deck, which carries the Pulay stress.
+    """
+    inp = setup_env(tmp_path, qmi_input(constant_cutoff_params), "OHH", [True] * 3, [0.0] * 3, WATER_NM)
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.step(WATER_NM / BOHR_TO_NM, CUBE_NM / BOHR_TO_NM)
+    stress, available = shim.stress()
+    shim.close()
+    assert available == 1
+    ours = ase_stress(stress)
+    height, width, cutoff = CONSTANT_CUTOFF
+    atoms = Atoms("OHH", positions=WATER_NM * 10.0, cell=CUBE_NM * 10.0, pbc=True)
+    with CPMDCCalculator(periodic_params, library=CPMDC_LIB,
+                         constant_cutoff=ConstantCutoff(cutoff, height_ry=height, width_ry=width)) as calc:
+        atoms.calc = calc
+        corrected = atoms.get_stress(voigt=False)
+    with CPMDCCalculator(periodic_params, library=CPMDC_LIB) as calc:
+        atoms.calc = calc
+        fixed = atoms.get_stress(voigt=False)
+    np.testing.assert_allclose(ours, corrected, rtol=0, atol=1e-7 * np.abs(corrected).max())
+    assert np.trace(fixed - ours) / 3.0 > 1e-2
 
 
 @pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
