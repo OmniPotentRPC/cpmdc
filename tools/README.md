@@ -17,6 +17,7 @@ linking `libcpmdc`.
 | `opencpmd_embed_teardown.patch` | Add `embed_teardown_state` (module `embed_teardown`) and the counter `embed_teardowns` in `embed_ctrl`. The routine frees the saved orbitals, the communicators of `set_cp_grp`, and every `ALLOCATABLE` module variable and component a `USE` reaches, outside the timer, stop and CUDA device modules, then moves the counter. 38 routines that keep first-call state behind a `SAVE` flag (`phfac`, `setbasis`, `hf_init`, `addfftnset`, `stress`, the density mixers, the symmetry setup, ...) free their `SAVE` arrays and run as a first call again when the counter moved, so one process can set CPMD up again for another basis or after a `stopgm`. `tistart` keeps its state. Apply this last |
 | `opencpmd_embed_extrapolate.patch` | Keep the `EXTRAPOLATE WFN` request that `control_test` turns off outside Born-Oppenheimer molecular dynamics (BO-MD) in `embed_extrap_wfn` of `embed_ctrl` |
 | `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
+| `opencpmd_constant_cutoff_precon.patch` | Add the `CONSTANT CUTOFF` penalty `A [1 + erf((G^2 - E0) / sigma)]` to the kinetic diagonal of the ODIIS preconditioner in `hesele`, which `kin_energy` and `vpsi` already apply. Without it ODIIS stops at its step limit on a constant-cutoff deck and the PCG fallback is about six times slower. A deck without `CONSTANT CUTOFF` is unchanged. Optional; rebuild with `rebuild_opencpmd_constant_cutoff.sh` |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` passes them to `extrapwf`.
@@ -41,9 +42,11 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_teardown.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_extrapolate.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_constant_cutoff_precon.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
+/path/to/cpmdc/tools/rebuild_opencpmd_constant_cutoff.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
 

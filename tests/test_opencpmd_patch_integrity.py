@@ -64,6 +64,7 @@ PATCHES = {
         "src/embed_ctrl.mod.F90",
         "src/rwfopt_utils.mod.F90",
     ),
+    "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -252,6 +253,18 @@ def assert_embed_extrapolate(patch: Path) -> None:
         raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")
 
 
+def assert_constant_cutoff_precon(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "USE prcp,                            ONLY: prcp_com",
+        "IF (prcp_com%akin.GT.1.e-10_real_8) xskin=1._real_8/prcp_com%gskin",
+        "(1._real_8+cp_erf((hg(j)-prcp_com%gckin)*xskin))",
+        "-          vpp(j)=ftpi*hg(j)+vpp(j)",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+
+
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
     for name, expected_target in PATCHES.items():
@@ -293,6 +306,10 @@ def main() -> int:
             assert_embed_teardown(patch)
         elif name == "opencpmd_embed_extrapolate.patch":
             assert_embed_extrapolate(patch)
+        elif name == "opencpmd_constant_cutoff_precon.patch":
+            if removed <= 0:
+                raise AssertionError(f"{name}: patch must replace upstream code")
+            assert_constant_cutoff_precon(patch)
         elif name == "opencpmd_c_mem_addrs.patch":
             text = patch.read_text(encoding="utf-8")
             if "return (size_t) pp;" not in text:

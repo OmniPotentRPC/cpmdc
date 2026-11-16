@@ -74,11 +74,11 @@ before a second setup.
 It frees the saved orbitals, the communicators ~set_cp_grp~ built, and every
 ~ALLOCATABLE~ module variable and module-variable component that a ~USE~
 reaches, outside the timer, stop, and CUDA device modules.
-It then adds one to ~embed_teardowns~ in ~embed_ctrl~. 38 routines in those 33
-modules keep work on the setup and wavefunction optimisation path for their
-first call behind a ~SAVE~ flag: ~phfac~, ~setbasis~, ~hf_init~, ~addfftnset~,
-~stress~, the density mixers, the symmetry setup, the Vanderbilt and core-charge
-splines, and others.
+It then adds one to ~embed_teardowns~ in ~embed_ctrl~.
+38 routines in those 33 modules keep work on the setup and wavefunction
+optimisation path for their first call behind a ~SAVE~ flag: ~phfac~,
+~setbasis~, ~hf_init~, ~addfftnset~, ~stress~, the density mixers, the symmetry
+setup, the Vanderbilt and core-charge splines, and others.
 Each one compares the count it last saw with ~embed_teardowns~, and on a change
 frees its own ~SAVE~ arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
@@ -93,6 +93,20 @@ before it does so.
 Only the
 I/O rank runs ~control_test~, so ~rwfopt~ broadcasts the flag before it reads it; otherwise the other ranks of a multi-rank run skip ~extrapwf~ and the ranks wait on different collectives. When that flag is true and a call starts from stored orbitals, ~rwfopt~ passes them to the ~extrapwf~ that the molecular dynamics driver calls between steps. That routine adds them to a ring of earlier converged orbitals and returns the always stable predictor-corrector or polynomial prediction, orthonormalised, which starts the self-consistent field iteration. ~embed_extrapolation_used~ returns how many sets the last prediction combined. The ring keeps the orbitals of one trajectory: a call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties it. ~cpmd.x~ never sets ~embed_warm_orbitals~ and never takes this path. Its molecular dynamics runs are unchanged. The [[file:../howto/extrapolate-orbitals.org][extrapolation
 how-to]] shows the message and the check.
+
+The constant-cutoff patch is optional and changes no physics.
+With ~CONSTANT CUTOFF~ in ~&SYSTEM~, ~kin_energy~, ~vpsi~, and the kinetic
+stress replace G^2 by G^2 + A [1 + erf((G^2 - E0) / sigma)], but ~hesele~ still
+builds the ODIIS preconditioner from G^2 alone.
+That diagonal underestimates the curvature of the plane waves above E0 by up to
+2A, so ODIIS overshoots on them and stops at its step limit, and ~cpmdc~ falls
+back to PCG.
+The patch adds the same term to the diagonal.
+On the 60 Ry water deck with A = 100, sigma = 4, and E0 = 40 Ry, ODIIS then
+converges in 16 steps, a stress call takes 7.1 s instead of 42.5 s, and the
+energy and the mean stress agree with the PCG result to 1e-6 eV and 2e-7
+eV/Angstrom^3.
+A deck without ~CONSTANT CUTOFF~ has A = 0 and keeps the stock diagonal.
 
 * Nuclear forces from repeated SCF calls
 A live OpenCPMD link evaluates each geometry with fixed nuclei
