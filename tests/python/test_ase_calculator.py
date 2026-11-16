@@ -678,12 +678,22 @@ def test_bfgs_trajectory_stores_periodic_stress(periodic_calc, tmp_path):
     np.testing.assert_allclose(last.get_stress(), atoms.get_stress())
 
 
-def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_calc):
+def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_calc, opencpmd):
+    """The stress reaches the optimizer, which shrinks the cell along it.
+
+    On OpenCPMD the stress of the 40 Ry deck is almost all Pulay stress, about
+    16 eV over the volume. The energy at that fixed cutoff falls over the first
+    step and rises over the next three, which shrink the cell further.
+    """
     atoms = water(cell=CUBE, pbc=True)
     atoms.rattle(0.05, seed=17)
     atoms.calc = periodic_calc
-    start = atoms.get_potential_energy()
+    assert atoms.get_stress()[:3].mean() > 0.0
+    energies: list[float] = []
     with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+        opt.attach(lambda: energies.append(atoms.get_potential_energy()))
         opt.run(fmax=0.01, steps=4)
-    assert atoms.get_potential_energy() < start
-    assert not np.allclose(atoms.cell.array, CUBE)
+    assert atoms.get_volume() < np.linalg.det(CUBE)
+    assert energies[1] < energies[0]
+    if not opencpmd:
+        assert energies[-1] < energies[0]
