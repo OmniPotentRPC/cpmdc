@@ -5,11 +5,18 @@ The in-process route encodes this text (`capnp encode schema/Potentials.capnp
 CPMDParams`) and passes the binary as `params_path`. The file route renders
 that same message with `cpmdc_params_render_input_deck`. `file_route_text`
 names the keywords that renderer writes for the fields this TOML sets.
+
+A `[constant_cutoff]` table sets `CONSTANT CUTOFF` in `&SYSTEM`, the
+constant-cutoff kinetic functional of Bernasconi et al. (1995) whose stress
+carries no Pulay stress: `cutoff_ry` is E0, `height_ry` is A (50 times
+`cutoff_ry` of the job when omitted), and `width_ry` is sigma (E0 / 10 when
+omitted), all in Ry.
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 import tomllib
 from pathlib import Path
@@ -25,7 +32,49 @@ def load_job(path: Path) -> dict[str, Any]:
     missing = [key for key in ("functional", "cutoff_ry") if key not in job]
     if missing:
         raise KeyError(",".join(missing))
+    constant_cutoff(job)
     return job
+
+
+_CONSTANT_CUTOFF_KEYS = ("cutoff_ry", "height_ry", "width_ry")
+
+
+def constant_cutoff(job: Mapping[str, Any]) -> tuple[float, float, float] | None:
+    """A, sigma, and E0 in Ry from `[constant_cutoff]`, or None without one.
+
+    Raises ValueError for an unknown key, a value that is not a finite
+    positive number, or E0 + 2 sigma above `cutoff_ry` of the job.
+    """
+    table = job.get("constant_cutoff")
+    if table is None:
+        return None
+    if not isinstance(table, Mapping):
+        raise ValueError("constant_cutoff must be a table")
+    unknown = sorted(set(table) - set(_CONSTANT_CUTOFF_KEYS))
+    if unknown:
+        raise ValueError(f"unknown constant_cutoff keys: {unknown}")
+    if "cutoff_ry" not in table:
+        raise ValueError("constant_cutoff needs cutoff_ry")
+    values = {}
+    for key in _CONSTANT_CUTOFF_KEYS:
+        if key not in table:
+            continue
+        value = table[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"constant_cutoff.{key} must be a number")
+        if not math.isfinite(value) or value <= 0.0:
+            raise ValueError(f"constant_cutoff.{key} must be finite and positive")
+        values[key] = float(value)
+    basis = float(job["cutoff_ry"])
+    e0 = values["cutoff_ry"]
+    width = values.get("width_ry", 0.1 * e0)
+    height = values.get("height_ry", 50.0 * basis)
+    if e0 + 2.0 * width > basis:
+        raise ValueError(
+            f"constant_cutoff.cutoff_ry {e0:g} Ry plus twice its width "
+            f"{width:g} Ry exceeds cutoff_ry {basis:g} Ry"
+        )
+    return height, width, e0
 
 
 def _fmt(value: float) -> str:
@@ -117,6 +166,9 @@ def capnp_text(job: Mapping[str, Any]) -> str:
         system_bits.append(
             "cell = [" + ", ".join(_fmt(float(v)) for v in cell["vectors"]) + "]"
         )
+    kinetic = constant_cutoff(job)
+    if kinetic:
+        system_bits.append("constantCutoff = [" + ", ".join(_fmt(v) for v in kinetic) + "]")
     sys_dir = _directives(cell.get("directives"))
     if sys_dir:
         system_bits.append(sys_dir)
@@ -166,6 +218,9 @@ def file_route_text(job: Mapping[str, Any]) -> str:
     if dft.get("newcode"):
         lines.append("NEWCODE")
     lines.append(f'SYMMETRY\n{int(cell.get("symmetry", 0))}')
+    kinetic = constant_cutoff(job)
+    if kinetic:
+        lines.extend(["CONSTANT CUTOFF", " ".join(f"{v:.10g}" for v in kinetic)])
     if int(job.get("charge", 0) or 0) != 0:
         lines.extend(["CHARGE", str(int(job["charge"]))])
     for psp in job.get("pseudopotentials") or []:

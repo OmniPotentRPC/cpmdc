@@ -1,7 +1,10 @@
 """One job TOML feeds the params message and the file-route keywords."""
 
 import importlib.util
+import tomllib
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,3 +56,41 @@ def test_asin_toml_keeps_charge_and_cell_on_both_routes():
     assert "O_SPRIK_BLYP.psp" in message
     assert "O_SPRIK_BLYP.psp" in deck
     assert "LMAX=S LOC=S" in deck
+
+
+def test_constant_cutoff_table_feeds_both_routes():
+    tool = _tool()
+    job = tool.load_job(ROOT / "examples" / "si3n4-isomer1.toml")
+    job["constant_cutoff"] = {"cutoff_ry": 50}
+    assert tool.constant_cutoff(job) == (3500.0, 5.0, 50.0)
+    assert "constantCutoff = [3500.0, 5.0, 50.0]" in tool.capnp_text(job)
+    assert "CONSTANT CUTOFF\n3500 5 50\n" in tool.file_route_text(job)
+    job["constant_cutoff"] = {"cutoff_ry": 50, "height_ry": 400, "width_ry": 2.5}
+    assert "constantCutoff = [400.0, 2.5, 50.0]" in tool.capnp_text(job)
+    del job["constant_cutoff"]
+    assert "constantCutoff" not in tool.capnp_text(job)
+    assert "CONSTANT CUTOFF" not in tool.file_route_text(job)
+
+
+@pytest.mark.parametrize(
+    "table, message",
+    [
+        ({"cutoff_ry": 65}, "exceeds cutoff_ry 70 Ry"),
+        ({"height_ry": 100}, "needs cutoff_ry"),
+        ({"cutoff_ry": 50, "sigma": 2}, "unknown constant_cutoff keys"),
+        ({"cutoff_ry": -1}, "finite and positive"),
+        ({"cutoff_ry": True}, "must be a number"),
+    ],
+)
+def test_constant_cutoff_table_is_checked(tmp_path, table, message):
+    tool = _tool()
+    job = tomllib.loads((ROOT / "examples" / "si3n4-isomer1.toml").read_text(encoding="utf-8"))
+    job["constant_cutoff"] = table
+    with pytest.raises(ValueError, match=message):
+        tool.constant_cutoff(job)
+    lines = [f"{key} = {str(value).lower()}" for key, value in table.items()]
+    path = tmp_path / "job.toml"
+    text = (ROOT / "examples" / "si3n4-isomer1.toml").read_text(encoding="utf-8")
+    path.write_text(text + "\n[constant_cutoff]\n" + "\n".join(lines) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        tool.load_job(path)
