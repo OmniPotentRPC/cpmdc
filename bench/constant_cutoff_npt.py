@@ -21,11 +21,13 @@ steps resolve the O-H stretch; configurational averages such as the density
 do not depend on the masses. The density is that of H2O, the water count
 times 18.015 u over the volume, and the pressure is the instantaneous one
 that the barostat holds, with the kinetic term. A run stops when the density
-leaves --density-range, as it does when the cell collapses. --start takes the
-box of start, whose momenta the run draws at TEMPERATURE, or the state file of
-another run, whose positions, momenta, cell and barostat momentum it
-continues from with its own settings; the record then holds the state's step
-count times DT as start_ps, where the figure draws the run.
+leaves --density-range, as it does when the cell collapses. The piston has
+the friction 1/P_TAU and the mass of ASE's heuristic, which grows as P_TAU
+squared. --start takes the box of start, whose momenta the run draws at
+TEMPERATURE, or the state file of another run, whose positions, momenta, cell
+and strain rate it continues from with its own settings; the record then
+holds the state's step count times DT as start_ps, where the figure draws the
+run.
 
 Each step appends the time, volume, density, pressure, temperature,
 potential energy, wall time, SCF iterations and new setups to the record
@@ -62,7 +64,7 @@ usage: constant_cutoff_npt.py start --out BOX.xyz [--waters 32] [--density 1.0]
                                   (--start BOX.xyz|RUN.state.npz --cutoff RY [--e0 RY]
                                    [--height RY] [--width RY] [--conv 1e-6]
                                    [--dt 1] [--temperature 350] [--pressure 1]
-                                   [--t-tau 100] [--p-tau 500] [--seed 11]
+                                   [--t-tau 100] [--p-tau 100] [--seed 11]
                                    | --resume) [--steps 3000] [--checkpoint 10]
        constant_cutoff_npt.py pressure --library LIB --start BOX.xyz|RUN.state.npz
                                        [--conv 1e-6] [--output FILE] BASIS [BASIS ...]
@@ -279,7 +281,8 @@ def save(out: Path, record: dict, atoms: Atoms, dyn: LangevinBAOAB) -> None:
         with p.open("wb") as handle:
             np.savez(handle, numbers=atoms.numbers, positions=atoms.positions, momenta=atoms.get_momenta(),
                      masses=atoms.get_masses(), cell=atoms.cell.array, p_eps=np.asarray(dyn.p_eps),
-                     nsteps=dyn.nsteps, rng=json.dumps(dyn.rng.bit_generator.state))
+                     barostat_mass=np.asarray(dyn.barostat_mass), nsteps=dyn.nsteps,
+                     rng=json.dumps(dyn.rng.bit_generator.state))
 
     write_atomic(out.with_suffix(".state.npz"), state)
 
@@ -341,7 +344,7 @@ def run(args: argparse.Namespace) -> int:
         dyn.nsteps = int(saved["nsteps"])
         dyn.rng.bit_generator.state = json.loads(str(saved["rng"]))
     elif args.start.suffix == ".npz":
-        dyn.p_eps = float(saved["p_eps"])
+        dyn.p_eps = float(saved["p_eps"]) * dyn.barostat_mass / float(saved["barostat_mass"])
     lo, hi = setup.density_range
 
     def frame() -> None:
@@ -588,7 +591,7 @@ def main() -> int:
     p.add_argument("--temperature", type=float, default=350.0)
     p.add_argument("--pressure", type=float, default=1.0, help="bar")
     p.add_argument("--t-tau", type=float, default=100.0, help="fs")
-    p.add_argument("--p-tau", type=float, default=500.0, help="fs")
+    p.add_argument("--p-tau", type=float, default=100.0, help="fs")
     p.add_argument("--hydrogen-mass", type=float, default=2.014)
     p.add_argument("--seed", type=int, default=11)
     p.add_argument("--density-range", type=float, nargs=2, default=(500.0, 1500.0), help="kg/m^3")
