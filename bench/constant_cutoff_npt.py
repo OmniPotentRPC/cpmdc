@@ -9,21 +9,37 @@ friction 0.01/fs) at TEMPERATURE in a classical flexible model: the TIP3P
 charges and Lennard-Jones of ASE's TIP3P, with harmonic O-H bonds and H-O-H
 angle that take the SPC/Fw force constants about the TIP3P geometry.
 
-run integrates hydrostatic Langevin NPT (ASE's LangevinBAOAB) at PRESSURE
-bar and TEMPERATURE K through CPMDCCalculator: PBE, the Troullier-Martins
-O_MT_PBE and H_MT_PBE pseudopotentials of the CPMD library, basis cutoff
-CUTOFF, orbital convergence CONV, and orbitals predicted by ASPC of order 4.
+run integrates hydrostatic NPT at PRESSURE bar and TEMPERATURE K through
+CPMDCCalculator: PBE, the Troullier-Martins O_MT_PBE and H_MT_PBE
+pseudopotentials of the CPMD library or the files that --oxygen and
+--hydrogen name (cpmdc reads a name that ends in .UPF as UPF), basis cutoff
+CUTOFF, orbital convergence CONV, and orbitals predicted by ASPC of order
+--aspc-order.
+--rs-wfn-keep keeps the real-space orbitals between the SCF iterations
+(REAL SPACE WFN KEEP); --odiis-vectors and --hamiltonian-cutoff, when not 0,
+set the ODIIS vectors and HAMILTONIAN CUTOFF. The integrator is ASE's
+LangevinBAOAB by default: the MTK barostat with a Langevin piston, and
+Langevin atoms with the friction 1/T_TAU. --thermostat svr gives the atoms
+stochastic velocity rescaling (Bussi, Donadio and Parrinello, J. Chem. Phys.
+126, 014101 (2007)) with the time constant T_TAU in place of that friction
+and noise. --barostat pr is ASE's MelchionnaNPT with the cell shape held: a
+Parrinello-Rahman piston whose mass follows from P_TAU and --bulk-modulus,
+and a Nose-Hoover thermostat with the time constant T_TAU.
 --e0 adds the constant-cutoff functional at E0 (A = 50 x CUTOFF and sigma =
 E0 / 10 unless --height and --width are given); without it each new cell is
 a new setup at CUTOFF, whose stress is that of a fixed number of plane
-waves. Hydrogen carries --hydrogen-mass, deuterium by default, so that 1 fs
-steps resolve the O-H stretch; configurational averages such as the density
-do not depend on the masses. The density is that of H2O, the water count
+waves. A --height so small that the penalty vanishes, such as 1e-6 with
+--e0 50 --width 1 on an 85 Ry deck, and a CPMDC_CELL_IN_PLACE above any
+strain of the run keep the plane waves of the first cell through the run
+instead: a basis of a constant number of plane waves, whose effective
+cutoff falls as the cell grows. Hydrogen carries --hydrogen-mass, deuterium
+by default, so that 1 fs steps resolve the O-H stretch; configurational
+averages such as the density do not depend on the masses. The density is that of H2O, the water count
 times 18.015 u over the volume, and the pressure is the instantaneous one
 that the barostat holds, with the kinetic term. A run stops when the density
-leaves --density-range, as it does when the cell collapses. The piston has
-the friction 1/P_TAU and the mass of ASE's heuristic, which grows as P_TAU
-squared. --start takes the box of start, whose momenta the run draws at
+leaves --density-range, as it does when the cell collapses. The MTK piston
+has the friction 1/P_TAU and the mass of ASE's heuristic, which grows as
+P_TAU squared. --start takes the box of start, whose momenta the run draws at
 TEMPERATURE, or the state file of another run, whose positions, momenta, cell
 and strain rate it continues from with its own settings; the record then
 holds the state's step count times DT as start_ps, the time into the run that
@@ -33,32 +49,50 @@ Each step appends the time, volume, density, pressure, temperature,
 potential energy, wall time, SCF iterations and new setups to the record
 OUT. The last two come from the CPMDC_SCF_STEPS lines of the error stream,
 which rank 0 sends to OUT with the suffix .err. Every --checkpoint steps
-rank 0 rewrites OUT and the state file (suffix .state.npz), and --resume
-continues the run from them with the settings recorded in OUT.
-CPMDC_CELL_IN_PLACE applies as set.
+rank 0 rewrites OUT, with the time to 1e-6 ps, the volume to 1e-6 nm^3, the
+density to 1e-3 kg/m^3, the pressure to 0.01 bar, the temperature to
+0.01 K, the energy to 1e-6 eV and the wall time to 1e-4 s, and the state
+file (suffix .state.npz), and --resume continues the run from them with the
+settings recorded in OUT. Every
+--keep-every steps, when it is not 0, rank 0 also keeps the state as
+OUT.STEP.state.npz. CPMDC_CELL_IN_PLACE applies as set.
 
 pressure evaluates one configuration, a box or the state file of a run, at
 each basis it is given, CUTOFF for a fixed cutoff or CUTOFF/E0[/WIDTH] for a
 constant cutoff with the default A, and writes an Org table of the energy and
 of two virial pressures without the kinetic term: that of the atoms, and that
 of the molecular centres of mass (with the masses of the state file), which
-leaves out the intramolecular forces.
+leaves out the intramolecular forces. --density first scales the molecular
+centres and the cell to that density with each molecule held rigid.
+--oxygen and --hydrogen name other pseudopotential files, as for run.
 
 table names each run by the file of its record and writes Org tables of the
-basis, P_tau and start of each run; of the block-averaged volume, density,
+basis, P_tau and start of each run, with the pseudopotentials when the runs
+differ in them and the thermostat and barostat of records that name them; of
+the block-averaged volume, density,
 pressure and temperature (bench/npt_block_average.py: the equilibration
 detected in the first three discarded, at least --min-discard-ps of a run
 that starts from a box and --branch-discard-ps of one that starts from a
 state, Flyvbjerg-Petersen standard error); of the runs that stopped or hold
 less than --min-production-ps after that, with the density at their start and
-end; of the cost per step; and of the density every --branch-step-ps after
-the start of the runs that start from the same state. The other settings must
-be the same for every run. The run that wrote a state is the record with a
+end; of the cost per step; of the standard error against the block length,
+every --curve-step blocking levels; of the isothermal compressibility from
+the volume fluctuations; and of the density every --branch-step-ps after the
+start of the runs that start from the same state. The other settings must be
+the same for every run. The run that wrote a state is the record with a
 frame at start_ps of the volume the state starts at. --json also writes what
 docs/render_constant_cutoff_npt.py draws: the means, the window means, the
 start of each run from the start of the first of the runs that wrote the
 states before it, and the density of every step of the runs that start from
 the same state.
+
+cost compares runs with the same start, physical settings and ranks that
+differ in their library or SCF options: the options in which the runs
+differ, the mean wall time and SCF iterations per step from
+--from-step to --to-step, and the largest difference of the potential energy
+over the steps both runs hold from the run listed before (--against above)
+or from the first run (--against first). The header gives the options the
+runs share.
 
 capnp must be on PATH and CPMDC_PSEUDO_DIR must name the pseudopotential
 directory. Under mpirun with CPMDC_RANK_CONSENSUS=1 every rank integrates the
@@ -71,15 +105,25 @@ usage: constant_cutoff_npt.py start --out BOX.xyz [--waters 32] [--density 1.0]
                                    [--height RY] [--width RY] [--conv 1e-6]
                                    [--dt 1] [--temperature 350] [--pressure 1]
                                    [--t-tau 100] [--p-tau 100] [--seed 11]
+                                   [--rs-wfn-keep] [--aspc-order 4] [--odiis-vectors 0]
+                                   [--hamiltonian-cutoff 0] [--thermostat langevin|svr]
+                                   [--barostat mtk|pr] [--bulk-modulus 2.2]
+                                   [--oxygen O_MT_PBE.psp] [--hydrogen H_MT_PBE.psp]
                                    | --resume) [--steps 3000] [--checkpoint 10]
+                                  [--keep-every 0]
        constant_cutoff_npt.py pressure --library LIB --start BOX.xyz|RUN.state.npz
-                                       [--conv 1e-6] [--output FILE] BASIS [BASIS ...]
+                                       [--conv 1e-6] [--density KG_M3]
+                                       [--oxygen O_MT_PBE.psp] [--hydrogen H_MT_PBE.psp]
+                                       [--output FILE] BASIS [BASIS ...]
        constant_cutoff_npt.py table RUN.json [RUN.json ...] [--json OUT]
                                     [--discard-ps PS] [--min-discard-ps 0.5]
                                     [--branch-discard-ps 0.05] [--min-production-ps 0.1]
                                     [--window-ps 0.1] [--plot-window-ps 0.02]
                                     [--branch-step-ps 0.01] [--min-blocks 8]
-                                    [--output FILE]
+                                    [--curve-step 2] [--output FILE]
+       constant_cutoff_npt.py cost RUN.json [RUN.json ...] [--from-step 1]
+                                   [--to-step N] [--against above|first]
+                                   [--output FILE]
 """
 
 from __future__ import annotations
@@ -110,6 +154,7 @@ from ase.data import atomic_masses  # noqa: E402
 from ase.io import read, write  # noqa: E402
 from ase.md.langevin import Langevin  # noqa: E402
 from ase.md.langevinbaoab import LangevinBAOAB  # noqa: E402
+from ase.md.melchionna import MelchionnaNPT  # noqa: E402
 from ase.md.velocitydistribution import Stationary, thermalize_momenta  # noqa: E402
 
 from constant_cutoff_scan import cpu_model  # noqa: E402
@@ -121,8 +166,12 @@ WATER_MASS = float(atomic_masses[8] + 2.0 * atomic_masses[1])
 BOND_K = 1059.162 * units.kcal / units.mol
 ANGLE_K = 75.90 * units.kcal / units.mol
 THETA0 = np.radians(angleHOH)
+KB_J = 1.380649e-23
+OXYGEN, HYDROGEN = "O_MT_PBE.psp", "H_MT_PBE.psp"
 FIELDS = ("time_ps", "Volume", "Density", "Pressure", "Temperature", "Energy", "step_wall_s", "scf_steps",
           "setups")
+# Decimals each record keeps: ps, nm^3, kg/m^3, bar, K, eV, s.
+DIGITS = {"time_ps": 6, "Volume": 6, "Density": 3, "Pressure": 2, "Temperature": 2, "Energy": 6, "step_wall_s": 4}
 PHYSICS = ("cutoff", "e0", "height", "width", "conv", "dt", "temperature", "pressure", "t_tau", "p_tau",
            "hydrogen_mass", "seed", "density_range")
 
@@ -201,19 +250,21 @@ def start(args: argparse.Namespace) -> int:
     return 0
 
 
-def deck(cutoff: float, side: float, conv: float) -> bytes:
+def deck(cutoff: float, side: float, conv: float, keep: bool = False, order: int = 4, odiis: int = 0,
+         hthrs: float = 0.0, oxygen: str = OXYGEN, hydrogen: str = HYDROGEN) -> bytes:
     text = f"""(
   functional = "PBE", cutOffRy = {cutoff:.2f}, charge = 0, multiplicity = 1, task = "gradient",
   inputSections = [
     ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = {conv:g}, maxStep = 200, maxIter = 200,
-        extrapolateWfnOptions = "ASPC", extrapolateWfnOrder = 4,
+        extrapolateWfnOptions = "ASPC", extrapolateWfnOrder = {order}, realSpaceWfnKeep = {str(keep).lower()},
+        odiisVectors = {odiis}, hamiltonianCutoff = {hthrs:g},
         directives = [ ( keyword = "CENTER MOLECULE OFF", args = [] ) ] ) ),
     ( dft = ( functional = "PBE", lsd = false, directives = [ ( keyword = "OLDCODE", args = [] ) ] ) ),
     ( system = ( symmetry = 1, angstrom = true, cutOffRy = {cutoff:.2f},
         cell = [{side:.6f}, 1.0, 1.0, 0.0, 0.0, 0.0] ) ),
     ( atoms = ( pseudopotentials = [
-        ( element = "O", path = "O_MT_PBE.psp", lmax = 1 ),
-        ( element = "H", path = "H_MT_PBE.psp", lmax = 0 ) ] ) ) ] )
+        ( element = "O", path = "{oxygen}", lmax = 1 ),
+        ( element = "H", path = "{hydrogen}", lmax = 0 ) ] ) ) ] )
 """
     schema = find_schema(ROOT / "schema" / "Potentials.capnp")
     done = subprocess.run(["capnp", "encode", str(schema), "CPMDParams"], input=text.encode("utf-8"),
@@ -275,23 +326,89 @@ class LeftRange(Exception):
     """The density left --density-range."""
 
 
+class RescalingBAOAB(LangevinBAOAB):
+    """LangevinBAOAB whose atoms take stochastic velocity rescaling (Bussi, Donadio and Parrinello, J. Chem. Phys.
+    126, 014101 (2007)) with time constant T_tau over each O step instead of the Langevin friction and noise; the
+    barostat drag on the velocities and the Langevin piston stay."""
+
+    def set_temperature(self, temperature_K, from_init=False):
+        super().set_temperature(temperature_K, from_init)
+        self.gamma = 0.0
+
+    def _BAOAB_OU(self, drag_gamma_mod=0.0):
+        super()._BAOAB_OU(drag_gamma_mod)
+        if self.temperature_K is None:
+            return
+        n = self.atoms.get_number_of_degrees_of_freedom()
+        kinetic = self.atoms.get_kinetic_energy()
+        target = 0.5 * n * units.kB * self.temperature_K
+        c = np.exp(-self.dt / self.T_tau)
+        r = self.rng.normal()
+        rest = self.rng.chisquare(n - 1)
+        new = (c * kinetic + (1.0 - c) * target * (r * r + rest) / n
+               + 2.0 * r * np.sqrt(c * (1.0 - c) * kinetic * target / n))
+        self.atoms.set_velocities(self.atoms.get_velocities() * np.sqrt(new / kinetic))
+
+
 def write_atomic(path: Path, write_to) -> None:
     tmp = path.with_name(path.name + ".tmp")
     write_to(tmp)
     os.replace(tmp, path)
 
 
-def save(out: Path, record: dict, atoms: Atoms, dyn: LangevinBAOAB) -> None:
-    write_atomic(out, lambda p: p.write_text(json.dumps(record) + "\n"))
+def integrator(setup: argparse.Namespace, meta: dict, atoms: Atoms):
+    """LangevinBAOAB, or its stochastic velocity rescaling, for the MTK barostat; ASE's MelchionnaNPT with the cell
+    shape held for the Parrinello-Rahman barostat, whose Nose-Hoover thermostat has the time constant T_tau and
+    whose piston mass follows from P_tau and --bulk-modulus."""
+    dt = setup.dt * units.fs
+    if meta.get("barostat", "mtk") == "pr":
+        dyn = MelchionnaNPT(atoms, dt, temperature_K=setup.temperature,
+                            externalstress=setup.pressure * units.bar, ttime=setup.t_tau * units.fs,
+                            pfactor=(setup.p_tau * units.fs) ** 2 * meta["bulk_modulus"] * units.GPa)
+        dyn.set_fraction_traceless(0.0)
+        return dyn
+    kind = RescalingBAOAB if meta.get("thermostat", "langevin") == "svr" else LangevinBAOAB
+    return kind(atoms, dt, temperature_K=setup.temperature, externalstress=-setup.pressure * units.bar,
+                hydrostatic=True, T_tau=setup.t_tau * units.fs, P_tau=setup.p_tau * units.fs,
+                rng=np.random.default_rng(setup.seed + 1))
+
+
+def strain_rate(saved) -> float:
+    """d ln(L)/dt of a state file, per ASE time unit."""
+    if "strain_rate" in saved:
+        return float(saved["strain_rate"])
+    return float(saved["p_eps"]) / float(saved["barostat_mass"])
+
+
+def set_strain_rate(dyn, rate: float) -> None:
+    if isinstance(dyn, MelchionnaNPT):
+        # ASE 3.29's set_strain_rate calls a method that no longer exists; before initialize() it only sets eta.
+        assert not dyn.initialized
+        dyn.eta = rate * np.identity(3)
+    else:
+        dyn.p_eps = rate * dyn.barostat_mass
+
+
+def save(out: Path, record: dict, atoms: Atoms, dyn, keep: bool = False) -> None:
+    rounded = {**record, **{name: [round(value, digits) for value in record[name]]
+                            for name, digits in DIGITS.items() if name in record}}
+    write_atomic(out, lambda p: p.write_text(json.dumps(rounded) + "\n"))
+    if isinstance(dyn, MelchionnaNPT):
+        extra = {"strain_rate": np.asarray(np.trace(dyn.get_strain_rate()) / 3.0), "zeta": np.asarray(dyn.zeta),
+                 "zeta_integrated": np.asarray(dyn.zeta_integrated)}
+    else:
+        extra = {"p_eps": np.asarray(dyn.p_eps), "barostat_mass": np.asarray(dyn.barostat_mass),
+                 "strain_rate": np.asarray(dyn.p_eps / dyn.barostat_mass),
+                 "rng": json.dumps(dyn.rng.bit_generator.state)}
 
     def state(p: Path) -> None:
         with p.open("wb") as handle:
             np.savez(handle, numbers=atoms.numbers, positions=atoms.positions, momenta=atoms.get_momenta(),
-                     masses=atoms.get_masses(), cell=atoms.cell.array, p_eps=np.asarray(dyn.p_eps),
-                     barostat_mass=np.asarray(dyn.barostat_mass), nsteps=dyn.nsteps,
-                     rng=json.dumps(dyn.rng.bit_generator.state))
+                     masses=atoms.get_masses(), cell=atoms.cell.array, nsteps=dyn.nsteps, **extra)
 
     write_atomic(out.with_suffix(".state.npz"), state)
+    if keep:
+        write_atomic(out.with_suffix(f".{dyn.nsteps}.state.npz"), state)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -330,28 +447,41 @@ def run(args: argparse.Namespace) -> int:
         record = {
             "args": {**{name: getattr(args, name) for name in PHYSICS}, "start": args.start.name,
                      "start_ps": start_ps, "waters": waters, "ranks": mpi_size(), "cpu": cpu_model(),
+                     "build": Path(args.library).resolve().parent.name,
                      "omp_num_threads": os.environ.get("OMP_NUM_THREADS", ""),
-                     "cell_in_place": os.environ.get("CPMDC_CELL_IN_PLACE", ""), "ase": ase.__version__},
+                     "cell_in_place": os.environ.get("CPMDC_CELL_IN_PLACE", ""), "ase": ase.__version__,
+                     "rs_wfn_keep": args.rs_wfn_keep,
+                     "aspc_order": args.aspc_order, "odiis_vectors": args.odiis_vectors,
+                     "hamiltonian_cutoff": args.hamiltonian_cutoff,
+                     "thermostat": "nose-hoover" if args.barostat == "pr" else args.thermostat,
+                     "barostat": args.barostat, "bulk_modulus": args.bulk_modulus, "oxygen": args.oxygen,
+                     "hydrogen": args.hydrogen},
             **{name: [] for name in FIELDS},
             "stopped": None,
         }
     waters = record["args"]["waters"]
     cc = None if setup.e0 is None else {"cutoff_ry": setup.e0, "height_ry": setup.height,
                                         "width_ry": setup.width}
-    calc = CPMDCCalculator(deck(setup.cutoff, float(atoms.cell[0, 0]), setup.conv), library=str(args.library),
-                           constant_cutoff=cc)
+    numerics = record["args"]
+    calc = CPMDCCalculator(deck(setup.cutoff, float(atoms.cell[0, 0]), setup.conv,
+                                bool(numerics.get("rs_wfn_keep", False)), int(numerics.get("aspc_order", 4)),
+                                int(numerics.get("odiis_vectors", 0)), float(numerics.get("hamiltonian_cutoff", 0.0)),
+                                numerics.get("oxygen", OXYGEN), numerics.get("hydrogen", HYDROGEN)),
+                           library=str(args.library), constant_cutoff=cc)
     atoms.calc = calc
     clock = [time.perf_counter()]
-    dyn = LangevinBAOAB(atoms, setup.dt * units.fs, temperature_K=setup.temperature,
-                        externalstress=-setup.pressure * units.bar, hydrostatic=True,
-                        T_tau=setup.t_tau * units.fs, P_tau=setup.p_tau * units.fs,
-                        rng=np.random.default_rng(setup.seed + 1))
+    dyn = integrator(setup, numerics, atoms)
     if args.resume:
-        dyn.p_eps = float(saved["p_eps"])
         dyn.nsteps = int(saved["nsteps"])
-        dyn.rng.bit_generator.state = json.loads(str(saved["rng"]))
+        if isinstance(dyn, MelchionnaNPT):
+            set_strain_rate(dyn, strain_rate(saved))
+            dyn.zeta = float(saved["zeta"])
+            dyn.zeta_integrated = float(saved["zeta_integrated"])
+        else:
+            dyn.p_eps = float(saved["p_eps"])
+            dyn.rng.bit_generator.state = json.loads(str(saved["rng"]))
     elif args.start.suffix == ".npz":
-        dyn.p_eps = float(saved["p_eps"]) * dyn.barostat_mass / float(saved["barostat_mass"])
+        set_strain_rate(dyn, strain_rate(saved))
     lo, hi = setup.density_range
 
     def frame() -> None:
@@ -365,8 +495,9 @@ def run(args: argparse.Namespace) -> int:
         clock[0] = now
         for name, value in zip(FIELDS, row):
             record[name].append(float(value) if name not in ("scf_steps", "setups") else int(value))
-        if rank == 0 and (dyn.nsteps % args.checkpoint == 0 or not lo <= density <= hi):
-            save(out, record, atoms, dyn)
+        kept = args.keep_every > 0 and dyn.nsteps % args.keep_every == 0
+        if rank == 0 and (dyn.nsteps % args.checkpoint == 0 or kept or not lo <= density <= hi):
+            save(out, record, atoms, dyn, kept)
         if not lo <= density <= hi:
             raise LeftRange(f"density {density:.0f} kg/m^3 at {row[0]:g} ps")
 
@@ -403,18 +534,35 @@ def molecular_virial(atoms: Atoms, forces: np.ndarray) -> float:
     return float(np.sum(rel * forces.reshape(-1, 3, 3)))
 
 
+def scale_molecules(atoms: Atoms, factor: float) -> None:
+    """Scale the cell and the centres of mass of the O, H, H molecules by factor, keeping each molecule rigid."""
+    cell = atoms.cell.array
+    r = atoms.positions.reshape(-1, 3, 3)
+    d = r - r[:, :1]
+    d = d - np.round(d @ np.linalg.inv(cell)) @ cell
+    m = atoms.get_masses().reshape(-1, 3, 1)
+    offset = np.sum(m * d, axis=1, keepdims=True) / np.sum(m, axis=1, keepdims=True)
+    atoms.set_cell(cell * factor, scale_atoms=False)
+    atoms.positions = ((r[:, :1] + offset) * factor + (d - offset)).reshape(-1, 3)
+
+
 def pressure(args: argparse.Namespace) -> int:
     rank = mpi_rank()
     atoms = load_configuration(args.start)
     if np.any(atoms.numbers.reshape(-1, 3) != [8, 1, 1]):
         raise SystemExit("pressure needs the molecules stored as O, H, H")
-    volume = atoms.get_volume()
     waters = len(atoms) // 3
+    stored = waters * WATER_MASS / units.mol / atoms.get_volume() * 1e27
+    if args.density is not None:
+        scale_molecules(atoms, (stored / args.density) ** (1.0 / 3.0))
+    volume = atoms.get_volume()
     density = waters * WATER_MASS / units.mol / volume * 1e27
+    scaled = "" if args.density is None else f" with the molecules scaled rigidly from {stored:.1f} kg/m^3"
     lines = [
         "# Generated by bench/constant_cutoff_npt.py pressure; do not edit by hand.",
-        f"# {waters} waters from {args.start.name}, {volume:.2f} Angstrom^3, {density:.1f} kg/m^3; PBE, "
-        f"O_MT_PBE and H_MT_PBE, orbital convergence {args.conv:g}; {mpi_size()} rank(s) on {cpu_model()}",
+        f"# {waters} waters from {args.start.name}{scaled}, {volume:.2f} Angstrom^3, {density:.1f} kg/m^3; PBE, "
+        f"{args.oxygen} and {args.hydrogen}, orbital convergence {args.conv:g}; {mpi_size()} rank(s) on "
+        f"{cpu_model()}",
         "",
         "| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | "
         "Molecular pressure, kbar | Wall, s |",
@@ -428,8 +576,8 @@ def pressure(args: argparse.Namespace) -> int:
         cc = None if e0 is None else {"cutoff_ry": e0, "width_ry": width}
         probe = atoms.copy()
         clock = time.perf_counter()
-        with CPMDCCalculator(deck(cutoff, float(atoms.cell[0, 0]), args.conv), library=str(args.library),
-                             constant_cutoff=cc) as calc:
+        with CPMDCCalculator(deck(cutoff, float(atoms.cell[0, 0]), args.conv, oxygen=args.oxygen,
+                                  hydrogen=args.hydrogen), library=str(args.library), constant_cutoff=cc) as calc:
             probe.calc = calc
             energy = probe.get_potential_energy()
             stress = probe.get_stress(voigt=False)
@@ -455,7 +603,8 @@ def pressure(args: argparse.Namespace) -> int:
 def basis(meta: dict) -> str:
     if meta["e0"] is None:
         return f"{meta['cutoff']:g} Ry, no constant cutoff"
-    return f"{meta['cutoff']:g} Ry, E0 {meta['e0']:g} Ry"
+    height = "" if meta.get("height") is None else f", A {meta['height']:g} Ry"
+    return f"{meta['cutoff']:g} Ry, E0 {meta['e0']:g} Ry{height}"
 
 
 def windows(run: dict, width_ps: float) -> list[tuple[float, float]]:
@@ -523,11 +672,36 @@ def start_of(meta: dict, writer: str | None) -> str:
     return f"{meta['start']}, {meta['start_ps']:g} ps into {writer}"
 
 
+def dynamics(meta: dict) -> str:
+    if meta.get("barostat", "mtk") == "pr":
+        return f"Nose-Hoover, Parrinello-Rahman at {meta['bulk_modulus']:g} GPa"
+    thermostat = "stochastic velocity rescaling" if meta.get("thermostat") == "svr" else "Langevin"
+    return f"{thermostat}, MTK"
+
+
+def potentials(meta: dict) -> str:
+    return f"{meta.get('oxygen', OXYGEN)} and {meta.get('hydrogen', HYDROGEN)}"
+
+
+def in_place(meta: dict) -> str:
+    return meta.get("cell_in_place") or "unset"
+
+
 def run_rows(runs: list[tuple[str, dict]], writer: dict[str, str]) -> list[str]:
-    lines = ["| Run | Basis | P_tau, fs | Start | Steps |", "|-----+-------+-----------+-------+-------|"]
+    metas = [data["args"] for _, data in runs]
+    columns = [("Basis", basis)]
+    if len({in_place(meta) for meta in metas}) > 1:
+        columns.append(("CPMDC_CELL_IN_PLACE", in_place))
+    if len({potentials(meta) for meta in metas}) > 1:
+        columns.append(("Pseudopotentials", potentials))
+    if any("barostat" in meta for meta in metas):
+        columns.append(("Thermostat, barostat", dynamics))
+    head = "| Run | " + " | ".join(title for title, _ in columns) + " | P_tau, fs | Start | Steps |"
+    lines = [head, "|" + "+".join("-" * len(cell) for cell in head.split("|")[1:-1]) + "|"]
     for name, data in runs:
         meta = data["args"]
-        lines.append(f"| {name} | {basis(meta)} | {meta['p_tau']:g} | {start_of(meta, writer.get(name))} | "
+        cells = " | ".join(cell(meta) for _, cell in columns)
+        lines.append(f"| {name} | {cells} | {meta['p_tau']:g} | {start_of(meta, writer.get(name))} | "
                      f"{len(data['time_ps']) - 1} |")
     return lines
 
@@ -585,7 +759,7 @@ def branch_rows(runs: list[tuple[str, dict]], writer: dict[str, str], step_ps: f
     return lines
 
 
-SHARED = ("waters", "conv", "dt", "temperature", "pressure", "t_tau", "hydrogen_mass", "cell_in_place")
+SHARED = ("waters", "conv", "dt", "temperature", "pressure", "t_tau", "hydrogen_mass")
 
 
 def table(args: argparse.Namespace) -> int:
@@ -618,6 +792,10 @@ def table(args: argparse.Namespace) -> int:
             temperature = np.asarray(data["Temperature"])[len(data["time_ps"]) - result["production_frames"]:]
             result["terms"]["Temperature"] = {"mean": float(temperature.mean()), "std": float(temperature.std()),
                                               **block_error(temperature, args.min_blocks)}
+            volume = np.asarray(data["Volume"])[len(data["time_ps"]) - result["production_frames"]:]
+            scale = 1e-27 * 1e5 / (KB_J * data["args"]["temperature"] * volume.mean())
+            square = (volume - volume.mean()) ** 2
+            result["kappa"] = (float(square.mean()) * scale, block_error(square, args.min_blocks)["sem"] * scale)
             finished.append((name, result))
             entry.update(mean=result["terms"]["Density"]["mean"], sem=result["terms"]["Density"]["sem"],
                          discard_ps=result["discard_ps"])
@@ -626,12 +804,20 @@ def table(args: argparse.Namespace) -> int:
                                       f"{args.min_production_ps:g} ps to average")
             unaveraged.append((name, data, why))
         plotted.append(entry)
+    shared = {potentials(data["args"]) for data in loaded}
+    cells = {in_place(data["args"]) for data in loaded}
     lines = [
         "# Generated by bench/constant_cutoff_npt.py table; do not edit by hand.",
-        f"# {meta['waters']} waters, PBE, O_MT_PBE and H_MT_PBE, orbital convergence {meta['conv']:g}, "
-        f"ASPC order 4; LangevinBAOAB hydrostatic, {meta['temperature']:g} K, {meta['pressure']:g} bar, "
+        f"# {meta['waters']} waters, PBE, "
+        + (shared.pop() if len(shared) == 1 else "the pseudopotentials of the runs table")
+        + f", orbital convergence {meta['conv']:g}, "
+        f"ASPC order {meta.get('aspc_order', 4)}; "
+        + ("LangevinBAOAB hydrostatic" if all("barostat" not in data["args"] for data in loaded)
+           else "hydrostatic NPT as the runs table gives")
+        + f", {meta['temperature']:g} K, {meta['pressure']:g} bar, "
         f"T_tau {meta['t_tau']:g} fs, {meta['dt']:g} fs steps, "
-        f"hydrogen mass {meta['hydrogen_mass']:g} u; CPMDC_CELL_IN_PLACE={meta['cell_in_place'] or 'unset'}",
+        f"hydrogen mass {meta['hydrogen_mass']:g} u; "
+        + (f"CPMDC_CELL_IN_PLACE={cells.pop()}" if len(cells) == 1 else "CPMDC_CELL_IN_PLACE as the runs table gives"),
         f"# {meta['cpu']}, ASE {meta['ase']}; the cost table gives the ranks of each run",
     ]
     lines += ["", *run_rows(named, writer)]
@@ -647,7 +833,10 @@ def table(args: argparse.Namespace) -> int:
     lines += ["", *cost_rows(named)]
     if finished:
         lines += ["", *detail_rows(finished), "", "Standard error of the mean against block length:", "",
-                  *curve_rows(finished, args.min_blocks)]
+                  *curve_rows(finished, args.min_blocks, range(0, 16, args.curve_step))]
+        lines += ["", "Isothermal compressibility var(V)/(kT <V>) over the averaged frames, its error from blocking "
+                  "(V - <V>)^2:", "", "| Run | kappa_T, 1e-5/bar | Error |", "|-----+-------------------+-------|"]
+        lines += [f"| {name} | {r['kappa'][0] * 1e5:.2f} | {r['kappa'][1] * 1e5:.2f} |" for name, r in finished]
     lines += ["", "Mean density over consecutive windows:", "", *density_window_rows(named, args.window_ps)]
     lines += branch_rows(named, writer, args.branch_step_ps)
     text = "\n".join(lines) + "\n"
@@ -656,6 +845,53 @@ def table(args: argparse.Namespace) -> int:
     sys.stdout.write(text)
     if args.json:
         args.json.write_text(json.dumps({"settings": lines[1:3], "runs": plotted}, indent=1) + "\n")
+    return 0
+
+
+TIMED = ("waters", "start", "start_ps", *PHYSICS, "ranks", "cpu")
+LEVERS = (("Build", lambda meta: meta.get("build") or "unrecorded"),
+          ("REAL SPACE WFN KEEP", lambda meta: "yes" if meta.get("rs_wfn_keep") else "no"),
+          ("ASPC order", lambda meta: f"{meta.get('aspc_order', 4)}"),
+          ("ODIIS vectors", lambda meta: f"{meta.get('odiis_vectors', 0) or 'default'}"),
+          ("HAMILTONIAN CUTOFF", lambda meta: f"{meta['hamiltonian_cutoff']:g} Ha" if meta.get("hamiltonian_cutoff")
+           else "default"))
+
+
+def cost(args: argparse.Namespace) -> int:
+    runs = [(path.stem, json.loads(path.read_text())) for path in args.runs]
+    for key in TIMED:
+        if len({json.dumps(data["args"].get(key)) for _, data in runs}) > 1:
+            raise SystemExit(f"the runs differ in {key}")
+    metas = [data["args"] for _, data in runs]
+    varied = [(title, value) for title, value in LEVERS if len({value(meta) for meta in metas}) > 1]
+    held = ", ".join(f"{title} {value(metas[0])}" for title, value in LEVERS if (title, value) not in varied)
+    against = "the run above" if args.against == "above" else runs[0][0]
+    head = ("| Run | " + "".join(f"{title} | " for title, _ in varied) + "Steps | Wall per step, s | "
+            f"SCF iterations per step | Largest energy difference from {against}, eV |")
+    meta = metas[0]
+    lines = ["# Generated by bench/constant_cutoff_npt.py cost; do not edit by hand.",
+             f"# {meta['waters']} waters from {meta['start']}, {basis(meta)}, orbital convergence {meta['conv']:g}, "
+             f"P_tau {meta['p_tau']:g} fs, seed {meta['seed']}; {held}; {meta['ranks']} rank(s) on {meta['cpu']}; "
+             f"means over steps {args.from_step} to {'the last' if args.to_step is None else args.to_step}",
+             "", head, "|" + "+".join("-" * len(cell) for cell in head.split("|")[1:-1]) + "|"]
+    stop = None if args.to_step is None else args.to_step + 1
+    reference = None
+    for name, data in runs:
+        wall = np.asarray(data["step_wall_s"][args.from_step:stop])
+        scf = np.asarray(data["scf_steps"][args.from_step:stop])
+        energy = np.asarray(data["Energy"][:stop])
+        diff = ""
+        if reference is not None:
+            n = min(len(reference), len(energy))
+            diff = f"{np.max(np.abs(energy[:n] - reference[:n])):.1e}"
+        if reference is None or args.against == "above":
+            reference = energy
+        cells = "".join(f"{value(data['args'])} | " for _, value in varied)
+        lines.append(f"| {name} | {cells}{len(wall)} | {wall.mean():.3f} | {scf.mean():.2f} | {diff} |")
+    text = "\n".join(lines) + "\n"
+    if args.output:
+        args.output.write_text(text)
+    sys.stdout.write(text)
     return 0
 
 
@@ -687,12 +923,29 @@ def main() -> int:
     p.add_argument("--hydrogen-mass", type=float, default=2.014)
     p.add_argument("--seed", type=int, default=11)
     p.add_argument("--density-range", type=float, nargs=2, default=(500.0, 1500.0), help="kg/m^3")
+    p.add_argument("--rs-wfn-keep", action="store_true")
+    p.add_argument("--aspc-order", type=int, default=4)
+    p.add_argument("--odiis-vectors", type=int, default=0, help="0 keeps the CPMD default")
+    p.add_argument("--hamiltonian-cutoff", type=float, default=0.0, help="Hartree; 0 keeps the CPMD default")
+    p.add_argument("--thermostat", choices=("langevin", "svr"), default="langevin",
+                   help="of the atoms under the MTK barostat")
+    p.add_argument("--barostat", choices=("mtk", "pr"), default="mtk",
+                   help="pr uses ASE's MelchionnaNPT and its Nose-Hoover thermostat")
+    p.add_argument("--bulk-modulus", type=float, default=2.2,
+                   help="GPa; sets only the mass of the pr piston, with --p-tau")
+    p.add_argument("--oxygen", default=OXYGEN)
+    p.add_argument("--hydrogen", default=HYDROGEN)
     p.add_argument("--steps", type=int, default=3000)
     p.add_argument("--checkpoint", type=int, default=10)
+    p.add_argument("--keep-every", type=int, default=0, help="also keep the state of every Nth step as "
+                   "OUT.N.state.npz")
     p = sub.add_parser("pressure")
     p.add_argument("--library", required=True)
     p.add_argument("--start", type=Path, required=True)
     p.add_argument("--conv", type=float, default=1e-6)
+    p.add_argument("--density", type=float, help="kg/m^3; scales the molecules rigidly to it")
+    p.add_argument("--oxygen", default=OXYGEN)
+    p.add_argument("--hydrogen", default=HYDROGEN)
     p.add_argument("--output", type=Path)
     p.add_argument("bases", nargs="+", help="CUTOFF, or CUTOFF/E0[/WIDTH] in Ry for a constant cutoff")
     p = sub.add_parser("table")
@@ -705,10 +958,18 @@ def main() -> int:
     p.add_argument("--plot-window-ps", type=float, default=0.02)
     p.add_argument("--branch-step-ps", type=float, default=0.01)
     p.add_argument("--min-blocks", type=int, default=8)
+    p.add_argument("--curve-step", type=int, default=2, help="blocking levels between the columns of the curve")
     p.add_argument("--output", type=Path)
     p.add_argument("--json", type=Path)
+    p = sub.add_parser("cost")
+    p.add_argument("runs", type=Path, nargs="+")
+    p.add_argument("--from-step", type=int, default=1)
+    p.add_argument("--to-step", type=int, help="the last step of the means; the last of each run by default")
+    p.add_argument("--against", choices=("above", "first"), default="above",
+                   help="the run whose potential energy each run's is compared with")
+    p.add_argument("--output", type=Path)
     args = parser.parse_args()
-    return {"start": start, "run": run, "pressure": pressure, "table": table}[args.command](args)
+    return {"start": start, "run": run, "pressure": pressure, "table": table, "cost": cost}[args.command](args)
 
 
 if __name__ == "__main__":

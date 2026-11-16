@@ -147,16 +147,16 @@ def detail_rows(results: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
-def curve_rows(results: list[tuple[str, dict]], min_blocks: int) -> list[str]:
+def curve_rows(results: list[tuple[str, dict]], min_blocks: int, levels=CURVE_LEVELS) -> list[str]:
     dt = results[0][1]["frame_ps"]
-    head = " | ".join(f"{2**k * dt:g} ps" for k in CURVE_LEVELS)
+    head = " | ".join(f"{2**k * dt:g} ps" for k in levels)
     lines = [f"| Run | Observable | {head} |",
-             "|-----+------------+" + "+".join("-" * (len(f"{2**k * dt:g} ps") + 2) for k in CURVE_LEVELS) + "|"]
+             "|-----+------------+" + "+".join("-" * (len(f"{2**k * dt:g} ps") + 2) for k in levels) + "|"]
     for label, r in results:
         for name, unit, d in TERMS:
             curve = r["terms"][name]["curve"]
             cells = [f"{curve[k][1]:.{d + 1}f}" if k < len(curve) and curve[k][0] >= min_blocks else ""
-                     for k in CURVE_LEVELS]
+                     for k in levels]
             lines.append(f"| {label} | {name}, {unit} | " + " | ".join(cells) + " |")
     return lines
 
