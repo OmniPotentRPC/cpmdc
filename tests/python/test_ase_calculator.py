@@ -14,6 +14,7 @@ import copy
 import json
 import os
 import pickle
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -761,6 +762,86 @@ def test_stress_follows_the_energy_over_a_finite_strain(
         assert pressure - slope > 1.0e-2
     else:
         assert abs(pressure - slope) < 5.0e-4
+
+
+def strained_steps(calc, scales):
+    """Energy, forces, and stress of the water with the cube scaled by each factor, in turn."""
+    steps = []
+    for scale in scales:
+        atoms = water(cell=CUBE, pbc=True)
+        atoms.set_cell(np.multiply(CUBE, scale), scale_atoms=True)
+        atoms.calc = calc
+        steps.append((atoms.get_volume(), atoms.get_potential_energy(), atoms.get_forces(), atoms.get_stress()))
+    return steps
+
+
+def warm_starts(err: str) -> list[int]:
+    return [int(s) for s in re.findall(r"^cpmdc_warm_start\s+(-?\d+)", err, re.M)]
+
+
+def test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy(
+    periodic_params, opencpmd, monkeypatch, capfd
+):
+    """-integral P dV over a 2% stretch against the energy change.
+
+    CPMDC_CELL_IN_PLACE keeps one set of 40 Ry plane waves through the
+    stretched cells, so the three energies lie on one smooth surface and
+    Simpson's rule on the three pressures integrates its slope. The
+    fixed-basis stress of this deck is about 1.6e-2 eV/Angstrom^3 off that
+    slope, close to 1 eV over the stretch.
+    """
+    if not opencpmd:
+        pytest.skip("the reference well keeps no plane waves between calls")
+    monkeypatch.setenv("CPMDC_CELL_IN_PLACE", "0.05")
+    monkeypatch.setenv("CPMDC_SCF_STEPS", "1")
+    scales = (1.0, 1.01, 1.02)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        steps = strained_steps(calc, scales)
+    assert warm_starts(capfd.readouterr().err)[1:] == [0, 0]
+    volume0 = steps[0][0]
+    pressures = [-np.mean(stress[:3]) for _, _, _, stress in steps]
+    dvds = [3.0 * scale**2 * volume0 for scale in scales]
+    work = (scales[2] - scales[0]) / 6.0 * (
+        pressures[0] * dvds[0] + 4.0 * pressures[1] * dvds[1] + pressures[2] * dvds[2]
+    )
+    assert steps[2][1] - steps[0][1] == pytest.approx(-work, rel=1.0e-2, abs=1.0e-3)
+
+
+def test_a_constant_cutoff_cell_moves_in_place_within_the_strain_limit(
+    periodic_params, opencpmd, monkeypatch, capfd
+):
+    """CPMDC_CELL_IN_PLACE against a new setup for every cell.
+
+    The 1% stretch and the return to the setup cell move in place and start
+    from the stored orbitals; the 3% stretch is 3% beyond the setup cell, so
+    it sets CPMD up again. In place, the plane waves between the 36 Ry
+    sphere and the 40 Ry cutoff are those of the setup cell, which on this
+    deck moves the 1% step by about 3 meV, 1.5 meV/Angstrom, and
+    3e-6 eV/Angstrom^3 from a new setup. The process keeps one CPMD, so the
+    pass without in-place moves runs first and leaves the 3% cell set up.
+    """
+    if not opencpmd:
+        pytest.skip("the reference well keeps no plane waves between calls")
+    monkeypatch.setenv("CPMDC_SCF_STEPS", "1")
+    scales = (1.0, 1.01, 1.0, 1.03)
+    runs = {}
+    for limit in ("0", "0.02"):
+        monkeypatch.setenv("CPMDC_CELL_IN_PLACE", limit)
+        with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+            steps = strained_steps(calc, scales)
+        err = capfd.readouterr().err
+        iterations = [int(n) for n in re.findall(r"^cpmdc_scf_steps\s+(\d+)", err, re.M)]
+        runs[limit] = (steps, warm_starts(err), iterations)
+    assert runs["0"][1][1:] == [-2, -2, -2]
+    assert runs["0.02"][1] == [-2, 0, 0, -2]
+    assert runs["0.02"][2][1] < runs["0"][2][1]
+    back, start = runs["0.02"][0][2], runs["0.02"][0][0]
+    assert back[1] == pytest.approx(start[1], rel=0, abs=1.0e-4)
+    np.testing.assert_allclose(back[3], start[3], rtol=0, atol=1.0e-5)
+    for moved, fresh in zip(runs["0.02"][0], runs["0"][0]):
+        assert moved[1] == pytest.approx(fresh[1], rel=0, abs=1.0e-2)
+        np.testing.assert_allclose(moved[2], fresh[2], rtol=0, atol=5.0e-3)
+        np.testing.assert_allclose(moved[3], fresh[3], rtol=0, atol=2.0e-5)
 
 
 def test_constant_cutoff_is_a_calculator_parameter(periodic_params, calls):
