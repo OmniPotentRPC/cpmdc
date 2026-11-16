@@ -45,16 +45,16 @@ of the molecular centres of mass (with the masses of the state file), which
 leaves out the intramolecular forces.
 
 table names each run by the file of its record and writes Org tables of the
-basis, P_tau and start of each run; of the block-averaged volume, density and
-pressure (bench/npt_block_average.py: the detected equilibration discarded,
-at least --min-discard-ps of a run that starts from a box and
---branch-discard-ps of one that starts from a state, Flyvbjerg-Petersen
-standard error); of the runs that stopped or hold less than
---min-production-ps after that, with the density at their start and end; of
-the cost per step; and of the density every --branch-step-ps after the start
-of the runs that start from the same state. The other settings must be the
-same for every run. --json also writes the means and the window means that
-docs/render_constant_cutoff_npt.py draws.
+basis, P_tau and start of each run; of the block-averaged volume, density,
+pressure and temperature (bench/npt_block_average.py: the equilibration
+detected in the first three discarded, at least --min-discard-ps of a run
+that starts from a box and --branch-discard-ps of one that starts from a
+state, Flyvbjerg-Petersen standard error); of the runs that stopped or hold
+less than --min-production-ps after that, with the density at their start and
+end; of the cost per step; and of the density every --branch-step-ps after
+the start of the runs that start from the same state. The other settings must
+be the same for every run. --json also writes the means and the window means
+that docs/render_constant_cutoff_npt.py draws.
 
 capnp must be on PATH and CPMDC_PSEUDO_DIR must name the pseudopotential
 directory. Under mpirun with CPMDC_RANK_CONSENSUS=1 every rank integrates the
@@ -110,7 +110,7 @@ from ase.md.velocitydistribution import Stationary, thermalize_momenta  # noqa: 
 from constant_cutoff_scan import cpu_model  # noqa: E402
 from cpmdc import find_schema  # noqa: E402
 from cpmdc.ase import CPMDCCalculator  # noqa: E402
-from npt_block_average import analyse, curve_rows, detail_rows, summary_rows  # noqa: E402
+from npt_block_average import TERMS, analyse, block_error, curve_rows, detail_rows  # noqa: E402
 
 WATER_MASS = float(atomic_masses[8] + 2.0 * atomic_masses[1])
 BOND_K = 1059.162 * units.kcal / units.mol
@@ -489,6 +489,20 @@ def run_rows(runs: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
+def summary_rows(results: list[tuple[str, dict]]) -> list[str]:
+    """npt_block_average's means of the volume, density and pressure, and the temperature."""
+    terms = (*TERMS, ("Temperature", "K", 0))
+    lines = ["| Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | "
+             "Temperature, K | Wall, s |",
+             "|-----+------------+---------------+-------------+--------------+-----------------+---------------+"
+             "----------------+---------|"]
+    for name, r in results:
+        cells = [f"{r['terms'][n]['mean']:.{d}f} +- {r['terms'][n]['sem']:.{d + 1}f}" for n, _, d in terms]
+        lines.append(f"| {name} | {r['length_ps']:g} | {r['discard_ps']:g} | {r['production_frames']} | "
+                     + " | ".join(cells) + f" | {r['wall_s']:.0f} |")
+    return lines
+
+
 def cost_rows(runs: list[tuple[str, dict]]) -> list[str]:
     lines = ["| Run | Ranks | Wall per step, s | SCF iterations per step | New setups | Wall, h |",
              "|-----+-------+------------------+-------------------------+------------+---------|"]
@@ -547,6 +561,9 @@ def table(args: argparse.Namespace) -> int:
                  "length_ps": length, "windows": windows(data, args.plot_window_ps), "stopped": data["stopped"]}
         if data["stopped"] is None and length - floor >= args.min_production_ps - 1e-9:
             result = analyse(data, args.discard_ps, floor, args.window_ps, args.min_blocks)
+            temperature = np.asarray(data["Temperature"])[len(data["time_ps"]) - result["production_frames"]:]
+            result["terms"]["Temperature"] = {"mean": float(temperature.mean()), "std": float(temperature.std()),
+                                              **block_error(temperature, args.min_blocks)}
             finished.append((name, result))
             entry.update(mean=result["terms"]["Density"]["mean"], sem=result["terms"]["Density"]["sem"],
                          discard_ps=result["discard_ps"])
@@ -561,7 +578,7 @@ def table(args: argparse.Namespace) -> int:
         f"ASPC order 4; LangevinBAOAB hydrostatic, {meta['temperature']:g} K, {meta['pressure']:g} bar, "
         f"T_tau {meta['t_tau']:g} fs, {meta['dt']:g} fs steps, "
         f"hydrogen mass {meta['hydrogen_mass']:g} u; CPMDC_CELL_IN_PLACE={meta['cell_in_place'] or 'unset'}",
-        f"# {meta['ranks']} rank(s) on {meta['cpu']}, ASE {meta['ase']}",
+        f"# {meta['cpu']}, ASE {meta['ase']}; the cost table gives the ranks of each run",
     ]
     named = list(zip(names, loaded))
     lines += ["", *run_rows(named)]
