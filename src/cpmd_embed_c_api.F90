@@ -605,7 +605,7 @@ CONTAINS
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
-    CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+    CALL run_timed_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
 #else
     IF (has_cell < 0) RETURN
@@ -2991,6 +2991,42 @@ CONTAINS
     END SELECT
     CALL newcell
   END SUBROUTINE
+
+  ! After every CPMDC_TIPRI_EVERY-th evaluation CPMD prints its timer table,
+  ! in which embed_scf times the evaluations after the first.
+  SUBROUTINE run_timed_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    USE timer, ONLY: tiset, tihalt, tipri
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    INTEGER, SAVE :: evaluations = 0
+    INTEGER :: isub, every
+    LOGICAL :: timed
+    timed = timer_started
+    IF (timed) CALL tiset('embed_scf', isub)
+    CALL run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    IF (timed) CALL tihalt('embed_scf', isub)
+    evaluations = evaluations + 1
+    every = embed_tipri_every()
+    IF (every > 0 .AND. timer_started) THEN
+      IF (MOD(evaluations, every) == 0) CALL tipri
+    END IF
+  END SUBROUTINE
+
+  ! Unset, 0, a negative value, or a value that does not parse prints none.
+  INTEGER FUNCTION embed_tipri_every()
+    CHARACTER(LEN=16) :: v
+    INTEGER :: st, ios, n
+    embed_tipri_every = 0
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_TIPRI_EVERY', v, STATUS=st)
+    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
+    READ(v, *, IOSTAT=ios) n
+    IF (ios == 0 .AND. n > 0) embed_tipri_every = n
+  END FUNCTION
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
