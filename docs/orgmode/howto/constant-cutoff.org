@@ -156,6 +156,10 @@ water in a 10 Angstrom box has almost no intermolecular stress.
 At 40 Ry, BFGS overshoots on that flat volume mode, so 20 of its 53 steps raise
 the energy, by at most 0.041 eV; the first six steps lower it every time.
 
+[[file:../explanation/constant-cutoff-npt.org][Density of water at a constant cutoff]]
+runs NPT dynamics of 32 waters with and without the functional and compares
+the density with a published PBE value.
+
 The [[file:../reference/c-abi.org][C ABI]], [[file:../reference/python.org][Python API]],
 and [[file:../reference/cpmd-options.org][CPMD options]] references list the
 call, the keyword, and the message field.

@@ -1,4 +1,4 @@
-"""bench/constant_cutoff_npt.py table: the runs that wrote each state."""
+"""bench/constant_cutoff_npt.py table: the runs that wrote each state, and the tables the explanation quotes."""
 
 from __future__ import annotations
 
@@ -11,6 +11,10 @@ ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("constant_cutoff_npt", ROOT / "bench" / "constant_cutoff_npt.py")
 npt = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(npt)
+
+RESULTS = ROOT / "bench" / "results"
+EXPLANATION = ROOT / "docs" / "orgmode" / "explanation" / "constant-cutoff-npt.org"
+QUOTED = ("| Run | Basis |", "| Run | Length, ps |", "| Run | No mean |", "| Run | Ranks |")
 
 
 def record(start: str, start_ps: float, volumes: list[float]) -> dict:
@@ -40,3 +44,28 @@ def test_a_run_starts_after_the_runs_that_wrote_its_state():
 def test_the_runs_from_one_state_form_a_branch_group():
     groups = npt.branch_groups(chain())
     assert [[name for name, _ in group] for group in groups] == [["left", "right"]]
+
+
+def tables(path: Path) -> list[tuple[str, list[str]]]:
+    """Each Org table of path, with the last line of text before it."""
+    found, caption, rows = [], "", []
+    for line in path.read_text().splitlines() + [""]:
+        if line.startswith("|"):
+            rows.append(line)
+            continue
+        if rows:
+            found.append((caption, rows))
+            rows = []
+        if line.strip():
+            caption = line
+    return found
+
+
+def test_explanation_carries_the_generated_tables():
+    quoted = [rows for caption, rows in tables(RESULTS / "constant_cutoff_npt.org")
+              if rows[0].startswith(QUOTED) or caption.startswith("Density after the start of the runs from")]
+    quoted += [rows for _, rows in tables(RESULTS / "constant_cutoff_pressure.org")]
+    assert len(quoted) == 6
+    page = EXPLANATION.read_text()
+    missing = [row for rows in quoted for row in rows if row not in page]
+    assert not missing, missing
