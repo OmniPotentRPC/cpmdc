@@ -183,6 +183,9 @@ static void test_set_params_stores_typed_section_deck(void **state) {
   assert_non_null(strstr(deck, "FUNCTIONAL"));
   /* Real PP line present → cold compose uses deck as-is (not method merge). */
   assert_non_null(strstr(deck, "O_MT_BLYP.psp") || strstr(deck, "*O"));
+  /* CPMD reads RAGGIO and NLCC from the *file line, not from the LMAX line. */
+  assert_non_null(strstr(deck, "*O_MT_BLYP.psp KLEINMAN-BYLANDER RAGGIO=1.200000 NLCC\n"
+                               " LMAX=D LOC=S SKIP=P\n"));
   /* 3ba9 long-tail tokens from shipped cpmdc_params.c render. */
   assert_non_null(strstr(deck, "EMPIRICAL CORRECTION"));
   assert_non_null(strstr(deck, "GRIMME"));
@@ -366,12 +369,13 @@ static int compose_capture_stderr(int n_atoms, const double *pos, const int *z,
   return rc;
 }
 
-/* Listed elements keep file, LMAX, LOC, and per-species KLEINMAN-BYLANDER.
- * Unlisted table elements fall back without inheriting that flag. */
+/* Listed elements keep file, LMAX, LOC, and the options of the *file line:
+ * per-species KLEINMAN-BYLANDER, RAGGIO, and UPF for a .UPF path. Unlisted
+ * table elements fall back without inheriting them. */
 static void test_compose_uses_message_pseudopotentials(void **state) {
   (void)state;
-  double pos[12] = {0.1, 0.2, 0.3, 1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2};
-  int z[4] = {14, 7, 1, 6};
+  double pos[15] = {0.1, 0.2, 0.3, 1.0, 1.1, 1.2, 2.0, 2.1, 2.2, 3.0, 3.1, 3.2, 4.0, 4.1, 4.2};
+  int z[5] = {14, 7, 1, 6, 8};
   int missing[1] = {26};
   double missing_pos[3] = {0.0, 0.0, 0.0};
   double cell[9] = {0};
@@ -388,6 +392,7 @@ static void test_compose_uses_message_pseudopotentials(void **state) {
   const char *nitrogen;
   const char *hydrogen;
   const char *carbon;
+  const char *oxygen;
 
   assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
   assert_non_null(g_atoms_message);
@@ -398,22 +403,24 @@ static void test_compose_uses_message_pseudopotentials(void **state) {
                sizeof(deck), root, sizeof(root));
   require_line(deck, "!SPECIES Si");
   require_line(deck, "!SPECIES N");
-  require_line(deck, "*custom_silicon.psp");
+  require_line(deck, "*custom_silicon.psp RAGGIO=1.500000");
   require_line(deck, "*custom_nitrogen.psp KLEINMAN-BYLANDER");
-  require_line(deck, " LMAX=D LOC=S RAGGIO=1.500000");
+  require_line(deck, "*O.pbe-mt_fhi.UPF UPF");
+  require_line(deck, " LMAX=D LOC=S");
   require_line(deck, " LMAX=P LOC=P SKIP=S");
   assert_null(strstr(deck, "H_CVB_BLYP.psp"));
   assert_non_null(strstr(deck, "KLEINMAN-BYLANDER"));
 
   memset(cold, 0, sizeof(cold));
-  assert_int_equal(cpmdc_embed_compose_cold_deck(4, pos, z, cell, 0, cold,
+  assert_int_equal(cpmdc_embed_compose_cold_deck(5, pos, z, cell, 0, cold,
                                                  (int)sizeof(cold), &cold_len),
                    1);
   assert_true(cold_len > 0);
-  require_line(cold, "*custom_silicon.psp");
-  require_line(cold, " LMAX=D LOC=S RAGGIO=1.500000");
+  require_line(cold, "*custom_silicon.psp RAGGIO=1.500000");
+  require_line(cold, " LMAX=D LOC=S");
   require_line(cold, "*custom_nitrogen.psp KLEINMAN-BYLANDER");
   require_line(cold, " LMAX=P LOC=P SKIP=S");
+  require_line(cold, "*O.pbe-mt_fhi.UPF UPF");
   require_line(cold, "*H_CVB_BLYP.psp");
   require_line(cold, " LMAX=S");
   require_line(cold, "*C_MT_BLYP.psp");
@@ -429,11 +436,13 @@ static void test_compose_uses_message_pseudopotentials(void **state) {
   nitrogen = strstr(cold, "*custom_nitrogen.psp");
   hydrogen = strstr(cold, "*H_CVB_BLYP.psp");
   carbon = strstr(cold, "*C_MT_BLYP.psp");
+  oxygen = strstr(cold, "*O.pbe-mt_fhi.UPF");
   assert_non_null(si);
   assert_non_null(nitrogen);
   assert_non_null(hydrogen);
   assert_non_null(carbon);
-  assert_true(si < nitrogen && nitrogen < hydrogen && hydrogen < carbon);
+  assert_non_null(oxygen);
+  assert_true(si < nitrogen && nitrogen < hydrogen && hydrogen < carbon && carbon < oxygen);
 
   memset(cold, 0, sizeof(cold));
   memset(err, 0, sizeof(err));

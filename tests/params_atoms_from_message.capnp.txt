@@ -13,7 +13,8 @@
         ( element = "Si", path = "custom_silicon.psp", lmax = 2, loc = 0,
           kleinmanBylander = false, raggio = 1.5 ),
         ( element = "N", path = "custom_nitrogen.psp", lmax = 1, loc = 1,
-          kleinmanBylander = true, skip = 0 )
+          kleinmanBylander = true, skip = 0 ),
+        ( element = "O", path = "O.pbe-mt_fhi.UPF", lmax = 1 )
       ] ) )
   ]
 )
