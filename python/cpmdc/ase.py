@@ -44,7 +44,7 @@ from ase.calculators.calculator import (
 )
 from ase.utils import workdir
 
-from cpmdc import CPMDCError, Potential, _warn_schema
+from cpmdc import ConstantCutoff, CPMDCError, Potential, _warn_schema
 
 __all__ = ["CPMDCCalculator", "CalculationFailed"]
 
@@ -104,6 +104,12 @@ def _params_bytes(params: Any) -> bytes:
 def _param_value(key: str, value: Any) -> Any:
     if value is None:
         return None
+    if key == "constant_cutoff":
+        cutoff = ConstantCutoff.coerce(value)
+        # A bare E0 stays a float, so todict() and Parameters.write keep it short.
+        if cutoff.height_ry is None and cutoff.width_ry is None:
+            return cutoff.cutoff_ry
+        return cutoff.todict()
     if key == "params" and isinstance(value, (bytearray, memoryview)):
         return bytes(value)
     if isinstance(value, bytes):
@@ -129,29 +135,47 @@ class CPMDCCalculator(Calculator):
     library:
         Path of ``libcpmdc``. The environment search in
         :func:`cpmdc.find_library` is used when this is omitted.
+    constant_cutoff:
+        ``E0`` in Rydberg, a mapping of the :class:`cpmdc.ConstantCutoff`
+        fields, or a ``ConstantCutoff``. The session then evaluates the
+        constant-cutoff kinetic functional, whose stress carries no Pulay
+        stress, for a cell filter or a barostat. ``None``, the default,
+        evaluates the message as it is.
 
     Every keyword goes to ASE's ``Calculator.__init__``: ``directory``,
     ``label``, and ``atoms`` as ASE defines them, ``parameters`` for a
-    file written by ``Parameters.write``, and ``params`` and ``library``,
-    which it passes to :meth:`set`. Another keyword raises ``TypeError``.
-    ``schema`` and ``restart`` are deprecated and ignored.
+    file written by ``Parameters.write``, and ``params``, ``library``, and
+    ``constant_cutoff``, which it passes to :meth:`set`. Another keyword
+    raises ``TypeError``. ``schema`` and ``restart`` are deprecated and
+    ignored.
 
     Each step runs with ``directory`` as the working directory. The
     calculator writes no files of its own there.
 
-    ``parameters`` holds ``params`` and ``library``. :meth:`set` changes
-    them, opens a new session, and clears the stored results. The
+    ``parameters`` holds ``params``, ``library``, and ``constant_cutoff``.
+    :meth:`set` changes them, opens a new session, and clears the stored results. The
     calculator can be copied, deep-copied, and pickled; a copy opens its
     own session on its first step.
     """
 
     implemented_properties = ["energy", "free_energy", "forces", "stress"]
-    default_parameters: dict[str, Any] = {"params": None, "library": None}
+    default_parameters: dict[str, Any] = {
+        "params": None,
+        "library": None,
+        "constant_cutoff": None,
+    }
     # Charge and multiplicity come from CPMDParams, not from the Atoms.
     ignored_changes = {"initial_charges", "initial_magmoms"}
     discard_results_on_any_change = True
 
-    def __init__(self, params: Any = None, *, library: Any = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        params: Any = None,
+        *,
+        library: Any = None,
+        constant_cutoff: Any = None,
+        **kwargs: Any,
+    ) -> None:
         if kwargs.pop("schema", None) is not None:
             _warn_schema(stacklevel=3)
         if kwargs.pop("restart", None) is not None:
@@ -165,6 +189,8 @@ class CPMDCCalculator(Calculator):
             kwargs["params"] = params
         if library is not None:
             kwargs["library"] = library
+        if constant_cutoff is not None:
+            kwargs["constant_cutoff"] = constant_cutoff
         Calculator.__init__(self, **kwargs)
         if self.parameters.get("params") is None:
             raise TypeError(_NEED_PARAMS)
@@ -177,11 +203,15 @@ class CPMDCCalculator(Calculator):
         unpickle.
         """
         if self._potential is None:
-            self._potential = Potential(self._blob, library=self.parameters.get("library"))
+            self._potential = Potential(
+                self._blob,
+                library=self.parameters.get("library"),
+                constant_cutoff=self.parameters.get("constant_cutoff"),
+            )
         return self._potential
 
     def set(self, **kwargs: Any) -> dict[str, Any]:
-        """Change ``params`` or ``library``; return the changed parameters.
+        """Change ``params``, ``library``, or ``constant_cutoff``; return the changes.
 
         A change opens a new session and clears the stored results. The
         old session stays in use when the new one cannot be opened.
@@ -204,15 +234,16 @@ class CPMDCCalculator(Calculator):
             raise TypeError(_NEED_PARAMS)
         reopen = any(
             key in kwargs and not equal(kwargs[key], self.parameters.get(key))
-            for key in ("params", "library")
+            for key in ("params", "library", "constant_cutoff")
         )
         if reopen:
             params = kwargs.get("params", self.parameters.get("params"))
             if params is None:
                 raise TypeError(_NEED_PARAMS)
             library = kwargs.get("library", self.parameters.get("library"))
+            cutoff = kwargs.get("constant_cutoff", self.parameters.get("constant_cutoff"))
             blob = _params_bytes(params)
-            potential = Potential(blob, library=library)
+            potential = Potential(blob, library=library, constant_cutoff=cutoff)
         changed = Calculator.set(self, **kwargs)
         if reopen:
             self._release()

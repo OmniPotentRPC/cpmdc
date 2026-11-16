@@ -13,16 +13,21 @@ explicit path. A wheel carries its own ``libcpmdc`` in
 none of the variables is set. A cell is encoded as ``ForceInput`` in
 process. :func:`find_schema` returns ``schema/Potentials.capnp``, which a
 wheel also carries, for encoding ``CPMDParams`` text with ``capnp encode``.
+:class:`ConstantCutoff` turns on the constant-cutoff kinetic functional,
+whose stress carries no Pulay stress.
 """
 
 from __future__ import annotations
 
 import ctypes
 import ctypes.util
+import math
 import os
 import struct
 import warnings
 from array import array
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -38,6 +43,7 @@ __all__ = [
     "HARTREE_TO_EV",
     "HARTREE_TO_KCAL_PER_MOL",
     "CPMDCError",
+    "ConstantCutoff",
     "Evaluation",
     "Potential",
     "Session",
@@ -63,6 +69,52 @@ def __getattr__(name: str) -> Any:
         )
         return CPMDCError
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+@dataclass(frozen=True)
+class ConstantCutoff:
+    """Constant-cutoff kinetic functional of a session, in Rydberg.
+
+    The library adds ``CONSTANT CUTOFF`` to the ``&SYSTEM`` section of the
+    deck, which replaces G^2 in the kinetic energy by
+    ``G^2 + A [1 + erf((G^2 - E0) / sigma)]`` (Bernasconi et al., J. Phys.
+    Chem. Solids 56, 501 (1995)). Plane waves above ``E0`` are penalized, so
+    the energy and the stress belong to the constant cutoff ``E0`` while the
+    basis keeps the cutoff of the ``CPMDParams`` message. The stress then
+    carries no Pulay stress and follows the energy when the cell changes.
+
+    ``cutoff_ry`` is ``E0``. ``height_ry`` is ``A``; ``None`` selects 50
+    times the cutoff of the message. ``width_ry`` is ``sigma``; ``None``
+    selects ``cutoff_ry / 10``. ``cutoff_ry + 2 * width_ry`` must not exceed
+    the cutoff of the message.
+    """
+
+    cutoff_ry: float
+    height_ry: float | None = None
+    width_ry: float | None = None
+
+    def __post_init__(self) -> None:
+        for name, value in asdict(self).items():
+            if value is None and name != "cutoff_ry":
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"{name} must be a number")
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
+            object.__setattr__(self, name, float(value))
+
+    @classmethod
+    def coerce(cls, value: Any) -> ConstantCutoff | None:
+        """``None``, a ``ConstantCutoff``, a mapping of its fields, or ``E0`` in Ry."""
+        if value is None or isinstance(value, cls):
+            return value
+        if isinstance(value, Mapping):
+            return cls(**value)
+        return cls(value)
+
+    def todict(self) -> dict[str, float]:
+        """The fields that are set, as JSON data."""
+        return {name: value for name, value in asdict(self).items() if value is not None}
 
 
 class Evaluation:
@@ -350,6 +402,14 @@ def _load(path: Path) -> ctypes.CDLL:
     lib.cpmdc_session_create.restype = ctypes.c_void_p
     lib.cpmdc_session_destroy.argtypes = [ctypes.c_void_p]
     lib.cpmdc_session_destroy.restype = None
+    if hasattr(lib, "cpmdc_session_set_constant_cutoff"):
+        lib.cpmdc_session_set_constant_cutoff.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_double,
+            ctypes.c_double,
+            ctypes.c_double,
+        ]
+        lib.cpmdc_session_set_constant_cutoff.restype = ctypes.c_int
     lib.cpmdc_session_energy_forces.argtypes = [
         ctypes.c_void_p,
         ctypes.c_int,
@@ -415,6 +475,12 @@ class Session:
     is finished. A change of atom count or elemental composition is an
     error from the library; start another session.
 
+    ``constant_cutoff`` is a :class:`ConstantCutoff`, a mapping of its
+    fields, or ``E0`` in Rydberg; the session then evaluates the
+    constant-cutoff functional. A library without
+    ``cpmdc_session_set_constant_cutoff``, or a value the message cannot
+    take, raises :class:`CPMDCError`.
+
     ``schema`` is deprecated and ignored: a cell is encoded as
     ``ForceInput`` in process, so no schema file or ``capnp`` command is
     needed.
@@ -426,18 +492,33 @@ class Session:
         *,
         library: str | os.PathLike[str] | None = None,
         schema: str | os.PathLike[str] | None = None,
+        constant_cutoff: ConstantCutoff | Mapping[str, float] | float | None = None,
     ) -> None:
         if schema is not None:
             _warn_schema(stacklevel=3)
+        cutoff = ConstantCutoff.coerce(constant_cutoff)
         blob = Path(params).read_bytes() if not isinstance(params, bytes) else params
         if not blob:
             raise CPMDCError("CPMDParams buffer is empty")
         self._lib = _load(find_library(library))
+        if cutoff is not None and not hasattr(self._lib, "cpmdc_session_set_constant_cutoff"):
+            raise CPMDCError(
+                "this libcpmdc has no cpmdc_session_set_constant_cutoff; "
+                "use a library built from cpmdc with constant-cutoff support"
+            )
         buffer = ctypes.create_string_buffer(blob)
         handle = self._lib.cpmdc_session_create(buffer, len(blob))
         if not handle:
             raise CPMDCError(self._error() or "cpmdc_session_create failed")
         self._handle = handle
+        if cutoff is not None:
+            status = self._lib.cpmdc_session_set_constant_cutoff(
+                handle, cutoff.cutoff_ry, cutoff.height_ry or 0.0, cutoff.width_ry or 0.0
+            )
+            if status != 0:
+                message = self._error() or "cpmdc_session_set_constant_cutoff failed"
+                self.close()
+                raise CPMDCError(message)
 
     def _error(self) -> str:
         text = self._lib.cpmdc_last_error()
@@ -568,7 +649,8 @@ class Potential:
     components in row-major order when the library computed a tensor.
     The stress sign is ASE's, ``(1/V) dE/d(strain)``.
     :meth:`caps` reports that stress may be present and per-atom energies
-    are not. ``schema`` is deprecated and ignored, as for :class:`Session`.
+    are not. ``constant_cutoff`` is passed to :class:`Session`. ``schema``
+    is deprecated and ignored, as for :class:`Session`.
     """
 
     def __init__(
@@ -577,10 +659,11 @@ class Potential:
         *,
         library: str | os.PathLike[str] | None = None,
         schema: str | os.PathLike[str] | None = None,
+        constant_cutoff: ConstantCutoff | Mapping[str, float] | float | None = None,
     ) -> None:
         if schema is not None:
             _warn_schema(stacklevel=3)
-        self._session = Session(params, library=library)
+        self._session = Session(params, library=library, constant_cutoff=constant_cutoff)
 
     def caps(self) -> dict[str, bool]:
         """Capabilities an rgpot calculator consults before a step."""

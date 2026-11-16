@@ -34,7 +34,14 @@ from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
 from conftest import ROOT, WATER
 
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, CPMDCError, Potential, Session
+from cpmdc import (
+    BOHR_TO_ANGSTROM,
+    HARTREE_TO_EV,
+    ConstantCutoff,
+    CPMDCError,
+    Potential,
+    Session,
+)
 from cpmdc.ase import CPMDCCalculator
 
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
@@ -111,7 +118,7 @@ def cluster_variant(tmp_path_factory: pytest.TempPathFactory):
 def test_is_an_ase_calculator(calc, params):
     assert isinstance(calc, Calculator)
     assert calc.implemented_properties == ["energy", "free_energy", "forces", "stress"]
-    assert calc.default_parameters == {"params": None, "library": None}
+    assert calc.default_parameters == {"params": None, "library": None, "constant_cutoff": None}
     assert calc.parameters["params"] == str(params)
     assert calc.todict() == {"params": str(params)}
     json.dumps(calc.todict())
@@ -678,22 +685,130 @@ def test_bfgs_trajectory_stores_periodic_stress(periodic_calc, tmp_path):
     np.testing.assert_allclose(last.get_stress(), atoms.get_stress())
 
 
-def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_calc, opencpmd):
-    """The stress reaches the optimizer, which shrinks the cell along it.
-
-    On OpenCPMD the stress of the 40 Ry deck is almost all Pulay stress, about
-    16 eV over the volume. The energy at that fixed cutoff falls over the first
-    step and rises over the next three, which shrink the cell further.
-    """
-    atoms = water(cell=CUBE, pbc=True)
-    atoms.rattle(0.05, seed=17)
-    atoms.calc = periodic_calc
-    assert atoms.get_stress()[:3].mean() > 0.0
+def relax_cell(atoms: Atoms, steps: int) -> tuple[bool, list[float]]:
     energies: list[float] = []
     with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
         opt.attach(lambda: energies.append(atoms.get_potential_energy()))
-        opt.run(fmax=0.01, steps=4)
-    assert atoms.get_volume() < np.linalg.det(CUBE)
-    assert energies[1] < energies[0]
+        converged = opt.run(fmax=0.01, steps=steps)
+    return converged, energies
+
+
+def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
+    """At a constant cutoff the cell relaxes to a sensible volume.
+
+    The 40 Ry deck keeps its basis and evaluates the 30 Ry constant-cutoff
+    functional. One water molecule in a 10 Angstrom box has almost no
+    intermolecular stress, so on OpenCPMD the cell converges within 10% of
+    its start while the energy falls. The first steps lower it every time.
+    """
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms.calc = calc
+        converged, energies = relax_cell(atoms, steps=80 if opencpmd else 4)
+    assert energies[-1] < energies[0]
+    assert np.all(np.diff(energies[:5]) < 0.0)
+    if opencpmd:
+        assert converged
+        assert 0.9 < atoms.get_volume() / np.linalg.det(CUBE) < 1.1
+        assert np.abs(atoms.get_stress()[:3]).max() < 1.0e-3
+    else:
+        assert not np.allclose(atoms.cell.array, CUBE)
+
+
+def test_a_fixed_basis_cell_filter_collapses_the_cell(periodic_calc, opencpmd):
+    """Without a constant cutoff the OpenCPMD stress is Pulay stress.
+
+    The 40 Ry stress is about 16 eV over the volume. The optimizer shrinks
+    the cell along it while the energy at the fixed cutoff rises.
+    """
     if not opencpmd:
-        assert energies[-1] < energies[0]
+        pytest.skip("the reference well has no basis and no Pulay stress")
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    atoms.calc = periodic_calc
+    assert atoms.get_stress()[:3].mean() > 1.0e-2
+    _, energies = relax_cell(atoms, steps=4)
+    assert atoms.get_volume() < 0.75 * np.linalg.det(CUBE)
+    assert energies[-1] > energies[1]
+
+
+@pytest.mark.parametrize("constant_cutoff", [None, 30.0], ids=["fixed-basis", "constant-cutoff"])
+def test_stress_follows_the_energy_over_a_finite_strain(
+    periodic_params, opencpmd, constant_cutoff
+):
+    """The mean stress against dE/dV over a 1.5% isotropic strain.
+
+    With a fixed basis the OpenCPMD stress is the derivative at a fixed
+    number of plane waves, about 1.6e-2 eV/Angstrom^3 above the slope of the
+    energy at the fixed cutoff. The constant-cutoff stress follows it.
+    """
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(periodic_params, constant_cutoff=constant_cutoff) as calc:
+        atoms.calc = calc
+        pressure = atoms.get_stress()[:3].mean()
+        points = []
+        for scale in (0.985, 1.015):
+            strained = atoms.copy()
+            strained.set_cell(atoms.cell.array * scale, scale_atoms=True)
+            strained.calc = calc
+            points.append((strained.get_volume(), strained.get_potential_energy()))
+    (v_low, e_low), (v_high, e_high) = points
+    slope = (e_high - e_low) / (v_high - v_low)
+    if not opencpmd:
+        assert pressure == pytest.approx(slope, rel=1.0e-3, abs=1.0e-12)
+    elif constant_cutoff is None:
+        assert pressure - slope > 1.0e-2
+    else:
+        assert abs(pressure - slope) < 5.0e-4
+
+
+def test_constant_cutoff_is_a_calculator_parameter(periodic_params, calls):
+    with CPMDCCalculator(periodic_params, constant_cutoff=30) as calc:
+        assert calc.parameters["constant_cutoff"] == 30.0
+        assert calc.todict() == {"params": str(periodic_params), "constant_cutoff": 30.0}
+        json.dumps(calc.todict())
+        atoms = water(cell=CUBE, pbc=True)
+        atoms.calc = calc
+        atoms.get_stress()
+        first = calc.potential
+        explicit = {"cutoff_ry": 30.0, "height_ry": 2000.0, "width_ry": 3.0}
+        assert calc.set(constant_cutoff=ConstantCutoff(**explicit)) == {
+            "constant_cutoff": explicit
+        }
+        assert calc.potential is not first
+        assert calc.results == {}
+        json.dumps(calc.todict())
+        with CPMDCCalculator(**calc.todict()) as rebuilt:
+            assert rebuilt.parameters == calc.parameters
+        assert calc.set(constant_cutoff=None) == {"constant_cutoff": None}
+        assert calc.todict() == {"params": str(periodic_params)}
+    assert len(calls) == 1
+
+
+def test_a_constant_cutoff_the_deck_cannot_take_raises(periodic_params):
+    with pytest.raises(CPMDCError, match="exceeds the plane-wave cutoff 40 Ry"):
+        CPMDCCalculator(periodic_params, constant_cutoff=38.0)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        first = calc.potential
+        with pytest.raises(CPMDCError, match="exceeds the plane-wave cutoff"):
+            calc.set(constant_cutoff={"cutoff_ry": 30.0, "width_ry": 6.0})
+        assert calc.parameters["constant_cutoff"] == 30.0
+        assert calc.potential is first
+
+
+@pytest.mark.parametrize(
+    "value, error",
+    [(-1.0, ValueError), (float("nan"), ValueError), (True, TypeError), ("30", TypeError)],
+)
+def test_constant_cutoff_values_are_checked(value, error):
+    with pytest.raises(error):
+        ConstantCutoff(value)
+    with pytest.raises(error):
+        ConstantCutoff(30.0, width_ry=value)
+    assert ConstantCutoff.coerce(30) == ConstantCutoff(30.0)
+    assert ConstantCutoff.coerce({"cutoff_ry": 30, "width_ry": 2}).todict() == {
+        "cutoff_ry": 30.0,
+        "width_ry": 2.0,
+    }
+    assert ConstantCutoff.coerce(None) is None
