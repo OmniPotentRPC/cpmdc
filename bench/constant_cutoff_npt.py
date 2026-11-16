@@ -26,8 +26,8 @@ the friction 1/P_TAU and the mass of ASE's heuristic, which grows as P_TAU
 squared. --start takes the box of start, whose momenta the run draws at
 TEMPERATURE, or the state file of another run, whose positions, momenta, cell
 and strain rate it continues from with its own settings; the record then
-holds the state's step count times DT as start_ps, where the figure draws the
-run.
+holds the state's step count times DT as start_ps, the time into the run that
+wrote the state.
 
 Each step appends the time, volume, density, pressure, temperature,
 potential energy, wall time, SCF iterations and new setups to the record
@@ -53,8 +53,12 @@ state, Flyvbjerg-Petersen standard error); of the runs that stopped or hold
 less than --min-production-ps after that, with the density at their start and
 end; of the cost per step; and of the density every --branch-step-ps after
 the start of the runs that start from the same state. The other settings must
-be the same for every run. --json also writes the means and the window means
-that docs/render_constant_cutoff_npt.py draws.
+be the same for every run. The run that wrote a state is the record with a
+frame at start_ps of the volume the state starts at. --json also writes what
+docs/render_constant_cutoff_npt.py draws: the means, the window means, the
+start of each run from the start of the first of the runs that wrote the
+states before it, and the density of every step of the runs that start from
+the same state.
 
 capnp must be on PATH and CPMDC_PSEUDO_DIR must name the pseudopotential
 directory. Under mpirun with CPMDC_RANK_CONSENSUS=1 every rank integrates the
@@ -476,17 +480,55 @@ def density_window_rows(runs: list[tuple[str, dict]], width_ps: float) -> list[s
     return lines
 
 
-def start_of(meta: dict) -> str:
-    if meta.get("start_ps"):
+def writers(runs: list[tuple[str, dict]]) -> dict[str, str]:
+    """The run that wrote the state each run starts from: the one with a frame at start_ps that has the volume
+    of the run's first frame."""
+    found = {}
+    for name, data in runs:
+        start_ps = data["args"].get("start_ps")
+        if not start_ps:
+            continue
+        for other, parent in runs:
+            if other == name:
+                continue
+            at = np.flatnonzero(np.abs(np.asarray(parent["time_ps"]) - start_ps) < 1e-9)
+            if at.size and parent["Volume"][at[0]] == data["Volume"][0]:
+                found[name] = other
+                break
+    return found
+
+
+def chain_starts(runs: list[tuple[str, dict]], writer: dict[str, str]) -> dict[str, float]:
+    """When each run starts, from the start of the first run of the writers before it: start_ps holds only the
+    time into the writer."""
+    meta = {name: data["args"] for name, data in runs}
+    starts = {}
+    for name in meta:
+        total, seen, here = 0.0, {name}, name
+        while True:
+            total += meta[here].get("start_ps") or 0.0
+            if here not in writer or writer[here] in seen:
+                break
+            here = writer[here]
+            seen.add(here)
+        starts[name] = total
+    return starts
+
+
+def start_of(meta: dict, writer: str | None) -> str:
+    if not meta.get("start_ps"):
+        return meta["start"]
+    if writer is None:
         return f"{meta['start']} at {meta['start_ps']:g} ps"
-    return meta["start"]
+    return f"{meta['start']}, {meta['start_ps']:g} ps into {writer}"
 
 
-def run_rows(runs: list[tuple[str, dict]]) -> list[str]:
+def run_rows(runs: list[tuple[str, dict]], writer: dict[str, str]) -> list[str]:
     lines = ["| Run | Basis | P_tau, fs | Start | Steps |", "|-----+-------+-----------+-------+-------|"]
     for name, data in runs:
         meta = data["args"]
-        lines.append(f"| {name} | {basis(meta)} | {meta['p_tau']:g} | {start_of(meta)} | {len(data['time_ps']) - 1} |")
+        lines.append(f"| {name} | {basis(meta)} | {meta['p_tau']:g} | {start_of(meta, writer.get(name))} | "
+                     f"{len(data['time_ps']) - 1} |")
     return lines
 
 
@@ -515,23 +557,27 @@ def cost_rows(runs: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
-def branch_rows(runs: list[tuple[str, dict]], step_ps: float) -> list[str]:
-    """The density every step_ps after the start of the runs that start from the same state."""
+def branch_groups(runs: list[tuple[str, dict]]) -> list[list[tuple[str, dict]]]:
+    """The runs that start from the same state, in groups of at least two."""
     groups: dict[tuple[str, float], list[tuple[str, dict]]] = {}
     for name, data in runs:
         meta = data["args"]
         if meta.get("start_ps"):
             groups.setdefault((meta["start"], meta["start_ps"]), []).append((name, data))
+    return [group for group in groups.values() if len(group) >= 2]
+
+
+def branch_rows(runs: list[tuple[str, dict]], writer: dict[str, str], step_ps: float) -> list[str]:
+    """The density every step_ps after the start of the runs that start from the same state."""
     lines = []
-    for (start, start_ps), branches in groups.items():
-        if len(branches) < 2:
-            continue
+    for branches in branch_groups(runs):
+        first, meta = branches[0][0], branches[0][1]["args"]
         columns = [{round(float(t), 6): float(rho) for t, rho in zip(data["time_ps"], data["Density"])}
                    for _, data in branches]
         end = max(float(data["time_ps"][-1]) for _, data in branches)
         marks = [round(k * step_ps, 6) for k in range(int(np.floor(end / step_ps + 1e-9)) + 1)]
         head = " | ".join(f"{name}, kg/m^3" for name, _ in branches)
-        lines += ["", f"Density after the start of the runs from {start} at {start_ps:g} ps:", "",
+        lines += ["", f"Density after the start of the runs from {start_of(meta, writer.get(first))}:", "",
                   f"| After the start, ps | {head} |", "|-" + "-+-" * len(branches) + "-|"]
         for mark in marks:
             cells = [f"{column[mark]:.1f}" if mark in column else "" for column in columns]
@@ -551,15 +597,22 @@ def table(args: argparse.Namespace) -> int:
     for key in SHARED:
         if len({json.dumps(data["args"][key]) for data in loaded}) > 1:
             raise SystemExit(f"the runs differ in {key}")
+    named = list(zip(names, loaded))
+    writer = writers(named)
+    chain = chain_starts(named, writer)
+    branched = {name for group in branch_groups(named) for name, _ in group}
     finished, unaveraged, plotted = [], [], []
-    for name, data in zip(names, loaded):
+    for name, data in named:
         data["wall_s"] = float(np.sum(data["step_wall_s"]))
         start_ps = data["args"].get("start_ps", 0.0)
         floor = args.branch_discard_ps if start_ps else args.min_discard_ps
         length = float(data["time_ps"][-1])
         entry = {"label": name, "basis": basis(data["args"]), "cutoff": data["args"]["cutoff"],
                  "e0": data["args"]["e0"], "p_tau": data["args"]["p_tau"], "start_ps": start_ps,
-                 "length_ps": length, "windows": windows(data, args.plot_window_ps), "stopped": data["stopped"]}
+                 "chain_start_ps": chain[name], "length_ps": length, "windows": windows(data, args.plot_window_ps),
+                 "stopped": data["stopped"]}
+        if name in branched:
+            entry["steps"] = [[float(t), float(rho)] for t, rho in zip(data["time_ps"], data["Density"])]
         if data["stopped"] is None and length - floor >= args.min_production_ps - 1e-9:
             result = analyse(data, args.discard_ps, floor, args.window_ps, args.min_blocks)
             temperature = np.asarray(data["Temperature"])[len(data["time_ps"]) - result["production_frames"]:]
@@ -581,8 +634,7 @@ def table(args: argparse.Namespace) -> int:
         f"hydrogen mass {meta['hydrogen_mass']:g} u; CPMDC_CELL_IN_PLACE={meta['cell_in_place'] or 'unset'}",
         f"# {meta['cpu']}, ASE {meta['ase']}; the cost table gives the ranks of each run",
     ]
-    named = list(zip(names, loaded))
-    lines += ["", *run_rows(named)]
+    lines += ["", *run_rows(named, writer)]
     if finished:
         lines += ["", *summary_rows(finished)]
     if unaveraged:
@@ -597,7 +649,7 @@ def table(args: argparse.Namespace) -> int:
         lines += ["", *detail_rows(finished), "", "Standard error of the mean against block length:", "",
                   *curve_rows(finished, args.min_blocks)]
     lines += ["", "Mean density over consecutive windows:", "", *density_window_rows(named, args.window_ps)]
-    lines += branch_rows(named, args.branch_step_ps)
+    lines += branch_rows(named, writer, args.branch_step_ps)
     text = "\n".join(lines) + "\n"
     if args.output:
         args.output.write_text(text)
