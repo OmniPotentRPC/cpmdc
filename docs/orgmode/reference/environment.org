@@ -126,6 +126,7 @@ These change results on purpose and must be unset in ordinary runs.
 | ~CPMDC_EXAMPLE_WORK~ | ~tests/test_docs_examples.py~ | set by the test itself to its scratch directory |
 | ~CPMDC_PWSCALE_FFT_FAULT~ | ~bench/pwscale_fft.c~ (~pwscale-fft-fail~) | names an FFT setup step that must fail, to check the cleanup path |
 | ~CPMDC_PWSCALE_POISON_RUN~ | ~bench/pwscale_harness.c~ (~pwscale-logger~) | adds 1 Hartree to the energy of that run number, to check the logger rejects it |
+| ~OMPI_COMM_WORLD_RANK~, ~PMIX_RANK~, ~PMI_RANK~; ~OMPI_COMM_WORLD_SIZE~, ~PMI_SIZE~ | ~bench/constant_cutoff_npt.py~ | set by the MPI launcher; the first of each that is set gives the rank, and rank 0 writes the record, the state, and the tables, and the rank count that the record keeps; unset, one rank |
 | ~CPMDC_ORG_EXPORT~ | ~docs/export.el~ | ~pandoc~ exports the Org pages with pandoc instead of ox-rst |
 
 The live tests of an OpenCPMD build (~meson test -C build-cpmd~) run ~libcpmdc~,
