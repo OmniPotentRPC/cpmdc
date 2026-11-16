@@ -16,8 +16,8 @@
 #+end_export
 
 * Overview
-~cpmdc~ is the C ABI layer for embedding
-[[https://github.com/OpenCPMD/CPMD][OpenCPMD]] in OmniPotentRPC tools.
+~cpmdc~ is the C ABI layer for embedding [[https://github.com/OpenCPMD/CPMD][OpenCPMD]]
+in OmniPotentRPC tools.
 It keeps the public boundary small and language-neutral.
 Hosts pass method setup once, pass geometry for each calculation step, and get
 native C results or a serialized result message back.
@@ -63,6 +63,9 @@ composition requires a new session.
    * - Relax a structure or a cell, or run dynamics, in ASE
      - Set ``atoms.calc`` to ``CPMDCCalculator`` and run any ASE optimizer, cell filter, or integrator
      - :doc:`Use cpmdc as an ASE calculator <howto/ase>`
+   * - Relax a cell or run NPT without Pulay stress
+     - Turn on the constant-cutoff functional with ``constant_cutoff=`` or ``system.constantCutoff``
+     - :doc:`Relax a cell at a constant cutoff <howto/constant-cutoff>`
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
@@ -115,8 +118,7 @@ composition requires a new session.
 #+end_export
 
 * Questions and bug reports
-Ask questions and report bugs on the
-[[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
+Ask questions and report bugs on the [[https://github.com/OmniPotentRPC/cpmdc/issues][GitHub issue tracker]].
 Check [[file:howto/troubleshooting.org][Troubleshooting]] first, because it
 lists known failures with their fixes.
 Its last section lists what to put in a new report.
@@ -159,6 +161,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    howto/embedding
    howto/python
    howto/ase
+   howto/constant-cutoff
    howto/socket-drivers
    howto/lammps
    howto/gromacs
@@ -217,8 +220,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 Cite cpmdc with the record in
 [[https://github.com/OmniPotentRPC/cpmdc/blob/main/CITATION.cff][CITATION.cff]]
 at the root of the repository.
-It gives the author, the version, the license, and the repository in the
-[[https://citation-file-format.github.io][Citation File Format]].
+It gives the author, the version, the license, and the repository in the [[https://citation-file-format.github.io][Citation File Format]].
 GitHub reads that file and offers the record as "Cite this repository" on the
 repository page, as the
 [[https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files][GitHub documentation on citation files]]
@@ -227,12 +229,10 @@ The record carries no digital object identifier (DOI).
 
 An OpenCPMD archive build computes its energies and forces with OpenCPMD, so a
 paper that reports them cites OpenCPMD as well.
-OpenCPMD ships no citation file; name it with its repository,
-[[https://github.com/OpenCPMD/CPMD][github.com/OpenCPMD/CPMD]], and the version
-or commit that the archive was built from.
+OpenCPMD ships no citation file; name it with its repository, [[https://github.com/OpenCPMD/CPMD][github.com/OpenCPMD/CPMD]],
+and the version or commit that the archive was built from.
 
 * License
 cpmdc is released under the ~MIT License~.
-The full terms are in
-[[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]] at the
-root of the repository.
+The full terms are in [[https://github.com/OmniPotentRPC/cpmdc/blob/main/LICENSE][LICENSE]]
+at the root of the repository.

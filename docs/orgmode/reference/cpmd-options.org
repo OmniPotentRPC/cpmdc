@@ -25,11 +25,10 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 | ~params.inputBlocks~ | ~inputBlocks~ | Raw ~&SECTION~ text blocks prepended to the deck |
 | ~params.inputSections~ | ~inputSections~ | Structured ~CPMDInputSection~ list |
 
-The feature-discovery table exposes these as ~params.<field>~ IDs. Structured
-fields use ~params.inputSections.<section>.<field>~, for example
+The feature-discovery table exposes these as ~params.<field>~ IDs.
+Structured fields use ~params.inputSections.<section>.<field>~, for example
 ~params.inputSections.cpmd.maxIter~, ~params.inputSections.dft.hfxScreening~,
-~params.inputSections.system.cell~, and
-~params.inputSections.pimd.directives~.
+~params.inputSections.system.cell~, and ~params.inputSections.pimd.directives~.
 
 * Feature ID namespaces
 Feature IDs separate writable schema fields from parser/catalog capability rows.
@@ -45,12 +44,13 @@ Feature IDs separate writable schema fields from parser/catalog capability rows.
 | ~catalog.section.*~ | OpenCPMD section names discovered from parser ~inscan('&SECTION')~ calls |
 
 ~catalog.section.SYSTEM~ means the ~&SYSTEM~ deck section is recognized as a
-section kind. Individual ~&SYSTEM~ controls stay under
+section kind.
+Individual ~&SYSTEM~ controls stay under
 ~params.inputSections.system.*~ rather than a separate ~catalog.system.*~
 namespace.
 
-Manual keyword names do not always map to a ~catalog.cpmd.*~ feature ID. Use
-the field namespace when the renderer owns a typed section field:
+Manual keyword names do not always map to a ~catalog.cpmd.*~ feature ID.
+Use the field namespace when the renderer owns a typed section field:
 
 | Manual name | Feature or field ID | Rendered deck form |
 |-------------+---------------------+--------------------|
@@ -61,8 +61,9 @@ the field namespace when the renderer owns a typed section field:
 
 ~FFTW WISDOM~ is not a typed feature row because the OpenCPMD manual source
 comments out that keyword and the parser tree used for inventory probing has no
-matching branch. Use ~inputSections.raw~ or ~inputBlocks~ only for a downstream
-tree that still accepts it.
+matching branch.
+Use ~inputSections.raw~ or ~inputBlocks~ only for a downstream tree that still
+accepts it.
 
 * Mapping a CPMD manual line
 Use this order when turning a CPMD manual line into an ABI input:
@@ -71,9 +72,9 @@ Use this order when turning a CPMD manual line into an ABI input:
 2. Prefer a ~params.inputSections.<section>.<field>~ row when one exists; that
    is the writable schema field.
 3. Use a ~catalog.cpmd.*~ row for recognized ~&CPMD~ keyword and inline option
-   spellings. These rows are capability/discovery IDs; many render through an
-   existing text field such as ~roksOptions~, ~langevinOptions~, or
-   ~interfaceOptions~.
+   spellings.
+   These rows are capability/discovery IDs; many render through an existing text
+   field such as ~roksOptions~, ~langevinOptions~, or ~interfaceOptions~.
 4. Use a ~catalog.section.*~ row only to detect support for a whole OpenCPMD
    section such as ~&PIMD~ or ~&VDW~.
 5. Use ~set~, ~generic~, ~raw~, or top-level ~inputBlocks~ when no structured
@@ -91,12 +92,14 @@ Examples:
 
 * Inventory guardrails
 The inventory files are part of the public compatibility contract, not only
-generated lookup data. ~schema/inventory/cpmd_cp_keywords.txt~ lists base
-~&CPMD~ controls that must exist as normalized ~catalog.cpmd.*~ feature rows.
+generated lookup data.
+~schema/inventory/cpmd_cp_keywords.txt~ lists base ~&CPMD~ controls that must
+exist as normalized ~catalog.cpmd.*~ feature rows.
 Punctuation and spaces normalize to underscores, so ~FREE-ENERGY~ maps to
 ~catalog.cpmd.FREE_ENERGY~.
 The JSON inventory carries both ~opencpmd_inscan_sections~ and ~cpmd_sections~;
-they must describe the same OpenCPMD parser section set. ~catalog.section.*~
+they must describe the same OpenCPMD parser section set.
+~catalog.section.*~
 feature rows must be owned by that set and by the checked-in
 ~schema/inventory/opencpmd_sections.txt~ allowlist.
 
@@ -114,33 +117,36 @@ meson test -C build \
   --print-errorlogs
 #+end_src
 
-~feature-inventory~ cross-checks the JSON inventory against the schema, public
-C feature table, README, and this reference page. When ~CPMD_ROOT~ points at an
-OpenCPMD tree, it also compares parser ~inscan('&SECTION')~ calls with the
-checked-in section inventory.
+~feature-inventory~ cross-checks the JSON inventory against the schema, public C
+feature table, README, and this reference page.
+When ~CPMD_ROOT~ points at an OpenCPMD tree, it also compares parser
+~inscan('&SECTION')~ calls with the checked-in section inventory.
 ~cpmd-base-keyword-inventory~ proves the base keyword list cannot drop a
-~catalog.cpmd.*~ row silently. ~cpmd-params-field-inventory~ requires every
-top-level ~CPMDParams~ schema field to keep a ~params.*~ feature row and
-rejects duplicate inventory IDs/lists and C feature table duplicates before set
-comparisons can hide them.
-~cpmd-public-abi-inventory~ requires every public ~cpmdc_*~ header function to
-resolve through ~abi_symbols~ and the feature table, then verifies the native
+~catalog.cpmd.*~ row silently.
+~cpmd-params-field-inventory~ requires every top-level ~CPMDParams~ schema field
+to keep a ~params.*~ feature row.
+It rejects duplicate inventory IDs/lists and C feature table duplicates before
+set comparisons can hide them.
+~cpmd-public-abi-inventory~ requires every public
+~cpmdc_*~ header function to resolve through ~abi_symbols~ and the feature
+table, then verifies the native
 ~src/cpmdc.c~, stub ~src/cpmdc_stub.c~, or shared ~src/cpmdc_features.c~
 implementation that exports it.
 ~stub-abi-symbol-coverage~ requires the standalone stub test to assert every
 ~abi_symbols~ feature row is present and stub-applicable.
 ~shared-dlopen-symbol-coverage~ requires the shared-library ~dlopen~ test to
 load every ~abi_symbols~ entry from ~libcpmdc.so~.
-~cpmd-schema-render-coverage~ requires typed
-~CPMDCpmdSection~ fields to appear in the catalog render fixtures, and
-~cpmd-option-token-coverage~ requires inline option spellings in Cap'n Proto
-fixtures to have render coverage. ~cpmd-typed-render-field-coverage~ requires
-typed ~cpmd~, ~system~, ~dft~, and ~atoms~ fields to appear in render fixtures
-or render assertions. ~cpmd-long-tail-section-coverage~ requires every
-~CPMDDirectiveSection~ union arm to appear in the long-tail fixture, render
-assertions, and this reference page. ~cpmd-escape-hatch-coverage~ requires
-~inputBlocks~, ~generic~, ~set~, and ~raw~ carriers to stay covered by schema,
-fixtures, render tests, and this reference page.
+~cpmd-schema-render-coverage~ requires typed ~CPMDCpmdSection~ fields to appear
+in the catalog render fixtures, and ~cpmd-option-token-coverage~ requires inline
+option spellings in Cap'n Proto fixtures to have render coverage.
+~cpmd-typed-render-field-coverage~ requires typed ~cpmd~, ~system~, ~dft~, and
+~atoms~ fields to appear in render fixtures or render assertions.
+~cpmd-long-tail-section-coverage~ requires every ~CPMDDirectiveSection~ union
+arm to appear in the long-tail fixture, render assertions, and this reference
+page.
+~cpmd-escape-hatch-coverage~ requires ~inputBlocks~, ~generic~, ~set~, and ~raw~
+carriers to stay covered by schema, fixtures, render tests, and this reference
+page.
 
 * ~CPMDInputSection~ kinds
 
@@ -181,18 +187,19 @@ When structured ~dft~ or ~system~ sections provide scalar method values
 (functional, cutoff, charge, multiplicity), those section values are also the
 effective embed configuration passed through the C ABI.
 For geometry deck rendering, ~atoms.pseudopotentials~ groups ~ForceInput~
-coordinates by element symbol. Explicit pseudopotential entries accept standard
-element symbols and must cover every atomic number present in the step geometry;
-otherwise rendering fails. When no ~atoms~ section is supplied, the renderer
-only provides built-in BLYP pseudopotential defaults for H and O. An explicit
-~atoms~ section may rely on those H/O defaults while still carrying
-~CPMDDirective~ entries for additional ~&ATOMS~ keywords.
+coordinates by element symbol.
+Explicit pseudopotential entries accept standard element symbols and must cover
+every atomic number present in the step geometry; otherwise rendering fails.
+When no ~atoms~ section is supplied, the renderer only provides built-in BLYP
+pseudopotential defaults for H and O. An explicit ~atoms~ section may rely on
+those H/O defaults while still carrying ~CPMDDirective~ entries for additional
+~&ATOMS~ keywords.
 
 * Escape hatches
 Long-tail CPMD keywords go in ~CPMDDirective~ lists or ~subsections~ inside the
 matching typed section, ~CPMDSetDirective~ dotted keys, ~CPMDInputSection.raw~,
-or ~inputBlocks~. ~&VDW~ uses ~subsections~ for nested blocks such as
-~EMPIRICAL CORRECTION~.
+or ~inputBlocks~.
+~&VDW~ uses ~subsections~ for nested blocks such as ~EMPIRICAL CORRECTION~.
 ~set.key~ uses ~SECTION.KEYWORD~ form, for example ~CPMD.PRINT FORCES ON~ or
 ~SYSTEM.POISSON SOLVER HOCKNEY~; non-empty ~set.value~ is emitted on the
 following indented line.
@@ -200,8 +207,8 @@ Prefer new structured fields in the schema over inventing a second config file
 format.
 
 * Choosing an input carrier
-Use the most structured carrier that represents the deck intent. The usual
-path is:
+Use the most structured carrier that represents the deck intent.
+The usual path is:
 
 1. Put functional, cutoff, charge, multiplicity, task, and embed hints in the
    top-level ~CPMDParams~ fields.
@@ -257,9 +264,10 @@ For example, a compact typed setup with one extra ~&SYSTEM~ keyword looks like:
 
 * Catalog section exposure
 The public feature table advertises every OpenCPMD ~inscan('&SECTION')~ name as
-a ~catalog.section.<NAME>~ feature ID. Typed sections have dedicated schema
-arms; every section can still be rendered through ~set~, ~generic~, ~raw~, or
-~inputBlocks~ when a dedicated field is unnecessary.
+a ~catalog.section.<NAME>~ feature ID.
+Typed sections have dedicated schema arms; every section can still be rendered
+through ~set~, ~generic~, ~raw~, or ~inputBlocks~ when a dedicated field is
+unnecessary.
 
 | Feature ID | Deck section | ABI carrier |
 |------------+--------------+-------------|
@@ -290,16 +298,19 @@ arms; every section can still be rendered through ~set~, ~generic~, ~raw~, or
 | ~catalog.section.WAVEFUNCTION~ | ~&WAVEFUNCTION~ | typed ~wavefunction~, ~set~, ~generic~, ~raw~, or ~inputBlocks~ |
 
 * Other structured parameter features
-These ~params.inputSections.*~ IDs cover carriers and fields that are not
-single CPMD/DFT catalog keyword rows in the typed tables below.
+These ~params.inputSections.*~
+IDs cover carriers and fields that are not single CPMD/DFT catalog keyword rows
+in the typed tables below.
 
 A ~system.cellVectors~ cell contains nine numbers grouped by lattice vector.
 Typed parameter rendering preserves them on one data line; geometry overrides
-use three vector rows. OpenCPMD accepts either layout in one list-directed
-read. ~CELL VECTORS~ specifies implicit triclinic symmetry, so its deck
-omits the ~SYMMETRY~ line and the default isolated Poisson solver. Combining
-~SYMMETRY~ with ~CELL VECTORS~ is rejected by the native parser. The vector
-qualifier also requires nine values and excludes ~ABSOLUTE~ and ~DEGREE~.
+use three vector rows.
+OpenCPMD accepts either layout in one list-directed read.
+~CELL VECTORS~ specifies implicit triclinic symmetry, so its deck omits the
+~SYMMETRY~ line and the default isolated Poisson solver.
+Combining ~SYMMETRY~ with ~CELL VECTORS~ is rejected by the native parser.
+The vector qualifier also requires nine values and excludes ~ABSOLUTE~ and
+~DEGREE~.
 
 | Parameter feature ID | Field | Deck effect |
 |----------------------+-------+-------------|
@@ -370,7 +381,7 @@ qualifier also requires nine values and excludes ~ABSOLUTE~ and ~DEGREE~.
 | ~params.inputSections.system.densityCutOffRy~ | ~system.densityCutOffRy~ | ~&SYSTEM DENSITY CUTOFF~ |
 | ~params.inputSections.system.densityCutoffNumber~ | ~system.densityCutoffNumber~ | ~&SYSTEM DENSITY CUTOFF NUMBER~ |
 | ~params.inputSections.system.dual~ | ~system.dual~ | ~&SYSTEM DUAL~ |
-| ~params.inputSections.system.constantCutoff~ | ~system.constantCutoff~ | ~&SYSTEM CONSTANT CUTOFF~ |
+| ~params.inputSections.system.constantCutoff~ | ~system.constantCutoff~ | ~&SYSTEM CONSTANT CUTOFF~ with A, sigma, and E0 in Ry, in that order; rendered only with three values; see [[file:../howto/constant-cutoff.org][relax a cell at a constant cutoff]] |
 | ~params.inputSections.system.boxWalls~ | ~system.boxWalls~ | ~&SYSTEM BOX WALLS~ |
 | ~params.inputSections.system.poissonSolver~ | ~system.poissonSolver~ | ~&SYSTEM POISSON SOLVER~ |
 | ~params.inputSections.system.poissonParameter~ | ~system.poissonParameter~ | Optional ~POISSON ... PARAMETER~ value |
@@ -458,8 +469,9 @@ qualifier also requires nine values and excludes ~ABSOLUTE~ and ~DEGREE~.
 
 * Typed ~&CPMD~ controls
 ~CPMDCpmdSection~ exposes these driver controls directly; parser-accepted
-escape-hatch rows use ~directives~. The feature IDs are the stable discovery
-keys returned by ~cpmdc_feature_table()~.
+escape-hatch rows use ~directives~.
+The feature IDs are the stable discovery keys returned by
+~cpmdc_feature_table()~.
 
 | Catalog feature ID | Parameter feature ID | Field | Deck keyword |
 |--------------------+----------------------+-------+--------------|
@@ -990,10 +1002,13 @@ keys returned by ~cpmdc_feature_table()~.
 | ~catalog.cpmd.VDW_WANNIER_OFF~ | ~params.inputSections.cpmd.vdwWannier~ | ~vdwWannier~ | ~VDW WANNIER OFF~ |
 | ~catalog.cpmd.DCACP~ | ~params.inputSections.cpmd.dcacp~ | ~dcacp~ | ~DCACP~ |
 
-~EXTRAPOLATE WFN~ renders into every deck that sets ~extrapolateWfnOptions~ or ~extrapolateWfnOrder~.
+~EXTRAPOLATE WFN~ renders into every deck that sets ~extrapolateWfnOptions~ or
+~extrapolateWfnOrder~.
 ~cpmd.x~ applies it in Born-Oppenheimer molecular dynamics only.
-On the in-process route it applies to every call that starts from stored orbitals, when the archive carries ~tools/opencpmd_embed_extrapolate.patch~.
-The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows a message and the check.
+On the in-process route it applies to every call that starts from stored
+orbitals, when the archive carries ~tools/opencpmd_embed_extrapolate.patch~.
+The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows a
+message and the check.
 
 | Part | In-process route |
 |------+------------------|
@@ -1004,9 +1019,9 @@ The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] shows a mes
 | ~CSTEPS~ | no effect, with converged orbitals on every call |
 
 * Typed ~&DFT~ controls
-~CPMDDftSection~ exposes common DFT scalars directly. Parser-accepted
-escape-hatch rows use ~directives~ so callers can still discover the catalog ID
-without a dedicated scalar field.
+~CPMDDftSection~ exposes common DFT scalars directly.
+Parser-accepted escape-hatch rows use ~directives~ so callers can still discover
+the catalog ID without a dedicated scalar field.
 
 | Catalog feature ID | Parameter feature ID | Field | Deck keyword |
 |--------------------+----------------------+-------+--------------|

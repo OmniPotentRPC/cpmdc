@@ -1,0 +1,6 @@
+Variable-cell relaxation and NPT get a stress that follows the energy: `CPMDCCalculator(constant_cutoff=...)`, `Session(constant_cutoff=...)`, `Potential(constant_cutoff=...)`, the frozen `cpmdc.ConstantCutoff` dataclass, the C call `cpmdc_session_set_constant_cutoff()`, and a `[constant_cutoff]` table in the job TOML of `tools/job_toml.py` add OpenCPMD's `CONSTANT CUTOFF` to the `&SYSTEM` section of the deck, the modified kinetic functional of Bernasconi et al., J. Phys. Chem. Solids 56, 501 (1995).
+E0 is required; A defaults to 50 times the deck cutoff and sigma to E0 / 10, and E0 + 2 sigma must not exceed the deck cutoff.
+LAMMPS, GROMACS, and the socket drivers read the same setting from `system.constantCutoff = [A, sigma, E0]` in the message.
+The default is off, so existing messages render the same deck; `libcpmdc` now exports 46 functions, and the addition is backward compatible, so `CPMDC_ABI_VERSION` and the soversion stay the same.
+The optional `tools/opencpmd_constant_cutoff_precon.patch` adds the penalty to the ODIIS preconditioner, which otherwise stops at its step limit and falls back to PCG; `scripts/ci/build_opencpmd.sh` applies it.
+`bench/constant_cutoff_scan.py` measures the stress, the relaxed volume, and the time per stress call of the water deck against the cutoff.

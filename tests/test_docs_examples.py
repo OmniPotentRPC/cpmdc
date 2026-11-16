@@ -95,6 +95,7 @@ SKIP = {
     "tutorials/quickstart.org:3": "expected transcript",
     "explanation/md-engines.org:2": "benchmark, not a correctness example",
     "explanation/md-engines.org:3": "benchmark, not a correctness example",
+    "howto/constant-cutoff.org:1": "section fragment, not a CPMDParams message",
     "howto/debug-deck.org:1": "diffs a caller-supplied reference deck",
     "howto/embedding.org:1": "expected transcript, not a command",
     "howto/extrapolate-orbitals.org:0": "section fragment, not a CPMDParams message",
@@ -151,6 +152,7 @@ OTHER_MESON_PROJECT = {
 # C fragments: hoisted includes, then the body inside a function after PRELUDE.
 COMPILE = {
     "README.md:3",
+    "howto/constant-cutoff.org:2",
     "howto/embedding.org:0",
     "howto/embedding.org:2",
     "howto/embedding.org:3",
@@ -192,6 +194,7 @@ RUN = {
     "README.md:6",
     "tutorials/quickstart.org:4",
     "howto/check-forces.org:0",
+    "howto/constant-cutoff.org:0",
     "howto/debug-deck.org:0",
     "howto/gromacs.org:3",
     *PYTHON_HOWTO,
@@ -561,7 +564,7 @@ def main() -> int:
         try:
             for key in (PYTHON_HOWTO[0], ASE_HOWTO[0]):
                 shell(key, found[key].body, work, env)
-            for key in PYTHON_HOWTO[1:] + ASE_HOWTO[1:]:
+            for key in PYTHON_HOWTO[1:] + ASE_HOWTO[1:] + ["howto/constant-cutoff.org:0"]:
                 run_python(root, library, params, schema, found[key].body)
             run_python(root, library, params, schema, found["howto/socket-drivers.org:1"].body)
             run_python(root, library, params, schema, found["howto/gromacs.org:3"].body)

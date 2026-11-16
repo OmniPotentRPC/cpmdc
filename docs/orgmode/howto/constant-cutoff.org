@@ -1,0 +1,161 @@
+#+TITLE: Relax a cell at a constant cutoff
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+* Goal
+Give an ASE cell filter, a LAMMPS ~fix box/relax~ or ~fix npt~, or GROMACS
+pressure coupling a stress that follows the energy of a periodic OpenCPMD deck.
+Turn on the constant-cutoff kinetic functional of [[https://doi.org/10.1016/0022-3697(94)00228-2][Bernasconi et al., J. Phys.
+Chem. Solids 56, 501 (1995)]],
+which OpenCPMD reads as ~CONSTANT CUTOFF~ in ~&SYSTEM~.
+It is off by default, and a message without it renders the same deck as before.
+
+* Why a fixed cutoff misleads a cell optimizer
+OpenCPMD's stress is the derivative of the energy at a fixed set of plane waves.
+A new cell is a new setup of the deck at the same cutoff, which holds a
+different set, so the energy of the next cell is not the energy the stress
+predicted.
+The difference is the Pulay stress.
+On the 40 Ry periodic water deck it is about 16 eV divided by the volume, 1.6e-2
+eV/Angstrom^3 in the 10 Angstrom cube, and it grows as the cell shrinks: a cell
+filter shrinks the cell while the energy rises.
+
+The functional replaces G^2 in the kinetic energy by
+
+#+begin_example
+G^2 + A [1 + erf((G^2 - E0) / sigma)]
+#+end_example
+
+with A, sigma, and E0 in Ry.
+A plane wave above E0 costs up to 2A more, so the orbitals hold almost no weight
+above E0 in any cell, and the energy belongs to the constant cutoff E0 while the
+basis keeps the cutoff of the deck.
+~kin_energy~, ~vpsi~, and the kinetic stress of OpenCPMD apply the term and its
+derivative, so the stress is the derivative of that energy.
+The OpenCPMD manual prints the argument of erf as ~G^2 / 2 - E0 / sigma~; the
+code in ~kin_energy_utils.mod.F90~ uses ~(G^2 - E0) / sigma~.
+
+* From ASE or Python
+Pass E0 in Ry:
+
+#+begin_src python
+from ase import Atoms
+from ase.filters import FrechetCellFilter
+from ase.optimize import BFGS
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
+atoms.rattle(0.05, seed=17)
+with CPMDCCalculator("water.periodic.bin", constant_cutoff=30.0) as calc:
+    atoms.calc = calc
+    with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+        opt.run(fmax=0.01, steps=80)
+    print(opt.nsteps, atoms.get_volume())
+#+end_src
+
+The keyword also takes a mapping or a ~cpmdc.ConstantCutoff~ that sets A or
+sigma.
+For example, ~ConstantCutoff(30.0, height_ry=2000.0, width_ry=3.0)~ sets both.
+~UnitCellFilter~ and ~ase.md.npt.NPT~ read the same stress.
+~Session~ and ~Potential~ take the same keyword.
+~calc.set(constant_cutoff=...)~ opens a new session; ~None~ turns the functional
+off.
+
+* From a message: LAMMPS, GROMACS, i-PI, and C
+Hosts that read a ~CPMDParams~ file take the functional from the ~system~
+section of the message, with A, sigma, and E0 in that order:
+
+#+begin_src text
+( system = ( symmetry = 1, angstrom = true, cutOffRy = 40.0,
+    cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+    constantCutoff = [2000.0, 3.0, 30.0] ) ),
+#+end_src
+
+~pair_style cpmdc~, ~cpmdc.lammps.FixExternal~, ~libcpmdc_gromacs~, and the
+socket drivers then evaluate it.
+A C host can set it on a session before its first step instead:
+
+#+begin_src c
+CPMDCSession *s = cpmdc_session_create(params_bytes, params_size);
+if (!s || cpmdc_session_set_constant_cutoff(s, 30.0, 0.0, 0.0) != 0)
+  fprintf(stderr, "%s\n", cpmdc_last_error());
+#+end_src
+
+A height or width of 0 selects the defaults below.
+A job TOML for ~tools/job_toml.py~ takes a ~[constant_cutoff]~ table with
+~cutoff_ry~, and optionally ~height_ry~ and ~width_ry~.
+
+* Choose E0, A, and sigma
+- E0 + 2 sigma must not exceed the cutoff of the deck; ~cpmdc~ refuses the
+  setting otherwise, with the three numbers in the message.
+  Keep the deck cutoff a little above E0, for example E0 = 30 Ry on a 40 Ry
+  deck.
+- Without A, ~cpmdc~ uses 50 times the deck cutoff; without sigma, E0 / 10.
+  The penalty then rises from near 0 at E0 - 2 sigma to 2A at E0 + 2 sigma.
+- A larger A brings the stress closer to dE/dV, but a very large A reaches below
+  E0 through the tail of erf and moves the energy itself.
+- Converge the physics in E0, not in the deck cutoff.
+  The energy is that of a basis a little below E0, so it lies above the energy
+  of the plain deck: -443.69 eV for the water at E0 = 30 Ry on the 40 Ry deck,
+  against -459.24 eV for the plain 40 Ry deck.
+  Compare energies only at the same E0, A, and sigma.
+- A message that gives ~&SYSTEM~ as raw text, or that already sets
+  ~system.constantCutoff~, cannot take ~constant_cutoff=~ as well.
+
+Without ~tools/opencpmd_constant_cutoff_precon.patch~ the ODIIS preconditioner
+ignores the penalty, ODIIS stops at its step limit, and ~cpmdc~ continues with
+PCG, which is slower; the [[file:opencpmd-archive.org][archive how-to]] lists
+the patch.
+
+* Measured on the water deck
+~bench/constant_cutoff_scan.py~ ran the periodic water deck at four basis
+cutoffs, as written and with E0 = 0.75 times the cutoff and the default A and
+sigma, on an Intel Xeon virtual machine with 8 vCPUs.
+The full output is in ~bench/results/constant_cutoff_water.org~.
+The first table compares the analytic mean stress of the unrelaxed water with
+dE/dV between two cells strained isotropically by 1.5%, and gives the mean wall
+time of those three stress calls:
+
+| Cutoff, Ry | E0, Ry | Mean stress, eV/A^3 | dE/dV, eV/A^3 | Difference, eV/A^3 | Time per stress call, s |
+|-+-+-+-+-+-|
+| 25 | - | +2.065e-02 | -1.801e-03 | +2.25e-02 | 1.7 |
+| 25 | 18.75 | -3.720e-03 | -3.932e-03 | +2.12e-04 | 1.7 |
+| 40 | - | +1.587e-02 | -6.389e-04 | +1.65e-02 | 2.7 |
+| 40 | 30 | -3.535e-03 | -3.659e-03 | +1.23e-04 | 3.6 |
+| 60 | - | +6.461e-03 | -4.789e-04 | +6.94e-03 | 4.7 |
+| 60 | 45 | -1.826e-03 | -1.855e-03 | +2.91e-05 | 6.2 |
+| 80 | - | +1.511e-03 | -3.334e-04 | +1.84e-03 | 8.2 |
+| 80 | 60 | -5.923e-04 | -6.229e-04 | +3.06e-05 | 10.1 |
+
+At a fixed cutoff the stress exceeds the slope of the energy by 2.25e-2
+eV/Angstrom^3 at 25 Ry and still by 1.84e-3 eV/Angstrom^3 at 80 Ry.
+At a constant cutoff it is below 2.2e-4 eV/Angstrom^3 and follows the sign of
+the slope; the stress that remains is the internal stress of the unrelaxed
+bonds.
+A stress call costs 1.0 to 1.33 times as much as at the fixed cutoff.
+
+The second table relaxes the water rattled by 0.05 Angstrom with BFGS on a
+~FrechetCellFilter~, to fmax 0.01 eV/Angstrom or 80 steps, and stops when the
+cell falls below a quarter of its 1000 Angstrom^3:
+
+| Cutoff, Ry | E0, Ry | Result | Steps | Final volume, A^3 | Final mean stress, eV/A^3 | Energy change, eV | Steps that raise the energy | Wall time, s |
+|-+-+-+-+-+-+-+-+-|
+| 25 | - | collapsed | 9 | 219.5 | - | -0.012 | 6 | 9 |
+| 25 | 18.75 | converged | 18 | 940.1 | -2.0e-06 | -1.249 | 0 | 33 |
+| 40 | - | collapsed | 9 | 226.1 | - | +0.797 | 8 | 16 |
+| 40 | 30 | converged | 53 | 919.1 | +4.2e-06 | -0.851 | 20 | 192 |
+| 60 | - | collapsed | 10 | 220.3 | - | +0.810 | 8 | 37 |
+| 60 | 45 | converged | 12 | 998.1 | +5.3e-07 | -0.337 | 0 | 83 |
+| 80 | - | collapsed | 12 | 223.0 | - | +0.874 | 9 | 68 |
+| 80 | 60 | converged | 14 | 989.6 | +1.8e-05 | -0.220 | 0 | 144 |
+
+At every fixed cutoff the cell collapses within 12 steps, and from 40 Ry up the
+energy ends higher than it started.
+At a constant cutoff every run converges between 919 and 998 Angstrom^3: one
+water in a 10 Angstrom box has almost no intermolecular stress.
+At 40 Ry, BFGS overshoots on that flat volume mode, so 20 of its 53 steps raise
+the energy, by at most 0.041 eV; the first six steps lower it every time.
+
+The [[file:../reference/c-abi.org][C ABI]], [[file:../reference/python.org][Python API]],
+and [[file:../reference/cpmd-options.org][CPMD options]] references list the
+call, the keyword, and the message field.

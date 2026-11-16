@@ -131,7 +131,9 @@ Each frame of the trajectory stores the energy, the forces, the stress when the
 step had one, and the calculator parameters, so ~read~ returns them without the
 library.
 
-With the periodic message, a cell filter relaxes the cell on the stress as well:
+With the periodic message, a cell filter relaxes the cell on the stress as well.
+~constant_cutoff=~ gives the stress the cell needs, as the end of this section
+explains:
 
 #+begin_src python
 from ase import Atoms
@@ -141,10 +143,11 @@ from cpmdc.ase import CPMDCCalculator
 
 water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
 atoms = Atoms("OHH", positions=water, cell=[10.0, 10.0, 10.0], pbc=True)
-with CPMDCCalculator("water.periodic.bin") as calc:
+atoms.rattle(0.05, seed=17)
+with CPMDCCalculator("water.periodic.bin", constant_cutoff=30.0) as calc:
     atoms.calc = calc
     with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
-        opt.run(fmax=0.01, steps=50)
+        opt.run(fmax=0.01, steps=80)
     print(opt.nsteps, atoms.get_volume(), atoms.cell.lengths())
 #+end_src
 
@@ -159,12 +162,19 @@ On OpenCPMD each new cell starts a cold SCF with the full CPMD setup, as
 [[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
 explains, so a cell relaxation costs more per step than a relaxation of the
 positions.
-At the 40 Ry cutoff of ~water.periodic.bin~ the OpenCPMD stress is almost all
-Pulay stress, about 16 eV divided by the cell volume, which is 0.016
-eV/Angstrom^3 in the 10 Angstrom cube.
-It grows as the cell shrinks, so the cell filter keeps shrinking the cell: the
-run above ends below 3 Angstrom^3 after its 50 steps, a cell that means nothing.
-Converge the stress with the cutoff before you relax a cell.
+Without ~constant_cutoff~, the OpenCPMD stress at the 40 Ry cutoff of
+~water.periodic.bin~ is almost all Pulay stress, about 16 eV divided by the cell
+volume, which is 0.016 eV/Angstrom^3 in the 10 Angstrom cube.
+It is the derivative at a fixed number of plane waves, while each new cell
+evaluates a fixed cutoff, so the cell filter shrinks the cell while the energy
+rises: without ~constant_cutoff~ the run above falls below 250 Angstrom^3 in 9
+steps, 0.8 eV above its start.
+~constant_cutoff=30.0~ keeps the 40 Ry basis and evaluates the constant-cutoff
+functional at 30 Ry, whose stress follows the energy.
+The run then converges at 919 Angstrom^3 in 53 steps, 0.85 eV below its start,
+because one water has almost no intermolecular stress.
+[[file:constant-cutoff.org][Relax a cell at a constant cutoff]] explains the
+parameters and gives the measured stress and volumes against the cutoff.
 
 The reference well drawn by ~docs/render_reference_well.py~ is the shape of an
 isolated one-atom step at a 70 Ry cutoff:
@@ -276,8 +286,8 @@ The ~restart~ argument is deprecated and ignored, and passing it warns with
 The working directory belongs to the process, so another thread that opens a
 relative path during a step opens it under ~directory~.
 Calls into the library must already come from one thread at a time, because it
-keeps one CPMD state per process, as the
-[[file:../reference/c-abi.org][C ABI reference]] says.
+keeps one CPMD state per process, as the [[file:../reference/c-abi.org][C ABI reference]]
+says.
 
 * Handle errors
 | Condition | Raised |

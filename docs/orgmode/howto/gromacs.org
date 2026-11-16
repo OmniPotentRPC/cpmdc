@@ -7,17 +7,15 @@ that is part of the system or all of it.
 of the [[file:../reference/c-abi.org][C ABI]]. GROMACS links it in place of
 CP2K, so ~mdrun~ needs no extra process and no socket. Energies and forces need
 no change to GROMACS' source; the QM virial, and so the pressure and NPT, needs
-a short patch to GROMACS' QM/MM module (see
-[[*Pressure and NPT][Pressure and NPT]]).
+a short patch to GROMACS' QM/MM module (see [[*Pressure and NPT][Pressure and NPT]]).
 
 | Route | GROMACS side | Needs |
 |-------+--------------+-------|
 | ~libcpmdc_gromacs~ | the CP2K QM/MM interface, ~qmmm-cp2k-*~ mdp options | GROMACS 2024 or later built with ~-DGMX_DOUBLE=ON -DGMX_CP2K=ON~ against cpmdc's ~libcp2k.pc~ |
 
 The [[file:../reference/gromacs.org][GROMACS interface reference]] lists the
-input keys, units, cell, embedding, and virial conventions, and
-[[file:../explanation/md-engines.org][cpmdc inside MD engines]] explains why
-this route and reports runs on OpenCPMD.
+input keys, units, cell, embedding, and virial conventions, and [[file:../explanation/md-engines.org][cpmdc inside MD engines]]
+explains why this route and reports runs on OpenCPMD.
 
 The interface was checked with GROMACS 2024.6, 2025.5, and 2026.4; the three
 call the same libcp2k functions, and 2026 adds ~cp2k_get_positions~ and
@@ -80,8 +78,7 @@ resolves ~libcpmdc_gromacs~ to the ~libdir~ of that ~libcp2k.pc~.
 With OpenCPMD linked, GROMACS must use the BLAS and LAPACK ~libcpmdc~ links:
 GROMACS' bundled ones (~-DGMX_EXTERNAL_BLAS=OFF~) export ~dgemm_~ and the rest
 from ~libgromacs~, OpenCPMD's calls bind to them, and its nonlocal
-pseudopotential forces come out wrong (see
-[[file:troubleshooting.org][Troubleshooting]]).
+pseudopotential forces come out wrong (see [[file:troubleshooting.org][Troubleshooting]]).
 The script passes ~-DGMX_EXTERNAL_BLAS=ON -DGMX_EXTERNAL_LAPACK=ON~ and the BLAS
 of ~libcpmdc~ when ~libcpmdc~ links one, and
 ~libcpmdc_gromacs~ stops ~mdrun~ when it finds ~dgemm_~ in ~libgromacs~ with
@@ -130,9 +127,8 @@ section and is refused.
 NPT works with a GROMACS patched as in [[*Build][Build]].
 The QM virial is the full tensor, in a cubic or triclinic box, so C-rescale,
 Parrinello-Rahman, and the other barostats see the QM part of the pressure
-whatever coupling type they use; the runs in
-[[file:../explanation/md-engines.org][the OpenCPMD runs]] use isotropic
-C-rescale and Parrinello-Rahman.
+whatever coupling type they use; the runs in [[file:../explanation/md-engines.org][the OpenCPMD runs]]
+use isotropic C-rescale and Parrinello-Rahman.
 
 An unpatched GROMACS reports a pressure without the QM and QM-MM terms.
 The [[file:../reference/gromacs.org][reference]] gives the virial the library
@@ -157,9 +153,10 @@ Two cautions:
 
 - with ~CELL PERIODIC~, each new box is a new setup of the deck at its cutoff,
   so the plane-wave basis changes with the box.
-  OpenCPMD's stress is the derivative at a fixed basis and has no Pulay
-  correction, so converge the cutoff for the stress, not only the energy, before
-  a periodic NPT run;
+  OpenCPMD's stress is the derivative at a fixed basis and carries the Pulay
+  stress of that cutoff, so set ~constantCutoff = [A, sigma, E0]~ in the
+  ~system~ section of the message for a periodic NPT run, as [[file:constant-cutoff.org][relax a cell at a constant cutoff]]
+  shows;
 - with ~CELL NONE~ the deck's cell has to hold the QM region and its density,
   not the region's path: cpmdc centres the region in it on each step.
 

@@ -335,6 +335,7 @@ Read the docs in this order:
   [embedding cpmdc](docs/orgmode/howto/embedding.org),
   [call cpmdc from Python](docs/orgmode/howto/python.org),
   [use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org),
+  [relax a cell at a constant cutoff](docs/orgmode/howto/constant-cutoff.org),
   [drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org),
   [run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org),
   [run GROMACS on cpmdc forces](docs/orgmode/howto/gromacs.org),

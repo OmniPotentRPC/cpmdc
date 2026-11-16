@@ -232,7 +232,7 @@ functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +
 erf((G^2 - E0) / sigma)], with ~cutoff_ry~ as E0, ~height_ry~ as A, and
 ~width_ry~ as sigma, all in Ry.
 A height or width of 0 selects 50 times the deck cutoff, or E0 / 10.
-The stress then carries no Pulay stress.
+The stress then carries no Pulay stress; see [[file:../howto/constant-cutoff.org][relaxing a cell at a constant cutoff]].
 The call returns -1 and writes ~cpmdc_last_error()~ when a value is not finite,
 when E0 + 2 sigma exceeds the deck cutoff, when the message gives ~&SYSTEM~ as
 raw text, or when it already sets ~system.constantCutoff~; the session keeps its

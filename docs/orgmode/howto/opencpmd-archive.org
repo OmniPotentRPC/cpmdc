@@ -29,7 +29,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | ~opencpmd_embed_extrapolate.patch~ | ~src/embed_ctrl.mod.F90~, ~src/control_test_utils.mod.F90~, ~src/rwfopt_utils.mod.F90~ | ~EXTRAPOLATE WFN~ in the deck is dropped with a warning, and ~libcpmdc~ does not link, because it reads ~embed_extrapolation_used~ |
 | ~opencpmd_omp_info.patch~ | ~src/rggen_utils.mod.F90~ | a calculator that spans nodes with unequal numbers of ranks calls ~MPI_Allreduce~ with different counts in the report and can stop before the first electronic iteration |
 | ~opencpmd_pcg_step.patch~ (optional) | ~src/pcgrad_driver.mod.F90~ | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see [[file:wavefunction-optimiser.org][the optimiser how-to]] |
-| ~opencpmd_constant_cutoff_precon.patch~ (optional) | ~src/hesele_utils.mod.F90~ | with ~CONSTANT CUTOFF~ the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and ~cpmdc~ falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s |
+| ~opencpmd_constant_cutoff_precon.patch~ (optional) | ~src/hesele_utils.mod.F90~ | with ~CONSTANT CUTOFF~ the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and ~cpmdc~ falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see [[file:constant-cutoff.org][relaxing a cell at a constant cutoff]] |
 
 The loops below apply every patch but the optional
 ~pcg_step~ and ~constant_cutoff_precon~; ~scripts/ci/build_opencpmd.sh~ applies
