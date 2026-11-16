@@ -53,6 +53,20 @@ def _reference_well():
         raise SystemExit("reference well was not drawn")
 
 
+def _constant_cutoff_npt():
+    """Draw the NPT density figure from bench/results before Sphinx reads the page."""
+    import importlib.util
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    script = os.path.join(here, os.pardir, "render_constant_cutoff_npt.py")
+    spec = importlib.util.spec_from_file_location("render_constant_cutoff_npt", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    dest = os.path.join(here, "_static", "constant-cutoff-npt.svg")
+    if module.main(["--out", dest]) != 0:
+        raise SystemExit("constant-cutoff NPT figure was not drawn")
+
+
 def _api_stub():
     """Keep the C API toctree resolvable before Doxygen has run."""
     api = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api", "index.rst")
@@ -70,6 +84,7 @@ def _api_stub():
 
 
 _reference_well()
+_constant_cutoff_npt()
 _api_stub()
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 

@@ -1375,6 +1375,15 @@ test(
     suite: ['docs', 'examples'],
   )
   test(
+    'constant-cutoff-npt-plot',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_constant_cutoff_npt_plot.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'examples'],
+  )
+  test(
     'python-api',
     python,
     args: [
