@@ -17,6 +17,7 @@ Each session keeps a counter of its own successful calls.
 |------+-----------+-----------|
 | cold | first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition | the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from ~RESTART~ when the deck has ~RESTART WAVEFUNCTION~ |
 | warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers | new positions into ~tau0~, ~phfac~, then the SCF from the stored ~c0~ |
+| in place | as warm, but a constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ whose new cell lies within the strain limit of the setup cell | the new cell on the setup's plane waves, then as warm |
 
 A cell counts as unchanged when every component of ~ForceInput.box~ matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
@@ -56,7 +57,7 @@ orbitals in again after ~initrun~ when the shape still matches.
 A different shape calls ~stopgm~ and names ~embed_reset_warm_orbitals~.
 ~cpmdc~ makes that call when the functional, the deck, the cutoff, the cell, the
 charge, the multiplicity, the atom count, or the elemental composition changes,
-before ~rwfopt~ runs.
+before ~rwfopt~ runs; a cell that moves in place keeps the orbitals.
 The SCF then runs to the orbital convergence threshold with the full ~MAXITER~
 budget of the deck; a warm call is a complete SCF from a better start, not a
 shortened one.
@@ -112,6 +113,8 @@ The parser sets this flag for ~CLUSTER~, ~SURFACE~, ~POLYMER~ or ~SYMMETRY 0~; a
 Coordinates are compared in species order without rotation or alignment.
 A cell or boundary-model change invalidates every stored orbital state,
 including when the distance limit is negative.
+A cell that moves in place is not such a change: the distances then use the
+setup cell, the cell of the plane waves the orbitals are written on.
 
 The default comes from the Si3N4 BLYP 70 Ry band (7 atoms, 14 Angstrom cell,
 ODIIS, 4 ranks per calculation).
@@ -191,11 +194,50 @@ Over 40 steps, the library route takes 5 more iterations than ~cpmd.x~ with ASPC
 and one fewer without, while the energies of the two routes differ from the
 tenth decimal on.
 
+* Cell changes at a constant cutoff
+A plane wave is a reciprocal lattice vector G(m) = 2 pi m H^-1 for integer m and
+lattice rows H, so the set of m inside the cutoff sphere, and with it the layout
+of ~c0~, belongs to the cell of the setup.
+The penalty of ~CONSTANT CUTOFF~ leaves the components above E0 + 2 sigma
+empty in any cell.
+While the setup's set of m holds every m whose G in the new cell lies below
+E0 + 2 sigma, the setup's plane waves span every occupied component of the new
+cell, and the stored orbitals still fit.
+With T = H_setup^-1 H_new, the squared length of G(m) in the setup cell is at
+most the largest eigenvalue of T T^T times its length in the new cell, so
+~cpmdc~ asks that this eigenvalue times E0 + 2 sigma stay within the
+wavefunction cutoff, and four times as much within the density cutoff.
+
+~CPMDC_CELL_IN_PLACE~ turns the move on and bounds the principal strain from
+the setup cell, the largest stretch or shrink of a length.
+A cell within it goes into ~metr_com%ht~, and OpenCPMD's ~newcell~ rescales the
+G vectors, the structure factors, and the pseudopotential tables, as OpenCPMD's
+own variable-cell dynamics does each step.
+The SCF then starts from the stored orbitals and the ~EXTRAPOLATE WFN~ history.
+The move also asks for the Gamma point, norm-conserving pseudopotentials, a
+periodic deck, the lattice class of the setup (a cube that stays a cube, an
+orthorhombic cell, or ~CELL VECTORS~), and the same method otherwise.
+A cell past the limit, or one that fails a condition, sets CPMD up again, and
+the strain is measured from that new setup cell.
+
+The plane waves between E0 + 2 sigma and the cutoff are then those of the setup
+cell rather than of the new one, which moves the energy and the stress away
+from those of a new setup in proportion to the strain.
+On 32 waters at a 100 Ry cutoff with E0 = 85 Ry and sigma = 4.25 Ry, a 1%
+stretch in place differs from a new setup by 3.3 meV in the energy, 0.08
+meV/Angstrom in the forces, and 32 bar in the pressure.
+The tail of erf reaches further below E0 at a wider sigma: the one-water deck
+at 40 Ry with E0 = 30 Ry and the default sigma of 3 Ry differs by about 3 meV,
+1.5 meV/Angstrom, and 3e-6 eV/Angstrom^3 for the same stretch.
+Within one setup, the energies of the moved cells lie on one smooth surface
+whose derivative is the stress, which the ~python-pytest~ case
+~test_the_constant_cutoff_stress_is_the_volume_derivative_of_the_energy~ checks.
+
 * What clears the orbitals
 
 | Event | Why |
 |-------+-----|
-| a cell change | the plane-wave basis depends on the cell, so the stored coefficients no longer fit |
+| a cell change, unless it moves in place | the plane-wave basis depends on the cell, so the stored coefficients no longer fit |
 | a cutoff change | the plane-wave basis changes, so the stored coefficients no longer fit |
 | a change of atom count or elemental composition, or of charge or multiplicity | those inputs set the number of states, and a restored ~c0~ of another shape calls ~stopgm~ |
 | ~cpmdc_session_set_params()~ or ~cpmdc_session_configure()~ when the functional, cutoff, charge, multiplicity, or deck differs | the next evaluation drops the orbitals; the call itself keeps them |

@@ -57,6 +57,9 @@ The energy is then that of a fresh SCF in the new cell.
 *Fix:* none needed when the cell change is intended.
 Keep ~ForceInput.box~ identical between steps when the cell is fixed; a
 difference above 1e-8 Angstrom in any component counts as a change.
+A constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ keeps the plane waves and the
+orbitals of the setup cell through a small change instead, so its energy moves
+smoothly with the cell between setups.
 
 * Failed calls
 

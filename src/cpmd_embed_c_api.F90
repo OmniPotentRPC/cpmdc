@@ -173,6 +173,11 @@ MODULE cpmd_embed_c_api
   INTEGER, SAVE :: embed_saved_has_cell = 0
   INTEGER, SAVE :: embed_saved_cell_set = 0
   REAL(c_double), SAVE :: embed_saved_cell(9) = 0.0_c_double
+  ! Lattice rows, Bohr, of the cell whose G sphere the setup built. The
+  ! stored orbitals are coefficients on those G vectors wherever an
+  ! in-place cell move takes them; see embed_cell_moves_in_place.
+  LOGICAL, SAVE :: embed_setup_ht_set = .FALSE.
+  REAL(real64), SAVE :: embed_setup_ht(3, 3) = 0.0_real64
 #endif
 
   TYPE :: embed_knobs
@@ -409,6 +414,7 @@ CONTAINS
     ! centre of mass of embed_recentre_cluster would be wrong.
     rmass = rmass_t()
     CALL clear_embed_basis_latch()
+    embed_setup_ht_set = .FALSE.
     cpmd_set_up = .FALSE.
 #endif
   END FUNCTION
@@ -2423,8 +2429,14 @@ CONTAINS
       warm_geo(3*slot-2:3*slot) = pos(3*j-2:3*j) + recentre%shift_ang
     END DO
     ! metr_com%ht contains lattice rows in Bohr, including deck-only cells.
+    ! The orbital history belongs to the setup's G vectors, so a cell
+    ! moved in place keeps it.
     DO i = 1, 3
-      warm_cell(3*i-2:3*i) = metr_com%ht(i,1:3) / fbohr
+      IF (embed_setup_ht_set) THEN
+        warm_cell(3*i-2:3*i) = embed_setup_ht(i,1:3) / fbohr
+      ELSE
+        warm_cell(3*i-2:3*i) = metr_com%ht(i,1:3) / fbohr
+      END IF
     END DO
     CALL embed_choose_warm_start_metric_v2(warm_geo, warm_cell, .NOT. isos1%tclust, &
         warm_rmsd_limit(), warm_dist, warm_source, warm_donor, warm_geometry_distance)
@@ -2759,13 +2771,10 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: cell(*)
     TYPE(embed_knobs), INTENT(IN) :: knobs
     INTEGER :: i
-    REAL(c_double) :: cutoff
     embed_basis_changed = .FALSE.
     IF (.NOT. embed_basis_latched) RETURN
-    cutoff = REAL(knobs%cutoff_ry, KIND=c_double)
     ! A detached image has no cell of its own. The cell stored with the
-    ! orbitals is the one a new session has to match. c0 is plane-wave
-    ! coefficients, so the count of each element is the composition.
+    ! orbitals is the one a new session has to match.
     IF (image%warm_cell_set /= 0) THEN
       IF (.NOT. warm_cell_matches(image, cell, has_cell)) &
           embed_basis_changed = .TRUE.
@@ -2779,24 +2788,194 @@ CONTAINS
             embed_basis_changed = .TRUE.
       END DO
     END IF
+    IF (embed_method_changed(n_atoms, z, knobs)) embed_basis_changed = .TRUE.
+  END FUNCTION
+
+  ! Every part of the basis but the cell. c0 is plane-wave coefficients,
+  ! so the count of each element is the composition.
+  LOGICAL FUNCTION embed_method_changed(n_atoms, z, knobs)
+    INTEGER, INTENT(IN) :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
+    REAL(c_double) :: cutoff
+    embed_method_changed = .FALSE.
+    cutoff = REAL(knobs%cutoff_ry, KIND=c_double)
     IF (ABS(cutoff - embed_saved_cutoff) > 1.0e-8_c_double) &
-        embed_basis_changed = .TRUE.
-    IF (knobs%charge /= embed_saved_charge) embed_basis_changed = .TRUE.
-    IF (knobs%mult /= embed_saved_mult) embed_basis_changed = .TRUE.
+        embed_method_changed = .TRUE.
+    IF (knobs%charge /= embed_saved_charge) embed_method_changed = .TRUE.
+    IF (knobs%mult /= embed_saved_mult) embed_method_changed = .TRUE.
     IF (TRIM(knobs%functional) /= TRIM(embed_saved_functional)) &
-        embed_basis_changed = .TRUE.
+        embed_method_changed = .TRUE.
     IF (.NOT. ALLOCATED(embed_saved_deck)) THEN
       IF (ALLOCATED(knobs%input_deck)) THEN
-        IF (LEN_TRIM(knobs%input_deck) > 0) embed_basis_changed = .TRUE.
+        IF (LEN_TRIM(knobs%input_deck) > 0) embed_method_changed = .TRUE.
       END IF
     ELSE IF (.NOT. ALLOCATED(knobs%input_deck)) THEN
-      IF (LEN_TRIM(embed_saved_deck) > 0) embed_basis_changed = .TRUE.
+      IF (LEN_TRIM(embed_saved_deck) > 0) embed_method_changed = .TRUE.
     ELSE IF (knobs%input_deck /= embed_saved_deck) THEN
-      embed_basis_changed = .TRUE.
+      embed_method_changed = .TRUE.
     END IF
-    IF (n_atoms /= embed_saved_natoms) embed_basis_changed = .TRUE.
-    IF (.NOT. same_element_counts(n_atoms, z)) embed_basis_changed = .TRUE.
+    IF (n_atoms /= embed_saved_natoms) embed_method_changed = .TRUE.
+    IF (.NOT. same_element_counts(n_atoms, z)) embed_method_changed = .TRUE.
   END FUNCTION
+
+  ! CPMDC_CELL_IN_PLACE is the largest principal strain of a cell from
+  ! the setup cell, as a fraction of a length, that keeps the setup's plane
+  ! waves on a constant-cutoff deck. Unset, 0, negative, or a value that
+  ! does not parse sets CPMD up again for every new cell.
+  REAL(real64) FUNCTION embed_cell_strain_limit()
+    CHARACTER(LEN=32) :: v
+    INTEGER :: st, ios
+    REAL(real64) :: x
+    embed_cell_strain_limit = 0.0_real64
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_CELL_IN_PLACE', v, STATUS=st)
+    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
+    READ(v, *, IOSTAT=ios) x
+    IF (ios == 0 .AND. x > 0.0_real64) embed_cell_strain_limit = x
+  END FUNCTION
+
+  ! The largest eigenvalue of a symmetric 3x3 matrix (Smith 1961).
+  REAL(real64) FUNCTION largest_symmetric_eigenvalue(s) RESULT(lmax)
+    REAL(real64), INTENT(IN) :: s(3, 3)
+    REAL(real64) :: p1, p2, p, q, r, b(3, 3), phi
+    INTEGER :: i
+    p1 = s(1,2)**2 + s(1,3)**2 + s(2,3)**2
+    IF (p1 <= 0.0_real64) THEN
+      lmax = MAX(s(1,1), s(2,2), s(3,3))
+      RETURN
+    END IF
+    q = (s(1,1) + s(2,2) + s(3,3)) / 3.0_real64
+    p2 = (s(1,1) - q)**2 + (s(2,2) - q)**2 + (s(3,3) - q)**2 + 2.0_real64 * p1
+    p = SQRT(p2 / 6.0_real64)
+    b = s
+    DO i = 1, 3
+      b(i,i) = b(i,i) - q
+    END DO
+    b = b / p
+    r = 0.5_real64 * (b(1,1) * (b(2,2) * b(3,3) - b(2,3) * b(3,2)) - &
+         b(1,2) * (b(2,1) * b(3,3) - b(2,3) * b(3,1)) + &
+         b(1,3) * (b(2,1) * b(3,2) - b(2,2) * b(3,1)))
+    r = MAX(-1.0_real64, MIN(1.0_real64, r))
+    phi = ACOS(r) / 3.0_real64
+    lmax = q + 2.0_real64 * p * COS(phi)
+  END FUNCTION
+
+  ! A constant-cutoff deck can keep its plane waves through a change of the
+  ! periodic cell. The penalty of CONSTANT CUTOFF leaves the components
+  ! above E0 + 2 sigma empty, so the G vectors of the setup cell still
+  ! hold every occupied component of the new cell while they contain
+  ! that sphere of it, and the density's G vectors the sphere of twice
+  ! the radius. The plane waves between that sphere and the cutoff are
+  ! then the setup's rather than the new cell's, which moves the stress
+  ! away from that of a fresh setup in proportion to the strain, so the
+  ! strain from the setup cell stays within CPMDC_CELL_IN_PLACE. Only the
+  ! cell may differ from the latched basis: Gamma point, norm-conserving
+  ! pseudopotentials, the setup's lattice class, and a minimum-image rule
+  ! that embed_move_cell can follow.
+  LOGICAL FUNCTION embed_cell_moves_in_place(n_atoms, z, cell, has_cell, knobs)
+    USE prcp, ONLY: prcp_com
+    USE gvec, ONLY: gvec_com
+    USE kpts, ONLY: tkpts
+    USE isos, ONLY: isos1
+    USE system, ONLY: parm
+    USE pslo, ONLY: pslo_com
+    USE cnst, ONLY: fbohr
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(IN) :: cell(*)
+    TYPE(embed_knobs), INTENT(IN) :: knobs
+    REAL(real64) :: h_new(3, 3), t(3, 3), s(3, 3), stretch, shrink, sphere
+    REAL(real64) :: limit
+    REAL(c_double) :: setup_cell(9)
+    INTEGER :: i, setup_code
+    embed_cell_moves_in_place = .FALSE.
+    limit = embed_cell_strain_limit()
+    IF (limit <= 0.0_real64) RETURN
+    IF (.NOT. cpmd_set_up .OR. .NOT. embed_setup_ht_set) RETURN
+    IF (has_cell == 0 .OR. embed_saved_has_cell == 0) RETURN
+    IF (isos1%tclust .OR. tkpts%tkpnt .OR. pslo_com%tivan) RETURN
+    IF (prcp_com%akin <= 0.0_real64 .OR. prcp_com%skin <= 0.0_real64) RETURN
+    IF (embed_method_changed(n_atoms, z, knobs)) RETURN
+    DO i = 1, 3
+      setup_cell(3*i-2:3*i) = embed_setup_ht(i,1:3) / fbohr
+      h_new(i,1:3) = REAL(cell(3*i-2:3*i), KIND=real64) * fbohr
+    END DO
+    setup_code = periodic_symmetry_code(setup_cell, 1)
+    IF (setup_code == 0) RETURN
+    IF (periodic_symmetry_code(cell, has_cell) /= setup_code) RETURN
+    SELECT CASE (parm%ibrav)
+    CASE (1)
+      IF (ABS(h_new(2,2) - h_new(1,1)) > 1.0e-10_real64 * h_new(1,1) .OR. &
+          ABS(h_new(3,3) - h_new(1,1)) > 1.0e-10_real64 * h_new(1,1)) RETURN
+    CASE (8)
+    CASE (14)
+      IF (ABS(parm%apbc(2)) > 0.0_real64) RETURN
+    CASE DEFAULT
+      RETURN
+    END SELECT
+    ! |G(m)|^2 = 4 pi^2 m' (H H')^-1 m for lattice rows H, so the ratio of
+    ! the setup's to the new over m lies between the extreme eigenvalues
+    ! of T T' with T = H_setup^-1 H_new, the squares of the principal
+    ! stretches.
+    t = MATMUL(inverse3(embed_setup_ht), h_new)
+    s = MATMUL(t, TRANSPOSE(t))
+    stretch = largest_symmetric_eigenvalue(s)
+    shrink = largest_symmetric_eigenvalue(inverse3(s))
+    IF (SQRT(stretch) - 1.0_real64 > limit) RETURN
+    IF (1.0_real64 - 1.0_real64 / SQRT(shrink) > limit) RETURN
+    sphere = prcp_com%gckin + 2.0_real64 * prcp_com%gskin
+    IF (sphere <= 0.0_real64) RETURN
+    IF (stretch * sphere > gvec_com%gcutw) RETURN
+    IF (stretch * 4.0_real64 * sphere > gvec_com%gcut) RETURN
+    embed_cell_moves_in_place = .TRUE.
+  END FUNCTION
+
+  FUNCTION inverse3(a) RESULT(b)
+    REAL(real64), INTENT(IN) :: a(3, 3)
+    REAL(real64) :: b(3, 3), det
+    b(1,1) = a(2,2) * a(3,3) - a(2,3) * a(3,2)
+    b(1,2) = a(1,3) * a(3,2) - a(1,2) * a(3,3)
+    b(1,3) = a(1,2) * a(2,3) - a(1,3) * a(2,2)
+    b(2,1) = a(2,3) * a(3,1) - a(2,1) * a(3,3)
+    b(2,2) = a(1,1) * a(3,3) - a(1,3) * a(3,1)
+    b(2,3) = a(1,3) * a(2,1) - a(1,1) * a(2,3)
+    b(3,1) = a(2,1) * a(3,2) - a(2,2) * a(3,1)
+    b(3,2) = a(1,2) * a(3,1) - a(1,1) * a(3,2)
+    b(3,3) = a(1,1) * a(2,2) - a(1,2) * a(2,1)
+    det = a(1,1) * b(1,1) + a(1,2) * b(2,1) + a(1,3) * b(3,1)
+    b = b / det
+  END FUNCTION
+
+  ! Puts the caller's cell under the setup's G vectors. OpenCPMD's initrun
+  ! does the same on each SCF with cntl%tpres, but after rinitwf, which
+  ! builds a guess on the cell it finds. The minimum-image half lengths
+  ! of rpiiint's pbc come from setsc, once per setup; a cell given by
+  ! CELL VECTORS folds through htm1 instead (parm%apbc(2) = 0).
+  SUBROUTINE embed_move_cell(cell)
+    USE metr, ONLY: metr_com
+    USE cnst, ONLY: fbohr
+    USE system, ONLY: parm
+    USE setsc_utils, ONLY: ihmat
+    USE newcell_utils, ONLY: newcell
+    REAL(c_double), INTENT(IN) :: cell(*)
+    INTEGER :: i
+    DO i = 1, 3
+      metr_com%ht(i,1:3) = REAL(cell(3*i-2:3*i), KIND=real64) * fbohr
+    END DO
+    parm%a1 = metr_com%ht(1,:)
+    parm%a2 = metr_com%ht(2,:)
+    parm%a3 = metr_com%ht(3,:)
+    CALL ihmat(metr_com%ht, metr_com%htm1, parm%omega)
+    SELECT CASE (parm%ibrav)
+    CASE (1)
+      parm%apbc(1) = 0.5_real64 * metr_com%ht(1,1)
+    CASE (8)
+      DO i = 1, 3
+        parm%apbc(i) = 0.5_real64 * metr_com%ht(i,i)
+      END DO
+    END SELECT
+    CALL newcell
+  END SUBROUTINE
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
@@ -2836,6 +3015,7 @@ CONTAINS
     USE parac, ONLY: paral
     USE system, ONLY: cnts, cntl
     USE isos, ONLY: isos1
+    USE metr, ONLY: metr_com
     USE ropt, ONLY: init_pinf_pointers
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
@@ -2848,7 +3028,7 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, idx, nmax, nlen, mfd
     TYPE(embed_knobs) :: knobs
-    LOGICAL :: tinfo
+    LOGICAL :: tinfo, warm, in_place
     CHARACTER(LEN=:), ALLOCATABLE :: deck
     CHARACTER(LEN=64) :: mempath
     CHARACTER(KIND=c_char) :: pp_c(1024)
@@ -2862,13 +3042,28 @@ CONTAINS
     ! Saved orbitals match one method, cell, and elemental composition.
     ! A shape mismatch in embed_restore_orbitals calls stopgm, so drop
     ! the copy before rwfopt when any of those change. A new session and
-    ! a reordering of the same atomic numbers are not a new basis.
+    ! a reordering of the same atomic numbers are not a new basis, and
+    ! neither is a cell that embed_cell_moves_in_place accepts.
     knobs = knobs_of(image)
-    IF (embed_basis_latched .AND. &
-        .NOT. embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)) THEN
+    warm = .FALSE.
+    in_place = .FALSE.
+    IF (embed_basis_latched) THEN
+      warm = .NOT. embed_basis_changed(image, n_atoms, z, cell, has_cell, knobs)
+      IF (.NOT. warm) THEN
+        in_place = embed_cell_moves_in_place(n_atoms, z, cell, has_cell, knobs)
+        warm = in_place
+      END IF
+    END IF
+    IF (warm) THEN
       IF (.NOT. embed_use_output_dir(image)) THEN
         ierr = cpmdc_restore_host_cwd()
         RETURN
+      END IF
+      ! The latched cell is the one metr_com%ht holds, even when the SCF
+      ! that follows fails.
+      IF (in_place) THEN
+        CALL embed_move_cell(cell)
+        CALL latch_warm_cell(image, cell, has_cell)
       END IF
       CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
       ierr = cpmdc_restore_host_cwd()
@@ -2979,6 +3174,8 @@ CONTAINS
     CALL prnginit
     CALL gle_alloc
     CALL vdw_wf_alloc
+    embed_setup_ht = metr_com%ht
+    embed_setup_ht_set = .TRUE.
     ! First and later forces: positions only from C arrays (nwchemc geom pattern).
     CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     IF (ok /= 0_c_int) THEN

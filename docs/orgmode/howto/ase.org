@@ -162,6 +162,8 @@ On OpenCPMD each new cell starts a cold SCF with the full CPMD setup, as
 [[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
 explains, so a cell relaxation costs more per step than a relaxation of the
 positions.
+A constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ moves a nearby cell in place
+and stays warm instead.
 Without ~constant_cutoff~, the OpenCPMD stress at the 40 Ry cutoff of
 ~water.periodic.bin~ is almost all Pulay stress, about 16 eV divided by the cell
 volume, which is 0.016 eV/Angstrom^3 in the 10 Angstrom cube.
