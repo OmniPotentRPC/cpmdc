@@ -74,7 +74,8 @@ usage: constant_cutoff_npt.py start --out BOX.xyz [--waters 32] [--density 1.0]
                                     [--discard-ps PS] [--min-discard-ps 0.5]
                                     [--branch-discard-ps 0.05] [--min-production-ps 0.1]
                                     [--window-ps 0.1] [--plot-window-ps 0.02]
-                                    [--branch-step-ps 0.01] [--output FILE]
+                                    [--branch-step-ps 0.01] [--min-blocks 8]
+                                    [--output FILE]
 """
 
 from __future__ import annotations
