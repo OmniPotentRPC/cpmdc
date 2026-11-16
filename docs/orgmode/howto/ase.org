@@ -159,6 +159,12 @@ On OpenCPMD each new cell starts a cold SCF with the full CPMD setup, as
 [[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
 explains, so a cell relaxation costs more per step than a relaxation of the
 positions.
+At the 40 Ry cutoff of ~water.periodic.bin~ the OpenCPMD stress is almost all
+Pulay stress, about 16 eV divided by the cell volume, which is 0.016
+eV/Angstrom^3 in the 10 Angstrom cube.
+It grows as the cell shrinks, so the cell filter keeps shrinking the cell: the
+run above ends below 3 Angstrom^3 after its 50 steps, a cell that means nothing.
+Converge the stress with the cutoff before you relax a cell.
 
 The reference well drawn by ~docs/render_reference_well.py~ is the shape of an
 isolated one-atom step at a 70 Ry cutoff:
