@@ -100,11 +100,19 @@ def test_new_session_keeps_matching_orbitals() -> None:
     )
     assert basis, "embed_basis_changed not found"
     basis_body = basis.group(0)
-    assert "same_element_counts" in basis_body
-    assert "embed_saved_functional" in basis_body
-    assert "embed_saved_deck" in basis_body
     assert "embed_saved_cell" in basis_body
-    assert "embed_saved_z(i)" not in basis_body
+    assert "embed_method_changed(n_atoms, z, knobs)" in basis_body
+    method = re.search(
+        r"LOGICAL FUNCTION embed_method_changed.*?END FUNCTION",
+        embed,
+        re.S,
+    )
+    assert method, "embed_method_changed not found"
+    method_body = method.group(0)
+    assert "same_element_counts" in method_body
+    assert "embed_saved_functional" in method_body
+    assert "embed_saved_deck" in method_body
+    assert "embed_saved_z(i)" not in basis_body + method_body
     assert "FUNCTION cpmdc_embed_detach_image" in embed
     assert "CALL embed_reset_warm_orbitals" not in re.search(
         r"FUNCTION cpmdc_embed_detach_image.*?END FUNCTION",

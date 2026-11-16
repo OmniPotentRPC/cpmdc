@@ -2815,6 +2815,8 @@ CONTAINS
     ELSE IF (knobs%input_deck /= embed_saved_deck) THEN
       embed_method_changed = .TRUE.
     END IF
+    ! c0 is plane-wave coefficients, so the count of each element is the
+    ! composition.
     IF (n_atoms /= embed_saved_natoms) embed_method_changed = .TRUE.
     IF (.NOT. same_element_counts(n_atoms, z)) embed_method_changed = .TRUE.
   END FUNCTION
