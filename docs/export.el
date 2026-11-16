@@ -38,6 +38,15 @@ other link so ox-rst handles it."
                     (file-name-nondirectory (match-string 1 path)))))
         (format ":doc:`%s <%s>`" text page)))))
 
+(defun cpmdc-rst-keep-space-after-script (text backend _info)
+  "Keep the space or newline after a :sup: or :sub: role in TEXT.
+ox-rst ends the role with a backslash, which escapes the whitespace that
+follows, so m^3 at rendered as m3at. A space replaces the backslash, which
+keeps the columns of RST tables."
+  (if (org-export-derived-backend-p backend 'rst)
+      (replace-regexp-in-string "\\(:su[bp]:`[^`\n]*`\\)\\\\\\([ \n]\\)" "\\1 \\2" text t)
+    text))
+
 (defun cpmdc-publish-with-ox-rst ()
   "Export Org sources with MELPA ox-rst."
   (require 'package)
@@ -49,6 +58,7 @@ other link so ox-rst handles it."
   (require 'ox-rst)
   (require 'ox-publish)
   (advice-add 'org-rst-link :before-until #'cpmdc-rst-file-doc-link)
+  (add-to-list 'org-export-filter-final-output-functions #'cpmdc-rst-keep-space-after-script)
   (setq org-publish-project-alist
         '(("sphinx-rst"
            :base-directory "./orgmode/"
