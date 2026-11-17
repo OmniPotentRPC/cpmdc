@@ -327,11 +327,22 @@ if fc.get_linker_id() in ['ld.bfd', 'ld.gold', 'ld.lld', 'ld.mold']
   cpmdc_shared_link_args += ['-Wl,--version-script=' + cpmdc_export_list.full_path()]
   cpmdc_shared_link_depends += [cpmdc_export_list]
 elif fc.get_linker_id().startswith('ld64')
+  cpmdc_export_command = [
+    python,
+    files('scripts/abi_inventory.py'),
+    '--exported-symbols-list',
+    '@OUTPUT@',
+  ]
+  # ld64 turns every exported_symbols_list name into an undefined reference.
+  # Only an OpenCPMD build has MPI Fortran COMMON blocks for those names.
+  if has_cpmd
+    cpmdc_export_command += ['--mpi-fortran-sentinels']
+  endif
   cpmdc_export_list = custom_target(
     'libcpmdc-exported-symbols',
     input: cpmdc_public_headers,
     output: 'libcpmdc.exp',
-    command: [python, files('scripts/abi_inventory.py'), '--exported-symbols-list', '@OUTPUT@'],
+    command: cpmdc_export_command,
   )
   cpmdc_shared_link_args += ['-Wl,-exported_symbols_list,' + cpmdc_export_list.full_path()]
   cpmdc_shared_link_depends += [cpmdc_export_list]

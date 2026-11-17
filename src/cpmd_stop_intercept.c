@@ -7,7 +7,16 @@ static int g_code = 0;
 static int g_catch = 0;
 
 typedef int (*cpmd_stopgm_hook_fn)(int code);
-extern cpmd_stopgm_hook_fn cpmd_stopgm_hook __attribute__((weak));
+#if defined(__APPLE__)
+/* Darwin needs weak_import; weak still emits a required undefined reference. */
+#define CPMDC_WEAK_IMPORT __attribute__((weak_import))
+#elif defined(__GNUC__) || defined(__clang__)
+#define CPMDC_WEAK_IMPORT __attribute__((weak))
+#else
+#define CPMDC_WEAK_IMPORT
+#endif
+extern cpmd_stopgm_hook_fn cpmd_stopgm_hook CPMDC_WEAK_IMPORT;
+#undef CPMDC_WEAK_IMPORT
 
 static void set_hook(cpmd_stopgm_hook_fn fn) {
   if (&cpmd_stopgm_hook != 0)

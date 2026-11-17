@@ -156,8 +156,10 @@ def version_script(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def exported_symbols_list(root: Path) -> str:
-    names = [*public_symbols(root), *MPI_FORTRAN_SENTINELS]
+def exported_symbols_list(root: Path, mpi_fortran_sentinels: bool = False) -> str:
+    names = public_symbols(root)
+    if mpi_fortran_sentinels:
+        names += list(MPI_FORTRAN_SENTINELS)
     return "".join(f"_{name}\n" for name in names)
 
 
@@ -233,6 +235,11 @@ def main() -> int:
         help="write the ld64 exported symbols list",
     )
     parser.add_argument(
+        "--mpi-fortran-sentinels",
+        action="store_true",
+        help="also export MPI Fortran sentinel common blocks",
+    )
+    parser.add_argument(
         "library", type=Path, nargs="?", help="built libcpmdc shared library"
     )
     parser.add_argument("--root", type=Path, default=ROOT, help="source tree")
@@ -243,7 +250,8 @@ def main() -> int:
         return 0
     if args.exported_symbols_list is not None:
         args.exported_symbols_list.write_text(
-            exported_symbols_list(args.root), encoding="utf-8"
+            exported_symbols_list(args.root, args.mpi_fortran_sentinels),
+            encoding="utf-8",
         )
         return 0
     if args.library is None:
