@@ -60,12 +60,21 @@ so ~get_forces~ after ~get_potential_energy~ does not evaluate again:
 | ~free_energy~ | ~get_potential_energy(force_consistent=True)~ | eV | equals ~energy~ | equals ~energy~ |
 | ~forces~ | ~get_forces()~ | eV/Angstrom, shape ~(N, 3)~ | yes | yes |
 | ~stress~ | ~get_stress()~ | eV/Angstrom^3, Voigt ~(xx, yy, zz, yz, xz, xy)~ | raises ~PropertyNotImplementedError~ | yes, unless the deck is isolated or ~CPMDC_STRESS=0~ |
-| ~energies~, ~magmom~, ~magmoms~, ~charges~, ~dipole~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
+| ~dipole~ | ~get_dipole_moment()~ | e*Angstrom, shape ~(3,)~ | raises ~PropertyNotImplementedError~ | yes for a supported deck that requests Berry dipole evaluation |
+| ~energies~, ~magmom~, ~magmoms~, ~charges~ | ~get_property(name)~ | | raises ~PropertyNotImplementedError~ | raises ~PropertyNotImplementedError~ |
 
 ~free_energy~ is the potential energy of the step, because the library does not
 separate an electronic entropy.
-The library returns no atomic energies, charges, magnetic moments, or dipole, so
-~implemented_properties~ lists only the first four rows.
+The library returns no atomic energies, charges, or magnetic moments.
+~implemented_properties~ lists ~dipole~ because linked OpenCPMD can deliver it.
+It raises ~PropertyNotImplementedError~ when the current step cannot.
+
+A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
+deck with ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
+The reference evaluator, isolated and k-point decks, and decks without either
+request do not return a dipole.
+The calculator reports those cases as unavailable instead of returning zero or
+state left by an earlier step.
 
 * Compute stress in a periodic cell
 All three ~pbc~ flags true send ~atoms.cell~ to the library as the periodic
@@ -84,7 +93,7 @@ with CPMDCCalculator("water.periodic.bin") as calc:
 #+end_src
 
 Units are ASE's: positions and cells in Angstrom, energies in eV, forces in
-eV/Angstrom, and stress in eV/Angstrom^3.
+eV/Angstrom, stress in eV/Angstrom^3, and dipole in e*Angstrom.
 The calculator converts from the library's Hartree and Bohr with ~HARTREE_TO_EV~
 and ~BOHR_TO_ANGSTROM~, which are the CODATA 2018 values.
 ASE's default ~ase.units~ are CODATA 2014, so a number converted back with
@@ -309,7 +318,7 @@ says.
 |-----------+--------|
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
 | a keyword other than ~params~, ~library~, and ASE's own; no ~params~ | ~TypeError~ |
-| stress where the step has none; ~energies~, ~magmoms~, ~charges~, or ~dipole~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
+| stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, or a periodic cell without three independent vectors | ~ValueError~ |
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |

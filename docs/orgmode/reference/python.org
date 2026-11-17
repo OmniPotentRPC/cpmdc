@@ -15,11 +15,11 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | Name | Role |
 |------+------|
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
-| ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
+| ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the CODATA 2018 constant in ~src/cpmdc_params.h~ |
 | ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
 | ~CPMDCError~ | failure from the library or from loading it |
 | ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
-| ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
+| ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor), ~dipole_e_bohr~ (~None~ unless OpenCPMD recomputed it) |
 | ~ConstantCutoff~ | frozen dataclass of the constant-cutoff kinetic functional, ~ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)~; a value that is not finite and positive raises ~ValueError~, and one that is not a number ~TypeError~ |
 | ~ConstantCutoff.cutoff_ry~, ~ConstantCutoff.height_ry~, ~ConstantCutoff.width_ry~ | E0, A, and sigma in Ry; ~None~ selects 50 times the deck cutoff for A and E0 / 10 for sigma |
 | ~ConstantCutoff.coerce~ | ~None~, a ~ConstantCutoff~, a mapping of its fields, or E0 in Ry, to a ~ConstantCutoff~ or ~None~ |
@@ -34,19 +34,20 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
 | ~Session.close~ | destroy the handle; a later step raises ~CPMDCError~ |
 | ~Potential~ | rgpot-shaped provider over one session; ~constant_cutoff=~ goes to ~Session~; ~schema~ is deprecated and ignored |
-| ~Potential.evaluate~ | eV, eV/Angstrom, optional row-major stress in eV/Angstrom^3 |
-| ~Potential.caps~ | ~stress~ true, ~energies~ false |
+| ~Potential.evaluate~ | eV, eV/Angstrom, optional row-major stress in eV/Angstrom^3, and optional ~dipole~ in e*Angstrom |
+| ~Potential.caps~ | ~stress~ and ~dipole~ true, ~energies~ false |
 | ~Potential.close~ | close the owned session |
 | ~find_library~ | explicit path, the three environment variables, the wheel's library, the dynamic linker, then ~build/~ |
 | ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~; for ~capnp encode~ of ~CPMDParams~ text |
 | ~forces_to_ev_per_angstrom~ | Hartree/Bohr forces to eV/Angstrom |
+| ~dipole_to_e_angstrom~ | electron Bohr dipole to e*Angstrom |
 | ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3, library sign |
-| ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress; keywords ~params~, ~library~, and ~constant_cutoff~, and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
+| ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress, and dipole when available; keywords ~params~, ~library~, and ~constant_cutoff~, and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
 | ~CPMDCCalculator.default_parameters~ | ~params~, ~library~, and ~constant_cutoff~, all ~None~; a ~constant_cutoff~ is stored as E0 in Ry, or as the mapping of ~ConstantCutoff.todict~ when it sets a height or a width |
-| ~CPMDCCalculator.implemented_properties~ | ~energy~, ~free_energy~, ~forces~, and ~stress~ |
+| ~CPMDCCalculator.implemented_properties~ | ~energy~, ~free_energy~, ~forces~, ~stress~, and ~dipole~ |
 | ~CPMDCCalculator.ignored_changes~ | ~initial_charges~ and ~initial_magmoms~: a change of either keeps the stored results, because ~params~ sets the charge and the multiplicity |
 | ~CPMDCCalculator.discard_results_on_any_change~ | ~True~: a parameter that ~set~ changes clears the stored results |
-| ~CPMDCCalculator.calculate~ | one step with ~directory~ as the working directory; fills energy, free_energy, forces, and stress for a periodic cell |
+| ~CPMDCCalculator.calculate~ | one step with ~directory~ as the working directory; fills energy, free_energy, forces, and any available stress and dipole |
 | ~CPMDCCalculator.set~ | change ~params~, ~library~, or ~constant_cutoff~, open a new session, clear results, return a dictionary of the changed parameters; ~parameters~ reads a saved file, and any other key raises ~TypeError~ |
 | ~CPMDCCalculator.todict~ | the parameters as JSON data; a ~params~ buffer of bytes is left out |
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
@@ -75,6 +76,9 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | ~type_numbers(elements, n_types)~: atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence; ~ValueError~ unless there are ~n_types~ |
 
+~BOHR_TO_ANGSTROM = 0.529177210903~ is the [[https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0][2018 CODATA Bohr radius]]
+in Angstrom. Dipole conversion multiplies electron Bohr by this value.
+
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~.
 A repeated geometry returns the stored step.
 A null or empty input raises; it does not abort the interpreter.
@@ -96,7 +100,7 @@ covers ~cpmdc.lammps~.
 | empty positions, a non-finite coordinate, an atomic number outside 1..118 | ~ValueError~ |
 | ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
 | a ~CPMDCCalculator~ step without atoms | ~ValueError~ |
-| stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
+| stress on free boundaries or an isolated deck; dipole when the evaluation did not recompute one; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | a keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~ other than ~params~, ~library~, ~constant_cutoff~, and ASE's own, such as ~charge~ or ~multiplicity~; no ~params~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
 | a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
