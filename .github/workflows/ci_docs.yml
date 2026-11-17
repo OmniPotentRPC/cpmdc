@@ -1,6 +1,6 @@
 concurrency:
-  cancel-in-progress: true
-  group: pages
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: pages-${{ github.ref }}
 jobs:
   build_docs:
     name: Build documentation
