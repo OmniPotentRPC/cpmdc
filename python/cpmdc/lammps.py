@@ -136,6 +136,12 @@ class _SessionPotential:
         self.composition: tuple[int, ...] | None = None
         self.forces = np.zeros(0)
         self.virial = np.zeros(9)
+        # Metal defaults. FixExternal overwrites these with the LAMMPS style
+        # so atomic units invert rgpot's conversion exactly.
+        self._length_per_angstrom = 1.0
+        self._energy_per_ev = 1.0
+        self._length_per_bohr = BOHR_TO_ANGSTROM
+        self._energy_per_hartree = HARTREE_TO_EV
 
     def open(self, adopt_self: bool = False) -> None:
         if self.session is not None:
@@ -158,26 +164,27 @@ class _SessionPotential:
         assert self.session is not None
         if self.forces.size != positions.size:
             self.forces = np.zeros(positions.size)
-        cell_au = cell / BOHR_TO_ANGSTROM if self.periodic else None
+        # rgpot hands over Angstrom and eV. Recover the atomic units the old
+        # driver passed to calculate_au, including electron units where rgpot's
+        # bohr factor is not cpmdc's BOHR_TO_ANGSTROM.
+        length_scale = self._length_per_angstrom / self._length_per_bohr
+        energy_scale = self._energy_per_hartree / self._energy_per_ev
+        cell_au = cell * length_scale if self.periodic else None
         energy, _, _ = self.session.calculate_au(
-            positions / BOHR_TO_ANGSTROM,
+            positions * length_scale,
             numbers,
             cell_au,
             forces=self.forces,
             virial=self.virial,
         )
         self.composition = composition
-        forces = (
-            self.forces.reshape(positions.shape)
-            * HARTREE_TO_EV
-            / BOHR_TO_ANGSTROM
-        )
+        forces = self.forces.reshape(positions.shape) * energy_scale * length_scale
         stress = None
         if self.periodic:
             volume = abs(float(np.linalg.det(cell)))
-            stress = -self.virial.reshape(3, 3) * HARTREE_TO_EV / volume
+            stress = -self.virial.reshape(3, 3) * energy_scale / volume
         return {
-            "energy": float(energy) * HARTREE_TO_EV,
+            "energy": float(energy) * energy_scale,
             "forces": forces,
             "stress": stress,
         }
@@ -204,13 +211,15 @@ class FixExternal(RgpotFixExternal):
     ) -> None:
         blob = params if isinstance(params, bytes) else Path(params).read_bytes()
         periodicity = list(lmp.extract_box()[5])
+        unit_factors(str(lmp.extract_global("units")))
+        numbers = type_numbers(elements, int(lmp.extract_global("ntypes")))
         adapter = _SessionPotential(blob, library, all(periodicity))
         self._adapter = adapter
         try:
             super().__init__(
                 lmp,
                 adapter,
-                elements,
+                numbers,
                 fix_id=fix_id,
                 create=create,
                 comm=comm,
@@ -218,6 +227,21 @@ class FixExternal(RgpotFixExternal):
             )
         except RuntimeError as exc:
             raise CPMDCError(str(exc)) from exc
+        except ValueError as exc:
+            text = str(exc)
+            marker = "non-periodic axes:"
+            if marker in text:
+                axes = text.split(marker, 1)[1].strip()
+                raise ValueError(
+                    "cpmdc takes a fully periodic box or none; non-periodic axes: "
+                    + axes
+                ) from exc
+            raise
+        length_per_bohr, energy_per_hartree = unit_factors(self.units)
+        adapter._length_per_angstrom = self.length_per_angstrom
+        adapter._energy_per_ev = self.energy_per_ev
+        adapter._length_per_bohr = length_per_bohr
+        adapter._energy_per_hartree = energy_per_hartree
 
         problem = ""
         if self._root:

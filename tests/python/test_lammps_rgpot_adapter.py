@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import cpmdc.lammps
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
@@ -60,3 +61,47 @@ def test_session_adapter_converts_rgpot_protocol(monkeypatch):
     potential.evaluate(positions, np.array([8, 8], dtype=np.int32), cell)
     assert len(made) == 2
     assert made[0].closed
+
+
+def test_electron_scales_recover_lammps_lengths(monkeypatch):
+    """Electron units invert rgpot's length factor back to the LAMMPS values."""
+    from rgpot.lammps import unit_factors
+
+    received = {}
+
+    class FakeSession:
+        def __init__(self, blob, *, library=None):
+            del blob, library
+
+        def calculate_au(self, positions, numbers, cell, *, forces, virial):
+            received["positions"] = positions.copy()
+            received["cell"] = cell.copy()
+            forces[:] = 2.0
+            virial[:] = 3.0
+            return 4.0, None, None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(cpmdc.lammps, "Session", FakeSession)
+    length_per_angstrom, energy_per_ev = unit_factors("electron")
+    potential = cpmdc.lammps._SessionPotential(b"params", None, True)
+    potential._length_per_angstrom = length_per_angstrom
+    potential._energy_per_ev = energy_per_ev
+    potential._length_per_bohr = 1.0
+    potential._energy_per_hartree = 1.0
+    potential.open()
+    lammps_positions = np.array([[1.25, -0.5, 0.75]])
+    lammps_cell = np.diag([8.0, 9.0, 10.0])
+    result = potential.evaluate(
+        lammps_positions / length_per_angstrom,
+        np.array([1], dtype=np.int32),
+        lammps_cell / length_per_angstrom,
+    )
+    np.testing.assert_allclose(received["positions"], lammps_positions)
+    np.testing.assert_allclose(received["cell"], lammps_cell)
+    assert result["energy"] == pytest.approx(4.0 / energy_per_ev)
+    np.testing.assert_allclose(
+        result["forces"],
+        np.full((1, 3), 2.0) * length_per_angstrom / energy_per_ev,
+    )
