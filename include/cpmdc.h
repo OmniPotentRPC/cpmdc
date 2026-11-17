@@ -158,27 +158,45 @@ typedef struct CPMDCMDTrajectoryRow {
 /**
  * @brief PROP-style property snapshot after a successful evaluation.
  *
- * - dipole[3]: OpenCPMD `ddip%pdipole` (a.u.) when linked; PEF zeros
+ * - dipole[3]: molecular dipole (electron Bohr) when `dipole_count == 3`
  * - polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
- * - hessian[]: nuclear gradient dE/dR packed as [n_atoms*3] (full Hessian needs
- *   dedicated PROP/Hessian run; gradient is always available after force eval)
+ * - hessian[]: deprecated name of the nuclear gradient dE/dR packed as
+ *   [n_atoms*3]. Use cpmdc_last_gradient() or
+ *   cpmdc_session_last_gradient() instead. A full Hessian needs a dedicated
+ *   PROP/Hessian run.
+ *
+ * The fixed legacy array limits evaluations to 1365 atoms. libcpmdc rejects a
+ * larger system instead of truncating its gradient.
  */
 typedef struct CPMDCPropertySnapshot {
   /** Non-zero when the snapshot was written. */
   int valid;
-  /** Number of doubles copied into `hessian`. */
+  /** Deprecated: number of doubles copied into `hessian`. */
   size_t hessian_count;
-  /** Nuclear gradient dE/dR, packed as `n_atoms * 3`. */
+  /** Deprecated: nuclear gradient dE/dR. Use the gradient accessors. */
   double hessian[4096];
   /** Number of doubles copied into `dipole`. */
   size_t dipole_count;
-  /** OpenCPMD `ddip%pdipole` in atomic units, or zeros for a reference PEF. */
+  /** Molecular dipole in electron Bohr; meaningful only when count is 3. */
   double dipole[3];
   /** Number of doubles copied into `polarizability`. */
   size_t polarizability_count;
   /** Polarizability when PROP is available; otherwise zeros. */
   double polarizability[9];
 } CPMDCPropertySnapshot;
+
+/**
+ * @brief Molecular dipole after a successful evaluation.
+ *
+ * `valid` is set only when OpenCPMD recomputed the dipole from the converged
+ * wavefunction for the current geometry. Values are electron Bohr.
+ */
+typedef struct CPMDCDipole {
+  /** Non-zero only when this evaluation recomputed the dipole. */
+  int valid;
+  /** Cartesian molecular dipole in electron Bohr. */
+  double values[3];
+} CPMDCDipole;
 
 /**
  * @brief Cartesian stress tensor after a successful PEF evaluation.
@@ -704,6 +722,33 @@ CPMDC_API int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out);
 /** @brief Copy the last property snapshot stored on @p session. */
 CPMDC_API int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
                                                    CPMDCPropertySnapshot *out);
+
+/**
+ * @brief Copy the nuclear gradient of the last evaluation.
+ *
+ * `capacity` is the number of doubles available in `out`. `count` receives
+ * the required number. Returns 0 on success and -1 when no gradient is
+ * available, an argument is null, or the buffer is too short. The legacy
+ * property snapshot limits successful evaluations to 4096 components.
+ */
+CPMDC_API int cpmdc_last_gradient(double *out, size_t capacity, size_t *count);
+
+/** @brief Copy the last nuclear gradient stored on @p session. */
+CPMDC_API int cpmdc_session_last_gradient(const CPMDCSession *session,
+                                          double *out, size_t capacity,
+                                          size_t *count);
+
+/**
+ * @brief Copy the molecular dipole of the last evaluation.
+ *
+ * Returns 0 only when the dipole was recomputed for that geometry. Returns -1
+ * without writing `cpmdc_last_error()` when it was unavailable.
+ */
+CPMDC_API int cpmdc_last_dipole(CPMDCDipole *out);
+
+/** @brief Copy the last molecular dipole stored on @p session. */
+CPMDC_API int cpmdc_session_last_dipole(const CPMDCSession *session,
+                                        CPMDCDipole *out);
 
 /**
  * @brief Copy the last stress tensor.
