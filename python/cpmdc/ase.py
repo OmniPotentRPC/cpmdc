@@ -1,7 +1,8 @@
 """ASE calculator for one cpmdc session.
 
 Units are ASE units: energy in eV, forces in eV/Angstrom, stress in
-eV/Angstrom^3. Stress is Voigt order ``(xx, yy, zz, yz, xz, xy)`` and is
+eV/Angstrom^3, and dipole in e*Angstrom. Stress is Voigt order
+``(xx, yy, zz, yz, xz, xy)`` and is
 ``(1/V) dE/d(strain)``, the ASE sign of the library tensor.
 ``free_energy`` equals ``energy``. The returned energy is the potential
 energy of the step; the library does not separate an electronic entropy.
@@ -68,6 +69,11 @@ _NO_STRESS_DECK = (
     "the library computed no stress for this periodic cell: the CPMDParams "
     "deck describes an isolated system (SYMMETRY 0, POISSON SOLVER, "
     "ISOLATED MOLECULE, or CLUSTER), or CPMDC_STRESS=0 is set"
+)
+_NO_DIPOLE = (
+    "the library computed no dipole for this geometry: the reference evaluator "
+    "has no electronic dipole, and OpenCPMD recomputes one only for a periodic "
+    "Gamma-point deck with DIPOLE DYNAMICS or PROP DIPOLE MOMENT BERRY"
 )
 
 
@@ -165,7 +171,7 @@ class CPMDCCalculator(Calculator):
     own session on its first step.
     """
 
-    implemented_properties = ["energy", "free_energy", "forces", "stress"]
+    implemented_properties = ["energy", "free_energy", "forces", "stress", "dipole"]
     default_parameters: dict[str, Any] = {
         "params": None,
         "library": None,
@@ -191,6 +197,7 @@ class CPMDCCalculator(Calculator):
         self._blob = b""
         self._composition: tuple[int, ...] | None = None
         self._no_stress = ""
+        self._no_dipole = ""
         # A value left as None would override a parameters= file.
         if params is not None:
             kwargs["params"] = params
@@ -273,6 +280,7 @@ class CPMDCCalculator(Calculator):
         """Clear the stored results; the session stays open."""
         Calculator.reset(self)
         self._no_stress = ""
+        self._no_dipole = ""
 
     def calculate(
         self,
@@ -293,11 +301,14 @@ class CPMDCCalculator(Calculator):
             properties = ["energy"]
         if "stress" in properties and not system_changes and self._no_stress:
             raise PropertyNotImplementedError(self._no_stress)
+        if "dipole" in properties and not system_changes and self._no_dipole:
+            raise PropertyNotImplementedError(self._no_dipole)
         Calculator.calculate(self, atoms, properties, system_changes)
         self.results = {}
         if self.atoms is None:
             raise ValueError(_NO_ATOMS)
         self._no_stress = ""
+        self._no_dipole = ""
         cell = self._periodic_cell(self.atoms)
         if "stress" in properties and cell is None:
             self._no_stress = _NO_STRESS_CLUSTER
@@ -325,6 +336,12 @@ class CPMDCCalculator(Calculator):
             self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
             if "stress" in properties:
                 raise PropertyNotImplementedError(self._no_stress)
+        if "dipole" in evaluated:
+            self.results["dipole"] = np.asarray(evaluated["dipole"], dtype=float)
+        else:
+            self._no_dipole = _NO_DIPOLE
+            if "dipole" in properties:
+                raise PropertyNotImplementedError(self._no_dipole)
 
     @staticmethod
     def _periodic_cell(atoms: Atoms) -> np.ndarray | None:
