@@ -285,6 +285,10 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes,
 /**
  * @brief Write the image to a filesystem path.
  *
+ * The bytes land in a temporary file in the same directory and replace
+ * `path` by rename, so a reader sees the previous file or the finished
+ * one. A failed write leaves `path` untouched.
+ *
  * @param file Image to write.
  * @param path Destination path.
  * @param err Diagnostic buffer. May be NULL.

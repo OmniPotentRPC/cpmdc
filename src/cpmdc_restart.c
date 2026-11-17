@@ -2,11 +2,13 @@
 #include "cpmdc_restart.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* gfortran's default maximum subrecord (libgfortran GFC_MAX_SUBRECORD_LENGTH). */
 #define CPMDC_RESTART_MAX_SUB 2147483639u
@@ -742,31 +744,82 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbyt
   return 0;
 }
 
+/* Publish `path` by rename. A reader opens either the previous file or the
+ * finished one, never a prefix of the new bytes. The temporary file is in
+ * the destination's directory so the rename stays on one filesystem. */
+static int publish_bytes(const char *path, const void *bytes, size_t n, char *err,
+                         size_t err_cap) {
+  char tmp[PATH_MAX];
+  int fd;
+  FILE *fp;
+  size_t dir;
+  if (strlen(path) + 8 >= sizeof tmp) {
+    set_err(err, err_cap, "path too long");
+    return -1;
+  }
+  snprintf(tmp, sizeof tmp, "%s.XXXXXX", path);
+  fd = mkstemp(tmp);
+  if (fd < 0) {
+    set_err(err, err_cap, strerror(errno));
+    return -1;
+  }
+  fp = fdopen(fd, "wb");
+  if (!fp) {
+    set_err(err, err_cap, strerror(errno));
+    close(fd);
+    unlink(tmp);
+    return -1;
+  }
+  if (n && fwrite(bytes, 1, n, fp) != n) {
+    set_err(err, err_cap, "write failed");
+    fclose(fp);
+    unlink(tmp);
+    return -1;
+  }
+  if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
+    set_err(err, err_cap, "write failed");
+    fclose(fp);
+    unlink(tmp);
+    return -1;
+  }
+  if (fclose(fp) != 0) {
+    set_err(err, err_cap, "close failed");
+    unlink(tmp);
+    return -1;
+  }
+  if (rename(tmp, path) != 0) {
+    set_err(err, err_cap, strerror(errno));
+    unlink(tmp);
+    return -1;
+  }
+  /* fsync the directory so the rename itself is durable. A missing
+   * directory name is the file sitting in the current directory. */
+  dir = strlen(path);
+  while (dir > 0 && path[dir - 1] != '/')
+    dir--;
+  if (dir > 0 && dir < sizeof tmp) {
+    memcpy(tmp, path, dir);
+    tmp[dir] = '\0';
+    fd = open(tmp, O_RDONLY);
+    if (fd >= 0) {
+      fsync(fd);
+      close(fd);
+    }
+  }
+  return 0;
+}
+
 int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path, char *err,
                              size_t err_cap) {
   void *bytes = NULL;
   size_t n = 0;
-  FILE *fp;
   if (!path) {
     set_err(err, err_cap, "null path");
     return -1;
   }
   if (cpmdc_restart_write_mem(file, &bytes, &n, err, err_cap) != 0)
     return -1;
-  fp = fopen(path, "wb");
-  if (!fp) {
-    set_err(err, err_cap, strerror(errno));
-    free(bytes);
-    return -1;
-  }
-  if (n && fwrite(bytes, 1, n, fp) != n) {
-    set_err(err, err_cap, "write failed");
-    fclose(fp);
-    free(bytes);
-    return -1;
-  }
-  if (fclose(fp) != 0) {
-    set_err(err, err_cap, "close failed");
+  if (publish_bytes(path, bytes, n, err, err_cap) != 0) {
     free(bytes);
     return -1;
   }

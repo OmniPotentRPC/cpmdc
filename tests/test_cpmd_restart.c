@@ -1,10 +1,13 @@
 #define _GNU_SOURCE
 #include "cpmdc_restart.h"
 
+#include <dirent.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static int fail(const char *msg) {
   fprintf(stderr, "test_cpmd_restart: %s\n", msg);
@@ -360,6 +363,155 @@ static int write_sample(const char *path) {
   return 0;
 }
 
+/* TMPDIR first, as POSIX asks; P_tmpdir is the C library's own default. */
+static const char *temp_root(void) {
+  const char *root = getenv("TMPDIR");
+  if (root && root[0])
+    return root;
+#ifdef P_tmpdir
+  return P_tmpdir;
+#else
+  return ".";
+#endif
+}
+
+static int read_whole(const char *path, unsigned char **out, size_t *len) {
+  FILE *fp = fopen(path, "rb");
+  long size;
+  unsigned char *buf;
+  if (!fp)
+    return -1;
+  if (fseek(fp, 0, SEEK_END) != 0 || (size = ftell(fp)) < 0 || fseek(fp, 0, SEEK_SET) != 0) {
+    fclose(fp);
+    return -1;
+  }
+  buf = malloc(size ? (size_t)size : 1u);
+  if (!buf || fread(buf, 1, (size_t)size, fp) != (size_t)size) {
+    free(buf);
+    fclose(fp);
+    return -1;
+  }
+  fclose(fp);
+  *out = buf;
+  *len = (size_t)size;
+  return 0;
+}
+
+/* Every name in `dir` other than `.`, `..` and `keep` is a leftover. */
+static int leftovers(const char *dir, const char *keep, int *kept) {
+  DIR *listing = opendir(dir);
+  struct dirent *ent;
+  int extra = 0;
+  *kept = 0;
+  if (!listing)
+    return -1;
+  while ((ent = readdir(listing)) != NULL) {
+    if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+      continue;
+    if (keep && strcmp(ent->d_name, keep) == 0)
+      (*kept)++;
+    else
+      extra++;
+  }
+  closedir(listing);
+  return extra;
+}
+
+static int atomic_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  unsigned char *disk = NULL;
+  void *rewritten = NULL;
+  size_t n = 0, have = 0, rn = 0;
+  char path[PATH_MAX];
+  char err[256];
+  CPMDCRestart *file;
+  CPMDCRestart *back;
+  FILE *marker;
+  int kept = 0;
+  if (snprintf(path, sizeof path, "%s/RESTART", dir) >= (int)sizeof path)
+    return fail("restart path too long");
+  marker = fopen(path, "wb");
+  if (!marker)
+    return fail("seed restart");
+  if (fwrite("OLDOLDOLDOLD", 1, 12, marker) != 12) {
+    fclose(marker);
+    return fail("seed bytes");
+  }
+  fclose(marker);
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("atomic sample");
+  err[0] = '\0';
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail(err[0] ? err : "atomic sample rejected");
+  if (cpmdc_restart_write_path(file, path, err, sizeof err) != 0) {
+    cpmdc_restart_free(file);
+    return fail(err[0] ? err : "atomic write failed");
+  }
+  if (cpmdc_restart_write_mem(file, &rewritten, &rn, err, sizeof err) != 0) {
+    cpmdc_restart_free(file);
+    return fail("atomic memory image");
+  }
+  cpmdc_restart_free(file);
+  back = cpmdc_restart_read_path(path, err, sizeof err);
+  if (!back) {
+    free(rewritten);
+    return fail(err[0] ? err : "atomic read-back failed");
+  }
+  cpmdc_restart_free(back);
+  if (read_whole(path, &disk, &have) != 0) {
+    free(rewritten);
+    return fail("read published restart");
+  }
+  if (have != rn || memcmp(disk, rewritten, rn) != 0) {
+    free(disk);
+    free(rewritten);
+    return fail("published restart is not the finished image");
+  }
+  free(disk);
+  free(rewritten);
+  if (leftovers(dir, "RESTART", &kept) != 0 || kept != 1)
+    return fail("restart directory does not hold one RESTART and nothing else");
+
+  if (snprintf(path, sizeof path, "%s/missing/RESTART", dir) >= (int)sizeof path)
+    return fail("restart path too long");
+  bytes = NULL;
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("rebuild for missing directory");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail("missing-directory sample");
+  err[0] = '\0';
+  if (cpmdc_restart_write_path(file, path, err, sizeof err) == 0) {
+    cpmdc_restart_free(file);
+    return fail("write into a missing directory succeeded");
+  }
+  cpmdc_restart_free(file);
+  if (err[0] == '\0')
+    return fail("a failed write left no diagnostic");
+  if (access(path, F_OK) == 0)
+    return fail("a failed write published a restart");
+  return 0;
+}
+
+static int check_atomic_replace(void) {
+  char dir[PATH_MAX];
+  char path[PATH_MAX];
+  int rc;
+  if (snprintf(dir, sizeof dir, "%s/cpmdc-restart-XXXXXX", temp_root()) >= (int)sizeof dir)
+    return fail("temporary directory name too long");
+  if (!mkdtemp(dir))
+    return fail("restart directory");
+  rc = atomic_case(dir);
+  if (snprintf(path, sizeof path, "%s/RESTART", dir) < (int)sizeof path)
+    unlink(path);
+  if (rmdir(dir) != 0 && rc == 0)
+    rc = fail("restart directory not empty after the test");
+  return rc;
+}
+
 int main(int argc, char **argv) {
   unsigned char *bytes = NULL;
   size_t n = 0;
@@ -391,6 +543,8 @@ int main(int argc, char **argv) {
   if (check_split_header() != 0)
     return 1;
   if (check_bad_magic() != 0)
+    return 1;
+  if (check_atomic_replace() != 0)
     return 1;
   if (argc > 1 && check_geo1(argv[1]) != 0)
     return 1;
