@@ -39,6 +39,11 @@ so drop ~CPMDC_LIBRARY~ and ~PYTHONPATH~ and keep ~CPMDC_PARAMS~.
 A second ~get_potential_energy~ on the same atoms does not recompute, and
 neither does ~get_forces~ after it: one step computes both.
 ~get_forces~ returns an array of shape ~(natoms, 3)~.
+Change a position and the next call computes again on the same session, which a
+relaxation with ~BFGS~ and ~FixAtoms~ relies on.
+~energy~ is in eV and ~forces~ in eV/Angstrom, the units of ~ase.units~.
+~tests/python/test_ase_conformance.py~ checks those units, the cache, and the
+errors of the calculator with ASE's own tools, against the same reference well.
 [[file:../howto/ase.org][Use cpmdc as an ASE calculator]] lists every property,
 the units, the boundary rules, and the working directory, and shows how to relax
 a structure and its cell with an ASE optimizer.
