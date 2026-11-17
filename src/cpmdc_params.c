@@ -5691,7 +5691,6 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   }
   if (cvalid && !prop_valid) {
     prop_valid = 1;
-    dip_count = 3;
     pol_count = 9;
   }
   /* Nuclear gradient: prefer PROP snapshot; else negate forces (API forces = -grad). */
@@ -5700,8 +5699,6 @@ int cpmdc_potential_result_write(double energy, const double *forces,
       hess[i] = -forces[i];
     hess_count = (int)force_count;
   }
-  if (prop_valid && dip_count <= 0)
-    dip_count = 3;
   if (prop_valid && pol_count <= 0)
     pol_count = 9;
 

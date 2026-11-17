@@ -30,8 +30,10 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_feature_table=                         | cpmdc_features.h | -   | Y        |
 | =cpmdc_finalize=                              | cpmdc.h          | -   | Y        |
 | =cpmdc_last_charge_integrals=                 | cpmdc.h          | -   | Y        |
+| =cpmdc_last_dipole=                           | cpmdc.h          | -   | Y        |
 | =cpmdc_last_energy_components=                | cpmdc.h          | -   | Y        |
 | =cpmdc_last_error=                            | cpmdc.h          | -   | Y        |
+| =cpmdc_last_gradient=                         | cpmdc.h          | -   | Y        |
 | =cpmdc_last_md_trajectory_row=                | cpmdc.h          | -   | Y        |
 | =cpmdc_last_multi_state_energies=             | cpmdc.h          | -   | Y        |
 | =cpmdc_last_property_snapshot=                | cpmdc.h          | -   | Y        |
@@ -49,7 +51,9 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_session_energy_forces=                 | cpmdc.h          | -   | Y        |
 | =cpmdc_session_energy_gradient=               | cpmdc.h          | -   | Y        |
 | =cpmdc_session_last_charge_integrals=         | cpmdc.h          | -   | Y        |
+| =cpmdc_session_last_dipole=                   | cpmdc.h          | -   | Y        |
 | =cpmdc_session_last_energy_components=        | cpmdc.h          | -   | Y        |
+| =cpmdc_session_last_gradient=                 | cpmdc.h          | -   | Y        |
 | =cpmdc_session_last_md_trajectory_row=        | cpmdc.h          | -   | Y        |
 | =cpmdc_session_last_multi_state_energies=     | cpmdc.h          | -   | Y        |
 | =cpmdc_session_last_property_snapshot=        | cpmdc.h          | -   | Y        |
@@ -61,7 +65,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_version=                               | cpmdc.h          | -   | Y        |
 
 * Summary
-Public declarations: 46
-Exported cpmdc_ symbols: 46
+Public declarations: 50
+Exported cpmdc_ symbols: 50
 Other exported symbols: 0
 Parity: OK
