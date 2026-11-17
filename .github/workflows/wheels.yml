@@ -118,7 +118,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/sdist-check"
           "$RUNNER_TEMP/sdist-check/bin/python" -m pip install --upgrade pip
           sdist=$(ls dist/*.tar.gz)
-          "$RUNNER_TEMP/sdist-check/bin/python" -m pip install "${sdist}[ase]"
+          "$RUNNER_TEMP/sdist-check/bin/python" -m pip install "${sdist}[test]"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/sdist-check/bin/python" "$GITHUB_WORKSPACE/tests/test_installed_wheel.py" "$GITHUB_WORKSPACE"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
