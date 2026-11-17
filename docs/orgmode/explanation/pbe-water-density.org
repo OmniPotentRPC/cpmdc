@@ -235,7 +235,7 @@ The same molecules scaled rigidly to 870 kg/m^3 (~--density 870~), where a fixed
 
 Here the molecular pressure of the FHI files is -1.62 +- 0.01 kbar at the three constant cutoffs, and that of the CPMD files lies 1.02 kbar above it at E0 = 85 Ry and 0.30 kbar above it at E0 = 136 Ry: at this density E0 = 85 Ry has not converged the CPMD files.
 
-~constant_cutoff_npt.py pressures~ gathers the same comparison on the states of ~long32~ at 2, 3, 4, and 5 ps in ~bench/results/pbe_water_states.org~, with the differences taken state by state from the FHI files at E0 = 136 Ry:
+~constant_cutoff_npt.py pressures~ gathers the same comparison on the states of ~long32~ at 2, 3, 4, 5, 6, 7, 8, and 9 ps in ~bench/results/pbe_water_states.org~, with the differences taken state by state from the FHI files at E0 = 136 Ry:
 
 | Configuration | Density, kg/m^3 | O_MT_PBE.psp, H_MT_PBE.psp, 100/85/4.25, kbar | O_MT_PBE.psp, H_MT_PBE.psp, 160/136/6.8, kbar | O_MT_PBE.psp, H_MT_PBE.psp, 200/170/8.5, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 85, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 100/85/4.25, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 160/136/6.8, kbar |
 |---------------+-----------------+-----------------------------------------------+-----------------------------------------------+-----------------------------------------------+----------------------------------------------+-------------------------------------------------------+-------------------------------------------------------|
@@ -243,19 +243,23 @@ Here the molecular pressure of the FHI files is -1.62 +- 0.01 kbar at the three 
 | long32.3000.state.npz | 822.2 | 0.81 | 1.04 | 1.01 | -0.47 | 0.54 | 0.55 |
 | long32.4000.state.npz | 883.3 | 0.56 | -0.87 | -0.90 | -2.53 | -1.43 | -1.43 |
 | long32.5000.state.npz | 822.1 | -0.01 | 0.35 | 0.32 | -1.18 | -0.18 | -0.17 |
+| long32.6000.state.npz | 930.6 | 0.06 | 0.96 | 0.93 | -0.81 | 0.29 | 0.31 |
+| long32.7000.state.npz | 837.3 | -3.71 | -3.43 | -3.46 | -4.89 | -3.88 | -3.87 |
+| long32.8000.state.npz | 836.7 | -0.99 | -0.78 | -0.82 | -2.32 | -1.30 | -1.29 |
+| long32.9000.state.npz | 861.5 | -0.59 | -1.09 | -1.13 | -2.68 | -1.61 | -1.61 |
 
 | Files and basis | Mean, kbar | Standard error, kbar | Difference, kbar | Standard error of the difference, kbar |
 |-----------------+------------+----------------------+------------------+----------------------------------------|
-| O_MT_PBE.psp, H_MT_PBE.psp, 100/85/4.25 | -0.430 | 0.900 | 0.857 | 0.424 |
-| O_MT_PBE.psp, H_MT_PBE.psp, 160/136/6.8 | -0.785 | 1.036 | 0.502 | 0.025 |
-| O_MT_PBE.psp, H_MT_PBE.psp, 200/170/8.5 | -0.818 | 1.039 | 0.470 | 0.027 |
-| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 85 | -2.302 | 1.005 | -1.015 | 0.035 |
-| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 100/85/4.25 | -1.290 | 1.018 | -0.003 | 0.005 |
-| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 160/136/6.8 | -1.287 | 1.023 |  |  |
+| O_MT_PBE.psp, H_MT_PBE.psp, 100/85/4.25 | -0.869 | 0.590 | 0.583 | 0.253 |
+| O_MT_PBE.psp, H_MT_PBE.psp, 160/136/6.8 | -0.935 | 0.639 | 0.516 | 0.024 |
+| O_MT_PBE.psp, H_MT_PBE.psp, 200/170/8.5 | -0.969 | 0.639 | 0.482 | 0.025 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 85 | -2.489 | 0.611 | -1.038 | 0.021 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 100/85/4.25 | -1.458 | 0.620 | -0.006 | 0.003 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 160/136/6.8 | -1.451 | 0.622 |  |  |
 
-The FHI files converge on every state: E0 = 85 Ry lies 0.003 +- 0.005 kbar from E0 = 136 Ry.
-So do the CPMD files from E0 = 136 Ry on, and at E0 = 170 Ry they lie 0.470 +- 0.027 kbar above the FHI files.
-At the E0 = 85 Ry of ~long32~ they lie 0.857 +- 0.424 kbar above them, from 0.16 to 1.99 kbar on the four states: there the basis error of the CPMD files changes from state to state.
+The FHI files converge on every state: E0 = 85 Ry lies 0.006 +- 0.003 kbar from E0 = 136 Ry.
+So do the CPMD files from E0 = 136 Ry on, and at E0 = 170 Ry they lie 0.482 +- 0.025 kbar above the FHI files.
+At the E0 = 85 Ry of ~long32~ they lie 0.583 +- 0.253 kbar above them, from -0.25 to 1.99 kbar on the eight states: there the basis error of the CPMD files changes from state to state.
 
 * The basis of Miceli et al.
 With a height A of 1e-6 Ry the penalty of the constant cutoff vanishes, and with ~CPMDC_CELL_IN_PLACE~ above every strain of a run, each cell keeps the plane waves of the first setup: a basis of a constant number of plane waves, as in the runs of Miceli et al., whose effective cutoff falls as the cell grows.
@@ -264,7 +268,7 @@ No run here uses that basis.
 
 Miceli et al. set their basis at 1 g/cm^3 and restarted a run whose density fell from a larger cell, so their production runs kept about the plane waves of 85 Ry at the density they sampled.
 At 870 kg/m^3, a fixed 85 Ry setup of the FHI files gives a molecular pressure 1.15 kbar below the converged -1.62 kbar, and the plane waves of 85 Ry at 1000 kg/m^3 (77.46 Ry) give 2.15 kbar below it.
-On the states of ~long32~, the fixed 85 Ry setup of the FHI files gives a molecular pressure 1.015 +- 0.035 kbar below that of E0 = 136 Ry, from 0.93 to 1.10 kbar below on the four states.
+On the states of ~long32~, the fixed 85 Ry setup of the FHI files gives a molecular pressure 1.038 +- 0.021 kbar below that of E0 = 136 Ry, from 0.93 to 1.12 kbar below on the eight states.
 
 * Where the gap goes
 A setup whose molecular pressure lies dP above that of another on the same configurations holds the liquid less dense at 1 bar, by dP times the 52.7 +- 11.3 kg/m^3 per kbar of ~long32~.
@@ -272,13 +276,13 @@ On the states of ~long32~, taking the converged FHI files as the middle ground:
 
 | Change, toward the runs of Miceli et al. | Molecular pressure, kbar | Density, kg/m^3 |
 |------------------------------------------+--------------------------+-----------------|
-| CPMD files at E0 = 85 Ry to FHI files at E0 = 136 Ry | -0.857 +- 0.424 | +45 +- 22 |
-| of which CPMD files at E0 = 170 Ry to FHI files at E0 = 136 Ry | -0.470 +- 0.027 | +25 +- 1 |
-| FHI files at E0 = 136 Ry to a fixed 85 Ry | -1.015 +- 0.035 | +54 +- 2 |
-| Both | -1.872 | +99 |
+| CPMD files at E0 = 85 Ry to FHI files at E0 = 136 Ry | -0.583 +- 0.253 | +31 +- 13 |
+| of which CPMD files at E0 = 170 Ry to FHI files at E0 = 136 Ry | -0.482 +- 0.025 | +25 +- 1 |
+| FHI files at E0 = 136 Ry to a fixed 85 Ry | -1.038 +- 0.021 | +55 +- 1 |
+| Both | -1.621 | +86 |
 
 The errors in the last column are those of the pressures; the 21% of the compressibility scales the column as a whole.
-The measured changes of setup move the density by +99 kg/m^3, more than the 23.3 kg/m^3 between ~long32~ and Miceli et al.: 23.3 - 99 = -76 kg/m^3 is left, against a blocking error of at least 12.28 kg/m^3, 22 kg/m^3 from the scatter of the basis error of the CPMD files at E0 = 85 Ry, and 21 kg/m^3 from the compressibility, or 33 kg/m^3 together.
+The measured changes of setup move the density by +86 kg/m^3, more than the 23.3 kg/m^3 between ~long32~ and Miceli et al.: 23.3 - 86 = -63 kg/m^3 is left, against a blocking error of at least 12.28 kg/m^3, 13 kg/m^3 from the scatter of the basis error of the CPMD files at E0 = 85 Ry, and 18 kg/m^3 from the compressibility, or 26 kg/m^3 together.
 The largest change is the fixed basis, whose Pulay stress makes the liquid of Miceli et al. denser than a converged basis would, if their pseudopotentials are the FHI files; the paper does not name them.
 
 Not measured here:
@@ -286,10 +290,10 @@ Not measured here:
 - 32 waters against 64;
 - 346 K against 349 K;
 - the statistical error of Miceli et al., which the paper does not give;
-- whether the linear response holds over the 1.9 kbar of the last row.
+- whether the linear response holds over the 1.6 kbar of the last row.
 
-The two changes of setup that this page measures move the density by 45 and 54 kg/m^3, each more than the gap, and together they overshoot it by 76 kg/m^3, 2.3 times the 33 kg/m^3 of the combined uncertainty.
-The linear response over the 1.9 kbar of the last row, a change of 12% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
+The two changes of setup that this page measures move the density by 31 and 55 kg/m^3, each more than the gap, and together they overshoot it by 63 kg/m^3, 2.4 times the 26 kg/m^3 of the combined uncertainty.
+The linear response over the 1.6 kbar of the last row, a change of 10% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
 These numbers do not resolve a physical difference between the two PBE densities: the gap itself is 1.9 times a blocking error that is still a lower bound, since the blocking curve of ~long32~ has not levelled off.
 
 * Tests
@@ -368,7 +372,7 @@ p --start box32.xyz --oxygen O.pbe-mt_fhi.UPF --output runs/o-fhi-h-mt.org 160 2
 p --start box32.xyz --hydrogen H.pbe-mt_fhi.UPF --output runs/o-mt-h-fhi.org 160 200
 p --start box32.xyz --density 870 --output runs/mt-870.org 77.46 85 100/85/4.25 160/136/6.8
 p --start box32.xyz --density 870 $fhi --output runs/fhi-870.org 77.46 85 100/85/4.25 160/136/6.8 200/170/8.5
-for k in 2000 3000 4000 5000; do
+for k in 2000 3000 4000 5000 6000 7000 8000 9000; do
   p --start runs/long32.$k.state.npz --output runs/long32.$k-mt.org 100/85/4.25 160/136/6.8 200/170/8.5
   p --start runs/long32.$k.state.npz $fhi --output runs/long32.$k-fhi.org 85 100/85/4.25 160/136/6.8
 done
