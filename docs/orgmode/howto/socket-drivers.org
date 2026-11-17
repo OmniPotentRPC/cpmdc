@@ -22,10 +22,13 @@ Two library-level differences also matter before the old route can be retired:
   following =STATUS= therefore returns =NEEDINIT= instead of =HAVEDATA=.
   ASE and normal i-PI handshakes send =INIT=, but cpmdc's current driver also
   accepts the init-less sequence.
+- =IPIDriver::step()= accepts an =INIT= string requesting =batch_size= above
+  one and then processes one structure.  cpmdc rejects that unsupported
+  request explicitly.
 
 | Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
 |------------+--------------+----------------------------------|
-| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE= | the same standard messages and pipeline |
+| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same standard messages and pipeline, but the audited base ignores =batch_size= |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
 | Cell | transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored | transpose to rgpot rows; inverse ignored; zero cell is currently padded |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
