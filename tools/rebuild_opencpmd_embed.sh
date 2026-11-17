@@ -25,6 +25,8 @@ fi
 #   initrun_driver.mod.o   opencpmd_embed_geometry.patch
 #   rwfopt_utils.mod.o     opencpmd_embed_rwfopt.patch,
 #                          opencpmd_embed_extrapolate.patch
+#   ddipo_utils.mod.o      opencpmd_embed_dipole.patch
+#   wfopts_utils.mod.o     opencpmd_embed_dipole.patch; reads ddipo_utils
 #   updwf_utils.mod.o      opencpmd_converged_state.patch
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
@@ -51,6 +53,8 @@ objects=(
   rinitwf_driver.mod.o
   initrun_driver.mod.o
   rwfopt_utils.mod.o
+  ddipo_utils.mod.o
+  wfopts_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o
   timer.mod.o

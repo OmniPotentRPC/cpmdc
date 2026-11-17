@@ -1,0 +1,177 @@
+diff --git a/src/ddipo_utils.mod.F90 b/src/ddipo_utils.mod.F90
+index fc2a9e3..ee8ed06 100644
+--- a/src/ddipo_utils.mod.F90
++++ b/src/ddipo_utils.mod.F90
+@@ -10,6 +10,7 @@ MODULE ddipo_utils
+   USE dipomod,                         ONLY: moment
+   USE dotp_utils,                      ONLY: dotp
+   USE elct,                            ONLY: crge
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE forcedr_utils,                   ONLY: give_scr_forcedr
+   USE gvec,                            ONLY: epsg,&
+@@ -72,7 +73,7 @@ MODULE ddipo_utils
+ CONTAINS
+ 
+   ! ==================================================================
+-  SUBROUTINE ddipo(tau0,c0,cm,c2,sc0,nstate,center)
++  SUBROUTINE ddipo(tau0,c0,cm,c2,sc0,nstate,center,force_recompute)
+     ! ==--------------------------------------------------------------==
+     ! == CALCULATES THE DIPOLE MOMENT                                 ==
+     ! == Modified (CPLS) to compute Wannier functions (August 1997)   ==
+@@ -142,6 +143,7 @@ CONTAINS
+                                                 sc0(*)
+     INTEGER                                  :: nstate
+     REAL(real_8), INTENT(out)                :: center(:,:)
++    LOGICAL, INTENT(IN), OPTIONAL             :: force_recompute
+ 
+     CHARACTER(*), PARAMETER                  :: procedureN = 'ddipo'
+ 
+@@ -155,7 +157,7 @@ CONTAINS
+                                                 info, is, isub, ixx, n1, &
+                                                 natst, nmcol, nxmax, w_opt_tmp
+     INTEGER, ALLOCATABLE, SAVE               :: mapcol(:), mapful(:)
+-    INTEGER, SAVE                            :: i_comp = 0, ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0, i_comp = 0, ifirst = 0
+     LOGICAL                                  :: wannier_recomput
+     REAL(real_8) :: cost, d1, d2, d3, fac, foc(loadc_foc_array_size), omegon, &
+       p(3), phase1, phase2, phase3, sfc, tpi, tpzz, x0(3), zvtot
+@@ -170,12 +172,24 @@ CONTAINS
+ ! ==--------------------------------------------------------------==
+ ! ==--------------------------------------------------------------==
+ 
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(mapcol)) DEALLOCATE(mapcol)
++       IF (ALLOCATED(mapful)) DEALLOCATE(mapful)
++       IF (ALLOCATED(rotlsd)) DEALLOCATE(rotlsd)
++       IF (ALLOCATED(rotmat)) DEALLOCATE(rotmat)
++       IF (ALLOCATED(xyzmat)) DEALLOCATE(xyzmat)
++       i_comp = 0
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
++
+     CALL tiset(procedureN,isub)
+ 
+     w_opt_tmp=wanni%w_opt
+     IF (MOD(i_comp,wan05%loc_relocalize_every)==0 .AND. wan05%loc_relocalize) wanni%w_opt=2
+ 
+     wannier_recomput=MOD(i_comp,wan05%loc_recompute_dipole_matrices_every)==0
++    IF (PRESENT(force_recompute)) wannier_recomput = wannier_recomput .OR. force_recompute
+     i_comp=i_comp+1
+     IF (paral%io_parent.AND.wannier_recomput) &
+          WRITE(6,*) procedureN//': RECOMPUTE DIPOLE MATRICES'
+diff --git a/src/wfopts_utils.mod.F90 b/src/wfopts_utils.mod.F90
+index 21b69de..fa56b76 100644
+--- a/src/wfopts_utils.mod.F90
++++ b/src/wfopts_utils.mod.F90
+@@ -7,12 +7,15 @@ MODULE wfopts_utils
+   USE cplngsmod,                       ONLY: tcpl,&
+                                              tcpllr
+   USE ddip,                            ONLY: lenbk
++  USE ddipo_utils,                     ONLY: ddipo
++  USE dipomod,                         ONLY: moment
+   USE do_perturbation_p_utils,         ONLY: do_perturbation
+   USE elct,                            ONLY: crge
+   USE error_handling,                  ONLY: stopgm
+   USE fnlalloc_utils,                  ONLY: fnlalloc,&
+                                              fnldealloc
+   USE ions,                            ONLY: ions1
++  USE isos,                            ONLY: isos1
+   USE kinds,                           ONLY: real_8
+   USE kpts,                            ONLY: tkpts
+   USE lr_in_utils,                     ONLY: lr_in
+@@ -23,7 +26,9 @@ MODULE wfopts_utils
+                                              paral
+   USE phfac_utils,                     ONLY: phfac
+   USE prmem_utils,                     ONLY: prmem
++  USE prop,                            ONLY: prop1
+   USE pslo,                            ONLY: pslo_com
++  USE ropt,                            ONLY: ropt_mod
+   USE rwfopt_utils,                    ONLY: rwfopt
+   USE sfac,                            ONLY: eigr,&
+                                              eigrb
+@@ -44,22 +49,40 @@ MODULE wfopts_utils
+   PRIVATE
+ 
+   PUBLIC :: wfopts
++  PUBLIC :: embed_get_dipole
++  PUBLIC :: embed_set_dipole_snapshot
++
++  LOGICAL, SAVE :: embed_dipole_enabled = .FALSE.
++  LOGICAL, SAVE :: embed_dipole_valid = .FALSE.
++  REAL(real_8), SAVE :: embed_dipole(3) = 0.0_real_8
+ 
+ CONTAINS
+ 
++  SUBROUTINE embed_set_dipole_snapshot(flag)
++    LOGICAL, INTENT(IN) :: flag
++    embed_dipole_enabled = flag
++  END SUBROUTINE embed_set_dipole_snapshot
++
++  SUBROUTINE embed_get_dipole(dipole, valid)
++    REAL(real_8), INTENT(OUT) :: dipole(3)
++    LOGICAL, INTENT(OUT) :: valid
++    dipole = embed_dipole
++    valid = embed_dipole_valid
++  END SUBROUTINE embed_get_dipole
++
+   ! ==================================================================
+   SUBROUTINE wfopts
+     ! ==--------------------------------------------------------------==
+     ! Variables
+     CHARACTER(*), PARAMETER                  :: procedureN = 'wfopts'
+ 
+-    COMPLEX(real_8), ALLOCATABLE             :: c0(:,:,:), c2(:,:), gde(:), &
+-                                                pme(:), sc0(:,:,:)
++    COMPLEX(real_8), ALLOCATABLE             :: c0(:,:,:), c2(:,:), dip_cm(:,:), &
++                                                gde(:), pme(:), sc0(:,:,:)
+     INTEGER                                  :: ierr, isub, iunit, nc0, nc2, &
+                                                 nce, neig, ngde, nkptc0, &
+                                                 nkptsc0, npme, nsc0, nstate, &
+                                                 nvpp, nxx
+-    REAL(real_8), ALLOCATABLE                :: eigv(:), vpp(:)
++    REAL(real_8), ALLOCATABLE                :: center(:,:), eigv(:), vpp(:)
+ 
+ ! ==--------------------------------------------------------------==
+ ! ==  GDE   : cntl%diis GRADIENTS                 CR   (for DIAG)      ==
+@@ -70,6 +93,8 @@ CONTAINS
+ 
+     CALL tiset(procedureN,isub)
+ 
++    embed_dipole_valid = .FALSE.
++    embed_dipole = 0.0_real_8
+ 
+     nstate=crge%n
+     ! Minimum requirements for all methods
+@@ -122,7 +147,7 @@ CONTAINS
+        nsc0 = MAX (nsc0,nstate)
+        IF (cntl%tdavi)nsc0=MAX(nsc0,cnti%ndavv)
+     ENDIF
+-    IF (cntl%tdipd.OR.vdwl%vdwd) THEN
++    IF (cntl%tdipd.OR.prop1%dberry.OR.vdwl%vdwd) THEN
+        lenbk=nxxfun(nstate)
+        nxx=MAX(2*lenbk*parai%nproc/nkpt%ngwk,nc2 ) !vw nkpt%ngwk added while converting (*) -> (:)
+        nsc0=MAX(nxx,nsc0)
+@@ -206,6 +231,21 @@ CONTAINS
+     ELSE
+        CALL bs_wfo(c0,c2,sc0,pme,gde,vpp,eigv)
+     ENDIF
++    IF (embed_dipole_enabled .AND. ropt_mod%convwf .AND. &
++         .NOT.isos1%tclust .AND. .NOT.tkpts%tkpnt .AND. .NOT.cntl%bsymm .AND. &
++         (cntl%tdipd .OR. prop1%dberry)) THEN
++       ALLOCATE(dip_cm(nkpt%ngwk,crge%n),center(4,crge%n),STAT=ierr)
++       IF(ierr/=0) CALL stopgm(procedureN,'dipole allocation problem',&
++            __LINE__,__FILE__)
++       CALL zeroing(dip_cm)
++       CALL zeroing(center)
++       CALL ddipo(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center,.TRUE.)
++       embed_dipole = moment%dmom
++       embed_dipole_valid = .TRUE.
++       DEALLOCATE(center,dip_cm,STAT=ierr)
++       IF(ierr/=0) CALL stopgm(procedureN,'dipole deallocation problem',&
++            __LINE__,__FILE__)
++    ENDIF
+     ! ==--------------------------------------------------------------==
+ 
+     DEALLOCATE(eigv,STAT=ierr)
