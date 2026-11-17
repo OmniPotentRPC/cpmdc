@@ -10,7 +10,7 @@ import pytest
 from conftest import ROOT, WATER
 
 import cpmdc
-from cpmdc import CPMDCError, Potential, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Potential, Session, dipole_to_e_angstrom
 
 
 def _force_input_text(flat, numbers, cell) -> str:
@@ -54,6 +54,31 @@ def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
     with Potential(periodic_params) as pot:
         done = pot.evaluate(WATER, [8, 1, 1], [[10.0, 0, 0], [0, 10.0, 0], [0, 0, 10.0]])
     assert len(done["stress"]) == 9
+
+
+def test_reference_step_has_no_fabricated_dipole(params):
+    with Session(params) as session:
+        done = session.energy_forces(WATER, [8, 1, 1])
+    assert done.dipole_e_bohr is None
+    with Potential(params) as pot:
+        result = pot.evaluate(WATER, [8, 1, 1])
+    assert "dipole" not in result
+    assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
+
+
+def test_dipole_unit_conversion():
+    assert dipole_to_e_angstrom([1.0, -2.0, 0.5]) == pytest.approx(
+        [BOHR_TO_ANGSTROM, -2.0 * BOHR_TO_ANGSTROM, 0.5 * BOHR_TO_ANGSTROM]
+    )
+    with pytest.raises(ValueError, match="3 components"):
+        dipole_to_e_angstrom([1.0, 2.0])
+
+
+def test_property_gradient_limit_fails_without_truncation(params):
+    positions = [[0.0, 0.0, 0.0]] * 1366
+    with Session(params) as session:
+        with pytest.raises(CPMDCError, match="at most 1365 atoms"):
+            session.energy_forces(positions, [1] * 1366)
 
 
 def test_closed_session_raises(params):
