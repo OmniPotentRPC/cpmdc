@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static int fail(const char *msg) {
@@ -496,6 +497,102 @@ static int atomic_case(const char *dir) {
   return 0;
 }
 
+/* A rename onto a directory fails after the bytes are synced. The
+ * temporary file goes and the directory stays. */
+static int rename_failure_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  char sub[PATH_MAX];
+  char path[PATH_MAX];
+  char err[256];
+  CPMDCRestart *file;
+  int kept = 0, extra;
+  if (snprintf(sub, sizeof sub, "%s/rename", dir) >= (int)sizeof sub ||
+      snprintf(path, sizeof path, "%s/RESTART.dir", sub) >= (int)sizeof path)
+    return fail("restart path too long");
+  if (mkdir(sub, 0700) != 0 || mkdir(path, 0700) != 0)
+    return fail("make the blocking directory");
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("rename-failure sample");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail("rename-failure sample rejected");
+  err[0] = '\0';
+  if (cpmdc_restart_write_path(file, path, err, sizeof err) == 0) {
+    cpmdc_restart_free(file);
+    return fail("a rename onto a directory succeeded");
+  }
+  cpmdc_restart_free(file);
+  if (strstr(err, "cannot replace the RESTART file") == NULL)
+    return fail(err[0] ? err : "a failed rename left no diagnostic");
+  extra = leftovers(sub, "RESTART.dir", &kept);
+  rmdir(path);
+  if (rmdir(sub) != 0 || extra != 0 || kept != 1)
+    return fail("a failed rename left its temporary file behind");
+  return 0;
+}
+
+/* The published file takes 0666 under the umask, as fopen gave it. */
+static int mode_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  char path[PATH_MAX];
+  char err[256];
+  CPMDCRestart *file;
+  struct stat st;
+  mode_t old;
+  int rc;
+  if (snprintf(path, sizeof path, "%s/RESTART", dir) >= (int)sizeof path)
+    return fail("restart path too long");
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("mode sample");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail("mode sample rejected");
+  old = umask(022);
+  rc = cpmdc_restart_write_path(file, path, err, sizeof err);
+  umask(old);
+  cpmdc_restart_free(file);
+  if (rc != 0)
+    return fail(err);
+  if (stat(path, &st) != 0 || (st.st_mode & 0777) != 0644)
+    return fail("published restart does not take 0666 under the umask");
+  return 0;
+}
+
+/* A bare name lands in, and syncs, the current directory. */
+static int bare_name_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  char here[PATH_MAX];
+  char err[256];
+  CPMDCRestart *file;
+  int rc, kept = 0;
+  if (!getcwd(here, sizeof here))
+    return fail("getcwd");
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("bare-name sample");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail("bare-name sample rejected");
+  if (chdir(dir) != 0) {
+    cpmdc_restart_free(file);
+    return fail("chdir into the restart directory");
+  }
+  rc = cpmdc_restart_write_path(file, "RESTART", err, sizeof err);
+  cpmdc_restart_free(file);
+  if (chdir(here) != 0)
+    return fail("chdir back");
+  if (rc != 0)
+    return fail(err);
+  if (leftovers(dir, "RESTART", &kept) != 0 || kept != 1)
+    return fail("a bare-name write left more than RESTART");
+  return 0;
+}
+
 static int check_atomic_replace(void) {
   char dir[PATH_MAX];
   char path[PATH_MAX];
@@ -505,6 +602,12 @@ static int check_atomic_replace(void) {
   if (!mkdtemp(dir))
     return fail("restart directory");
   rc = atomic_case(dir);
+  if (rc == 0)
+    rc = rename_failure_case(dir);
+  if (rc == 0)
+    rc = mode_case(dir);
+  if (rc == 0)
+    rc = bare_name_case(dir);
   if (snprintf(path, sizeof path, "%s/RESTART", dir) < (int)sizeof path)
     unlink(path);
   if (rmdir(dir) != 0 && rc == 0)
