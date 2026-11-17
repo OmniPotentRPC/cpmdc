@@ -53,6 +53,7 @@ __all__ = [
     "Session",
     "find_library",
     "find_schema",
+    "dipole_to_e_angstrom",
     "forces_to_ev_per_angstrom",
     "stress_to_ev_per_angstrom3",
 ]
@@ -130,11 +131,14 @@ class Evaluation:
     is the row-major Cartesian tensor in Hartree/Bohr^3 when the step had a
     periodic cell, and ``None`` when the library did not compute stress. It
     has the OpenCPMD sign, ``-(1/V) dE/d(strain)``, the opposite of ASE's.
+    ``dipole_e_bohr`` is the molecular dipole in electron Bohr when OpenCPMD
+    recomputed it for this geometry, and ``None`` otherwise.
     """
 
     energy_h: float
     forces_h_bohr: list[list[float]]
     stress_h_bohr3: list[float] | None
+    dipole_e_bohr: list[float] | None = None
 
 
 class _CResult(ctypes.Structure):
@@ -151,6 +155,14 @@ class _CStress(ctypes.Structure):
         ("valid", ctypes.c_int),
         ("_pad", ctypes.c_int),
         ("values", ctypes.c_double * 9),
+    ]
+
+
+class _CDipole(ctypes.Structure):
+    _fields_ = [
+        ("valid", ctypes.c_int),
+        ("_pad", ctypes.c_int),
+        ("values", ctypes.c_double * 3),
     ]
 
 
@@ -229,6 +241,14 @@ def forces_to_ev_per_angstrom(forces_h_bohr: Sequence[Sequence[float]]) -> list[
     """Convert Hartree/Bohr forces to eV/Angstrom."""
     scale = HARTREE_TO_EV / BOHR_TO_ANGSTROM
     return [[component * scale for component in row] for row in forces_h_bohr]
+
+
+def dipole_to_e_angstrom(dipole_e_bohr: Sequence[float]) -> list[float]:
+    """Convert a three-component molecular dipole from electron Bohr to e*Angstrom."""
+    values = list(dipole_e_bohr)
+    if len(values) != 3:
+        raise ValueError("dipole must have 3 components")
+    return [component * BOHR_TO_ANGSTROM for component in values]
 
 
 def stress_to_ev_per_angstrom3(stress_h_bohr3: Sequence[float]) -> list[float]:
@@ -510,6 +530,12 @@ def _load(path: Path) -> ctypes.CDLL:
         ctypes.POINTER(_CStress),
     ]
     lib.cpmdc_session_last_stress.restype = ctypes.c_int
+    if hasattr(lib, "cpmdc_session_last_dipole"):
+        lib.cpmdc_session_last_dipole.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_CDipole),
+        ]
+        lib.cpmdc_session_last_dipole.restype = ctypes.c_int
     lib.cpmdc_last_error.argtypes = []
     lib.cpmdc_last_error.restype = ctypes.c_char_p
     lib.cpmdc_version.argtypes = []
@@ -645,7 +671,17 @@ class Session:
         stress = _CStress()
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
-        return Evaluation(float(result.energy_h), _rows(force_buf, n_atoms), tensor)
+        dipole_value = None
+        if hasattr(self._lib, "cpmdc_session_last_dipole"):
+            dipole = _CDipole()
+            have_dipole = self._lib.cpmdc_session_last_dipole(
+                self._handle, ctypes.byref(dipole)
+            )
+            if have_dipole == 0 and dipole.valid:
+                dipole_value = [float(dipole.values[i]) for i in range(3)]
+        return Evaluation(
+            float(result.energy_h), _rows(force_buf, n_atoms), tensor, dipole_value
+        )
 
     def calculate_au(
         self,
@@ -769,7 +805,7 @@ class Potential:
 
     def caps(self) -> dict[str, bool]:
         """Capabilities an rgpot calculator consults before a step."""
-        return {"stress": True, "energies": False}
+        return {"stress": True, "dipole": True, "energies": False}
 
     def evaluate(
         self,
@@ -790,6 +826,8 @@ class Potential:
                 -component
                 for component in stress_to_ev_per_angstrom3(done.stress_h_bohr3)
             ]
+        if done.dipole_e_bohr is not None:
+            out["dipole"] = dipole_to_e_angstrom(done.dipole_e_bohr)
         return out
 
     def close(self) -> None:
