@@ -1,0 +1,1 @@
+`tests/python/test_ase_conformance.py` checks `CPMDCCalculator` with ASE's own tools on the default build: honest `implemented_properties`, the cache and `system_changes`, one session for a run of steps, `PropertyNotImplementedError` and `CalculationFailed`, `BFGS` with `FixAtoms`, copies and pickles, and the eV and eV/Angstrom units against `ase.units`.
