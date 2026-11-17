@@ -85,9 +85,17 @@ def run(tree: Path, mode: str, library: Path, nm: Path | None = None):
     )
 
 
-def run_mode(tree: Path, mode: str, out: Path):
+def run_mode(tree: Path, mode: str, out: Path, *options: str):
     return subprocess.run(
-        [sys.executable, str(tree / SCRIPT), mode, str(out), "--root", str(tree)],
+        [
+            sys.executable,
+            str(tree / SCRIPT),
+            mode,
+            str(out),
+            *options,
+            "--root",
+            str(tree),
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -206,6 +214,11 @@ def test_export_lists_name_exactly_the_public_symbols(tree: Path, tmp_path: Path
     assert locals_.split() == ["*;", "};"]
     exp = tmp_path / "libcpmdc.exp"
     done = run_mode(tree, "--exported-symbols-list", exp)
+    assert done.returncode == 0, done.stderr
+    assert exp.read_text().split() == [f"_{s}" for s in public]
+    done = run_mode(
+        tree, "--exported-symbols-list", exp, "--mpi-fortran-sentinels"
+    )
     assert done.returncode == 0, done.stderr
     assert exp.read_text().split() == [f"_{s}" for s in exported]
 

@@ -155,4 +155,6 @@ Hidden in ~libcpmdc~, they became private copies, and every ~MPI_IN_PLACE~
 collective sent the zeros of that copy instead of the data: with Open MPI 5 the
 first SCF faulted in ~gorder~, after ~my_allgather_i~ had overwritten the
 plane-wave counts with zeros.
-Kept global, they resolve to one block per process.
+Kept global, they resolve to one block per process.  The serial default build
+does not contain those blocks.  Its macOS export list therefore omits their
+names: ld64 treats each name in an export list as a required definition.
