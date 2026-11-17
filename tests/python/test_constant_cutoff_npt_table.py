@@ -72,6 +72,19 @@ def test_the_runs_table_gives_the_in_place_limit_and_the_height_of_runs_that_dif
     assert rows[3] == "| fixed | 85 Ry, E0 50 Ry, A 1e-06 Ry | 0.25 | 100 | box.xyz | 0 |"
 
 
+def test_the_plateau_table_gives_the_level_or_the_coarsest_level_tried():
+    curve = [(64, 1.0, 0.1), (32, 2.0, 0.2), (16, 2.1, 0.3), (8, 2.2, 0.4)]
+    terms = {"Volume": {"plateau": None, "block_frames": 8, "curve": curve},
+             "Density": {"plateau": 2, "block_frames": 8, "curve": curve},
+             "Pressure": {"plateau": 0, "block_frames": 8, "curve": curve}}
+    rows = npt.plateau_rows([("run", {"frame_ps": 0.001, "terms": terms})])
+    assert rows[:2] == ["| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |",
+                        "|-----+------------+-----------+--------+-------+-----------------|"]
+    assert rows[2:] == ["| run | Volume, nm^3 | none up to 0.008 |  |  |  |",
+                        "| run | Density, kg/m^3 | 0.004 | 16 | 2.10 | 0.30 |",
+                        "| run | Pressure, bar | 0.001 | 64 | 1.0 | 0.1 |"]
+
+
 def test_cost_compares_each_run_with_the_run_above_it(tmp_path, capsys):
     meta = {"waters": 32, "start": "box.xyz", "start_ps": 0.0, "cutoff": 100.0, "e0": 85.0, "height": None,
             "width": 4.25, "conv": 1e-5, "dt": 1.0, "temperature": 350.0, "pressure": 1.0, "t_tau": 100.0,

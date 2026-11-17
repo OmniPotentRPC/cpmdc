@@ -83,7 +83,9 @@ that starts from a box and --branch-discard-ps of one that starts from a
 state, Flyvbjerg-Petersen standard error); of the runs that stopped or hold
 less than --min-production-ps after that, with the density at their start and
 end; of the cost per step; of the standard error against the block length,
-every --curve-step blocking levels; of the isothermal compressibility from
+every --curve-step blocking levels; of the first blocking level whose blocks
+outlast the correlation by the criterion of Lee et al. (Phys. Rev. E 83,
+066706 (2011)), or the coarsest level tried; of the isothermal compressibility from
 the volume fluctuations; and of the density every --branch-step-ps after the
 start of the runs that start from the same state. The other settings must be
 the same for every run. The run that wrote a state is the record with a
@@ -807,6 +809,23 @@ def cost_rows(runs: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
+def plateau_rows(results: list[tuple[str, dict]]) -> list[str]:
+    """The level npt_block_average.plateau finds for each observable, or the coarsest level it tried."""
+    lines = ["| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |",
+             "|-----+------------+-----------+--------+-------+-----------------|"]
+    for name, r in results:
+        for term, unit, d in TERMS:
+            s = r["terms"][term]
+            if s["plateau"] is None:
+                tried = s["block_frames"] * r["frame_ps"]
+                lines.append(f"| {name} | {term}, {unit} | none up to {tried:g} |  |  |  |")
+                continue
+            blocks, sem, err = s["curve"][s["plateau"]]
+            lines.append(f"| {name} | {term}, {unit} | {2 ** s['plateau'] * r['frame_ps']:g} | {blocks} | "
+                         f"{sem:.{d + 1}f} | {err:.{d + 1}f} |")
+    return lines
+
+
 def branch_groups(runs: list[tuple[str, dict]]) -> list[list[tuple[str, dict]]]:
     """The runs that start from the same state, in groups of at least two."""
     groups: dict[tuple[str, float], list[tuple[str, dict]]] = {}
@@ -910,6 +929,8 @@ def table(args: argparse.Namespace) -> int:
     if finished:
         lines += ["", *detail_rows(finished), "", "Standard error of the mean against block length:", "",
                   *curve_rows(finished, args.min_blocks, range(0, 16, args.curve_step))]
+        lines += ["", "The first block of B frames, of n, with B^3 > 2 n (SE_B / SE_1)^4 (Lee et al.), among the "
+                  "levels with at least --min-blocks blocks:", "", *plateau_rows(finished)]
         lines += ["", "Isothermal compressibility var(V)/(kT <V>) over the averaged frames, its error from blocking "
                   "(V - <V>)^2:", "", "| Run | kappa_T, 1e-5/bar | Error |", "|-----+-------------------+-------|"]
         lines += [f"| {name} | {r['kappa'][0] * 1e5:.2f} | {r['kappa'][1] * 1e5:.2f} |" for name, r in finished]
