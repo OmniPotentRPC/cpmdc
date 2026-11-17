@@ -29,6 +29,14 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_char
       CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
     END SUBROUTINE
+    SUBROUTINE cpmdc_note_scf_unconverged(minimizer, iterations, maxiter, gemax, &
+        tolog, first_minimizer, first_iterations) &
+        BIND(C, NAME='cpmdc_note_scf_unconverged')
+      IMPORT :: c_int, c_double
+      INTEGER(c_int), VALUE :: minimizer, iterations, maxiter, first_minimizer, &
+          first_iterations
+      REAL(c_double), VALUE :: gemax, tolog
+    END SUBROUTINE
     FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
@@ -2326,7 +2334,8 @@ CONTAINS
 
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
-        cpmdc_note_embed_failure
+        cpmdc_note_embed_failure, cpmdc_note_scf_unconverged
+    USE norm, ONLY: scf_gemax => gemax
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start_metric_v2
@@ -2337,7 +2346,7 @@ CONTAINS
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
     USE store_types, ONLY: cprint, iprint_force, restart1
-    USE system, ONLY: cnti, cntl, parm
+    USE system, ONLY: cnti, cntl, cntr, parm
     USE benc, ONLY: ibench
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
@@ -2357,6 +2366,8 @@ CONTAINS
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
     INTEGER :: inwfun_deck, ibench_deck, warm_source
+    INTEGER(c_int) :: scf_minimizer, scf_steps, first_minimizer, first_steps
+    REAL(c_double) :: scf_gemax_final
     REAL(real64) :: warm_dist, warm_cell(9)
     INTEGER(SELECTED_INT_KIND(18)) :: warm_donor
     INTERFACE
@@ -2456,6 +2467,11 @@ CONTAINS
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
     CALL note_scf_steps(iteropt%nfi)
+    first_minimizer = 0_c_int
+    first_steps = 0_c_int
+    scf_minimizer = scf_minimizer_code()
+    scf_steps = INT(iteropt%nfi, KIND=c_int)
+    scf_gemax_final = REAL(scf_gemax, KIND=c_double)
     ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
     ! does not replace the stored c0. Continue once with PCG MINIMIZE from
     ! the previous converged copy, which still counts as a warm start.
@@ -2479,6 +2495,11 @@ CONTAINS
       IF (ALLOCATED(taup)) DEALLOCATE(taup)
       CALL wfopts
       CALL note_scf_steps(iteropt%nfi)
+      first_minimizer = scf_minimizer
+      first_steps = scf_steps
+      scf_minimizer = scf_minimizer_code()
+      scf_steps = INT(iteropt%nfi, KIND=c_int)
+      scf_gemax_final = REAL(scf_gemax, KIND=c_double)
       cntl%diis = was_diis
       cntl%pcg = was_pcg
       cntl%pcgmin = was_pcgmin
@@ -2552,9 +2573,34 @@ CONTAINS
     CALL snapshot_prop_from_modules(image, n_atoms, grad)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
-    ! a stationary point. Report it as a failure instead.
+    ! a stationary point. Report it as a failure instead, with the last
+    ! pass's minimizer, step count, MAXITER and orbital gradient. A stopgm
+    ! has its own report.
     IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
+    IF (.NOT. ropt_mod%convwf) THEN
+      IF (cpmdc_stop_code() == 0_c_int) &
+          CALL cpmdc_note_scf_unconverged(scf_minimizer, scf_steps, &
+          INT(cnti%nomore_iter, KIND=c_int), scf_gemax_final, &
+          REAL(cntr%tolog, KIND=c_double), first_minimizer, first_steps)
+    END IF
   END SUBROUTINE
+
+  ! The minimizer the cntl flags select, in the codes of
+  ! src/cpmdc_scf_report.h.
+  INTEGER(c_int) FUNCTION scf_minimizer_code() RESULT(code)
+    USE system, ONLY: cntl
+    IF (cntl%diis) THEN
+      code = 1_c_int
+    ELSE IF (cntl%pcg .AND. cntl%pcgmin) THEN
+      code = 3_c_int
+    ELSE IF (cntl%pcg) THEN
+      code = 2_c_int
+    ELSE IF (cntl%tsde) THEN
+      code = 4_c_int
+    ELSE
+      code = 0_c_int
+    END IF
+  END FUNCTION
 
 
   ! CPMDC_SCF_STEPS=1 reports the iteration count of the SCF that just

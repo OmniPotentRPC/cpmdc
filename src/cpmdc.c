@@ -5,6 +5,7 @@
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
+#include "cpmdc_scf_report.h"
 
 #ifndef CPMDC_VERSION_STRING
 #define CPMDC_VERSION_STRING "unknown"
@@ -430,6 +431,14 @@ static void cpmdc_store_error(const char *msg) {
 
 void cpmdc_note_embed_failure(const char *msg) {
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
+}
+
+void cpmdc_note_scf_unconverged(int minimizer, int iterations, int maxiter,
+                                double gemax, double tolog,
+                                int first_minimizer, int first_iterations) {
+  (void)cpmdc_format_scf_unconverged(g_embed_detail, sizeof(g_embed_detail),
+                                     minimizer, iterations, maxiter, gemax,
+                                     tolog, first_minimizer, first_iterations);
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
