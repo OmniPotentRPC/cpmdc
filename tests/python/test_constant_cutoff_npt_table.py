@@ -1,10 +1,11 @@
-"""bench/constant_cutoff_npt.py table: the runs that wrote each state, and the tables the explanation quotes."""
+"""bench/constant_cutoff_npt.py table: the runs that wrote each state, and the tables the explanations quote."""
 
 from __future__ import annotations
 
 import argparse
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ SPEC.loader.exec_module(npt)
 
 RESULTS = ROOT / "bench" / "results"
 EXPLANATION = ROOT / "docs" / "orgmode" / "explanation" / "constant-cutoff-npt.org"
+PBE_WATER = ROOT / "docs" / "orgmode" / "explanation" / "pbe-water-density.org"
 QUOTED = ("| Run | Basis |", "| Run | Length, ps |", "| Run | No mean |", "| Run | Ranks |")
 
 
@@ -156,10 +158,11 @@ def test_pressures_takes_the_differences_configuration_by_configuration(tmp_path
         npt.pressures(argparse.Namespace(tables=[RESULTS / "constant_cutoff_npt.org"], against=1, output=None))
 
 
-def tables(path: Path) -> list[tuple[str, list[str]]]:
-    """Each Org table of path, with the last line of text before it."""
+def tables(source: Path | str) -> list[tuple[str, list[str]]]:
+    """Each Org table of a file or of text, with the last line of text before it."""
+    text = source.read_text() if isinstance(source, Path) else source
     found, caption, rows = [], "", []
-    for line in path.read_text().splitlines() + [""]:
+    for line in text.splitlines() + [""]:
         if line.startswith("|"):
             rows.append(line)
             continue
@@ -177,5 +180,28 @@ def test_explanation_carries_the_generated_tables():
     quoted += [rows for _, rows in tables(RESULTS / "constant_cutoff_pressure.org")]
     assert len(quoted) == 6
     page = EXPLANATION.read_text()
+    missing = [row for rows in quoted for row in rows if row not in page]
+    assert not missing, missing
+
+
+def sections(path: Path) -> dict[str, str]:
+    """The text under each top-level heading of an Org file, and under "" the text before the first."""
+    parts = re.split(r"^\* (.+)$", path.read_text(), flags=re.M)
+    return {"": parts[0], **dict(zip(parts[1::2], parts[2::2]))}
+
+
+def test_the_pbe_water_page_carries_the_generated_tables():
+    long_run = sections(RESULTS / "pbe_water_npt.org")
+    eight = ("| Run | Length, ps |", "| Run | Observable | Detected start", "| Run | Observable | Block, ps |",
+             "| Run | kappa_T", "| After the start, ps |")
+    four = ("| Run | Observable | 0.001 ps |", "| Run | Observable | Block, ps |")
+    quoted = [rows for _, rows in tables(long_run["At least 8 blocks"]) if rows[0].startswith(eight)]
+    quoted += [rows for _, rows in tables(long_run["At least 4 blocks"]) if rows[0].startswith(four)]
+    quoted += [rows for _, rows in tables(RESULTS / "pbe_water_cost.org")]
+    quoted += [rows for name, text in sections(RESULTS / "pbe_water_pressure.org").items()
+               if name and not name.startswith("mesh-") for _, rows in tables(text)]
+    quoted += [rows for _, rows in tables(sections(RESULTS / "pbe_water_states.org")[""])]
+    assert len(quoted) == 20
+    page = PBE_WATER.read_text()
     missing = [row for rows in quoted for row in rows if row not in page]
     assert not missing, missing

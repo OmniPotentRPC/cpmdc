@@ -201,6 +201,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    explanation/isolated-cells
    explanation/md-engines
    explanation/constant-cutoff-npt
+   explanation/pbe-water-density
    explanation/opencpmd-patches
    explanation/simd-paths
 
