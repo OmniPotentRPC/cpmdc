@@ -50,9 +50,9 @@ Wheels cover Linux x86_64 and aarch64 and macOS arm64, and carry their own
 [examples/python/ase_energy.py](examples/python/ase_energy.py) with
 `CPMDC_PARAMS` set to a serialized `CPMDParams` file. To use OpenCPMD, point
 `CPMDC_LIBRARY` at a `-Dwith_cpmd=true` build.
-`cpmdc.ase.CPMDCCalculator` gives energy, free energy, forces, and, for a
-fully periodic cell, stress in ASE units, and works with ASE optimizers, cell
-filters, and trajectories;
+`cpmdc.ase.CPMDCCalculator` gives energy, free energy, forces, and, when the
+deck computes them, stress and dipole in ASE units. It works with ASE
+optimizers, cell filters, and trajectories;
 [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org) has the property
 table and the rules for units, boundaries, caching, and the working directory.
 The [install page](docs/orgmode/howto/install.org#install-the-python-package)

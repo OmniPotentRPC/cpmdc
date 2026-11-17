@@ -93,7 +93,7 @@ and prints a summary:
 
 #+begin_src text
 energy_h=0.958703877646
-potential_result_size_bytes=816
+potential_result_size_bytes=792
 message=ok
 ener_com_etot=0.958703877646
 ener_com_ekin=0.000000000000

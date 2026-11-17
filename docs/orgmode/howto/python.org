@@ -68,10 +68,11 @@ A call on a closed ~Session~ raises ~CPMDCError~.
 ~find_library~ and ~find_schema~ resolve the two paths.
 ~HARTREE_TO_EV~ and ~BOHR_TO_ANGSTROM~ are the conversion constants from the C
 sources.
-~forces_to_ev_per_angstrom~ and ~stress_to_ev_per_angstrom3~ apply them.
+~forces_to_ev_per_angstrom~, ~stress_to_ev_per_angstrom3~, and
+~dipole_to_e_angstrom~ apply them.
 ~Evaluation~ is the native result:
-~energy_h~, ~forces_h_bohr~, and ~stress_h_bohr3~ when a periodic cell was
-computed, otherwise ~None~.
+~energy_h~, ~forces_h_bohr~, optional ~stress_h_bohr3~, and optional
+~dipole_e_bohr~.
 A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The ~schema~ argument of ~Session~, ~Potential~, and ~CPMDCCalculator~ is
@@ -81,7 +82,9 @@ deprecated and ignored, and passing it warns with ~DeprecationWarning~.
 ~Potential.evaluate(positions, numbers, box)~ returns ~energy~ in eV, ~forces~
 in eV/Angstrom, and ~stress~ as nine row-major eV/Angstrom^3 components when the
 library computed a tensor.
-~Potential.caps~ returns ~stress=True~ and ~energies=False~.
+It returns ~dipole~ as three e*Angstrom components only when OpenCPMD recomputed
+the molecular moment for that step.
+~Potential.caps~ returns ~stress=True~, ~dipole=True~, and ~energies=False~.
 An rgpot ~RgpotCalculator~ accepts any object with those two methods, so this
 provider can sit behind it.
 
