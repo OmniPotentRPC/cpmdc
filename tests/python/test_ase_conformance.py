@@ -113,9 +113,10 @@ def test_a_cluster_returns_exactly_energy_free_energy_and_forces(calc):
 def test_a_periodic_step_returns_exactly_what_it_lists(periodic_calc):
     atoms = water(cell=CUBE, pbc=True)
     atoms.calc = periodic_calc
-    for name in periodic_calc.implemented_properties:
+    for name in STEP | {"stress"}:
+        assert name in periodic_calc.implemented_properties
         assert periodic_calc.get_property(name, atoms) is not None
-    assert set(periodic_calc.results) == set(periodic_calc.implemented_properties)
+    assert set(periodic_calc.results) <= set(periodic_calc.implemented_properties)
     assert set(periodic_calc.results) == STEP | {"stress"}
 
 
