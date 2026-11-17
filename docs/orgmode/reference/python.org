@@ -60,6 +60,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
 | ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
 | ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
+| ~cpmdc._elements.species_numbers~ | shared internal parser used by the transitional i-PI driver and the LAMMPS adapter |
 | ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~ keywords |
 | ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CPMDCError~ for a failed step |
 | ~FixExternal.close~ | close the session and remove the fixes it added; also on leaving a ~with~ block |

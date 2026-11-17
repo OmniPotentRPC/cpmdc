@@ -8,6 +8,13 @@ page records where each one lives.
 The ~cpmd-public-abi-inventory~, ~stub-abi-symbol-coverage~,
 ~shared-dlopen-symbol-coverage~, and ~c-abi-inventory~ tests keep it true.
 
+Protocol adapters are deliberately outside this surface.  Direct callers use
+=cpmdc_session_calculate_au()= or the Cap'n Proto result calls; remote callers
+normally use rgpot's Cap'n Proto RPC.  Optional i-PI and MDI adapters belong
+to rgpot as frontends over every potential.  The
+[[file:../howto/socket-drivers.org][i-PI migration status]] records why the
+transitional cpmdc driver has not been removed yet.
+
 * Sources checked
 
 | Source | Role |

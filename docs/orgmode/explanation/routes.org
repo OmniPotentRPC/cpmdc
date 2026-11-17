@@ -1,7 +1,17 @@
-#+TITLE: The file route and the in-process route
+#+TITLE: File, in-process, RPC, and protocol routes
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
-A host can reach CPMD in two ways.
+A host can reach CPMD through several layers.
+The default local interface is the in-process session API:
+=Session.calculate_au()= for atomic-unit arrays, or
+=cpmdc_session_calculate_result()= for Cap'n Proto messages.
+The default remote interface is rgpot's Cap'n Proto RPC over =CPMDPot=.
+i-PI and MDI are optional rgpot protocol frontends over potentials; they do
+not belong inside an engine library.  The cpmdc-specific i-PI frontend is
+transitional because the [[file:../howto/socket-drivers.org][rgpot migration gaps]] still
+prevent =rgpot-ipi-driver= from selecting =CPMDPot=.
+
+The measurements below compare the two original execution routes.
 The file route writes a deck, starts ~cpmd.x~ for each force call, and reads
 the energy and forces back from CPMD's output files.
 The in-process route loads ~libcpmdc~ once and calls it; CPMD runs inside the
