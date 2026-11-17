@@ -40,6 +40,8 @@ def main() -> int:
             "rinitwf_driver.mod.o",
             "initrun_driver.mod.o",
             "rwfopt_utils.mod.o",
+            "ddipo_utils.mod.o",
+            "wfopts_utils.mod.o",
             "updwf_utils.mod.o",
             "rkpnt_utils.mod.o",
             "timer.mod.o",

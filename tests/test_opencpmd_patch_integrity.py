@@ -64,6 +64,10 @@ PATCHES = {
         "src/embed_ctrl.mod.F90",
         "src/rwfopt_utils.mod.F90",
     ),
+    "opencpmd_embed_dipole.patch": (
+        "src/ddipo_utils.mod.F90",
+        "src/wfopts_utils.mod.F90",
+    ),
     "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
     "opencpmd_atomwf_kpts_ortho.patch": (
         "src/atomwf_utils.mod.F90",
@@ -272,6 +276,25 @@ def assert_embed_extrapolate(patch: Path) -> None:
         raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")
 
 
+def assert_embed_dipole(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "PUBLIC :: embed_get_dipole",
+        "PUBLIC :: embed_set_dipole_snapshot",
+        "embed_dipole_valid = .FALSE.",
+        "CALL ddipo(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center,.TRUE.)",
+        "embed_dipole = moment%dmom",
+        ".NOT.isos1%tclust",
+        "(cntl%tdipd .OR. prop1%dberry)",
+        "USE embed_ctrl,                      ONLY: embed_teardowns",
+        "IF (ALLOCATED(mapful)) DEALLOCATE(mapful)",
+        "embed_seen = embed_teardowns",
+        "wannier_recomput = wannier_recomput .OR. force_recompute",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+
+
 def assert_constant_cutoff_precon(patch: Path) -> None:
     text = patch.read_text(encoding="utf-8")
     for needle in (
@@ -337,6 +360,8 @@ def main() -> int:
             assert_embed_teardown(patch)
         elif name == "opencpmd_embed_extrapolate.patch":
             assert_embed_extrapolate(patch)
+        elif name == "opencpmd_embed_dipole.patch":
+            assert_embed_dipole(patch)
         elif name == "opencpmd_constant_cutoff_precon.patch":
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")

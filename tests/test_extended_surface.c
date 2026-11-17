@@ -89,13 +89,28 @@ static void test_all_results_through_c_and_wire(void **state) {
   CPMDCPropertySnapshot prop;
   assert_int_equal(cpmdc_last_property_snapshot(&prop), 0);
   assert_int_equal(prop.valid, 1);
-  assert_int_equal(prop.dipole_count, 3);
+  assert_int_equal(prop.dipole_count, 0);
   assert_int_equal(prop.polarizability_count, 9);
   for (int i = 0; i < 9; ++i)
     assert_true(prop.polarizability[i] == 0.0); /* never computed */
   assert_true(prop.hessian_count >= 3); /* PEF 2 atoms => 6 */
   printf("pod_prop dipole=%zu hess=%zu pol=%zu\n", prop.dipole_count,
          prop.hessian_count, prop.polarizability_count);
+  double gradient[4096];
+  size_t gradient_count = 0;
+  assert_int_equal(cpmdc_last_gradient(gradient, 4096, &gradient_count), 0);
+  assert_int_equal(gradient_count, prop.hessian_count);
+  for (size_t i = 0; i < gradient_count; ++i)
+    assert_true(fabs(gradient[i] - prop.hessian[i]) < 1e-12);
+  gradient_count = 0;
+  assert_int_equal(
+      cpmdc_session_last_gradient(session, gradient, 1, &gradient_count), -1);
+  assert_int_equal(gradient_count, prop.hessian_count);
+  CPMDCDipole dipole;
+  memset(&dipole, 0xab, sizeof(dipole));
+  assert_int_equal(cpmdc_last_dipole(&dipole), -1);
+  assert_int_equal(dipole.valid, 0);
+  assert_true(dipole.values[0] == 0.0);
 
   struct capn arena;
   assert_int_equal(capn_init_mem(&arena, out, (int)wrote, 0), 0);
@@ -128,8 +143,7 @@ static void test_all_results_through_c_and_wire(void **state) {
               1e-12);
   assert_true(capn_to_f64(capn_get64(view.mdTrajectoryRow, 11)) == 0.0);
 
-  assert_true(view.dipole.p.type != CAPN_NULL);
-  assert_int_equal(capn_len(view.dipole), 3);
+  assert_int_equal(capn_len(view.dipole), 0);
   assert_true(view.polarizability.p.type != CAPN_NULL);
   assert_int_equal(capn_len(view.polarizability), 9);
   assert_true(view.gradient.p.type != CAPN_NULL);
@@ -170,6 +184,33 @@ static void test_all_results_through_c_and_wire(void **state) {
   cpmdc_finalize();
 }
 
+static void test_gradient_limit_fails_before_evaluation(void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *session = cpmdc_session_create(params, ps);
+  assert_non_null(session);
+  double *positions = calloc(components, sizeof(*positions));
+  double *gradient = calloc(components, sizeof(*gradient));
+  int *numbers = malloc(atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+  CPMDCResult result =
+      cpmdc_session_energy_gradient(session, atoms, positions, numbers, gradient);
+  assert_int_equal(result.ok, 0);
+  assert_non_null(strstr(result.message, "at most 1365 atoms"));
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: %s params.bin step.bin\n", argv[0]);
@@ -180,6 +221,7 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unsupported_rejected),
       cmocka_unit_test(test_all_results_through_c_and_wire),
+      cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
