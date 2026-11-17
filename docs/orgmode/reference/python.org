@@ -11,6 +11,9 @@ Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
 neither LAMMPS nor ~mpi4py~ until a run needs them.
 ~cpmdc.gromacs~ writes the grompp ~-qmi~ input of ~libcpmdc_gromacs~ and holds
 GROMACS' unit factors; it imports nothing outside the standard library.
+~cpmdc.mdi~ is the ~cpmdc-mdi~ MDI engine. It imports ~pymdi~ when the engine
+starts. Importing ~cpmdc~ does not import ~pymdi~. Install the engine with
+~pip install 'cpmdc[mdi]'~.
 
 | Name | Role |
 |------+------|
@@ -72,6 +75,15 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.gromacs.write_qmi~ | write that text to a path and return it |
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | ~type_numbers(elements, n_types)~: atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence; ~ValueError~ unless there are ~n_types~ |
+| ~cpmdc.mdi.COMMANDS~ | the ~@DEFAULT~ commands the engine registers |
+| ~cpmdc.mdi.NODE~ | ~@DEFAULT~, the node the engine registers |
+| ~cpmdc.mdi.Engine~ | answer MDI ~@DEFAULT~ commands from one ~Session~; ~params~, then ~library~, ~cluster~, ~log~, and ~name~ |
+| ~Engine.compute~ | one step from the system the driver last sent; returns Hartree, ~3N~ Hartree/Bohr forces ~-dE/dR~, and the nine-component row-major intensive virial ~-(1/V) dE/d(strain)~ in Hartree/Bohr^3 |
+| ~Engine.serve~ | answer communicator ~comm~ until ~EXIT~; return the number of evaluations |
+| ~Engine.close~ | close the session |
+| ~cpmdc.mdi.ProtocolError~ | a ~CPMDCError~ for a command or a system the engine cannot accept |
+| ~cpmdc.mdi.main~ | the ~cpmdc-mdi~ command; returns the exit status |
+| ~MDI_Plugin_init_cpmdc~ | plugin entry, on ~cpmdc~ and on ~cpmdc.mdi~; loads the engine on the call and reads ~CPMDC_PARAMS~ |
 
 ~free_energy~ on ~CPMDCCalculator~ equals ~energy~.
 A repeated geometry returns the stored step.
@@ -82,6 +94,31 @@ sessions.
 [[file:../howto/socket-drivers.org][Drive cpmdc over the i-PI socket protocol]]
 covers ~cpmdc-ipi~, and [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]]
 covers ~cpmdc.lammps~.
+[[file:../howto/mdi.org][Drive cpmdc as an MDI engine]] covers ~cpmdc-mdi~.
+
+* MDI commands
+The engine registers these commands at ~@DEFAULT~.
+Every quantity is an MDI atomic unit.
+The engine passes coordinates, atomic numbers, and the cell to
+~Session.calculate_au~ and adds no conversion constant.
+~<NAME~ is also answered inside ~pymdi~ from ~-name~.
+~<KE_ELEC~ is not registered: a driver that would add it to ~<PE~ asks for
+~<ENERGY~ instead, and both ~<ENERGY~ and ~<PE~ are the potential energy.
+
+| Command | On the wire | cpmdc |
+|---------+-------------+-------|
+| ~<NAME~ | engine name, ~MDI_NAME_LENGTH~ characters | ~-name~, default ~CPMDC~ |
+| ~<@~ | current node | ~@DEFAULT~ |
+| ~>NATOMS~, ~<NATOMS~ | one integer | the atom count; a later count that differs stops the engine |
+| ~>ELEMENTS~ | ~N~ integers | atomic numbers in 1..118; the multiset is fixed by the first evaluation |
+| ~>COORDS~, ~<COORDS~ | ~3N~ doubles, Bohr | Cartesian coordinates, passed through |
+| ~>CELL~, ~<CELL~ | nine doubles, Bohr, one lattice vector per row | the cell given to ~calculate_au~; all zeros is no cell |
+| ~>CELL_DISPL~ | three doubles, Bohr | stored, and not subtracted from the coordinates |
+| ~>CHARGES~ | ~N~ doubles | accepted when every value is 0, or when each value equals the atomic number; any other charge is ~ProtocolError~ |
+| ~<ENERGY~, ~<PE~ | one double, Hartree | the potential energy, the same value for both commands |
+| ~<FORCES~ | ~3N~ doubles, Hartree/Bohr | ~-dE/dR~ |
+| ~<STRESS~ | nine doubles, Hartree/Bohr^3, row-major | the intensive virial ~-(1/V) dE/d(strain)~, the library stress; zero without a cell or a tensor |
+| ~EXIT~ | none | ends the run and closes the session |
 
 * Errors
 
@@ -101,3 +138,5 @@ covers ~cpmdc.lammps~.
 | ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CPMDCError~; ~ValueError~ for the sizes |
 | ~FixExternal~ on a unit style other than ~metal~, ~real~, ~electron~, on a box with mixed periodicity, or with the wrong number of elements | ~ValueError~ |
 | ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CPMDCError~ |
+| an MDI command outside ~cpmdc.mdi.COMMANDS~, a charge that is neither 0 nor the atomic number, a cell without three independent vectors, a result before ~>NATOMS~, ~>ELEMENTS~, and ~>COORDS~, or ~-method MPI~ or ~LINK~ on ~cpmdc-mdi~ | ~cpmdc.mdi.ProtocolError~ |
+| an atom count or an elemental composition that differs after the first MDI evaluation | ~cpmdc.mdi.ProtocolError~, and the message contains ~topology change requires a new session~ |

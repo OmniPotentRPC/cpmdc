@@ -15,6 +15,9 @@ process. :func:`find_schema` returns ``schema/Potentials.capnp``, which a
 wheel also carries, for encoding ``CPMDParams`` text with ``capnp encode``.
 :class:`ConstantCutoff` turns on the constant-cutoff kinetic functional,
 whose stress carries no Pulay stress.
+:func:`MDI_Plugin_init_cpmdc` is the MolSSI Driver Interface plugin entry.
+Importing this package does not import ``pymdi``; the function loads
+:mod:`cpmdc.mdi` on the call.
 """
 
 from __future__ import annotations
@@ -51,6 +54,7 @@ __all__ = [
     "find_schema",
     "forces_to_ev_per_angstrom",
     "stress_to_ev_per_angstrom3",
+    "MDI_Plugin_init_cpmdc",
 ]
 
 
@@ -699,3 +703,16 @@ class Potential:
 
     def __exit__(self, *_exc: object) -> None:
         self.close()
+
+
+def MDI_Plugin_init_cpmdc(plugin_state: object) -> int:
+    """MDI plugin entry for the engine name ``cpmdc``.
+
+    The body lives in :mod:`cpmdc.mdi` and is imported on the call, so
+    importing :mod:`cpmdc` does not import ``pymdi``. ``CPMDC_PARAMS`` names
+    the ``CPMDParams`` file. The plugin's ``-mdi`` options are
+    ``-role ENGINE -name CPMDC -method LINK``.
+    """
+    from cpmdc.mdi import MDI_Plugin_init_cpmdc as start
+
+    return start(plugin_state)

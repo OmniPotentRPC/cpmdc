@@ -25,6 +25,7 @@ portable result carrier used by RPC-facing callers.
 | --- | --- |
 | Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
 | Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
+| Run an MDI driver on cpmdc forces | Start `python -m cpmdc.mdi` and point LAMMPS `fix mdi/qm` at it, as [Drive cpmdc as an MDI engine](docs/orgmode/howto/mdi.org) shows |
 | Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org), or [Call cpmdc from Python](docs/orgmode/howto/python.org) without ASE |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
 | Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
@@ -88,7 +89,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `tools/lammps/` | `cpmdcplugin.so`, the LAMMPS plugin with `pair_style cpmdc` |
-| `python/cpmdc/` | the Python package: `Session`, the ASE calculator, the i-PI driver, `cpmdc.lammps`, and `cpmdc.gromacs` |
+| `python/cpmdc/` | the Python package: `Session`, the ASE calculator, the i-PI driver, the MDI engine, `cpmdc.lammps`, and `cpmdc.gromacs` |
 | `tools/gromacs/` | `libcpmdc_gromacs`, cpmdc behind the libcp2k API of GROMACS' QM/MM interface, and its `libcp2k.pc` |
 | `bench/lammps_routes.py` | per-step overhead of the LAMMPS and i-PI routes |
 | `bench/gromacs_routes.py` | per-step overhead of the GROMACS route beside the LAMMPS plugin |
@@ -111,6 +112,7 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 | Long-running native C force loop | `cpmdc_session_energy_forces` |
 | Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
 | LAMMPS integrating on cpmdc forces | `pair_style cpmdc` or `cpmdc.lammps.FixExternal`, both on `cpmdc_session_calculate_au` |
+| An MDI driver (LAMMPS `fix mdi/qm`, `mdi plugin`) | `python -m cpmdc.mdi`, on `cpmdc_session_calculate_au` |
 | GROMACS integrating on cpmdc forces, QM group or whole system | `libcpmdc_gromacs` linked as libcp2k (`-DGMX_CP2K=ON`), on `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
 | Native C compatibility call | `cpmdc_energy_forces` |
@@ -337,6 +339,7 @@ Read the docs in this order:
   [use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org),
   [relax a cell at a constant cutoff](docs/orgmode/howto/constant-cutoff.org),
   [drive cpmdc over the i-PI socket protocol](docs/orgmode/howto/socket-drivers.org),
+  [drive cpmdc as an MDI engine](docs/orgmode/howto/mdi.org),
   [run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org),
   [run GROMACS on cpmdc forces](docs/orgmode/howto/gromacs.org),
   [run under mpirun](docs/orgmode/howto/mpi.org),

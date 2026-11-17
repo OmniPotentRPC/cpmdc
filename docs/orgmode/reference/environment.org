@@ -139,7 +139,7 @@ decide which ~libcpmdc~ a host loads.
 | Variable | Host | Effect |
 |----------+------+--------|
 | ~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, ~RGPOT_CPMD_ENGINE~ | ~rgpot~ ~CPMDPot~ and ~python/cpmdc~ | path of the ~libcpmdc.so~ to ~dlopen~, tried in that order after an explicit engine path |
-| ~CPMDC_PARAMS~ | ~examples/python/ase_energy.py~ | encoded ~CPMDParams~ the example reads; the [[file:../tutorials/ase-energy.org][ASE tutorial]] sets it |
+| ~CPMDC_PARAMS~ | ~examples/python/ase_energy.py~, ~cpmdc-mdi~, and ~MDI_Plugin_init_cpmdc~ | encoded ~CPMDParams~; the engine reads ~--params~ or this variable, and the plugin reads only this variable; the [[file:../tutorials/ase-energy.org][ASE tutorial]] sets it |
 | ~CPMDC_SCHEMA~ | ~python/cpmdc~ ~find_schema~ | path of ~schema/Potentials.capnp~ for encoding ~CPMDParams~ text; a cell needs no schema, because the package encodes ~ForceInput~ itself |
 | ~RGPOT_PARAMS_PATH~ | eOn ~RgpotPot~ builds that read ~params_path~ | overrides ~[RgpotPot] params_path~ |
 | ~OMP_NUM_THREADS~ | OpenMP runtime | threads per rank inside CPMD when OpenCPMD was built with OpenMP |

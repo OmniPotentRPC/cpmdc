@@ -12,6 +12,8 @@ For LAMMPS to integrate on cpmdc forces in one process, with less overhead
 per step, see [[file:lammps.org][Run LAMMPS on cpmdc forces]].
 GROMACS has no i-PI client; it reaches cpmdc in process through
 [[file:gromacs.org][its CP2K QM/MM interface]].
+An MDI driver, including LAMMPS ~fix mdi/qm~, reaches the same session
+through [[file:mdi.org][the MDI engine]].
 ~cpmdc-ipi-c~ is the same client written in C, for hosts without Python.
 
 The protocol is the one in the i-PI documentation,

@@ -22,14 +22,16 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Chemistry",
   "Topic :: Scientific/Engineering :: Physics",
 ]
-keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
+keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes", "MDI"]
 
 [project.optional-dependencies]
 ase = ["ase>=3.23"]
+mdi = ["pymdi>=1.4"]
 test = ["ase>=3.23", "pytest>=7"]
 
 [project.scripts]
 cpmdc-ipi = "cpmdc.ipi:main"
+cpmdc-mdi = "cpmdc.mdi:main"
 
 [project.urls]
 Homepage = "https://cpmdc.rgoswami.me"

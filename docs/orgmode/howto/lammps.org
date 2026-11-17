@@ -12,6 +12,7 @@ once per force evaluation; both pass the same numbers to LAMMPS.
 | ~cpmdc.lammps.FixExternal~ | ~fix external pf/callback~ from LAMMPS' Python module | the ~lammps~ Python module (~pip install lammps~ works), ~mpi4py~ for more than one rank |
 | ~pair_style cpmdc~ | a LAMMPS plugin, ~cpmdcplugin.so~, loaded with ~plugin load~ | LAMMPS with the ~PLUGIN~ package and the headers it was built from; no Python |
 | i-PI sockets | ~fix ipi~, a client of an i-PI server | i-PI and ~cpmdc-ipi~; see [[file:socket-drivers.org][the socket drivers]] |
+| MDI | ~fix mdi/qm~, with LAMMPS as the MDI driver | ~python -m cpmdc.mdi~; see [[file:mdi.org][the MDI engine]] |
 
 The plugin suits LAMMPS input scripts run by ~lmp~ and has the least overhead
 per step (see [[file:../explanation/md-engines.org][cpmdc inside MD engines]]).

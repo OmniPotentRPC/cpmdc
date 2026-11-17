@@ -81,6 +81,9 @@ composition requires a new session.
    * - Run cpmdc under i-PI or an ASE socket calculator
      - Start ``cpmdc-ipi``, or ``cpmdc-ipi-c`` without Python, against the server's socket
      - :doc:`Drive cpmdc over the i-PI socket protocol <howto/socket-drivers>`
+   * - Run an MDI driver on cpmdc forces
+     - Start ``python -m cpmdc.mdi`` and point the driver, such as LAMMPS ``fix mdi/qm``, at it
+     - :doc:`Drive cpmdc as an MDI engine <howto/mdi>`
    * - Run LAMMPS on cpmdc forces
      - Attach ``cpmdc.lammps.FixExternal`` from Python, or load ``pair_style cpmdc`` from the plugin
      - :doc:`Run LAMMPS on cpmdc forces <howto/lammps>`
@@ -163,6 +166,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    howto/ase
    howto/constant-cutoff
    howto/socket-drivers
+   howto/mdi
    howto/lammps
    howto/gromacs
    howto/mpi

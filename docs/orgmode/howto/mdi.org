@@ -1,0 +1,180 @@
+#+TITLE: Drive cpmdc as an MDI engine
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+~cpmdc-mdi~ is an engine for the MolSSI Driver Interface.
+A driver sends the ~@DEFAULT~ commands and receives the energy, the forces,
+and the stress of one ~Session~.
+LAMMPS ~fix mdi/qm~ is such a driver, and so is any program that speaks MDI
+over TCP or through the plugin entry.
+The engine calls ~cpmdc_session_calculate_au()~, the same call as the
+[[file:lammps.org][LAMMPS]] and [[file:gromacs.org][GROMACS]] routes.
+For the i-PI socket protocol, see [[file:socket-drivers.org][the socket drivers]].
+
+The standard is the MDI Library's
+[[https://molssi-mdi.github.io/MDI_Library/html/mdi_standard.html][command standard]].
+Commands and units are listed in the
+[[file:../reference/python.org][Python API reference]].
+
+* Install
+~pymdi~ is an optional dependency. Importing ~cpmdc~ does not import it.
+
+#+begin_src bash
+pip install 'cpmdc[mdi]'
+#+end_src
+
+* Start the engine
+~pip install 'cpmdc[mdi]'~ installs the ~cpmdc-mdi~ command; ~python -m cpmdc.mdi~
+is the same program.
+The MDI options are one argument, because ~-mdi~ is the library's own flag:
+
+#+begin_src bash
+python -m cpmdc.mdi \
+  -mdi "-role ENGINE -name CPMDC -method TCP -hostname localhost -port 8021" \
+  --params water.params.bin
+#+end_src
+
+The driver listens and the engine connects, retrying until the port accepts
+a connection.
+Start either program first.
+
+| Option | Meaning |
+|--------+---------|
+| ~-mdi "..."~ | ~-role ENGINE -name CPMDC -method TCP -hostname HOST -port PORT~; the name is what ~<NAME~ returns |
+| ~--params FILE~ | serialized ~CPMDParams~; default is the ~CPMDC_PARAMS~ environment variable |
+| ~--library PATH~ | ~libcpmdc~ to load; default is the search order of ~find_library~ |
+| ~--cluster~ | ignore the cell the driver sends; the deck sets the box |
+| ~--verbose~ | log every command on standard error |
+
+~-method MPI~ is rejected.
+~-method LINK~ is the plugin entry below, not this command.
+
+* A Python driver
+The driver listens, then the engine connects.
+Positions and the cell are Bohr.
+Divide Angstrom values by ~BOHR_TO_ANGSTROM~, the constant the library uses,
+and the engine passes those Bohr values to ~Session.calculate_au~.
+This example is ASE-free.
+The pytest suite runs these steps over TCP against the stub library; the
+page shows no transcript.
+
+#+begin_src python
+import mdi
+
+from cpmdc import BOHR_TO_ANGSTROM
+
+# One water molecule, Angstrom, then Bohr. The cell is one vector per row.
+angstrom = [
+    [0.0, 0.0, 0.1173],
+    [0.0, 0.7572, -0.4692],
+    [0.0, -0.7572, -0.4692],
+]
+coords = [value / BOHR_TO_ANGSTROM for row in angstrom for value in row]
+cell = [10.0 / BOHR_TO_ANGSTROM, 0.0, 0.0, 0.0, 10.0 / BOHR_TO_ANGSTROM, 0.0, 0.0, 0.0, 10.0 / BOHR_TO_ANGSTROM]
+
+mdi.MDI_Init("-role DRIVER -name driver -method TCP -port 8021")
+comm = mdi.MDI_Accept_Communicator()
+mdi.MDI_Send_Command(">NATOMS", comm)
+mdi.MDI_Send(3, 1, mdi.MDI_INT, comm)
+mdi.MDI_Send_Command(">ELEMENTS", comm)
+mdi.MDI_Send([8, 1, 1], 3, mdi.MDI_INT, comm)
+mdi.MDI_Send_Command(">COORDS", comm)
+mdi.MDI_Send(coords, len(coords), mdi.MDI_DOUBLE, comm)
+mdi.MDI_Send_Command(">CELL", comm)
+mdi.MDI_Send(cell, 9, mdi.MDI_DOUBLE, comm)
+mdi.MDI_Send_Command("<ENERGY", comm)
+energy = mdi.MDI_Recv(1, mdi.MDI_DOUBLE, comm)
+mdi.MDI_Send_Command("<FORCES", comm)
+forces = mdi.MDI_Recv(9, mdi.MDI_DOUBLE, comm)
+mdi.MDI_Send_Command("<STRESS", comm)
+stress = mdi.MDI_Recv(9, mdi.MDI_DOUBLE, comm)
+mdi.MDI_Send_Command("EXIT", comm)
+#+end_src
+
+~energy~ is Hartree, ~forces~ is ~3N~ Hartree/Bohr, and ~stress~ is the
+nine-component intensive virial in Hartree/Bohr^3.
+An all-zero cell, or no ~>CELL~, is a cluster and the stress is zero.
+~--cluster~ on the engine ignores a cell the driver still sends.
+
+* LAMMPS fix mdi/qm
+This input was not run here.
+A conda-forge ~lammps~ build does not accept ~-mdi~, so the pytest smoke
+skips when that is the ~lmp~ on ~PATH~.
+LAMMPS is the driver, so it listens and ~cpmdc-mdi~ connects.
+The engine has no ~>TYPES~ command, so the ~elements~ keyword is required:
+LAMMPS then sends atomic numbers with ~>ELEMENTS~.
+~atom_modify map array~ is required by ~fix mdi/qm~.
+~virial yes~ asks for ~<STRESS~ on a fully periodic box.
+A cluster uses ~boundary f f f~ and leaves ~virial~ off; LAMMPS then sends
+no cell.
+
+#+begin_src text
+units           metal
+atom_style      atomic
+atom_modify     map array
+boundary        p p p
+lattice         sc 10.0
+region          box block 0 1 0 1 0 1
+create_box      2 box
+mass            1 16.0
+mass            2 1.0
+create_atoms    1 single 0.5 0.5 0.51
+create_atoms    2 single 0.5 0.55 0.47
+create_atoms    2 single 0.5 0.45 0.47
+fix             qm all mdi/qm virial yes elements O H
+run             0
+#+end_src
+
+#+begin_src bash
+python -m cpmdc.mdi \
+  -mdi "-role ENGINE -name CPMDC -method TCP -hostname localhost -port 8021" \
+  --params water.params.bin &
+lmp -mdi "-role DRIVER -name LMP -method TCP -port 8021" -in in.mdi
+#+end_src
+
+LAMMPS converts its ~metal~ lengths and energies to atomic units before the
+exchange, which is what the engine reads.
+~<ENERGY~ and ~<PE~ are the same potential energy.
+~<KE_ELEC~ is not registered, so ~fix mdi/qm~ asks for ~<ENERGY~ rather than
+~<PE~ plus an electronic kinetic energy.
+
+* Plugin
+~MDI_Plugin_init_cpmdc~ is the plugin entry.
+MDI looks for ~examples/mdi/cpmdc.py~ when ~-plugin_path~ is ~examples/mdi~
+and the plugin name is ~cpmdc~, and calls that function.
+The ~CPMDParams~ file is ~CPMDC_PARAMS~: the plugin options cannot carry
+~--params~, because MDI rejects arguments that are not its own.
+~pymdi~'s ~MDI_Launch_plugin~ dereferences an MPI communicator, so a launch
+from Python needs ~mpi4py~ with MPI initialized.
+The pytest suite drives the engine over TCP and does not run this launch.
+
+#+begin_src bash
+export CPMDC_PARAMS=water.params.bin
+python -c 'import mdi
+from mpi4py import MPI
+mdi.MDI_Init("-role DRIVER -name driver -method LINK -plugin_path examples/mdi")
+
+def callback(mpi_comm, comm, obj):
+    mdi.MDI_Send_Command("EXIT", comm)
+    return 0
+
+mdi.MDI_Launch_plugin("cpmdc", "-mdi \"-role ENGINE -name CPMDC -method LINK\"", MPI.COMM_WORLD, callback, None)'
+#+end_src
+
+* Limits
+- One session for the run. After the first evaluation, a different atom
+  count or a different elemental composition stops the engine with
+  ~topology change requires a new session~. A reordering of the same
+  elements stays, as it does on the session. Start another ~cpmdc-mdi~
+  process for a new topology.
+- ~>CHARGES~ is accepted when every value is 0, and when each value equals
+  the atomic number from ~>ELEMENTS~. Any other charge stops the engine:
+  the total charge lives in the ~CPMDParams~ message.
+- ~>CELL_DISPL~ is stored and is not subtracted from the coordinates.
+  MDI coordinates are Cartesian.
+- A cell that is neither all zero nor three independent vectors stops the
+  engine. ~--cluster~ accepts the cell for ~<CELL~ and does not pass it to
+  the evaluation.
+- ~<STRESS~ is zero when the step has no cell, when the deck is isolated, or
+  when ~CPMDC_STRESS=0~. A real cell with a zero tensor warns once on
+  standard error.
+- The command is one process. It does not run under ~mpirun~.
