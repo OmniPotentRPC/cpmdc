@@ -1739,6 +1739,42 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
   }
   session->has_orbital_key = 1;
   session->orbital_key = key;
+  if (session->embed_configured && g_active_session == session)
+    cpmdc_embed_select_orbitals(key);
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
+                                long long to_key) {
+  int had_key = 0;
+  long long saved_key = 0;
+  if (!session) {
+    cpmdc_store_error("null session");
+    return -1;
+  }
+  if (!session->evaluated) {
+    cpmdc_store_error("no stored orbitals; evaluate at least once before copy");
+    return -1;
+  }
+  if (from_key == to_key) {
+    cpmdc_store_error("");
+    return 0;
+  }
+  if ((!session->embed_configured || g_active_session != session) &&
+      configure_embed_from_session(session) != 0) {
+    cpmdc_store_error("CPMD embed not available");
+    return -1;
+  }
+  had_key = session->has_orbital_key;
+  saved_key = session->orbital_key;
+  cpmdc_embed_select_orbitals(from_key);
+  cpmdc_embed_select_orbitals(to_key);
+  cpmdc_embed_select_orbitals(from_key);
+  if (had_key)
+    cpmdc_embed_select_orbitals(saved_key);
+  session->has_orbital_key = had_key;
+  session->orbital_key = saved_key;
   cpmdc_store_error("");
   return 0;
 }

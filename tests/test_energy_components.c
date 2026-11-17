@@ -7,6 +7,8 @@
 #include "cpmdc_embed_image.h"
 
 #include <math.h>
+#include <setjmp.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

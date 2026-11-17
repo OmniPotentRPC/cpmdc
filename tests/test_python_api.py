@@ -79,8 +79,13 @@ def main() -> int:
     ]
     numbers = [8, 1, 1]
     with Session(params, library=library) as session:
+        session.select_orbitals(0)
         first = session.energy_forces(positions, numbers)
         again = session.energy_forces(positions, numbers)
+        try:
+            session.copy_orbitals(0, 1)
+        except CPMDCError:
+            pass
         if first.energy_h != again.energy_h:
             raise AssertionError("a repeated geometry changed the energy")
         if not session.version().startswith("cpmdc/"):

@@ -7,7 +7,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 45 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 47 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -157,6 +157,7 @@ optimisation.
 ~cpmdc_configure()~, ~cpmdc_bind_calculator()~, ~cpmdc_adopt_calculator_comm()~,
 ~cpmdc_session_create()~,
 ~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
+~cpmdc_session_copy_orbitals()~,
 ~cpmdc_session_create_from_config()~, ~cpmdc_session_configure()~,
 ~cpmdc_potential_result_size_for_force_input()~, and every evaluation entry
 point, ~cpmdc_session_calculate_au()~ among them.
@@ -226,6 +227,7 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
 | ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | the next evaluations start from the orbitals stored under ~key~; -1 for a ~NULL~ session |
+| ~int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)~ | copy the stored orbitals of ~from_key~ into ~to_key~ in the live session orbital store; -1 for a ~NULL~ session, before any evaluation, or on backend copy failure |
 
 ~cpmdc_session_set_constant_cutoff()~ sets the constant-cutoff kinetic
 functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +

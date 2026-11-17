@@ -425,6 +425,20 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
 CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key);
 
 /**
+ * @brief Copy stored orbitals from one key to another in this session.
+ *
+ * The call materializes the copy in the live orbital store of the active
+ * calculator: after a successful copy, selecting `to_key` starts from the
+ * same converged orbitals `from_key` held at copy time. The session keeps its
+ * current selected key on return.
+ *
+ * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet, or
+ * the copy cannot be completed. The reason is `cpmdc_last_error()`.
+ */
+CPMDC_API int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
+                                          long long to_key);
+
+/**
  * @brief Compute energy and nuclear gradient with session-owned parameters.
  *
  * Positions are Angstrom. The gradient buffer must have `n_atoms * 3` doubles
@@ -598,6 +612,7 @@ CPMDC_API const char *cpmdc_version(void);
  * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
  * `cpmdc_session_create()`,
  * `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,
+ * `cpmdc_session_copy_orbitals()`,
  * `cpmdc_session_create_from_config()`,
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,

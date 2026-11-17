@@ -174,6 +174,16 @@ struct far_out {
   char message[256];
 };
 
+struct copy_out {
+  int ok[3];
+  int source;
+  int slots_after_copy;
+  int copy_rc;
+  double energy[3];
+  double grad[3][3 * kAtoms];
+  char message[256];
+};
+
 /* Keys 0, 1, 0, 1, 2 at A, B, A2, B2, A with a 0.05 Angstrom limit. B
  * lies 0.12 Angstrom (root-mean-square per atom) from A and A2 0.006 from
  * A, so key 1 starts from the guess, keys 0 and 1 then start from their
@@ -237,9 +247,83 @@ static void test_far_orbitals_give_way_to_the_guess(void **state) {
   free(params);
 }
 
+static void copy_child(void *vctx, void *vout) {
+  const struct keyed_ctx *ctx = (const struct keyed_ctx *)vctx;
+  struct copy_out *o = (struct copy_out *)vout;
+  memset(o, 0, sizeof(*o));
+  CPMDCSession *session = cpmdc_session_create(ctx->params, ctx->params_size);
+  if (!session) {
+    snprintf(o->message, sizeof(o->message), "session: %s", cpmdc_last_error());
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 0);
+  CPMDCResult seed =
+      cpmdc_session_energy_gradient(session, kAtoms, kA, kZ, o->grad[0]);
+  o->ok[0] = seed.ok;
+  o->energy[0] = seed.energy_h;
+  if (!seed.ok) {
+    snprintf(o->message, sizeof(o->message), "seed: %s", seed.message);
+    cpmdc_session_destroy(session);
+    return;
+  }
+  o->copy_rc = cpmdc_session_copy_orbitals(session, 0, 2);
+  o->slots_after_copy = cpmdc_embed_orbital_slots();
+  if (o->copy_rc != 0) {
+    snprintf(o->message, sizeof(o->message), "copy: %s", cpmdc_last_error());
+    cpmdc_session_destroy(session);
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 2);
+  CPMDCResult warm =
+      cpmdc_session_energy_gradient(session, kAtoms, kA2, kZ, o->grad[1]);
+  o->ok[1] = warm.ok;
+  o->energy[1] = warm.energy_h;
+  o->source = cpmdc_embed_last_warm_source();
+  if (!warm.ok) {
+    snprintf(o->message, sizeof(o->message), "warm: %s", warm.message);
+    cpmdc_session_destroy(session);
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 0);
+  CPMDCResult own = cpmdc_session_energy_gradient(session, kAtoms, kA2, kZ, o->grad[2]);
+  o->ok[2] = own.ok;
+  o->energy[2] = own.energy_h;
+  if (!own.ok)
+    snprintf(o->message, sizeof(o->message), "own: %s", own.message);
+  cpmdc_session_destroy(session);
+}
+
+static void test_copy_orbitals_seeds_target_key(void **state) {
+  (void)state;
+  if (!cpmdc_available()) {
+    print_message("[  SKIP   ] libcpmd embed not linked\n");
+    skip();
+  }
+  size_t params_size = 0;
+  unsigned char *params = read_file(g_params, &params_size);
+  assert_non_null(params);
+  struct copy_out out;
+  struct keyed_ctx ctx = {params, params_size, 1};
+  RUN_SETUP_CHILD(copy_child, &ctx, &out);
+  if (out.message[0] != '\0')
+    print_message("copy run: %s\n", out.message);
+  assert_int_equal(out.ok[0], 1);
+  assert_int_equal(out.copy_rc, 0);
+  assert_true(out.slots_after_copy >= 1);
+  assert_int_equal(out.ok[1], 1);
+  assert_int_equal(out.ok[2], 1);
+  assert_int_equal(out.source, 0);
+  assert_float_equal(out.energy[1], out.energy[2], 1e-7);
+  for (int k = 0; k < 3 * kAtoms; ++k)
+    assert_float_equal(out.grad[1][k], out.grad[2][k], 1e-4);
+  free(params);
+}
+
 static void test_null_session_is_refused(void **state) {
   (void)state;
   assert_int_equal(cpmdc_session_select_orbitals(NULL, 3), -1);
+  assert_non_null(strstr(cpmdc_last_error(), "null session"));
+  assert_int_equal(cpmdc_session_copy_orbitals(NULL, 3, 4), -1);
   assert_non_null(strstr(cpmdc_last_error(), "null session"));
 }
 
@@ -253,6 +337,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_null_session_is_refused),
       cmocka_unit_test(test_keys_keep_their_orbitals),
       cmocka_unit_test(test_far_orbitals_give_way_to_the_guess),
+      cmocka_unit_test(test_copy_orbitals_seeds_target_key),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

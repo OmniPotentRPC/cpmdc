@@ -20,6 +20,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_set_constant_cutoff",
     "abi.cpmdc_session_destroy",
     "abi.cpmdc_session_select_orbitals",
+    "abi.cpmdc_session_copy_orbitals",
     "abi.cpmdc_session_energy_gradient",
     "abi.cpmdc_session_energy",
     "abi.cpmdc_session_energy_forces",
@@ -82,6 +83,7 @@ static void test_stub_reports_unavailable(void **state) {
   assert_int_not_equal(cpmdc_session_set_params(NULL, NULL, 0), 0);
   cpmdc_session_destroy(NULL);
   assert_int_equal(cpmdc_session_select_orbitals(NULL, 0), -1);
+  assert_int_equal(cpmdc_session_copy_orbitals(NULL, 0, 1), -1);
   CPMDCResult session_energy = cpmdc_session_energy(NULL, 0, NULL, NULL);
   assert_int_equal(session_energy.ok, 0);
   CPMDCResult session_gradient =
@@ -150,6 +152,8 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   expect_stub_entry("cpmdc_session_set_params");
   assert_int_equal(cpmdc_session_set_constant_cutoff(NULL, 30.0, 0.0, 0.0), -1);
   expect_stub_entry("cpmdc_session_set_constant_cutoff");
+  assert_int_equal(cpmdc_session_copy_orbitals(NULL, 0, 1), -1);
+  expect_stub_entry("cpmdc_session_copy_orbitals");
   assert_null(cpmdc_session_create_from_config(NULL, 0));
   expect_stub_entry("cpmdc_session_create_from_config");
   assert_int_equal(cpmdc_session_configure(NULL, NULL, 0), -1);

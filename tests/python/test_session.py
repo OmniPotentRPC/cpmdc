@@ -79,3 +79,18 @@ def test_repeated_geometry_is_deterministic(params):
     assert first.energy_h == again.energy_h
     assert first.forces_h_bohr == again.forces_h_bohr
     assert first.stress_h_bohr3 is None
+
+
+def test_orbital_key_methods(params):
+    session = Session(params)
+    session.select_orbitals(11)
+    session.energy_forces(WATER, [8, 1, 1])
+    try:
+        session.copy_orbitals(11, 12)
+    except CPMDCError as exc:
+        assert str(exc)
+    session.close()
+    with pytest.raises(CPMDCError, match="closed"):
+        session.select_orbitals(1)
+    with pytest.raises(CPMDCError, match="closed"):
+        session.copy_orbitals(1, 2)

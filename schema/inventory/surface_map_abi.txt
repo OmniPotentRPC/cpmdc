@@ -42,6 +42,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_session_calculate_forces=              | cpmdc.h          | -   | Y        |
 | =cpmdc_session_calculate_result=              | cpmdc.h          | -   | Y        |
 | =cpmdc_session_configure=                     | cpmdc.h          | -   | Y        |
+| =cpmdc_session_copy_orbitals=                 | cpmdc.h          | -   | Y        |
 | =cpmdc_session_create=                        | cpmdc.h          | -   | Y        |
 | =cpmdc_session_create_from_config=            | cpmdc.h          | -   | Y        |
 | =cpmdc_session_destroy=                       | cpmdc.h          | -   | Y        |
@@ -61,7 +62,7 @@ libcpmdc exports these symbols and no other.
 | =cpmdc_version=                               | cpmdc.h          | -   | Y        |
 
 * Summary
-Public declarations: 46
-Exported cpmdc_ symbols: 46
+Public declarations: 47
+Exported cpmdc_ symbols: 47
 Other exported symbols: 0
 Parity: OK
