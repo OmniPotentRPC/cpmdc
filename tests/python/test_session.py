@@ -64,7 +64,7 @@ def test_reference_step_has_no_fabricated_dipole(params):
     with Potential(params) as pot:
         result = pot.evaluate(WATER, [8, 1, 1])
     assert "dipole" not in result
-    assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
+    assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
 
 
 def test_dipole_unit_conversion():
