@@ -262,8 +262,9 @@ It is the one-shot form of [[*Binding][the binding calls]].
 The call is collective over the communicator.
 Every rank receives the partials of every rank and adds them in rank order, so
 every rank ends with the same bytes.
-~stats->seconds~ runs from the entry of the bound call to the arrival of every
-partial; the binding step before it is not timed.
+~stats->seconds~ runs from the entry of the bound call to the end of the
+rank-ordered sum, the Allgather included; the binding step before it is not
+timed.
 ~stats->alloc_bytes~ holds ~(ranks + 1) * (3 * natoms + 4)~ doubles of exchange
 buffers plus the scratch of this rank's team.
 

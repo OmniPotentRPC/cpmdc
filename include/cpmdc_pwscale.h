@@ -35,7 +35,10 @@ extern "C" {
 #define CPMDC_PWSCALE_ERR_NOCUDA -3
 /** A CUDA call failed. */
 #define CPMDC_PWSCALE_ERR_CUDA -4
-/** This build has no FFTW. */
+/**
+ * The FFT timing driver `bench/pwscale_fft.c` has no FFTW.
+ * No function declared here returns it.
+ */
 #define CPMDC_PWSCALE_ERR_NOFFTW -5
 
 /** Split the plane-wave loop across workers. */
@@ -119,7 +122,10 @@ int cpmdc_pwscale_sample_check(double got_energy, const double *got_forces,
  * @p dist selects the split: plane waves, or atoms.
  * @p nthreads is the OpenMP team size. One thread is the serial loop.
  * Wall time covers scratch allocation, the arithmetic, and the ordered sum.
- * A null buffer or an unknown @p dist returns CPMDC_PWSCALE_ERR_ARG.
+ * A null buffer, an unknown @p dist, a problem outside its limits
+ * (1..1000000 atoms, 1..100000000 plane waves, positive cell edge, alpha,
+ * and sigma), @p nthreads above 4096, or a failed scratch allocation returns
+ * CPMDC_PWSCALE_ERR_ARG. @p nthreads below 1 means 1. @p stats may be NULL.
  */
 int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob,
                        const double *positions_bohr,
@@ -133,7 +139,8 @@ int cpmdc_pwscale_eval(const cpmdc_pwscale_problem *prob,
  * partial and sums them in rank order. @p nthreads is the team inside a rank.
  * @p comm NULL selects MPI_COMM_WORLD. A build without MPI returns
  * CPMDC_PWSCALE_ERR_NOMPI.
- * seconds runs from this rank's entry to the arrival of every partial.
+ * seconds runs from the entry of the bound call to the end of the rank-ordered
+ * sum, the Allgather included. The bind step of this call is not timed.
  * Each rank holds (ranks + 1) * (3 * natoms + 4) doubles for the sum.
  */
 int cpmdc_pwscale_eval_mpi(const cpmdc_pwscale_problem *prob,
