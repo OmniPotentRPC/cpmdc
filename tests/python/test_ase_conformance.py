@@ -483,13 +483,37 @@ def test_the_calculator_recovers_after_a_failure(calc, params, tolerance):
 
 
 @pytest.mark.parametrize("scale", [1e200, -1e200])
-def test_a_non_finite_result_is_a_calculation_failure(calc, scale):
+def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd):
+    """The reference well returns an infinite energy for this geometry.
+
+    OpenCPMD stops in RATOM while it reads the coordinates of the deck, so
+    no result exists and the library gives its own reason. ASE fixes the
+    exception, not the text.
+    """
     atoms = water()
     atoms.positions *= scale
     atoms.calc = calc
-    with pytest.raises(CalculationFailed, match="non-finite"):
+    with pytest.raises(CalculationFailed, match=None if opencpmd else "non-finite"):
         atoms.get_potential_energy()
     assert calc.results == {}
+
+
+@pytest.mark.parametrize("name", ["energy", "forces", "stress"])
+def test_a_non_finite_value_from_the_library_is_a_calculation_failure(
+    periodic_params, monkeypatch, name
+):
+    def poisoned(self, *args, **kwargs):
+        done = {"energy": 0.0, "forces": [0.0] * 9, "stress": [0.0] * 9}
+        done[name] = float("nan") if name == "energy" else [float("inf")] * 9
+        return done
+
+    monkeypatch.setattr(Potential, "evaluate", poisoned)
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(periodic_params) as calc:
+        atoms.calc = calc
+        with pytest.raises(CalculationFailed, match=f"non-finite {name}"):
+            atoms.get_stress()
+        assert calc.results == {}
 
 
 def test_a_failure_in_a_relaxation_reaches_the_caller(calc, monkeypatch):

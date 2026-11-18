@@ -66,13 +66,43 @@ def test_the_lammps_step_agrees_with_the_ase_step_in_metal_units(periodic_params
     fix._session.close()
 
 
-def test_the_lammps_step_refuses_a_non_finite_result_like_ase_does(params):
+def test_the_lammps_step_refuses_a_non_finite_result_like_ase_does(params, opencpmd):
+    """The reference well returns an infinite energy for this geometry.
+
+    OpenCPMD stops in RATOM while it reads the coordinates of the deck, so
+    no result exists and the library gives its own reason. The callback
+    halts LAMMPS on any error.
+    """
     fix = fix_without_lammps(params)
     numbers = np.array([8, 1, 1], dtype=np.int32)
     tags = np.array([1, 2, 3])
-    with pytest.raises(CPMDCError, match="non-finite"):
+    with pytest.raises(CPMDCError, match=None if opencpmd else "non-finite"):
         fix._evaluate(tags, np.array(WATER) * 1e200, numbers, np.eye(3))
     fix._evaluate(tags, np.array(WATER), numbers, np.eye(3))
+    fix._session.close()
+
+
+@pytest.mark.parametrize("name", ["energy", "forces", "virial"])
+def test_the_lammps_step_refuses_a_non_finite_value_from_the_library(
+    params, monkeypatch, name
+):
+    import cpmdc.lammps as adapter
+
+    def poisoned(self, positions, numbers, cell=None, *, forces, virial):
+        forces[:] = 0.0
+        virial[:] = 0.0
+        energy = 0.0
+        if name == "energy":
+            energy = float("nan")
+        else:
+            {"forces": forces, "virial": virial}[name][0] = float("inf")
+        return energy, forces, virial
+
+    monkeypatch.setattr(adapter.Session, "calculate_au", poisoned)
+    fix = fix_without_lammps(params)
+    numbers = np.array([8, 1, 1], dtype=np.int32)
+    with pytest.raises(CPMDCError, match=f"non-finite {name}"):
+        fix._evaluate(np.array([1, 2, 3]), np.array(WATER), numbers, np.eye(3))
     fix._session.close()
 
 
