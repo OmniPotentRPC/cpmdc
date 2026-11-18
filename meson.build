@@ -27,17 +27,6 @@ if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
     'ASAN_OPTIONS': 'halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0',
   }
 endif
-# Default for every test under AddressSanitizer. tests/lsan.supp names the
-# third party frame. A test that sets its own environment still wins.
-if 'address' in get_option('b_sanitize').split(',')
-  add_test_setup(
-    'lsan',
-    env: environment({
-      'LSAN_OPTIONS': 'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
-    }),
-    is_default: true,
-  )
-endif
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
 run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
