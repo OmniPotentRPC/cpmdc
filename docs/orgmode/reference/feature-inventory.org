@@ -13,8 +13,8 @@ drift apart.
 * Feature IDs
 
 The inventory describes the cpmdc engine boundary, not transport protocols.
-i-PI and MDI are optional rgpot frontends over =CPMDPot= and other
-potentials; they are not =cpmdc_feature_*= rows.  Until the
+i-PI is an optional rgpot frontend over =CPMDPot= and other potentials;
+protocol frontends are not =cpmdc_feature_*= rows.  Until the
 [[file:../howto/socket-drivers.org][rgpot i-PI command gaps]] are closed, the
 cpmdc-specific i-PI driver remains a transitional tool rather than an engine
 capability.

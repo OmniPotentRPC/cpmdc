@@ -111,7 +111,7 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 | Long-running native C force loop | `cpmdc_session_energy_forces` |
 | Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
 | Remote potential call | rgpot's Cap'n Proto RPC over `CPMDPot` |
-| Optional i-PI or MDI protocol | an rgpot frontend over `CPMDPot`; the [i-PI status page](docs/orgmode/howto/socket-drivers.org) records the remaining command gaps |
+| Optional i-PI protocol | an rgpot frontend over `CPMDPot`; the [i-PI status page](docs/orgmode/howto/socket-drivers.org) records the remaining command gaps |
 | LAMMPS integrating on cpmdc forces | `pair_style cpmdc` or `cpmdc.lammps.FixExternal`, both on `cpmdc_session_calculate_au` |
 | GROMACS integrating on cpmdc forces, QM group or whole system | `libcpmdc_gromacs` linked as libcp2k (`-DGMX_CP2K=ON`), on `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
