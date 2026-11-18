@@ -537,6 +537,7 @@ class Session:
         if not blob:
             raise CPMDCError("CPMDParams buffer is empty")
         self._lib = _load(find_library(library))
+        self._dipole_seen: bool | None = None
         if cutoff is not None and not hasattr(self._lib, "cpmdc_session_set_constant_cutoff"):
             raise CPMDCError(
                 "this libcpmdc has no cpmdc_session_set_constant_cutoff; "
@@ -610,17 +611,44 @@ class Session:
         stress = _CStress()
         have = self._lib.cpmdc_session_last_stress(self._handle, ctypes.byref(stress))
         tensor = [float(stress.values[i]) for i in range(9)] if have == 0 and stress.valid else None
-        dipole_value = None
-        if hasattr(self._lib, "cpmdc_session_last_dipole"):
-            dipole = _CDipole()
-            have_dipole = self._lib.cpmdc_session_last_dipole(
-                self._handle, ctypes.byref(dipole)
-            )
-            if have_dipole == 0 and dipole.valid:
-                dipole_value = [float(dipole.values[i]) for i in range(3)]
+        dipole_value = self._last_dipole()
         return Evaluation(
             float(result.energy_h), _rows(force_buf, n_atoms), tensor, dipole_value
         )
+
+    def _last_dipole(self) -> list[float] | None:
+        """The dipole of the last evaluation in electron Bohr, or ``None``.
+
+        Also records whether that evaluation produced one, for
+        :meth:`dipole_possible`.
+        """
+        value = None
+        if hasattr(self._lib, "cpmdc_session_last_dipole"):
+            dipole = _CDipole()
+            have = self._lib.cpmdc_session_last_dipole(self._handle, ctypes.byref(dipole))
+            if have == 0 and dipole.valid:
+                value = [float(dipole.values[i]) for i in range(3)]
+        self._dipole_seen = value is not None
+        return value
+
+    def dipole_possible(self) -> bool:
+        """Whether this session can produce a molecular dipole.
+
+        Only a library linked to OpenCPMD can, and only for a periodic
+        Gamma-point deck that asks for ``DIPOLE DYNAMICS`` or
+        ``PROP / DIPOLE MOMENT BERRY``. The reference evaluator never can.
+        Before the first evaluation the deck is not known to OpenCPMD, so a
+        linked library answers ``True``. After an evaluation the answer is
+        whether that evaluation produced a dipole. A closed session answers
+        ``False``.
+        """
+        if not getattr(self, "_handle", None) or not hasattr(
+            self._lib, "cpmdc_session_last_dipole"
+        ):
+            return False
+        if not self.available():
+            return False
+        return self._dipole_seen is not False
 
     def calculate_au(
         self,
@@ -664,6 +692,7 @@ class Session:
         )
         if status != 0:
             raise CPMDCError(self._error() or "evaluation failed")
+        self._last_dipole()
         return float(energy.value), forces, virial
 
     def select_orbitals(self, key: int) -> None:
@@ -716,8 +745,9 @@ class Potential:
     eV/Angstrom with shape (N, 3), and ``stress`` as nine eV/Angstrom^3
     components in row-major order when the library computed a tensor.
     The stress sign is ASE's, ``(1/V) dE/d(strain)``.
-    :meth:`caps` reports that stress may be present and per-atom energies
-    are not. ``constant_cutoff`` is passed to :class:`Session`. ``schema``
+    :meth:`caps` reports that stress may be present, that a dipole may be
+    present only when the evaluator can produce one, and that per-atom
+    energies are not. ``constant_cutoff`` is passed to :class:`Session`. ``schema``
     is deprecated and ignored, as for :class:`Session`.
     """
 
@@ -734,8 +764,12 @@ class Potential:
         self._session = Session(params, library=library, constant_cutoff=constant_cutoff)
 
     def caps(self) -> dict[str, bool]:
-        """Capabilities an rgpot calculator consults before a step."""
-        return {"stress": True, "dipole": True, "energies": False}
+        """Capabilities an rgpot calculator consults before a step.
+
+        ``dipole`` is :meth:`Session.dipole_possible`: false for the reference
+        evaluator and for a deck whose last evaluation produced no dipole.
+        """
+        return {"stress": True, "dipole": self._session.dipole_possible(), "energies": False}
 
     def evaluate(
         self,

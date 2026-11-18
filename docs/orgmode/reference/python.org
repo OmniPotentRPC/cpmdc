@@ -32,10 +32,11 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
+| ~Session.dipole_possible~ | true when OpenCPMD is linked and the last evaluation did not come back without a dipole; false for the reference evaluator, for a deck that produced none, and on a closed session |
 | ~Session.close~ | destroy the handle; a later step raises ~CPMDCError~ |
 | ~Potential~ | rgpot-shaped provider over one session; ~constant_cutoff=~ goes to ~Session~; ~schema~ is deprecated and ignored |
 | ~Potential.evaluate~ | eV, eV/Angstrom, optional row-major stress in eV/Angstrom^3, and optional ~dipole~ in e*Angstrom |
-| ~Potential.caps~ | ~stress~ and ~dipole~ true, ~energies~ false |
+| ~Potential.caps~ | ~stress~ true, ~energies~ false, and ~dipole~ as ~Session.dipole_possible~ answers |
 | ~Potential.close~ | close the owned session |
 | ~find_library~ | explicit path, the three environment variables, the wheel's library, the dynamic linker, then ~build/~ |
 | ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~; for ~capnp encode~ of ~CPMDParams~ text |

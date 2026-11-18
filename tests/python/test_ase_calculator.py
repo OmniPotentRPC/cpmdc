@@ -11,6 +11,7 @@ well take a tolerance there.
 from __future__ import annotations
 
 import copy
+import ctypes
 import json
 import os
 import pickle
@@ -166,11 +167,9 @@ def test_a_periodic_step_matches_session_and_potential(periodic_calc, periodic_p
     )
 
 
-def test_opencpmd_dipole_is_recomputed_and_reaches_ase(
-    periodic_params, opencpmd, tmp_path
-):
-    if not opencpmd:
-        pytest.skip("the reference evaluator has no electronic dipole")
+@pytest.fixture(scope="session")
+def dipole_params(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Periodic water whose deck asks for DIPOLE DYNAMICS."""
     capnp = shutil.which("capnp")
     if capnp is None:
         pytest.skip("put capnp on PATH to encode the dipole deck")
@@ -184,8 +183,15 @@ def test_opencpmd_dipole_is_recomputed_and_reaches_ase(
         stdout=subprocess.PIPE,
         check=True,
     ).stdout
-    params = tmp_path / "water-dipole.params.bin"
+    params = tmp_path_factory.mktemp("dipole") / "water-dipole.params.bin"
     params.write_bytes(encoded)
+    return params
+
+
+def test_opencpmd_dipole_is_recomputed_and_reaches_ase(dipole_params, opencpmd):
+    if not opencpmd:
+        pytest.skip("the reference evaluator has no electronic dipole")
+    params = dipole_params
     moved = np.asarray(WATER, dtype=float)
     with Session(params) as session:
         first = session.energy_forces(moved, [8, 1, 1], CUBE)
@@ -205,6 +211,68 @@ def test_opencpmd_dipole_is_recomputed_and_reaches_ase(
             rtol=0,
             atol=1.0e-4,
         )
+
+
+def test_opencpmd_dipole_value_is_pinned(dipole_params, opencpmd):
+    """Real OpenCPMD water in a 10 Angstrom cube, BLYP, 70 Ry.
+
+    The oxygen sits at +z and the hydrogens at -z, so the dipole, which points
+    from the negative to the positive charge, points along -z. OpenCPMD gives
+    (6.1e-6, 2.9e-6, -0.64866) e*Bohr. The range is wide enough for another
+    BLAS and tight enough that a dipole scaled by one half or by a unit
+    factor fails.
+    """
+    if not opencpmd:
+        pytest.skip("the reference evaluator has no electronic dipole")
+    flipped = np.asarray(WATER, dtype=float) * [1.0, 1.0, -1.0]
+    with Session(dipole_params) as session:
+        up = session.energy_forces(WATER, [8, 1, 1], CUBE)
+        assert up.dipole_e_bohr is not None
+        assert session.dipole_possible()
+        x, y, z = up.dipole_e_bohr
+        assert -0.68 < z < -0.62
+        assert abs(x) < 1.0e-3
+        assert abs(y) < 1.0e-3
+        assert 0.62 < float(np.linalg.norm(up.dipole_e_bohr)) < 0.68
+
+        down = session.energy_forces(flipped, [8, 1, 1], CUBE)
+        assert down.dipole_e_bohr is not None
+        assert 0.62 < down.dipole_e_bohr[2] < 0.68
+
+        # calculate_au has no dipole output; the step's dipole is read after it.
+        bohr = np.asarray(WATER, dtype=float).ravel() / BOHR_TO_ANGSTROM
+        cell = np.asarray(CUBE, dtype=float).ravel() / BOHR_TO_ANGSTROM
+        session.calculate_au(bohr, [8, 1, 1], cell)
+        last = cpmdc_last_dipole_values(session)
+    # A warm restart converges to within the deck's 1e-5 orbital gradient,
+    # which moves the dipole by about 1e-4.
+    np.testing.assert_allclose(last, up.dipole_e_bohr, rtol=0, atol=1.0e-3)
+
+
+def cpmdc_last_dipole_values(session: Session) -> list[float]:
+    """The dipole of the last step through the C ABI, electron Bohr."""
+    from cpmdc import _CDipole
+
+    out = _CDipole()
+    assert session._lib.cpmdc_session_last_dipole(session._handle, ctypes.byref(out)) == 0
+    assert out.valid
+    return [float(out.values[i]) for i in range(3)]
+
+
+def test_caps_report_a_dipole_only_when_the_evaluator_can_make_one(
+    params, periodic_params, dipole_params, opencpmd
+):
+    with Potential(params) as pot:
+        assert pot.caps()["dipole"] is opencpmd
+    # A deck without a dipole request produces none, and caps then says so.
+    with Potential(periodic_params) as pot:
+        pot.evaluate(WATER, [8, 1, 1], CUBE)
+        assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+    if opencpmd:
+        with Potential(dipole_params) as pot:
+            assert pot.caps()["dipole"] is True
+            assert "dipole" in pot.evaluate(WATER, [8, 1, 1], CUBE)
+            assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
 
 
 @pytest.mark.parametrize("periodic", [False, True])

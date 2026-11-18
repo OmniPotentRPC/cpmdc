@@ -63,7 +63,7 @@ def test_reference_step_has_no_fabricated_dipole(params):
     with Potential(params) as pot:
         result = pot.evaluate(WATER, [8, 1, 1])
     assert "dipole" not in result
-    assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
+    assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
 
 
 def test_dipole_unit_conversion():
@@ -74,11 +74,26 @@ def test_dipole_unit_conversion():
         dipole_to_e_angstrom([1.0, 2.0])
 
 
-def test_property_gradient_limit_fails_without_truncation(params):
-    positions = [[0.0, 0.0, 0.0]] * 1366
+@pytest.mark.parametrize("atoms", [1365, 1366, 2737])
+def test_system_above_the_snapshot_capacity_is_evaluated(params, opencpmd, atoms):
+    if opencpmd:
+        pytest.skip("an OpenCPMD SCF of more than 1365 atoms is not a unit test")
+    positions = [[0.011 * (1 + i % 37), -0.017 * (1 + i % 23), 0.005 * (1 + i % 91)] for i in range(atoms)]
+    numbers = [1 + 7 * (i % 2) for i in range(atoms)]
     with Session(params) as session:
-        with pytest.raises(CPMDCError, match="at most 1365 atoms"):
-            session.energy_forces(positions, [1] * 1366)
+        done = session.energy_forces(positions, numbers)
+        # Reference forces are -k Z x: the last atom's force is not cut off.
+        last = positions[-1]
+        assert done.forces_h_bohr[-1][0] / last[0] == pytest.approx(
+            done.forces_h_bohr[0][0] / positions[0][0] * numbers[-1] / numbers[0],
+            rel=1e-9,
+        )
+        assert all(value != 0.0 for value in done.forces_h_bohr[-1])
+        bohr = [value / BOHR_TO_ANGSTROM for row in positions for value in row]
+        energy, forces, _ = session.calculate_au(bohr, numbers)
+        assert len(forces) == 3 * atoms
+        assert forces[-1] != 0.0
+        assert energy == pytest.approx(done.energy_h, rel=1e-12)
 
 
 def test_closed_session_raises(params):
