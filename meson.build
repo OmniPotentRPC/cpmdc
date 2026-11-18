@@ -1379,6 +1379,15 @@ test(
     suite: ['docs', 'abi'],
   )
   test(
+    'reference-contract-mutations',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_contract_mutations.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'abi'],
+  )
+  test(
     'reference-well',
     python,
     args: [

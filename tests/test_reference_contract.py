@@ -41,25 +41,29 @@ def strip_comments(text: str) -> str:
     return re.sub(r"//[^\n]*", " ", text)
 
 
-def struct_fields(code: str) -> set[str]:
+def struct_fields(code: str) -> set[tuple[str, str]]:
     fields = set()
-    for body in re.findall(r"\btypedef\s+struct\s+\w*\s*\{([^{}]*)\}", code):
+    structs = re.findall(
+        r"\btypedef\s+struct(?:\s+\w+)?\s*\{([^{}]*)\}\s*(\w+)\s*;",
+        code,
+    )
+    for body, struct in structs:
         for declaration in body.split(";"):
             declaration = declaration.strip()
             if not declaration:
                 continue
             pointer = re.search(r"\(\s*\*\s*(\w+)\s*\)", declaration)
             if pointer:
-                fields.add(pointer.group(1))
+                fields.add((struct, pointer.group(1)))
                 continue
             for declarator in re.sub(r"\[[^\]]*\]", "", declaration).split(","):
                 found = re.findall(r"\w+", declarator)
                 if found:
-                    fields.add(found[-1])
+                    fields.add((struct, found[-1]))
     return fields
 
 
-def header_names(text: str) -> dict[str, set[str]]:
+def header_names(text: str) -> dict[str, set[str] | set[tuple[str, str]]]:
     code = strip_comments(text)
     return {
         "struct field": struct_fields(code),
@@ -92,12 +96,58 @@ def row_names(rows: list[str]) -> set[str]:
     return names
 
 
+def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
+    """Struct-field pairs represented by reference table rows."""
+    pairs: set[tuple[str, str]] = set()
+    section_struct: str | None = None
+    field_table = False
+    for line in text.splitlines():
+        if line.startswith("*"):
+            heading_names = set(re.findall(r"~(\w+)~", line))
+            section_struct = next(iter(heading_names & structs), None)
+            field_table = False
+            continue
+        if not line.lstrip().startswith("|"):
+            if line.lstrip().startswith("Fields of "):
+                context_names = set(re.findall(r"~(\w+)~", line)) & structs
+                section_struct = next(iter(context_names), None)
+            field_table = False
+            continue
+        cells = line.strip().strip("|").split("|")
+        first_cell = cells[0].strip()
+        if first_cell == "Field":
+            field_table = True
+            continue
+        if first_cell and not first_cell.startswith(("~", "-")):
+            field_table = False
+        if not field_table:
+            continue
+        fields = set()
+        for span in re.findall(r"~([^~\n]+)~", cells[0]):
+            found = re.search(r"\w+", span)
+            if found:
+                fields.add(found.group())
+        owners = set(re.findall(r"~(\w+)~", "|".join(cells[1:]))) & structs
+        if not owners and field_table and section_struct is not None:
+            owners = {section_struct}
+        pairs |= {(owner, field) for owner in owners for field in fields}
+    return pairs
+
+
 def check_reference(root: Path, failures: list[str]) -> set[str]:
     pages: dict[str, tuple[str, list[str]] | None] = {}
     first_cells: dict[str, set[str]] = {}
     index = (root / "docs/orgmode/index.org").read_text(encoding="utf-8")
     public: set[str] = set()
     headers = sorted(path.relative_to(root).as_posix() for path in (root / "include").glob("*.h"))
+    names_by_header = {
+        rel: header_names((root / rel).read_text(encoding="utf-8")) for rel in headers
+    }
+    page_struct_fields: dict[str, set[tuple[str, str]]] = {}
+    for rel, names in names_by_header.items():
+        if rel in PAGES:
+            page = f"reference/{PAGES[rel]}.org"
+            page_struct_fields.setdefault(page, set()).update(names["struct field"])
     for rel in headers:
         if rel not in PAGES:
             failures.append(f"{rel}: no reference page is assigned in PAGES")
@@ -108,7 +158,7 @@ def check_reference(root: Path, failures: list[str]) -> set[str]:
         if stem is None:
             continue
         page = f"reference/{stem}.org"
-        names = header_names((root / rel).read_text(encoding="utf-8"))
+        names = names_by_header[rel]
         for kind, found in names.items():
             if kind != "struct field":
                 public |= found
@@ -133,6 +183,17 @@ def check_reference(root: Path, failures: list[str]) -> set[str]:
                         failures.append(
                             f"{page}: {name} ({rel}) has no table row with its parameter list"
                         )
+                elif kind == "struct field":
+                    documented = documented_struct_fields(
+                        text,
+                        {struct for struct, _field in page_struct_fields[page]},
+                    )
+                    if name not in documented:
+                        struct, field = name
+                        failures.append(
+                            f"{page}: struct field {struct}.{field} ({rel}) "
+                            "has no table row for that struct"
+                        )
                 elif kind in ROW_KINDS:
                     if name not in first_cells[page]:
                         failures.append(
@@ -140,6 +201,18 @@ def check_reference(root: Path, failures: list[str]) -> set[str]:
                         )
                 elif not re.search(rf"~[^~\n]*\b{name}\b[^~\n]*~", text):
                     failures.append(f"{page}: {kind} {name} ({rel}) is not named")
+    for page, expected in page_struct_fields.items():
+        cached = pages.get(page)
+        if cached is None:
+            continue
+        documented = documented_struct_fields(
+            cached[0],
+            {struct for struct, _field in expected},
+        )
+        for struct, field in sorted(documented - expected):
+            failures.append(
+                f"{page}: table documents nonexistent struct field {struct}.{field}"
+            )
     return public
 
 

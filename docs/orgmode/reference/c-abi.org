@@ -192,6 +192,7 @@ entries a call filled.
 
 | Field | Struct | Meaning |
 |-------+--------+---------|
+| ~valid~ | ~CPMDCChargeIntegrals~, ~CPMDCMultiStateEnergies~, ~CPMDCMDTrajectoryRow~, ~CPMDCPropertySnapshot~, ~CPMDCStressTensor~, ~CPMDCRankSpread~ | ~int~, non-zero when the snapshot was written |
 | ~csumg~ | ~CPMDCChargeIntegrals~ | ~csumg~ of OpenCPMD ~chrg~, electrons |
 | ~csumr~ | ~CPMDCChargeIntegrals~ | ~csumr~ of OpenCPMD ~chrg~, electrons |
 | ~csums~ | ~CPMDCChargeIntegrals~ | ~csums~ of OpenCPMD ~chrg~, electrons |
