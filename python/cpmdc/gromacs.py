@@ -23,9 +23,13 @@ CODATA 2018).
 
 from __future__ import annotations
 
+import math
 import os
+from numbers import Real
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
+
+from cpmdc import _integer
 
 __all__ = [
     "BOHR_TO_NM",
@@ -48,8 +52,15 @@ _CELLS = ("PERIODIC", "NONE")
 _EMBEDDINGS = ("MECHANICAL", "NONE")
 
 
-def _number(value: float) -> str:
-    return repr(float(value))
+def _number(value: Any, what: str, *, positive: bool = False) -> str:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{what} must be a real number, got {type(value).__name__}")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{what} must be finite, got {value!r}")
+    if positive and number <= 0.0:
+        raise ValueError(f"{what} must be positive, got {value!r}")
+    return repr(number)
 
 
 def qmi_input(
@@ -97,6 +108,10 @@ def qmi_input(
         the classical charge it removed from the QM atoms; the ``CPMDParams``
         deck sets the charge and multiplicity cpmdc uses.
     """
+    charge_value = _integer(charge, "charge")
+    multiplicity_value = _integer(multiplicity, "multiplicity")
+    if multiplicity_value < 1:
+        raise ValueError(f"multiplicity must be 1 or more, got {multiplicity!r}")
     lines = ["&CPMDC", f"  PARAMS {os.fspath(params)}"]
     if cell is not None:
         cell = cell.upper()
@@ -111,15 +126,15 @@ def qmi_input(
     if qm_charges is not None:
         if embedding != "MECHANICAL":
             raise ValueError("qm_charges needs embedding='MECHANICAL'")
-        values = [_number(q) for q in qm_charges]
+        values = [_number(q, "qm_charges") for q in qm_charges]
         for start in range(0, len(values), 8):
             lines.append("  QM_CHARGES " + " ".join(values[start : start + 8]))
     elif embedding == "MECHANICAL":
         raise ValueError("embedding='MECHANICAL' needs qm_charges")
     if ewald_rcut is not None:
-        lines.append(f"  EWALD_RCUT {_number(ewald_rcut)}")
+        lines.append(f"  EWALD_RCUT {_number(ewald_rcut, 'ewald_rcut', positive=True)}")
     if ewald_precision is not None:
-        lines.append(f"  EWALD_PRECISION {_number(ewald_precision)}")
+        lines.append(f"  EWALD_PRECISION {_number(ewald_precision, 'ewald_precision', positive=True)}")
     if qm_ranks is not None:
         ranks = str(qm_ranks).upper()
         if ranks not in ("ALL", "1"):
@@ -135,8 +150,8 @@ def qmi_input(
     ]
     tail = [
         "  &DFT",
-        f"    CHARGE {int(charge)}",
-        f"    MULTIPLICITY {int(multiplicity)}",
+        f"    CHARGE {charge_value}",
+        f"    MULTIPLICITY {multiplicity_value}",
         "  &END DFT",
         "  &SUBSYS",
         "    &TOPOLOGY",
