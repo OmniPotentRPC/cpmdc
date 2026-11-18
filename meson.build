@@ -1009,6 +1009,30 @@ if get_option('with_tests')
     depends: [cpmdc_shared],
     suite: ['embed', 'dlopen'],
   )
+  if 'address' in get_option('b_sanitize').split(',')
+    dlopen_leak_ctor = shared_module(
+      'test_dlopen_leak_ctor',
+      'tests/test_dlopen_leak_ctor.c',
+      c_args: common_c_args,
+    )
+    dlopen_leak_driver = executable(
+      'test_dlopen_leak_driver',
+      'tests/test_dlopen_leak_driver.c',
+      dependencies: [dl_dep],
+      c_args: common_c_args,
+    )
+    test(
+      'dlopen-leak',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_dlopen_leak.py',
+        dlopen_leak_driver.full_path(),
+        dlopen_leak_ctor.full_path(),
+      ],
+      depends: [dlopen_leak_driver, dlopen_leak_ctor],
+      suite: ['embed', 'dlopen'],
+    )
+  endif
 
   # E2E suites use the deterministic reference PEF or the linked OpenCPMD runtime.
   e2e_single_point_exe = executable(
