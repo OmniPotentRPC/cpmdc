@@ -1418,6 +1418,16 @@ test(
     suite: ['docs', 'examples'],
   )
   test(
+    'reference-audit',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_audit.py',
+      meson.current_source_dir(),
+      meson.project_build_root(),
+    ],
+    suite: ['docs', 'abi', 'python'],
+  )
+  test(
     'python-api',
     python,
     args: [
