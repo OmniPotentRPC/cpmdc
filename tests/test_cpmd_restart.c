@@ -706,6 +706,135 @@ done:
   return rc == 0 ? 0 : fail(err[0] ? err : "dangling absolute restart was not created");
 }
 
+/* True exactly when `path` is a symbolic link whose literal target text
+ * is `target`, unchanged by whatever the publisher did at the far end of
+ * the chain. */
+static int is_symlink_to(const char *path, const char *target) {
+  struct stat st;
+  char text[PATH_MAX];
+  ssize_t n;
+  if (lstat(path, &st) != 0 || !S_ISLNK(st.st_mode))
+    return 0;
+  n = readlink(path, text, sizeof text - 1);
+  if (n < 0)
+    return 0;
+  text[n] = '\0';
+  return strcmp(text, target) == 0;
+}
+
+/* RESTART -> RESTART.1 -> RESTART.2, with RESTART.2 absent. realpath fails
+ * on the whole chain, and the previous fallback read only the first hop,
+ * so it replaced RESTART.1 with a new regular file instead of following
+ * it to RESTART.2. Both links must stay exactly as they were, and the
+ * published file must land at the chain's actual end. */
+static int dangling_chain_2hop_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], link1[PATH_MAX], link2[PATH_MAX], target[PATH_MAX], err[256];
+  int kept = 0, extra;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/dangling-chain2", dir) >= (int)sizeof sub ||
+      snprintf(link1, sizeof link1, "%s/RESTART", sub) >= (int)sizeof link1 ||
+      snprintf(link2, sizeof link2, "%s/RESTART.1", sub) >= (int)sizeof link2 ||
+      snprintf(target, sizeof target, "%s/RESTART.2", sub) >= (int)sizeof target)
+    return fail("two-hop dangling chain path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART.1", link1) != 0 ||
+      symlink("RESTART.2", link2) != 0)
+    return fail("make two-hop dangling restart chain");
+  if (write_restart_at(link1, &image, &image_n, err, sizeof err) != 0)
+    goto done;
+  if (!is_symlink_to(link1, "RESTART.1") || !is_symlink_to(link2, "RESTART.2"))
+    goto done;
+  if (!published_matches(target, image, image_n, 0644))
+    goto done;
+  extra = leftovers(sub, "RESTART", &kept);
+  if (extra != 2 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(link1);
+  unlink(link2);
+  unlink(target);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0
+                 : fail(err[0] ? err : "two-hop dangling chain was not resolved to its end");
+}
+
+/* RESTART -> RESTART.1 -> RESTART.2 -> RESTART.3, with RESTART.3 absent.
+ * One more hop than the two-hop case, to show the walk is not bounded to a
+ * fixed small depth. All three links survive; only RESTART.3 is new. */
+static int dangling_chain_3hop_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], link1[PATH_MAX], link2[PATH_MAX], link3[PATH_MAX];
+  char target[PATH_MAX], err[256];
+  int kept = 0, extra;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/dangling-chain3", dir) >= (int)sizeof sub ||
+      snprintf(link1, sizeof link1, "%s/RESTART", sub) >= (int)sizeof link1 ||
+      snprintf(link2, sizeof link2, "%s/RESTART.1", sub) >= (int)sizeof link2 ||
+      snprintf(link3, sizeof link3, "%s/RESTART.2", sub) >= (int)sizeof link3 ||
+      snprintf(target, sizeof target, "%s/RESTART.3", sub) >= (int)sizeof target)
+    return fail("three-hop dangling chain path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART.1", link1) != 0 ||
+      symlink("RESTART.2", link2) != 0 || symlink("RESTART.3", link3) != 0)
+    return fail("make three-hop dangling restart chain");
+  if (write_restart_at(link1, &image, &image_n, err, sizeof err) != 0)
+    goto done;
+  if (!is_symlink_to(link1, "RESTART.1") || !is_symlink_to(link2, "RESTART.2") ||
+      !is_symlink_to(link3, "RESTART.3"))
+    goto done;
+  if (!published_matches(target, image, image_n, 0644))
+    goto done;
+  extra = leftovers(sub, "RESTART", &kept);
+  if (extra != 3 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(link1);
+  unlink(link2);
+  unlink(link3);
+  unlink(target);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0
+                 : fail(err[0] ? err : "three-hop dangling chain was not resolved to its end");
+}
+
+/* RESTART -> RESTART.1 -> RESTART, a loop of two links rather than one
+ * link pointing at itself. The write must fail with a clear diagnostic and
+ * leave both links exactly as they were. */
+static int dangling_chain_loop_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], link1[PATH_MAX], link2[PATH_MAX], err[256];
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/dangling-chain-loop", dir) >= (int)sizeof sub ||
+      snprintf(link1, sizeof link1, "%s/RESTART", sub) >= (int)sizeof link1 ||
+      snprintf(link2, sizeof link2, "%s/RESTART.1", sub) >= (int)sizeof link2)
+    return fail("two-link loop path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART.1", link1) != 0 ||
+      symlink("RESTART", link2) != 0)
+    return fail("make a two-link restart symlink loop");
+  if (write_restart_at(link1, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  if (strstr(err, "cannot resolve the RESTART symlink") == NULL)
+    goto done;
+  if (!is_symlink_to(link1, "RESTART.1") || !is_symlink_to(link2, "RESTART"))
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(link1);
+  unlink(link2);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "two-link symlink loop was not rejected");
+}
+
 /* A link that points at itself is not a place to create a file. */
 static int symlink_loop_case(const char *dir) {
   void *image = NULL;
@@ -886,6 +1015,12 @@ static int check_atomic_replace(void) {
     rc = dangling_relative_case(dir);
   if (rc == 0)
     rc = dangling_absolute_case(dir);
+  if (rc == 0)
+    rc = dangling_chain_2hop_case(dir);
+  if (rc == 0)
+    rc = dangling_chain_3hop_case(dir);
+  if (rc == 0)
+    rc = dangling_chain_loop_case(dir);
   if (rc == 0)
     rc = symlink_loop_case(dir);
   if (rc == 0)
