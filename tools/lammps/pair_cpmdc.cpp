@@ -327,7 +327,8 @@ void PairCPMDC::compute(int eflag, int vflag)
           std::vector<double> mm_forces(3 * mm_index.size());
           if (cpmdc_session_last_external_charge_forces(
                   session, mm_forces.data(), mm_forces.size()) != 0) {
-            problem = "external-charge forces are unavailable";
+            const char *text = cpmdc_last_error();
+            problem = text && *text ? text : "external-charge forces are unavailable";
           } else {
             for (size_t i = 0; i < mm_index.size(); ++i)
               std::copy_n(&mm_forces[3 * i], 3,

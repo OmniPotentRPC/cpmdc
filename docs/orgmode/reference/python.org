@@ -17,7 +17,12 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
 | ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
-| ~CPMDCError~ | failure from the library or from loading it |
+| ~CPMDCError~ | failure from the library or from loading it; ~CPMDCError.code~ is the library code, or 0 when Python rejected the call |
+| ~CPMDCInvalidArgument~ | null handle or a bad buffer; ~CPMDCInvalidArgument.code~ is 1 |
+| ~CPMDCUnavailable~ | the backend is not linked or this build is the link stub; ~CPMDCUnavailable.code~ is 2 |
+| ~CPMDCUnsupportedPeriodicEmbedding~ | external charges with a periodic cell; ~CPMDCUnsupportedPeriodicEmbedding.code~ is 3 |
+| ~CPMDCEvaluationFailed~ | the evaluation produced no result; ~CPMDCEvaluationFailed.code~ is 4 |
+| ~CPMDCDeckExternalPotential~ | session charges with a deck ~EXTERNAL POTENTIAL~; ~CPMDCDeckExternalPotential.code~ is 5 |
 | ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
 | ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
 | ~ConstantCutoff~ | frozen dataclass of the constant-cutoff kinetic functional, ~ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)~; a value that is not finite and positive raises ~ValueError~, and one that is not a number ~TypeError~ |
@@ -52,7 +57,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
-| ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message |
+| ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message and the library code in ~CPMDCError.code~ |
 | ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; ~params~, the fixed ~atomic_numbers~, then the ~library~, ~cluster~, and ~log~ keywords |
 | ~Driver.compute~ | one step from ~3N~ Bohr positions and the wire's cell ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
 | ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
@@ -89,7 +94,10 @@ covers ~cpmdc.lammps~.
 
 | Condition | Raised |
 |-----------+--------|
-| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CPMDCError~ |
+| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CPMDCError~, or the subclass whose ~code~ matches ~cpmdc_last_error_code()~ |
+| ~Session.external_charge_forces_au~ before a successful step, with the wrong count, or on a null buffer | ~CPMDCInvalidArgument~ |
+| external charges and a periodic cell | ~CPMDCUnsupportedPeriodicEmbedding~ |
+| external charges and a deck ~EXTERNAL POTENTIAL~ or ~EXTERNAL POTENTIAL ADD~ | ~CPMDCDeckExternalPotential~ |
 | a ~constant_cutoff~ whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw ~&SYSTEM~ block or with ~system.constantCutoff~, or on a library without ~cpmdc_session_set_constant_cutoff~ | ~CPMDCError~ |
 | a ~CPMDCCalculator~ step that the library rejects | ~cpmdc.ase.CalculationFailed~, which is a ~CPMDCError~ and ASE's ~CalculationFailed~ |
 | missing ~params~ file | ~FileNotFoundError~ |

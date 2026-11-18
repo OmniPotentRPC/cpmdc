@@ -146,6 +146,7 @@ static void expect_stub_entry(const char *entry) {
   assert_non_null(err);
   assert_non_null(strstr(err, "stub"));
   assert_non_null(strstr(err, entry));
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_UNAVAILABLE);
 }
 
 static void test_stub_failing_calls_set_last_error(void **state) {

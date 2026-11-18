@@ -883,7 +883,9 @@ static int evaluate(Env *env, char *why, size_t why_cap) {
   if (env->embedding == EMBED_ELECTROSTATIC && env->nmm > 0 &&
       cpmdc_session_last_external_charge_forces(
           env->session, electrostatic_fm, 3u * (size_t)env->nmm) != 0) {
-    snprintf(why, why_cap, "%s", "external-charge forces are unavailable");
+    const char *text = cpmdc_last_error();
+    snprintf(why, why_cap, "%s",
+             text && *text ? text : "external-charge forces are unavailable");
     free(electrostatic_xm);
     free(electrostatic_fm);
     free(electrostatic_width);

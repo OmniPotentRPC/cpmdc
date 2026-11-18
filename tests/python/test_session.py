@@ -180,12 +180,83 @@ def test_density_dipole_responds_toward_external_field(params):
 def test_periodic_external_charges_have_typed_error(params):
     with Session(params) as session:
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
-        with pytest.raises(CPMDCError, match="periodic electrostatic embedding"):
+        with pytest.raises(
+            cpmdc.CPMDCUnsupportedPeriodicEmbedding, match="periodic electrostatic embedding"
+        ) as caught:
             session.calculate_au(
                 [value / cpmdc.BOHR_TO_ANGSTROM for row in WATER for value in row],
                 [8, 1, 1],
                 [20.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 20.0],
             )
-        session._lib.cpmdc_last_error_code.argtypes = []
-        session._lib.cpmdc_last_error_code.restype = ctypes.c_int
-        assert session._lib.cpmdc_last_error_code() == 3
+        assert session._lib.cpmdc_last_error_code.argtypes == []
+        assert session._lib.cpmdc_last_error_code.restype is ctypes.c_int
+        assert caught.value.code == cpmdc.CPMDCUnsupportedPeriodicEmbedding.code
+        assert session._lib.cpmdc_last_error_code() == caught.value.code
+
+
+def test_external_charge_force_reader_reports_each_failure(params):
+    with Session(params) as session:
+        with pytest.raises(cpmdc.CPMDCInvalidArgument, match="not available") as missing:
+            session.external_charge_forces_au(1)
+        assert missing.value.code == cpmdc.CPMDCInvalidArgument.code
+        assert session._lib.cpmdc_last_error_code() == missing.value.code
+
+        session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        with pytest.raises(cpmdc.CPMDCInvalidArgument, match="not available"):
+            session.external_charge_forces_au(1)
+
+        session.energy_forces(WATER, [8, 1, 1])
+        with pytest.raises(cpmdc.CPMDCInvalidArgument, match="wrong length") as wrong:
+            session.external_charge_forces_au(2)
+        assert wrong.value.code == cpmdc.CPMDCInvalidArgument.code
+
+        forces = session.external_charge_forces_au(1)
+        assert session._lib.cpmdc_last_error_code() == cpmdc.CPMDCError.code
+        assert session._error() == ""
+        assert len(forces) == 3
+        assert all(math.isfinite(value) for value in forces)
+
+
+def test_closed_session_force_reader_stays_generic(params):
+    session = Session(params)
+    session.close()
+    with pytest.raises(CPMDCError, match="closed") as caught:
+        session.external_charge_forces_au(0)
+    assert type(caught.value) is CPMDCError
+
+
+def _deck_with_flag(flag, directory):
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is needed to encode a deck with EXTERNAL POTENTIAL")
+    source = (ROOT / "tests" / "water_blyp_params.capnp.txt").read_text(encoding="utf-8")
+    needle = "optimizeWavefunction = true,"
+    edited = source.replace(needle, f"{needle}\n        {flag} = true,", 1)
+    done = subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=edited.encode(),
+        stdout=subprocess.PIPE,
+        check=True,
+    )
+    path = directory / f"water_{flag}.bin"
+    path.write_bytes(done.stdout)
+    return path
+
+
+@pytest.mark.parametrize("flag", ["externalPotential", "externalPotentialAdd"])
+def test_deck_external_potential_is_its_own_error(flag, tmp_path):
+    params = _deck_with_flag(flag, tmp_path)
+    with Session(params) as session:
+        bare = session.energy_forces(WATER, [8, 1, 1])
+        assert math.isfinite(bare.energy_h)
+        session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        with pytest.raises(
+            cpmdc.CPMDCDeckExternalPotential, match="EXTERNAL POTENTIAL"
+        ) as caught:
+            session.energy_forces(WATER, [8, 1, 1])
+        assert caught.value.code == cpmdc.CPMDCDeckExternalPotential.code
+        assert caught.value.code != cpmdc.CPMDCEvaluationFailed.code
+        assert session._lib.cpmdc_last_error_code() == caught.value.code
+        session.set_external_charges([], [])
+        cleared = session.energy_forces(WATER, [8, 1, 1])
+        assert cleared.energy_h == pytest.approx(bare.energy_h)

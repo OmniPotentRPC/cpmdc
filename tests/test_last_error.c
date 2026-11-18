@@ -2,6 +2,8 @@
  * Every public call that can fail leaves a non-empty cpmdc_last_error().
  * A successful configuration call clears it. Snapshot readers and the
  * capabilities size query do not write it.
+ * cpmdc_session_last_external_charge_forces is the exception and is covered
+ * by test_external_charge_errors.
  */
 #include "cpmdc.h"
 

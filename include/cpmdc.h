@@ -56,7 +56,9 @@ typedef enum CPMDCErrorCode {
   CPMDC_ERROR_INVALID_ARGUMENT = 1,
   CPMDC_ERROR_UNAVAILABLE = 2,
   CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING = 3,
-  CPMDC_ERROR_EVALUATION_FAILED = 4
+  CPMDC_ERROR_EVALUATION_FAILED = 4,
+  /** Session charges and a deck `EXTERNAL POTENTIAL` were both requested. */
+  CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL = 5
 } CPMDCErrorCode;
 
 /**
@@ -443,8 +445,11 @@ CPMDC_API int cpmdc_session_set_external_charges(
  * @brief Copy forces on the external charges from the last successful step.
  *
  * `forces_h_bohr` has `3 * n_charges` doubles in the order installed by
- * `cpmdc_session_set_external_charges()`. Returns -1 if the buffer length
- * differs or no matching embedded result is available.
+ * `cpmdc_session_set_external_charges()`. Returns 0 after the copy and
+ * clears `cpmdc_last_error()`. Returns -1, with `CPMDC_ERROR_INVALID_ARGUMENT`
+ * and a message, when `session` is NULL, when no successful evaluation has
+ * stored forces for the current charge set, when `forces_len` is not
+ * `3 * n_charges`, or when the buffer is NULL and `forces_len` is positive.
  */
 CPMDC_API int cpmdc_session_last_external_charge_forces(
     const CPMDCSession *session, double *forces_h_bohr, size_t forces_len);
@@ -675,10 +680,12 @@ CPMDC_API const char *cpmdc_version(void);
  * Empty after a successful call.
  *
  * Snapshot readers (`cpmdc_last_stress()` and the other `cpmdc_last_*` /
- * `cpmdc_session_last_*` getters) do not write it: -1 means the snapshot is
- * absent or the output pointer is null. `cpmdc_adopted_comm()` and
- * `cpmdc_capabilities_result()` do not write it either. A capabilities
- * return of -1 is the size query.
+ * `cpmdc_session_last_*` getters) do not write it, except
+ * `cpmdc_session_last_external_charge_forces()`, which writes this string
+ * and `cpmdc_last_error_code()` on every failure and clears both on success.
+ * For the other readers, -1 means the snapshot is absent or the output
+ * pointer is null. `cpmdc_adopted_comm()` and `cpmdc_capabilities_result()`
+ * do not write it either. A capabilities return of -1 is the size query.
  */
 CPMDC_API const char *cpmdc_last_error(void);
 

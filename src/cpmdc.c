@@ -482,6 +482,15 @@ void cpmdc_note_embed_failure(const char *msg) {
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
 }
 
+static const char k_deck_external_potential_msg[] =
+    "session external charges cannot be combined with a deck-defined "
+    "EXTERNAL POTENTIAL";
+
+void cpmdc_note_deck_external_potential(void) {
+  g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
+  cpmdc_note_embed_failure(k_deck_external_potential_msg);
+}
+
 const char *cpmdc_last_error(void) { return g_last_error; }
 CPMDCErrorCode cpmdc_last_error_code(void) { return g_last_error_code; }
 
@@ -1231,6 +1240,48 @@ static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
   return 0;
 }
 
+static int line_defines_external_potential(const char *line, size_t len) {
+  static const char key[] = "EXTERNAL POTENTIAL";
+  const size_t key_len = sizeof(key) - 1u;
+  size_t i;
+  while (len > 0 && (*line == ' ' || *line == '\t')) {
+    line++;
+    len--;
+  }
+  if (len < key_len)
+    return 0;
+  for (i = 0; i < key_len; ++i) {
+    char c = line[i];
+    if (c >= 'a' && c <= 'z')
+      c = (char)(c - 'a' + 'A');
+    if (c != key[i])
+      return 0;
+  }
+  if (len == key_len)
+    return 1;
+  return line[key_len] == ' ' || line[key_len] == '\t' || line[key_len] == '\r';
+}
+
+/* The rendered deck is what CPMD reads. EXTERNAL POTENTIAL and
+ * EXTERNAL POTENTIAL ADD both start a line with that keyword and turn on
+ * the deck-owned external field. */
+static int deck_defines_external_potential(const char *deck) {
+  const char *p;
+  if (!deck || deck[0] == '\0')
+    return 0;
+  p = deck;
+  while (*p) {
+    const char *nl = strchr(p, '\n');
+    size_t len = nl ? (size_t)(nl - p) : strlen(p);
+    if (line_defines_external_potential(p, len))
+      return 1;
+    if (!nl)
+      break;
+    p = nl + 1;
+  }
+  return 0;
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -1254,6 +1305,11 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
     return fail_msg(
         "periodic electrostatic embedding is unsupported; use an isolated "
         "QM cell or clear the external charges");
+  }
+  if (session && session->external_count > 0 &&
+      deck_defines_external_potential(session->input_deck)) {
+    g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
+    return fail_msg(k_deck_external_potential_msg);
   }
   if (!ensure_embed_init() || !cpmdc_embed_available()) {
     g_last_error_code = CPMDC_ERROR_UNAVAILABLE;
@@ -1832,13 +1888,30 @@ int cpmdc_session_set_external_charges(
 
 int cpmdc_session_last_external_charge_forces(
     const CPMDCSession *session, double *forces_h_bohr, size_t forces_len) {
-  if (!session || !session->external_forces_valid ||
-      forces_len != 3u * session->external_count ||
-      (forces_len > 0 && !forces_h_bohr))
+  if (!session) {
+    cpmdc_store_error("null session");
+    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
     return -1;
+  }
+  if (!session->external_forces_valid) {
+    cpmdc_store_error("external charge forces are not available");
+    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    return -1;
+  }
+  if (forces_len != 3u * session->external_count) {
+    cpmdc_store_error("external charge force buffer has the wrong length");
+    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    return -1;
+  }
+  if (forces_len > 0 && !forces_h_bohr) {
+    cpmdc_store_error("external charge force buffer is null");
+    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    return -1;
+  }
   if (forces_len > 0)
     memcpy(forces_h_bohr, session->external_forces_h_bohr,
            forces_len * sizeof(*forces_h_bohr));
+  cpmdc_store_error("");
   return 0;
 }
 

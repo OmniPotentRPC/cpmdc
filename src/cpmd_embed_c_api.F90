@@ -29,6 +29,9 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_char
       CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
     END SUBROUTINE
+    SUBROUTINE cpmdc_note_deck_external_potential() &
+        BIND(C, NAME='cpmdc_note_deck_external_potential')
+    END SUBROUTINE
     FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
@@ -2585,7 +2588,7 @@ CONTAINS
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, &
       n_external, external_pos, external_q, external_width, external_force, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
-        cpmdc_note_embed_failure
+        cpmdc_note_embed_failure, cpmdc_note_deck_external_potential
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start_metric_v2
@@ -2651,9 +2654,7 @@ CONTAINS
          external_width, recentre%shift_ang, ierr)
     IF (ierr /= 0) THEN
       IF (ierr == 2) THEN
-        CALL cpmdc_note_embed_failure( &
-             'session external charges cannot be combined with a deck-defined EXTERNAL POTENTIAL'// &
-             c_null_char)
+        CALL cpmdc_note_deck_external_potential()
       ELSE
         CALL cpmdc_note_embed_failure('cannot allocate external-charge grid'//c_null_char)
       END IF
