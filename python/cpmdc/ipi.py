@@ -50,6 +50,8 @@ from typing import IO, Any, Sequence
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session
 
 __all__ = [
+    "DEFAULT_SOCKET_PREFIX",
+    "HEADER_BYTES",
     "Driver",
     "ProtocolError",
     "connect",
