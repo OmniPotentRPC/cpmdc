@@ -303,12 +303,16 @@ the previous file or the finished one, never part of the new one.
 The image goes to a short-named temporary file next to the effective
 destination. A new destination is opened with mode 0666 under the umask as a
 plain ~fopen~ would; replacement keeps the destination's existing mode.
-When ~RESTART~ is a symbolic link, as in CPMD's ~RESTART -> RESTART.1~
-convention, the target is replaced and the link survives.
-A dangling link, whose target is not there yet, is created at that path:
-a relative target is taken from the directory that holds the link, and the
-new file takes mode 0666 under the umask, as ~fopen~ did.
-A loop, or a link that cannot be read, is left in place and the write fails.
+On POSIX, when ~RESTART~ is a symbolic link, as in CPMD's
+~RESTART -> RESTART.1~ convention, the target is replaced and the link
+survives. A dangling link, whose target is not there yet, is resolved hop
+by hop to the end of the chain, even past the first missing name, and the
+real end is created there: a relative target at each hop is taken from the
+directory that holds that hop's link, and the new file takes mode 0666
+under the umask, as ~fopen~ did. Every link before that end stays exactly
+as it was. A loop, or a link that cannot be read, is left in place and the
+write fails. Windows resolves none of this: the destination is written as
+given, with no symlink handling at all.
 The writer flushes that file and syncs it with ~fsync~, renames it over the
 destination, and syncs the directory with ~fsync~, so the new name also
 survives a crash.
