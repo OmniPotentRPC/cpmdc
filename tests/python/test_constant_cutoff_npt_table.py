@@ -208,3 +208,67 @@ def test_the_pbe_water_page_carries_the_generated_tables():
     page = PBE_WATER.read_text()
     missing = [row for rows in quoted for row in rows if row not in page]
     assert not missing, missing
+
+
+def test_pulay_and_pv_fit_equilibrium_density_shifts(tmp_path, capsys):
+    f1 = tmp_path / "f1.org"
+    f1.write_text(pressure_table("a.state.npz", "O.upf", [
+        "| 85 |  |  |  | -1.0 | 2.00 | -2.00 | 1.0 |",
+        "| 160 |  |  |  | -1.0 | 2.90 | -1.00 | 1.0 |",
+        "| 160 | 136 | 8000 | 6.8 | -1.0 | 3.00 | -0.90 | 1.0 |",
+    ]))
+    f2 = tmp_path / "f2.org"
+    f2.write_text(pressure_table("b.state.npz", "O.upf", [
+        "| 85 |  |  |  | -1.0 | 0.00 | -4.20 | 1.0 |",
+        "| 160 |  |  |  | -1.0 | 0.90 | -3.00 | 1.0 |",
+        "| 160 | 136 | 8000 | 6.8 | -1.0 | 1.00 | -2.90 | 1.0 |",
+    ]))
+    assert npt.pulay(argparse.Namespace(tables=[f1, f2], reference=None, output=None)) == 0
+    pulay_lines = capsys.readouterr().out.splitlines()
+    assert "| 85 | -3.10 | +1.200 | 0.100 |  |  | +1.000 | 0.000 |  |" in pulay_lines
+    assert "| 160 | -2.00 | +0.100 | 0.000 | -1.100 | 1.20 | +0.100 | 0.000 | 0.90 |" in pulay_lines
+
+    pv_tables = []
+    for start, offset in (("a.state.npz", 0.0), ("b.state.npz", 0.5)):
+        for rho, p_mt, p_fhi in ((800.0, -4.0, -5.0), (850.0, 0.0, -1.0), (900.0, 4.0, 3.0)):
+            mt = tmp_path / f"{start}_{rho}_mt.org"
+            mt.write_text(pressure_table(start, "O.psp", [
+                f"| 100 | 85 | 5000 | 4.25 | -1.0 | 0.0 | {p_mt + offset:.2f} | 1.0 |",
+            ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+            fhi = tmp_path / f"{start}_{rho}_fhi.org"
+            fhi.write_text(pressure_table(start, "O.upf", [
+                f"| 160 |  |  |  | -1.0 | 0.0 | {p_fhi + offset:.2f} | 1.0 |",
+            ]).replace("870.0 kg/m^3", f"{rho:.1f} kg/m^3"))
+            pv_tables += [mt, fhi]
+    assert npt.pv(argparse.Namespace(
+        tables=pv_tables, against="O.psp, H.upf, 100/85/4.25", temperature=350.0,
+        pressure=1.0, degree=1, no_kinetic=True, output=None,
+    )) == 0
+    pv_lines = capsys.readouterr().out.splitlines()
+    assert any(line.startswith("| O.upf, H.upf, 160 | 859.39 |") and "| +12.50 | 0.00 |" in line for line in pv_lines), pv_lines
+
+
+def test_table_prefix_check_reports_settled_start(tmp_path, capsys):
+    n = 400
+    t = [k * 0.001 for k in range(n)]
+    rho = [860.0 + (k % 5) - 2.0 for k in range(n)]
+    vol = [32.0 * 18.015 / 6.022e23 / (r * 1e-3) * 1e21 for r in rho]
+    rec = {
+        "args": {"waters": 32, "conv": 1e-5, "dt": 1.0, "temperature": 350.0, "pressure": 1.0,
+                 "t_tau": 100.0, "p_tau": 100.0, "hydrogen_mass": 2.014, "cutoff": 160.0, "e0": 50.0,
+                 "height": 1e-6, "start": "s.state.npz", "start_ps": 0.3, "ranks": 8, "cpu": "cpu",
+                 "ase": "3.29.0", "oxygen": "O.pbe-mt_fhi.UPF", "hydrogen": "H.pbe-mt_fhi.UPF",
+                 "cell_in_place": "0.25"},
+        "time_ps": t, "Volume": vol, "Density": rho, "Pressure": [0.0] * n,
+        "Temperature": [350.0] * n, "Energy": [-1.0] * n, "step_wall_s": [1.0] * n,
+        "scf_steps": [8] * n, "setups": [0] * n, "stopped": None,
+    }
+    p = tmp_path / "run.json"
+    p.write_text(json.dumps(rec))
+    assert npt.table(argparse.Namespace(
+        runs=[p], discard_ps=None, min_discard_ps=0.5, branch_discard_ps=0.05,
+        min_production_ps=0.1, window_ps=0.1, plot_window_ps=0.02, branch_step_ps=0.01,
+        min_blocks=8, curve_step=2, prefix_check=True, output=None, json=None,
+    )) == 0
+    out = capsys.readouterr().out
+    assert "| run | 0.05 | 0.05 | 0.05 |" in out and "| yes |" in out
