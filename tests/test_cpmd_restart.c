@@ -583,6 +583,165 @@ static int mode_case(const char *dir) {
   return 0;
 }
 
+/* Publish one sample at `path` under umask 022. `*image` is the bytes that
+ * must land on disk. */
+static int write_restart_at(const char *path, void **image, size_t *image_n, char *err,
+                            size_t err_cap) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  CPMDCRestart *file;
+  mode_t old;
+  int rc;
+  *image = NULL;
+  *image_n = 0;
+  err[0] = '\0';
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return -1;
+  file = cpmdc_restart_read_mem(bytes, n, err, err_cap);
+  free(bytes);
+  if (!file)
+    return -1;
+  if (cpmdc_restart_write_mem(file, image, image_n, err, err_cap) != 0) {
+    cpmdc_restart_free(file);
+    return -1;
+  }
+  old = umask(022);
+  rc = cpmdc_restart_write_path(file, path, err, err_cap);
+  umask(old);
+  cpmdc_restart_free(file);
+  return rc;
+}
+
+static int published_matches(const char *path, const void *image, size_t image_n, mode_t mode) {
+  unsigned char *disk = NULL;
+  size_t have = 0;
+  struct stat st;
+  int ok;
+  if (stat(path, &st) != 0 || (st.st_mode & 0777) != mode)
+    return 0;
+  if (read_whole(path, &disk, &have) != 0)
+    return 0;
+  ok = have == image_n && memcmp(disk, image, image_n) == 0;
+  free(disk);
+  return ok;
+}
+
+/* RESTART -> RESTART.1 with RESTART.1 absent. realpath fails here; the
+ * target is created beside the link. This case fails on the publisher
+ * that stops at that realpath error. */
+static int dangling_relative_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], target[PATH_MAX], linkpath[PATH_MAX], err[256];
+  char linktext[PATH_MAX];
+  struct stat st;
+  ssize_t linklen;
+  int kept = 0;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/dangling-rel", dir) >= (int)sizeof sub ||
+      snprintf(target, sizeof target, "%s/RESTART.1", sub) >= (int)sizeof target ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath)
+    return fail("dangling relative path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART.1", linkpath) != 0)
+    return fail("make dangling relative restart link");
+  if (write_restart_at(linkpath, &image, &image_n, err, sizeof err) != 0)
+    goto done;
+  if (lstat(linkpath, &st) != 0 || !S_ISLNK(st.st_mode))
+    goto done;
+  linklen = readlink(linkpath, linktext, sizeof linktext - 1);
+  if (linklen < 0)
+    goto done;
+  linktext[linklen] = '\0';
+  if (strcmp(linktext, "RESTART.1") != 0 || !published_matches(target, image, image_n, 0644))
+    goto done;
+  if (leftovers(sub, "RESTART", &kept) != 1 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(linkpath);
+  unlink(target);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "dangling relative restart was not created");
+}
+
+/* An absolute dangling target is created at that path, not beside the
+ * link under a new name. This case fails on the publisher that rejects
+ * every symlink realpath cannot resolve. */
+static int dangling_absolute_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], target[PATH_MAX], linkpath[PATH_MAX], err[256];
+  char linktext[PATH_MAX];
+  struct stat st;
+  ssize_t linklen;
+  int kept = 0;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/dangling-abs", dir) >= (int)sizeof sub ||
+      snprintf(target, sizeof target, "%s/RESTART.1", sub) >= (int)sizeof target ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath)
+    return fail("dangling absolute path too long");
+  if (mkdir(sub, 0700) != 0 || symlink(target, linkpath) != 0)
+    return fail("make dangling absolute restart link");
+  if (write_restart_at(linkpath, &image, &image_n, err, sizeof err) != 0)
+    goto done;
+  if (lstat(linkpath, &st) != 0 || !S_ISLNK(st.st_mode))
+    goto done;
+  linklen = readlink(linkpath, linktext, sizeof linktext - 1);
+  if (linklen < 0 || (size_t)linklen >= sizeof linktext)
+    goto done;
+  linktext[linklen] = '\0';
+  if (strcmp(linktext, target) != 0 || !published_matches(target, image, image_n, 0644))
+    goto done;
+  if (leftovers(sub, "RESTART", &kept) != 1 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(linkpath);
+  unlink(target);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "dangling absolute restart was not created");
+}
+
+/* A link that points at itself is not a place to create a file. */
+static int symlink_loop_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], linkpath[PATH_MAX], err[256];
+  char linktext[64];
+  struct stat st;
+  ssize_t linklen;
+  int kept = 0;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/symlink-loop", dir) >= (int)sizeof sub ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath)
+    return fail("symlink loop path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART", linkpath) != 0)
+    return fail("make restart symlink loop");
+  if (write_restart_at(linkpath, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  if (strstr(err, "cannot resolve the RESTART symlink") == NULL)
+    goto done;
+  if (lstat(linkpath, &st) != 0 || !S_ISLNK(st.st_mode))
+    goto done;
+  linklen = readlink(linkpath, linktext, sizeof linktext - 1);
+  if (linklen < 0)
+    goto done;
+  linktext[linklen] = '\0';
+  if (strcmp(linktext, "RESTART") != 0 || leftovers(sub, "RESTART", &kept) != 0 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(linkpath);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "symlink loop was not rejected");
+}
+
 static int symlink_case(const char *dir) {
   unsigned char *bytes = NULL;
   unsigned char *disk = NULL;
@@ -723,6 +882,12 @@ static int check_atomic_replace(void) {
     rc = mode_case(dir);
   if (rc == 0)
     rc = symlink_case(dir);
+  if (rc == 0)
+    rc = dangling_relative_case(dir);
+  if (rc == 0)
+    rc = dangling_absolute_case(dir);
+  if (rc == 0)
+    rc = symlink_loop_case(dir);
   if (rc == 0)
     rc = long_name_case(dir);
   if (rc == 0)

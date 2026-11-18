@@ -796,9 +796,79 @@ static char *temporary_path(const char *path, unsigned long token) {
 }
 
 #ifndef _WIN32
+/* readlink(2) does not NUL-terminate, and the target can outgrow the first
+ * buffer. Grow until the read fits. */
+static char *read_link_text(const char *path, char *err, size_t err_cap) {
+  size_t cap = 128;
+  char *buf = NULL;
+  for (;;) {
+    char *grown = realloc(buf, cap);
+    ssize_t n;
+    if (!grown) {
+      free(buf);
+      set_err(err, err_cap, "out of memory");
+      return NULL;
+    }
+    buf = grown;
+    n = readlink(path, buf, cap);
+    if (n < 0) {
+      set_errf(err, err_cap, "cannot read the RESTART symlink", strerror(errno));
+      free(buf);
+      return NULL;
+    }
+    if ((size_t)n < cap) {
+      buf[n] = '\0';
+      return buf;
+    }
+    if (cap > SIZE_MAX / 2) {
+      set_err(err, err_cap, "the RESTART symlink target is too long");
+      free(buf);
+      return NULL;
+    }
+    cap *= 2;
+  }
+}
+
+/* fopen follows a relative link from the directory that contains it. An
+ * absolute target is already a path. */
+static char *link_target_path(const char *path, const char *target, char *err,
+                              size_t err_cap) {
+  size_t dir, tlen;
+  char *out;
+  if (target[0] == '\0') {
+    set_err(err, err_cap, "the RESTART symlink has an empty target");
+    return NULL;
+  }
+  if (target[0] == '/') {
+    out = publish_strdup(target);
+    if (!out)
+      set_err(err, err_cap, "out of memory");
+    return out;
+  }
+  dir = strlen(path);
+  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
+    dir--;
+  tlen = strlen(target);
+  if (tlen > SIZE_MAX - dir - 1) {
+    set_err(err, err_cap, "the RESTART symlink target is too long");
+    return NULL;
+  }
+  out = malloc(dir + tlen + 1);
+  if (!out) {
+    set_err(err, err_cap, "out of memory");
+    return NULL;
+  }
+  if (dir)
+    memcpy(out, path, dir);
+  memcpy(out + dir, target, tlen + 1);
+  return out;
+}
+
 /* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
  * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
- * continues to update RESTART.1 while keeping RESTART as a link. */
+ * continues to update RESTART.1 while keeping RESTART as a link. realpath
+ * fails with ENOENT when the target is absent; fopen created that target,
+ * so a dangling link is published there as a new file. */
 static int publish_destination(const char *path, char **effective, mode_t *mode,
                                int *has_mode, char *err, size_t err_cap) {
   struct stat lst, st;
@@ -814,8 +884,21 @@ static int publish_destination(const char *path, char **effective, mode_t *mode,
   if (exists && S_ISLNK(lst.st_mode)) {
     resolved = realpath(path, NULL);
     if (!resolved) {
-      set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
-      return -1;
+      char *text;
+      if (errno != ENOENT) {
+        set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
+        return -1;
+      }
+      text = read_link_text(path, err, err_cap);
+      if (!text)
+        return -1;
+      resolved = link_target_path(path, text, err, err_cap);
+      free(text);
+      if (!resolved)
+        return -1;
+      /* Absent destination: leave the mode at 0666 under the umask. */
+      *effective = resolved;
+      return 0;
     }
   } else {
     resolved = publish_strdup(path);

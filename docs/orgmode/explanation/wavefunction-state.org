@@ -297,6 +297,10 @@ destination. A new destination is opened with mode 0666 under the umask as a
 plain ~fopen~ would; replacement keeps the destination's existing mode.
 When ~RESTART~ is a symbolic link, as in CPMD's ~RESTART -> RESTART.1~
 convention, the target is replaced and the link survives.
+A dangling link, whose target is not there yet, is created at that path:
+a relative target is taken from the directory that holds the link, and the
+new file takes mode 0666 under the umask, as ~fopen~ did.
+A loop, or a link that cannot be read, is left in place and the write fails.
 The writer flushes that file and syncs it with ~fsync~, renames it over the
 destination, and syncs the directory with ~fsync~, so the new name also
 survives a crash.
