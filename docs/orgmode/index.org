@@ -71,7 +71,7 @@ composition requires a new session.
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
    * - Build and test the project
      - Run the default Meson suite and learn what it covers
-     - :doc:`Build and test cpmdc <tutorials/quickstart>` and :doc:`Install and build <howto/install>`
+     - :doc:`Build and test cpmdc <howto/quickstart>` and :doc:`Install and build <howto/install>`
    * - Link a real OpenCPMD archive
      - Apply the patches in ``tools/`` and build with ``-fPIC``
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
@@ -155,7 +155,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    :caption: How-To Guides
 
    howto/install
-   tutorials/quickstart
+   howto/quickstart
    howto/opencpmd-archive
    howto/write-cpmdparams
    howto/embedding

@@ -257,6 +257,12 @@ Set ~CPMDC_ORG_EXPORT=pandoc~ to export with pandoc instead.
 That path applies ~docs/org-links.lua~ and makes the same ~:doc:~ rewrite.
 Generated ~docs/source/**/*.rst~ is not committed.
 
+When a page moves, leave a short page at the old path that starts with an
+~:orphan:~ export block and links to the new page, as
+~docs/orgmode/tutorials/quickstart.org~ does.
+The old address then keeps working, and ~readme-navigation~ does not ask the
+README to link that page.
+
 Regenerate RST after editing Org sources:
 
 #+begin_src bash

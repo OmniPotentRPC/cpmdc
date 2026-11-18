@@ -8,7 +8,7 @@ The default build's reference well supplies the number.
 No OpenCPMD checkout is required.
 
 Configure and compile the default tree with ~-Dwith_tests=true~, as the
-[[file:quickstart.org][quickstart]] does.
+[[file:../howto/quickstart.org][build-and-test how-to]] does.
 The build writes the shared library and the encoded water message
 ~build/water_blyp_params.bin~.
 Point the example at both from the root of the checkout:
