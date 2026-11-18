@@ -700,16 +700,20 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN) :: s
     INTEGER, INTENT(OUT) :: ierr
     CHARACTER(LEN=:), ALLOCATABLE :: grown
-    INTEGER :: m, need, stat
+    INTEGER :: m, need, cur_len, stat
     ierr = 1
     m = LEN(s)
     IF (n < 0 .OR. m < 0) RETURN
     IF (m > HUGE(need) - MAX(n, 0)) RETURN
     need = n + m
-    IF (.NOT. ALLOCATED(buf) .OR. need > LEN(buf)) THEN
+    cur_len = 0
+    IF (ALLOCATED(buf)) cur_len = LEN(buf)
+    IF (.NOT. ALLOCATED(buf) .OR. need > cur_len) THEN
       ALLOCATE(CHARACTER(LEN=need) :: grown, STAT=stat)
       IF (stat /= 0) RETURN
-      IF (n > 0 .AND. ALLOCATED(buf)) grown(1:n) = buf(1:n)
+      IF (ALLOCATED(buf)) THEN
+        IF (n > 0) grown(1:n) = buf(1:n)
+      END IF
       CALL MOVE_ALLOC(grown, buf)
     END IF
     IF (m > 0) buf(n + 1:n + m) = s(1:m)
@@ -753,7 +757,8 @@ CONTAINS
           END DO
           IF (end_at > 0) THEN
             i = end_at + 1
-            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
+            DO WHILE (i <= n)
+              IF (src(i:i) /= NEW_LINE('A') .AND. src(i:i) /= ' ') EXIT
               i = i + 1
             END DO
             CYCLE
@@ -820,7 +825,8 @@ CONTAINS
     dst = ' '
     n = LEN_TRIM(src)
     i = 1
-    DO WHILE (i <= n .AND. (src(i:i) == ' ' .OR. src(i:i) == ACHAR(9)))
+    DO WHILE (i <= n)
+      IF (src(i:i) /= ' ' .AND. src(i:i) /= ACHAR(9)) EXIT
       i = i + 1
     END DO
     k = n - i + 1
@@ -850,12 +856,14 @@ CONTAINS
     INTEGER :: n, i, k
     tok = ' '
     n = LEN_TRIM(line)
-    DO WHILE (pos <= n .AND. (line(pos:pos) == ' ' .OR. line(pos:pos) == ACHAR(9)))
+    DO WHILE (pos <= n)
+      IF (line(pos:pos) /= ' ' .AND. line(pos:pos) /= ACHAR(9)) EXIT
       pos = pos + 1
     END DO
     IF (pos > n) RETURN
     i = pos
-    DO WHILE (i <= n .AND. line(i:i) /= ' ' .AND. line(i:i) /= ACHAR(9))
+    DO WHILE (i <= n)
+      IF (line(i:i) == ' ' .OR. line(i:i) == ACHAR(9)) EXIT
       i = i + 1
     END DO
     k = MIN(i - pos, LEN(tok))
@@ -873,13 +881,18 @@ CONTAINS
     IF (pos < 1) pos = 1
     IF (pos > zend) RETURN
     i = pos
-    DO WHILE (i <= zend .AND. src(i:i) /= NEW_LINE('A') .AND. src(i:i) /= ACHAR(13))
+    DO WHILE (i <= zend)
+      IF (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ACHAR(13)) EXIT
       i = i + 1
     END DO
     k = MIN(i - pos, LEN(line))
     IF (k > 0) line(1:k) = src(pos:pos + k - 1)
-    IF (i <= zend .AND. src(i:i) == ACHAR(13)) i = i + 1
-    IF (i <= zend .AND. src(i:i) == NEW_LINE('A')) i = i + 1
+    IF (i <= zend) THEN
+      IF (src(i:i) == ACHAR(13)) i = i + 1
+    END IF
+    IF (i <= zend) THEN
+      IF (src(i:i) == NEW_LINE('A')) i = i + 1
+    END IF
     pos = i
   END SUBROUTINE
 
@@ -1467,7 +1480,8 @@ CONTAINS
     IF (icpmd == 0) icpmd = INDEX(deck(1:nlen), '&cpmd')
     IF (icpmd <= 0) RETURN
     ins_at = icpmd
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1555,7 +1569,8 @@ CONTAINS
     ELSE
       ins_at = isys
     END IF
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1629,7 +1644,8 @@ CONTAINS
     IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
     IF (isys <= 0) RETURN
     ins_at = isys
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1692,6 +1708,7 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
+    LOGICAL :: use_box
     nlen = 0
     ierr = 1
     deck = ''
@@ -1716,7 +1733,9 @@ CONTAINS
       ! The caller's box is the cell. A deck CELL is replaced by it. An
       ! all-zero box is a system without a cell (eOn's non-periodic
       ! convention), so the deck's CELL, or the default, stays.
-      IF (has_cell /= 0 .AND. ANY(ABS(cell(1:9)) > 0.0_c_double)) THEN
+      use_box = .FALSE.
+      IF (has_cell /= 0) use_box = ANY(ABS(cell(1:9)) > 0.0_c_double)
+      IF (use_box) THEN
         CALL impose_box_cell(deck, nlen, cell, ierr)
       ELSE
         CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
