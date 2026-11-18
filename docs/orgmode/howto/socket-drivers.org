@@ -12,7 +12,7 @@ The cpmdc-specific drivers remain for now because rgpot develop at
 through =rgpot-ipi-driver=.  In =engines/pot_spec.cpp=, =make()= and
 =names()= contain no CPMD case, and the command has no way to read serialized
 =CPMDParams=.  A user therefore cannot select CPMD with =--pot= or =-m=.
-Two library-level differences also matter before the old route can be retired:
+Three library-level differences also matter before the old route can be retired:
 
 - The =Geometry= helper inside =CppCore/rgpot/IPIPot/IPIDriver.cc= (it lives
   in an anonymous namespace, not in the public =IPIDriver= class) calls
