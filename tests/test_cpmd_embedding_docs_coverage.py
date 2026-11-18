@@ -45,6 +45,20 @@ REQUIRED_GROUPS = {
         "params.inputSections.set.key",
         "params.inputSections.raw",
     ],
+    "errors and status": [
+        "CPMDCResult",
+        "cpmdc_last_error",
+    ],
+    "orbital session calls": [
+        "cpmdc_session_select_orbitals",
+        "cpmdc_session_copy_orbitals",
+    ],
+    "rgpot frontend": [
+        "CPMDPot",
+    ],
+    "socket drivers": [
+        "cpmdc-ipi-c",
+    ],
 }
 
 
