@@ -2223,6 +2223,10 @@ if get_option('with_pwscale')
         suite: ['pwscale'],
         timeout: 60,
       )
+    else
+      message(
+        'pwscale-fft-fail: skipped (need libfftw3, libfftw3_omp, and fftw3.h)',
+      )
     endif
     if mpirun.found() and mpi_c_dep.found()
       foreach np : ['2', '4', '8']

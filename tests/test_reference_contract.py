@@ -96,41 +96,104 @@ def row_names(rows: list[str]) -> set[str]:
     return names
 
 
+def _table_cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _is_separator_row(cells: list[str]) -> bool:
+    if not cells:
+        return False
+    stripped = [cell.replace(":", "").strip() for cell in cells if cell.strip()]
+    return bool(stripped) and all(re.fullmatch(r"-+", cell) for cell in stripped)
+
+
+def _is_field_table_header(cells: list[str]) -> bool:
+    return bool(cells) and cells[0] == "Field"
+
+
+def _field_names_from_cell(cell: str) -> set[str]:
+    fields: set[str] = set()
+    for span in re.findall(r"~([^~\n]+)~", cell):
+        found = re.search(r"\w+", span)
+        if found:
+            fields.add(found.group())
+    return fields
+
+
+def _structs_in_text(fragment: str, structs: set[str]) -> set[str]:
+    return set(re.findall(r"~(\w+)~", fragment)) & structs
+
+
+def _singular_struct(candidates: set[str]) -> str | None:
+    if len(candidates) == 1:
+        return next(iter(candidates))
+    return None
+
+
 def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
-    """Struct-field pairs represented by reference table rows."""
+    """Struct-field pairs represented by field tables (header row starts with Field)."""
     pairs: set[tuple[str, str]] = set()
-    section_struct: str | None = None
-    field_table = False
-    for line in text.splitlines():
+    lines = text.splitlines()
+    last_heading_struct: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
         if line.startswith("*"):
-            heading_names = set(re.findall(r"~(\w+)~", line))
-            section_struct = next(iter(heading_names & structs), None)
-            field_table = False
-            continue
+            heading_names = set(re.findall(r"~(\w+)~", line)) & structs
+            last_heading_struct = next(iter(heading_names), None) if heading_names else None
         if not line.lstrip().startswith("|"):
-            if line.lstrip().startswith("Fields of "):
-                context_names = set(re.findall(r"~(\w+)~", line)) & structs
-                section_struct = next(iter(context_names), None)
-            field_table = False
+            index += 1
             continue
-        cells = line.strip().strip("|").split("|")
-        first_cell = cells[0].strip()
-        if first_cell == "Field":
-            field_table = True
+        header_cells = _table_cells(line)
+        if not _is_field_table_header(header_cells):
+            index += 1
             continue
-        if first_cell and not first_cell.startswith(("~", "-")):
-            field_table = False
-        if not field_table:
-            continue
-        fields = set()
-        for span in re.findall(r"~([^~\n]+)~", cells[0]):
-            found = re.search(r"\w+", span)
-            if found:
-                fields.add(found.group())
-        owners = set(re.findall(r"~(\w+)~", "|".join(cells[1:]))) & structs
-        if not owners and field_table and section_struct is not None:
-            owners = {section_struct}
-        pairs |= {(owner, field) for owner in owners for field in fields}
+        table_start = index
+        has_struct_col = any(cell == "Struct" for cell in header_cells)
+        struct_col = header_cells.index("Struct") if has_struct_col else None
+        table_lines = [line]
+        index += 1
+        while index < len(lines) and lines[index].lstrip().startswith("|"):
+            row_cells = _table_cells(lines[index])
+            if _is_field_table_header(row_cells):
+                break
+            table_lines.append(lines[index])
+            index += 1
+        table_text = "\n".join(table_lines)
+        table_structs = _structs_in_text(table_text, structs)
+        context_lines: list[str] = []
+        scan = table_start - 1
+        while scan >= 0:
+            prior = lines[scan]
+            if prior.lstrip().startswith("|") or prior.startswith("*"):
+                break
+            context_lines.insert(0, prior)
+            scan -= 1
+        context_block = "\n".join(context_lines)
+        context_structs = _structs_in_text(context_block, structs)
+        default_owner: str | None = None
+        if not has_struct_col:
+            default_owner = (
+                _singular_struct(table_structs)
+                or _singular_struct(context_structs)
+                or last_heading_struct
+            )
+        for table_line in table_lines[1:]:
+            row_cells = _table_cells(table_line)
+            if _is_separator_row(row_cells) or _is_field_table_header(row_cells):
+                continue
+            if not row_cells or not row_cells[0].startswith("~"):
+                continue
+            fields = _field_names_from_cell(row_cells[0])
+            if not fields:
+                continue
+            tail = "|".join(row_cells[1:])
+            owners = _structs_in_text(tail, structs)
+            if struct_col is not None and struct_col < len(row_cells):
+                owners |= _structs_in_text(row_cells[struct_col], structs)
+            if not owners and default_owner is not None:
+                owners = {default_owner}
+            pairs |= {(owner, field) for owner in owners for field in fields}
     return pairs
 
 
@@ -294,6 +357,30 @@ def check_python(root: Path, failures: list[str]) -> None:
                     failures.append(
                         f"reference/python.org: {module}.{name}.{member} is not named"
                     )
+
+
+def test_field_table_with_nonstandard_intro() -> None:
+    text = (
+        "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+    )
+    documented = documented_struct_fields(text, {"DemoStruct"})
+    assert ("DemoStruct", "alpha") in documented
+
+
+def test_bogus_field_in_nonstandard_intro_table() -> None:
+    text = (
+        "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~bogus~ | ~int~ | not in the header |\n"
+    )
+    documented = documented_struct_fields(text, {"DemoStruct"})
+    expected = {("DemoStruct", "alpha")}
+    assert ("DemoStruct", "bogus") in documented - expected
 
 
 def main() -> int:
