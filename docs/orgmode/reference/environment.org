@@ -5,7 +5,7 @@
 
 | Variable | Read in | Effect |
 |----------+---------+--------|
-| ~CPMDC_PSEUDO_DIR~ | ~src/cpmdc_embed_host.c~, first call of an OpenCPMD session | directory holding the pseudopotential files named in the deck; ~cpmdc~ changes into it while CPMD reads them, then leaves it before CPMD writes output files |
+| ~CPMDC_PSEUDO_DIR~ | ~src/cpmdc_embed_host.c~, each cold OpenCPMD evaluation | directory holding the pseudopotential files named in the deck; ~cpmdc~ changes into it while CPMD reads them, then leaves it before CPMD writes output files |
 | ~CPMD_PP_LIBRARY_PATH~ | same place, when ~CPMDC_PSEUDO_DIR~ is unset | fallback for the same directory |
 | ~CPMDC_DECK_OUT~ | ~src/cpmdc.c~, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
@@ -16,7 +16,7 @@
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
 
-The first call of an OpenCPMD session fails when neither ~CPMDC_PSEUDO_DIR~ nor
+A cold OpenCPMD evaluation fails when neither ~CPMDC_PSEUDO_DIR~ nor
 ~CPMD_PP_LIBRARY_PATH~ names an existing directory.
 The result message and ~cpmdc_last_error()~ name that directory; the call does
 not report an unconverged SCF.

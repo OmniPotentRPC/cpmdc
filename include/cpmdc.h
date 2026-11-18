@@ -245,15 +245,20 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
 /**
  * @brief Apply configuration from a `PotentialConfig` message.
  *
- * The `cpmd` union arm carries `CPMDParams` and wins wholesale when present.
- * With the arm unset, a set `common` overlay (`CommonMethodSpec`) lowers to
- * synthesized `CPMDParams`: functional, basis set, plane-wave cutoff,
- * charge, multiplicity, SCF energy tolerance, MAXITER, the Monkhorst-Pack
- * kMesh, smearing, and the van der Waals method and S6, the fields
- * `cpmdc_capabilities_result()` lists. Setting both the
- * cpmd arm and the overlay is rejected (capnp cannot distinguish unset arm
- * fields from defaults). Overlay fields without a CPMD lowering are rejected
- * and reported through `cpmdc_last_error()`.
+ * The `cpmd` union arm carries `CPMDParams`. A set `common` overlay
+ * (`CommonMethodSpec`) is merged over that arm: the arm bytes stay, and an
+ * overlay scalar fills a field only while the arm still has the schema
+ * default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1).
+ * Next to the arm, `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`,
+ * `vanDerWaalsMethod`, and `relativityMethod` are rejected, and an unmapped
+ * `xcFunctionals` token is rejected when the functional is still `BLYP`.
+ * `basisSet`, `smearing`, and `vanDerWaalsS6` are not applied on that path.
+ * With the arm unset, the overlay lowers to synthesized `CPMDParams`:
+ * functional, basis set, plane-wave cutoff, charge, multiplicity, SCF
+ * energy tolerance, MAXITER, the Monkhorst-Pack kMesh, smearing, and the
+ * van der Waals method and S6, the fields `cpmdc_capabilities_result()`
+ * lists. Overlay fields without a CPMD lowering are rejected and reported
+ * through `cpmdc_last_error()`.
  *
  * @return 0 on success, -1 on parse, lowering, or apply failure.
  */

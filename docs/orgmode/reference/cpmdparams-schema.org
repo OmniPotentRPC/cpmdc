@@ -71,7 +71,7 @@ field.
 | ~pcg~ | off | ~PCG~; ~PCG MINIMIZE~ goes in ~directives~ |
 | ~diis~ | off | ~DIIS~ |
 | ~centerMoleculeOff~, ~centerMoleculeOn~ | off | ~CENTER MOLECULE OFF~ / ~ON~ |
-| ~restartWavefunction~ | off | ~RESTART WAVEFUNCTION~; read on the cold first call only |
+| ~restartWavefunction~ | off | ~RESTART WAVEFUNCTION~; read on a cold evaluation only |
 | ~isolatedMolecule~ | off | ~ISOLATED MOLECULE~ |
 
 The OpenCPMD path ignores restarted coordinates, velocities, and geometry:
