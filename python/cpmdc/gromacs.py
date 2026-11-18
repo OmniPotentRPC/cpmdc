@@ -45,7 +45,7 @@ HARTREE_TO_KJ_PER_MOL = _HARTREE_TO_KJ * _AVOGADRO
 HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM = HARTREE_TO_KJ_PER_MOL / BOHR_TO_NM
 
 _CELLS = ("PERIODIC", "NONE")
-_EMBEDDINGS = ("MECHANICAL", "NONE")
+_EMBEDDINGS = ("ELECTROSTATIC", "MECHANICAL", "NONE")
 
 
 def _number(value: float) -> str:
@@ -58,6 +58,7 @@ def qmi_input(
     cell: str | None = None,
     embedding: str | None = None,
     qm_charges: Sequence[float] | None = None,
+    mm_width: float | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
     qm_ranks: str | int | None = None,
@@ -76,12 +77,14 @@ def qmi_input(
         ``"NONE"`` sends none, so the deck's cell applies. The library
         defaults to ``PERIODIC`` when every atom is QM and ``NONE`` otherwise.
     embedding:
-        ``"MECHANICAL"`` adds the QM-MM Coulomb energy of ``qm_charges`` and
-        the MM charges; ``"NONE"`` adds nothing. Required when MM atoms
-        carry charges.
+        ``"ELECTROSTATIC"`` lets Gaussian-smeared MM charges polarize the QM
+        density, ``"MECHANICAL"`` adds the classical QM-MM Coulomb energy,
+        and ``"NONE"`` adds nothing. Required when MM atoms carry charges.
     qm_charges:
         Classical charge of each QM atom, in atom-index order, for
         mechanical embedding.
+    mm_width:
+        Gaussian width in nm for electrostatic embedding (default 0.03 nm).
     ewald_rcut:
         Real-space cutoff of the QM-MM Ewald sum, nm. The library default is
         the smaller of 1 nm and half the shortest box height.
@@ -106,8 +109,12 @@ def qmi_input(
     if embedding is not None:
         embedding = embedding.upper()
         if embedding not in _EMBEDDINGS:
-            raise ValueError(f"embedding is MECHANICAL or NONE, not {embedding!r}")
+            raise ValueError(
+                f"embedding is ELECTROSTATIC, MECHANICAL or NONE, not {embedding!r}"
+            )
         lines.append(f"  EMBEDDING {embedding}")
+    if embedding == "ELECTROSTATIC" and cell == "PERIODIC":
+        raise ValueError("periodic electrostatic embedding is unsupported")
     if qm_charges is not None:
         if embedding != "MECHANICAL":
             raise ValueError("qm_charges needs embedding='MECHANICAL'")
@@ -116,6 +123,12 @@ def qmi_input(
             lines.append("  QM_CHARGES " + " ".join(values[start : start + 8]))
     elif embedding == "MECHANICAL":
         raise ValueError("embedding='MECHANICAL' needs qm_charges")
+    if mm_width is not None:
+        if embedding != "ELECTROSTATIC":
+            raise ValueError("mm_width needs embedding='ELECTROSTATIC'")
+        if float(mm_width) <= 0.0:
+            raise ValueError("mm_width must be positive")
+        lines.append(f"  MM_WIDTH {_number(mm_width)}")
     if ewald_rcut is not None:
         lines.append(f"  EWALD_RCUT {_number(ewald_rcut)}")
     if ewald_precision is not None:

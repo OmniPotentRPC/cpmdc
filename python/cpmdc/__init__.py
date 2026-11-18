@@ -437,6 +437,20 @@ def _load(path: Path) -> ctypes.CDLL:
         ctypes.POINTER(ctypes.c_double),
     ]
     lib.cpmdc_session_calculate_au.restype = ctypes.c_int
+    lib.cpmdc_session_set_external_charges.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    lib.cpmdc_session_set_external_charges.restype = ctypes.c_int
+    lib.cpmdc_session_last_external_charge_forces.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.c_size_t,
+    ]
+    lib.cpmdc_session_last_external_charge_forces.restype = ctypes.c_int
     lib.cpmdc_adopt_calculator_comm.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
     lib.cpmdc_adopt_calculator_comm.restype = ctypes.c_int
     lib.cpmdc_session_last_stress.argtypes = [
@@ -619,6 +633,51 @@ class Session:
         if status != 0:
             raise CPMDCError(self._error() or "evaluation failed")
         return float(energy.value), forces, virial
+
+    def set_external_charges(
+        self,
+        positions_angstrom: Any,
+        charges_e: Any,
+        widths_angstrom: Any = None,
+    ) -> None:
+        """Set Gaussian MM point charges for subsequent evaluations.
+
+        Positions and optional widths are in Angstrom and charges are in units
+        of the elementary charge. Passing empty positions and charges clears
+        the environment. When widths are omitted, the library default is used.
+        Periodic evaluations with external charges are rejected.
+        """
+        n_charges = len(charges_e)
+        positions = _in_array(
+            positions_angstrom, ctypes.c_double, 3 * n_charges, "positions_angstrom"
+        )
+        charges = _in_array(charges_e, ctypes.c_double, n_charges, "charges_e")
+        widths = (
+            None
+            if widths_angstrom is None
+            else _in_array(widths_angstrom, ctypes.c_double, n_charges, "widths_angstrom")
+        )
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        status = self._lib.cpmdc_session_set_external_charges(
+            self._handle, n_charges, positions, charges, widths
+        )
+        if status != 0:
+            raise CPMDCError(self._error() or "setting external charges failed")
+
+    def external_charge_forces_au(self, n_charges: int) -> Any:
+        """Return forces on the last evaluation's MM charges, Hartree/Bohr."""
+        if n_charges < 0:
+            raise ValueError("n_charges must be non-negative")
+        values, buffer = _out_array(None, 3 * n_charges, "external_charge_forces")
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        status = self._lib.cpmdc_session_last_external_charge_forces(
+            self._handle, buffer, 3 * n_charges
+        )
+        if status != 0:
+            raise CPMDCError(self._error() or "external charge forces are unavailable")
+        return values
 
     def close(self) -> None:
         """Destroy the session handle. A second close does nothing."""

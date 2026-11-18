@@ -173,6 +173,10 @@ MODULE cpmd_embed_c_api
   INTEGER, SAVE :: embed_saved_has_cell = 0
   INTEGER, SAVE :: embed_saved_cell_set = 0
   REAL(c_double), SAVE :: embed_saved_cell(9) = 0.0_c_double
+  REAL(real64), ALLOCATABLE, SAVE :: embed_external_pos(:,:), embed_external_q(:)
+  REAL(real64), ALLOCATABLE, SAVE :: embed_external_sigma(:), embed_external_force(:,:)
+  REAL(real64), ALLOCATABLE, TARGET, SAVE :: embed_external_potential(:)
+  INTEGER, SAVE :: embed_external_count = 0
   ! Lattice rows, Bohr, of the cell whose G sphere the setup built. The
   ! stored orbitals are coefficients on those G vectors wherever an
   ! in-place cell move takes them; see embed_cell_moves_in_place.
@@ -190,6 +194,150 @@ MODULE cpmd_embed_c_api
   END TYPE
 
 CONTAINS
+
+#if defined(CPMDC_HAS_CPMD)
+  SUBROUTINE cpmdc_external_charge_density_force(rhoe) &
+      BIND(C, NAME='cpmdc_external_charge_density_force')
+    USE system, ONLY: fpar, parap, parm, spar
+    USE parac, ONLY: parai
+    USE mp_interface, ONLY: mp_sum
+    REAL(c_double), INTENT(IN) :: rhoe(*)
+    REAL(real64) :: local(3, MAX(1, embed_external_count))
+    REAL(real64) :: point(3), d(3), rr, sigma, erfv, expo, coef, dv
+    INTEGER :: ix, iy, iz, lx, idx, m
+    IF (embed_external_count <= 0) RETURN
+    local = 0.0_real64
+    dv = parm%omega / REAL(spar%nr1s * spar%nr2s * spar%nr3s, KIND=real64)
+    DO iz = 1, spar%nr3s
+      DO iy = 1, spar%nr2s
+        DO ix = parap%nrxpl(parai%mepos,1), parap%nrxpl(parai%mepos,2)
+          lx = ix - parap%nrxpl(parai%mepos,1) + 1
+          idx = lx + fpar%kr1 * ((iy - 1) + fpar%kr2s * (iz - 1))
+          point = REAL(ix - 1, real64) / REAL(spar%nr1s, real64) * parm%a1 + &
+               REAL(iy - 1, real64) / REAL(spar%nr2s, real64) * parm%a2 + &
+               REAL(iz - 1, real64) / REAL(spar%nr3s, real64) * parm%a3
+          DO m = 1, embed_external_count
+            d = point - embed_external_pos(:,m)
+            rr = NORM2(d)
+            IF (rr <= 1.0e-12_real64) CYCLE
+            sigma = embed_external_sigma(m)
+            erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
+            expo = EXP(-0.5_real64 * (rr / sigma)**2)
+            coef = embed_external_q(m) * (erfv / rr**3 - &
+                 SQRT(2.0_real64 / ACOS(-1.0_real64)) * expo / (sigma * rr**2))
+            local(:,m) = local(:,m) + REAL(rhoe(idx), real64) * coef * d * dv
+          END DO
+        END DO
+      END DO
+    END DO
+    CALL mp_sum(local, 3 * embed_external_count, parai%allgrp)
+    embed_external_force = local
+  END SUBROUTINE
+
+  SUBROUTINE prepare_external_charges(n_external, external_pos, external_q, &
+      external_width, shift_ang, ierr)
+    USE cnst, ONLY: fbohr
+    USE efld, ONLY: extf, textfld, set_cpmdc_external_force_hook
+    USE system, ONLY: fpar, parap, parm, spar
+    USE parac, ONLY: parai
+    INTEGER, INTENT(IN) :: n_external
+    REAL(c_double), INTENT(IN) :: external_pos(*), external_q(*), external_width(*)
+    REAL(real64), INTENT(IN) :: shift_ang(3)
+    INTEGER, INTENT(OUT) :: ierr
+    REAL(real64) :: point(3), d(3), rr, value
+    INTEGER :: ix, iy, iz, lx, idx, m, astat
+    ierr = 0
+    embed_external_count = 0
+    IF (ALLOCATED(embed_external_pos)) DEALLOCATE(embed_external_pos)
+    IF (ALLOCATED(embed_external_q)) DEALLOCATE(embed_external_q)
+    IF (ALLOCATED(embed_external_sigma)) DEALLOCATE(embed_external_sigma)
+    IF (ALLOCATED(embed_external_force)) DEALLOCATE(embed_external_force)
+    IF (ALLOCATED(embed_external_potential)) THEN
+      NULLIFY(extf)
+      DEALLOCATE(embed_external_potential)
+    END IF
+    IF (n_external <= 0) THEN
+      textfld = .FALSE.
+      CALL set_cpmdc_external_force_hook()
+      RETURN
+    END IF
+    ALLOCATE(embed_external_pos(3,n_external), embed_external_q(n_external), &
+        embed_external_sigma(n_external), embed_external_force(3,n_external), &
+        embed_external_potential(fpar%kr1*fpar%kr2s*fpar%kr3s), STAT=astat)
+    IF (astat /= 0) THEN
+      ierr = 1
+      RETURN
+    END IF
+    DO m = 1, n_external
+      embed_external_pos(:,m) = &
+          (REAL(external_pos(3*m-2:3*m), real64) + shift_ang) * fbohr
+      embed_external_q(m) = REAL(external_q(m), real64)
+      embed_external_sigma(m) = REAL(external_width(m), real64) * fbohr
+    END DO
+    embed_external_force = 0.0_real64
+    embed_external_potential = 0.0_real64
+    DO iz = 1, fpar%kr3s
+      DO iy = 1, fpar%kr2s
+        DO lx = 1, fpar%kr1
+          ix = parap%nrxpl(parai%mepos,1) + lx - 1
+          idx = lx + fpar%kr1 * ((iy - 1) + fpar%kr2s * (iz - 1))
+          point = REAL(ix - 1, real64) / REAL(spar%nr1s, real64) * parm%a1 + &
+               REAL(iy - 1, real64) / REAL(spar%nr2s, real64) * parm%a2 + &
+               REAL(iz - 1, real64) / REAL(spar%nr3s, real64) * parm%a3
+          value = 0.0_real64
+          DO m = 1, n_external
+            d = point - embed_external_pos(:,m)
+            rr = NORM2(d)
+            IF (rr > 1.0e-12_real64) THEN
+              value = value - embed_external_q(m) * &
+                  ERF(rr / (SQRT(2.0_real64) * embed_external_sigma(m))) / rr
+            ELSE
+              value = value - embed_external_q(m) * &
+                  SQRT(2.0_real64 / ACOS(-1.0_real64)) / embed_external_sigma(m)
+            END IF
+          END DO
+          embed_external_potential(idx) = value
+        END DO
+      END DO
+    END DO
+    embed_external_count = n_external
+    extf => embed_external_potential
+    textfld = .TRUE.
+    CALL set_cpmdc_external_force_hook(cpmdc_external_charge_density_force)
+  END SUBROUTINE
+
+  SUBROUTINE add_external_ion_terms(energy)
+    USE ions, ONLY: ions0, ions1
+    USE coor, ONLY: tau0, fion
+    REAL(real64), INTENT(INOUT) :: energy
+    REAL(real64) :: d(3), rr, sigma, erfv, expo, coef, pair_force(3)
+    INTEGER :: is, ia, m
+    IF (embed_external_count <= 0) RETURN
+    DO is = 1, ions1%nsp
+      DO ia = 1, ions0%na(is)
+        DO m = 1, embed_external_count
+          d = tau0(:,ia,is) - embed_external_pos(:,m)
+          rr = NORM2(d)
+          sigma = embed_external_sigma(m)
+          IF (rr > 1.0e-12_real64) THEN
+            erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
+            expo = EXP(-0.5_real64 * (rr / sigma)**2)
+            energy = energy + ions0%zv(is) * embed_external_q(m) * erfv / rr
+            coef = ions0%zv(is) * embed_external_q(m) * &
+                (erfv / rr**3 - SQRT(2.0_real64 / ACOS(-1.0_real64)) * &
+                 expo / (sigma * rr**2))
+            pair_force = coef * d
+            fion(:,ia,is) = fion(:,ia,is) + pair_force
+            embed_external_force(:,m) = embed_external_force(:,m) - pair_force
+          ELSE
+            energy = energy + ions0%zv(is) * embed_external_q(m) * &
+                SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
+          END IF
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE
+#endif
 
   SUBROUTINE clear_last_energy_components(image)
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
@@ -581,7 +729,8 @@ CONTAINS
   END FUNCTION
 
   FUNCTION cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, &
-      cell_ang, has_cell, energy_h, grad_h_bohr, image_c) RESULT(ok) &
+      cell_ang, has_cell, energy_h, grad_h_bohr, n_external, external_positions_ang, &
+      external_charges_e, external_widths_ang, external_forces_h_bohr, image_c) RESULT(ok) &
       BIND(C, NAME='cpmdc_embed_energy_grad')
     INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
     REAL(c_double), INTENT(IN) :: positions_ang(*)
@@ -590,6 +739,10 @@ CONTAINS
     INTEGER(c_int), INTENT(IN), VALUE :: has_cell
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad_h_bohr(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: n_external
+    REAL(c_double), INTENT(IN) :: external_positions_ang(*), external_charges_e(*)
+    REAL(c_double), INTENT(IN) :: external_widths_ang(*)
+    REAL(c_double), INTENT(OUT) :: external_forces_h_bohr(*)
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
@@ -601,16 +754,21 @@ CONTAINS
     DO i = 1, n3
       grad_h_bohr(i) = 0.0_c_double
     END DO
+    DO i = 1, 3 * INT(n_external)
+      external_forces_h_bohr(i) = 0.0_c_double
+    END DO
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
     CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
-         INT(has_cell), energy_h, grad_h_bohr, ok)
+         INT(has_cell), energy_h, grad_h_bohr, INT(n_external), external_positions_ang, &
+         external_charges_e, external_widths_ang, external_forces_h_bohr, ok)
 #else
     IF (has_cell < 0) RETURN
     CALL run_reference_pef(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
-         INT(has_cell), energy_h, grad_h_bohr, ok)
+         INT(has_cell), energy_h, grad_h_bohr, INT(n_external), external_positions_ang, &
+         external_charges_e, external_widths_ang, external_forces_h_bohr, ok)
 #endif
   END FUNCTION
 
@@ -1898,7 +2056,8 @@ CONTAINS
   END FUNCTION
 
 #if !defined(CPMDC_HAS_CPMD)
-  SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+  SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, &
+      n_external, external_pos, external_q, external_width, external_force, ok)
     TYPE(embed_knobs) :: knobs
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms, has_cell
@@ -1906,10 +2065,15 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     REAL(c_double), INTENT(OUT) :: energy_h
     REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER, INTENT(IN) :: n_external
+    REAL(c_double), INTENT(IN) :: external_pos(*), external_q(*), external_width(*)
+    REAL(c_double), INTENT(OUT) :: external_force(*)
     INTEGER(c_int), INTENT(OUT) :: ok
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
-    INTEGER :: i, j, idx
+    REAL(real64) :: d(3), field(3), induced(3), jac(3,3), force(3)
+    REAL(real64) :: sigma, q, rr, erfv, expo, cexp, a, aprime, alpha
+    INTEGER :: i, j, idx, m, u, v
     knobs = knobs_of(image)
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -1936,6 +2100,53 @@ CONTAINS
              REAL(cell(i), KIND=real64) * REAL(cell(i), KIND=real64), KIND=c_double)
       END DO
     END IF
+    ! The reference evaluator carries a small isotropic polarizable density
+    ! at each QM centre. It is not a chemistry model; it gives the public
+    ! electrostatic-embedding ABI an energy-conserving analytic oracle.
+    induced = 0.0_real64
+    DO i = 1, n_atoms
+      field = 0.0_real64
+      alpha = 0.20_real64 * REAL(MAX(1, INT(z(i))), KIND=real64)
+      DO m = 1, n_external
+        d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
+        sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
+        rr = NORM2(d)
+        IF (rr > 1.0e-12_real64) THEN
+          q = REAL(external_q(m), KIND=real64)
+          erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
+          expo = EXP(-0.5_real64 * (rr / sigma)**2)
+          cexp = SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
+          a = erfv / rr**3 - cexp * expo / rr**2
+          field = field + q * a * d
+        END IF
+      END DO
+      induced = induced + alpha * field
+      energy_h = energy_h - 0.5_real64 * alpha * DOT_PRODUCT(field, field)
+      DO m = 1, n_external
+        d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
+        sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
+        rr = NORM2(d)
+        IF (rr <= 1.0e-12_real64) CYCLE
+        q = REAL(external_q(m), KIND=real64)
+        erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
+        expo = EXP(-0.5_real64 * (rr / sigma)**2)
+        cexp = SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
+        a = erfv / rr**3 - cexp * expo / rr**2
+        aprime = 3.0_real64 * cexp * expo / rr**3 + &
+             cexp * expo / (sigma**2 * rr) - 3.0_real64 * erfv / rr**4
+        jac = 0.0_real64
+        DO u = 1, 3
+          jac(u,u) = q * a
+          DO v = 1, 3
+            jac(u,v) = jac(u,v) + q * aprime * d(u) * d(v) / rr
+          END DO
+        END DO
+        force = alpha * MATMUL(TRANSPOSE(jac), field)
+        grad(3*i-2:3*i) = grad(3*i-2:3*i) - REAL(force, KIND=c_double)
+        external_force(3*m-2:3*m) = external_force(3*m-2:3*m) - &
+             REAL(force, KIND=c_double)
+      END DO
+    END DO
     ok = 1_c_int
     ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
     CALL snapshot_total_only(image, energy_h)
@@ -1944,6 +2155,7 @@ CONTAINS
       image%prop%hessian(i) = grad(i)
     END DO
     image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
+    image%prop%dipole = REAL(induced, KIND=c_double)
     image%prop%valid = 1_c_int
     ! Strain derivative of this reference energy, Hartree/Bohr^3, with the
     ! OpenCPMD sign: volume * stress = -dE/d(eps). An isolated deck has a
@@ -2274,17 +2486,22 @@ CONTAINS
     END IF
   END SUBROUTINE
 
-  ! The gradient of E(x + s(x)) from the gradient at the shifted positions.
-  SUBROUTINE embed_project_gradient(n_atoms, recentre, grad)
-    INTEGER, INTENT(IN) :: n_atoms
+  ! The gradient of E(x + s(x), Rmm + s(x)) at shifted positions. External
+  ! charges share the rigid shift, so their gradient contributes to ds/dx.
+  SUBROUTINE embed_project_gradient(n_atoms, recentre, grad, n_external, external_force)
+    INTEGER, INTENT(IN) :: n_atoms, n_external
     TYPE(embed_recentring), INTENT(IN) :: recentre
     REAL(c_double), INTENT(INOUT) :: grad(*)
+    REAL(c_double), INTENT(IN) :: external_force(*)
     REAL(real64) :: total(3), along(3)
     INTEGER :: i
     IF (.NOT. recentre%applied) RETURN
     total = 0.0_real64
     DO i = 1, n_atoms
       total = total + REAL(grad(3*i-2:3*i), KIND=real64)
+    END DO
+    DO i = 1, n_external
+      total = total - REAL(external_force(3*i-2:3*i), KIND=real64)
     END DO
     along = MATMUL(recentre%proj, total)
     DO i = 1, n_atoms
@@ -2324,7 +2541,8 @@ CONTAINS
     IF (ios /= 0) margin = ieee_value(margin, ieee_quiet_nan)
   END FUNCTION
 
-  SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+  SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, &
+      n_external, external_pos, external_q, external_width, external_force, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
         cpmdc_note_embed_failure
     USE wfopts_utils, ONLY: wfopts
@@ -2345,16 +2563,19 @@ CONTAINS
     USE parac, ONLY: paral
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
-    REAL(c_double), INTENT(IN) :: pos(*)
+    REAL(c_double), INTENT(IN) :: pos(*), external_pos(*), external_q(*)
+    REAL(c_double), INTENT(IN) :: external_width(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     REAL(c_double), INTENT(OUT) :: energy_h
-    REAL(c_double), INTENT(OUT) :: grad(*)
+    REAL(c_double), INTENT(OUT) :: grad(*), external_force(*)
+    INTEGER, INTENT(IN) :: n_external
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, is, ia, k, idx, nmax, i, j, astat, slot
     INTEGER(c_int), ALLOCATABLE :: origin(:)
     REAL(c_double), ALLOCATABLE :: species_grad(:), warm_geo(:)
     TYPE(embed_recentring) :: recentre
     REAL(real64) :: omega
+    REAL(real64) :: external_ion_energy
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
     INTEGER :: inwfun_deck, ibench_deck, warm_source
     REAL(real64) :: warm_dist, warm_cell(9)
@@ -2385,6 +2606,12 @@ CONTAINS
     END IF
     CALL embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
     IF (ierr /= 0) RETURN
+    CALL prepare_external_charges(n_external, external_pos, external_q, &
+         external_width, recentre%shift_ang, ierr)
+    IF (ierr /= 0) THEN
+      CALL cpmdc_note_embed_failure('cannot allocate external-charge grid'//c_null_char)
+      RETURN
+    END IF
     ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the
     ! ionic velocities. initrun -> zhrwf would replace tau0 from RESTART
     ! section 3 when RESTART COORDINATES or RESTART ALL is in the deck.
@@ -2486,6 +2713,14 @@ CONTAINS
     END IF
     cnti%inwfun = inwfun_deck
     ibench(1) = ibench_deck
+    external_ion_energy = 0.0_real64
+    CALL add_external_ion_terms(external_ion_energy)
+    ener_com%etot = ener_com%etot + ener_com%eext + external_ion_energy
+    ener_com%eext = ener_com%eext + external_ion_energy
+    DO i = 1, 3 * n_external
+      external_force(i) = REAL(embed_external_force(1 + MOD(i - 1, 3), &
+           1 + (i - 1) / 3), KIND=c_double)
+    END DO
     energy_h = REAL(ener_com%etot, KIND=c_double)
     image%energy%etot = energy_h
     image%energy%ekin = REAL(ener_com%ekin, KIND=c_double)
@@ -2533,7 +2768,7 @@ CONTAINS
         END DO
         CALL cpmdc_scatter_species_gradient(INT(n_atoms, KIND=c_int), origin, &
              species_grad, grad)
-        CALL embed_project_gradient(n_atoms, recentre, grad)
+        CALL embed_project_gradient(n_atoms, recentre, grad, n_external, external_force)
       END IF
     END IF
     ! Cartesian stress Ha/Bohr^3: OpenCPMD stores virial in paiu (energy),
@@ -2979,7 +3214,8 @@ CONTAINS
     CALL newcell
   END SUBROUTINE
 
-  SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+  SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, &
+      n_external, external_pos, external_q, external_width, external_force, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure
@@ -3022,11 +3258,12 @@ CONTAINS
     USE bicanonicalCpmd, ONLY: bicanonicalCpmdConfig, bicanonicalCpmdInputConfig, New
     USE bicanonicalConfig, ONLY: New
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
-    INTEGER, INTENT(IN) :: n_atoms, has_cell
-    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER, INTENT(IN) :: n_atoms, has_cell, n_external
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*), external_pos(*), external_q(*)
+    REAL(c_double), INTENT(IN) :: external_width(*)
     INTEGER(c_int), INTENT(IN) :: z(*)
     REAL(c_double), INTENT(OUT) :: energy_h
-    REAL(c_double), INTENT(OUT) :: grad(*)
+    REAL(c_double), INTENT(OUT) :: grad(*), external_force(*)
     INTEGER(c_int), INTENT(OUT) :: ok
     INTEGER :: ierr, idx, nmax, nlen, mfd
     TYPE(embed_knobs) :: knobs
@@ -3067,7 +3304,8 @@ CONTAINS
         CALL embed_move_cell(cell)
         CALL latch_warm_cell(image, cell, has_cell)
       END IF
-      CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+      CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, n_external, &
+           external_pos, external_q, external_width, external_force, ok)
       ierr = cpmdc_restore_host_cwd()
       ! A failed SCF leaves the counter and the previous converged c0.
       ! The next call on this basis is still warm.
@@ -3179,7 +3417,8 @@ CONTAINS
     embed_setup_ht = metr_com%ht
     embed_setup_ht_set = .TRUE.
     ! First and later forces: positions only from C arrays (nwchemc geom pattern).
-    CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
+    CALL embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, n_external, &
+         external_pos, external_q, external_width, external_force, ok)
     IF (ok /= 0_c_int) THEN
       image%cfg_warm_steps = 1
       CALL latch_warm_cell(image, cell, has_cell)

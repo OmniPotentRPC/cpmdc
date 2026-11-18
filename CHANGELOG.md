@@ -6,6 +6,10 @@
 
 ### Added
 
+- Sessions accept Gaussian-smeared external MM charges and return their forces,
+  enabling electrostatic QM/MM embedding in the GROMACS drop-in and the LAMMPS
+  Python and plugin adapters. Periodic electrostatic embedding is rejected
+  explicitly.
 - A job TOML compiles to the CPMDParams text. The in-process route encodes that text, and the file route renders the same message.
 - An optional plane-wave scaffold times strong and weak scaling of a structure-factor force, and keeps a CUDA backend behind a build flag that stays off unless requested.
   The scaffold stays out of the default build, so an ordinary build does not require OpenMP for it.

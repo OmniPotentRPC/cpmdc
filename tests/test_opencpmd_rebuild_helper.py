@@ -35,6 +35,8 @@ def main() -> int:
         members = [
             "error_handling.mod.o",
             "scex_utils.mod.o",
+            "efld.mod.o",
+            "eextern_utils.mod.o",
             "embed_ctrl.mod.o",
             "control_test_utils.mod.o",
             "rinitwf_driver.mod.o",

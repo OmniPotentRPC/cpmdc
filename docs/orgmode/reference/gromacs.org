@@ -38,8 +38,10 @@ An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 | ~PARAMS path~ | the ~CPMDParams~ message; a relative path is relative to ~mdrun~'s directory. Required |
 | ~CELL PERIODIC~ | send the GROMACS box as the cell; the default when every atom is QM |
 | ~CELL NONE~ | send no cell, so the deck's cell holds the QM region; the default with MM atoms |
+| ~EMBEDDING ELECTROSTATIC~ | apply the PDB MM charges to the CPMD density as Gaussian-smeared external charges and return their forces |
 | ~EMBEDDING MECHANICAL~ | add the QM-MM Coulomb energy and forces of ~QM_CHARGES~ and the MM charges |
 | ~EMBEDDING NONE~ | add nothing; allowed only when no MM atom carries a charge |
+| ~MM_WIDTH w~ | Gaussian standard deviation in nm for ~ELECTROSTATIC~; default 0.03 nm |
 | ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
 | ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
 | ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 1e-8 |
@@ -105,7 +107,20 @@ group, excludes QM-QM Lennard-Jones, and keeps QM-MM Lennard-Jones and the
 bonded terms that cross the boundary.
 The QM-MM Coulomb interaction is then the QM program's job [1].
 
-~libcpmdc_gromacs~ provides mechanical embedding.
+~libcpmdc_gromacs~ provides electrostatic and mechanical embedding.
+With ~EMBEDDING ELECTROSTATIC~, each MM charge \(q\) contributes
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic external
+potential. The smearing prevents the short-range electron spill-out that
+motivates the modified short-range coupling of Laio, VandeVondele, and
+Rothlisberger [2]. Their CPMD kernel is rational rather than Gaussian; cpmdc
+uses the explicitly configurable Gaussian kernel above. The returned QM energy
+includes electron--MM and ion--MM terms, and the adapter returns forces on the
+QM atoms and every MM charge.
+
+Electrostatic embedding currently requires ~CELL NONE~. A periodic cell is
+rejected with ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~; cpmdc does not use
+a minimum image or silently omit periodic images.
+
 ~EMBEDDING MECHANICAL~ adds the Coulomb energy of fixed point charges on the QM
 atoms, ~QM_CHARGES~, with the MM charges of the PDB file, and its forces on both
 sides:
@@ -133,9 +148,7 @@ omitting the QM-MM Coulomb interaction is appropriate.
 
 Not implemented:
 
-- electrostatic embedding: the MM charges do not polarize the QM density.
-  ~cpmdc_session_calculate_au()~ takes no external potential, so
-  ~EMBEDDING ELECTROSTATIC~ is refused;
+- periodic electrostatic embedding;
 - link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused;
 - a relative dielectric constant other than 1 in the QM-MM sum;
 - PDB charges have six decimals, the precision of GROMACS' file.
@@ -166,7 +179,8 @@ a symmetric strain that moves every atom with the box:
 
 - ~CELL PERIODIC~: cpmdc's stress for the cell, from
   ~cpmdc_session_calculate_au()~;
-- ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms.
+- ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms and,
+  for electrostatic embedding, the MM charges.
   The QM forces sum to zero, since cpmdc removes the net force of the isolated
   cell, so the sum does not depend on the origin of ~x~.
   Without that (~CPMDC_RECENTER=off~) a QM region at ~X~ with net force ~F~ adds
@@ -224,3 +238,7 @@ reason.
    [[https://manual.gromacs.org/2025.5/reference-manual/special/qmmm.html][Hybrid Quantum-Classical simulations (QM/MM) with CP2K interface]];
    source ~src/gromacs/applied_forces/qmmm/~ of GROMACS 2024.6, 2025.5, and
    2026.4.
+2. Alessandro Laio, Joost VandeVondele, and Ursula Rothlisberger,
+   “A Hamiltonian electrostatic coupling scheme for hybrid Car--Parrinello
+   molecular dynamics simulations,” /J. Chem. Phys./ *116*, 6941--6947
+   (2002), [[https://doi.org/10.1063/1.1462041][doi:10.1063/1.1462041]].

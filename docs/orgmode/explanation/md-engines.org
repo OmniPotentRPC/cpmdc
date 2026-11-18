@@ -25,6 +25,15 @@ For GROMACS integrating on cpmdc forces, the CP2K interface is the one
 in-process route that carries the energy, the forces, and the box at full
 precision, and it is the one built and tested here.
 
+Both in-process adapters can use the session external-charge ABI. GROMACS
+~EMBEDDING ELECTROSTATIC~ takes MM positions and charges from its generated
+PDB. Python ~cpmdc.lammps.FixExternal(qm_types=...)~ takes the atoms outside
+those types, reads their LAMMPS ~q~ values, and returns forces to both groups.
+The Gaussian charge potential polarizes the CPMD density; its energy is part of
+the QM energy. Periodic electrostatic embedding is rejected until a periodic
+sum is implemented. Mechanical embedding and whole-system LAMMPS operation are
+unchanged.
+
 * OpenCPMD in GROMACS
 ~bench/gromacs_opencpmd.py~ runs GROMACS on the OpenCPMD backend: one BLYP water (the deck of ~tests/water_blyp_params.capnp.txt~,
 50 Ry, Hockney, orbital convergence 1e-7) at the centre of the deck's 1 nm cell,

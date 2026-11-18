@@ -47,6 +47,19 @@ typedef struct CPMDCResult {
 } CPMDCResult;
 
 /**
+ * @brief Machine-readable reason for the most recent failing public call.
+ *
+ * The text from `cpmdc_last_error()` remains the detailed diagnostic.
+ */
+typedef enum CPMDCErrorCode {
+  CPMDC_ERROR_NONE = 0,
+  CPMDC_ERROR_INVALID_ARGUMENT = 1,
+  CPMDC_ERROR_UNAVAILABLE = 2,
+  CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING = 3,
+  CPMDC_ERROR_EVALUATION_FAILED = 4
+} CPMDCErrorCode;
+
+/**
  * @brief In-process snapshot of OpenCPMD `ener_com` scalars (Hartree a.u.).
  *
  * Filled after a successful embed SCF (`wfopts`) or reference PEF evaluation.
@@ -410,6 +423,33 @@ CPMDC_API int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cu
                                                 double height_ry, double width_ry);
 
 /**
+ * @brief Set Gaussian-smeared MM point charges for the next session step.
+ *
+ * Positions and Gaussian standard deviations are Angstrom; charges are in
+ * units of the elementary charge. `widths_ang` may be NULL, selecting
+ * `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG` (default 0.30 Angstrom) for every charge.
+ * A count of zero clears the embedding. Repeating this call replaces the
+ * previous charge set and invalidates the geometry-result cache.
+ *
+ * The interaction kernel is `erf(r / (sqrt(2) sigma)) / r`. Periodic cells
+ * are rejected with `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`; this API
+ * currently implements isolated electrostatic embedding only.
+ */
+CPMDC_API int cpmdc_session_set_external_charges(
+    CPMDCSession *session, size_t n_charges, const double *positions_ang,
+    const double *charges_e, const double *widths_ang);
+
+/**
+ * @brief Copy forces on the external charges from the last successful step.
+ *
+ * `forces_h_bohr` has `3 * n_charges` doubles in the order installed by
+ * `cpmdc_session_set_external_charges()`. Returns -1 if the buffer length
+ * differs or no matching embedded result is available.
+ */
+CPMDC_API int cpmdc_session_last_external_charge_forces(
+    const CPMDCSession *session, double *forces_h_bohr, size_t forces_len);
+
+/**
  * @brief Create a persistent session from a `PotentialConfig` message.
  *
  * Resolves the config exactly like `cpmdc_configure()` and installs the
@@ -641,6 +681,9 @@ CPMDC_API const char *cpmdc_version(void);
  * return of -1 is the size query.
  */
 CPMDC_API const char *cpmdc_last_error(void);
+
+/** @brief Typed reason corresponding to `cpmdc_last_error()`. */
+CPMDC_API CPMDCErrorCode cpmdc_last_error_code(void);
 
 /**
  * @brief Numeric ABI generation of the compiled library.

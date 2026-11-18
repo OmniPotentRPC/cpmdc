@@ -18,6 +18,7 @@ linking `libcpmdc`.
 | `opencpmd_embed_extrapolate.patch` | Keep the `EXTRAPOLATE WFN` request that `control_test` turns off outside Born-Oppenheimer molecular dynamics (BO-MD) in `embed_extrap_wfn` of `embed_ctrl` |
 | `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
 | `opencpmd_constant_cutoff_precon.patch` | Add the `CONSTANT CUTOFF` penalty `A [1 + erf((G^2 - E0) / sigma)]` to the kinetic diagonal of the ODIIS preconditioner in `hesele`, which `kin_energy` and `vpsi` already apply. Without it ODIIS stops at its step limit on a constant-cutoff deck and the PCG fallback is about six times slower. A deck without `CONSTANT CUTOFF` is unchanged. Optional; rebuild with `rebuild_opencpmd_constant_cutoff.sh` |
+| `opencpmd_external_charges.patch` | Add an optional density-force hook to `efld`/`eextern`. cpmdc installs it only while Gaussian external charges are active, so the converged density supplies equal-and-opposite MM forces; `cpmd.x` leaves the hook null |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` passes them to `extrapwf`.
@@ -43,6 +44,7 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_extrapolate.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_constant_cutoff_precon.patch
+patch -p1 < /path/to/cpmdc/tools/opencpmd_external_charges.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
