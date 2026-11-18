@@ -1,0 +1,1 @@
+The Python reference lists `ATOMIC_NUMBER_MIN`, `ATOMIC_NUMBER_MAX`, the `Evaluation` fields, and the `cpmdc.ipi` header and socket-prefix constants, and its error table gives the `TypeError` and `ValueError` cases of the boundary checks.

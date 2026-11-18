@@ -18,6 +18,7 @@ carries its own ~@since~ generation.
 The header comments, which the documentation site renders as the generated API
 pages, carry the declarations; this page adds the units, the return conventions,
 and the behaviour that the implementation in ~src/cpmdc.c~ gives each call.
+The [[file:contracts.org][API contracts]] page lists every function, type, and constant with its units, layout, ownership, thread and MPI behaviour, errors, and defaults; the ~reference-audit~ test keeps it in step with the headers.
 
 * Exported symbols
 Every function of ~cpmdc.h~ and ~cpmdc_features.h~ is declared with ~CPMDC_API~
