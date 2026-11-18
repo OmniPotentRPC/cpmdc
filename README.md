@@ -27,7 +27,7 @@ portable result carrier used by RPC-facing callers.
 | Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
 | Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org), or [Call cpmdc from Python](docs/orgmode/howto/python.org) without ASE |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |
-| Map a CPMD input line | Check [Map a CPMD Input Line](#map-a-cpmd-input-line), then use the full [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) table |
+| Map a CPMD input line | Find the line in the [CPMD option mapping](docs/orgmode/reference/cpmd-options.org), as [Map a CPMD Input Line](#map-a-cpmd-input-line) describes |
 | Link an OpenCPMD archive | Configure `-Dwith_cpmd=true` as shown in [OpenCPMD Archive Build](#opencpmd-archive-build) |
 | Regenerate generated docs | Edit `docs/orgmode/`, then run `pixi run -e docs mkrst` and `pixi run -e docs sphinxbld` |
 | Ask a question or report a bug | Open an issue as [the reporting section](#questions-and-bug-reports) describes |
@@ -119,55 +119,16 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 ## Map a CPMD Input Line
 
 The [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) gives the
-writable schema carrier and the discovery row for each CPMD manual line.
-
-Use the `params.*` feature ID when the schema owns a typed field. Use
-`catalog.cpmd.*` for recognized `&CPMD` keywords or inline option spellings
-that render through an existing text field. Use `catalog.section.*` only to
-check section support.
+writable `CPMDParams` carrier, the feature ID namespaces, and the discovery
+row for each CPMD manual line. It also gives the order in which to choose a
+carrier, from top-level fields to typed sections to raw deck text.
 
 ## Public ABI Surface
 
 The [C ABI reference](docs/orgmode/reference/c-abi.org) lists every exported
-function by group, with its contract. `feature-inventory` fails when that page
-does not name a public function.
-
-New RPC-style callers should use the session result path:
-
-```c
-CPMDCSession *session =
-    cpmdc_session_create(params_bytes, params_size);
-
-size_t capacity = cpmdc_potential_result_size_for_force_input(
-    force_input_bytes, force_input_size);
-unsigned char *potential_result_bytes = malloc(capacity);
-size_t potential_result_size = 0;
-
-CPMDCResult result = cpmdc_session_calculate_result(
-    session,
-    force_input_bytes,
-    force_input_size,
-    potential_result_bytes,
-    capacity,
-    &potential_result_size);
-if (!result.ok)
-  fprintf(stderr, "step failed: %s\n", result.message);
-
-free(potential_result_bytes);
-cpmdc_session_destroy(session);
-```
-
-`params_bytes` and `force_input_bytes` hold serialized `CPMDParams` and
-`ForceInput` messages; `result.energy_h` is in Hartree and the
-`PotentialResult` in `potential_result_bytes` uses the units the
-`ForceInput` names.
-
-`cpmdc_session_create()` copies the serialized params buffer. The first
-successful session evaluation fixes the atom count and the elemental
-composition. A reordering of those elements stays on the session.
-Coordinates, units, and the 3x3 cell may change between later steps. An
-evaluation with the same positions returns the stored energy and forces.
-A different composition or atom count requires a new session.
+function by group, with its units and session rules.
+[Embedding cpmdc](docs/orgmode/howto/embedding.org) shows a session loop that
+sizes the `PotentialResult` buffer and calls `cpmdc_session_calculate_result()`.
 
 ## Host Example
 
@@ -225,69 +186,12 @@ cpmdc-restart export-con RESTART.1 water.con --species O,H
 cpmdc-restart import-con RESTART.1 water.con RESTART.1.next
 ```
 
-## CPMD Input Model
-
-Route configuration in this order:
-
-| Need | Carrier |
-| --- | --- |
-| common method defaults | top-level `CPMDParams` fields |
-| typed `&SYSTEM`, `&CPMD`, `&DFT`, and `&ATOMS` controls | `inputSections.system`, `inputSections.cpmd`, `inputSections.dft`, `inputSections.atoms` |
-| catalog sections such as `&PIMD`, `&VDW`, `&LINRES`, `&TDDFT` | matching typed section arm with `directives` and `subsections` |
-| one merge-only keyword inside a named section | `inputSections.set` |
-| a non-catalog section alias | `inputSections.generic` |
-| a deck fragment that must remain literal text | `inputBlocks` or `inputSections.raw` |
-
-The feature table exposes stable IDs for the ABI, schema fields, CPMD catalog
-keywords, and section arms. Examples:
-
-- `abi.cpmdc_session_calculate_result`
-- `params.inputSections.cpmd.maxIter`
-- `params.inputSections.system.cell`
-- `catalog.cpmd.OPTIMIZE_WAVEFUNCTION`
-- `catalog.section.PIMD`
-
-To map a CPMD manual line, first look for a typed
-`params.inputSections.<section>.<field>` row. Use the matching
-`catalog.cpmd.*` row when the line is an `&CPMD` keyword or an inline option
-spelling that the renderer emits through an existing text field. Fall back to
-`inputSections.set`, `inputSections.generic`, `inputSections.raw`, or
-`inputBlocks` only when the typed schema and catalog rows do not represent the
-deck form.
-
 ## Inventory Verification
 
-The default Meson suite includes inventory checks that keep the schema, the
-feature table, the renderer, and the reference pages aligned. The
+The default Meson suite includes checks that keep the schema, the feature
+table, the renderer, and the reference pages aligned. The
 [feature inventory reference](docs/orgmode/reference/feature-inventory.org)
-lists each test and what makes it fail.
-
-Run the focused inventory group with:
-
-```bash
-meson test -C build \
-  feature-inventory cpmd-base-keyword-inventory \
-  cpmd-params-field-inventory cpmd-public-abi-inventory \
-  stub-abi-symbol-coverage \
-  shared-dlopen-symbol-coverage \
-  cpmd-schema-render-coverage cpmd-option-token-coverage \
-  cpmd-typed-render-field-coverage cpmd-long-tail-section-coverage \
-  cpmd-escape-hatch-coverage cpmd-embedding-docs-coverage \
-  cpmd-public-header-docs-coverage examples-documented readme-navigation \
-  --print-errorlogs
-```
-
-When `CPMD_ROOT` points at an OpenCPMD source tree, `feature-inventory` also
-probes parser `inscan('&SECTION')` calls and compares them with the checked-in
-section inventory.
-
-## Feature ID namespaces
-
-The [CPMD option mapping](docs/orgmode/reference/cpmd-options.org) defines the
-feature ID namespaces. It also says when a manual keyword maps to a typed field
-instead of a `catalog.cpmd.*` row, and which keywords have no feature row. The
-[feature inventory reference](docs/orgmode/reference/feature-inventory.org)
-gives the kind of each namespace in the C feature table.
+lists each check, what makes it fail, and the command that runs them together.
 
 ## OpenCPMD Archive Build
 
