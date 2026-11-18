@@ -56,6 +56,13 @@ failed call (see [[file:../howto/troubleshooting.org][troubleshooting]]).
 The catch and the code it records live in ~src/cpmd_stop_intercept.c~, inside
 ~libcpmdc~, and resolve when ~libcpmd.a~ links into it; they are internal and
 not exported.
+A serial build, including the default wheel, does not reference
+~cpmd_stopgm_hook~.
+The reference is compiled only with ~CPMDC_HAS_CPMD~, and on that build it
+stays a weak reference, so an archive without the hook leaves the catch unset.
+An undefined weak reference links on ELF.
+ld64 rejects it, which is why the serial object omits the symbol instead of
+marking the declaration weak or ~weak_import~.
 The calculator split does not need a patch:
 ~mp_start~ assigns ~mp_comm_world~ only when CPMD itself calls ~MPI_Init~, and
 ~cpmdc_bind_calculator()~ initialises MPI and stores its communicator before
@@ -156,3 +163,10 @@ collective sent the zeros of that copy instead of the data: with Open MPI 5 the
 first SCF faulted in ~gorder~, after ~my_allgather_i~ had overwritten the
 plane-wave counts with zeros.
 Kept global, they resolve to one block per process.
+The serial library does not link that archive, so those blocks are not in it.
+The ELF version script can name them anyway: a global pattern exports a symbol
+that is present and does not require it.
+ld64's export list requires every literal name to be defined while wildcard
+entries match only defined symbols, so every sentinel uses a wildcard pattern
+(letting either Open MPI or MPICH link) and the macOS list adds them only when
+OpenCPMD is linked.

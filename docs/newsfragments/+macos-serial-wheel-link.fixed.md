@@ -1,0 +1,1 @@
+The macOS `libcpmdc` link succeeds on `ld64`. `cpmd_stopgm_hook` is referenced only in an OpenCPMD build, where the archive defines it, and the MPI Fortran sentinel common blocks use wildcard patterns added to `-exported_symbols_list` only in that build so neither serial builds nor Open MPI builds fail on absent literal names.

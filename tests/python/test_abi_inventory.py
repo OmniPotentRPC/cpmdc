@@ -85,9 +85,17 @@ def run(tree: Path, mode: str, library: Path, nm: Path | None = None):
     )
 
 
-def run_mode(tree: Path, mode: str, out: Path):
+def run_mode(tree: Path, mode: str, out: Path, *options: str):
     return subprocess.run(
-        [sys.executable, str(tree / SCRIPT), mode, str(out), "--root", str(tree)],
+        [
+            sys.executable,
+            str(tree / SCRIPT),
+            mode,
+            str(out),
+            *options,
+            "--root",
+            str(tree),
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -196,6 +204,7 @@ def test_export_lists_name_exactly_the_public_symbols(tree: Path, tmp_path: Path
     generator = load_generator(tree)
     public = generator.public_symbols(tree)
     assert len(public) == len(set(public)) > 0
+    assert all("*" in pattern for pattern in generator.MPI_FORTRAN_SENTINELS)
     exported = [*public, *generator.MPI_FORTRAN_SENTINELS]
     script = tmp_path / "libcpmdc.map"
     done = run_mode(tree, "--version-script", script)
@@ -207,6 +216,10 @@ def test_export_lists_name_exactly_the_public_symbols(tree: Path, tmp_path: Path
     exp = tmp_path / "libcpmdc.exp"
     done = run_mode(tree, "--exported-symbols-list", exp)
     assert done.returncode == 0, done.stderr
+    # ld64 requires every literal name. The serial list is the public C ABI.
+    assert exp.read_text().split() == [f"_{s}" for s in public]
+    done = run_mode(tree, "--exported-symbols-list", exp, "--mpi-fortran-sentinels")
+    assert done.returncode == 0, done.stderr
     assert exp.read_text().split() == [f"_{s}" for s in exported]
 
 
@@ -214,7 +227,9 @@ def test_mpi_fortran_sentinels_need_no_declaration(tree: Path, nm: Path) -> None
     # An OpenCPMD libcpmdc exports the MPI library's sentinel common blocks.
     symbols = nm.with_name("symbols.txt")
     symbols.write_text(
-        symbols.read_text() + "mpi_fortran_in_place_\nmpipriv1_\nmpifcmb5_\n"
+        symbols.read_text()
+        + "mpi_fortran_in_place_\nmpi_fortran_bottom_\n"
+        + "mpipriv1_\nmpipriv2_\nmpiprivc_\nmpifcmb5_\nmpifcmb9_\n"
     )
     done = run(tree, "--check", tree / "libcpmdc.so", nm)
     assert done.returncode == 0, done.stderr
