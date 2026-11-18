@@ -196,6 +196,8 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
             owners: set[str] = set()
             if struct_col is not None and struct_col < len(row_cells):
                 owners = _structs_in_text(row_cells[struct_col], structs)
+            elif struct_col is None:
+                owners = _structs_in_text("|".join(row_cells[1:]), structs)
             if not owners and default_owner is not None:
                 owners = {default_owner}
             pairs |= {(owner, field) for owner in owners for field in fields}
@@ -425,7 +427,7 @@ def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
         text,
         {"HeadingStruct", "IntroStruct", "OtherStruct"},
     )
-    assert documented == {("IntroStruct", "alpha"), ("IntroStruct", "beta")}
+    assert documented == {("IntroStruct", "alpha"), ("OtherStruct", "beta")}
     heading_only = (
         "* ~HeadingStruct~\n\n"
         "| Field | Type | Meaning |\n"
@@ -436,7 +438,7 @@ def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
     assert documented_struct_fields(
         heading_only,
         {"HeadingStruct", "OtherStruct"},
-    ) == {("HeadingStruct", "alpha"), ("HeadingStruct", "beta")}
+    ) == {("HeadingStruct", "alpha"), ("OtherStruct", "beta")}
     explicit_col = (
         "* ~HeadingStruct~\n\n"
         "Fields of ~IntroStruct~:\n\n"
@@ -448,6 +450,22 @@ def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
         explicit_col,
         {"HeadingStruct", "IntroStruct", "ColumnStruct", "OtherStruct"},
     ) == {("ColumnStruct", "alpha")}
+
+
+def test_row_type_or_meaning_struct_reference_without_struct_column() -> None:
+    text = (
+        "Fields of ~A~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | see ~B~ | delegated in Type cell |\n"
+        "| ~gamma~ | ~int~ | see ~B~ |\n"
+    )
+    assert documented_struct_fields(text, {"A", "B"}) == {
+        ("A", "alpha"),
+        ("B", "beta"),
+        ("B", "gamma"),
+    }
 
 
 def run_self_tests() -> None:
