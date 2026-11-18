@@ -15,11 +15,13 @@ through =rgpot-ipi-driver=.  In =engines/pot_spec.cpp=, =make()= and
 Two library-level differences also matter before the old route can be retired:
 
 - =IPIDriver::Geometry::openBox()= (=if (!(volume > 0.0)) openBox(&xyz, box);=
-  in =CppCore/rgpot/IPIPot/IPIDriver.cc:364=) replaces any i-PI cell with
-  non-positive volume (all-zero, singular, or left-handed) with a padded
-  finite cube before =CPMDPot= sees it.  That is not
-  =Session.calculate_au(..., cell=None)= and can replace the cell from the
-  CPMD deck, or silently pad a singular cell that cpmdc rejects.
+  in =CppCore/rgpot/IPIPot/IPIDriver.cc:364=) replaces an i-PI cell with
+  zero volume (all-zero or singular) with a padded finite cube before
+  =CPMDPot= sees it.  =cellVolume()= returns the absolute determinant, so a
+  left-handed cell has positive volume and is tiled like any other.  This
+  differs from =Session.calculate_au(..., cell=None)= and can replace the
+  cell from the CPMD deck, or silently pad a singular cell that cpmdc
+  rejects.
 - =IPIDriver::step()= does not mark a direct =POSDATA= as initialized.  A
   following =STATUS= therefore returns =NEEDINIT= instead of =HAVEDATA=.
   ASE and normal i-PI handshakes send =INIT=, but cpmdc's current driver also
@@ -32,7 +34,7 @@ Two library-level differences also matter before the old route can be retired:
 |------------+--------------+----------------------------------|
 | Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same standard messages and pipeline, but the audited base ignores =batch_size= |
 | Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
-| Cell | transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored | transpose to rgpot rows; inverse ignored; any cell with non-positive volume (zero, singular, or left-handed) is currently padded |
+| Cell | transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored | transpose to rgpot rows; inverse ignored; a cell with zero volume (all-zero or singular) is currently padded, while a left-handed cell is tiled like any other |
 | Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
 | Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= exists, but =pot_spec= cannot construct =CPMDPot= |
 | ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=, but not selectable with CPMD |
