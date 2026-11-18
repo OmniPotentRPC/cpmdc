@@ -1044,12 +1044,10 @@ static const char *k_fixture_files[] = {
     "params_system_multiplicity_top.bin",
 };
 
-static char *fixture_path(const char *dir, const char *name) {
-  size_t need = strlen(dir) + 1 + strlen(name) + 1;
-  char *path = malloc(need);
-  if (path)
-    snprintf(path, need, "%s/%s", dir, name);
-  return path;
+/* Paths live in main. A heap copy here is a LeakSanitizer failure at exit. */
+static void fixture_path(const char *dir, const char *name, char *path,
+                         size_t cap) {
+  snprintf(path, cap, "%s/%s", dir, name);
 }
 
 int main(int argc, char **argv) {
@@ -1058,11 +1056,12 @@ int main(int argc, char **argv) {
     return 2;
   }
   enum { NFIXTURES = sizeof(k_fixture_files) / sizeof(k_fixture_files[0]) };
+  enum { k_fixture_cap = 4096 };
+  char storage[NFIXTURES + 1][k_fixture_cap];
   char *fixture[NFIXTURES + 1] = {0};
   for (int i = 0; i < NFIXTURES; ++i) {
-    fixture[i + 1] = fixture_path(argv[1], k_fixture_files[i]);
-    if (!fixture[i + 1])
-      return 1;
+    fixture_path(argv[1], k_fixture_files[i], storage[i + 1], k_fixture_cap);
+    fixture[i + 1] = storage[i + 1];
   }
   /* inventory must resolve CP and DFT catalog ids */
   if (!cpmdc_feature_find("catalog.section.PIMD") ||
