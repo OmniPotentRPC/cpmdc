@@ -26,14 +26,14 @@ OpenCPMD keeps ~timetag~ outside the archive, and ~header~ calls it.
 * Darwin link behavior for wheels
 The serial wheel (~with_cpmd=false~) builds ~libcpmdc~ without a reference to
 ~cpmd_stopgm_hook~. On ELF, an undefined weak reference can remain unresolved,
-but ~ld64~ reports that same reference as undefined at link time. The stop hook
-is therefore referenced only when ~with_cpmd=true~, where OpenCPMD provides a
-real definition from ~libcpmd.a~.
+but ~ld64~ reports that same reference as undefined at link time. The Darwin
+stop hook is used only when ~with_cpmd=true~ and ~cpmd_root~ is non-empty.
+~has_cpmd~ is the pair that passes ~-DCPMDC_HAS_CPMD=1~ and links ~libcpmd.a~.
 
 On Darwin, the export list also differs by build mode: the serial library
 exports the literal public C ABI symbols, while an OpenCPMD build adds wildcard
 patterns for MPI Fortran sentinel COMMON blocks. ~ld64~ requires every literal
-~exported_symbols_list~ name to exist in the linked image, but wildcard entries
+~-exported_symbols_list~ name to exist in the linked image, but wildcard entries
 match only symbols that are present.
 
 * Installed artifacts
