@@ -93,3 +93,17 @@ brew list gcc >/dev/null 2>&1 || brew install gcc
 brew list capnp >/dev/null 2>&1 || brew install capnp
 command -v cargo >/dev/null 2>&1 || brew install rust
 """
+
+[tool.mypy]
+strict = true
+files = ["python/cpmdc"]
+
+[[tool.mypy.overrides]]
+# ASE ships without complete annotations, so calls into it are untyped.
+module = ["cpmdc.ase"]
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# MPI is optional and mpi4py has no stubs in the CI environment.
+module = ["mpi4py", "mpi4py.*"]
+ignore_missing_imports = true

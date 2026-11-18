@@ -150,8 +150,31 @@ def qmi_input(
     return "\n".join(head + ["  " + line for line in lines] + tail) + "\n"
 
 
-def write_qmi(path: str | os.PathLike[str], params: str | os.PathLike[str], **options) -> Path:
-    """Write :func:`qmi_input` to ``path`` and return it."""
+def write_qmi(
+    path: str | os.PathLike[str],
+    params: str | os.PathLike[str],
+    *,
+    cell: str | None = None,
+    embedding: str | None = None,
+    qm_charges: Sequence[float] | None = None,
+    ewald_rcut: float | None = None,
+    ewald_precision: float | None = None,
+    qm_ranks: str | int | None = None,
+    charge: int = 0,
+    multiplicity: int = 1,
+) -> Path:
+    """Write :func:`qmi_input` to ``path`` and return it; the options are those of :func:`qmi_input`."""
     target = Path(path)
-    target.write_text(qmi_input(params, **options), encoding="utf-8")
+    text = qmi_input(
+        params,
+        cell=cell,
+        embedding=embedding,
+        qm_charges=qm_charges,
+        ewald_rcut=ewald_rcut,
+        ewald_precision=ewald_precision,
+        qm_ranks=qm_ranks,
+        charge=charge,
+        multiplicity=multiplicity,
+    )
+    target.write_text(text, encoding="utf-8")
     return target

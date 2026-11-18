@@ -1441,6 +1441,16 @@ test(
     suite: ['docs', 'abi', 'python'],
   )
   test(
+    'python-mypy-strict',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_mypy_strict.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['python'],
+    timeout: 300,
+  )
+  test(
     'python-api',
     python,
     args: [

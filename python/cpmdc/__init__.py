@@ -246,14 +246,14 @@ def stress_to_ev_per_angstrom3(stress_h_bohr3: Sequence[float]) -> list[float]:
     return [component * scale for component in stress_h_bohr3]
 
 
-def _finite(value: float, what: str) -> float:
+def _finite(value: Any, what: str) -> float:
     number = float(value)
     if number != number or number in (float("inf"), float("-inf")):
         raise ValueError(f"{what} must be finite")
     return number
 
 
-def _positions(positions: Sequence[Sequence[float]]) -> tuple[int, array]:
+def _positions(positions: Sequence[Sequence[float]]) -> tuple[int, array[float]]:
     rows = list(positions)
     if not rows:
         raise ValueError("positions must contain at least one atom")
@@ -277,9 +277,10 @@ def _integer(value: Any, what: str) -> int:
     if isinstance(value, bool):
         raise TypeError(f"{what} must be an integer, not bool")
     if isinstance(value, Real) and not isinstance(value, Integral):
-        if not float(value).is_integer():
+        whole = float(value)
+        if not whole.is_integer():
             raise ValueError(f"{what} must be an integer, got {value!r}")
-        return int(value)
+        return int(whole)
     try:
         return operator.index(value)
     except TypeError:
@@ -318,18 +319,18 @@ def _numbers(atomic_numbers: Sequence[int], n_atoms: int) -> array[int]:
 def _cell(cell: Sequence[Sequence[float]] | Sequence[float] | None) -> list[float] | None:
     if cell is None:
         return None
-    raw = list(cell)
+    raw: list[Any] = list(cell)
     if len(raw) == 3 and all(not isinstance(item, (int, float)) for item in raw):
         flat: list[float] = []
         for row in raw:
-            coords = list(row)  # type: ignore[arg-type]
+            coords = list(row)
             if len(coords) != 3:
                 raise ValueError("cell must be 3x3 or 9 numbers")
             flat.extend(_finite(coord, "cell") for coord in coords)
         return flat
     if len(raw) != 9:
         raise ValueError("cell must be 3x3 or 9 numbers")
-    return [_finite(value, "cell") for value in raw]  # type: ignore[arg-type]
+    return [_finite(value, "cell") for value in raw]
 
 
 _FORMATS = {ctypes.c_double: "d", ctypes.c_int: "i"}
@@ -361,14 +362,13 @@ def _flat(data: Any) -> list[Any]:
 
 
 def _checked_buffer(view: memoryview, ctype: Any, what: str) -> None:
-    raw = view.cast("B").cast(_FORMATS[ctype])
     if ctype is ctypes.c_double:
-        if not all(map(math.isfinite, raw)):
+        if not all(map(math.isfinite, view.cast("B").cast("d"))):
             raise ValueError(f"{what} must be finite")
-    elif not all(ATOMIC_NUMBER_MIN <= value <= ATOMIC_NUMBER_MAX for value in raw):
-        raise ValueError(
-            f"{what} must be in {ATOMIC_NUMBER_MIN}..{ATOMIC_NUMBER_MAX}"
-        )
+    elif not all(
+        ATOMIC_NUMBER_MIN <= value <= ATOMIC_NUMBER_MAX for value in view.cast("B").cast("i")
+    ):
+        raise ValueError(f"{what} must be in {ATOMIC_NUMBER_MIN}..{ATOMIC_NUMBER_MAX}")
 
 
 def _in_array(data: Any, ctype: Any, count: int, what: str) -> Any:
@@ -410,7 +410,9 @@ _ELEMENT_FOUR_BYTES = 4
 _ELEMENT_EIGHT_BYTES = 5
 
 
-def _force_input_message(flat: array, numbers: array, cell: list[float] | None) -> bytes:
+def _force_input_message(
+    flat: array[float], numbers: array[int], cell: list[float] | None
+) -> bytes:
     """Single-segment Cap'n Proto ``ForceInput``, laid out as ``capnp encode`` does."""
     lists: list[tuple[int, int, bytes]] = [
         (_ELEMENT_EIGHT_BYTES, len(flat), struct.pack(f"<{len(flat)}d", *flat)),
