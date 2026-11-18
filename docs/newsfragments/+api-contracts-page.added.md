@@ -1,0 +1,1 @@
+A new reference page, `reference/contracts.org`, gives every public C function, type and constant and every public Python name its units, shape and layout, ownership, thread and MPI behaviour, return and error codes with the exception each maps to, and defaults, including the ASE property and parameter tables and the deprecated names.
