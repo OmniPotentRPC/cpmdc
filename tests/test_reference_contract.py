@@ -130,6 +130,15 @@ def _singular_struct(candidates: set[str]) -> str | None:
     return None
 
 
+def _intro_struct(lines: list[str], structs: set[str]) -> str | None:
+    for line in reversed(lines):
+        if line.lstrip().startswith("Fields of "):
+            found = _singular_struct(_structs_in_text(line, structs))
+            if found is not None:
+                return found
+    return None
+
+
 def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
     """Struct-field pairs represented by field tables (header row starts with Field)."""
     pairs: set[tuple[str, str]] = set()
@@ -159,8 +168,6 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
                 break
             table_lines.append(lines[index])
             index += 1
-        table_text = "\n".join(table_lines)
-        table_structs = _structs_in_text(table_text, structs)
         context_lines: list[str] = []
         scan = table_start - 1
         while scan >= 0:
@@ -171,13 +178,11 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
             scan -= 1
         context_block = "\n".join(context_lines)
         context_structs = _structs_in_text(context_block, structs)
-        default_owner: str | None = None
-        if not has_struct_col:
-            default_owner = (
-                _singular_struct(table_structs)
-                or _singular_struct(context_structs)
-                or last_heading_struct
-            )
+        default_owner = (
+            _intro_struct(context_lines, structs)
+            or last_heading_struct
+            or _singular_struct(context_structs)
+        )
         for table_line in table_lines[1:]:
             row_cells = _table_cells(table_line)
             if _is_separator_row(row_cells) or _is_field_table_header(row_cells):
@@ -187,10 +192,9 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
             fields = _field_names_from_cell(row_cells[0])
             if not fields:
                 continue
-            tail = "|".join(row_cells[1:])
-            owners = _structs_in_text(tail, structs)
+            owners: set[str] = set()
             if struct_col is not None and struct_col < len(row_cells):
-                owners |= _structs_in_text(row_cells[struct_col], structs)
+                owners = _structs_in_text(row_cells[struct_col], structs)
             if not owners and default_owner is not None:
                 owners = {default_owner}
             pairs |= {(owner, field) for owner in owners for field in fields}
@@ -381,6 +385,44 @@ def test_bogus_field_in_nonstandard_intro_table() -> None:
     documented = documented_struct_fields(text, {"DemoStruct"})
     expected = {("DemoStruct", "alpha")}
     assert ("DemoStruct", "bogus") in documented - expected
+
+
+def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
+    text = (
+        "* ~HeadingStruct~\n\n"
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | ~int~ | refers to ~OtherStruct~ |\n"
+    )
+    documented = documented_struct_fields(
+        text,
+        {"HeadingStruct", "IntroStruct", "OtherStruct"},
+    )
+    assert documented == {("IntroStruct", "alpha"), ("IntroStruct", "beta")}
+    heading_only = (
+        "* ~HeadingStruct~\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | ~int~ | refers to ~OtherStruct~ |\n"
+    )
+    assert documented_struct_fields(
+        heading_only,
+        {"HeadingStruct", "OtherStruct"},
+    ) == {("HeadingStruct", "alpha"), ("HeadingStruct", "beta")}
+    explicit_col = (
+        "* ~HeadingStruct~\n\n"
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Struct | Meaning |\n"
+        "|-------+--------+---------|\n"
+        "| ~alpha~ | ~ColumnStruct~ | refers to ~OtherStruct~ |\n"
+    )
+    assert documented_struct_fields(
+        explicit_col,
+        {"HeadingStruct", "IntroStruct", "ColumnStruct", "OtherStruct"},
+    ) == {("ColumnStruct", "alpha")}
 
 
 def main() -> int:
