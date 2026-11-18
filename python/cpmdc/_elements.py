@@ -18,7 +18,20 @@ _FORMULA_PART = re.compile(r"([A-Z][a-z]?)(\d*)")
 
 
 def species_numbers(text: str) -> list[int]:
-    """Return atomic numbers from symbols, formulas, or atomic numbers."""
+    """Return atomic numbers from a species string, in the order written.
+
+    Tokens are separated by whitespace or commas. Each token is an element
+    symbol (``"O"``), a formula that runs symbols together with optional
+    counts (``"OH2"``, ``"Si3N4"``), or an atomic number from 1 to 118
+    (``"8"``). The forms can be mixed, so ``"O H H"``, ``"O,H,H"``,
+    ``"OH2"`` and ``"8 1 1"`` all give ``[8, 1, 1]``.
+
+    A symbol is a capital letter with an optional lowercase letter, so
+    ``"Co"`` is cobalt and ``"CO"`` is carbon then oxygen. A count of zero
+    contributes no atoms. Raises ``ValueError`` for an unknown element, a
+    token that is not a symbol, formula, or number, an atomic number
+    outside 1..118, or a string that names no atoms.
+    """
     numbers: list[int] = []
     for token in re.split(r"[\s,]+", text.strip()):
         if not token:
