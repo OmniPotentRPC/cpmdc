@@ -279,3 +279,53 @@ starting volume.
 OpenCPMD and GROMACS patches, whose blank context lines they broke. Every
 Org page that the audit touches passes `snapper --check` at
 `max_width = 80`.
+
+## Release audit at 1a9f6d98
+
+BASE is develop at `1a9f6d98a585bfa7bc43a44ba7743152968e24c2`.
+
+The embedding how-to now ties the C ABI entry paths to status and error
+handling (`CPMDCResult`, `cpmdc_last_error`), orbital keys between steps,
+rgpot's `CPMDPot`, and the i-PI drivers `cpmdc-ipi` / `cpmdc-ipi-c`, with
+pointers to the C ABI reference, wavefunction-state explanation, socket
+how-to, environment variables, and the eOn tutorial.
+`cpmd-embedding-docs-coverage` requires both driver names and the error terms
+above.
+
+`.lychee.toml` excludes `https://doi.org/` links through a regex checked by
+`lychee-toml-excludes`, and treats publisher `403` responses as acceptable so
+automated link checks do not fail on anti-bot redirects.
+The documentation workflow installs lychee 0.24.2 and runs the same source
+link check as `pixi run lychee` before `pixi r docbld`.
+
+`explanation/md-engines.org` had a duplicated Org heading before its
+references list; that duplicate is removed.
+
+Verified on this tree:
+
+- `pixi run -e docs docbld` with `warningiserror = true`
+- `pixi run test-stub` (full default Meson suite)
+- `meson test -C build --suite docs`
+- lychee 0.24.2 over README, `docs/orgmode`, and news fragments (120 links, 0
+  errors)
+
+Topics already documented elsewhere and matching the code at BASE:
+
+- Embedding API contracts in `howto/embedding.org` and `reference/c-abi.org`
+- i-PI drivers in `howto/socket-drivers.org` and `python/cpmdc/ipi.py`
+- Restart file library in `reference/c-abi.org` and `howto/embedding.org`
+- Orbital keys and extrapolation in `reference/c-abi.org`,
+  `explanation/wavefunction-state.org`, and `howto/extrapolate-orbitals.org`
+- Error codes in `reference/c-abi.org`, `reference/python.org`, and
+  `howto/troubleshooting.org`
+- rgpot `CPMDPot` in `tutorials/eon-rgpot.org`, `reference/environment.org`,
+  and the glossary
+
+Remaining: `pixi run lychee` still expects lychee on `PATH`; the CI docs job
+installs it, and contributors can use the same `taiki-e/install-action` pin or
+cargo once rustc meets lychee 0.24.2.
+Constant-cutoff NPT methodology citations (Bernasconi et al. and related
+papers) were checked as written; excluded from lychee HTTP checks because
+publishers block automated HEAD.
+No cpmdc-specific method paper is cited beyond `CITATION.cff` and third-party
+CPMD references.
