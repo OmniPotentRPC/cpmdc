@@ -142,6 +142,18 @@ def _intro_struct(lines: list[str], structs: set[str]) -> str | None:
     return None
 
 
+_ROW_STRUCT_REF = re.compile(r"(?:see|refers\s+to)\s+~(\w+)~", re.I)
+
+
+def _row_struct_references(cells: list[str], structs: set[str]) -> set[str]:
+    owners: set[str] = set()
+    for cell in cells:
+        match = _ROW_STRUCT_REF.fullmatch(cell.strip())
+        if match and match.group(1) in structs:
+            owners.add(match.group(1))
+    return owners
+
+
 def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
     """Struct-field pairs represented by field tables (header row starts with Field)."""
     pairs: set[tuple[str, str]] = set()
@@ -199,7 +211,7 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
             if struct_col is not None and struct_col < len(row_cells):
                 owners = _structs_in_text(row_cells[struct_col], structs)
             elif struct_col is None:
-                owners = _structs_in_text("|".join(row_cells[1:]), structs)
+                owners = _row_struct_references(row_cells[1:], structs)
             if not owners and default_owner is not None:
                 owners = {default_owner}
             pairs |= {(owner, field) for owner in owners for field in fields}
@@ -484,6 +496,21 @@ def test_row_type_or_meaning_struct_reference_without_struct_column() -> None:
         ("B", "beta"),
         ("B", "gamma"),
     }
+
+
+def test_prose_struct_mention_keeps_intro_owner() -> None:
+    text = (
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | pointer to ~OtherStruct~ | first member |\n"
+        "| ~beta~ | ~int~ | copied from ~OtherStruct~ on reset |\n"
+    )
+    documented = documented_struct_fields(
+        text,
+        {"IntroStruct", "OtherStruct"},
+    )
+    assert documented == {("IntroStruct", "alpha"), ("IntroStruct", "beta")}
 
 
 def run_self_tests() -> None:
