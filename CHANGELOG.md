@@ -6,6 +6,10 @@
 
 ### Added
 
+- Sessions accept Gaussian-smeared external MM charges and return their forces,
+  enabling electrostatic QM/MM embedding in the GROMACS drop-in and the LAMMPS
+  Python and plugin adapters. Periodic electrostatic embedding is rejected
+  explicitly.
 - A job TOML compiles to the CPMDParams text. The in-process route encodes that text, and the file route renders the same message.
 - An optional plane-wave scaffold times strong and weak scaling of a structure-factor force, and keeps a CUDA backend behind a build flag that stays off unless requested.
   The scaffold stays out of the default build, so an ordinary build does not require OpenMP for it.
@@ -69,6 +73,8 @@
 
 ### Fixed
 
+- Gaussian external-charge potentials and forces remain continuous near charge
+  centres, and evaluation wrappers preserve specific configuration error codes.
 - A positive-volume cell with no isolated keyword is written with cubic or orthorhombic symmetry, or with cell vectors when the box is tilted, while a zero box and a deck that already asks for an isolated system stay on symmetry 0 with the Hockney solver. ([#periodic-cell-symmetry](https://github.com/OmniPotentRPC/cpmdc/issues/periodic-cell-symmetry))
 - A cell with off-diagonal components no longer stops the host with a Fortran "End of file" while the cold deck is written: the `CELL VECTORS` rows are joined by newlines inside one record.
 - A session that already stored a result rejects a null position or atomic-number buffer with `invalid arguments` instead of reading the pointer.

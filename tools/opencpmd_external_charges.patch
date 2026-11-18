@@ -3,9 +3,9 @@ index ab764e6..8c7a265 100644
 --- a/src/efld.mod.F90
 +++ b/src/efld.mod.F90
 @@ -7,6 +7,34 @@ MODULE efld
- 
+
    REAL(real_8), POINTER :: extf(:)
- 
+
 +  ABSTRACT INTERFACE
 +     SUBROUTINE cpmdc_external_force_interface(rhoe)
 +       IMPORT :: real_8
@@ -17,7 +17,7 @@ index ab764e6..8c7a265 100644
 +       cpmdc_external_force_hook => NULL()
 +
    ! ==================================================================
- 
+
 +CONTAINS
 +
 +  SUBROUTINE set_cpmdc_external_force_hook(hook)
