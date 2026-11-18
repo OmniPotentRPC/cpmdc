@@ -92,6 +92,49 @@ jobs:
             exit 1
           fi
 
+  sanitize-gcc13:
+    name: sanitize (ubuntu-24.04 gcc-13)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: CPU flags
+        run: |
+          grep -m1 flags /proc/cpuinfo || true
+          lscpu || true
+          echo "cpmdc SIMD paths: minimage avx, avx2 and avx512 kernels, picked at run time"
+          echo "scalar: exercised by the test suite"
+          echo "avx2: not exercised"
+          echo "avx512: not exercised"
+          echo "neon: not exercised"
+      - name: Apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gcc-13 g++-13 gfortran-13 pkg-config python3 python3-venv \
+            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
+            ninja-build file
+      - name: Meson, ASE and i-PI
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/meson-venv"
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
+          echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      - name: Full meson suite under ASan/UBSan (GCC 13)
+        env:
+          CC: gcc-13
+          CXX: g++-13
+          FC: gfortran-13
+          FI_MR_CACHE_MONITOR: disabled
+        run: |
+          . scripts/with_baseline_flags.sh
+          export CFLAGS="${CFLAGS:+$CFLAGS }-include ${GITHUB_WORKSPACE}/tests/distro_cmocka_prefix.h"
+          meson setup build-sanitize -Dwith_tests=true -Db_sanitize=address,undefined -Db_lundef=false
+          meson compile -C build-sanitize
+          ASAN_OPTIONS=detect_leaks=0 meson test -C build-sanitize --print-errorlogs
+          if nm -A build-sanitize/cpmdc-restart build-sanitize/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
+            echo "gcc-13 sanitize restart build references readcon"
+            exit 1
+          fi
+
   stub-and-e2e-arm64:
     name: stub-and-e2e (ubuntu-24.04-arm)
     runs-on: ubuntu-24.04-arm
