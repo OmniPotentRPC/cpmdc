@@ -38,7 +38,7 @@ jobs:
           pixi-version: latest
           cache: true
       - name: Full meson suite (stub + embed E2E)
-        run: pixi run test-stub
+        run: pixi run -e test test-stub
       - name: C ABI inventory matches libcpmdc and the headers
         run: python3 scripts/abi_inventory.py --check build/libcpmdc.so
       - name: Default restart build does not link readcon
@@ -48,7 +48,7 @@ jobs:
             exit 1
           fi
       - name: E2E suite only
-        run: pixi run test-e2e
+        run: pixi run -e test test-e2e
       - name: Cmocka suite
         run: pixi run test-cmocka
       - name: Keep unstripped libraries for the ISA audit
@@ -84,7 +84,7 @@ jobs:
       - name: Stub suite under ASan/UBSan
         env:
           FI_MR_CACHE_MONITOR: disabled
-        run: pixi run test-stub-sanitize
+        run: pixi run -e test test-stub-sanitize
       - name: Sanitize restart build does not link readcon
         run: |
           if nm -A build-sanitize/cpmdc-restart build-sanitize/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
@@ -119,7 +119,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Full meson suite
         run: |
@@ -171,7 +171,7 @@ jobs:
             CPMDC_TEST_PARAMS="$PWD/build-cpmd/water_blyp_params.bin" \
             CPMDC_TEST_EMBEDDING_PARAMS="$PWD/build-cpmd/water_blyp_embedding_params.bin" \
             CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-cpmd/water_blyp_periodic_params.bin" \
-            pixi run python -m pytest -q -rs tests/python/test_session.py
+            pixi run -e test python -m pytest -q -rs tests/python/test_session.py
 
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})
@@ -244,7 +244,7 @@ jobs:
           fi
       - name: Full meson suite with GROMACS on PATH
         if: matrix.route != 'mpi'
-        run: pixi run meson test -C build --print-errorlogs
+        run: pixi run -e test meson test -C build --print-errorlogs
 
   readcon-restart:
     runs-on: ubuntu-latest
