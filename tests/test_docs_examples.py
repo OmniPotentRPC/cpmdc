@@ -88,11 +88,11 @@ SKIP = {
     "contributing/index.org:2": "docs build needs the docs pixi environment",
     "contributing/index.org:3": "docs build needs the docs pixi environment",
     "contributing/index.org:4": "docs export needs emacs and ox-rst",
-    "contributing/index.org:5": "link check needs the docs pixi environment",
-    "tutorials/quickstart.org:0": "pixi run test-stub would re-enter this suite",
-    "tutorials/quickstart.org:1": "reconfigures the tree",
-    "tutorials/quickstart.org:2": "example-host-step is its own meson test",
-    "tutorials/quickstart.org:3": "expected transcript",
+    "contributing/index.org:5": "link check needs lychee",
+    "howto/quickstart.org:0": "pixi run test-stub would re-enter this suite",
+    "howto/quickstart.org:1": "reconfigures the tree",
+    "howto/quickstart.org:2": "example-host-step is its own meson test",
+    "howto/quickstart.org:3": "expected transcript",
     "explanation/md-engines.org:2": "benchmark, not a correctness example",
     "explanation/md-engines.org:3": "benchmark, not a correctness example",
     "explanation/constant-cutoff-npt.org:1": "needs the run records, which stay out of the repository",
@@ -192,7 +192,7 @@ ASE_HOWTO = [f"howto/ase.org:{index}" for index in range(7)]
 
 RUN = {
     "README.md:5",
-    "tutorials/quickstart.org:4",
+    "howto/quickstart.org:4",
     "howto/check-forces.org:0",
     "howto/constant-cutoff.org:0",
     "howto/debug-deck.org:0",
@@ -662,8 +662,8 @@ def main() -> int:
                 return fail("tutorials/eon-rgpot.org:6 params_path names no file in eon-water")
             shell("tutorials/eon-rgpot.org:9", found["tutorials/eon-rgpot.org:9"].body, eon, env)
 
-            quick = found["tutorials/quickstart.org:4"].body.replace("tutorial-work", tmp)
-            shell("tutorials/quickstart.org:4", quick, root, env)
+            quick = found["howto/quickstart.org:4"].body.replace("tutorial-work", tmp)
+            shell("howto/quickstart.org:4", quick, root, env)
             shell("howto/check-forces.org:0", at_build(found["howto/check-forces.org:0"].body, build), root, env)
             ase_out = shell(
                 "tutorials/ase-energy.org:0",

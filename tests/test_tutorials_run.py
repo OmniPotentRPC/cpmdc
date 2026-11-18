@@ -99,7 +99,7 @@ def first_energy(root: Path, library_dir: Path) -> int:
 
 
 def build_and_test(root: Path) -> int:
-    text = (root / "docs/orgmode/tutorials/quickstart.org").read_text(encoding="utf-8")
+    text = (root / "docs/orgmode/howto/quickstart.org").read_text(encoding="utf-8")
     bash = [block for block in blocks(text, "bash") if "capnp encode" in block]
     if not bash:
         return fail("the build-and-test how-to has no capnp encode example")

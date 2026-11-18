@@ -54,6 +54,34 @@ match only symbols that are present.
 ~MAJOR~ is the soversion, the first field of ~version.txt~.
 The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 
+* Meson test suites
+~meson test -C build --suite NAME~ runs one suite.
+These suites group the tests of the default build by layer.
+~meson test -C build --list~ lists every test.
+
+| Suite | Tests |
+|-------+-------|
+| ~stub~ | ~tests/test_stub_abi.c~ |
+| ~abi~ | exported header and feature-discovery surface |
+| ~cmocka~, ~capnp~ | structured ~CPMDParams~ deck rendering |
+| ~params~, ~inventory~ | schema field coverage and CPMD catalog feature IDs |
+| ~socket~ | ~ForceInput~ sizing and session ~PotentialResult~ buffer contract |
+| ~e2e~ | one-shot and session calls through the deterministic reference evaluator |
+| ~docs~ | the documentation examples and the reference contract |
+
+In the ~e2e~ suite, ~e2e-single-point~ runs ~cpmdc_calculate_result~ and
+~cpmdc_energy_forces~ on one ~ForceInput~.
+~e2e-optimizer-session~ runs three geometry steps on one ~CPMDCSession~, the
+topology rejection, and a second session for a change of species.
+
+cmocka is resolved through pkg-config.
+The parser tests use Cap'n Proto text fixtures encoded by the ~capnp~ CLI
+(~tests/encode_capnp.py~).
+The stub archive only provides linkable symbols.
+The default shared ~libcpmdc~ evaluates sessions on the reference evaluator.
+Both return ~cpmdc_available() == 0~, because that call means OpenCPMD is
+linked.
+
 * Pixi tasks
 
 | Task | Environment | Runs |

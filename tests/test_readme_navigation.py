@@ -45,7 +45,7 @@ def main() -> int:
     )
     failures.extend(
         require_text(
-            root / "docs/orgmode/tutorials/quickstart.org",
+            root / "docs/orgmode/howto/quickstart.org",
             [
                 "Work Loop",
                 "Build once, then iterate with focused tests",
@@ -61,7 +61,7 @@ def main() -> int:
         reject_text(root / "docs/orgmode/index.org", ["First Command"])
     )
     failures.extend(
-        reject_text(root / "docs/orgmode/tutorials/quickstart.org", ["green Meson"])
+        reject_text(root / "docs/orgmode/howto/quickstart.org", ["green Meson"])
     )
     _, found, rest = readme.read_text(encoding="utf-8").partition("\n## Documentation\n")
     if not found:
@@ -72,6 +72,9 @@ def main() -> int:
         rel = page.relative_to(root).as_posix()
         # changelog.org wraps CHANGELOG.md, which the README links itself.
         if page.name in ("index.org", "changelog.org") and page.parent == base:
+            continue
+        # An orphan page keeps a moved page's address and links to the new one.
+        if "\n:orphan:\n" in page.read_text(encoding="utf-8"):
             continue
         if f"]({rel})" not in documentation:
             failures.append(f"README.md Documentation does not link {rel}")
