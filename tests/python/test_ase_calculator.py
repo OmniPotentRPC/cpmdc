@@ -17,6 +17,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -35,6 +36,7 @@ from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
 from conftest import ROOT, WATER
 
+import cpmdc
 from cpmdc import (
     BOHR_TO_ANGSTROM,
     HARTREE_TO_EV,
@@ -876,6 +878,36 @@ def test_a_constant_cutoff_the_deck_cannot_take_raises(periodic_params):
             calc.set(constant_cutoff={"cutoff_ry": 30.0, "width_ry": 6.0})
         assert calc.parameters["constant_cutoff"] == 30.0
         assert calc.potential is first
+
+
+def test_one_periodic_flag_covers_every_axis():
+    from cpmdc.ase import _pbc_flags
+
+    assert _pbc_flags(True) == [True, True, True]
+    assert _pbc_flags([False]) == [False, False, False]
+    with pytest.raises(ValueError, match="one flag or three"):
+        _pbc_flags([True, False])
+
+
+def test_library_and_bytearray_params_round_trip(params):
+    blob = Path(params).read_bytes()
+    library = str(cpmdc.find_library())
+    with CPMDCCalculator(bytearray(blob), library=library) as calc:
+        assert calc.parameters["params"] == blob
+        assert calc.parameters["library"] == library
+        atoms = water()
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+        calc.calculate(atoms, properties=[])
+        assert calc.results["energy"] == energy
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            calc.set(schema=None)
+        calc.parameters["params"] = None
+        with pytest.raises(TypeError, match="params is required"):
+            calc.set(library=str(Path(library).parent / "missing.so"))
+        assert calc.parameters["library"] == library
+        assert atoms.get_potential_energy() == energy
 
 
 @pytest.mark.parametrize(
