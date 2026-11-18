@@ -226,8 +226,13 @@ minimisation.
 
 * Socket and in-process drivers
 [[file:socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] documents
-~cpmdc-ipi~ and ~cpmdc-ipi-c~; both hold one session and call
-~cpmdc_session_calculate_au()~ per ~GET~ request.
+~cpmdc-ipi~ and ~cpmdc-ipi-c~; each holds one ~Session~ for the server's
+~GET~ requests.
+~cpmdc-ipi~ evaluates through ~Session.energy_forces()~ in ~python/cpmdc/ipi.py~,
+which calls ~cpmdc_session_energy_forces()~ without a cell or
+~cpmdc_session_calculate_forces()~ when the step sends a cell.
+~cpmdc-ipi-c~ in ~tools/cpmdc_ipi.c~ calls ~cpmdc_session_calculate_au()~
+directly with Bohr arrays and the virial output.
 
 * CPMD Input Ownership
 ~CPMDParams~ owns method and backend setup.
