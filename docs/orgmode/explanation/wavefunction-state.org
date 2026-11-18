@@ -94,14 +94,22 @@ The call records the key, and the evaluation selects it.
 A key named and then replaced before an evaluation parks nothing.
 ~opencpmd_embed_rwfopt.patch~ keeps a table of stored ~c0~ copies, one per key,
 beside the store ~rwfopt~ restores from.
-Selecting another key parks the converged ~c0~ under the key being left and
-moves the copy parked under the new key into the store.
+Selecting another key parks the ~c0~ of the key being left, including a stale
+copy from an unconverged pass, and moves the copy parked under the new key
+into the store.
 A partial copy from an unconverged pass is not parked.
 ~cpmdc_session_copy_orbitals()~ duplicates one key's converged orbitals, and
 the geometry they converged at, into another key, replacing that key's
 previous copy.
 The selected key stays selected.
+When the destination is the selected key, its live store is replaced
+immediately.
 A key with no converged orbitals is refused.
+A donor whose last pass did not converge is refused as well, whether that
+copy is the live store or a parked slot, and a copy onto the same key is
+refused too.
+Selecting that key again, or a warm start that adopts the parked slot, keeps
+the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
@@ -185,6 +193,11 @@ result.
 The SCF then runs from that prediction to the same convergence threshold.
 The ring is one per process, not one per key, so a key change, an unconverged
 pass, or a start past the distance limit empties it.
+An unconverged pass empties it even when a converged copy was already stored.
+~opencpmd_embed_rwfopt.patch~ marks that copy stale on that branch, and
+~opencpmd_embed_extrapolate.patch~ calls ~embed_break_history~ there.
+Before those hunks, that pass left the ring in place, and only a first
+unconverged pass, the one that keeps a partial copy, cleared it.
 The [[file:../howto/extrapolate-orbitals.org][extrapolation how-to]] lists those
 events.
 

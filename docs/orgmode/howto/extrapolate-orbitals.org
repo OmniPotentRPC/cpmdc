@@ -56,7 +56,7 @@ From the third call on, ~K~ grows to the order.
 The prediction is valid only when the stored orbitals come from the previous calls of one trajectory.
 Each of these events empties the history:
 
-- a call whose SCF does not converge, or an orbital direct inversion in the iterative subspace (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG) ~MINIMIZE~ continuation
+- a call whose SCF does not converge, including one that already held a converged copy, or an orbital direct inversion in the iterative subspace (ODIIS) pass that ends in the preconditioned conjugate gradient (PCG) ~MINIMIZE~ continuation. ~tools/opencpmd_embed_rwfopt.patch~ marks that donor stale, and ~tools/opencpmd_embed_extrapolate.patch~ empties the ring on the same branch
 - ~cpmdc_session_select_orbitals()~ with another key
 - stored orbitals farther than ~CPMDC_WARM_RMSD~ from the new geometry
 - anything that clears the stored orbitals, such as a cell, cutoff, or composition change; a constant-cutoff cell that moves in place under ~CPMDC_CELL_IN_PLACE~ keeps the history

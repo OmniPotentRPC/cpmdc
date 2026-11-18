@@ -1,0 +1,1 @@
+`cpmdc_session_copy_orbitals` refuses a donor whose last pass did not converge, including a parked copy and a copy onto the same key. An unconverged pass that already held a converged copy also empties the `EXTRAPOLATE WFN` history: `tools/opencpmd_embed_rwfopt.patch` marks the donor stale and `tools/opencpmd_embed_extrapolate.patch` breaks that history.

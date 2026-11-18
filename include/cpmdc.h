@@ -431,10 +431,13 @@ CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key
  *
  * The call duplicates the converged orbitals `from_key` held at copy time,
  * and the geometry they converged at, into `to_key`, replacing whatever
- * `to_key` already held. The selected key is unchanged. The live store is
- * unchanged when another key owns it. Selecting `to_key` afterwards starts
- * from that copy. Every rank of a calculator names the same keys, the same
- * rule `cpmdc_session_select_orbitals()` has.
+ * `to_key` already held. The selected key is unchanged. If `to_key` is the
+ * selected key, its live store is replaced immediately; otherwise the live
+ * store is unchanged. Selecting `to_key` afterwards starts from that copy.
+ * A donor whose last pass did not converge is refused, including a parked
+ * copy and a copy onto the same key. The reference build has no orbital
+ * store and returns 0. The link stub returns -1. Every rank of a calculator
+ * names the same keys, the same rule `cpmdc_session_select_orbitals()` has.
  *
  * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet,
  * `from_key` has no converged orbitals, or the copy cannot be completed.
