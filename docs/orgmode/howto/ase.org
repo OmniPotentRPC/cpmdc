@@ -321,9 +321,11 @@ reason.
 The calculator stays usable, and the next call evaluates the step again.
 
 * Sessions and copies
-The first step of a session fixes the atom count and the elemental composition,
-and a reordering of the same atoms stays on it.
-When a structure with another composition reaches the calculator, it closes the
+~session_accept_topology~ fixes the topology as soon as an evaluation call
+passes its argument checks, even when the evaluation then fails, and it is
+never rolled back.
+A reordering of the same atoms stays on the session.
+After a successful step, a structure with another composition closes the
 session and opens a new one from the same ~params~.
 
 ~calc.parameters~ holds ~params~ and ~library~.

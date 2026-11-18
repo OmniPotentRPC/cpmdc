@@ -50,8 +50,10 @@ after the first.
    to the Fortran side, which decodes the functional, cutoff, charge, and
    multiplicity with ~capnp-fortran~.
 2. ~cpmdc_session_calculate_result()~ decodes the ~ForceInput~, converts
-   positions and the cell to Angstrom, checks the topology against the first
-   step, and sizes the result buffer before any CPMD work.
+   positions and the cell to Angstrom, and sizes the result buffer.
+   ~session_accept_topology~ fixes the topology as soon as that call passes
+   its argument checks, even when the evaluation then fails, and it is never
+   rolled back. All of that is before any CPMD work.
 3. On the first step, the bridge composes the full deck from the method deck
    and the step geometry, writes it to an anonymous ~memfd~ exposed as
    ~/proc/self/fd/N~, and runs OpenCPMD's own setup on it (~control~,
@@ -83,9 +85,10 @@ The geometry never goes into ~CPMDParams~: the bridge writes ~&ATOMS~ from the
 step on the first call and moves atoms through ~tau0~ afterwards.
 
 * Sessions, topology, and state
-A session fixes the atom count and the elemental composition on its first
-successful step, because CPMD's species tables, plane-wave setup, and stored
-orbitals are all sized for one composition.
+~session_accept_topology~ fixes the topology as soon as an evaluation call
+passes its argument checks, even when the evaluation then fails, and it is
+never rolled back, because the species tables, the plane-wave setup, and the
+stored orbitals are sized for one composition.
 A reordering of those elements stays on the session.
 Coordinates may change freely; a changed cell sends the next call back
 through the full setup.

@@ -114,8 +114,9 @@ With more than one MPI rank, ~cpmdc~ aborts the other ranks, which would
 otherwise stay blocked in the call ~stopgm~ returned from.
 
 ** ~topology change requires a new session~
-*Cause:* the first successful step of a session fixes the atom count and the
-elemental composition.
+*Cause:* ~session_accept_topology~ fixes the topology as soon as an
+evaluation call passes its argument checks, even when the evaluation then
+fails, and it is never rolled back.
 A later step with a different count or composition is refused before CPMD runs.
 A reordering of the same elements stays on the session.
 
