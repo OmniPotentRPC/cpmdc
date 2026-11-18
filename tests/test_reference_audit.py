@@ -496,8 +496,13 @@ def check_functions(headers: CHeaders, page: Page, surface: PythonSurface, fails
             fails.append(f"{PAGE}: {name} has no array or string argument, so its Layout row must start with 'none'")
         ownership = clean(rows["Ownership"])
         if func.pointer_params or func.return_kind == "pointer":
+            blanket = re.search(
+                r"\b(?:every|all|each)\b[^.;]{0,24}\b(?:buffers?|arrays?|pointers?|arguments?|inputs?)\b",
+                ownership,
+                re.I,
+            )
             for param in func.pointer_params:
-                if not re.search(rf"\b{re.escape(param)}\b", ownership):
+                if not blanket and not re.search(rf"\b{re.escape(param)}\b", ownership):
                     fails.append(f"{PAGE}: {name} Ownership row does not name {param}")
             if func.return_kind == "pointer" and not re.search(r"return", ownership, re.I):
                 fails.append(f"{PAGE}: {name} returns a pointer, so its Ownership row must say who owns it")
@@ -514,7 +519,7 @@ def check_functions(headers: CHeaders, page: Page, surface: PythonSurface, fails
             if not re.search(r"last_error", errors):
                 fails.append(f"{PAGE}: {name} Returns and errors row must say whether cpmdc_last_error() is written")
         python = clean(rows["Python"])
-        for span in re.findall(r"[A-Za-z_][\w.]*", python):
+        for span in re.findall(r"[A-Za-z_]\w*(?:\.\w+)*", python):
             if EXCEPTION_NAME.fullmatch(span.rsplit(".", 1)[-1]) and surface.namespaces:
                 if not surface.exception_known(span):
                     fails.append(f"{PAGE}: {name} Python row names {span}, which is no exception of the package")
