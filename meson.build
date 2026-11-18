@@ -2108,6 +2108,17 @@ if get_option('with_pwscale')
     pwscale_c_args += ['-DCPMDC_PWSCALE_HAVE_MPI=1']
     pwscale_deps += [mpi_c_dep]
   endif
+  # MPI_Init under AddressSanitizer dies with SIGILL while Open MPI's memory
+  # patcher or UCX is active (see tests/run_mpi_test.py).
+  pwscale_env = {}
+  if 'address' in get_option('b_sanitize').split(',')
+    pwscale_env = {
+      'OMPI_MCA_memory': '^patcher',
+      'OMPI_MCA_btl': '^uct,openib',
+      'OMPI_MCA_pml': '^ucx',
+      'OMPI_MCA_osc': '^ucx',
+    }
+  endif
   pwscale_objects = []
   if get_option('with_pwscale_cuda')
     nvcc = find_program('nvcc', required: true)
@@ -2166,6 +2177,7 @@ if get_option('with_pwscale')
     test(
       'pwscale-agreement',
       pwscale_agree,
+      env: pwscale_env,
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2179,6 +2191,7 @@ if get_option('with_pwscale')
       'pwscale-logger',
       python,
       args: [meson.current_source_dir() / 'tests/test_pwscale_logger.py', pwscale_harness],
+      env: pwscale_env,
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2202,6 +2215,7 @@ if get_option('with_pwscale')
       test(
         'pwscale-fft-fail',
         pwscale_fft_fail,
+        env: pwscale_env,
         suite: ['pwscale'],
         timeout: 60,
       )
@@ -2213,6 +2227,7 @@ if get_option('with_pwscale')
           'pwscale-agreement-mpi-' + np,
           mpirun,
           args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_agree],
+          env: pwscale_env,
           suite: ['pwscale'],
           timeout: 180,
         )
@@ -2228,6 +2243,7 @@ if get_option('with_pwscale')
         'pwscale-mpi-fault',
         mpirun,
         args: ['--bind-to', 'none', '--oversubscribe', '-np', '2', pwscale_mpi_fault],
+        env: pwscale_env,
         suite: ['pwscale'],
         timeout: 30,
       )
@@ -2243,6 +2259,7 @@ if get_option('with_pwscale')
           'pwscale-collectives-' + np,
           mpirun,
           args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_collectives],
+          env: pwscale_env,
           suite: ['pwscale'],
           timeout: 120,
         )
