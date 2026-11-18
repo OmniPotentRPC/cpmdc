@@ -346,7 +346,6 @@ times to 1 ms, which resolves 0.05 microseconds per step over 20000 steps.
 An OpenCPMD step adds the same SCF time to every route.
 
 * References
-* References
 1. J. M. H. Olsen, V. Bolnykh, S. Meloni, E. Ippoliti, M. P. Bircher, P.
    Carloni, U. Rothlisberger, "MiMiC: A Novel Framework for Multiscale Modeling
    in Computational Chemistry", /J. Chem. Theory Comput./ *15*, 3810-3823
