@@ -4,6 +4,7 @@
 The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 ~include/cpmdc.h~ and ~include/cpmdc_features.h~, with the export mark in ~include/cpmdc_export.h~.
 ~include/cpmdc_restart.h~ declares the separate ~libcpmdc_restart~ (see [[*RESTART file library][RESTART file library]]).
+~include/cpmdc_pwscale.h~ declares the opt-in plane-wave scaffold, which is not part of this ABI; its contract is in the [[file:pwscale.org][plane-wave scaffold reference]].
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
@@ -112,6 +113,12 @@ Angstrom cube when the deck has none.
 The ~hasCharge~, ~charge~, ~hasMultiplicity~, and ~multiplicity~ fields of
 ~ForceInput~ are not read by ~cpmdc~.
 
+* Macros
+| Macro | Value | Meaning |
+|-------+-------+---------|
+| ~CPMDC_ABI_VERSION~ | the first field of ~version.txt~ | the ABI generation the consumer compiled with; ~cpmdc_abi_version()~ returns the generation of the library |
+| ~CPMDC_API~ | the mark of the [[*Exported symbols][exported symbols]] table | placed before each function declaration of ~cpmdc.h~ and ~cpmdc_features.h~ |
+
 * Types
 
 ** ~CPMDCResult~
@@ -147,14 +154,77 @@ The reference evaluator fills ~etot~ only.
 ~EKINC~, the fictitious electronic kinetic energy, is zero for a wavefunction
 optimisation.
 
+Fields of ~CPMDCEnergyComponents~; ~valid~ is an ~int~, non-zero when the
+snapshot was written by a successful evaluation, and every other field is a
+~double~:
+
+| Field | Type | Meaning |
+|-------+------+---------|
+| ~valid~ | ~int~ | non-zero after a successful evaluation |
+| ~etot~ | ~double~ | the ~etot~ term of ~ener_com~, Hartree |
+| ~ekin~ | ~double~ | the ~ekin~ term of ~ener_com~, Hartree |
+| ~epseu~ | ~double~ | the ~epseu~ term of ~ener_com~, Hartree |
+| ~enl~ | ~double~ | the ~enl~ term of ~ener_com~, Hartree |
+| ~eht~ | ~double~ | the ~eht~ term of ~ener_com~, Hartree |
+| ~ehep~ | ~double~ | the ~ehep~ term of ~ener_com~, Hartree |
+| ~ehee~ | ~double~ | the ~ehee~ term of ~ener_com~, Hartree |
+| ~ehii~ | ~double~ | the ~ehii~ term of ~ener_com~, Hartree |
+| ~exc~ | ~double~ | the ~exc~ term of ~ener_com~, Hartree |
+| ~vxc~ | ~double~ | the ~vxc~ term of ~ener_com~, Hartree |
+| ~egc~ | ~double~ | the ~egc~ term of ~ener_com~, Hartree |
+| ~esr~ | ~double~ | the ~esr~ term of ~ener_com~, Hartree |
+| ~eeig~ | ~double~ | the ~eeig~ term of ~ener_com~, Hartree |
+| ~eband~ | ~double~ | the ~eband~ term of ~ener_com~, Hartree |
+| ~entropy~ | ~double~ | the ~entropy~ term of ~ener_com~, Hartree |
+| ~eself~ | ~double~ | the ~eself~ term of ~ener_com~, Hartree |
+| ~ecnstr~ | ~double~ | the ~ecnstr~ term of ~ener_com~, Hartree |
+| ~amu~ | ~double~ | the ~amu~ term of ~ener_com~, Hartree |
+| ~ebogo~ | ~double~ | the ~ebogo~ term of ~ener_com~, Hartree |
+| ~eext~ | ~double~ | the ~eext~ term of ~ener_com~, Hartree |
+| ~etddft~ | ~double~ | the ~etddft~ term of ~ener_com~, Hartree |
+| ~ehsic~ | ~double~ | the ~ehsic~ term of ~ener_com~, Hartree |
+| ~erestr~ | ~double~ | the ~erestr~ term of ~ener_com~, Hartree |
+| ~eefield~ | ~double~ | the ~eefield~ term of ~ener_com~, Hartree |
+
+Fields of the other snapshot structs; each also starts with ~int valid~.
+Arrays have the fixed capacity shown, and a ~size_t~ count says how many
+entries a call filled.
+
+| Field | Struct | Meaning |
+|-------+--------+---------|
+| ~csumg~ | ~CPMDCChargeIntegrals~ | ~csumg~ of OpenCPMD ~chrg~, electrons |
+| ~csumr~ | ~CPMDCChargeIntegrals~ | ~csumr~ of OpenCPMD ~chrg~, electrons |
+| ~csums~ | ~CPMDCChargeIntegrals~ | ~csums~ of OpenCPMD ~chrg~, electrons |
+| ~csumsabs~ | ~CPMDCChargeIntegrals~ | ~csumsabs~ of OpenCPMD ~chrg~, electrons |
+| ~count~ | ~CPMDCMultiStateEnergies~, ~CPMDCMDTrajectoryRow~ | ~size_t~, the number of doubles copied into ~values~ |
+| ~values[64]~ | ~CPMDCMultiStateEnergies~ | ~ener_c~ and ~ener_d~ values, Hartree |
+| ~values[32]~ | ~CPMDCMDTrajectoryRow~ | trajectory terms in the order of the table above, Hartree |
+| ~hessian_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~hessian~ |
+| ~hessian[4096]~ | ~CPMDCPropertySnapshot~ | nuclear gradient dE/dR packed as ~n_atoms * 3~, atomic units |
+| ~dipole_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~dipole~ |
+| ~dipole[3]~ | ~CPMDCPropertySnapshot~ | OpenCPMD ~ddip%pdipole~ in atomic units, zeros for the reference evaluator |
+| ~polarizability_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~polarizability~ |
+| ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | polarizability when PROP is available, otherwise zeros |
+| ~values[9]~ | ~CPMDCStressTensor~ | row-major ~[xx, xy, xz, yx, yy, yz, zx, zy, zz]~, Hartree/Bohr^3 |
+| ~ranks~ | ~CPMDCRankSpread~ | ~int~, ranks in the calculator communicator |
+| ~energy_h~ | ~CPMDCRankSpread~ | largest absolute energy difference from rank 0 over the ranks, Hartree |
+| ~gradient_h_bohr~ | ~CPMDCRankSpread~ | largest nuclear-gradient component difference from rank 0, Hartree/Bohr |
+
 ** ~CPMDCFeatureEntry~ and ~CPMDCFeatureKind~
 
 | Field | Meaning |
 |-------+---------|
 | ~feature_id~ | stable ID such as ~abi.cpmdc_session_calculate_result~ |
-| ~kind~ | ~CPMDC_FEATURE_SECTION~ (1), ~CPMDC_FEATURE_PARAMS~ (2), ~CPMDC_FEATURE_ABI~ (3), ~CPMDC_FEATURE_KEYWORD~ (4) |
+| ~kind~ | a ~CPMDCFeatureKind~, listed below |
 | ~stub_applicable~ | non-zero when the stub build exposes the feature |
 | ~embed_applicable~ | non-zero when an OpenCPMD build exposes the feature |
+
+| ~CPMDCFeatureKind~ constant | Value | Namespace |
+|-----------------------------+-------+-----------|
+| ~CPMDC_FEATURE_SECTION~ | 1 | CPMD input section support, such as ~catalog.section.PIMD~ |
+| ~CPMDC_FEATURE_PARAMS~ | 2 | ~CPMDParams~ field support |
+| ~CPMDC_FEATURE_ABI~ | 3 | exported C ABI symbol support |
+| ~CPMDC_FEATURE_KEYWORD~ | 4 | CPMD keyword support inside a catalog section |
 
 * Library status
 

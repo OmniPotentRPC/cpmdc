@@ -137,7 +137,8 @@ feature table, sessions, result sizing, and unit conversion.
 
 * Reference at a glance
 [[file:reference/c-abi.org][The C ABI reference]] lists every public call with
-its contract, and [[file:reference/cpmd-options.org][CPMD option mapping]] says
+its contract, [[file:reference/pwscale.org][the plane-wave scaffold reference]]
+does the same for the opt-in scaffold, and [[file:reference/cpmd-options.org][CPMD option mapping]] says
 which ~CPMDParams~ field or feature ID carries each line of the CPMD manual.
 An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
 
@@ -178,6 +179,7 @@ An OpenCPMD archive build links the same C ABI against ~libcpmd.a~.
    :caption: Reference
 
    reference/c-abi
+   reference/pwscale
    reference/python
    reference/gromacs
    reference/lammps

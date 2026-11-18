@@ -7,6 +7,8 @@ Time the rank path of the opt-in plane-wave scaffold,
 The scaffold is built by ~make -C bench~ or by
 ~meson setup build -Dwith_pwscale=true~.
 It is not on the embed force path.
+The [[file:../reference/pwscale.org][plane-wave scaffold reference]] gives the
+units, array layout, ownership, and return codes of every call.
 
 * Give every rank its own core
 ~bench/run_pwscale.sh~ exports ~OMP_PROC_BIND=close~ and passes

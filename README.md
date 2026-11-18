@@ -347,6 +347,7 @@ Read the docs in this order:
   [time the plane-wave scaffold](docs/orgmode/howto/pwscale-ranks.org),
   [troubleshooting](docs/orgmode/howto/troubleshooting.org)
 - Reference: [C ABI](docs/orgmode/reference/c-abi.org),
+  [plane-wave scaffold](docs/orgmode/reference/pwscale.org),
   [Python API](docs/orgmode/reference/python.org),
   [GROMACS interface](docs/orgmode/reference/gromacs.org),
   [LAMMPS interface](docs/orgmode/reference/lammps.org),
