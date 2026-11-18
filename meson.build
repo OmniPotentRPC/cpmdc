@@ -25,6 +25,7 @@ if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
 endif
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
+run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
 schema_wrap_version = run_command(
   python,
   [
@@ -747,7 +748,6 @@ if get_option('with_tests')
     suite: ['stub'],
   )
   if mpi_c_dep.found()
-    run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
     adopt_comm_stub = executable(
       'test_adopt_comm_stub',
       'tests/test_adopt_comm_mpi.c',
@@ -2117,17 +2117,6 @@ if get_option('with_pwscale')
     pwscale_c_args += ['-DCPMDC_PWSCALE_HAVE_MPI=1']
     pwscale_deps += [mpi_c_dep]
   endif
-  # MPI_Init under AddressSanitizer dies with SIGILL while Open MPI's memory
-  # patcher or UCX is active (see tests/run_mpi_test.py).
-  pwscale_env = {}
-  if 'address' in get_option('b_sanitize').split(',')
-    pwscale_env = {
-      'OMPI_MCA_memory': '^patcher',
-      'OMPI_MCA_btl': '^uct,openib',
-      'OMPI_MCA_pml': '^ucx',
-      'OMPI_MCA_osc': '^ucx',
-    }
-  endif
   pwscale_objects = []
   if get_option('with_pwscale_cuda')
     nvcc = find_program('nvcc', required: true)
@@ -2176,6 +2165,9 @@ if get_option('with_pwscale')
     install: false,
   )
   if get_option('with_tests')
+    mpirun = find_program('mpirun', required: false)
+    pwscale_launcher_count = mpirun.found() and mpi_c_dep.found() ? '1' : '--direct'
+    pwscale_test_runner = [run_mpi_test, pwscale_launcher_count]
     pwscale_agree = executable(
       'test_pwscale_agreement',
       'tests/test_pwscale_agreement.c',
@@ -2185,8 +2177,8 @@ if get_option('with_pwscale')
     )
     test(
       'pwscale-agreement',
-      pwscale_agree,
-      env: pwscale_env,
+      python,
+      args: pwscale_test_runner + [pwscale_agree],
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2199,8 +2191,11 @@ if get_option('with_pwscale')
     test(
       'pwscale-logger',
       python,
-      args: [meson.current_source_dir() / 'tests/test_pwscale_logger.py', pwscale_harness],
-      env: pwscale_env,
+      args: pwscale_test_runner + [
+        python,
+        meson.current_source_dir() / 'tests/test_pwscale_logger.py',
+        pwscale_harness,
+      ],
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2223,20 +2218,18 @@ if get_option('with_pwscale')
       )
       test(
         'pwscale-fft-fail',
-        pwscale_fft_fail,
-        env: pwscale_env,
+        python,
+        args: pwscale_test_runner + [pwscale_fft_fail],
         suite: ['pwscale'],
         timeout: 60,
       )
     endif
-    mpirun = find_program('mpirun', required: false)
     if mpirun.found() and mpi_c_dep.found()
       foreach np : ['2', '4', '8']
         test(
           'pwscale-agreement-mpi-' + np,
-          mpirun,
-          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_agree],
-          env: pwscale_env,
+          python,
+          args: [run_mpi_test, np, pwscale_agree],
           suite: ['pwscale'],
           timeout: 180,
         )
@@ -2250,9 +2243,8 @@ if get_option('with_pwscale')
       )
       test(
         'pwscale-mpi-fault',
-        mpirun,
-        args: ['--bind-to', 'none', '--oversubscribe', '-np', '2', pwscale_mpi_fault],
-        env: pwscale_env,
+        python,
+        args: [run_mpi_test, '2', pwscale_mpi_fault],
         suite: ['pwscale'],
         timeout: 30,
       )
@@ -2266,9 +2258,8 @@ if get_option('with_pwscale')
       foreach np : ['2', '4']
         test(
           'pwscale-collectives-' + np,
-          mpirun,
-          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_collectives],
-          env: pwscale_env,
+          python,
+          args: [run_mpi_test, np, pwscale_collectives],
           suite: ['pwscale'],
           timeout: 120,
         )

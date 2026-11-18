@@ -386,6 +386,7 @@ Builds with ~-Dwith_pwscale=true~ run the ~pwscale~ suite:
 | ~pwscale-collectives-2~, ~-4~ | the collectives of one call, counted through the PMPI shim, and the bytes of the result |
 | ~pwscale-mpi-fault~ | that a failure on one rank is reported on every rank; ~CPMDC_PWSCALE_MPI_FAULT~ injects it (see the [[file:environment.org][environment reference]]) |
 | ~pwscale-logger~ | that a timed row carries its own gaps and that a poisoned sample does not pass |
+| ~pwscale-fft-fail~ | that FFT allocation and planning failures return an error instead of using an incomplete plan |
 | ~pwscale-cuda-include~ | the ~nvcc~ target in ~meson.build~, read as text, holds the include directory and the CUDA source name |
 
 The ~reference-contract~ test fails when a function, type, constant, or struct

@@ -60,3 +60,11 @@ The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 | ~sphinxbld~, ~docbld~ | ~docs~ | ~mkrst~, ~doxybuild~, then the Sphinx HTML site in ~docs/build~ |
 
 Run a docs task with ~pixi run -e docs docbld~.
+
+One sanitizer CI failure was traced to libfabric's memhooks monitor replacing
+AddressSanitizer's ~mprotect~ interceptor during ~MPI_Init~.  In a separate
+Open MPI 5 reproduction, ~FI_MR_CACHE_MONITOR=disabled~ alone still ended in
+SIGILL, while ~--mca memory ^patcher~ prevented it.  Selecting a non-UCX
+transport also prevented that reproduction.  The sanitize job disables the
+observed libfabric path, and ~tests/run_mpi_test.py~ passes the Open MPI memory
+and transport exclusions in both the environment and launcher arguments.
