@@ -118,11 +118,16 @@ jobs:
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
           "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      # mpifort reads OMPI_FC, not FC. The three wrappers then use the
+      # same GCC 13 compilers as CC, CXX, and FC.
       - name: Full meson suite under ASan/UBSan (GCC 13)
         env:
           CC: gcc-13
           CXX: g++-13
           FC: gfortran-13
+          OMPI_CC: gcc-13
+          OMPI_CXX: g++-13
+          OMPI_FC: gfortran-13
           FI_MR_CACHE_MONITOR: disabled
         run: |
           . scripts/with_baseline_flags.sh
