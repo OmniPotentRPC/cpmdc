@@ -187,6 +187,45 @@ contract; these are the ones that shape a host loop:
 - ~cpmdc_last_energy_components()~ reads the energy terms of the last evaluation
   in Hartree, without parsing CLI ~ENERGY~ files.
 
+* Status and errors
+Each evaluation call returns a ~CPMDCResult~: non-zero ~ok~, Hartree
+~energy_h~, and a null-terminated ~message~.
+Calls that return ~int~ use 0 on success and -1 on failure.
+~cpmdc_last_error()~ holds the same text as ~message~ for the ~CPMDCResult~
+calls and for the ~int~ session helpers listed in
+[[file:../reference/c-abi.org][the C ABI reference]].
+It is per-thread, empty after a success, and is not written by the snapshot
+getters (~cpmdc_last_stress()~ and the rest).
+[[file:../howto/troubleshooting.org][Troubleshooting]] lists common ~message~
+values.
+[[file:../reference/python.org][The Python reference]] maps the same failures
+to ~CPMDCError~, ~cpmdc.ipi.ProtocolError~ on the i-PI driver, and ASE's
+~CalculationFailed~.
+
+* Orbitals between steps
+OpenCPMD keeps converged orbitals inside a ~CPMDCSession~ between steps when
+the functional, cutoff, cell, charge, and multiplicity match.
+[[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
+explains warm starts, extrapolation, and when a step restarts from atomic
+orbitals.
+~cpmdc_session_select_orbitals()~ and ~cpmdc_session_copy_orbitals()~ name
+orbital stores by integer keys when a host runs several trajectories on one
+session; see [[file:extrapolate-orbitals.org][extrapolate the orbitals]].
+
+* rgpot CPMDPot
+[[https://github.com/OmniPotentRPC/rgpot][rgpot]] loads ~libcpmdc.so~ in
+~CPMDPot~, maps host coordinates into ~ForceInput~, and reads a serialized
+~PotentialResult~ from ~cpmdc_session_calculate_result()~.
+~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~ name the
+library path; see [[file:../reference/environment.org][environment variables]]
+and [[file:../tutorials/eon-rgpot.org][eOn through rgpot]] for a full
+minimisation.
+
+* Socket and in-process drivers
+[[file:socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] documents
+~cpmdc-ipi~ and ~cpmdc-ipi-c~; both hold one session and call
+~cpmdc_session_calculate_au()~ per ~GET~ request.
+
 * CPMD Input Ownership
 ~CPMDParams~ owns method and backend setup.
 ~ForceInput~ owns coordinates, atomic numbers, unit strings, and the optional 3
