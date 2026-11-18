@@ -444,7 +444,7 @@ def test_bogus_field_in_nonstandard_intro_table() -> None:
         ]
 
 
-def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
+def test_meaning_cell_cross_reference_overrides_default_owner() -> None:
     text = (
         "* ~HeadingStruct~\n\n"
         "Fields of ~IntroStruct~:\n\n"
