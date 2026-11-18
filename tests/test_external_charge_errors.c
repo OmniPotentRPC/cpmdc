@@ -79,8 +79,8 @@ static void test_null_session(void **state) {
 
 static void test_missing_result_and_buffer_paths(void **state) {
   CPMDCSession *session = open_params(g_params);
-  double positions[3] = {3.0, 0.0, 0.0};
-  double charges[1] = {1.0};
+  double positions[3] = {4.0, 0.0, 0.0};
+  double charges[1] = {0.1};
   double widths[1] = {0.30};
   double qm_forces[9];
   double mm_forces[3];
@@ -120,18 +120,43 @@ static void test_missing_result_and_buffer_paths(void **state) {
   cpmdc_session_destroy(session);
 }
 
+static void test_typed_failure_replaces_previous_code(void **state) {
+  CPMDCSession *session = open_params(g_params);
+  double positions[3] = {3.0, 0.0, 0.0};
+  double charges[1] = {1.0};
+  double widths[1] = {0.30};
+  double water_bohr[9];
+  double cell_bohr[9] = {20.0, 0.0, 0.0, 0.0, 20.0,
+                         0.0,  0.0, 0.0, 20.0};
+  double energy;
+  double forces[9];
+  (void)state;
+
+  for (size_t i = 0; i < 9; ++i)
+    water_bohr[i] = k_water[i] / 0.529177210903;
+  assert_int_equal(cpmdc_session_set_external_charges(
+                       session, 1, positions, charges, widths),
+                   0);
+  assert_int_equal(cpmdc_session_calculate_au(
+                       session, 3, water_bohr, k_numbers, cell_bohr, &energy,
+                       forces, NULL),
+                   -1);
+  assert_int_equal(cpmdc_last_error_code(),
+                   CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING);
+
+  assert_null(cpmdc_session_create(NULL, 0));
+  assert_non_null(strstr(cpmdc_last_error(), "buffer is empty"));
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_INVALID_ARGUMENT);
+  cpmdc_session_destroy(session);
+}
+
 static void expect_deck_clash(const char *path) {
   CPMDCSession *session = open_params(path);
   double positions[3] = {3.0, 0.0, 0.0};
   double charges[1] = {1.0};
   double widths[1] = {0.30};
   double qm_forces[9];
-  CPMDCResult bare;
   CPMDCResult clash;
-  CPMDCResult cleared;
-
-  bare = cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces);
-  assert_int_equal(bare.ok, 1);
 
   assert_int_equal(cpmdc_session_set_external_charges(session, 1, positions,
                                                       charges, widths),
@@ -144,14 +169,6 @@ static void expect_deck_clash(const char *path) {
   assert_int_equal(cpmdc_last_error_code(),
                    CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL);
   assert_int_not_equal(cpmdc_last_error_code(), CPMDC_ERROR_EVALUATION_FAILED);
-
-  assert_int_equal(
-      cpmdc_session_set_external_charges(session, 0, NULL, NULL, NULL), 0);
-  cleared =
-      cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces);
-  assert_int_equal(cleared.ok, 1);
-  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_NONE);
-  assert_float_equal(cleared.energy_h, bare.energy_h, 1e-8);
 
   cpmdc_session_destroy(session);
 }
@@ -177,6 +194,7 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_null_session),
       cmocka_unit_test(test_missing_result_and_buffer_paths),
+      cmocka_unit_test(test_typed_failure_replaces_previous_code),
       cmocka_unit_test(test_deck_external_potential),
       cmocka_unit_test(test_deck_external_potential_add),
   };

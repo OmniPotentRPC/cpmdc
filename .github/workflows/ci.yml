@@ -164,6 +164,14 @@ jobs:
         run: |
           pixi run meson test -C build-cpmd extrapolate-wfn --print-errorlogs
           grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
+      - name: Electrostatic embedding against OpenCPMD
+        run: |
+          pixi run meson test -C build-cpmd external-charge-errors --print-errorlogs
+          CPMDC_LIBRARY="$PWD/build-cpmd/libcpmdc.so" \
+            CPMDC_TEST_PARAMS="$PWD/build-cpmd/water_blyp_params.bin" \
+            CPMDC_TEST_EMBEDDING_PARAMS="$PWD/build-cpmd/water_blyp_embedding_params.bin" \
+            CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-cpmd/water_blyp_periodic_params.bin" \
+            pixi run python -m pytest -q -rs tests/python/test_session.py
 
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})

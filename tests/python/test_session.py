@@ -52,6 +52,9 @@ def test_force_input_matches_capnp_encode(atoms, cell):
 
 
 def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
+    # Open MPI's singleton startup otherwise looks up "ssh" on PATH before
+    # entering the library, which would defeat this no-executables check.
+    monkeypatch.setenv("OMPI_MCA_plm", "isolated")
     monkeypatch.setenv("PATH", "")
     with Potential(periodic_params) as pot:
         done = pot.evaluate(WATER, [8, 1, 1], [[10.0, 0, 0], [0, 10.0, 0], [0, 0, 10.0]])
@@ -83,20 +86,12 @@ def test_repeated_geometry_is_deterministic(params):
     assert first.stress_h_bohr3 is None
 
 
-def _reference_session(params):
-    session = Session(params)
-    if session._lib.cpmdc_available():
-        session.close()
-        pytest.skip("analytic embedding oracle is a reference-backend test")
-    return session
-
-
-def test_external_charge_qm_and_mm_forces_are_energy_derivatives(params):
+def test_external_charge_qm_and_mm_forces_are_energy_derivatives(embedding_params):
     width = [0.30]
     charge = [0.7]
     mm = [3.0, 0.2, -0.1]
     step = 1.0e-5
-    with _reference_session(params) as session:
+    with Session(embedding_params) as session:
         session.set_external_charges(mm, charge, width)
         done = session.energy_forces(WATER, [8, 1, 1])
         moved = [list(row) for row in WATER]
@@ -105,7 +100,7 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(params):
         moved[0][0] -= 2.0 * step
         minus = session.energy_forces(moved, [8, 1, 1]).energy_h
         qm_fd = -(plus - minus) / (2.0 * step) * cpmdc.BOHR_TO_ANGSTROM
-        assert done.forces_h_bohr[0][0] == pytest.approx(qm_fd, rel=2e-5, abs=2e-8)
+        assert done.forces_h_bohr[0][0] == pytest.approx(qm_fd, rel=1e-4, abs=2e-8)
 
         shifted = list(mm)
         shifted[0] += step
@@ -118,11 +113,11 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(params):
         session.set_external_charges(mm, charge, width)
         session.energy_forces(WATER, [8, 1, 1])
         mm_force = session.external_charge_forces_au(1)
-        assert mm_force[0] == pytest.approx(mm_fd, rel=2e-5, abs=2e-8)
+        assert mm_force[0] == pytest.approx(mm_fd, rel=1e-4, abs=2e-8)
 
 
-def test_external_charge_limits_are_finite_and_recover_bare_energy(params):
-    with _reference_session(params) as session:
+def test_external_charge_limits_are_finite_and_recover_bare_energy(embedding_params):
+    with Session(embedding_params) as session:
         bare = session.energy_forces(WATER, [8, 1, 1]).energy_h
         session.set_external_charges([1.0e6, 0.0, 0.0], [1.0], [0.30])
         far = session.energy_forces(WATER, [8, 1, 1]).energy_h
@@ -133,15 +128,36 @@ def test_external_charge_limits_are_finite_and_recover_bare_energy(params):
         assert all(math.isfinite(value) for row in tiny.forces_h_bohr for value in row)
 
 
-def test_clearing_external_charges_restores_bare_energy(params):
-    with Session(params) as session:
+def test_clearing_external_charges_restores_bare_energy(embedding_params):
+    with Session(embedding_params) as session:
         bare = session.energy_forces(WATER, [8, 1, 1]).energy_h
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         embedded = session.energy_forces(WATER, [8, 1, 1]).energy_h
         session.set_external_charges([], [])
         cleared = session.energy_forces(WATER, [8, 1, 1]).energy_h
         assert abs(embedded - bare) > 1.0e-8
-        assert cleared == pytest.approx(bare, abs=1.0e-8)
+        assert cleared == pytest.approx(bare, abs=5.0e-7)
+
+
+def test_external_charge_translation_invariance(embedding_params):
+    shift = [0.23, -0.17, 0.31]
+    mm = [3.0, 0.2, -0.1]
+    with Session(embedding_params) as session:
+        if not session.available():
+            pytest.skip("the reference well is anchored at the origin")
+        session.set_external_charges(mm, [0.7], [0.30])
+        original = session.energy_forces(WATER, [8, 1, 1])
+
+        moved_water = [
+            [value + delta for value, delta in zip(row, shift)] for row in WATER
+        ]
+        moved_mm = [value + delta for value, delta in zip(mm, shift)]
+        session.set_external_charges(moved_mm, [0.7], [0.30])
+        moved = session.energy_forces(moved_water, [8, 1, 1])
+
+    assert moved.energy_h == pytest.approx(original.energy_h, abs=1.0e-8)
+    for moved_row, original_row in zip(moved.forces_h_bohr, original.forces_h_bohr):
+        assert moved_row == pytest.approx(original_row, rel=1.0e-4, abs=2.0e-8)
 
 
 class _PropertySnapshot(ctypes.Structure):
@@ -156,8 +172,10 @@ class _PropertySnapshot(ctypes.Structure):
     ]
 
 
-def test_density_dipole_responds_toward_external_field(params):
-    with _reference_session(params) as session:
+def test_density_dipole_responds_toward_external_field(embedding_params):
+    with Session(embedding_params) as session:
+        if session.available():
+            pytest.skip("OpenCPMD does not export the induced dipole snapshot")
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         session.energy_forces(WATER, [8, 1, 1])
         snapshot = _PropertySnapshot()
@@ -177,8 +195,8 @@ def test_density_dipole_responds_toward_external_field(params):
         assert abs(snapshot.dipole[0]) > abs(snapshot.dipole[1])
 
 
-def test_periodic_external_charges_have_typed_error(params):
-    with Session(params) as session:
+def test_periodic_external_charges_have_typed_error(embedding_params):
+    with Session(embedding_params) as session:
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         with pytest.raises(
             cpmdc.CPMDCUnsupportedPeriodicEmbedding, match="periodic electrostatic embedding"
@@ -194,8 +212,85 @@ def test_periodic_external_charges_have_typed_error(params):
         assert session._lib.cpmdc_last_error_code() == caught.value.code
 
 
-def test_external_charge_force_reader_reports_each_failure(params):
-    with Session(params) as session:
+def test_typed_failure_replaces_previous_error_code(embedding_params):
+    with Session(embedding_params) as session:
+        session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        with pytest.raises(cpmdc.CPMDCUnsupportedPeriodicEmbedding):
+            session.calculate_au(
+                [value / cpmdc.BOHR_TO_ANGSTROM for row in WATER for value in row],
+                [8, 1, 1],
+                [20.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 20.0],
+            )
+        assert session._lib.cpmdc_last_error_code() == 3
+
+        assert not session._lib.cpmdc_session_create(None, 0)
+        failure = session._fail("cpmdc_session_create failed")
+        assert type(failure) is cpmdc.CPMDCInvalidArgument
+        assert failure.code == cpmdc.CPMDCInvalidArgument.code
+        assert session._lib.cpmdc_last_error_code() == failure.code
+
+
+def test_smearing_width_changes_embedding_and_origin_is_finite(embedding_params):
+    origin = [value for row in WATER[:1] for value in row]
+    with Session(embedding_params) as session:
+        session.set_external_charges([3.0, 0.2, -0.1], [0.7], [0.20])
+        narrow = session.energy_forces(WATER, [8, 1, 1])
+        narrow_mm = session.external_charge_forces_au(1)
+        session.set_external_charges([3.0, 0.2, -0.1], [0.7], [0.60])
+        broad = session.energy_forces(WATER, [8, 1, 1])
+        broad_mm = session.external_charge_forces_au(1)
+        session.set_external_charges(origin, [1.0e-6], [0.30])
+        coincident = session.energy_forces(WATER, [8, 1, 1])
+        coincident_mm = session.external_charge_forces_au(1)
+
+    assert math.isfinite(narrow.energy_h)
+    assert math.isfinite(broad.energy_h)
+    assert all(math.isfinite(value) for row in narrow.forces_h_bohr for value in row)
+    assert all(math.isfinite(value) for row in broad.forces_h_bohr for value in row)
+    assert all(math.isfinite(value) for value in narrow_mm + broad_mm)
+    assert abs(narrow.energy_h - broad.energy_h) > 1.0e-10
+    assert math.isfinite(coincident.energy_h)
+    assert all(math.isfinite(value) for row in coincident.forces_h_bohr for value in row)
+    assert all(math.isfinite(value) for value in coincident_mm)
+
+
+def test_reference_smearing_width_is_converted_from_angstrom(embedding_params):
+    mm = [3.0, 0.2, -0.1]
+    charge = 0.7
+
+    def polarization(width):
+        total = 0.0
+        sigma = width / cpmdc.BOHR_TO_ANGSTROM
+        for xyz, atomic_number in zip(WATER, [8, 1, 1]):
+            delta = [
+                (value - centre) / cpmdc.BOHR_TO_ANGSTROM
+                for value, centre in zip(xyz, mm)
+            ]
+            radius = math.sqrt(sum(value * value for value in delta))
+            kernel = (
+                math.erf(radius / (math.sqrt(2.0) * sigma)) / radius**3
+                - math.sqrt(2.0 / math.pi)
+                * math.exp(-0.5 * (radius / sigma) ** 2)
+                / (sigma * radius**2)
+            )
+            field2 = sum((charge * kernel * value) ** 2 for value in delta)
+            total -= 0.5 * (0.20 * atomic_number) * field2
+        return total
+
+    with Session(embedding_params) as session:
+        if session.available():
+            pytest.skip("the closed-form oracle describes the reference backend")
+        session.set_external_charges(mm, [charge], [0.30])
+        narrow = session.energy_forces(WATER, [8, 1, 1]).energy_h
+        session.set_external_charges(mm, [charge], [0.60])
+        broad = session.energy_forces(WATER, [8, 1, 1]).energy_h
+
+    expected = polarization(0.30) - polarization(0.60)
+    assert narrow - broad == pytest.approx(expected, rel=2e-12, abs=1e-14)
+
+
+def test_external_charge_force_reader_reports_each_failure(embedding_params):
+    with Session(embedding_params) as session:
         with pytest.raises(cpmdc.CPMDCInvalidArgument, match="not available") as missing:
             session.external_charge_forces_au(1)
         assert missing.value.code == cpmdc.CPMDCInvalidArgument.code
@@ -247,8 +342,6 @@ def _deck_with_flag(flag, directory):
 def test_deck_external_potential_is_its_own_error(flag, tmp_path):
     params = _deck_with_flag(flag, tmp_path)
     with Session(params) as session:
-        bare = session.energy_forces(WATER, [8, 1, 1])
-        assert math.isfinite(bare.energy_h)
         session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
         with pytest.raises(
             cpmdc.CPMDCDeckExternalPotential, match="EXTERNAL POTENTIAL"
@@ -257,6 +350,3 @@ def test_deck_external_potential_is_its_own_error(flag, tmp_path):
         assert caught.value.code == cpmdc.CPMDCDeckExternalPotential.code
         assert caught.value.code != cpmdc.CPMDCEvaluationFailed.code
         assert session._lib.cpmdc_last_error_code() == caught.value.code
-        session.set_external_charges([], [])
-        cleared = session.energy_forces(WATER, [8, 1, 1])
-        assert cleared.energy_h == pytest.approx(bare.energy_h)

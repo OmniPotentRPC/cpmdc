@@ -672,6 +672,12 @@ if get_option('with_tests')
     output: 'water_blyp_params.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  water_embedding_params_bin = custom_target(
+    'water_embedding_params_bin',
+    input: 'tests/water_blyp_embedding_params.capnp.txt',
+    output: 'water_blyp_embedding_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   water_external_potential_bin = custom_target(
     'water_external_potential_bin',
     input: 'tests/water_blyp_external_potential.capnp.txt',
@@ -1145,12 +1151,12 @@ if get_option('with_tests')
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
     args: [
-      water_params_bin.full_path(),
+      water_embedding_params_bin.full_path(),
       water_external_potential_bin.full_path(),
       water_external_potential_add_bin.full_path(),
     ],
     depends: [
-      water_params_bin,
+      water_embedding_params_bin,
       water_external_potential_bin,
       water_external_potential_add_bin,
     ],

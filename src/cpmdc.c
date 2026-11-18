@@ -21,6 +21,7 @@
 #endif
 
 static void cpmdc_store_error(const char *msg);
+static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code);
 
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
@@ -261,15 +262,17 @@ static int ensure_embed_init(void) {
   return ok;
 }
 
-static CPMDCResult fail_msg(const char *msg) {
+static CPMDCResult fail_msg_code(const char *msg, CPMDCErrorCode code) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
   snprintf(r.message, sizeof(r.message), "%s", msg ? msg : "error");
-  cpmdc_store_error(r.message);
-  if (g_last_error_code == CPMDC_ERROR_NONE)
-    g_last_error_code = CPMDC_ERROR_EVALUATION_FAILED;
+  cpmdc_store_error_code(r.message, code);
   return r;
+}
+
+static CPMDCResult fail_msg(const char *msg) {
+  return fail_msg_code(msg, CPMDC_ERROR_EVALUATION_FAILED);
 }
 
 /* CPMDC_DECK_OUT names a file that receives each method deck cpmdc renders
@@ -469,13 +472,13 @@ static int configure_embed_from_session(CPMDCSession *session) {
 static _Thread_local char g_last_error[512];
 static _Thread_local char g_embed_detail[512];
 
-static void cpmdc_store_error(const char *msg) {
+static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code) {
   snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
-  if (!msg || msg[0] == '\0') {
-    g_last_error_code = CPMDC_ERROR_NONE;
-  } else if (g_last_error_code == CPMDC_ERROR_NONE) {
-    g_last_error_code = CPMDC_ERROR_EVALUATION_FAILED;
-  }
+  g_last_error_code = !msg || msg[0] == '\0' ? CPMDC_ERROR_NONE : code;
+}
+
+static void cpmdc_store_error(const char *msg) {
+  cpmdc_store_error_code(msg, CPMDC_ERROR_INVALID_ARGUMENT);
 }
 
 void cpmdc_note_embed_failure(const char *msg) {
@@ -1297,23 +1300,21 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   g_embed_detail[0] = '\0';
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr) {
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
-    return fail_msg("invalid arguments");
+    return fail_msg_code("invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);
   }
   if (session && session->external_count > 0 && has_cell) {
-    g_last_error_code = CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING;
-    return fail_msg(
+    return fail_msg_code(
         "periodic electrostatic embedding is unsupported; use an isolated "
-        "QM cell or clear the external charges");
+        "QM cell or clear the external charges",
+        CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING);
   }
   if (session && session->external_count > 0 &&
       deck_defines_external_potential(session->input_deck)) {
-    g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
-    return fail_msg(k_deck_external_potential_msg);
+    return fail_msg_code(k_deck_external_potential_msg,
+                         CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL);
   }
   if (!ensure_embed_init() || !cpmdc_embed_available()) {
-    g_last_error_code = CPMDC_ERROR_UNAVAILABLE;
-    return fail_msg("CPMD embed not available");
+    return fail_msg_code("CPMD embed not available", CPMDC_ERROR_UNAVAILABLE);
   }
   double cell[9] = {0};
   if (has_cell && cell_ang)
@@ -1657,6 +1658,7 @@ session_render_overrides(const CPMDCSession *session,
 
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes) {
+  cpmdc_store_error("");
   if (!params_capnp || params_capnp_size_bytes == 0) {
     cpmdc_store_error("CPMDParams buffer is empty");
     return NULL;
@@ -1816,15 +1818,15 @@ int cpmdc_session_set_external_charges(
   cpmdc_store_error("");
   if (!session || n_charges > (size_t)(INT_MAX / 3) ||
       (n_charges > 0 && (!positions_ang || !charges_e))) {
-    cpmdc_store_error("invalid external charge arguments");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code("invalid external charge arguments",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   double default_width = external_default_width_ang();
   if (n_charges > 0 && !widths_ang && default_width <= 0.0) {
-    cpmdc_store_error(
-        "CPMDC_EXTERNAL_CHARGE_WIDTH_ANG must be finite and positive");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code(
+        "CPMDC_EXTERNAL_CHARGE_WIDTH_ANG must be finite and positive",
+        CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   double *positions = NULL, *charges = NULL, *widths = NULL, *forces = NULL;
@@ -1838,8 +1840,8 @@ int cpmdc_session_set_external_charges(
       free(charges);
       free(widths);
       free(forces);
-      cpmdc_store_error("out of memory");
-      g_last_error_code = CPMDC_ERROR_EVALUATION_FAILED;
+      cpmdc_store_error_code("out of memory",
+                             CPMDC_ERROR_EVALUATION_FAILED);
       return -1;
     }
     for (size_t i = 0; i < 3u * n_charges; ++i) {
@@ -1848,8 +1850,8 @@ int cpmdc_session_set_external_charges(
         free(charges);
         free(widths);
         free(forces);
-        cpmdc_store_error("external charge positions must be finite");
-        g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+        cpmdc_store_error_code("external charge positions must be finite",
+                               CPMDC_ERROR_INVALID_ARGUMENT);
         return -1;
       }
       positions[i] = positions_ang[i];
@@ -1861,10 +1863,10 @@ int cpmdc_session_set_external_charges(
         free(charges);
         free(widths);
         free(forces);
-        cpmdc_store_error(
+        cpmdc_store_error_code(
             "external charges must be finite and smearing widths finite and "
-            "positive");
-        g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+            "positive",
+            CPMDC_ERROR_INVALID_ARGUMENT);
         return -1;
       }
       charges[i] = charges_e[i];
@@ -1889,23 +1891,22 @@ int cpmdc_session_set_external_charges(
 int cpmdc_session_last_external_charge_forces(
     const CPMDCSession *session, double *forces_h_bohr, size_t forces_len) {
   if (!session) {
-    cpmdc_store_error("null session");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code("null session", CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   if (!session->external_forces_valid) {
-    cpmdc_store_error("external charge forces are not available");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code("external charge forces are not available",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   if (forces_len != 3u * session->external_count) {
-    cpmdc_store_error("external charge force buffer has the wrong length");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code("external charge force buffer has the wrong length",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   if (forces_len > 0 && !forces_h_bohr) {
-    cpmdc_store_error("external charge force buffer is null");
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
+    cpmdc_store_error_code("external charge force buffer is null",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
     return -1;
   }
   if (forces_len > 0)
@@ -1945,19 +1946,17 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   cpmdc_store_error("");
   if (!session) {
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
-    return fail_msg("null session");
+    return fail_msg_code("null session", CPMDC_ERROR_INVALID_ARGUMENT);
   }
   /* A missing buffer is a bad call, including on a session that already
    * stored a result. The cache lookup reads these pointers. */
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang)) {
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
-    return fail_msg("invalid arguments");
+    return fail_msg_code("invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);
   }
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0) {
-    g_last_error_code = CPMDC_ERROR_INVALID_ARGUMENT;
-    return fail_msg("topology change requires a new session");
+    return fail_msg_code("topology change requires a new session",
+                         CPMDC_ERROR_INVALID_ARGUMENT);
   }
   if (rank_consensus_all(
           grad_h_bohr &&
@@ -1973,8 +1972,7 @@ static CPMDCResult session_energy_gradient_cell(
   }
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0) {
-    g_last_error_code = CPMDC_ERROR_UNAVAILABLE;
-    return fail_msg("CPMD embed not available");
+    return fail_msg_code("CPMD embed not available", CPMDC_ERROR_UNAVAILABLE);
   }
   if (session->has_orbital_key)
     cpmdc_embed_select_orbitals(session->orbital_key);

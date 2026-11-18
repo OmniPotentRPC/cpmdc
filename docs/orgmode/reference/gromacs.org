@@ -118,8 +118,10 @@ includes electron--MM and ion--MM terms, and the adapter returns forces on the
 QM atoms and every MM charge.
 
 Electrostatic embedding currently requires ~CELL NONE~. A periodic cell is
-rejected with ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~; cpmdc does not use
-a minimum image or silently omit periodic images.
+rejected with ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~. The GROMACS shim
+places every MM charge at its nearest image relative to the first QM atom
+before passing the resulting isolated cluster to cpmdc. It applies no cutoff;
+one nearest image of every MM charge contributes.
 
 ~EMBEDDING MECHANICAL~ adds the Coulomb energy of fixed point charges on the QM
 atoms, ~QM_CHARGES~, with the MM charges of the PDB file, and its forces on both
