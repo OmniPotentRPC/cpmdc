@@ -245,7 +245,13 @@ def test_a_change_discards_the_stored_step(periodic_calc, steps, opencpmd, what)
     other.calc = periodic_calc
     other.get_forces()
     assert len(steps) == 2
-    assert periodic_calc.results["energy"] != before["energy"]
+    if what == "pbc":
+        # The periodic deck holds the cube that the structure had. A step
+        # without a cell is that same system, so the energy can repeat and
+        # the stress of the replaced step is what must be gone.
+        assert "stress" not in periodic_calc.results
+    else:
+        assert periodic_calc.results["energy"] != before["energy"]
 
 
 def test_a_change_of_one_part_of_a_step_is_never_served_stale(periodic_calc, steps):
