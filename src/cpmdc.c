@@ -1274,15 +1274,23 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
       session && session->external_count <= (size_t)INT_MAX
           ? (int)session->external_count
           : 0;
+  /* A non-optional Fortran assumed-size array must have an interoperable
+   * C address even when its logical extent is zero. */
+  double external_dummy = 0.0;
+  const double *external_positions =
+      n_external > 0 ? session->external_positions_ang : &external_dummy;
+  const double *external_charges =
+      n_external > 0 ? session->external_charges_e : &external_dummy;
+  const double *external_widths =
+      n_external > 0 ? session->external_widths_ang : &external_dummy;
+  double *external_forces =
+      n_external > 0 ? session->external_forces_h_bohr : &external_dummy;
   if (session)
     session->external_forces_valid = 0;
   int ok = cpmdc_embed_energy_grad(
       n_atoms, positions_ang, atomic_numbers, cell, has_cell ? 1 : 0, &energy,
-      grad_h_bohr, n_external,
-      session ? session->external_positions_ang : NULL,
-      session ? session->external_charges_e : NULL,
-      session ? session->external_widths_ang : NULL,
-      session ? session->external_forces_h_bohr : NULL, image);
+      grad_h_bohr, n_external, external_positions, external_charges,
+      external_widths, external_forces, image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (rank_consensus(&ok, &stop, (size_t)n_atoms * 3u, &energy, grad_h_bohr,

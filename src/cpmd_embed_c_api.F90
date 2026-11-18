@@ -202,11 +202,10 @@ CONTAINS
     USE parac, ONLY: parai
     USE mp_interface, ONLY: mp_sum
     REAL(c_double), INTENT(IN) :: rhoe(*)
-    REAL(real64) :: local(3, MAX(1, embed_external_count))
     REAL(real64) :: point(3), d(3), rr, sigma, erfv, expo, coef, dv
     INTEGER :: ix, iy, iz, lx, idx, m
     IF (embed_external_count <= 0) RETURN
-    local = 0.0_real64
+    embed_external_force = 0.0_real64
     dv = parm%omega / REAL(spar%nr1s * spar%nr2s * spar%nr3s, KIND=real64)
     DO iz = 1, spar%nr3s
       DO iy = 1, spar%nr2s
@@ -225,13 +224,13 @@ CONTAINS
             expo = EXP(-0.5_real64 * (rr / sigma)**2)
             coef = embed_external_q(m) * (erfv / rr**3 - &
                  SQRT(2.0_real64 / ACOS(-1.0_real64)) * expo / (sigma * rr**2))
-            local(:,m) = local(:,m) + REAL(rhoe(idx), real64) * coef * d * dv
+            embed_external_force(:,m) = embed_external_force(:,m) + &
+                 REAL(rhoe(idx), real64) * coef * d * dv
           END DO
         END DO
       END DO
     END DO
-    CALL mp_sum(local, 3 * embed_external_count, parai%allgrp)
-    embed_external_force = local
+    CALL mp_sum(embed_external_force, 3 * embed_external_count, parai%allgrp)
   END SUBROUTINE
 
   SUBROUTINE prepare_external_charges(n_external, external_pos, external_q, &
@@ -246,18 +245,26 @@ CONTAINS
     INTEGER, INTENT(OUT) :: ierr
     REAL(real64) :: point(3), d(3), rr, value
     INTEGER :: ix, iy, iz, lx, idx, m, astat
+    LOGICAL :: own_potential
     ierr = 0
     embed_external_count = 0
     IF (ALLOCATED(embed_external_pos)) DEALLOCATE(embed_external_pos)
     IF (ALLOCATED(embed_external_q)) DEALLOCATE(embed_external_q)
     IF (ALLOCATED(embed_external_sigma)) DEALLOCATE(embed_external_sigma)
     IF (ALLOCATED(embed_external_force)) DEALLOCATE(embed_external_force)
+    own_potential = .FALSE.
     IF (ALLOCATED(embed_external_potential)) THEN
-      NULLIFY(extf)
+      own_potential = ASSOCIATED(extf, embed_external_potential)
+      IF (own_potential) NULLIFY(extf)
       DEALLOCATE(embed_external_potential)
+      IF (own_potential) textfld = .FALSE.
     END IF
     IF (n_external <= 0) THEN
-      textfld = .FALSE.
+      CALL set_cpmdc_external_force_hook()
+      RETURN
+    END IF
+    IF (textfld) THEN
+      ierr = 2
       CALL set_cpmdc_external_force_hook()
       RETURN
     END IF
@@ -276,10 +283,10 @@ CONTAINS
     END DO
     embed_external_force = 0.0_real64
     embed_external_potential = 0.0_real64
-    DO iz = 1, fpar%kr3s
-      DO iy = 1, fpar%kr2s
-        DO lx = 1, fpar%kr1
-          ix = parap%nrxpl(parai%mepos,1) + lx - 1
+    DO iz = 1, spar%nr3s
+      DO iy = 1, spar%nr2s
+        DO ix = parap%nrxpl(parai%mepos,1), parap%nrxpl(parai%mepos,2)
+          lx = ix - parap%nrxpl(parai%mepos,1) + 1
           idx = lx + fpar%kr1 * ((iy - 1) + fpar%kr2s * (iz - 1))
           point = REAL(ix - 1, real64) / REAL(spar%nr1s, real64) * parm%a1 + &
                REAL(iy - 1, real64) / REAL(spar%nr2s, real64) * parm%a2 + &
@@ -551,10 +558,27 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     USE embed_teardown, ONLY: embed_teardown_state
     USE rmas, ONLY: rmass, rmass_t
+    USE efld, ONLY: extf, textfld, set_cpmdc_external_force_hook
 #endif
     INTEGER(c_int) :: ok
+#if defined(CPMDC_HAS_CPMD)
+    LOGICAL :: own_potential
+#endif
     ok = 1_c_int
 #if defined(CPMDC_HAS_CPMD)
+    embed_external_count = 0
+    IF (ALLOCATED(embed_external_pos)) DEALLOCATE(embed_external_pos)
+    IF (ALLOCATED(embed_external_q)) DEALLOCATE(embed_external_q)
+    IF (ALLOCATED(embed_external_sigma)) DEALLOCATE(embed_external_sigma)
+    IF (ALLOCATED(embed_external_force)) DEALLOCATE(embed_external_force)
+    own_potential = .FALSE.
+    IF (ALLOCATED(embed_external_potential)) THEN
+      own_potential = ASSOCIATED(extf, embed_external_potential)
+      IF (own_potential) NULLIFY(extf)
+      DEALLOCATE(embed_external_potential)
+      IF (own_potential) textfld = .FALSE.
+    END IF
+    CALL set_cpmdc_external_force_hook()
     IF (.NOT. cpmd_set_up) RETURN
     CALL embed_teardown_state()
     ! The pseudopotential readers set a species mass only while it is zero,
@@ -2609,7 +2633,13 @@ CONTAINS
     CALL prepare_external_charges(n_external, external_pos, external_q, &
          external_width, recentre%shift_ang, ierr)
     IF (ierr /= 0) THEN
-      CALL cpmdc_note_embed_failure('cannot allocate external-charge grid'//c_null_char)
+      IF (ierr == 2) THEN
+        CALL cpmdc_note_embed_failure( &
+             'session external charges cannot be combined with a deck-defined EXTERNAL POTENTIAL'// &
+             c_null_char)
+      ELSE
+        CALL cpmdc_note_embed_failure('cannot allocate external-charge grid'//c_null_char)
+      END IF
       RETURN
     END IF
     ! The caller (eOn, rgmin, rgsaddle) owns the ionic geometry and the

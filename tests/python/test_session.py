@@ -133,6 +133,17 @@ def test_external_charge_limits_are_finite_and_recover_bare_energy(params):
         assert all(math.isfinite(value) for row in tiny.forces_h_bohr for value in row)
 
 
+def test_clearing_external_charges_restores_bare_energy(params):
+    with Session(params) as session:
+        bare = session.energy_forces(WATER, [8, 1, 1]).energy_h
+        session.set_external_charges([3.0, 0.0, 0.0], [1.0], [0.30])
+        embedded = session.energy_forces(WATER, [8, 1, 1]).energy_h
+        session.set_external_charges([], [])
+        cleared = session.energy_forces(WATER, [8, 1, 1]).energy_h
+        assert abs(embedded - bare) > 1.0e-8
+        assert cleared == pytest.approx(bare, abs=1.0e-8)
+
+
 class _PropertySnapshot(ctypes.Structure):
     _fields_ = [
         ("valid", ctypes.c_int),

@@ -261,6 +261,8 @@ External charges contribute
 The total energy includes electron--MM and ion--MM coupling; QM and MM force
 arrays are both ~-dE/dR~. A periodic step with external charges fails with the
 typed error above because periodic images are not yet implemented.
+Session charges and a deck-defined ~EXTERNAL POTENTIAL~ are mutually exclusive;
+an evaluation that requests both fails instead of replacing the deck potential.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
 of every atom changes neither the energy nor the forces (see ~CPMDC_RECENTER~ in [[file:environment.org][environment variables]]).
