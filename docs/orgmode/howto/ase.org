@@ -270,7 +270,8 @@ with CPMDCCalculator("water.params.bin") as calc:
 
 ~set()~ returns a dictionary of the parameters that changed, with their new
 values.
-A new ~params~ or ~library~ opens a new session and clears the stored results.
+A new ~params~, ~library~, or ~constant_cutoff~ opens a new session and clears
+the stored results.
 A value that cannot be opened raises and leaves the old session in use.
 
 * Choose the working directory
@@ -326,7 +327,7 @@ and a reordering of the same atoms stays on it.
 When a structure with another composition reaches the calculator, it closes the
 session and opens a new one from the same ~params~.
 
-~calc.parameters~ holds ~params~ and ~library~.
+~calc.parameters~ holds ~params~, ~library~, and ~constant_cutoff~.
 ~calc.todict()~ returns them for a trajectory or a database row, and leaves out
 a ~params~ buffer given as bytes, because bytes are not JSON data.
 ~CPMDCCalculator(**calc.todict())~ builds an equal calculator, and

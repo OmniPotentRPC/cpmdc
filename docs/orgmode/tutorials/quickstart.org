@@ -70,6 +70,16 @@ The suites group the tests by layer:
   three geometry steps on one ~CPMDCSession~, the topology rejection, and a
   second session for a change of species
 - ~docs~ :: the documentation examples and the reference contract
+- ~embed~ :: the embedded OpenCPMD shell, shared-library loading, and the
+  patch checks
+- ~examples~ :: ~example-host-step~, the documented examples, and the
+  tutorial runs
+- ~python~ :: the Python package, its type check, and the reference audit
+- ~restart~ :: the RESTART file API; ~restart-con~ adds the optional readcon
+  bridge when configured with ~-Dwith_readcon=true~
+- ~mpi~ :: the MPI tests, which exist when MPI is found
+- ~pwscale~ :: the plane-wave scaffold, which exists when configured with
+  ~-Dwith_pwscale=true~
 
 cmocka is resolved through pkg-config.
 The parser tests use Cap'n Proto text fixtures encoded by the ~capnp~ CLI
