@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """The reference documents every public name, and the docs name no other.
 
-Every function, type, enum constant, and macro of the installed headers
-cpmdc.h, cpmdc_features.h, and cpmdc_restart.h must appear in
-docs/orgmode/reference/c-abi.org; a function must appear with its
-parameter list in a table row, which is where that page states a contract.
+Every header of include/ must be assigned to a reference page in PAGES. Every
+function, type, enum constant, macro, and struct field of a header must appear
+in its page. A function must appear with its parameter list in a table row,
+which is where the pages state a contract. A struct field, enum constant, or
+macro must start a table row, so that a mention in prose does not count. The
+page must be linked from the toctree of docs/orgmode/index.org.
 Every module of python/cpmdc must list its public functions and classes in
 __all__. Every name in __all__, and every public member that an exported
 class defines, must appear in docs/orgmode/reference/python.org; a member
@@ -23,10 +25,13 @@ import re
 import sys
 from pathlib import Path
 
-HEADERS = ("include/cpmdc.h", "include/cpmdc_features.h", "include/cpmdc_restart.h")
-# Headers whose names the docs may mention without the reference contract:
-# the export macro header, and the optional plane-wave scaffold.
-OTHER_HEADERS = ("include/cpmdc_export.h", "include/cpmdc_pwscale.h")
+PAGES = {
+    "include/cpmdc.h": "c-abi",
+    "include/cpmdc_export.h": "c-abi",
+    "include/cpmdc_features.h": "c-abi",
+    "include/cpmdc_restart.h": "c-abi",
+    "include/cpmdc_pwscale.h": "pwscale",
+}
 # Written to stderr under CPMDC_SCF_STEPS=1; see reference/environment.org.
 LOG_TOKENS = {"cpmdc_scf_steps", "cpmdc_warm_start", "cpmdc_wfn_extrapolated"}
 
@@ -36,9 +41,28 @@ def strip_comments(text: str) -> str:
     return re.sub(r"//[^\n]*", " ", text)
 
 
+def struct_fields(code: str) -> set[str]:
+    fields = set()
+    for body in re.findall(r"\btypedef\s+struct\s+\w*\s*\{([^{}]*)\}", code):
+        for declaration in body.split(";"):
+            declaration = declaration.strip()
+            if not declaration:
+                continue
+            pointer = re.search(r"\(\s*\*\s*(\w+)\s*\)", declaration)
+            if pointer:
+                fields.add(pointer.group(1))
+                continue
+            for declarator in re.sub(r"\[[^\]]*\]", "", declaration).split(","):
+                found = re.findall(r"\w+", declarator)
+                if found:
+                    fields.add(found[-1])
+    return fields
+
+
 def header_names(text: str) -> dict[str, set[str]]:
     code = strip_comments(text)
     return {
+        "struct field": struct_fields(code),
         "function": set(re.findall(r"\b(cpmdc_\w+)\s*\(", code)),
         "type": set(re.findall(r"\btypedef\b[^;]*?\b(\w+)\s*;", code))
         | set(re.findall(r"}\s*(\w+)\s*;", code)),
@@ -55,26 +79,67 @@ def table_rows(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.lstrip().startswith("|")]
 
 
+ROW_KINDS = {"struct field", "enum constant", "macro"}
+
+
+def row_names(rows: list[str]) -> set[str]:
+    """Names in the ~code~ spans of the first cell of each table row."""
+    names: set[str] = set()
+    for row in rows:
+        cells = row.strip().strip("|").split("|")
+        for span in re.findall(r"~([^~\n]+)~", cells[0]):
+            names |= set(re.findall(r"\w+", span))
+    return names
+
+
 def check_reference(root: Path, failures: list[str]) -> set[str]:
-    reference = (root / "docs/orgmode/reference/c-abi.org").read_text(encoding="utf-8")
-    rows = table_rows(reference)
+    pages: dict[str, tuple[str, list[str]] | None] = {}
+    first_cells: dict[str, set[str]] = {}
+    index = (root / "docs/orgmode/index.org").read_text(encoding="utf-8")
     public: set[str] = set()
-    for rel in HEADERS:
+    headers = sorted(path.relative_to(root).as_posix() for path in (root / "include").glob("*.h"))
+    for rel in headers:
+        if rel not in PAGES:
+            failures.append(f"{rel}: no reference page is assigned in PAGES")
+    for rel in sorted(set(PAGES) - set(headers)):
+        failures.append(f"{rel}: listed in PAGES but not in include/")
+    for rel in headers:
+        stem = PAGES.get(rel)
+        if stem is None:
+            continue
+        page = f"reference/{stem}.org"
         names = header_names((root / rel).read_text(encoding="utf-8"))
         for kind, found in names.items():
-            public |= found
+            if kind != "struct field":
+                public |= found
+        if page not in pages:
+            source = root / "docs/orgmode" / page
+            if not source.is_file():
+                failures.append(f"{rel}: its page docs/orgmode/{page} does not exist")
+                pages[page] = None
+                continue
+            text = source.read_text(encoding="utf-8")
+            pages[page] = (text, table_rows(text))
+            first_cells[page] = row_names(pages[page][1])
+            if not re.search(rf"^\s+reference/{re.escape(stem)}\s*$", index, re.M):
+                failures.append(f"index.org: toctree does not list reference/{stem}")
+        if pages[page] is None:
+            continue
+        text, rows = pages[page]
+        for kind, found in names.items():
             for name in sorted(found):
                 if kind == "function":
                     if not any(re.search(rf"\b{name}\(\w", row) for row in rows):
                         failures.append(
-                            f"reference/c-abi.org: {name} ({rel}) has no table row with its "
-                            "parameter list"
+                            f"{page}: {name} ({rel}) has no table row with its parameter list"
                         )
-                elif not re.search(rf"~[^~\n]*\b{name}\b[^~\n]*~", reference):
-                    failures.append(f"reference/c-abi.org: {kind} {name} ({rel}) is not named")
-    for rel in OTHER_HEADERS:
-        for found in header_names((root / rel).read_text(encoding="utf-8")).values():
-            public |= found
+                elif kind in ROW_KINDS:
+                    if name not in first_cells[page]:
+                        failures.append(
+                            f"{page}: {kind} {name} ({rel}) has no table row that starts with it"
+                        )
+                elif not re.search(rf"~[^~\n]*\b{name}\b[^~\n]*~", text):
+                    failures.append(f"{page}: {kind} {name} ({rel}) is not named")
     return public
 
 

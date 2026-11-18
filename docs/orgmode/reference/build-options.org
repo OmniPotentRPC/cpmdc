@@ -50,6 +50,7 @@ The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 | ~test-e2e~ | default | the ~e2e~ suite only (single point and optimizer session) |
 | ~test-readcon~ | default | the ~restart~ and ~restart-con~ suites in ~build-readcon/~ with ~-Dwith_readcon=true~ |
 | ~test-stub-sanitize~ | default | full suite and the ~-Dwith_pwscale=true~ scaffold in ~build-sanitize/~ under AddressSanitizer and UndefinedBehaviorSanitizer |
+| ~check-api-reference~ | default | ~tests/test_reference_contract.py~: every public C and Python name is in the reference pages |
 | ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
 | ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |
 | ~lychee~ | default | link check over README, ~docs/orgmode~, and news fragments |
