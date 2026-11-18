@@ -289,12 +289,25 @@ The fields it lowers are the ones ~cpmdc_capabilities_result()~ lists:
 ~scfEnergyToleranceEv~ fills both values of ~CONVERGENCE ORBITALS~: the orbital
 threshold and the total-energy change between steps, which ends a smeared
 (free-energy) SCF once the energy settles.
-Setting both the arm and the overlay is rejected, and so is an overlay field
-without a CPMD lowering, ~relativityMethod~.
+A set ~cpmd~ arm and a set ~common~ overlay are merged.
+The arm bytes stay, and an overlay scalar is copied only where the arm still
+has the schema default: ~xcFunctionals~ when the functional is ~BLYP~,
+~planewaveCutoffEv~ when the cutoff is 70 Ry, ~charge~ when the charge is 0,
+and ~spinMultiplicity~ when the multiplicity is 1.
+An unmapped ~xcFunctionals~ token is rejected in that ~BLYP~ case.
+Next to the arm the call rejects ~kMesh~, ~scfMaxIterations~,
+~scfEnergyToleranceEv~, ~vanDerWaalsMethod~, and ~relativityMethod~.
+~basisSet~, ~smearing~, and ~vanDerWaalsS6~ are not applied on that path.
+With the arm unset, an overlay field without a CPMD lowering is rejected,
+including ~relativityMethod~ and a ~basisSet~ other than ~planewave~.
 
 * Global array calls
-Each call applies the message it is given and then evaluates, so every call
-starts from a cold SCF.
+Each call applies the message it is given and then evaluates.
+The call is cold when the process has no stored basis, or when the
+functional, deck, cell, cutoff, charge, multiplicity, atom count, or
+elemental composition differs from that basis.
+A matching basis is warm, including a constant-cutoff cell that stays
+within ~CPMDC_CELL_IN_PLACE~.
 
 | Function | Output |
 |----------+--------|

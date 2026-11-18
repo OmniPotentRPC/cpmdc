@@ -17,9 +17,10 @@
   ~capnp encode~ turns a text message into the binary form.
 - Cold call :: An evaluation that runs CPMD's full setup and starts the SCF
   without stored orbitals: the first call of the process, or a call that changes
-  the functional, deck, cell, cutoff, charge, multiplicity, atom count, or
-  elemental composition.
-  A new session with the same setup is warm (see
+  the functional, deck, cutoff, charge, multiplicity, atom count, or elemental
+  composition, or the cell.
+  A constant-cutoff cell within ~CPMDC_CELL_IN_PLACE~ stays warm, and a new
+  session with the same setup is warm (see
   [[file:../explanation/wavefunction-state.org][wavefunction state]]).
 - CPMD :: Car-Parrinello Molecular Dynamics, the plane-wave density functional
   code; ~cpmdc~ embeds its OpenCPMD distribution.

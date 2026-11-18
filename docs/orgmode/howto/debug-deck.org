@@ -31,7 +31,7 @@ example through a wrapper script that appends ~$OMPI_COMM_WORLD_RANK~.
 
 * What the OpenCPMD path changes
 The file holds the method deck.
-On the first evaluation of a session, the OpenCPMD path builds the deck that
+On each cold evaluation, the OpenCPMD path builds the deck that
 CPMD parses from it in three steps:
 
 1. If the method deck has an ~&ATOMS~ block with coordinate lines, it is used

@@ -172,7 +172,7 @@ nm -D build-cpmd/libcpmdc.so | grep -c ' T cpmdc_'
 The last command counts the exported ~cpmdc_*~ symbols.
 The export list hides every other symbol of the archives except the MPI Fortran
 sentinels, which must stay global (see [[file:../explanation/opencpmd-patches.org][How the OpenCPMD patches work]]).
-The first evaluation needs the pseudopotential directory in ~CPMDC_PSEUDO_DIR~;
+A cold evaluation needs the pseudopotential directory in ~CPMDC_PSEUDO_DIR~;
 the [[file:../tutorials/first-energy.org][first energy tutorial]] runs one.
 Stress tensors, which ~PotentialResult.stress~ carries for periodic cells, need
 no extra patch: ~cpmdc~ sets ~cntl%tpres~ before the SCF and copies ~paiu/omega~

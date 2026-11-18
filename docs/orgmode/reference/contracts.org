@@ -13,7 +13,15 @@ Arrays are C order and atom-major: ~x0 y0 z0 x1 ...~. A matrix is row-major with
 
 Threads: the C library keeps the active calculator, its stored orbitals and the OpenCPMD state in process globals, so evaluation, configuration and session calls are used by one thread at a time. The error text of ~cpmdc_last_error()~ is per thread. The snapshot readers share the globals of the evaluation. The static restart library has no global state.
 
-MPI: the reference build never calls MPI. An OpenCPMD build runs the evaluation as a collective on the calculator communicator, so every rank of a calculator makes the same call in the same order. The Python package never calls MPI itself; ~cpmdc.lammps.FixExternal~ gathers on rank 0 with ~mpi4py~.
+MPI: a build compiled without MPI never calls it. A reference build compiled
+with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache
+path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized, so every rank
+agrees before a stored result is returned. The same setting runs the
+collectives in ~rank_consensus~ on an evaluation. An OpenCPMD build also runs
+the evaluation as a collective on the calculator communicator, so every rank
+of a calculator makes the same call in the same order. The Python package
+never calls MPI itself; ~cpmdc.lammps.FixExternal~ gathers on rank 0 with
+~mpi4py~.
 
 Errors: a C call reports failure in the return value and writes the reason to ~cpmdc_last_error()~ of the calling thread. The Python package turns every such failure into ~cpmdc.CPMDCError~, and it raises ~ValueError~ or ~TypeError~ for an argument that it can reject before the call.
 
@@ -125,7 +133,9 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 
 ** Configuration and one-shot arrays without a session
 
-These calls use the process-wide state. Each starts from a cold SCF.
+These calls use the process-wide state.
+An evaluation is cold when the process has no stored basis or the basis
+differs, and warm when the basis matches.
 
 *** ~cpmdc_set_params~
 
@@ -147,7 +157,7 @@ These calls use the process-wide state. Each starts from a cold SCF.
 | Layout | ~config_capnp~ points at ~config_capnp_size_bytes~ bytes of one unpacked flat ~PotentialConfig~ message. |
 | Ownership | The caller owns ~config_capnp~ and may free it on return. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
-| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a message that sets both the ~cpmd~ arm and the ~common~ overlay, or an overlay field without a CPMD lowering; the text is ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a ~cpmd~ arm together with overlay ~kMesh~, ~scfMaxIterations~, ~scfEnergyToleranceEv~, ~vanDerWaalsMethod~, or ~relativityMethod~, an unmapped ~xcFunctionals~ token when that arm's functional is still ~BLYP~, or an overlay field without a CPMD lowering when the arm is unset; the text is ~cpmdc_last_error()~. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -158,7 +168,7 @@ These calls use the process-wide state. Each starts from a cold SCF.
 | Units | ~positions_ang~ in Angstrom; ~grad_h_bohr~ in Hartree/Bohr; ~energy_h~ of the result in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes; ~grad_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. |
 | Ownership | The caller owns every buffer and may reuse or free all of them on return; the library keeps nothing. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is non-zero on success. Otherwise ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ (a failed message parse, a missing pseudopotential directory, a failed SCF). An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | not wrapped. |
 | Defaults | none: the gradient is ~dE/dR~, the negative of the force |
@@ -170,7 +180,7 @@ These calls use the process-wide state. Each starts from a cold SCF.
 | Units | ~positions_ang~ in Angstrom; the returned energy in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes. |
 | Ownership | The caller owns every buffer; the library keeps nothing. It evaluates the gradient into a temporary array that it frees before returning. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | not wrapped. |
 | Defaults | none |
@@ -182,7 +192,7 @@ These calls use the process-wide state. Each starts from a cold SCF.
 | Units | ~positions_ang~ in Angstrom; ~forces_h_bohr~ in Hartree/Bohr; the returned energy in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~params_capnp~ is ~params_capnp_size_bytes~ bytes; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. |
 | Ownership | The caller owns every buffer and may free all of them on return. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls the collectives in ~rank_consensus~ when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | not wrapped. |
 | Defaults | none: forces are the negative nuclear gradient |
@@ -300,7 +310,7 @@ never rolled back; see the C ABI reference.
 | Units | ~positions_ang~ in Angstrom; ~grad_h_bohr~ in Hartree/Bohr; the returned energy in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~grad_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. No cell is passed: the deck's ~CELL~ applies, or a 12 Angstrom cube. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~, ~atomic_numbers~ and ~grad_h_bohr~, and the library copies the geometry into the session. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | not wrapped; ~cpmdc.Session.energy_forces~ calls ~cpmdc_session_energy_forces()~ and raises ~cpmdc.CPMDCError~. |
 | Defaults | none |
@@ -312,7 +322,7 @@ never rolled back; see the C ABI reference.
 | Units | ~positions_ang~ in Angstrom; the returned energy in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118. No cell is passed. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~ and ~atomic_numbers~. A temporary gradient array is allocated and freed inside the call. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | not wrapped. |
 | Defaults | none |
@@ -324,7 +334,7 @@ never rolled back; see the C ABI reference.
 | Units | ~positions_ang~ in Angstrom; ~forces_h_bohr~ in Hartree/Bohr; the returned energy in Hartree. |
 | Layout | ~positions_ang~ is ~3 * n_atoms~ doubles, atom-major, C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions. No cell is passed. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~positions_ang~, ~atomic_numbers~ and ~forces_h_bohr~. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | ~cpmdc.Session.energy_forces~ without a cell raises ~cpmdc.CPMDCError~; the sizes, the range of the atomic numbers and the finiteness are checked first and raise ~ValueError~. |
 | Defaults | none |
@@ -336,7 +346,7 @@ never rolled back; see the C ABI reference.
 | Units | ~force_input_capnp~ carries its own ~lengthUnit~ and ~energyUnit~; ~forces_h_bohr~ is always Hartree/Bohr and the returned energy Hartree, whatever the message says. |
 | Layout | ~force_input_capnp~ is ~force_input_capnp_size_bytes~ bytes of one unpacked flat ~ForceInput~; ~forces_h_bohr~ holds ~forces_len~ doubles, and ~forces_len~ must be at least ~3 * n_atoms~, atom-major, C order. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~force_input_capnp~ and the output array ~forces_h_bohr~. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0, ~energy_h~ is 0 and ~message~ names the reason; the same text is ~cpmdc_last_error()~ and the output array is unspecified. ~ok~ is non-zero on success and ~cpmdc_last_error()~ is empty. An atomic number outside 1..118 fails with ~atomic numbers must be in 1..118~, before a session fixes its topology. |
 | Python | ~cpmdc.Session.energy_forces~ with a cell encodes a ~ForceInput~ in process and raises ~cpmdc.CPMDCError~. |
 | Defaults | ~ForceInput~ unit strings left empty read as ~angstrom~ and ~hartree~ |
@@ -348,7 +358,7 @@ never rolled back; see the C ABI reference.
 | Units | ~force_input_capnp~ carries its own ~lengthUnit~ and ~energyUnit~; the ~PotentialResult~ energy is in ~energyUnit~, forces in ~energyUnit~ per ~lengthUnit~, stress in ~energyUnit~ per ~lengthUnit~ cubed; the returned ~energy_h~ is Hartree. |
 | Layout | ~force_input_capnp~ is ~force_input_capnp_size_bytes~ bytes; ~potential_result_capnp~ has room for ~potential_result_capnp_capacity_bytes~ bytes and receives one unpacked flat ~PotentialResult~; ~potential_result_capnp_size_bytes~ is one ~size_t~ that receives the byte count. |
 | Ownership | ~session~ stays owned by the caller; the caller owns ~force_input_capnp~, ~potential_result_capnp~ and ~potential_result_capnp_size_bytes~; the written message does not alias the session. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0 with ~message~ and ~cpmdc_last_error()~ naming the reason for a NULL session or buffer, an invalid message, an atomic number outside 1..118, a topology change or a failed evaluation. ~*potential_result_capnp_size_bytes~ is written before the capacity is checked: a capacity that is too small gives ~ok~ 0 with ~PotentialResult buffer too small~ and no evaluation. |
 | Python | not wrapped. |
 | Defaults | none |
@@ -360,7 +370,7 @@ never rolled back; see the C ABI reference.
 | Units | ~positions_bohr~ and ~cell_bohr~ in Bohr; ~energy_h~ in Hartree; ~forces_h_bohr~ in Hartree/Bohr; ~virial_h~ in Hartree. |
 | Layout | ~positions_bohr~ is ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~cell_bohr~ is NULL or 9 doubles, row-major, one lattice vector per row; ~energy_h~ is one double; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions; ~virial_h~ is NULL or 9 doubles, row-major. |
 | Ownership | ~session~ stays owned by the caller; the caller owns every array, none is kept after the call, and the outputs are written only on success. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | Returns 0 on success and -1 for a NULL session (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a NULL required pointer (~invalid arguments~), an atomic number outside 1..118 (~atomic numbers must be in 1..118~), a topology change, or a failed evaluation; the text is ~cpmdc_last_error()~ and the output arrays are unspecified. |
 | Python | ~cpmdc.Session.calculate_au~ raises ~cpmdc.CPMDCError~; wrong sizes, non-finite values and atomic numbers outside 1..118 raise ~ValueError~ before the call, and a wrong type raises ~TypeError~. |
 | Defaults | ~cell_bohr~ NULL is a system without a cell; ~virial_h~ NULL skips the virial |
@@ -376,7 +386,7 @@ Each call creates a session, evaluates one step and destroys the session.
 | Units | units of ~force_input_capnp~ and of the ~PotentialResult~ as for ~cpmdc_session_calculate_result()~; the returned ~energy_h~ is Hartree. |
 | Layout | ~params_capnp~ is ~params_capnp_size_bytes~ bytes of ~CPMDParams~; ~force_input_capnp~ is ~force_input_capnp_size_bytes~ bytes of ~ForceInput~; ~potential_result_capnp~ has room for ~potential_result_capnp_capacity_bytes~ bytes; ~potential_result_capnp_size_bytes~ is one ~size_t~. |
 | Ownership | The caller owns every buffer; the session the call creates is destroyed before it returns. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | ~ok~ is 0 with ~message~ and ~cpmdc_last_error()~ naming the reason for a NULL or empty input, an invalid message, a buffer that is too small (~PotentialResult buffer too small~, with the required size in ~*potential_result_capnp_size_bytes~) or a failed step. |
 | Python | not wrapped. |
 | Defaults | none |
@@ -388,7 +398,7 @@ Each call creates a session, evaluates one step and destroys the session.
 | Units | As for ~cpmdc_calculate_result()~: ~force_input_capnp~ carries its own ~lengthUnit~ and ~energyUnit~, the ~PotentialResult~ energy is in ~energyUnit~, and the returned ~energy_h~ is Hartree. |
 | Layout | ~config_capnp~ is ~config_capnp_size_bytes~ bytes of one ~PotentialConfig~; ~force_input_capnp~ is ~force_input_capnp_size_bytes~ bytes of one ~ForceInput~; ~potential_result_capnp~ has room for ~potential_result_capnp_capacity_bytes~ bytes; ~potential_result_capnp_size_bytes~ is one ~size_t~. |
 | Ownership | The caller owns every buffer; the session is destroyed before the call returns. |
-| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
+| Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
 | Returns and errors | As for ~cpmdc_calculate_result()~: ~ok~ is 0 with ~message~ and ~cpmdc_last_error()~ naming the reason, with the failures of ~cpmdc_configure()~ added; ~ok~ is non-zero on success. |
 | Python | not wrapped. |
 | Defaults | none |

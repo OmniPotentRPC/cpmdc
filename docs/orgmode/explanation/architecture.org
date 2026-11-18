@@ -41,8 +41,7 @@ A host builds it once per session.
 ~ForceInput~ carries one geometry: positions, atomic numbers, an optional
 cell, and the units the host wants back.
 A host builds one per step.
-Keeping them apart is what lets a session skip CPMD's setup on every step
-after the first.
+Keeping them apart is what lets a warm step skip CPMD's setup.
 
 * What one evaluation does
 1. ~cpmdc_session_create()~ copies the ~CPMDParams~ bytes, renders the deck in
@@ -54,14 +53,14 @@ after the first.
    ~session_accept_topology~ fixes the topology as soon as that call passes
    its argument checks, even when the evaluation then fails, and it is never
    rolled back. All of that is before any CPMD work.
-3. On the first step, the bridge composes the full deck from the method deck
-   and the step geometry, writes it to an anonymous ~memfd~ exposed as
+3. On a cold evaluation, the bridge composes the full deck from the method
+   deck and the step geometry, writes it to an anonymous ~memfd~ exposed as
    ~/proc/self/fd/N~, and runs OpenCPMD's own setup on it (~control~,
    ~dftin~, ~sysin~, ~ratom~, ~setsys~, ~rinit~, and the rest), then the SCF
    through ~wfopts~.
-4. On later steps with the same cell, the bridge writes the new positions
-   into ~coor%tau0~ (Angstrom to Bohr), recomputes the structure factors with
-   ~phfac~, restores the saved orbitals, and runs ~wfopts~ again.
+4. On a warm step, the bridge writes the new positions into ~coor%tau0~
+   (Angstrom to Bohr), recomputes the structure factors with ~phfac~,
+   restores the saved orbitals, and runs ~wfopts~ again.
 5. After the SCF, the bridge reads ~ener_com%etot~ and ~coor%fion~, copies
    the energy components, charges, dipole, and stress into the session, and
    reports failure when the orbitals did not converge.
@@ -82,7 +81,7 @@ Typed fields render the keywords the schema models, ~directives~ carry keywords
 without a typed field, and ~set~, ~generic~, ~raw~, and ~inputBlocks~ carry
 text that must pass through unchanged.
 The geometry never goes into ~CPMDParams~: the bridge writes ~&ATOMS~ from the
-step on the first call and moves atoms through ~tau0~ afterwards.
+step on a cold evaluation and moves atoms through ~tau0~ on a warm step.
 
 * Sessions, topology, and state
 ~session_accept_topology~ fixes the topology as soon as an evaluation call
@@ -90,8 +89,8 @@ passes its argument checks, even when the evaluation then fails, and it is
 never rolled back, because the species tables, the plane-wave setup, and the
 stored orbitals are sized for one composition.
 A reordering of those elements stays on the session.
-Coordinates may change freely; a changed cell sends the next call back
-through the full setup.
+Coordinates may change freely. A changed cell runs setup again, except a
+constant-cutoff cell that stays within ~CPMDC_CELL_IN_PLACE~.
 OpenCPMD's module state is one per process, so one session at a time owns it.
 A different session with the same functional, deck, cutoff, cell, charge,
 multiplicity, and elemental composition reuses the stored orbitals.
