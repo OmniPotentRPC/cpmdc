@@ -105,7 +105,9 @@ def _is_separator_row(cells: list[str]) -> bool:
     if not cells:
         return False
     stripped = [cell.replace(":", "").strip() for cell in cells if cell.strip()]
-    return bool(stripped) and all(re.fullmatch(r"-+", cell) for cell in stripped)
+    return bool(stripped) and all(
+        re.fullmatch(r"-+(?:\+-+)*", cell) for cell in stripped
+    )
 
 
 def _is_field_table_header(cells: list[str]) -> bool:
@@ -364,6 +366,22 @@ def check_python(root: Path, failures: list[str]) -> None:
                     failures.append(
                         f"reference/python.org: {module}.{name}.{member} is not named"
                     )
+
+
+def test_org_separator_rows() -> None:
+    for row in ("|---|", "|---+---|", "|-----+-----+----|"):
+        assert _is_separator_row(_table_cells(row))
+    assert not _is_separator_row(_table_cells("| Field | Type | Meaning |"))
+    assert not _is_separator_row(_table_cells("| ~alpha~ | ~int~ | first member |"))
+    text = (
+        "Fields of ~DemoStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|---|\n"
+        "|---+---|\n"
+        "|-----+-----+----|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+    )
+    assert documented_struct_fields(text, {"DemoStruct"}) == {("DemoStruct", "alpha")}
 
 
 def test_field_table_with_nonstandard_intro() -> None:
