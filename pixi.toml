@@ -45,7 +45,7 @@ shibuya = ">=2026.1.9,<2027"
 sphinx-sitemap = ">=2.9.0,<3"
 
 [tasks]
-test-stub-sanitize = { cmd = "bash -c '. scripts/with_baseline_flags.sh && meson setup build-sanitize -Dwith_tests=true -Dwith_pwscale=true -Db_sanitize=address,undefined -Db_lundef=false && meson compile -C build-sanitize && meson test -C build-sanitize --print-errorlogs'", description = "Stub suite and pwscale scaffold under ASan/UBSan. Interpreter tests disable leak detection; C and Fortran tests keep it." }
+test-stub-sanitize = { cmd = "bash -c '. scripts/with_baseline_flags.sh && meson setup build-sanitize -Dwith_tests=true -Dwith_pwscale=true -Db_sanitize=address,undefined -Db_lundef=false && meson compile -C build-sanitize && meson test -C build-sanitize --print-errorlogs'", description = "Stub suite and pwscale scaffold under ASan/UBSan. Serial C and Fortran tests keep leak detection; ASan preload tests (python-api, python-pytest, docs-examples, tutorials-run) and MPI/pwscale tests via run_mpi_test.py disable it." }
 release-assert = { cmd = "python3 scripts/release_assert.py", description = "Fail when a generated version copy differs from version.txt" }
 version-sync = { cmd = "python3 scripts/release_assert.py --sync", description = "Regenerate every version copy from version.txt" }
 towncrier-draft = { cmd = "bash -c 'uvx towncrier build --draft --version \"$(cat version.txt)\"'", description = "Preview changelog fragments" }
