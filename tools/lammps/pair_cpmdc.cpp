@@ -1,9 +1,11 @@
 /* pair_style cpmdc: cpmdc as a LAMMPS pair style, on the public C ABI.
  *
- *   pair_style cpmdc params.bin
- *   pair_coeff * * O H
+ *   pair_style cpmdc params.bin [width 0.30]
+ *   pair_coeff * * O H NULL
  *
- * The style evaluates the whole system with cpmdc_session_calculate_au()
+ * Element entries are QM; NULL entries are Gaussian MM charges from atom->q.
+ * With no NULL entry the style evaluates the whole system with
+ * cpmdc_session_calculate_au()
  * once per force call. It requests no neighbor list: every rank sends the
  * unwrapped positions of the atoms it owns, by atom ID, to world rank 0,
  * which owns the session, evaluates, and broadcasts the forces. Rank 0 adds
@@ -87,7 +89,8 @@ bool unit_factors(const char *style, double &length_per_bohr, double &energy_per
 }    // namespace
 
 PairCPMDC::PairCPMDC(LAMMPS *lmp) :
-    Pair(lmp), session(nullptr), length_per_bohr(1.0), energy_per_hartree(1.0), adopted(0)
+    Pair(lmp), session(nullptr), length_per_bohr(1.0), energy_per_hartree(1.0),
+    external_width_ang(0.30), adopted(0)
 {
   single_enable = 0;
   restartinfo = 0;
@@ -148,7 +151,16 @@ int PairCPMDC::open_session(std::string &why)
 
 void PairCPMDC::settings(int narg, char **arg)
 {
-  if (narg != 1) error->all(FLERR, "Illegal pair_style cpmdc command: use pair_style cpmdc <CPMDParams file>");
+  if (narg != 1 && narg != 3)
+    error->all(FLERR, "Illegal pair_style cpmdc command: use pair_style cpmdc <CPMDParams file> [width <Angstrom>]");
+  if (narg == 3) {
+    if (std::strcmp(arg[1], "width") != 0)
+      error->all(FLERR, "pair_style cpmdc optional setting is width <Angstrom>");
+    char *end = nullptr;
+    external_width_ang = std::strtod(arg[2], &end);
+    if (!end || *end != '\0' || !(external_width_ang > 0.0))
+      error->all(FLERR, "pair_style cpmdc width must be positive");
+  }
   if (!unit_factors(update->unit_style, length_per_bohr, energy_per_hartree))
     error->all(FLERR, "pair_style cpmdc supports units metal, real, and electron; this input uses units {}",
                update->unit_style);
@@ -174,9 +186,12 @@ void PairCPMDC::coeff(int narg, char **arg)
                ntypes);
   type_z.assign(ntypes + 1, 0);
   for (int i = 1; i <= ntypes; i++) {
-    type_z[i] = element_number(arg[i + 1]);
-    if (!type_z[i]) error->all(FLERR, "pair_coeff cpmdc: {} is not an element symbol or an atomic number 1..118", arg[i + 1]);
+    type_z[i] = std::strcmp(arg[i + 1], "NULL") == 0 ? 0 : element_number(arg[i + 1]);
+    if (!type_z[i] && std::strcmp(arg[i + 1], "NULL") != 0)
+      error->all(FLERR, "pair_coeff cpmdc: {} is not NULL, an element symbol, or an atomic number 1..118", arg[i + 1]);
   }
+  if (std::none_of(type_z.begin() + 1, type_z.end(), [](int z) { return z != 0; }))
+    error->all(FLERR, "pair_coeff cpmdc needs at least one QM atom type");
   for (int i = 1; i <= ntypes; i++)
     for (int j = i; j <= ntypes; j++) setflag[i][j] = 1;
 }
@@ -188,6 +203,12 @@ void PairCPMDC::init_style()
   if (periodic != 0 && periodic != 3)
     error->all(FLERR, "pair_style cpmdc takes a fully periodic box or one without periodic axes");
   if (atom->natoms > MAXSMALLINT / 3) error->all(FLERR, "pair_style cpmdc: too many atoms");
+  const bool have_mm =
+      std::any_of(type_z.begin() + 1, type_z.end(), [](int z) { return z == 0; });
+  if (have_mm && periodic)
+    error->all(FLERR, "pair_style cpmdc: periodic electrostatic embedding is unsupported");
+  if (have_mm && !atom->q_flag)
+    error->all(FLERR, "pair_style cpmdc: MM atom types need an atom style with charges");
   // No neighbor list: the whole system goes to cpmdc.
 }
 
@@ -209,8 +230,10 @@ void PairCPMDC::compute(int eflag, int vflag)
   const imageint *image = atom->image;
   double **x = atom->x;
   double **f = atom->f;
+  double *q = atom->q;
 
   positions.assign(3 * (size_t) natoms, 0.0);
+  charges.assign((size_t) natoms, 0.0);
   owner.assign(natoms, 0);
   int bad = 0;
   for (int i = 0; i < nlocal; i++) {
@@ -222,6 +245,7 @@ void PairCPMDC::compute(int eflag, int vflag)
     double xu[3];
     domain->unmap(x[i], image[i], xu);
     for (int d = 0; d < 3; d++) positions[3 * k + d] = xu[d] / length_per_bohr;
+    if (q) charges[k] = q[i];
     owner[k] = type[i];
   }
   int any_bad = 0;
@@ -231,9 +255,11 @@ void PairCPMDC::compute(int eflag, int vflag)
     if (comm->me == 0) {
       MPI_Reduce(MPI_IN_PLACE, positions.data(), 3 * natoms, MPI_DOUBLE, MPI_SUM, 0, world);
       MPI_Reduce(MPI_IN_PLACE, owner.data(), natoms, MPI_INT, MPI_SUM, 0, world);
+      MPI_Reduce(MPI_IN_PLACE, charges.data(), natoms, MPI_DOUBLE, MPI_SUM, 0, world);
     } else {
       MPI_Reduce(positions.data(), nullptr, 3 * natoms, MPI_DOUBLE, MPI_SUM, 0, world);
       MPI_Reduce(owner.data(), nullptr, natoms, MPI_INT, MPI_SUM, 0, world);
+      MPI_Reduce(charges.data(), nullptr, natoms, MPI_DOUBLE, MPI_SUM, 0, world);
     }
   }
 
@@ -243,12 +269,17 @@ void PairCPMDC::compute(int eflag, int vflag)
   forces.assign(3 * (size_t) natoms, 0.0);
   if (comm->me == 0) {
     std::string problem;
-    numbers.resize(natoms);
+    std::vector<int> qm_index, mm_index;
+    numbers.clear();
     for (int k = 0; k < natoms && problem.empty(); k++) {
       if (owner[k] < 1 || owner[k] > atom->ntypes)
         problem = "pair_style cpmdc needs atom IDs 1..N with no gaps";
-      else
-        numbers[k] = type_z[owner[k]];
+      else if (type_z[owner[k]] == 0)
+        mm_index.push_back(k);
+      else {
+        qm_index.push_back(k);
+        numbers.push_back(type_z[owner[k]]);
+      }
     }
     if (problem.empty()) {
       std::vector<int> sorted(numbers);
@@ -262,13 +293,61 @@ void PairCPMDC::compute(int eflag, int vflag)
       double cell_bohr[9];
       for (int i = 0; i < 9; i++) cell_bohr[i] = cell[i] / length_per_bohr;
       const bool periodic = domain->xperiodic && domain->yperiodic && domain->zperiodic;
-      if (cpmdc_session_calculate_au(session, natoms, positions.data(), numbers.data(),
-                                     periodic ? cell_bohr : nullptr, &head[1], forces.data(),
-                                     &head[2]) == 0) {
-        head[0] = 1.0;
-      } else {
+      std::vector<double> qm_positions(3 * qm_index.size());
+      for (size_t i = 0; i < qm_index.size(); ++i)
+        std::copy_n(&positions[3 * (size_t) qm_index[i]], 3,
+                    &qm_positions[3 * i]);
+      if (!mm_index.empty()) {
+        std::vector<double> mm_positions(3 * mm_index.size());
+        std::vector<double> mm_charges(mm_index.size());
+        std::vector<double> widths(mm_index.size(), external_width_ang);
+        for (size_t i = 0; i < mm_index.size(); ++i) {
+          const int k = mm_index[i];
+          for (int d = 0; d < 3; ++d)
+            mm_positions[3 * i + d] = positions[3 * (size_t) k + d] * kBohrToAngstrom;
+          mm_charges[i] = charges[k];
+        }
+        if (cpmdc_session_set_external_charges(
+                session, mm_index.size(), mm_positions.data(), mm_charges.data(),
+                widths.data()) != 0) {
+          const char *text = cpmdc_last_error();
+          problem = text && *text ? text : "setting external charges failed";
+        }
+      }
+      std::vector<double> qm_forces(3 * qm_index.size());
+      if (problem.empty() &&
+          cpmdc_session_calculate_au(
+              session, (int) qm_index.size(), qm_positions.data(), numbers.data(),
+              periodic ? cell_bohr : nullptr, &head[1], qm_forces.data(),
+              &head[2]) == 0) {
+        for (size_t i = 0; i < qm_index.size(); ++i)
+          std::copy_n(&qm_forces[3 * i], 3,
+                      &forces[3 * (size_t) qm_index[i]]);
+        if (!mm_index.empty()) {
+          std::vector<double> mm_forces(3 * mm_index.size());
+          if (cpmdc_session_last_external_charge_forces(
+                  session, mm_forces.data(), mm_forces.size()) != 0) {
+            const char *text = cpmdc_last_error();
+            problem = text && *text ? text : "external-charge forces are unavailable";
+          } else {
+            for (size_t i = 0; i < mm_index.size(); ++i)
+              std::copy_n(&mm_forces[3 * i], 3,
+                          &forces[3 * (size_t) mm_index[i]]);
+            std::fill_n(&head[2], 9, 0.0);
+            for (int k = 0; k < natoms; ++k)
+              for (int a = 0; a < 3; ++a)
+                for (int b = 0; b < 3; ++b)
+                  head[2 + 3 * a + b] +=
+                      0.5 * (positions[3 * k + a] * forces[3 * k + b] +
+                             positions[3 * k + b] * forces[3 * k + a]);
+          }
+        }
+      } else if (problem.empty()) {
         const char *text = cpmdc_last_error();
         problem = text && *text ? text : "evaluation failed";
+      }
+      if (problem.empty()) {
+        head[0] = 1.0;
       }
     }
     std::strncpy(why, problem.c_str(), sizeof(why) - 1);

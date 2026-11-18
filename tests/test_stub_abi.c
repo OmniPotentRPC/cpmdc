@@ -19,6 +19,8 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_create",
     "abi.cpmdc_session_set_params",
     "abi.cpmdc_session_set_constant_cutoff",
+    "abi.cpmdc_session_set_external_charges",
+    "abi.cpmdc_session_last_external_charge_forces",
     "abi.cpmdc_session_destroy",
     "abi.cpmdc_session_select_orbitals",
     "abi.cpmdc_session_energy_gradient",
@@ -50,6 +52,7 @@ static const char *const required_abi_features[] = {
     "abi.cpmdc_session_create_from_config",
     "abi.cpmdc_session_configure",
     "abi.cpmdc_last_error",
+    "abi.cpmdc_last_error_code",
     "abi.cpmdc_available",
     "abi.cpmdc_finalize",
     "abi.cpmdc_feature_count",
@@ -82,6 +85,11 @@ static void test_stub_reports_unavailable(void **state) {
   assert_int_equal(cpmdc_adopted_comm(NULL, 0), -1);
   assert_null(cpmdc_session_create(NULL, 0));
   assert_int_not_equal(cpmdc_session_set_params(NULL, NULL, 0), 0);
+  assert_int_not_equal(
+      cpmdc_session_set_external_charges(NULL, 0, NULL, NULL, NULL), 0);
+  assert_int_not_equal(
+      cpmdc_session_last_external_charge_forces(NULL, NULL, 0), 0);
+  (void)cpmdc_last_error_code();
   cpmdc_session_destroy(NULL);
   assert_int_equal(cpmdc_session_select_orbitals(NULL, 0), -1);
   CPMDCResult session_energy = cpmdc_session_energy(NULL, 0, NULL, NULL);
@@ -138,6 +146,7 @@ static void expect_stub_entry(const char *entry) {
   assert_non_null(err);
   assert_non_null(strstr(err, "stub"));
   assert_non_null(strstr(err, entry));
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_UNAVAILABLE);
 }
 
 static void test_stub_failing_calls_set_last_error(void **state) {
@@ -154,6 +163,12 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   expect_stub_entry("cpmdc_session_set_params");
   assert_int_equal(cpmdc_session_set_constant_cutoff(NULL, 30.0, 0.0, 0.0), -1);
   expect_stub_entry("cpmdc_session_set_constant_cutoff");
+  assert_int_equal(
+      cpmdc_session_set_external_charges(NULL, 0, NULL, NULL, NULL), -1);
+  expect_stub_entry("cpmdc_session_set_external_charges");
+  assert_int_equal(
+      cpmdc_session_last_external_charge_forces(NULL, NULL, 0), -1);
+  expect_stub_entry("cpmdc_session_last_external_charge_forces");
   assert_null(cpmdc_session_create_from_config(NULL, 0));
   expect_stub_entry("cpmdc_session_create_from_config");
   assert_int_equal(cpmdc_session_configure(NULL, NULL, 0), -1);

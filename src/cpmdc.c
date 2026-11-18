@@ -21,6 +21,7 @@
 #endif
 
 static void cpmdc_store_error(const char *msg);
+static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code);
 
 void cpmdc_stop_arm(void);
 void cpmdc_stop_disarm(void);
@@ -62,7 +63,12 @@ int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h,
-                            double *grad_h_bohr, CPMDCEmbedImage *image);
+                            double *grad_h_bohr, int n_external,
+                            const double *external_positions_ang,
+                            const double *external_charges_e,
+                            const double *external_widths_ang,
+                            double *external_forces_h_bohr,
+                            CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
@@ -77,6 +83,9 @@ static unsigned char *g_params_bytes = NULL;
 static CPMDCScalarOverrides g_overrides;
 static char g_overrides_functional[64];
 static int g_has_overrides = 0;
+static _Thread_local CPMDCErrorCode g_last_error_code = CPMDC_ERROR_NONE;
+static _Thread_local char g_last_error[512];
+static _Thread_local char g_embed_detail[512];
 
 static int cpmdc_set_params_ov(const void *params_capnp,
                                size_t params_capnp_size_bytes,
@@ -125,6 +134,13 @@ struct CPMDCSession {
   int *step_atomic_numbers;
   /** Allocated atom capacity for step scratch buffers. */
   size_t step_atom_capacity;
+  /** Gaussian-smeared external MM charges for electrostatic embedding. */
+  size_t external_count;
+  double *external_positions_ang;
+  double *external_charges_e;
+  double *external_widths_ang;
+  double *external_forces_h_bohr;
+  int external_forces_valid;
   /** Non-zero when the last successful gradient is stored. */
   int result_cached;
   /** Positions, atomic numbers, and gradient of that call. Owned. */
@@ -248,13 +264,23 @@ static int ensure_embed_init(void) {
   return ok;
 }
 
-static CPMDCResult fail_msg(const char *msg) {
+static CPMDCResult fail_msg_code(const char *msg, CPMDCErrorCode code) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
   snprintf(r.message, sizeof(r.message), "%s", msg ? msg : "error");
-  cpmdc_store_error(r.message);
+  cpmdc_store_error_code(r.message, code);
   return r;
+}
+
+static CPMDCResult fail_msg(const char *msg) {
+  CPMDCErrorCode code = CPMDC_ERROR_EVALUATION_FAILED;
+  if (g_last_error_code != CPMDC_ERROR_NONE &&
+      g_last_error_code != CPMDC_ERROR_EVALUATION_FAILED && msg &&
+      ((g_last_error[0] != '\0' && strcmp(msg, g_last_error) == 0) ||
+       (g_embed_detail[0] != '\0' && strcmp(msg, g_embed_detail) == 0)))
+    code = g_last_error_code;
+  return fail_msg_code(msg, code);
 }
 
 /* CPMDC_DECK_OUT names a file that receives each method deck cpmdc renders
@@ -450,19 +476,56 @@ static int configure_embed_from_session(CPMDCSession *session) {
   return 0;
 }
 
-/* Diagnostic channel for configuration entry points and evaluation failures. */
-static _Thread_local char g_last_error[512];
-static _Thread_local char g_embed_detail[512];
-
-static void cpmdc_store_error(const char *msg) {
+static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code) {
+  int empty = !msg || msg[0] == '\0';
   snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
+  if (empty) {
+    g_last_error_code = CPMDC_ERROR_NONE;
+    g_embed_detail[0] = '\0';
+    return;
+  }
+  g_last_error_code = code;
+  /* Drop a detail that is not this message so the code is not left
+   * paired with a different embed failure. */
+  if (strcmp(msg, g_embed_detail) != 0)
+    g_embed_detail[0] = '\0';
 }
 
+static void cpmdc_store_error(const char *msg) {
+  cpmdc_store_error_code(msg, CPMDC_ERROR_INVALID_ARGUMENT);
+}
+
+/* The embed detail and the code are one value. An empty note clears
+ * both, and every other note stores EVALUATION_FAILED with the text.
+ * A more specific code is written after this returns. */
 void cpmdc_note_embed_failure(const char *msg) {
+  int empty = !msg || msg[0] == '\0';
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
+  snprintf(g_last_error, sizeof(g_last_error), "%s", g_embed_detail);
+  g_last_error_code = empty ? CPMDC_ERROR_NONE : CPMDC_ERROR_EVALUATION_FAILED;
+}
+
+static void cpmdc_clear_embed_failure(void) {
+  int embed = g_last_error_code == CPMDC_ERROR_EVALUATION_FAILED ||
+              g_last_error_code == CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
+  g_embed_detail[0] = '\0';
+  if (!embed)
+    return;
+  g_last_error_code = CPMDC_ERROR_NONE;
+  g_last_error[0] = '\0';
+}
+
+static const char k_deck_external_potential_msg[] =
+    "session external charges cannot be combined with a deck-defined "
+    "EXTERNAL POTENTIAL";
+
+void cpmdc_note_deck_external_potential(void) {
+  cpmdc_note_embed_failure(k_deck_external_potential_msg);
+  g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
+CPMDCErrorCode cpmdc_last_error_code(void) { return g_last_error_code; }
 
 /* Map CommonMethodSpec.xcFunctionals to a CPMD functional token. Matched on
  * the sorted '+'-joined uppercase list. */
@@ -1168,8 +1231,8 @@ static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
     *stop = 1;
   if (flags[0] && *ok) {
     *ok = 0;
-    snprintf(g_embed_detail, sizeof(g_embed_detail), "%s",
-             "CPMD energy/gradient failed on another rank of the calculator");
+    cpmdc_note_embed_failure(
+        "CPMD energy/gradient failed on another rank of the calculator");
   }
   if (flags[0] || flags[1]) {
     free(root);
@@ -1210,23 +1273,86 @@ static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
   return 0;
 }
 
+static int line_defines_external_potential(const char *line, size_t len) {
+  static const char key[] = "EXTERNAL POTENTIAL";
+  const size_t key_len = sizeof(key) - 1u;
+  size_t i;
+  while (len > 0 && (*line == ' ' || *line == '\t')) {
+    line++;
+    len--;
+  }
+  if (len < key_len)
+    return 0;
+  for (i = 0; i < key_len; ++i) {
+    char c = line[i];
+    if (c >= 'a' && c <= 'z')
+      c = (char)(c - 'a' + 'A');
+    if (c != key[i])
+      return 0;
+  }
+  if (len == key_len)
+    return 1;
+  return line[key_len] == ' ' || line[key_len] == '\t' || line[key_len] == '\r';
+}
+
+/* The rendered deck is what CPMD reads. EXTERNAL POTENTIAL and
+ * EXTERNAL POTENTIAL ADD both start a line with that keyword and turn on
+ * the deck-owned external field. */
+int cpmdc_deck_defines_external_potential(const char *deck, size_t deck_len) {
+  const char *p;
+  size_t left;
+  if (!deck || deck_len == 0)
+    return 0;
+  p = deck;
+  left = deck_len;
+  while (left > 0) {
+    const char *nl = (const char *)memchr(p, '\n', left);
+    size_t len = nl ? (size_t)(nl - p) : left;
+    if (line_defines_external_potential(p, len))
+      return 1;
+    if (!nl)
+      break;
+    left -= len + 1u;
+    p = nl + 1;
+  }
+  return 0;
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
                                  int n_atoms, const double *positions_ang,
                                  const int *atomic_numbers,
                                  const double *cell_ang, int has_cell,
-                                 double *grad_h_bohr, CPMDCEmbedImage *image) {
+                                 double *grad_h_bohr, CPMDCEmbedImage *image,
+                                 CPMDCSession *session) {
   CPMDCResult r;
   r.ok = 0;
   r.energy_h = 0.0;
   r.message[0] = '\0';
-  g_embed_detail[0] = '\0';
+  cpmdc_clear_embed_failure();
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr)
-    return fail_msg("invalid arguments");
-  if (!ensure_embed_init() || !cpmdc_embed_available())
-    return fail_msg("CPMD embed not available");
+      !atomic_numbers || !grad_h_bohr) {
+    return fail_msg_code("invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);
+  }
+  if (session && session->external_count > 0 && has_cell) {
+    return fail_msg_code(
+        "periodic electrostatic embedding is unsupported; use an isolated "
+        "QM cell or clear the external charges",
+        CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING);
+  }
+#if !defined(CPMDC_HAS_CPMD)
+  if (session && session->external_count > 0 &&
+      cpmdc_deck_defines_external_potential(
+          session->input_deck,
+          session->input_deck ? strlen(session->input_deck) : 0u)) {
+    return fail_msg_code(k_deck_external_potential_msg,
+                         CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL);
+  }
+#endif
+  if (!ensure_embed_init() || !cpmdc_embed_available()) {
+    return fail_msg_code("CPMD embed not available", CPMDC_ERROR_UNAVAILABLE);
+  }
   double cell[9] = {0};
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
@@ -1238,9 +1364,27 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
-  int ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
-                                   has_cell ? 1 : 0, &energy, grad_h_bohr,
-                                   image);
+  int n_external =
+      session && session->external_count <= (size_t)INT_MAX
+          ? (int)session->external_count
+          : 0;
+  /* A non-optional Fortran assumed-size array must have an interoperable
+   * C address even when its logical extent is zero. */
+  double external_dummy = 0.0;
+  const double *external_positions =
+      n_external > 0 ? session->external_positions_ang : &external_dummy;
+  const double *external_charges =
+      n_external > 0 ? session->external_charges_e : &external_dummy;
+  const double *external_widths =
+      n_external > 0 ? session->external_widths_ang : &external_dummy;
+  double *external_forces =
+      n_external > 0 ? session->external_forces_h_bohr : &external_dummy;
+  if (session)
+    session->external_forces_valid = 0;
+  int ok = cpmdc_embed_energy_grad(
+      n_atoms, positions_ang, atomic_numbers, cell, has_cell ? 1 : 0, &energy,
+      grad_h_bohr, n_external, external_positions, external_charges,
+      external_widths, external_forces, image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (rank_consensus(&ok, &stop, (size_t)n_atoms * 3u, &energy, grad_h_bohr,
@@ -1264,6 +1408,8 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   }
   r.ok = 1;
   r.energy_h = energy;
+  if (session && session->external_count > 0)
+    session->external_forces_valid = 1;
   snprintf(r.message, sizeof(r.message), "ok");
   cpmdc_store_error("");
   return r;
@@ -1278,7 +1424,7 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
                                           n_atoms,
                                           positions_ang, atomic_numbers,
                                           cell_ang, has_cell, grad_h_bohr,
-                                          &g_image);
+                                          &g_image, NULL);
 }
 
 CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
@@ -1549,6 +1695,7 @@ session_render_overrides(const CPMDCSession *session,
 
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
                                    size_t params_capnp_size_bytes) {
+  cpmdc_store_error("");
   if (!params_capnp || params_capnp_size_bytes == 0) {
     cpmdc_store_error("CPMDParams buffer is empty");
     return NULL;
@@ -1690,6 +1837,122 @@ int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry,
   return 0;
 }
 
+static double external_default_width_ang(void) {
+  const char *text = getenv("CPMDC_EXTERNAL_CHARGE_WIDTH_ANG");
+  char *end = NULL;
+  double value = 0.30;
+  if (!text || text[0] == '\0')
+    return value;
+  value = strtod(text, &end);
+  return end != text && *end == '\0' && isfinite(value) && value > 0.0
+             ? value
+             : -1.0;
+}
+
+int cpmdc_session_set_external_charges(
+    CPMDCSession *session, size_t n_charges, const double *positions_ang,
+    const double *charges_e, const double *widths_ang) {
+  cpmdc_store_error("");
+  if (!session || n_charges > (size_t)(INT_MAX / 3) ||
+      (n_charges > 0 && (!positions_ang || !charges_e))) {
+    cpmdc_store_error_code("invalid external charge arguments",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  double default_width = external_default_width_ang();
+  if (n_charges > 0 && !widths_ang && default_width <= 0.0) {
+    cpmdc_store_error_code(
+        "CPMDC_EXTERNAL_CHARGE_WIDTH_ANG must be finite and positive",
+        CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  double *positions = NULL, *charges = NULL, *widths = NULL, *forces = NULL;
+  if (n_charges > 0) {
+    positions = (double *)malloc(3u * n_charges * sizeof(*positions));
+    charges = (double *)malloc(n_charges * sizeof(*charges));
+    widths = (double *)malloc(n_charges * sizeof(*widths));
+    forces = (double *)calloc(3u * n_charges, sizeof(*forces));
+    if (!positions || !charges || !widths || !forces) {
+      free(positions);
+      free(charges);
+      free(widths);
+      free(forces);
+      cpmdc_store_error_code("out of memory",
+                             CPMDC_ERROR_EVALUATION_FAILED);
+      return -1;
+    }
+    for (size_t i = 0; i < 3u * n_charges; ++i) {
+      if (!isfinite(positions_ang[i])) {
+        free(positions);
+        free(charges);
+        free(widths);
+        free(forces);
+        cpmdc_store_error_code("external charge positions must be finite",
+                               CPMDC_ERROR_INVALID_ARGUMENT);
+        return -1;
+      }
+      positions[i] = positions_ang[i];
+    }
+    for (size_t i = 0; i < n_charges; ++i) {
+      double width = widths_ang ? widths_ang[i] : default_width;
+      if (!isfinite(charges_e[i]) || !isfinite(width) || width <= 0.0) {
+        free(positions);
+        free(charges);
+        free(widths);
+        free(forces);
+        cpmdc_store_error_code(
+            "external charges must be finite and smearing widths finite and "
+            "positive",
+            CPMDC_ERROR_INVALID_ARGUMENT);
+        return -1;
+      }
+      charges[i] = charges_e[i];
+      widths[i] = width;
+    }
+  }
+  free(session->external_positions_ang);
+  free(session->external_charges_e);
+  free(session->external_widths_ang);
+  free(session->external_forces_h_bohr);
+  session->external_positions_ang = positions;
+  session->external_charges_e = charges;
+  session->external_widths_ang = widths;
+  session->external_forces_h_bohr = forces;
+  session->external_count = n_charges;
+  session->external_forces_valid = 0;
+  session_drop_cache(session);
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_last_external_charge_forces(
+    const CPMDCSession *session, double *forces_h_bohr, size_t forces_len) {
+  if (!session) {
+    cpmdc_store_error_code("null session", CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  if (!session->external_forces_valid) {
+    cpmdc_store_error_code("external charge forces are not available",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  if (forces_len != 3u * session->external_count) {
+    cpmdc_store_error_code("external charge force buffer has the wrong length",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  if (forces_len > 0 && !forces_h_bohr) {
+    cpmdc_store_error_code("external charge force buffer is null",
+                           CPMDC_ERROR_INVALID_ARGUMENT);
+    return -1;
+  }
+  if (forces_len > 0)
+    memcpy(forces_h_bohr, session->external_forces_h_bohr,
+           forces_len * sizeof(*forces_h_bohr));
+  cpmdc_store_error("");
+  return 0;
+}
+
 void cpmdc_session_destroy(CPMDCSession *session) {
   if (!session)
     return;
@@ -1706,6 +1969,10 @@ void cpmdc_session_destroy(CPMDCSession *session) {
   free(session->fixed_atomic_numbers);
   free(session->step_positions_ang);
   free(session->step_atomic_numbers);
+  free(session->external_positions_ang);
+  free(session->external_charges_e);
+  free(session->external_widths_ang);
+  free(session->external_forces_h_bohr);
   session_drop_cache(session);
   free(session);
 }
@@ -1714,15 +1981,20 @@ static CPMDCResult session_energy_gradient_cell(
     CPMDCSession *session, int n_atoms, const double *positions_ang,
     const int *atomic_numbers, const double *cell_ang, int has_cell,
     double *grad_h_bohr) {
-  if (!session)
-    return fail_msg("null session");
+  cpmdc_store_error("");
+  if (!session) {
+    return fail_msg_code("null session", CPMDC_ERROR_INVALID_ARGUMENT);
+  }
   /* A missing buffer is a bad call, including on a session that already
    * stored a result. The cache lookup reads these pointers. */
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
-    return fail_msg("invalid arguments");
-  if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
-    return fail_msg("topology change requires a new session");
+      !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang)) {
+    return fail_msg_code("invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);
+  }
+  if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0) {
+    return fail_msg_code("topology change requires a new session",
+                         CPMDC_ERROR_INVALID_ARGUMENT);
+  }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
@@ -1736,8 +2008,9 @@ static CPMDCResult session_energy_gradient_cell(
     return cached;
   }
   if ((!session->embed_configured || g_active_session != session) &&
-      configure_embed_from_session(session) != 0)
-    return fail_msg("CPMD embed not available");
+      configure_embed_from_session(session) != 0) {
+    return fail_msg_code("CPMD embed not available", CPMDC_ERROR_UNAVAILABLE);
+  }
   if (session->has_orbital_key)
     cpmdc_embed_select_orbitals(session->orbital_key);
   if (!session->evaluated) {
@@ -1749,7 +2022,7 @@ static CPMDCResult session_energy_gradient_cell(
         session->params_bytes, session->params_size,
         session->has_overrides ? &session->overrides : NULL, n_atoms,
         positions_ang, atomic_numbers, cell_ang, has_cell, grad_h_bohr,
-        &session->image);
+        &session->image, session);
     if (evaluated.ok && grad_h_bohr) {
       if (session_store_cache(session, (size_t)n_atoms, positions_ang,
                               atomic_numbers, grad_h_bohr, evaluated.energy_h,

@@ -17,7 +17,12 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
 | ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
-| ~CPMDCError~ | failure from the library or from loading it |
+| ~CPMDCError~ | failure from the library or from loading it; ~CPMDCError.code~ is the library code, or 0 when Python rejected the call |
+| ~CPMDCInvalidArgument~ | null handle or a bad buffer; ~CPMDCInvalidArgument.code~ is 1 |
+| ~CPMDCUnavailable~ | the backend is not linked or this build is the link stub; ~CPMDCUnavailable.code~ is 2 |
+| ~CPMDCUnsupportedPeriodicEmbedding~ | external charges with a periodic cell; ~CPMDCUnsupportedPeriodicEmbedding.code~ is 3 |
+| ~CPMDCEvaluationFailed~ | the evaluation produced no result; ~CPMDCEvaluationFailed.code~ is 4 |
+| ~CPMDCDeckExternalPotential~ | session charges with a deck ~EXTERNAL POTENTIAL~; ~CPMDCDeckExternalPotential.code~ is 5 |
 | ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
 | ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
 | ~ConstantCutoff~ | frozen dataclass of the constant-cutoff kinetic functional, ~ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)~; a value that is not finite and positive raises ~ValueError~, and one that is not a number ~TypeError~ |
@@ -27,6 +32,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~Session~ | one ~CPMDCSession~ handle; ~constant_cutoff=~ takes what ~ConstantCutoff.coerce~ takes and calls ~cpmdc_session_set_constant_cutoff()~; ~schema~ is deprecated and ignored |
 | ~Session.energy_forces~ | one geometry, native units; a cell is encoded as ~ForceInput~ in process |
 | ~Session.calculate_au~ | one step through ~cpmdc_session_calculate_au()~ from Bohr positions, atomic numbers, and an optional cell in Bohr with one vector per row; returns the energy in Hartree, ~3N~ forces in Hartree/Bohr, and the nine-component row-major virial ~-dE/d(strain)~ in Hartree; C-contiguous ~float64~ inputs pass without a copy, and writable ~forces=~ and ~virial=~ buffers are filled in place |
+| ~Session.set_external_charges~ | set positions in Angstrom, charges in e, and optional Gaussian widths in Angstrom for subsequent calls; empty arrays clear them |
+| ~Session.external_charge_forces_au~ | forces on the requested number of MM charges after the last step, Hartree/Bohr |
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |
@@ -50,7 +57,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~CPMDCCalculator.reset~ | clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | close that potential; the next step opens a new one |
-| ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message |
+| ~cpmdc.ase.CalculationFailed~ | a step that the library rejected; both ASE's ~CalculationFailed~ and ~CPMDCError~, with the step's working directory in the message and the library code in ~CPMDCError.code~ |
 | ~cpmdc.ipi.Driver~ | answer i-PI protocol requests from one ~Session~; ~params~, the fixed ~atomic_numbers~, then the ~library~, ~cluster~, and ~log~ keywords |
 | ~Driver.compute~ | one step from ~3N~ Bohr positions and the wire's cell ~h~ (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial ~-dE/d(strain)~ in Hartree |
 | ~Driver.serve~ | answer a connected socket until ~EXIT~ or a closed connection; return the step count |
@@ -60,7 +67,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
 | ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
 | ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
-| ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~ keywords |
+| ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~, optional ~qm_types~, and ~mm_width_angstrom~ keywords; types outside ~qm_types~ provide LAMMPS ~q~ values as external charges |
 | ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CPMDCError~ for a failed step |
 | ~FixExternal.close~ | close the session and remove the fixes it added; also on leaving a ~with~ block |
 | ~FixExternal.error~, ~energy~, ~evaluations~ | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |
@@ -68,7 +75,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.lammps.UNIT_STYLES~ | LAMMPS unit style to (length per Bohr, energy per Hartree) for ~metal~, ~real~, ~electron~ |
 | ~cpmdc.lammps.unit_factors~ | that pair for one style; ~ValueError~ for any other |
 | ~cpmdc.lammps.box_rows~ | ~boxlo~, ~boxhi~, ~xy~, ~yz~, ~xz~ to the 3x3 cell with one lattice vector per row |
-| ~cpmdc.gromacs.qmi_input~ | text of the grompp ~-qmi~ file: ~params~, then ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~ (nm), ~ewald_precision~, ~qm_ranks~ (~"ALL"~ or 1), ~charge~, ~multiplicity~ keywords; ~ValueError~ for a value the library would refuse |
+| ~cpmdc.gromacs.qmi_input~ | text of the grompp ~-qmi~ file: ~params~, then ~cell~, ~embedding~ (including ~ELECTROSTATIC~), ~qm_charges~, ~mm_width~ (nm), ~ewald_rcut~, ~ewald_precision~, ~qm_ranks~ (~"ALL"~ or 1), ~charge~, ~multiplicity~ keywords; ~ValueError~ for a value the library would refuse |
 | ~cpmdc.gromacs.write_qmi~ | write that text to a path and return it |
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | ~type_numbers(elements, n_types)~: atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence; ~ValueError~ unless there are ~n_types~ |
@@ -87,7 +94,10 @@ covers ~cpmdc.lammps~.
 
 | Condition | Raised |
 |-----------+--------|
-| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CPMDCError~ |
+| empty or invalid ~CPMDParams~, library not found, library call failed, closed ~Session~ | ~CPMDCError~, or the subclass whose ~code~ matches ~cpmdc_last_error_code()~ |
+| ~Session.external_charge_forces_au~ before a successful step, with the wrong count, or on a null buffer | ~CPMDCInvalidArgument~ |
+| external charges and a periodic cell | ~CPMDCUnsupportedPeriodicEmbedding~ |
+| external charges and a deck ~EXTERNAL POTENTIAL~ or ~EXTERNAL POTENTIAL ADD~ | ~CPMDCDeckExternalPotential~ |
 | a ~constant_cutoff~ whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw ~&SYSTEM~ block or with ~system.constantCutoff~, or on a library without ~cpmdc_session_set_constant_cutoff~ | ~CPMDCError~ |
 | a ~CPMDCCalculator~ step that the library rejects | ~cpmdc.ase.CalculationFailed~, which is a ~CPMDCError~ and ASE's ~CalculationFailed~ |
 | missing ~params~ file | ~FileNotFoundError~ |

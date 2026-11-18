@@ -43,6 +43,19 @@ cell, and the ~CPMDParams~ deck sets the box.
 A box with some axes periodic and others not is refused; ~FixExternal~ raises
 ~ValueError~.
 
+* Electrostatic QM/MM embedding
+Both routes keep their whole-system behavior by default.
+For ~FixExternal~, pass ~qm_types=[...]~; other atom types provide their LAMMPS
+~q~ values as Gaussian MM charges. ~mm_width_angstrom~ defaults to 0.30.
+For the plugin, write ~NULL~ for each MM type, for example
+~pair_style cpmdc params.bin width 0.30~ followed by
+~pair_coeff * * O H NULL~.
+
+Element entries are QM and ~NULL~ entries use the per-atom charge. The energy
+includes the QM--MM electrostatic coupling and forces are returned to both
+groups. Electrostatic embedding is currently isolated only; a periodic box is
+rejected instead of using an incomplete image convention.
+
 * Virial and pressure
 cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.
 LAMMPS' global virial of a pair style or of ~fix_modify virial yes~ has the same

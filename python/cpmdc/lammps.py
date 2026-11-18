@@ -161,6 +161,11 @@ class FixExternal:
     comm:
         The ``mpi4py`` communicator of the lammps object, for more than one
         rank. ``MPI.COMM_WORLD`` is used when omitted.
+    qm_types:
+        Optional LAMMPS atom types evaluated as QM. Other atoms provide their
+        ``q`` values as Gaussian external charges.
+    mm_width_angstrom:
+        Gaussian MM-charge width (default 0.30 Angstrom).
     """
 
     def __init__(
@@ -173,12 +178,20 @@ class FixExternal:
         create: bool = True,
         library: str | os.PathLike[str] | None = None,
         comm: Any = None,
+        qm_types: Sequence[int] | None = None,
+        mm_width_angstrom: float = 0.30,
     ) -> None:
         self._lmp = lmp
         self.fix_id = fix_id
         self.units = str(lmp.extract_global("units"))
         self.length_per_bohr, self.energy_per_hartree = unit_factors(self.units)
         self.type_numbers = type_numbers(elements, int(lmp.extract_global("ntypes")))
+        self.qm_types = None if qm_types is None else frozenset(int(v) for v in qm_types)
+        if self.qm_types is not None and not self.qm_types:
+            raise ValueError("qm_types must contain at least one atom type")
+        if not np.isfinite(mm_width_angstrom) or mm_width_angstrom <= 0.0:
+            raise ValueError("mm_width_angstrom must be finite and positive")
+        self.mm_width_angstrom = float(mm_width_angstrom)
         periodicity = list(lmp.extract_box()[5])
         if any(periodicity) and not all(periodicity):
             names = [axis for axis, flag in zip("xyz", periodicity) if not flag]
@@ -253,7 +266,13 @@ class FixExternal:
         return xu
 
     def _evaluate(
-        self, tags: np.ndarray, xu: np.ndarray, numbers: np.ndarray, rows: np.ndarray
+        self,
+        tags: np.ndarray,
+        xu: np.ndarray,
+        numbers: np.ndarray,
+        rows: np.ndarray,
+        charges: np.ndarray | None = None,
+        qm_mask: np.ndarray | None = None,
     ) -> tuple[float, np.ndarray, np.ndarray]:
         """Rank 0: energy, forces in tag order, and the 3x3 virial, LAMMPS units."""
         natoms = tags.size
@@ -267,23 +286,55 @@ class FixExternal:
         positions[index] = xu / self.length_per_bohr
         ordered = np.empty(natoms, dtype=np.int32)
         ordered[index] = numbers
-        composition = tuple(sorted(ordered.tolist()))
+        qm_ordered = np.ones(natoms, dtype=bool)
+        charge_ordered = np.zeros(natoms)
+        if qm_mask is not None:
+            qm_ordered[index] = qm_mask
+            if charges is None:
+                raise CPMDCError("LAMMPS atom charges are unavailable")
+            charge_ordered[index] = charges
+            if self.periodic and np.any(~qm_ordered):
+                raise CPMDCError("periodic electrostatic embedding is unsupported")
+        if not np.any(qm_ordered):
+            raise CPMDCError("qm_types selects no QM atoms")
+        qm_positions = positions[qm_ordered]
+        qm_numbers = ordered[qm_ordered]
+        composition = tuple(sorted(qm_numbers.tolist()))
         if self._session is None or (
             self._composition is not None and composition != self._composition
         ):
             if self._session is not None:
                 self._session.close()
             self._session = Session(self._blob, library=self._library)
-        if self._forces.size != 3 * natoms:
-            self._forces = np.zeros(3 * natoms)
+        nqm = int(qm_ordered.sum())
+        if self._forces.size != 3 * nqm:
+            self._forces = np.zeros(3 * nqm)
         cell = rows / self.length_per_bohr if self.periodic else None
+        if np.any(~qm_ordered):
+            mm_charges = charge_ordered[~qm_ordered]
+            self._session.set_external_charges(
+                positions[~qm_ordered].reshape(-1) * BOHR_TO_ANGSTROM,
+                mm_charges,
+                np.full(mm_charges.size, self.mm_width_angstrom),
+            )
         energy, _, _ = self._session.calculate_au(
-            positions, ordered, cell, forces=self._forces, virial=self._virial
+            qm_positions, qm_numbers, cell, forces=self._forces, virial=self._virial
         )
         self._composition = composition
         force_unit = self.energy_per_hartree / self.length_per_bohr
-        forces = self._forces.reshape(natoms, 3)[index] * force_unit
-        virial = self._virial.reshape(3, 3) * self.energy_per_hartree
+        ordered_forces = np.zeros((natoms, 3))
+        ordered_forces[qm_ordered] = self._forces.reshape(nqm, 3)
+        if np.any(~qm_ordered):
+            ordered_forces[~qm_ordered] = np.asarray(
+                self._session.external_charge_forces_au(int((~qm_ordered).sum()))
+            ).reshape(-1, 3)
+            virial_au = 0.5 * (
+                positions.T @ ordered_forces + ordered_forces.T @ positions
+            )
+        else:
+            virial_au = self._virial.reshape(3, 3)
+        forces = ordered_forces[index] * force_unit
+        virial = virial_au * self.energy_per_hartree
         return energy * self.energy_per_hartree, forces, virial
 
     def _step(self, nlocal: int, tag: Any, x: Any, f: Any) -> None:
@@ -293,12 +344,22 @@ class FixExternal:
         tags = np.asarray(tag[:nlocal], dtype=np.int64)
         types = np.asarray(lmp.numpy.extract_atom("type")[:nlocal], dtype=np.int64)
         numbers = self.type_numbers[types - 1]
+        charges = None
+        qm_mask = None
+        if self.qm_types is not None:
+            qm_mask = np.isin(types, tuple(self.qm_types))
+            charge_data = lmp.numpy.extract_atom("q")
+            if charge_data is None:
+                raise CPMDCError("LAMMPS atom style does not provide charges")
+            charges = np.asarray(charge_data[:nlocal], dtype=float)
         xu = self._unwrapped(nlocal, x, rows)
         if self._comm is None:
-            energy, forces, virial = self._evaluate(tags, xu, numbers, rows)
+            energy, forces, virial = self._evaluate(
+                tags, xu, numbers, rows, charges, qm_mask
+            )
         else:
             comm = self._comm
-            parts = comm.gather((tags, xu, numbers), root=0)
+            parts = comm.gather((tags, xu, numbers, charges, qm_mask), root=0)
             outcome: tuple[Any, ...]
             shares: list[Any] | None = None
             if self._root:
@@ -309,6 +370,12 @@ class FixExternal:
                         np.concatenate([part[1] for part in parts]),
                         np.concatenate([part[2] for part in parts]),
                         rows,
+                        None
+                        if parts[0][3] is None
+                        else np.concatenate([part[3] for part in parts]),
+                        None
+                        if parts[0][4] is None
+                        else np.concatenate([part[4] for part in parts]),
                     )
                     outcome = ("", energy, virial)
                     shares = []

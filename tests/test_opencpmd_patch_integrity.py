@@ -64,6 +64,10 @@ PATCHES = {
         "src/embed_ctrl.mod.F90",
         "src/rwfopt_utils.mod.F90",
     ),
+    "opencpmd_external_charges.patch": (
+        "src/efld.mod.F90",
+        "src/eextern_utils.mod.F90",
+    ),
     "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
 }
 

@@ -153,6 +153,13 @@ optimisation.
 | ~int cpmdc_available(void)~ | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
 | ~const char *cpmdc_last_error(void)~ | per-thread text of the last failing public call, empty after a success |
+| ~CPMDCErrorCode cpmdc_last_error_code(void)~ | machine-readable code for that failure; periodic electrostatic embedding is ~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~, and a deck ~EXTERNAL POTENTIAL~ combined with session charges is ~CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL~ |
+
+The complete typed-error set is ~CPMDC_ERROR_NONE~,
+~CPMDC_ERROR_INVALID_ARGUMENT~, ~CPMDC_ERROR_UNAVAILABLE~,
+~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~,
+~CPMDC_ERROR_EVALUATION_FAILED~, and
+~CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL~.
 
 ~cpmdc_last_error()~ is written by ~cpmdc_params_method()~,
 ~cpmdc_set_params()~,
@@ -166,8 +173,10 @@ point, ~cpmdc_session_calculate_au()~ among them.
 When the call returns ~CPMDCResult~, the text matches ~message~, including a
 missing pseudopotential directory.
 Snapshot readers (~cpmdc_last_stress()~ and the other
-~cpmdc_last_*~ / ~cpmdc_session_last_*~ getters) do not write it: -1 means the
-snapshot is absent or the output pointer is null.
+~cpmdc_last_*~ / ~cpmdc_session_last_*~ getters) do not write it, except
+~cpmdc_session_last_external_charge_forces()~, which writes the code and the
+text on every failure and clears both on success. For the other readers, -1
+means the snapshot is absent or the output pointer is null.
 ~cpmdc_adopted_comm()~ and ~cpmdc_capabilities_result()~ do not write it either.
 A capabilities return of -1 is the size query.
 
@@ -226,6 +235,8 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)~ | resolve a ~PotentialConfig~ like ~cpmdc_configure()~, then create a session |
 | ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters; -1 once the session has accepted a topology |
 | ~int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)~ | add ~CONSTANT CUTOFF~ to the rendered ~&SYSTEM~; ~cutoff_ry <= 0~ removes it; same topology rule |
+| ~int cpmdc_session_set_external_charges(CPMDCSession *s, size_t n, const double *positions_ang, const double *charges_e, const double *widths_ang)~ | copy ~n~ Gaussian MM charges for subsequent calls; widths may be ~NULL~ for the 0.30 Angstrom default; ~n == 0~ clears them |
+| ~int cpmdc_session_last_external_charge_forces(const CPMDCSession *s, double *forces_h_bohr, size_t forces_len)~ | copy the ~3 * n~ MM forces from the last successful evaluation and clear ~cpmdc_last_error()~; -1 writes ~CPMDC_ERROR_INVALID_ARGUMENT~ for a null session, a missing result, the wrong length, or a null buffer |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
 | ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | the next evaluations start from the orbitals stored under ~key~; -1 for a ~NULL~ session |
@@ -248,6 +259,20 @@ A later step with a different count or composition fails with
 ~topology change requires a new session~ before CPMD runs.
 A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+External charges contribute
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic potential.
+Inside \(\sigma \epsilon^{1/4}\) of a charge, where \(\epsilon\) is double-precision
+machine epsilon, that formula is replaced by its analytic value at the origin.
+The direct expression subtracts two terms of size \(O(1/r^2)\), and below this
+fraction of the Gaussian width the cancellation no longer resolves their
+\(O(1/\sigma^3)\) difference.
+The total energy includes electron--MM and ion--MM coupling; QM and MM force
+arrays are both ~-dE/dR~. A periodic step with external charges fails with the
+typed error above because periodic images are not yet implemented.
+Session charges and a deck-defined ~EXTERNAL POTENTIAL~ or
+~EXTERNAL POTENTIAL ADD~ are mutually exclusive.
+An evaluation that requests both fails with
+~CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL~ instead of replacing the deck potential.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
 of every atom changes neither the energy nor the forces (see ~CPMDC_RECENTER~ in [[file:environment.org][environment variables]]).

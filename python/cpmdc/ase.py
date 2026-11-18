@@ -304,7 +304,9 @@ class CPMDCCalculator(Calculator):
                 evaluated = potential.evaluate(self.atoms.get_positions(), numbers, cell)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
-            raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
+            raise CalculationFailed(
+                f"cpmdc could not evaluate the step in {where}: {exc}", exc.code
+            ) from exc
         self._composition = composition
         energy = float(evaluated["energy"])
         self.results["energy"] = energy
