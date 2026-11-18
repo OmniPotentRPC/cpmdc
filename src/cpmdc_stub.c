@@ -37,6 +37,17 @@ int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes) {
   return -1;
 }
 
+int cpmdc_params_method(const void *params_capnp,
+                        size_t params_capnp_size_bytes,
+                        CPMDCMethodInfo *out) {
+  (void)params_capnp;
+  (void)params_capnp_size_bytes;
+  if (out)
+    memset(out, 0, sizeof(*out));
+  stub_store_error("cpmdc_params_method");
+  return -1;
+}
+
 int cpmdc_configure(const void *config_capnp,
                     size_t config_capnp_size_bytes) {
   (void)config_capnp;

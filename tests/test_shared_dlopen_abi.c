@@ -33,6 +33,7 @@ static void *required_symbol(void *handle, const char *name) {
   ((type)required_symbol((handle), (name)))
 
 static const char *const required_abi_symbols[] = {
+    "cpmdc_params_method",
     "cpmdc_set_params",
     "cpmdc_energy_gradient",
     "cpmdc_energy",

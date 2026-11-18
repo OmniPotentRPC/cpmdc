@@ -23,6 +23,7 @@ cpmdc_last_multi_state_energies
 cpmdc_last_property_snapshot
 cpmdc_last_rank_spread
 cpmdc_last_stress
+cpmdc_params_method
 cpmdc_potential_result_size_for_force_input
 cpmdc_session_calculate_au
 cpmdc_session_calculate_forces

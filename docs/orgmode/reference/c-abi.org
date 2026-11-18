@@ -7,7 +7,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 45 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 47 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -127,6 +127,7 @@ Each snapshot struct starts with ~int valid~, set by a successful evaluation.
 | ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units |
 | ~CPMDCStressTensor~ | row-major ~values[9]~, ~paiu/omega~ | Hartree/Bohr^3 |
 | ~CPMDCRankSpread~ | ~ranks~, ~energy_h~, ~gradient_h_bohr~ (see [[*Results of the last evaluation][Results of the last evaluation]]) | Hartree, Hartree/Bohr |
+| ~CPMDCMethodInfo~ | effective ~functional[64]~, ~charge~, and ~multiplicity~ decoded from ~CPMDParams~ | text and integers |
 
 With OpenCPMD linked, ~CPMDCEnergyComponents~ fills ~etot~, ~ekin~, ~epseu~,
 ~enl~, ~eht~, and ~exc~; the other fields stay zero.
@@ -153,7 +154,8 @@ optimisation.
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
 | ~const char *cpmdc_last_error(void)~ | per-thread text of the last failing public call, empty after a success |
 
-~cpmdc_last_error()~ is written by ~cpmdc_set_params()~,
+~cpmdc_last_error()~ is written by ~cpmdc_params_method()~,
+~cpmdc_set_params()~,
 ~cpmdc_configure()~, ~cpmdc_bind_calculator()~, ~cpmdc_adopt_calculator_comm()~,
 ~cpmdc_session_create()~,
 ~cpmdc_session_set_params()~, ~cpmdc_session_select_orbitals()~,
@@ -187,6 +189,7 @@ These calls configure the process-wide state that the global array calls use.
 
 | Function | Behaviour |
 |----------+-----------|
+| ~int cpmdc_params_method(const void *params, size_t size, CPMDCMethodInfo *out)~ | decode the effective functional, charge, and multiplicity without applying the deck; 0 or -1 |
 | ~int cpmdc_set_params(const void *params, size_t size)~ | decode ~CPMDParams~, render the deck, apply it; 0 or -1 |
 | ~int cpmdc_configure(const void *config, size_t size)~ | resolve a ~PotentialConfig~ and apply the result like ~cpmdc_set_params()~; 0 or -1 |
 
