@@ -523,5 +523,11 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_copy_orbitals_seeds_target_key),
       cmocka_unit_test(test_copy_and_select_keep_their_contracts),
   };
-  return cmocka_run_group_tests(tests, NULL, NULL);
+  int failed = cmocka_run_group_tests(tests, NULL, NULL);
+  /* `extrapolate-wfn` prints this line when the embed comparison ran.
+   * The OpenCPMD job greps for it. A reference run skips the embed
+   * cases and must not print it. */
+  if (cpmdc_available())
+    printf("PASS=%d\n", failed == 0 ? 1 : 0);
+  return failed;
 }

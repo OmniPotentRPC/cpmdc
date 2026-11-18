@@ -209,9 +209,11 @@ jobs:
           echo "CPMDC_PSEUDO_DIR=${RUNNER_TEMP}/pp" >> "$GITHUB_ENV"
       - name: cpmdc with OpenCPMD
         run: pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build-cpmd -Dwith_tests=true -Dwith_cpmd=true -Dcpmd_root="${RUNNER_TEMP}/opencpmd-build" && meson compile -C build-cpmd'
-      - name: EXTRAPOLATE WFN against cpmd.x, not skipped
+      - name: OpenCPMD embed regressions against cpmd.x, not skipped
         run: |
           pixi run meson test -C build-cpmd extrapolate-wfn --print-errorlogs
+          grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
+          pixi run meson test -C build-cpmd session-orbital-keys --print-errorlogs
           grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
 
   gromacs-qmmm:
