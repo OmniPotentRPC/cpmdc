@@ -233,7 +233,8 @@ Each evaluates when the server's ~POSDATA~ message arrives and sends the
 stored result when ~GETFORCE~ asks for it.
 ~cpmdc-ipi~ evaluates through ~Session.energy_forces()~ in ~python/cpmdc/ipi.py~,
 which calls ~cpmdc_session_energy_forces()~ without a cell or
-~cpmdc_session_calculate_forces()~ when the step sends a cell.
+~cpmdc_session_calculate_forces()~ when the step sends a cell that is not all
+zero and ~--cluster~ is not set.
 ~cpmdc-ipi-c~ in ~tools/cpmdc_ipi.c~ calls ~cpmdc_session_calculate_au()~
 directly with Bohr arrays and the virial output.
 
