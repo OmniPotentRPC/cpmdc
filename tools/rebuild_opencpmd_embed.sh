@@ -24,7 +24,10 @@ fi
 #   initrun_driver.mod.o   opencpmd_embed_geometry.patch
 #   rwfopt_utils.mod.o     opencpmd_embed_rwfopt.patch,
 #                          opencpmd_embed_extrapolate.patch
-#   ddipo_utils.mod.o      opencpmd_embed_dipole.patch
+#   ddipo_utils.mod.o      opencpmd_embed_dipole.patch (adds ddipo_embed;
+#                          ddipo keeps its argument list, so proppt_utils,
+#                          prcpmd_utils, mm_mdshop_cp_utils and the other
+#                          callers keep their objects)
 #   wfopts_utils.mod.o     opencpmd_embed_dipole.patch; reads ddipo_utils
 #   updwf_utils.mod.o      opencpmd_converged_state.patch
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch

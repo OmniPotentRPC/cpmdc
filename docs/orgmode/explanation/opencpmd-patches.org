@@ -126,15 +126,31 @@ return stale state.
 
 The dipole patch adds an embed-only request to ~wfopts_utils~.
 After a converged periodic Gamma-point, non-broken-symmetry evaluation,
-~rwfopt~ calls ~ddipo~ when the deck requests ~DIPOLE DYNAMICS~ or
+~wfopts~ calls ~ddipo_embed~ when the deck requests ~DIPOLE DYNAMICS~ or
 ~PROP / DIPOLE MOMENT BERRY~.
-The embed call forces the dipole matrices to be recomputed even when a Wannier
+~ddipo_embed~ is a new entry point of ~ddipo_utils~ that sets a module flag and
+calls ~ddipo~ with its original argument list.
+The flag forces the dipole matrices to be recomputed even when a Wannier
 sampling interval would reuse them.
+~ddipo~ itself keeps the argument list that its ten callers (~mdclas~,
+~mdmain~, ~mdshop_cp~, ~mm_mdmain~, ~mm_mdshop_cp~, ~pi_md~, ~pi_npt_cpmd~,
+~prbomd~, ~prcpmd~, and ~proppt~) were compiled with, so an already built tree needs only
+~ddipo_utils~ and ~wfopts_utils~ recompiled, which
+~tools/rebuild_opencpmd_embed.sh~ does.
+An optional argument on ~ddipo~ would be read by those callers from a
+register they never set.
 It snapshots ~moment%dmom~ and marks that evaluation valid.
 All other evaluations clear validity.
 After an embed teardown, ~ddipo~ frees its saved maps and starts from the new
 basis.
 ~cpmd.x~ leaves the embed request false and retains its original call paths.
+
+The electronic part is a Berry-phase quantity.
+The dipole is defined only for a neutral cell, and only modulo the lattice
+quantum: moving one electron through a lattice vector changes it by that
+vector.
+The patch publishes what ~ddipo~ computes and does not unwrap that jump or
+check the net charge.
 
 * Nuclear forces from repeated SCF calls
 A live OpenCPMD link evaluates each geometry with fixed nuclei

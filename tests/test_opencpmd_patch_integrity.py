@@ -263,17 +263,26 @@ def assert_embed_dipole(patch: Path) -> None:
         "PUBLIC :: embed_get_dipole",
         "PUBLIC :: embed_set_dipole_snapshot",
         "embed_dipole_valid = .FALSE.",
-        "CALL ddipo(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center,.TRUE.)",
+        "CALL ddipo_embed(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center)",
+        "PUBLIC :: ddipo_embed",
+        "SUBROUTINE ddipo_embed(tau0,c0,cm,c2,sc0,nstate,center)",
         "embed_dipole = moment%dmom",
         ".NOT.isos1%tclust",
         "(cntl%tdipd .OR. prop1%dberry)",
         "USE embed_ctrl,                      ONLY: embed_teardowns",
         "IF (ALLOCATED(mapful)) DEALLOCATE(mapful)",
         "embed_seen = embed_teardowns",
-        "wannier_recomput = wannier_recomput .OR. force_recompute",
+        "wannier_recomput = wannier_recomput .OR. embed_force_recompute",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
+    # ddipo keeps the argument list that its other callers were compiled with.
+    for needle in ("force_recompute)", "PRESENT(force_recompute)", "OPTIONAL"):
+        if any(
+            line.startswith("+") and needle in line and "embed_force_recompute" not in line
+            for line in text.splitlines()
+        ):
+            raise AssertionError(f"{patch.name}: ddipo must not gain an argument ({needle})")
 
 
 def assert_constant_cutoff_precon(patch: Path) -> None:
