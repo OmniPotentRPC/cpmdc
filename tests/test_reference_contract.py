@@ -23,6 +23,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 PAGES = {
@@ -371,20 +372,44 @@ def test_field_table_with_nonstandard_intro() -> None:
         "| ~alpha~ | ~int~ | first member |\n"
     )
     documented = documented_struct_fields(text, {"DemoStruct"})
-    assert ("DemoStruct", "alpha") in documented
+    assert documented == {("DemoStruct", "alpha")}
 
 
 def test_bogus_field_in_nonstandard_intro_table() -> None:
-    text = (
+    valid_page = (
         "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
         "| Field | Type | Meaning |\n"
         "|-------+------+---------|\n"
         "| ~alpha~ | ~int~ | first member |\n"
-        "| ~bogus~ | ~int~ | not in the header |\n"
     )
-    documented = documented_struct_fields(text, {"DemoStruct"})
-    expected = {("DemoStruct", "alpha")}
-    assert ("DemoStruct", "bogus") in documented - expected
+    bogus_page = valid_page + "| ~bogus~ | ~int~ | not in the header |\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "include").mkdir(parents=True)
+        (root / "docs/orgmode/reference").mkdir(parents=True)
+        for rel in PAGES:
+            (root / rel).write_text("", encoding="utf-8")
+        (root / "include/cpmdc.h").write_text(
+            "typedef struct DemoStruct { int alpha; } DemoStruct;\n",
+            encoding="utf-8",
+        )
+        (root / "docs/orgmode/index.org").write_text(
+            "\n".join(f"   reference/{stem}" for stem in sorted(set(PAGES.values())))
+            + "\n",
+            encoding="utf-8",
+        )
+        (root / "docs/orgmode/reference/pwscale.org").write_text("", encoding="utf-8")
+        c_abi = root / "docs/orgmode/reference/c-abi.org"
+        c_abi.write_text(valid_page, encoding="utf-8")
+        clean_failures: list[str] = []
+        check_reference(root, clean_failures)
+        assert not clean_failures, clean_failures
+        c_abi.write_text(bogus_page, encoding="utf-8")
+        failures: list[str] = []
+        check_reference(root, failures)
+        assert failures == [
+            "reference/c-abi.org: table documents nonexistent struct field DemoStruct.bogus"
+        ]
 
 
 def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
@@ -425,10 +450,22 @@ def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
     ) == {("ColumnStruct", "alpha")}
 
 
+def run_self_tests() -> None:
+    tests = [
+        obj
+        for name, obj in globals().items()
+        if name.startswith("test_") and callable(obj)
+    ]
+    assert tests, "no test_* functions discovered"
+    for test in tests:
+        test()
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: test_reference_contract.py SOURCE_ROOT", file=sys.stderr)
         return 2
+    run_self_tests()
     root = Path(sys.argv[1])
     failures: list[str] = []
     public = check_reference(root, failures)
