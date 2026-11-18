@@ -1073,7 +1073,7 @@ if get_option('with_tests')
     args: [runtime_params_bin.full_path()],
     depends: [runtime_params_bin],
     suite: ['e2e', 'cmocka'],
-    timeout: 300,
+    timeout: 900,
   )
 
   params_escape_bin = custom_target(

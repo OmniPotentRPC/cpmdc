@@ -28,6 +28,7 @@ cpmdc_session_calculate_au
 cpmdc_session_calculate_forces
 cpmdc_session_calculate_result
 cpmdc_session_configure
+cpmdc_session_copy_orbitals
 cpmdc_session_create
 cpmdc_session_create_from_config
 cpmdc_session_destroy

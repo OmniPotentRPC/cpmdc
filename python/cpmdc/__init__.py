@@ -437,6 +437,15 @@ def _load(path: Path) -> ctypes.CDLL:
         ctypes.POINTER(ctypes.c_double),
     ]
     lib.cpmdc_session_calculate_au.restype = ctypes.c_int
+    lib.cpmdc_session_select_orbitals.argtypes = [ctypes.c_void_p, ctypes.c_longlong]
+    lib.cpmdc_session_select_orbitals.restype = ctypes.c_int
+    if hasattr(lib, "cpmdc_session_copy_orbitals"):
+        lib.cpmdc_session_copy_orbitals.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_longlong,
+            ctypes.c_longlong,
+        ]
+        lib.cpmdc_session_copy_orbitals.restype = ctypes.c_int
     lib.cpmdc_adopt_calculator_comm.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
     lib.cpmdc_adopt_calculator_comm.restype = ctypes.c_int
     lib.cpmdc_session_last_stress.argtypes = [
@@ -619,6 +628,28 @@ class Session:
         if status != 0:
             raise CPMDCError(self._error() or "evaluation failed")
         return float(energy.value), forces, virial
+
+    def select_orbitals(self, key: int) -> None:
+        """Select the orbital key this session evaluates under."""
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        status = self._lib.cpmdc_session_select_orbitals(self._handle, int(key))
+        if status != 0:
+            raise CPMDCError(self._error() or "cpmdc_session_select_orbitals failed")
+
+    def copy_orbitals(self, from_key: int, to_key: int) -> None:
+        """Copy stored orbitals from one key to another."""
+        if not getattr(self, "_handle", None):
+            raise CPMDCError("the session is closed; open a new Session")
+        copy_fn = getattr(self._lib, "cpmdc_session_copy_orbitals", None)
+        if copy_fn is None:
+            raise CPMDCError(
+                "this libcpmdc has no cpmdc_session_copy_orbitals; "
+                "use a library built from cpmdc with orbital copy support"
+            )
+        status = copy_fn(self._handle, int(from_key), int(to_key))
+        if status != 0:
+            raise CPMDCError(self._error() or "cpmdc_session_copy_orbitals failed")
 
     def close(self) -> None:
         """Destroy the session handle. A second close does nothing."""

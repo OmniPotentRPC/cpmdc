@@ -27,6 +27,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~Session~ | one ~CPMDCSession~ handle; ~constant_cutoff=~ takes what ~ConstantCutoff.coerce~ takes and calls ~cpmdc_session_set_constant_cutoff()~; ~schema~ is deprecated and ignored |
 | ~Session.energy_forces~ | one geometry, native units; a cell is encoded as ~ForceInput~ in process |
 | ~Session.calculate_au~ | one step through ~cpmdc_session_calculate_au()~ from Bohr positions, atomic numbers, and an optional cell in Bohr with one vector per row; returns the energy in Hartree, ~3N~ forces in Hartree/Bohr, and the nine-component row-major virial ~-dE/d(strain)~ in Hartree; C-contiguous ~float64~ inputs pass without a copy, and writable ~forces=~ and ~virial=~ buffers are filled in place |
+| ~Session.select_orbitals~ | call ~cpmdc_session_select_orbitals()~ for this session |
+| ~Session.copy_orbitals~ | call ~cpmdc_session_copy_orbitals()~ to copy a stored orbital key into another key |
 | ~Session.version~ | ~cpmdc/~ and the version string |
 | ~Session.abi_version~ | numeric ABI generation |
 | ~Session.available~ | true when OpenCPMD is linked, false for the reference evaluator |

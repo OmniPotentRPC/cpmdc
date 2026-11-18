@@ -79,11 +79,19 @@ ran last on that calculator, which for a ring is a neighbouring bead rather than
 the same bead one step earlier.
 ~cpmdc_session_select_orbitals()~ names the calculation the next evaluations
 belong to.
+The call records the key, and the evaluation selects it.
+A key named and then replaced before an evaluation parks nothing.
 ~opencpmd_embed_rwfopt.patch~ keeps a table of stored ~c0~ copies, one per key,
 beside the store ~rwfopt~ restores from.
 Selecting another key parks the converged ~c0~ under the key being left and
 moves the copy parked under the new key into the store.
 A partial copy from an unconverged pass is not parked.
+~cpmdc_session_copy_orbitals()~ duplicates one key's converged orbitals, and
+the geometry they converged at, into another key, replacing that key's
+previous copy.
+The selected key stays selected.
+A key with no converged orbitals is refused.
+Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
 A basis change frees the table with the store, since every copy in it has the

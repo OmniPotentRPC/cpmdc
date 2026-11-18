@@ -75,6 +75,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
@@ -453,6 +454,26 @@ CONTAINS
     IF (key == 0_c_long_long) CONTINUE
 #endif
   END SUBROUTINE
+
+  ! Duplicate from_key's converged orbitals into to_key. 0 on success, -1
+  ! when from_key has no converged orbitals. Without OpenCPMD there is no
+  ! orbital store; the session layer treats that as nothing to copy.
+  FUNCTION cpmdc_embed_copy_orbitals(from_key, to_key) RESULT(rc) &
+      BIND(C, NAME='cpmdc_embed_copy_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_copy_orbital_slot
+#endif
+    INTEGER(c_long_long), INTENT(IN), VALUE :: from_key, to_key
+    INTEGER(c_int) :: rc
+#if defined(CPMDC_HAS_CPMD)
+    rc = MERGE(0_c_int, -1_c_int, embed_copy_orbital_slot( &
+         INT(from_key, KIND=SELECTED_INT_KIND(18)), &
+         INT(to_key, KIND=SELECTED_INT_KIND(18))))
+#else
+    rc = 0_c_int
+    IF (from_key /= to_key) rc = 0_c_int
+#endif
+  END FUNCTION
 
   ! Keys with parked orbitals in this process, the selected key excluded.
   FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &

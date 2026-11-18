@@ -145,6 +145,15 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
   return -1;
 }
 
+int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
+                                long long to_key) {
+  (void)session;
+  (void)from_key;
+  (void)to_key;
+  stub_store_error("cpmdc_session_copy_orbitals");
+  return -1;
+}
+
 CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const double *positions_ang,
                                  const int *atomic_numbers) {
