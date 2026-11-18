@@ -4,7 +4,7 @@ PROGRAM test_warm_selector
   USE, INTRINSIC :: iso_c_binding, ONLY: c_double, c_int
   IMPLICIT NONE
   REAL(real_8) :: cell(9), geo(3), dist
-  INTEGER :: source
+  INTEGER :: source, nslots
   INTEGER(embed_key_kind) :: donor
   COMPLEX(real_8) :: orbitals(1,1,1)
   cell = [4D0,0D0,0D0, 0D0,5D0,0D0, 0D0,0D0,6D0]
@@ -49,6 +49,74 @@ PROGRAM test_warm_selector
   geo = [-5.375D0,-2.5D0,-3.125D0]
   CALL choose(.TRUE., 3.95D0)
   IF (source /= 0 .OR. ABS(dist-SQRT(15.46625D0)) > 1D-12) ERROR STOP 8
+  ! Copy duplicates c0 and geometry. An occupied slot is replaced. The
+  ! live store and the selected key stay put. A key that never converged
+  ! is refused and adds no slot.
+  CALL embed_reset_warm_orbitals()
+  CALL embed_select_orbital_slot(21_embed_key_kind)
+  geo = [.1D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(21D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(22_embed_key_kind)
+  geo = [.4D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(22D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(23_embed_key_kind)
+  geo = [1D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(23D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  nslots = embed_orbital_slot_count()
+  IF (nslots /= 2) ERROR STOP 9
+  IF (.NOT. embed_copy_orbital_slot(21_embed_key_kind, 22_embed_key_kind)) &
+       ERROR STOP 10
+  IF (embed_orbital_slot_count() /= 2) ERROR STOP 11
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(23D0,0D0,real_8)) > 1D-12) ERROR STOP 12
+  IF (embed_copy_orbital_slot(99_embed_key_kind, 30_embed_key_kind)) ERROR STOP 13
+  IF (embed_orbital_slot_count() /= 2) ERROR STOP 14
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(23D0,0D0,real_8)) > 1D-12) ERROR STOP 15
+  CALL embed_select_orbital_slot(22_embed_key_kind)
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(21D0,0D0,real_8)) > 1D-12) ERROR STOP 16
+  geo = [.1D0, 0D0, 0D0]
+  CALL choose(.TRUE., .05D0)
+  IF (source /= 0 .OR. ABS(dist) > 1D-12) ERROR STOP 17
+  CALL embed_select_orbital_slot(21_embed_key_kind)
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(21D0,0D0,real_8)) > 1D-12) ERROR STOP 18
+  ! The selected key's orbitals live in the store, so a copy onto it
+  ! replaces that store and leaves the key selected.
+  CALL embed_reset_warm_orbitals()
+  CALL embed_select_orbital_slot(31_embed_key_kind)
+  geo = [.2D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(31D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(32_embed_key_kind)
+  geo = [.8D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(32D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  IF (.NOT. embed_copy_orbital_slot(31_embed_key_kind, 32_embed_key_kind)) &
+       ERROR STOP 19
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(31D0,0D0,real_8)) > 1D-12) ERROR STOP 20
+  CALL embed_select_orbital_slot(32_embed_key_kind)
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(31D0,0D0,real_8)) > 1D-12) ERROR STOP 21
+  CALL embed_select_orbital_slot(31_embed_key_kind)
+  orbitals = 0
+  CALL embed_restore_orbitals(orbitals)
+  IF (ABS(orbitals(1,1,1)-CMPLX(31D0,0D0,real_8)) > 1D-12) ERROR STOP 22
 CONTAINS
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic

@@ -417,7 +417,9 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
  * or the beads of a ring polymer, names each by a stable key, so each
  * starts from its own previous geometry instead of from its neighbour's.
  * Every rank of a calculator names the same key before the same
- * evaluation. A basis change clears every key's orbitals. A session that
+ * evaluation. The call records the key. The evaluation applies it, so a
+ * key that is named and then replaced before an evaluation does not park
+ * orbitals. A basis change clears every key's orbitals. A session that
  * never names a key keeps one stored copy.
  *
  * @return 0, or -1 when `session` is `NULL`.
@@ -427,13 +429,16 @@ CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key
 /**
  * @brief Copy stored orbitals from one key to another in this session.
  *
- * The call materializes the copy in the live orbital store of the active
- * calculator: after a successful copy, selecting `to_key` starts from the
- * same converged orbitals `from_key` held at copy time. The session keeps its
- * current selected key on return.
+ * The call duplicates the converged orbitals `from_key` held at copy time,
+ * and the geometry they converged at, into `to_key`, replacing whatever
+ * `to_key` already held. The selected key is unchanged. The live store is
+ * unchanged when another key owns it. Selecting `to_key` afterwards starts
+ * from that copy. Every rank of a calculator names the same keys, the same
+ * rule `cpmdc_session_select_orbitals()` has.
  *
- * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet, or
- * the copy cannot be completed. The reason is `cpmdc_last_error()`.
+ * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet,
+ * `from_key` has no converged orbitals, or the copy cannot be completed.
+ * The reason is `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
                                           long long to_key);

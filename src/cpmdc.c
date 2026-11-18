@@ -65,6 +65,7 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
+int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
 int cpmdc_embed_store_comm(int fcomm);
@@ -1739,16 +1740,14 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
   }
   session->has_orbital_key = 1;
   session->orbital_key = key;
-  if (session->embed_configured && g_active_session == session)
-    cpmdc_embed_select_orbitals(key);
+  /* Record only. The evaluation selects the key, so a key named and then
+   * replaced before an evaluation does not join the warm-start donors. */
   cpmdc_store_error("");
   return 0;
 }
 
 int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
                                 long long to_key) {
-  int had_key = 0;
-  long long saved_key = 0;
   if (!session) {
     cpmdc_store_error("null session");
     return -1;
@@ -1757,24 +1756,19 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
     cpmdc_store_error("no stored orbitals; evaluate at least once before copy");
     return -1;
   }
-  if (from_key == to_key) {
-    cpmdc_store_error("");
-    return 0;
+  /* The reference evaluator has no orbital store. An OpenCPMD build
+   * duplicates the converged copy and refuses a key that never converged. */
+  if (cpmdc_available()) {
+    if ((!session->embed_configured || g_active_session != session) &&
+        configure_embed_from_session(session) != 0) {
+      cpmdc_store_error("CPMD embed not available");
+      return -1;
+    }
+    if (cpmdc_embed_copy_orbitals(from_key, to_key) != 0) {
+      cpmdc_store_error("from_key has no converged orbitals");
+      return -1;
+    }
   }
-  if ((!session->embed_configured || g_active_session != session) &&
-      configure_embed_from_session(session) != 0) {
-    cpmdc_store_error("CPMD embed not available");
-    return -1;
-  }
-  had_key = session->has_orbital_key;
-  saved_key = session->orbital_key;
-  cpmdc_embed_select_orbitals(from_key);
-  cpmdc_embed_select_orbitals(to_key);
-  cpmdc_embed_select_orbitals(from_key);
-  if (had_key)
-    cpmdc_embed_select_orbitals(saved_key);
-  session->has_orbital_key = had_key;
-  session->orbital_key = saved_key;
   cpmdc_store_error("");
   return 0;
 }

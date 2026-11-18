@@ -92,7 +92,12 @@ index 985c887..c27c353 100644
      IF (ALLOCATED(embed_c0_store)) THEN
        DEALLOCATE(embed_c0_store,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -300,6 +317,7 @@ CONTAINS
+@@ -300,3 +317,4 @@ CONTAINS
+     embed_c0_store = c0
+     ! copied c0 replaces the selected key
++    CALL embed_break_history()
+     embed_store_key = key
+@@ -410,6 +528,7 @@ CONTAINS
      CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
      INTEGER :: i, ierr
      IF (embed_have_key .AND. key == embed_current_key) RETURN

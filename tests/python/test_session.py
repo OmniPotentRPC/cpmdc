@@ -85,10 +85,7 @@ def test_orbital_key_methods(params):
     session = Session(params)
     session.select_orbitals(11)
     session.energy_forces(WATER, [8, 1, 1])
-    try:
-        session.copy_orbitals(11, 12)
-    except CPMDCError as exc:
-        assert str(exc)
+    session.copy_orbitals(11, 12)
     session.close()
     with pytest.raises(CPMDCError, match="closed"):
         session.select_orbitals(1)
