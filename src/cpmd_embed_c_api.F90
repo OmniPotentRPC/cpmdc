@@ -2183,9 +2183,11 @@ CONTAINS
         jac = 0.0_real64
         DO u = 1, 3
           jac(u,u) = q * a
-          DO v = 1, 3
-            jac(u,v) = jac(u,v) + q * aprime * d(u) * d(v) / rr
-          END DO
+          IF (rr > 0.0_real64) THEN
+            DO v = 1, 3
+              jac(u,v) = jac(u,v) + q * aprime * d(u) * d(v) / rr
+            END DO
+          END IF
         END DO
         force = alpha * MATMUL(TRANSPOSE(jac), field)
         grad(3*i-2:3*i) = grad(3*i-2:3*i) - REAL(force, KIND=c_double)
