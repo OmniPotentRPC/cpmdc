@@ -23,6 +23,7 @@
 /* Keys holding parked orbitals in this process, the selected key excluded.
  * Exported by the embed layer (src/cpmd_embed_c_api.F90) for tests. */
 int cpmdc_embed_orbital_slots(void);
+int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 /* Where the last SCF started: 0 the selected key's orbitals, 1 another
  * key's, -1 the guess (every stored geometry beyond CPMDC_WARM_RMSD), -2
  * the guess (nothing stored). Exported by the same layer for tests. */
@@ -502,6 +503,11 @@ static void test_null_session_is_refused(void **state) {
   assert_non_null(strstr(cpmdc_last_error(), "null session"));
 }
 
+static void test_embed_copy_without_orbitals_is_refused(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_embed_copy_orbitals(1, 2), -1);
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "usage: %s PARAMS_BIN\n", argv[0]);
@@ -510,6 +516,7 @@ int main(int argc, char **argv) {
   g_params = argv[1];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_null_session_is_refused),
+      cmocka_unit_test(test_embed_copy_without_orbitals_is_refused),
       cmocka_unit_test(test_keys_keep_their_orbitals),
       cmocka_unit_test(test_far_orbitals_give_way_to_the_guess),
       cmocka_unit_test(test_copy_orbitals_seeds_target_key),

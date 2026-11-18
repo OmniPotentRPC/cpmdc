@@ -19,7 +19,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE ropt
    USE rscpot_utils,                    ONLY: give_scr_rscpot,&
                                               rscpot
-@@ -106,10 +108,492 @@
+@@ -106,10 +108,508 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -62,9 +62,9 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     converged c0 and the geometry it converged at into to_key. An
 +  !     occupied to_key is replaced. The selected key stays selected. The
 +  !     live store is left as it is when another key owns it; when to_key
-+  !     is the selected key, the store is that key's copy and the duplicate
-+  !     replaces it. A from_key with no converged orbitals returns .FALSE.
-+  !     A partial copy is not converged.
++  !     is the selected key, the duplicate replaces that live store
++  !     immediately. A from_key with no converged orbitals returns .FALSE.
++  !     A stale or partial copy is not converged and is refused.
 +  PUBLIC :: embed_copy_orbital_slot
 +  !   embed_choose_warm_start_metric_v2 receives species-ordered Cartesian positions,
 +  !     the row-major cell, periodicity, and a geometry-distance callback.
@@ -85,6 +85,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  TYPE :: embed_orbital_slot
 +    INTEGER(embed_key_kind) :: key = 0
 +    LOGICAL :: used = .FALSE.
++    LOGICAL :: converged = .FALSE.
 +    COMPLEX(real_8), ALLOCATABLE :: c0(:,:,:)
 +    REAL(real_8), ALLOCATABLE :: geo(:)
 +  END TYPE embed_orbital_slot
@@ -94,6 +95,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  LOGICAL, SAVE :: embed_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_need_forces = .FALSE.
 +  LOGICAL, SAVE :: embed_have_partial = .FALSE.
++  LOGICAL, SAVE :: embed_store_converged = .FALSE.
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_c0_store(:,:,:)
 +  INTEGER, SAVE :: embed_store_s1 = 0, embed_store_s2 = 0, embed_store_s3 = 0
 +  ! The geometry embed_c0_store converged at, and the geometry of the call
@@ -139,6 +141,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_warm_orbitals = .FALSE.
 +    embed_have_orbitals = .FALSE.
 +    embed_have_partial = .FALSE.
++    embed_store_converged = .FALSE.
 +    embed_history_set = .FALSE.
 +    IF (ALLOCATED(embed_c0_store)) THEN
 +      DEALLOCATE(embed_c0_store,STAT=ierr)
@@ -195,6 +198,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +      IF (.NOT. embed_slots(i)%used) THEN
 +        embed_slots(i)%used = .TRUE.
 +        embed_slots(i)%key = key
++        embed_slots(i)%converged = .FALSE.
 +        embed_slot_index = i
 +        RETURN
 +      ENDIF
@@ -205,6 +209,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    DO i = 1, n
 +      grown(i)%used = embed_slots(i)%used
 +      grown(i)%key = embed_slots(i)%key
++      grown(i)%converged = embed_slots(i)%converged
 +      IF (ALLOCATED(embed_slots(i)%c0)) &
 +           CALL MOVE_ALLOC(embed_slots(i)%c0, grown(i)%c0)
 +      IF (ALLOCATED(embed_slots(i)%geo)) &
@@ -213,6 +218,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    CALL MOVE_ALLOC(grown, embed_slots)
 +    embed_slots(n+1)%used = .TRUE.
 +    embed_slots(n+1)%key = key
++    embed_slots(n+1)%converged = .FALSE.
 +    embed_slot_index = n + 1
 +  END FUNCTION embed_slot_index
 +
@@ -251,6 +257,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_store_key = key
 +    embed_have_orbitals = .TRUE.
 +    embed_have_partial = .FALSE.
++    embed_store_converged = .TRUE.
 +    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
 +    IF (ALLOCATED(geo)) embed_store_geo = geo
 +  END SUBROUTINE embed_replace_key_store
@@ -274,8 +281,10 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (.NOT. use_store) THEN
 +      src = embed_slot_index(from_key, .FALSE.)
 +      IF (src == 0) RETURN
++      IF (.NOT. embed_slots(src)%converged) RETURN
 +      IF (.NOT. ALLOCATED(embed_slots(src)%c0)) RETURN
 +    ENDIF
++    IF (use_store .AND. .NOT. embed_store_converged) RETURN
 +    IF (from_key == to_key) THEN
 +      embed_copy_orbital_slot = .TRUE.
 +      RETURN
@@ -301,6 +310,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    ENDIF
 +    IF (embed_have_key .AND. embed_current_key == to_key) THEN
 +      CALL embed_replace_key_store(tmp, tmp_geo, to_key)
++      embed_store_converged = .TRUE.
 +      dst = embed_slot_index(to_key, .FALSE.)
 +      IF (dst /= 0) THEN
 +        IF (ALLOCATED(embed_slots(dst)%c0)) THEN
@@ -321,6 +331,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
 +           __LINE__,__FILE__)
 +      embed_slots(dst)%c0 = tmp
++      embed_slots(dst)%converged = .TRUE.
 +      IF (ALLOCATED(embed_slots(dst)%geo)) DEALLOCATE(embed_slots(dst)%geo)
 +      IF (ALLOCATED(tmp_geo)) embed_slots(dst)%geo = tmp_geo
 +    ENDIF
@@ -349,6 +360,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
 +           __LINE__,__FILE__)
 +      embed_slots(i)%c0 = embed_c0_store
++      embed_slots(i)%converged = embed_store_converged
 +      IF (ALLOCATED(embed_slots(i)%geo)) DEALLOCATE(embed_slots(i)%geo)
 +      IF (ALLOCATED(embed_store_geo)) embed_slots(i)%geo = embed_store_geo
 +    ENDIF
@@ -374,6 +386,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_store_s3 = SIZE(embed_c0_store, 3)
 +    embed_have_orbitals = .TRUE.
 +    embed_have_partial = .FALSE.
++    embed_store_converged = embed_slots(i)%converged
 +  END SUBROUTINE embed_select_orbital_slot
 +
 +  ! ==================================================================
@@ -405,6 +418,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
 +    IF (ALLOCATED(embed_call_geo)) embed_store_geo = embed_call_geo
 +    embed_have_orbitals = .TRUE.
++    embed_store_converged = .TRUE.
 +  END SUBROUTINE embed_save_orbitals
 +
 +  ! ==================================================================
@@ -487,6 +501,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (dist > rmax) THEN
 +      embed_have_orbitals = .FALSE.
 +      embed_have_partial = .FALSE.
++      embed_store_converged = .FALSE.
 +      source = -1
 +      RETURN
 +    ENDIF
@@ -505,6 +520,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_store_geo = embed_slots(best)%geo
 +    embed_have_orbitals = .TRUE.
 +    embed_have_partial = .FALSE.
++    embed_store_converged = embed_slots(best)%converged
 +    source = 1
 +  END SUBROUTINE embed_choose_warm_start_metric_v2
 +
@@ -596,7 +612,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ENDIF
         DEALLOCATE(cplion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -913,16 +1412,32 @@
+@@ -913,16 +1412,36 @@
      IF (paral%parent) THEN
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
@@ -611,10 +627,14 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
 +      CALL embed_save_orbitals(c0)
 +      embed_have_partial = .FALSE.
++      embed_store_converged = .TRUE.
++    ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN
++      embed_store_converged = .FALSE.
 +    ELSE IF (embed_warm_orbitals .AND. .NOT. embed_have_orbitals) THEN
 +      CALL embed_save_orbitals(c0)
 +      embed_have_orbitals = .FALSE.
 +      embed_have_partial = .TRUE.
++      embed_store_converged = .FALSE.
      ENDIF
      ! CB: TAUP,FION handled by BS_WFO
      IF (.NOT.cntl%bsymm) THEN

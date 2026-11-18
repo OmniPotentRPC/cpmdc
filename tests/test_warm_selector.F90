@@ -117,6 +117,19 @@ PROGRAM test_warm_selector
   orbitals = 0
   CALL embed_restore_orbitals(orbitals)
   IF (ABS(orbitals(1,1,1)-CMPLX(31D0,0D0,real_8)) > 1D-12) ERROR STOP 22
+  ! A donor marked stale after an unconverged pass is never copied.
+  CALL embed_reset_warm_orbitals()
+  CALL embed_select_orbital_slot(41_embed_key_kind)
+  geo = [.2D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(41D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  embed_store_converged = .FALSE.
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 42_embed_key_kind)) ERROR STOP 23
+  IF (embed_orbital_slot_count() /= 0) ERROR STOP 24
+  CALL embed_select_orbital_slot(42_embed_key_kind)
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 43_embed_key_kind)) ERROR STOP 25
+  IF (embed_orbital_slot_count() /= 1) ERROR STOP 26
 CONTAINS
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic

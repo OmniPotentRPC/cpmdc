@@ -471,7 +471,7 @@ CONTAINS
          INT(to_key, KIND=SELECTED_INT_KIND(18))))
 #else
     rc = 0_c_int
-    IF (from_key /= to_key) rc = 0_c_int
+    IF (from_key /= to_key) rc = -1_c_int
 #endif
   END FUNCTION
 
