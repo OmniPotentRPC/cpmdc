@@ -22,12 +22,14 @@ from __future__ import annotations
 import ctypes
 import ctypes.util
 import math
+import operator
 import os
 import struct
 import warnings
 from array import array
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from numbers import Integral, Real
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -265,13 +267,51 @@ def _positions(positions: Sequence[Sequence[float]]) -> tuple[int, array]:
     return len(rows), flat
 
 
-def _numbers(numbers: Sequence[int], n_atoms: int) -> array:
-    values = [int(number) for number in numbers]
+ATOMIC_NUMBER_MIN = 1
+ATOMIC_NUMBER_MAX = 118
+_ORBITAL_KEY_BITS = 63
+
+
+def _integer(value: Any, what: str) -> int:
+    """``value`` as an int; a float is accepted only when it is a whole number."""
+    if isinstance(value, bool):
+        raise TypeError(f"{what} must be an integer, not bool")
+    if isinstance(value, Real) and not isinstance(value, Integral):
+        if not float(value).is_integer():
+            raise ValueError(f"{what} must be an integer, got {value!r}")
+        return int(value)
+    try:
+        return operator.index(value)
+    except TypeError:
+        raise TypeError(f"{what} must be an integer, got {type(value).__name__}") from None
+
+
+def _real(value: Any, what: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{what} must contain real numbers, got {type(value).__name__}")
+    return _finite(value, what)
+
+
+def _atomic_number(value: Any) -> int:
+    number = _integer(value, "atomic_numbers")
+    if number < ATOMIC_NUMBER_MIN or number > ATOMIC_NUMBER_MAX:
+        raise ValueError(
+            f"atomic numbers must be in {ATOMIC_NUMBER_MIN}..{ATOMIC_NUMBER_MAX}, got {number}"
+        )
+    return number
+
+
+def _orbital_key(value: Any, what: str) -> int:
+    key = _integer(value, what)
+    if not -(1 << _ORBITAL_KEY_BITS) <= key < (1 << _ORBITAL_KEY_BITS):
+        raise ValueError(f"{what} must fit a signed 64-bit integer, got {key}")
+    return key
+
+
+def _numbers(atomic_numbers: Sequence[int], n_atoms: int) -> array[int]:
+    values = [_atomic_number(number) for number in atomic_numbers]
     if len(values) != n_atoms:
         raise ValueError("atomic_numbers must have one entry per atom")
-    for number in values:
-        if number < 1 or number > 118:
-            raise ValueError("atomic numbers must be in 1..118")
     return array("i", values)
 
 
@@ -313,24 +353,42 @@ def _contiguous(data: Any, ctype: Any, count: int) -> memoryview | None:
 def _flat(data: Any) -> list[Any]:
     flat: list[Any] = []
     for item in data:
-        if hasattr(item, "__len__"):
+        if hasattr(item, "__len__") and not isinstance(item, (str, bytes)):
             flat.extend(item)
         else:
             flat.append(item)
     return flat
 
 
+def _checked_buffer(view: memoryview, ctype: Any, what: str) -> None:
+    raw = view.cast("B").cast(_FORMATS[ctype])
+    if ctype is ctypes.c_double:
+        if not all(map(math.isfinite, raw)):
+            raise ValueError(f"{what} must be finite")
+    elif not all(ATOMIC_NUMBER_MIN <= value <= ATOMIC_NUMBER_MAX for value in raw):
+        raise ValueError(
+            f"{what} must be in {ATOMIC_NUMBER_MIN}..{ATOMIC_NUMBER_MAX}"
+        )
+
+
 def _in_array(data: Any, ctype: Any, count: int, what: str) -> Any:
-    """``count`` values of ``ctype``; a matching writable buffer is not copied."""
+    """``count`` values of ``ctype``; a matching writable buffer is not copied.
+
+    A ``c_int`` array holds atomic numbers and a ``c_double`` array holds
+    finite coordinates; both are checked.
+    """
     view = _contiguous(data, ctype, count)
     if view is not None:
+        _checked_buffer(view, ctype, what)
         if view.readonly:
             return (ctype * count).from_buffer_copy(view)
         return (ctype * count).from_buffer(data)
     flat = _flat(data)
     if len(flat) != count:
         raise ValueError(f"{what} must have {count} values, got {len(flat)}")
-    return (ctype * count)(*flat)
+    if ctype is ctypes.c_int:
+        return (ctype * count)(*[_atomic_number(value) for value in flat])
+    return (ctype * count)(*[_real(value, what) for value in flat])
 
 
 def _out_array(data: Any, count: int, what: str) -> tuple[Any, Any]:
@@ -633,7 +691,9 @@ class Session:
         """Select the orbital key this session evaluates under."""
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
-        status = self._lib.cpmdc_session_select_orbitals(self._handle, int(key))
+        status = self._lib.cpmdc_session_select_orbitals(
+            self._handle, _orbital_key(key, "key")
+        )
         if status != 0:
             raise CPMDCError(self._error() or "cpmdc_session_select_orbitals failed")
 
@@ -647,7 +707,11 @@ class Session:
                 "this libcpmdc has no cpmdc_session_copy_orbitals; "
                 "use a library built from cpmdc with orbital copy support"
             )
-        status = copy_fn(self._handle, int(from_key), int(to_key))
+        status = copy_fn(
+            self._handle,
+            _orbital_key(from_key, "from_key"),
+            _orbital_key(to_key, "to_key"),
+        )
         if status != 0:
             raise CPMDCError(self._error() or "cpmdc_session_copy_orbitals failed")
 
