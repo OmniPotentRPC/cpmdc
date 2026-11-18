@@ -2,11 +2,20 @@
 #include "cpmdc_restart.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <io.h>
+#include <process.h>
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 /* gfortran's default maximum subrecord (libgfortran GFC_MAX_SUBRECORD_LENGTH). */
 #define CPMDC_RESTART_MAX_SUB 2147483639u
@@ -742,31 +751,359 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes, size_t *nbyt
   return 0;
 }
 
+static void set_errf(char *err, size_t cap, const char *what, const char *why) {
+  if (!err || cap == 0)
+    return;
+  snprintf(err, cap, "%s: %s", what, why);
+}
+
+#ifdef _WIN32
+#define publish_open(p) _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE)
+#define publish_fdopen _fdopen
+#define publish_close _close
+#define publish_unlink _unlink
+#define publish_strdup _strdup
+#define publish_pid() ((unsigned long)_getpid())
+#define CPMDC_IS_SEP(c) ((c) == '/' || (c) == '\\')
+#else
+/* 0666 under the umask is what fopen(path, "wb") created before. */
+#define publish_open(p) open((p), O_WRONLY | O_CREAT | O_EXCL, 0666)
+#define publish_fdopen fdopen
+#define publish_close close
+#define publish_unlink unlink
+#define publish_strdup strdup
+#define publish_pid() ((unsigned long)getpid())
+#define CPMDC_IS_SEP(c) ((c) == '/')
+#endif
+
+/* Keep the temporary basename short even when the destination basename is at
+ * NAME_MAX. The directory prefix is copied from the effective destination. */
+static char *temporary_path(const char *path, unsigned long token) {
+  static const char stem[] = ".cpmdc-tmp-";
+  size_t dir = strlen(path);
+  size_t cap;
+  char *tmp;
+  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
+    dir--;
+  cap = dir + sizeof stem + 16;
+  tmp = malloc(cap);
+  if (!tmp)
+    return NULL;
+  if (dir)
+    memcpy(tmp, path, dir);
+  snprintf(tmp + dir, cap - dir, "%s%016lx", stem, token);
+  return tmp;
+}
+
+#ifndef _WIN32
+/* readlink(2) does not NUL-terminate, and the target can outgrow the first
+ * buffer. Grow until the read fits. */
+static char *read_link_text(const char *path, char *err, size_t err_cap) {
+  size_t cap = 128;
+  char *buf = NULL;
+  for (;;) {
+    char *grown = realloc(buf, cap);
+    ssize_t n;
+    if (!grown) {
+      free(buf);
+      set_err(err, err_cap, "out of memory");
+      return NULL;
+    }
+    buf = grown;
+    n = readlink(path, buf, cap);
+    if (n < 0) {
+      set_errf(err, err_cap, "cannot read the RESTART symlink", strerror(errno));
+      free(buf);
+      return NULL;
+    }
+    if ((size_t)n < cap) {
+      buf[n] = '\0';
+      return buf;
+    }
+    if (cap > SIZE_MAX / 2) {
+      set_err(err, err_cap, "the RESTART symlink target is too long");
+      free(buf);
+      return NULL;
+    }
+    cap *= 2;
+  }
+}
+
+/* fopen follows a relative link from the directory that contains it. An
+ * absolute target is already a path. */
+static char *link_target_path(const char *path, const char *target, char *err,
+                              size_t err_cap) {
+  size_t dir, tlen;
+  char *out;
+  if (target[0] == '\0') {
+    set_err(err, err_cap, "the RESTART symlink has an empty target");
+    return NULL;
+  }
+  if (target[0] == '/') {
+    out = publish_strdup(target);
+    if (!out)
+      set_err(err, err_cap, "out of memory");
+    return out;
+  }
+  dir = strlen(path);
+  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
+    dir--;
+  tlen = strlen(target);
+  if (tlen > SIZE_MAX - dir - 1) {
+    set_err(err, err_cap, "the RESTART symlink target is too long");
+    return NULL;
+  }
+  out = malloc(dir + tlen + 1);
+  if (!out) {
+    set_err(err, err_cap, "out of memory");
+    return NULL;
+  }
+  if (dir)
+    memcpy(out, path, dir);
+  memcpy(out + dir, target, tlen + 1);
+  return out;
+}
+
+/* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
+ * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
+ * continues to update RESTART.1 while keeping RESTART as a link. realpath
+ * fails with ENOENT when the target is absent; fopen created that target,
+ * so a dangling link is published there as a new file. */
+static int publish_destination(const char *path, char **effective, mode_t *mode,
+                               int *has_mode, char *err, size_t err_cap) {
+  struct stat lst, st;
+  char *resolved;
+  int exists;
+  *effective = NULL;
+  *has_mode = 0;
+  exists = lstat(path, &lst) == 0;
+  if (!exists && errno != ENOENT) {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    return -1;
+  }
+  if (exists && S_ISLNK(lst.st_mode)) {
+    resolved = realpath(path, NULL);
+    if (!resolved) {
+      char *text;
+      if (errno != ENOENT) {
+        set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
+        return -1;
+      }
+      text = read_link_text(path, err, err_cap);
+      if (!text)
+        return -1;
+      resolved = link_target_path(path, text, err, err_cap);
+      free(text);
+      if (!resolved)
+        return -1;
+      /* Absent destination: leave the mode at 0666 under the umask. */
+      *effective = resolved;
+      return 0;
+    }
+  } else {
+    resolved = publish_strdup(path);
+    if (!resolved) {
+      set_err(err, err_cap, "out of memory");
+      return -1;
+    }
+  }
+  if (stat(resolved, &st) == 0) {
+    *mode = st.st_mode & 07777;
+    *has_mode = 1;
+  } else if (errno != ENOENT) {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    free(resolved);
+    return -1;
+  }
+  *effective = resolved;
+  return 0;
+}
+#endif
+
+/* Flush the stream and the file it writes to stable storage. */
+static int sync_stream(FILE *fp) {
+  if (fflush(fp) != 0)
+    return -1;
+#ifdef _WIN32
+  return _commit(_fileno(fp));
+#else
+  for (;;) {
+    if (fsync(fileno(fp)) == 0)
+      return 0;
+    if (errno != EINTR)
+      return -1;
+  }
+#endif
+}
+
+/* Make the rename durable. Windows has no directory handle to flush;
+ * MOVEFILE_WRITE_THROUGH covers it there. Filesystems that cannot sync a
+ * directory say EINVAL, and there is nothing more to do on them. */
+static int sync_parent(const char *path, char *err, size_t err_cap) {
+#ifdef _WIN32
+  (void)path;
+  (void)err;
+  (void)err_cap;
+  return 0;
+#else
+  size_t dir = strlen(path);
+  char *name;
+  int fd, rc = 0;
+  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
+    dir--;
+  if (dir == 0) {
+    name = strdup(".");
+  } else {
+    name = malloc(dir + 1);
+    if (name) {
+      memcpy(name, path, dir);
+      name[dir] = '\0';
+    }
+  }
+  if (!name) {
+    set_err(err, err_cap, "out of memory");
+    return -1;
+  }
+#ifdef O_DIRECTORY
+  fd = open(name, O_RDONLY | O_DIRECTORY);
+#else
+  fd = open(name, O_RDONLY);
+#endif
+  if (fd < 0) {
+    set_errf(err, err_cap, "cannot open the RESTART directory to sync it", strerror(errno));
+    free(name);
+    return -1;
+  }
+  while (fsync(fd) != 0) {
+    if (errno == EINTR)
+      continue;
+    if (errno != EINVAL) {
+      set_errf(err, err_cap, "cannot sync the RESTART directory", strerror(errno));
+      rc = -1;
+    }
+    break;
+  }
+  close(fd);
+  free(name);
+  return rc;
+#endif
+}
+
+static int replace_path(const char *tmp, const char *path, char *err, size_t err_cap) {
+#ifdef _WIN32
+  if (!MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+    char why[64];
+    snprintf(why, sizeof why, "MoveFileEx error %lu", (unsigned long)GetLastError());
+    set_errf(err, err_cap, "cannot replace the RESTART file", why);
+    return -1;
+  }
+  return 0;
+#else
+  if (rename(tmp, path) != 0) {
+    set_errf(err, err_cap, "cannot replace the RESTART file", strerror(errno));
+    return -1;
+  }
+  return 0;
+#endif
+}
+
+/* Publish `path` by rename. A reader opens either the previous file or the
+ * finished one, never a prefix of the new bytes. The temporary file is in
+ * the destination's directory so the rename stays on one filesystem. */
+static int publish_bytes(const char *path, const void *bytes, size_t n, char *err,
+                         size_t err_cap) {
+  static _Thread_local unsigned long seq;
+  char *effective = NULL;
+  char *tmp = NULL;
+  FILE *fp;
+  int fd = -1;
+#ifndef _WIN32
+  mode_t mode = 0;
+  int has_mode = 0;
+  if (publish_destination(path, &effective, &mode, &has_mode, err, err_cap) != 0)
+    return -1;
+#else
+  effective = publish_strdup(path);
+  if (!effective) {
+    set_err(err, err_cap, "out of memory");
+    return -1;
+  }
+#endif
+  /* The thread-local's address tells threads of one process apart. */
+  for (int attempt = 0; attempt < 100 && fd < 0; attempt++) {
+    unsigned long token =
+        seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
+    free(tmp);
+    tmp = temporary_path(effective, token);
+    if (!tmp) {
+      set_err(err, err_cap, "out of memory");
+      free(effective);
+      return -1;
+    }
+    fd = publish_open(tmp);
+    if (fd < 0 && errno != EEXIST)
+      break;
+  }
+  if (fd < 0) {
+    set_errf(err, err_cap, "cannot create a temporary RESTART file", strerror(errno));
+    free(tmp);
+    free(effective);
+    return -1;
+  }
+  fp = publish_fdopen(fd, "wb");
+  if (!fp) {
+    set_errf(err, err_cap, "cannot open a temporary RESTART file", strerror(errno));
+    publish_close(fd);
+    goto discard;
+  }
+  if (n && fwrite(bytes, 1, n, fp) != n) {
+    set_errf(err, err_cap, "cannot write the RESTART file", strerror(errno));
+    fclose(fp);
+    goto discard;
+  }
+#ifndef _WIN32
+  if (has_mode && fchmod(fileno(fp), mode) != 0) {
+    set_errf(err, err_cap, "cannot set the RESTART file mode", strerror(errno));
+    fclose(fp);
+    goto discard;
+  }
+#endif
+  if (sync_stream(fp) != 0) {
+    set_errf(err, err_cap, "cannot sync the RESTART file", strerror(errno));
+    fclose(fp);
+    goto discard;
+  }
+  if (fclose(fp) != 0) {
+    set_errf(err, err_cap, "cannot close the RESTART file", strerror(errno));
+    goto discard;
+  }
+  if (replace_path(tmp, effective, err, err_cap) != 0)
+    goto discard;
+  free(tmp);
+  if (sync_parent(effective, err, err_cap) != 0) {
+    free(effective);
+    return -1;
+  }
+  free(effective);
+  return 0;
+discard:
+  publish_unlink(tmp);
+  free(tmp);
+  free(effective);
+  return -1;
+}
+
 int cpmdc_restart_write_path(const CPMDCRestart *file, const char *path, char *err,
                              size_t err_cap) {
   void *bytes = NULL;
   size_t n = 0;
-  FILE *fp;
   if (!path) {
     set_err(err, err_cap, "null path");
     return -1;
   }
   if (cpmdc_restart_write_mem(file, &bytes, &n, err, err_cap) != 0)
     return -1;
-  fp = fopen(path, "wb");
-  if (!fp) {
-    set_err(err, err_cap, strerror(errno));
-    free(bytes);
-    return -1;
-  }
-  if (n && fwrite(bytes, 1, n, fp) != n) {
-    set_err(err, err_cap, "write failed");
-    fclose(fp);
-    free(bytes);
-    return -1;
-  }
-  if (fclose(fp) != 0) {
-    set_err(err, err_cap, "close failed");
+  if (publish_bytes(path, bytes, n, err, err_cap) != 0) {
     free(bytes);
     return -1;
   }

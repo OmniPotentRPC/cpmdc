@@ -285,6 +285,16 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes,
 /**
  * @brief Write the image to a filesystem path.
  *
+ * The bytes land in a temporary file in the same directory, which is
+ * flushed and synced to disk before it replaces `path` by rename
+ * (`MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows). A reader
+ * sees the previous file or the finished one. On POSIX the directory is
+ * synced after the rename, so the new name survives a crash.
+ *
+ * A failure before the rename removes the temporary file and leaves
+ * `path` untouched. A failure to sync the directory returns -1 with
+ * `path` already holding the new image.
+ *
  * @param file Image to write.
  * @param path Destination path.
  * @param err Diagnostic buffer. May be NULL.

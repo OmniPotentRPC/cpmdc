@@ -260,6 +260,7 @@ endif
 
 cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
                       'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
+                      'src/cpmdc_scf_report.c',
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
@@ -1137,6 +1138,17 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
   )
   test(
+    'scf-report',
+    executable(
+      'test_scf_report',
+      ['tests/test_scf_report.c', 'src/cpmdc_scf_report.c'],
+      dependencies: [cmocka_dep],
+      include_directories: [inc, include_directories('src')],
+      c_args: common_c_args,
+    ),
+    suite: ['cmocka'],
+  )
+  test(
     'session-cached-geometry',
     executable(
       'test_session_cached_geometry',
@@ -1707,6 +1719,36 @@ test(
                 water_pbe0_hockney_params_bin],
       suite: ['e2e', 'cmocka'],
       timeout: 900,
+    )
+
+    water_maxiter2_params_bin = custom_target(
+      'water_maxiter2_params_bin',
+      input: 'tests/water_blyp_maxiter2_params.capnp.txt',
+      output: 'water_blyp_maxiter2_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    water_pcg_maxiter2_params_bin = custom_target(
+      'water_pcg_maxiter2_params_bin',
+      input: 'tests/water_blyp_pcg_maxiter2_params.capnp.txt',
+      output: 'water_blyp_pcg_maxiter2_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
+    test(
+      'scf-unconverged',
+      executable(
+        'test_scf_unconverged',
+        'tests/test_scf_unconverged.c',
+        dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+        include_directories: [inc],
+        c_args: common_c_args,
+      ),
+      args: [
+        water_maxiter2_params_bin.full_path(),
+        water_pcg_maxiter2_params_bin.full_path(),
+      ],
+      depends: [water_maxiter2_params_bin, water_pcg_maxiter2_params_bin],
+      suite: ['e2e', 'cmocka'],
+      timeout: 600,
     )
   endif
 

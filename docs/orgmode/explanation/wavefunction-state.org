@@ -34,6 +34,17 @@ An SCF that does not converge does not replace the stored orbitals.
 When ODIIS exhausts ~MAXITER~, the same call continues once with ~PCG MINIMIZE~.
 That pass restores the previous converged ~c0~ when a converged copy is already
 stored, and it still counts as warm.
+When the continuation runs out too, the call fails, and the message in
+~CPMDCResult.message~ and ~cpmdc_last_error()~ names the minimizer of each pass,
+the iteration each one stopped at, ~MAXITER~, and the final ~gemax~ against
+~CONVERGENCE ORBITALS~:
+#+begin_example
+CPMD SCF did not converge: PCG MINIMIZE stopped at iteration 2 of MAXITER 2 with gemax 1.107715E-02 above CONVERGENCE ORBITALS 1.000000E-05, after ODIIS stopped at iteration 2 of MAXITER 2
+#+end_example
+That is water with BLYP at 50 Ry under ~MAXITER 2~, the case
+~tests/test_scf_unconverged.c~ runs against OpenCPMD.
+A host that prints ~cpmdc~'s message, as rgpot's ~CPMD engine failed:~ does,
+shows these fields unchanged.
 A ~stopgm~ during the call is not that failure: the wavefunction, forces, and
 module state of the call are undefined, ~cpmdc~ drops the stored orbitals and
 the warm cell, and the next call runs setup again.
@@ -285,6 +296,32 @@ To seed a cold start from an earlier run with a new geometry, patch the
 positions of a ~RESTART.1~ with ~cpmdc-restart patch-positions~.
 It rewrites only the coordinate records and copies the wavefunction records
 unchanged; the deck then needs ~RESTART WAVEFUNCTION~.
+
+~cpmdc-restart~ and ~cpmdc_restart_write_path()~ replace a ~RESTART~ file in
+one step, so a ~cpmd.x~ or a library call that opens it at the same time reads
+the previous file or the finished one, never part of the new one.
+The image goes to a short-named temporary file next to the effective
+destination. A new destination is opened with mode 0666 under the umask as a
+plain ~fopen~ would; replacement keeps the destination's existing mode.
+When ~RESTART~ is a symbolic link, as in CPMD's ~RESTART -> RESTART.1~
+convention, the target is replaced and the link survives.
+A dangling link, whose target is not there yet, is created at that path:
+a relative target is taken from the directory that holds the link, and the
+new file takes mode 0666 under the umask, as ~fopen~ did.
+A loop, or a link that cannot be read, is left in place and the write fails.
+The writer flushes that file and syncs it with ~fsync~, renames it over the
+destination, and syncs the directory with ~fsync~, so the new name also
+survives a crash.
+On Windows, ~_commit~ flushes the file and ~MoveFileEx~ with
+~MOVEFILE_REPLACE_EXISTING~ and ~MOVEFILE_WRITE_THROUGH~ replaces the
+destination.
+A failure before the rename removes the temporary file and leaves the old
+~RESTART~ in place.
+A directory that cannot be synced is reported as a failure even though the new
+file is already in place; a filesystem that cannot sync a directory at all
+(~EINVAL~) is not.
+Only a crash before the rename leaves a ~.tmp.~ file behind, and it can be
+deleted.
 
 * The optimiser on a warm start
 A warm start changes how far the SCF has to go, not how it gets there.
