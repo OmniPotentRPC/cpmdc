@@ -1,0 +1,1 @@
+The build documentation now explains the Darwin linker constraint behind the serial wheel fix: `libcpmdc` references `cpmd_stopgm_hook` only in OpenCPMD builds, and the macOS export list adds MPI Fortran sentinel wildcard patterns only when those symbols can be provided.
