@@ -117,7 +117,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       # mpifort reads OMPI_FC, not FC. The three wrappers then use the
       # same GCC 13 compilers as CC, CXX, and FC.
@@ -168,7 +168,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Full meson suite
         run: |

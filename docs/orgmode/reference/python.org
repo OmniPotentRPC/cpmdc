@@ -3,6 +3,7 @@
 
 * Names
 The public names live in ~python/cpmdc~.
+The [[file:contracts.org][API contracts]] page gives each name its signature, units, shape and dtype, ownership, thread behaviour, exceptions and defaults, and the ~reference-audit~ test keeps it in step with the code.
 Importing ~cpmdc~ does not import ASE.
 Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
 ~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
@@ -17,9 +18,11 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~HARTREE_TO_EV~ | Hartree to eV, the constant in ~src/cpmdc.c~ |
 | ~BOHR_TO_ANGSTROM~ | Bohr to Angstrom, the constant in ~src/cpmdc_params.h~ |
 | ~HARTREE_TO_KCAL_PER_MOL~ | Hartree to kcal/mol from CODATA 2018, the Avogadro constant, and 4.184 J per calorie |
+| ~ATOMIC_NUMBER_MIN~, ~ATOMIC_NUMBER_MAX~ | 1 and 118, the range of atomic numbers that ~Session~ and the C evaluation calls accept |
 | ~CPMDCError~ | failure from the library or from loading it |
 | ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
-| ~Evaluation~ | ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor) |
+| ~Evaluation~ | dataclass of ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor); it compares by identity |
+| ~Evaluation.energy_h~, ~Evaluation.forces_h_bohr~, ~Evaluation.stress_h_bohr3~ | Hartree, an N by 3 list in Hartree/Bohr, and nine Hartree/Bohr^3 values with the OpenCPMD sign |
 | ~ConstantCutoff~ | frozen dataclass of the constant-cutoff kinetic functional, ~ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)~; a value that is not finite and positive raises ~ValueError~, and one that is not a number ~TypeError~ |
 | ~ConstantCutoff.cutoff_ry~, ~ConstantCutoff.height_ry~, ~ConstantCutoff.width_ry~ | E0, A, and sigma in Ry; ~None~ selects 50 times the deck cutoff for A and E0 / 10 for sigma |
 | ~ConstantCutoff.coerce~ | ~None~, a ~ConstantCutoff~, a mapping of its fields, or E0 in Ry, to a ~ConstantCutoff~ or ~None~ |
@@ -61,6 +64,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.ipi.connect~ | open the UNIX or TCP socket to the server, retrying for ~wait~ seconds |
 | ~cpmdc.ipi.species_numbers~ | atomic numbers from ~"O H H"~, ~"O,H,H"~, ~"OH2"~, or ~"8 1 1"~ |
 | ~cpmdc.ipi.unix_socket_path~ | the socket file for an address, with the i-PI and ASE prefix |
+| ~cpmdc.ipi.HEADER_BYTES~, ~cpmdc.ipi.DEFAULT_SOCKET_PREFIX~ | the 12-byte width of a protocol header, and the socket-name prefix that i-PI and ASE use |
 | ~cpmdc.ipi.main~ | the ~cpmdc-ipi~ command; returns the exit status |
 | ~cpmdc.lammps.FixExternal~ | cpmdc as the force engine of a ~fix external pf/callback~; ~fix_id~, ~create~, ~library~, ~comm~ keywords |
 | ~FixExternal.run~ | ~run~ with LAMMPS keywords; raises ~CPMDCError~ for a failed step |
@@ -93,13 +97,14 @@ covers ~cpmdc.lammps~.
 | a ~constant_cutoff~ whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw ~&SYSTEM~ block or with ~system.constantCutoff~, or on a library without ~cpmdc_session_set_constant_cutoff~ | ~CPMDCError~ |
 | a ~CPMDCCalculator~ step that the library rejects | ~cpmdc.ase.CalculationFailed~, which is a ~CPMDCError~ and ASE's ~CalculationFailed~ |
 | missing ~params~ file | ~FileNotFoundError~ |
-| empty positions, a non-finite coordinate, an atomic number outside 1..118 | ~ValueError~ |
+| empty positions, a non-finite coordinate or cell value, an atomic number outside 1..118, a whole-number argument that is a fraction such as ~14.9~, an orbital key outside the signed 64-bit range | ~ValueError~ |
+| an atomic number, orbital key or ~charge~ that is a string, ~None~ or ~bool~; a coordinate that is not a real number | ~TypeError~ |
 | ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
 | a ~CPMDCCalculator~ step without atoms | ~ValueError~ |
 | stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | a keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~ other than ~params~, ~library~, ~constant_cutoff~, and ASE's own, such as ~charge~ or ~multiplicity~; no ~params~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
 | a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
-| ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CPMDCError~; ~ValueError~ for the sizes |
+| ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size | ~CPMDCError~; ~ValueError~ for the sizes, for non-finite values and for atomic numbers outside 1..118 |
 | ~FixExternal~ on a unit style other than ~metal~, ~real~, ~electron~, on a box with mixed periodicity, or with the wrong number of elements | ~ValueError~ |
 | ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CPMDCError~ |

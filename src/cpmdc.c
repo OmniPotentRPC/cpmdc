@@ -1249,10 +1249,26 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   return r;
 }
 
+#define CPMDC_ATOMIC_NUMBER_MAX 118
+
+/* Zero when an entry is outside 1..CPMDC_ATOMIC_NUMBER_MAX. A NULL array is
+ * left to the argument checks of the caller. */
+static int atomic_numbers_in_range(int n_atoms, const int *atomic_numbers) {
+  if (!atomic_numbers)
+    return 1;
+  for (int i = 0; i < n_atoms; ++i) {
+    if (atomic_numbers[i] < 1 || atomic_numbers[i] > CPMDC_ATOMIC_NUMBER_MAX)
+      return 0;
+  }
+  return 1;
+}
+
 static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
                                         double *grad_h_bohr) {
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return fail_msg("atomic numbers must be in 1..118");
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
                                           g_has_overrides ? &g_overrides : NULL,
                                           n_atoms,
@@ -1701,6 +1717,8 @@ static CPMDCResult session_energy_gradient_cell(
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
     return fail_msg("invalid arguments");
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return fail_msg("atomic numbers must be in 1..118");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
   if (rank_consensus_all(

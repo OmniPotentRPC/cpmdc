@@ -91,6 +91,8 @@ static void test_all_results_through_c_and_wire(void **state) {
   assert_int_equal(prop.valid, 1);
   assert_int_equal(prop.dipole_count, 3);
   assert_int_equal(prop.polarizability_count, 9);
+  for (int i = 0; i < 9; ++i)
+    assert_true(prop.polarizability[i] == 0.0); /* never computed */
   assert_true(prop.hessian_count >= 3); /* PEF 2 atoms => 6 */
   printf("pod_prop dipole=%zu hess=%zu pol=%zu\n", prop.dipole_count,
          prop.hessian_count, prop.polarizability_count);

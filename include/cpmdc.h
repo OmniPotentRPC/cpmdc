@@ -159,16 +159,17 @@ typedef struct CPMDCMDTrajectoryRow {
  * @brief PROP-style property snapshot after a successful evaluation.
  *
  * - dipole[3]: OpenCPMD `ddip%pdipole` (a.u.) when linked; PEF zeros
- * - polarizability[9]: filled when PROP/aoresponse available; else zeros with count 9
- * - hessian[]: nuclear gradient dE/dR packed as [n_atoms*3] (full Hessian needs
- *   dedicated PROP/Hessian run; gradient is always available after force eval)
+ * - polarizability[9]: always zeros, with count 9; no build computes it
+ * - hessian[]: nuclear gradient dE/dR in Hartree/Bohr packed as [n_atoms*3],
+ *   not a Hessian; only the first 4096 values are kept, and `hessian_count`
+ *   is the number kept, so a system of more than 1365 atoms is cut short
  */
 typedef struct CPMDCPropertySnapshot {
   /** Non-zero when the snapshot was written. */
   int valid;
   /** Number of doubles copied into `hessian`. */
   size_t hessian_count;
-  /** Nuclear gradient dE/dR, packed as `n_atoms * 3`. */
+  /** Nuclear gradient dE/dR in Hartree/Bohr, packed as `n_atoms * 3` and cut at 4096 values. */
   double hessian[4096];
   /** Number of doubles copied into `dipole`. */
   size_t dipole_count;
@@ -176,7 +177,7 @@ typedef struct CPMDCPropertySnapshot {
   double dipole[3];
   /** Number of doubles copied into `polarizability`. */
   size_t polarizability_count;
-  /** Polarizability when PROP is available; otherwise zeros. */
+  /** Always zeros: no build computes the polarizability. */
   double polarizability[9];
 } CPMDCPropertySnapshot;
 
@@ -271,7 +272,8 @@ CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions
                                             double *grad_h_bohr);
 
 /**
- * @brief Compute total energy only (no gradient allocation).
+ * @brief Compute the total energy. The gradient is evaluated into a temporary
+ * array that the call frees before it returns.
  */
 CPMDC_API CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
                                    const int *atomic_numbers, const void *params_capnp,

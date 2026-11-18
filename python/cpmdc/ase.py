@@ -91,7 +91,8 @@ def _pbc_flags(pbc: Any) -> list[bool]:
 
 def _voigt(stress: Sequence[float]) -> np.ndarray:
     """Row-major 3x3 to ASE Voigt (xx, yy, zz, yz, xz, xy), shear parts averaged."""
-    return full_3x3_to_voigt_6_stress(np.asarray(stress, dtype=float).reshape(3, 3))
+    voigt = full_3x3_to_voigt_6_stress(np.asarray(stress, dtype=float).reshape(3, 3))
+    return np.asarray(voigt, dtype=float)
 
 
 def _params_bytes(params: Any) -> bytes:
@@ -106,6 +107,7 @@ def _param_value(key: str, value: Any) -> Any:
         return None
     if key == "constant_cutoff":
         cutoff = ConstantCutoff.coerce(value)
+        assert cutoff is not None
         # A bare E0 stays a float, so todict() and Parameters.write keep it short.
         if cutoff.height_ry is None and cutoff.width_ry is None:
             return cutoff.cutoff_ry
@@ -251,7 +253,7 @@ class CPMDCCalculator(Calculator):
             cutoff = kwargs.get("constant_cutoff", self.parameters.get("constant_cutoff"))
             blob = _params_bytes(params)
             potential = Potential(blob, library=library, constant_cutoff=cutoff)
-        changed = Calculator.set(self, **kwargs)
+        changed: dict[str, Any] = Calculator.set(self, **kwargs)
         if reopen:
             self._release()
             self._potential = potential
@@ -264,7 +266,7 @@ class CPMDCCalculator(Calculator):
         A ``params`` buffer given as bytes is not JSON data and is left
         out; a path is kept.
         """
-        dct = Calculator.todict(self, skip_default=skip_default)
+        dct: dict[str, Any] = Calculator.todict(self, skip_default=skip_default)
         if isinstance(dct.get("params"), bytes):
             del dct["params"]
         return dct
@@ -309,7 +311,11 @@ class CPMDCCalculator(Calculator):
         try:
             potential = self.potential
             with _working_directory(self.directory):
-                evaluated = potential.evaluate(self.atoms.get_positions(), numbers, cell)
+                evaluated = potential.evaluate(
+                    self.atoms.get_positions(),
+                    numbers,
+                    None if cell is None else cell.tolist(),
+                )
             _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
@@ -343,7 +349,8 @@ class CPMDCCalculator(Calculator):
                 "cpmdc takes a fully periodic cell; atoms.pbc is true but "
                 "atoms.cell does not have three independent vectors"
             )
-        return atoms.cell.array
+        cell_array: np.ndarray = atoms.cell.array
+        return cell_array
 
     def _release(self) -> None:
         if self._potential is not None:

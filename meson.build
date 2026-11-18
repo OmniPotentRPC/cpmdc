@@ -1153,6 +1153,19 @@ if get_option('with_tests')
     suite: ['e2e', 'cmocka'],
   )
   test(
+    'atomic-number-range',
+    executable(
+      'test_atomic_number_range',
+      'tests/test_atomic_number_range.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+  )
+  test(
     'scf-report',
     executable(
       'test_scf_report',
@@ -1431,6 +1444,36 @@ test(
       meson.current_source_dir(),
     ],
     suite: ['docs', 'examples'],
+  )
+  test(
+    'reference-audit',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_audit.py',
+      meson.current_source_dir(),
+      meson.project_build_root(),
+    ],
+    suite: ['docs', 'abi', 'python'],
+  )
+  test(
+    'reference-audit-mutations',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_audit_mutations.py',
+      meson.current_source_dir(),
+      meson.project_build_root(),
+    ],
+    suite: ['docs', 'abi', 'python'],
+  )
+  test(
+    'python-mypy-strict',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_mypy_strict.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['python'],
+    timeout: 300,
   )
   test(
     'python-api',

@@ -50,6 +50,8 @@ from typing import IO, Any, Sequence
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session
 
 __all__ = [
+    "DEFAULT_SOCKET_PREFIX",
+    "HEADER_BYTES",
     "Driver",
     "ProtocolError",
     "connect",
@@ -215,7 +217,7 @@ class _Wire:
     def int32(self, what: str) -> int:
         raw = self._read(4, what)
         assert raw is not None
-        return struct.unpack("=i", raw)[0]
+        return int(struct.unpack("=i", raw)[0])
 
     def raw(self, nbytes: int, what: str) -> bytes:
         raw = self._read(nbytes, what)

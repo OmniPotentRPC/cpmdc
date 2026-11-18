@@ -357,6 +357,7 @@ Read the docs in this order:
   [CPMD option mapping](docs/orgmode/reference/cpmd-options.org),
   [feature inventory](docs/orgmode/reference/feature-inventory.org),
   [public C surface map](docs/orgmode/reference/surface-map.org),
+  [API contracts](docs/orgmode/reference/contracts.org),
   [glossary](docs/orgmode/reference/glossary.org)
 - Explanation: [architecture](docs/orgmode/explanation/architecture.org),
   [file route against in-process route](docs/orgmode/explanation/routes.org),
