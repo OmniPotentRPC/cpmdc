@@ -119,6 +119,7 @@ class ConstantCutoff:
         return {name: value for name, value in asdict(self).items() if value is not None}
 
 
+@dataclass(eq=False)
 class Evaluation:
     """One finished step.
 
@@ -129,15 +130,9 @@ class Evaluation:
     has the OpenCPMD sign, ``-(1/V) dE/d(strain)``, the opposite of ASE's.
     """
 
-    def __init__(
-        self,
-        energy_h: float,
-        forces_h_bohr: list[list[float]],
-        stress_h_bohr3: list[float] | None,
-    ) -> None:
-        self.energy_h = energy_h
-        self.forces_h_bohr = forces_h_bohr
-        self.stress_h_bohr3 = stress_h_bohr3
+    energy_h: float
+    forces_h_bohr: list[list[float]]
+    stress_h_bohr3: list[float] | None
 
 
 class _CResult(ctypes.Structure):

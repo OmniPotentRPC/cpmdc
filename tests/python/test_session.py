@@ -91,3 +91,14 @@ def test_orbital_key_methods(params):
         session.select_orbitals(1)
     with pytest.raises(CPMDCError, match="closed"):
         session.copy_orbitals(1, 2)
+
+
+def test_evaluation_has_a_readable_repr_and_keeps_identity_semantics():
+    first = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
+    second = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
+    assert repr(first) == (
+        "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], stress_h_bohr3=None)"
+    )
+    assert first != second
+    assert len({first, second}) == 2
+    assert cpmdc.Evaluation(energy_h=2.0, forces_h_bohr=[], stress_h_bohr3=[0.0] * 9).energy_h == 2.0
