@@ -88,6 +88,40 @@ def test_repeated_geometry_is_deterministic(params):
     assert first.stress_h_bohr3 is None
 
 
+# Relative part of the finite-difference comparison. pytest.approx
+# allows max(rel * |expected|, abs).
+_FORCE_FD_REL = 2.0e-6
+# convergenceOrbitals in tests/water_blyp_embedding_params.capnp.txt.
+# The analytic MM force is the Hellmann-Feynman derivative of the grid
+# energy. A re-solved SCF difference still carries a remainder of this
+# size: the orbital gradient is stopped here, and that remainder is
+# first order in the gradient. The direct erf/r coefficient matches a
+# fixed-density central difference, so this is not a kernel error.
+_EMBED_ORBITAL_GRADIENT = 1.0e-7
+_MACHINE_EPS = math.ulp(1.0)
+
+
+def _finite_difference_allowance(plus, minus, step, opencpmd):
+    """Roundoff of a central difference, plus the SCF residual.
+
+    The subtracted energies each carry about eps*|E|. Dividing by
+    twice the step (Angstrom) and converting to Ha/Bohr is the
+    roundoff eps*|E|/h. Truncation is O(step^2 * d^3E). A step ten
+    times larger moves this derivative by far less than the roundoff
+    at `step`, so the h^2 term is not added again. On the linked
+    build the Hellmann-Feynman remainder above dominates both.
+    """
+    roundoff = (
+        _MACHINE_EPS
+        * (abs(plus) + abs(minus))
+        / (2.0 * step)
+        * cpmdc.BOHR_TO_ANGSTROM
+    )
+    if opencpmd:
+        return max(roundoff, _EMBED_ORBITAL_GRADIENT)
+    return roundoff
+
+
 def test_external_charge_qm_and_mm_forces_are_energy_derivatives(
     embedding_params, monkeypatch, capfd
 ):
@@ -106,7 +140,10 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(
         moved[0][0] -= 2.0 * step
         minus = session.energy_forces(moved, [8, 1, 1]).energy_h
         qm_fd = -(plus - minus) / (2.0 * step) * cpmdc.BOHR_TO_ANGSTROM
-        assert done.forces_h_bohr[0][0] == pytest.approx(qm_fd, rel=2e-6, abs=2e-9)
+        qm_abs = _finite_difference_allowance(plus, minus, step, opencpmd)
+        assert done.forces_h_bohr[0][0] == pytest.approx(
+            qm_fd, rel=_FORCE_FD_REL, abs=qm_abs
+        )
 
         shifted = list(mm)
         shifted[0] += step
@@ -119,7 +156,11 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(
         session.set_external_charges(mm, charge, width)
         session.energy_forces(WATER, [8, 1, 1])
         mm_force = session.external_charge_forces_au(1)
-        assert mm_force[0] == pytest.approx(mm_fd, rel=2e-6, abs=2e-9)
+        mm_abs = _finite_difference_allowance(plus, minus, step, opencpmd)
+        # The allowance is smaller than the force, so a sign flip
+        # (gap 2*|F|) or a factor-of-two error (gap |F|) still fails.
+        assert mm_abs < abs(mm_fd)
+        assert mm_force[0] == pytest.approx(mm_fd, rel=_FORCE_FD_REL, abs=mm_abs)
 
     if opencpmd:
         scf_steps = [
@@ -296,8 +337,15 @@ def test_gaussian_small_r_series_is_continuous_and_conservative(embedding_params
     old_width_guard = sigma_bohr * math.sqrt(math.sqrt(math.ulp(1.0)))
 
     with Session(embedding_params) as session:
+        # _gaussian_reference is the reference well's induced dipole,
+        # -1/2 alpha |field|^2. OpenCPMD returns a BLYP total energy, so
+        # the same closed form does not describe that build and the
+        # comparison cannot be moved onto it.
         if session.available():
-            pytest.skip("the closed-form oracle describes the reference backend")
+            pytest.skip(
+                "the closed-form oracle describes the reference backend, "
+                "not an OpenCPMD SCF"
+            )
         bare = session.energy_forces([[0.0, 0.0, 0.0]], [1]).energy_h
 
         def observed(radius):
