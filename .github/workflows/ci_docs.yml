@@ -17,6 +17,9 @@ jobs:
         cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         environments: docs
         pixi-version: v0.70.2
+    - name: Check API reference
+      run: pixi r check-api-reference
+      shell: pixi run bash -e {0}
     - name: Generate Docs
       run: pixi r docbld
       shell: pixi run bash -e {0}

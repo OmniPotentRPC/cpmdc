@@ -61,10 +61,12 @@ def btl_exclusion(asan: bool) -> str:
 def launch_env() -> dict[str, str]:
     """Environment for the launcher and its ranks.
 
-    Open MPI 5's memory patcher rewrites instructions. A binary built
-    with AddressSanitizer dies with SIGILL unless that patcher is off.
-    UCX opens the same patcher during MPI_Init on some CPUs, so those
-    components are excluded while a sanitizer is active.
+    A traced CI failure reached libfabric's memhooks code while it was
+    replacing AddressSanitizer's mprotect interceptor during MPI_Init.
+    A separate Open MPI 5 reproduction still failed with that monitor off
+    and passed with Open MPI's memory patcher off. The sanitize job and this
+    launcher disable both observed patching paths. UCX is also excluded under
+    a sanitizer because selecting another transport avoided the reproduction.
     LeakSanitizer also counts allocations that belong to Open MPI, so
     leak detection is disabled for this process only.
     """
@@ -111,13 +113,16 @@ def openmpi_mca_args(launcher: str, asan: bool) -> list[str]:
 def main(argv: list[str]) -> int:
     if len(argv) < 3:
         print(
-            "usage: run_mpi_test.py N executable [args...]",
+            "usage: run_mpi_test.py N|--direct executable [args...]",
             file=sys.stderr,
         )
         return 2
     nprocs = argv[1]
     executable = argv[2]
     rest = argv[3:]
+    if nprocs == "--direct":
+        completed = subprocess.run([executable, *rest], check=False, env=launch_env())
+        return completed.returncode
     launcher = shutil.which("mpirun") or shutil.which("mpiexec")
     if not launcher:
         print("skipped: no MPI launcher (mpirun or mpiexec) on PATH")

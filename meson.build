@@ -25,6 +25,7 @@ if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
 endif
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
+run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
 schema_wrap_version = run_command(
   python,
   [
@@ -747,7 +748,6 @@ if get_option('with_tests')
     suite: ['stub'],
   )
   if mpi_c_dep.found()
-    run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
     adopt_comm_stub = executable(
       'test_adopt_comm_stub',
       'tests/test_adopt_comm_mpi.c',
@@ -1374,6 +1374,15 @@ test(
     python,
     args: [
       meson.current_source_dir() / 'tests/test_reference_contract.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'abi'],
+  )
+  test(
+    'reference-contract-mutations',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_contract_mutations.py',
       meson.current_source_dir(),
     ],
     suite: ['docs', 'abi'],
@@ -2156,6 +2165,9 @@ if get_option('with_pwscale')
     install: false,
   )
   if get_option('with_tests')
+    mpirun = find_program('mpirun', required: false)
+    pwscale_launcher_count = mpirun.found() and mpi_c_dep.found() ? '1' : '--direct'
+    pwscale_test_runner = [run_mpi_test, pwscale_launcher_count]
     pwscale_agree = executable(
       'test_pwscale_agreement',
       'tests/test_pwscale_agreement.c',
@@ -2165,7 +2177,8 @@ if get_option('with_pwscale')
     )
     test(
       'pwscale-agreement',
-      pwscale_agree,
+      python,
+      args: pwscale_test_runner + [pwscale_agree],
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2178,7 +2191,11 @@ if get_option('with_pwscale')
     test(
       'pwscale-logger',
       python,
-      args: [meson.current_source_dir() / 'tests/test_pwscale_logger.py', pwscale_harness],
+      args: pwscale_test_runner + [
+        python,
+        meson.current_source_dir() / 'tests/test_pwscale_logger.py',
+        pwscale_harness,
+      ],
       suite: ['pwscale'],
       timeout: 120,
     )
@@ -2201,18 +2218,18 @@ if get_option('with_pwscale')
       )
       test(
         'pwscale-fft-fail',
-        pwscale_fft_fail,
+        python,
+        args: pwscale_test_runner + [pwscale_fft_fail],
         suite: ['pwscale'],
         timeout: 60,
       )
     endif
-    mpirun = find_program('mpirun', required: false)
     if mpirun.found() and mpi_c_dep.found()
       foreach np : ['2', '4', '8']
         test(
           'pwscale-agreement-mpi-' + np,
-          mpirun,
-          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_agree],
+          python,
+          args: [run_mpi_test, np, pwscale_agree],
           suite: ['pwscale'],
           timeout: 180,
         )
@@ -2226,8 +2243,8 @@ if get_option('with_pwscale')
       )
       test(
         'pwscale-mpi-fault',
-        mpirun,
-        args: ['--bind-to', 'none', '--oversubscribe', '-np', '2', pwscale_mpi_fault],
+        python,
+        args: [run_mpi_test, '2', pwscale_mpi_fault],
         suite: ['pwscale'],
         timeout: 30,
       )
@@ -2241,8 +2258,8 @@ if get_option('with_pwscale')
       foreach np : ['2', '4']
         test(
           'pwscale-collectives-' + np,
-          mpirun,
-          args: ['--bind-to', 'none', '--oversubscribe', '-np', np, pwscale_collectives],
+          python,
+          args: [run_mpi_test, np, pwscale_collectives],
           suite: ['pwscale'],
           timeout: 120,
         )

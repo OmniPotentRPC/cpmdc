@@ -13,7 +13,7 @@ Pass one as ~-DNAME=VALUE~ to ~meson setup~.
 | ~with_mpi~ | feature | ~auto~ | link MPI into the default library; ~disabled~ keeps it serial. ~with_cpmd~ always needs MPI |
 | ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it, and it turns off the LAMMPS plugin, the GROMACS library, and the install of ~cpmdc-ipi-c~ |
 | ~with_readcon~ | boolean | ~false~ | link ~readcon-core~ (Rust) for ~cpmdc-restart export-con~ and ~import-con~ |
-| ~with_pwscale~ | boolean | ~false~ | build the plane-wave scaling scaffold of the [[file:../howto/pwscale-ranks.org][rank how-to]]; it is not on the force path |
+| ~with_pwscale~ | boolean | ~false~ | build the plane-wave scaling scaffold ([[file:pwscale.org][reference]], [[file:../howto/pwscale-ranks.org][rank how-to]]); it is not on the force path |
 | ~with_pwscale_cuda~ | boolean | ~false~ | compile the CUDA backend of that scaffold |
 | ~with_lammps_plugin~ | feature | ~auto~ | build ~cpmdcplugin.so~, the LAMMPS ~pair_style cpmdc~; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
 | ~lammps_include~ | string | empty | directory holding ~lammps.h~ and ~pair.h~; empty takes ~include/lammps~ of an importable ~lammps~ Python package |
@@ -49,7 +49,8 @@ The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 | ~test-cmocka~ | default | the ~cmocka~ suite only |
 | ~test-e2e~ | default | the ~e2e~ suite only (single point and optimizer session) |
 | ~test-readcon~ | default | the ~restart~ and ~restart-con~ suites in ~build-readcon/~ with ~-Dwith_readcon=true~ |
-| ~test-stub-sanitize~ | default | full suite in ~build-sanitize/~ under AddressSanitizer and UndefinedBehaviorSanitizer |
+| ~test-stub-sanitize~ | default | full suite and the ~-Dwith_pwscale=true~ scaffold in ~build-sanitize/~ under AddressSanitizer and UndefinedBehaviorSanitizer |
+| ~check-api-reference~ | default | ~tests/test_reference_contract.py~: every public C and Python name is in the reference pages |
 | ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
 | ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |
 | ~lychee~ | default | link check over README, ~docs/orgmode~, and news fragments |
@@ -59,3 +60,11 @@ The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 | ~sphinxbld~, ~docbld~ | ~docs~ | ~mkrst~, ~doxybuild~, then the Sphinx HTML site in ~docs/build~ |
 
 Run a docs task with ~pixi run -e docs docbld~.
+
+One sanitizer CI failure was traced to libfabric's memhooks monitor replacing
+AddressSanitizer's ~mprotect~ interceptor during ~MPI_Init~.  In a separate
+Open MPI 5 reproduction, ~FI_MR_CACHE_MONITOR=disabled~ alone still ended in
+SIGILL, while ~--mca memory ^patcher~ prevented it.  Selecting a non-UCX
+transport also prevented that reproduction.  The sanitize job disables the
+observed libfabric path, and ~tests/run_mpi_test.py~ passes the Open MPI memory
+and transport exclusions in both the environment and launcher arguments.
