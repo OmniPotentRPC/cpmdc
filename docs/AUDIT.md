@@ -306,8 +306,8 @@ Verified on this tree:
 - `pixi run -e docs docbld` with `warningiserror = true`
 - `pixi run test-stub` (full default Meson suite)
 - `meson test -C build --suite docs`
-- lychee 0.24.2 over README, `docs/orgmode`, and news fragments (120 links, 0
-  errors)
+- lychee 0.24.2 over README, `docs/orgmode`, and news fragments (121 links,
+  9 excluded, 0 errors)
 
 Topics already documented elsewhere and matching the code at BASE:
 
