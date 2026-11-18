@@ -1,5 +1,5 @@
 diff --git a/src/ddipo_utils.mod.F90 b/src/ddipo_utils.mod.F90
-index fc2a9e3..ee8ed06 100644
+index fc2a9e3..8ca23ab 100644
 --- a/src/ddipo_utils.mod.F90
 +++ b/src/ddipo_utils.mod.F90
 @@ -10,6 +10,7 @@ MODULE ddipo_utils
@@ -10,24 +10,24 @@ index fc2a9e3..ee8ed06 100644
    USE error_handling,                  ONLY: stopgm
    USE forcedr_utils,                   ONLY: give_scr_forcedr
    USE gvec,                            ONLY: epsg,&
-@@ -72,7 +73,7 @@ MODULE ddipo_utils
+@@ -65,10 +66,16 @@ MODULE ddipo_utils
+   PRIVATE
+ 
+   PUBLIC :: ddipo
++  PUBLIC :: ddipo_embed
+   PUBLIC :: give_scr_ddipo
+   PUBLIC :: setdip
+   PUBLIC :: set_operator
+ 
++  ! Set only by ddipo_embed. It makes ddipo rebuild its dipole matrices
++  ! for the current geometry. The argument list of ddipo is unchanged, so
++  ! the objects of its other callers need no recompilation.
++  LOGICAL, SAVE :: embed_force_recompute = .FALSE.
++
  CONTAINS
  
    ! ==================================================================
--  SUBROUTINE ddipo(tau0,c0,cm,c2,sc0,nstate,center)
-+  SUBROUTINE ddipo(tau0,c0,cm,c2,sc0,nstate,center,force_recompute)
-     ! ==--------------------------------------------------------------==
-     ! == CALCULATES THE DIPOLE MOMENT                                 ==
-     ! == Modified (CPLS) to compute Wannier functions (August 1997)   ==
-@@ -142,6 +143,7 @@ CONTAINS
-                                                 sc0(*)
-     INTEGER                                  :: nstate
-     REAL(real_8), INTENT(out)                :: center(:,:)
-+    LOGICAL, INTENT(IN), OPTIONAL             :: force_recompute
- 
-     CHARACTER(*), PARAMETER                  :: procedureN = 'ddipo'
- 
-@@ -155,7 +157,7 @@ CONTAINS
+@@ -155,7 +162,7 @@ CONTAINS
                                                  info, is, isub, ixx, n1, &
                                                  natst, nmcol, nxmax, w_opt_tmp
      INTEGER, ALLOCATABLE, SAVE               :: mapcol(:), mapful(:)
@@ -36,7 +36,7 @@ index fc2a9e3..ee8ed06 100644
      LOGICAL                                  :: wannier_recomput
      REAL(real_8) :: cost, d1, d2, d3, fac, foc(loadc_foc_array_size), omegon, &
        p(3), phase1, phase2, phase3, sfc, tpi, tpzz, x0(3), zvtot
-@@ -170,12 +172,24 @@ CONTAINS
+@@ -170,12 +177,24 @@ CONTAINS
  ! ==--------------------------------------------------------------==
  ! ==--------------------------------------------------------------==
  
@@ -57,19 +57,39 @@ index fc2a9e3..ee8ed06 100644
      IF (MOD(i_comp,wan05%loc_relocalize_every)==0 .AND. wan05%loc_relocalize) wanni%w_opt=2
  
      wannier_recomput=MOD(i_comp,wan05%loc_recompute_dipole_matrices_every)==0
-+    IF (PRESENT(force_recompute)) wannier_recomput = wannier_recomput .OR. force_recompute
++    wannier_recomput = wannier_recomput .OR. embed_force_recompute
      i_comp=i_comp+1
      IF (paral%io_parent.AND.wannier_recomput) &
           WRITE(6,*) procedureN//': RECOMPUTE DIPOLE MATRICES'
+@@ -460,6 +479,19 @@ CONTAINS
+     RETURN
+   END SUBROUTINE ddipo
+   ! ==================================================================
++  SUBROUTINE ddipo_embed(tau0,c0,cm,c2,sc0,nstate,center)
++    ! Dipole moment of the converged wavefunction for the current geometry.
++    REAL(real_8)                             :: tau0(:,:,:)
++    COMPLEX(real_8)                          :: c0(:,:), cm(:,:), c2(:,:), &
++                                                sc0(*)
++    INTEGER                                  :: nstate
++    REAL(real_8), INTENT(out)                :: center(:,:)
++
++    embed_force_recompute = .TRUE.
++    CALL ddipo(tau0,c0,cm,c2,sc0,nstate,center)
++    embed_force_recompute = .FALSE.
++  END SUBROUTINE ddipo_embed
++  ! ==================================================================
+   SUBROUTINE give_scr_ddipo(lddipo,tag)
+     ! ==--------------------------------------------------------------==
+     INTEGER                                  :: lddipo
 diff --git a/src/wfopts_utils.mod.F90 b/src/wfopts_utils.mod.F90
-index 21b69de..fa56b76 100644
+index 21b69de..65b21b1 100644
 --- a/src/wfopts_utils.mod.F90
 +++ b/src/wfopts_utils.mod.F90
 @@ -7,12 +7,15 @@ MODULE wfopts_utils
    USE cplngsmod,                       ONLY: tcpl,&
                                               tcpllr
    USE ddip,                            ONLY: lenbk
-+  USE ddipo_utils,                     ONLY: ddipo
++  USE ddipo_utils,                     ONLY: ddipo_embed
 +  USE dipomod,                         ONLY: moment
    USE do_perturbation_p_utils,         ONLY: do_perturbation
    USE elct,                            ONLY: crge
@@ -165,7 +185,7 @@ index 21b69de..fa56b76 100644
 +            __LINE__,__FILE__)
 +       CALL zeroing(dip_cm)
 +       CALL zeroing(center)
-+       CALL ddipo(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center,.TRUE.)
++       CALL ddipo_embed(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center)
 +       embed_dipole = moment%dmom
 +       embed_dipole_valid = .TRUE.
 +       DEALLOCATE(center,dip_cm,STAT=ierr)
