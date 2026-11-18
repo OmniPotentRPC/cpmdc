@@ -612,7 +612,7 @@ def check_python(page: Page, surface: PythonSurface, fails: list[str]) -> None:
         elif kind in ("method", "classmethod", "staticmethod"):
             expect = render_signature(obj, short, kind != "staticmethod")
         elif kind == "constant":
-            if isinstance(obj, (int, float, str)):
+            if isinstance(obj, (int, float)):
                 expect = f"{short} = {obj!r}"
             else:
                 expect = f"{short} ({type(obj).__name__})"
