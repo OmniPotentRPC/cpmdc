@@ -5672,18 +5672,16 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   }
 
   int prop_valid = 0, hess_count = 0, dip_count = 0, pol_count = 0;
-  double hess[4096];
   double dip[3] = {0, 0, 0};
   double pol[9];
-  memset(hess, 0, sizeof(hess));
   memset(pol, 0, sizeof(pol));
   if (image && image->prop.valid) {
     prop_valid = 1;
-    hess_count = snapshot_count(image->prop.hessian_count, 4096);
+    hess_count = snapshot_count(image->prop.hessian_count,
+                                sizeof(image->prop.hessian) /
+                                    sizeof(image->prop.hessian[0]));
     dip_count = snapshot_count(image->prop.dipole_count, 3);
     pol_count = snapshot_count(image->prop.polarizability_count, 9);
-    if (hess_count > 0)
-      memcpy(hess, image->prop.hessian, (size_t)hess_count * sizeof(double));
     if (dip_count > 0)
       memcpy(dip, image->prop.dipole, (size_t)dip_count * sizeof(double));
     if (pol_count > 0)
@@ -5693,10 +5691,13 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     prop_valid = 1;
     pol_count = 9;
   }
-  /* Nuclear gradient: prefer PROP snapshot; else negate forces (API forces = -grad). */
-  if (prop_valid && hess_count <= 0 && force_count > 0 && force_count <= 4096) {
-    for (size_t i = 0; i < force_count; ++i)
-      hess[i] = -forces[i];
+  /* Nuclear gradient: prefer the PROP snapshot. A system above the capacity
+   * of the legacy snapshot array leaves it empty, and the wire gradient is
+   * then the negated forces (API forces = -grad). */
+  const double *grad_src = image ? image->prop.hessian : NULL;
+  int grad_from_forces = 0;
+  if (prop_valid && hess_count <= 0 && force_count > 0) {
+    grad_from_forces = 1;
     hess_count = (int)force_count;
   }
   if (prop_valid && pol_count <= 0)
@@ -5757,7 +5758,8 @@ int cpmdc_potential_result_write(double energy, const double *forces,
     grad_list = capn_new_list64(root.seg, hess_count);
     if (grad_list.p.type != CAPN_NULL)
       for (int i = 0; i < hess_count; ++i)
-        capn_set64(grad_list, i, capn_from_f64(hess[i]));
+        capn_set64(grad_list, i,
+                   capn_from_f64(grad_from_forces ? -forces[i] : grad_src[i]));
   }
 
   int stress_valid = 0;

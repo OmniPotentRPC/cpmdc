@@ -1202,10 +1202,6 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.energy_h = 0.0;
   r.message[0] = '\0';
   g_embed_detail[0] = '\0';
-  if (n_atoms > (int)(sizeof(image->prop.hessian) /
-                      (3u * sizeof(image->prop.hessian[0]))))
-    return fail_msg(
-        "property gradient snapshot supports at most 1365 atoms");
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr)
     return fail_msg("invalid arguments");
@@ -1700,10 +1696,6 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
-  if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
-                      (3u * sizeof(session->image.prop.hessian[0]))))
-    return fail_msg(
-        "property gradient snapshot supports at most 1365 atoms");
   /* A missing buffer is a bad call, including on a session that already
    * stored a result. The cache lookup reads these pointers. */
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
@@ -2221,13 +2213,15 @@ static int copy_gradient(const CPMDCEmbedImage *image, double *out,
   size_t n;
   if (count)
     *count = 0;
-  if (!image || !out || !count || !image->prop.valid)
+  if (!image || !count || !image->prop.valid)
     return -1;
-  n = image->prop.hessian_count;
-  if (n > sizeof(image->prop.hessian) / sizeof(image->prop.hessian[0]))
-    return -1;
+  /* The legacy array holds at most sizeof(hessian) / sizeof(double)
+   * components. A larger system leaves hessian_count at 0 and reports its
+   * length through gradient_count: the caller gets that required length, and
+   * the gradient itself from the buffer of the evaluation call. */
+  n = image->gradient_count;
   *count = n;
-  if (n == 0 || capacity < n)
+  if (!out || n == 0 || image->prop.hessian_count != n || capacity < n)
     return -1;
   memcpy(out, image->prop.hessian, n * sizeof(*out));
   return 0;

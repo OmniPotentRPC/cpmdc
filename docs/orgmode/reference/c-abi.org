@@ -157,8 +157,10 @@ optimisation.
 ~CPMDCPropertySnapshot.hessian~ and ~hessian_count~ are deprecated because the
 values are the nuclear gradient, not a Hessian.
 Use ~cpmdc_last_gradient()~ or ~cpmdc_session_last_gradient()~.
-The legacy array fixes the current maximum at 4096 gradient components, or
-1365 atoms. An evaluation with more atoms fails; it is not truncated.
+The legacy array holds at most 4096 gradient components, or 1365 atoms.
+A system with more atoms still evaluates: the gradient or forces come back
+whole in the buffer of the evaluation call, ~hessian_count~ is 0, and
+~hessian~ is zeroed.
 
 Fields of ~CPMDCEnergyComponents~; ~valid~ is an ~int~, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -462,14 +464,37 @@ The gradient accessors take a caller buffer:
 |-------+-------------|
 | ~int cpmdc_last_gradient(double *out, size_t capacity, size_t *count)~ | ~int cpmdc_session_last_gradient(const CPMDCSession *s, double *out, size_t capacity, size_t *count)~ |
 
-~count~ receives the required number of doubles.
-The call returns -1 when there is no gradient, an argument is null, or
+~count~ receives the required number of doubles, ~n_atoms * 3~, after any
+successful evaluation, also when ~out~ is null.
+The call returns -1 when there is no gradient, ~count~ or ~out~ is null, or
 ~capacity~ is too small.
+
+The copy lives in the legacy snapshot, so a system above 1365 atoms has none:
+the call returns -1 with ~count~ set to the required length, and the gradient
+is the one the evaluation call wrote to its own buffer
+(~grad_h_bohr~ or ~forces_h_bohr~, or ~PotentialResult.gradient~ and
+~PotentialResult.forces~ in a message call).
+A library-owned buffer sized to the system would hold a second copy of every
+gradient for the life of each session, and its lifetime would have to follow
+the sessions and the global state; the caller's buffer is already complete.
+~PotentialResult.gradient~ above 1365 atoms is the negated ~forces~ in the
+units of the ~ForceInput~, as the schema defines it.
 
 The dipole getter returns 0 only when the linked OpenCPMD recomputed
 ~dipomod%moment%dmom~ from the converged wavefunction of this evaluation.
 The supported route is a periodic Gamma-point, non-broken-symmetry deck with
 ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
+The electronic part is a Berry-phase quantity of the periodic cell.
+It is defined only for a neutral cell, and only modulo the lattice quantum:
+moving one electron through a lattice vector changes the value by that vector,
+so between two geometries it can jump by an integer number of electron charges
+times a lattice vector.
+Compare dipoles along a continuous trajectory only after removing those
+jumps.
+A charged cell has no defined dipole.
+~cpmdc_session_calculate_au()~ has no dipole output, because its argument list
+is fixed for the LAMMPS, GROMACS, and i-PI callers that bind to it; read
+~cpmdc_session_last_dipole()~ after it returns 0.
 An isolated deck, a k-point calculation, the reference evaluator, and a deck
 without either request leave the dipole invalid.
 OpenCPMD's ~ddip%pdipole~ is not this molecular dipole: ~ddipo~ adds the ionic

@@ -165,8 +165,10 @@ typedef struct CPMDCMDTrajectoryRow {
  *   cpmdc_session_last_gradient() instead. A full Hessian needs a dedicated
  *   PROP/Hessian run.
  *
- * The fixed legacy array limits evaluations to 1365 atoms. libcpmdc rejects a
- * larger system instead of truncating its gradient.
+ * The fixed legacy array holds the gradient of at most 1365 atoms. For a
+ * larger system an evaluation still succeeds and returns the whole gradient
+ * in the buffer of the call, but `hessian_count` is 0 and `hessian` is
+ * zeroed. cpmdc_last_gradient() then reports the required length.
  */
 typedef struct CPMDCPropertySnapshot {
   /** Non-zero when the snapshot was written. */
@@ -190,6 +192,13 @@ typedef struct CPMDCPropertySnapshot {
  *
  * `valid` is set only when OpenCPMD recomputed the dipole from the converged
  * wavefunction for the current geometry. Values are electron Bohr.
+ *
+ * The electronic part comes from the Berry phase of the periodic cell. It is
+ * defined only for a neutral cell, and only modulo the lattice quantum: moving
+ * one electron through a lattice vector changes the value by that vector, so
+ * the value can jump by an integer number of electron charges times a lattice
+ * vector between geometries. Compare dipoles along a continuous trajectory
+ * only after unwrapping those jumps. A charged cell has no defined dipole.
  */
 typedef struct CPMDCDipole {
   /** Non-zero only when this evaluation recomputed the dipole. */
@@ -557,6 +566,13 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * fixes the atom count and the composition, and a repeat of the stored
  * positions and cell returns the stored result.
  *
+ * The call has no output for the molecular dipole: its argument list is fixed
+ * by the LAMMPS, GROMACS and i-PI callers that bind to it, and an added
+ * argument would change the symbol for them. The dipole of the step is the
+ * value of `cpmdc_session_last_dipole(session, ...)` after this call returns
+ * 0. The same holds for the gradient: `forces_h_bohr` holds all `3 * n_atoms`
+ * components for any atom count, while the legacy snapshot holds 1365 atoms.
+ *
  * @return 0 on success; -1 on a `NULL` session or output, `n_atoms` outside
  *         1..`INT_MAX / 3`, a topology change, or a failed evaluation.
  *         Failure text is `cpmdc_last_error()`.
@@ -727,9 +743,15 @@ CPMDC_API int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
  * @brief Copy the nuclear gradient of the last evaluation.
  *
  * `capacity` is the number of doubles available in `out`. `count` receives
- * the required number. Returns 0 on success and -1 when no gradient is
- * available, an argument is null, or the buffer is too short. The legacy
- * property snapshot limits successful evaluations to 4096 components.
+ * the required number, `n_atoms * 3`, whenever the last evaluation succeeded,
+ * also when `out` is null. Returns 0 on success and -1 when no gradient is
+ * available, `count` is null, `out` is null, or the buffer is too short.
+ *
+ * The library keeps this copy in the legacy property snapshot, which holds
+ * 4096 components (1365 atoms). For a larger system it keeps no copy: the
+ * call returns -1 with `*count` set to the required length, and the gradient
+ * is the one the evaluation call wrote to its own buffer. The evaluation
+ * itself does not fail for that reason.
  */
 CPMDC_API int cpmdc_last_gradient(double *out, size_t capacity, size_t *count);
 
@@ -742,7 +764,11 @@ CPMDC_API int cpmdc_session_last_gradient(const CPMDCSession *session,
  * @brief Copy the molecular dipole of the last evaluation.
  *
  * Returns 0 only when the dipole was recomputed for that geometry. Returns -1
- * without writing `cpmdc_last_error()` when it was unavailable.
+ * without writing `cpmdc_last_error()` when it was unavailable. See
+ * `CPMDCDipole` for what the value means in a periodic cell.
+ *
+ * After `cpmdc_session_calculate_au()` the dipole of that step is read with
+ * `cpmdc_session_last_dipole()`.
  */
 CPMDC_API int cpmdc_last_dipole(CPMDCDipole *out);
 

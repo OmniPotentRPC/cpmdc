@@ -139,6 +139,7 @@ MODULE cpmd_embed_c_api
     TYPE(cpmdc_md_row) :: md
     TYPE(cpmdc_property_snapshot) :: prop
     TYPE(cpmdc_stress_tensor) :: stress
+    INTEGER(c_size_t) :: gradient_count
     REAL(c_double) :: warm_cell(9)
     INTEGER(c_int) :: warm_cell_set
     INTEGER(c_int) :: warm_has_cell
@@ -242,12 +243,34 @@ CONTAINS
     image%prop%valid = 0_c_int
     image%prop%hessian_count = 0_c_size_t
     image%prop%hessian = 0.0_c_double
+    image%gradient_count = 0_c_size_t
     image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
     image%prop%polarizability_count = 0_c_size_t
     image%prop%polarizability = 0.0_c_double
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
+  END SUBROUTINE
+
+  ! The deprecated hessian(4096) array holds the gradient of a system up to
+  ! 1365 atoms. A larger system leaves it empty (hessian_count = 0) and
+  ! records the gradient length in gradient_count. The evaluation never
+  ! fails for that reason: the caller's gradient buffer is complete.
+  SUBROUTINE snapshot_legacy_gradient(image, n3, grad)
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n3
+    REAL(c_double), INTENT(IN) :: grad(*)
+    INTEGER :: i
+    image%gradient_count = INT(n3, KIND=c_size_t)
+    image%prop%hessian_count = 0_c_size_t
+    IF (n3 > SIZE(image%prop%hessian)) THEN
+      image%prop%hessian = 0.0_c_double
+      RETURN
+    END IF
+    DO i = 1, n3
+      image%prop%hessian(i) = grad(i)
+    END DO
+    image%prop%hessian_count = INT(n3, KIND=c_size_t)
   END SUBROUTINE
 
   SUBROUTINE snapshot_total_only(image, energy_h)
@@ -289,6 +312,7 @@ CONTAINS
       image%prop%polarizability(i) = 0.0_c_double
     END DO
     image%prop%hessian_count = 0_c_size_t
+    image%gradient_count = 0_c_size_t
     image%stress%valid = 0_c_int
     image%stress%values = 0.0_c_double
   END SUBROUTINE
@@ -628,11 +652,6 @@ CONTAINS
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(n3) / 3) RETURN
     n3 = INT(n_atoms) * 3
-    IF (n3 > 4096) THEN
-      CALL cpmdc_note_embed_failure( &
-           'property gradient snapshot supports at most 1365 atoms'//c_null_char)
-      RETURN
-    END IF
     DO i = 1, n3
       grad_h_bohr(i) = 0.0_c_double
     END DO
@@ -1993,10 +2012,7 @@ CONTAINS
     ok = 1_c_int
     ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
     CALL snapshot_total_only(image, energy_h)
-    DO i = 1, n_atoms * 3
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
+    CALL snapshot_legacy_gradient(image, n_atoms * 3, grad)
     image%prop%valid = 1_c_int
     ! Strain derivative of this reference energy, Hartree/Bohr^3, with the
     ! OpenCPMD sign: volume * stress = -dE/d(eps). An isolated deck has a
@@ -2126,7 +2142,7 @@ CONTAINS
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i, ncopy
+    INTEGER :: i
     LOGICAL :: dipole_valid
     REAL(real64) :: dipole(3)
     image%prop%valid = 1_c_int
@@ -2143,12 +2159,7 @@ CONTAINS
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
     END DO
-    ncopy = n_atoms * 3
-    IF (ncopy < 0) ncopy = 0
-    DO i = 1, ncopy
-      image%prop%hessian(i) = grad(i)
-    END DO
-    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
+    CALL snapshot_legacy_gradient(image, MAX(n_atoms * 3, 0), grad)
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)

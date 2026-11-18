@@ -11,6 +11,9 @@ typedef struct CPMDCEmbedImage {
   CPMDCMDTrajectoryRow md;
   CPMDCPropertySnapshot prop;
   CPMDCStressTensor stress;
+  /* Length of the last nuclear gradient, n_atoms * 3. prop.hessian holds it
+   * only up to its capacity; above that prop.hessian_count is 0. */
+  size_t gradient_count;
   double warm_cell[9];
   int warm_cell_set;
   int warm_has_cell;
