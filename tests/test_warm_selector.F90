@@ -1,7 +1,28 @@
 ! SPDX-License-Identifier: MIT
+MODULE test_warm_selector_metric
+  USE warm_selector, ONLY: real_8
+  USE, INTRINSIC :: iso_c_binding, ONLY: c_double, c_int
+  IMPLICIT NONE
+CONTAINS
+  FUNCTION metric(a,b,box,periodic) RESULT(d)
+    REAL(real_8), INTENT(IN) :: a(:),b(:),box(9)
+    LOGICAL, INTENT(IN) :: periodic
+    REAL(real_8) :: d
+    INTERFACE
+      FUNCTION cpmdc_geometry_rmsd(n,a,b,box,periodic) BIND(C) RESULT(d)
+        IMPORT c_int,c_double
+        INTEGER(c_int), VALUE :: n,periodic
+        REAL(c_double), INTENT(IN) :: a(*),b(*),box(*)
+        REAL(c_double) :: d
+      END FUNCTION
+    END INTERFACE
+    d=cpmdc_geometry_rmsd(SIZE(a)/3,a,b,box,MERGE(1,0,periodic))
+  END FUNCTION
+END MODULE
+
 PROGRAM test_warm_selector
   USE warm_selector
-  USE, INTRINSIC :: iso_c_binding, ONLY: c_double, c_int
+  USE test_warm_selector_metric, ONLY: metric
   IMPLICIT NONE
   REAL(real_8) :: cell(9), geo(3), dist
   INTEGER :: source, nslots
@@ -123,18 +144,4 @@ CONTAINS
     REAL(real_8), INTENT(IN) :: limit
     CALL embed_choose_warm_start_metric_v2(geo,cell,periodic,limit,dist,source,donor,metric)
   END SUBROUTINE
-  FUNCTION metric(a,b,box,periodic) RESULT(d)
-    REAL(real_8), INTENT(IN) :: a(:),b(:),box(9)
-    LOGICAL, INTENT(IN) :: periodic
-    REAL(real_8) :: d
-    INTERFACE
-      FUNCTION cpmdc_geometry_rmsd(n,a,b,box,periodic) BIND(C) RESULT(d)
-        IMPORT c_int,c_double
-        INTEGER(c_int), VALUE :: n,periodic
-        REAL(c_double), INTENT(IN) :: a(*),b(*),box(*)
-        REAL(c_double) :: d
-      END FUNCTION
-    END INTERFACE
-    d=cpmdc_geometry_rmsd(SIZE(a)/3,a,b,box,MERGE(1,0,periodic))
-  END FUNCTION
 END PROGRAM

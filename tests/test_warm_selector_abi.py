@@ -11,8 +11,20 @@ compiler = sys.argv[3:]
 root.mkdir(parents=True, exist_ok=True)
 versioned = "embed_choose_warm_start_metric_v2"
 unversioned = "embed_choose_warm_start"
-consumer = """PROGRAM selector_abi
+consumer = """MODULE selector_abi_metric
+  USE warm_selector, ONLY: real_8
+  IMPLICIT NONE
+CONTAINS
+  FUNCTION metric(a,b,cell,periodic) RESULT(distance)
+    REAL(real_8), INTENT(IN) :: a(:),b(:),cell(9)
+    LOGICAL, INTENT(IN) :: periodic
+    REAL(real_8) :: distance
+    distance = SQRT(SUM((a-b)**2)/(SIZE(a)/3))
+  END FUNCTION
+END MODULE
+PROGRAM selector_abi
   USE warm_selector, ONLY: real_8, embed_key_kind, embed_choose_warm_start_metric_v2
+  USE selector_abi_metric, ONLY: metric
   IMPLICIT NONE
   REAL(real_8) :: geo(3), box(9), dist
   INTEGER :: source
@@ -21,13 +33,6 @@ consumer = """PROGRAM selector_abi
   box = [4D0,0D0,0D0,0D0,5D0,0D0,0D0,0D0,6D0]
   CALL embed_choose_warm_start_metric_v2(geo,box,.TRUE.,.5D0,dist,source,donor,metric)
   IF (source /= -2) ERROR STOP 1
-CONTAINS
-  FUNCTION metric(a,b,cell,periodic) RESULT(distance)
-    REAL(real_8), INTENT(IN) :: a(:),b(:),cell(9)
-    LOGICAL, INTENT(IN) :: periodic
-    REAL(real_8) :: distance
-    distance = SQRT(SUM((a-b)**2)/(SIZE(a)/3))
-  END FUNCTION
 END PROGRAM
 """
 
