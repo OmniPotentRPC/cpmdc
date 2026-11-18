@@ -309,10 +309,28 @@ survives. A dangling link, whose target is not there yet, is resolved hop
 by hop to the end of the chain, even past the first missing name, and the
 real end is created there: a relative target at each hop is taken from the
 directory that holds that hop's link, and the new file takes mode 0666
-under the umask, as ~fopen~ did. Every link before that end stays exactly
-as it was. A loop, or a link that cannot be read, is left in place and the
-write fails. Windows resolves none of this: the destination is written as
-given, with no symlink handling at all.
+under the umask, as ~fopen~ did. While it walks, the writer holds an
+~O_DIRECTORY~ descriptor for the parent of the destination and one for the
+directory that contained each symlink it followed, and it records that
+symlink's device, inode, and target text. Immediately before ~renameat~ it
+reads those descriptors again with ~fstatat~ and ~AT_SYMLINK_NOFOLLOW~. If
+any followed symlink is no longer that same link, or the final component
+is no longer the absent name or the same file that was resolved, the write
+fails, the temporary file is removed, and nothing is renamed. A loop, or a
+link that cannot be read, is left in place and the write fails.
+
+That check and the rename are not one operation. POSIX has no call that
+renames a file only when a whole symlink chain is unchanged, so a full
+guarantee is not available. The ~renameat~ uses the directory descriptor
+taken during resolution, which pins that directory inode: replacing an
+earlier path component afterwards does not redirect the write onto the
+replacement. On Linux an absent final name is published with ~renameat2~
+and ~RENAME_NOREPLACE~, so a name that appears in the gap after the check
+is left alone and the write fails. When the resolved destination is an
+existing file, the last check and the ~renameat~ are still two calls, and
+a substitution of that directory entry in the gap can be overwritten.
+Windows resolves none of this: the destination is written as given, with
+no symlink handling at all.
 The writer flushes that file and syncs it with ~fsync~, renames it over the
 destination, and syncs the directory with ~fsync~, so the new name also
 survives a crash.
