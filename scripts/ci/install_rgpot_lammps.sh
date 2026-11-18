@@ -43,6 +43,7 @@ test "$(git -C "$work/src" rev-parse HEAD)" = "$pin"
 bindir=$(dirname "$("$python" -c 'import sys; print(sys.executable)')")
 prefix=$("$python" -c 'import sys; print(sys.prefix)')
 meson=${bindir}/meson
+export PATH="${bindir}:${PATH}"
 "$meson" setup "$work/build" "$work/src" \
   -Dwith_python=true \
   -Dwith_tests=false \

@@ -39,7 +39,8 @@ jobs:
           cache: true
       # rgpot.lammps is not in a released wheel. Build it before configure.
       # The lammps module is installed after configure so the auto plugin
-      # probe does not start building cpmdcplugin.so in this job.
+      # probe does not start building cpmdcplugin.so in this job. The main
+      # cpmdc build still probes and links the environment's Open MPI.
       - name: rgpot.lammps
         run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite (stub + embed E2E)
@@ -136,6 +137,8 @@ jobs:
         run: PYTHON="${RUNNER_TEMP}/meson-venv/bin/python" bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite
         run: |
+          # The plugin probe stays off because lammps is installed after setup;
+          # the cpmdc library itself still probes and links distro Open MPI.
           . scripts/with_baseline_flags.sh
           # Ubuntu 24.04 cmocka.h uses jmp_buf and va_list and does not include their headers.
           # The prefix defines _GNU_SOURCE before those headers so memfd flags stay visible.

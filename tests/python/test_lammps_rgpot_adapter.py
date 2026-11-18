@@ -5,7 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-pytest.importorskip("rgpot.lammps", reason="rgpot.lammps is not installed")
+from lammps_import import import_rgpot_lammps
+
+if import_rgpot_lammps() is None:
+    pytest.skip("rgpot.lammps is not installed", allow_module_level=True)
 
 import cpmdc.lammps
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
