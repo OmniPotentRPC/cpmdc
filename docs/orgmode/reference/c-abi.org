@@ -144,7 +144,7 @@ Each snapshot struct starts with ~int valid~, set by a successful evaluation.
 | ~CPMDCChargeIntegrals~ | ~csumg~, ~csumr~, ~csums~, ~csumsabs~ from ~chrg~ | electrons |
 | ~CPMDCMultiStateEnergies~ | ~count~ doubles in ~values[64]~ from ~ener_c~ and ~ener_d~ | Hartree |
 | ~CPMDCMDTrajectoryRow~ | ~count~ doubles in ~values[32]~: ~etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC~ | Hartree |
-| ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units |
+| ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units (Hartree/Bohr for the gradient) |
 | ~CPMDCStressTensor~ | row-major ~values[9]~, ~paiu/omega~ | Hartree/Bohr^3 |
 | ~CPMDCRankSpread~ | ~ranks~, ~energy_h~, ~gradient_h_bohr~ (see [[*Results of the last evaluation][Results of the last evaluation]]) | Hartree, Hartree/Bohr |
 
@@ -201,11 +201,11 @@ entries a call filled.
 | ~values[64]~ | ~CPMDCMultiStateEnergies~ | ~ener_c~ and ~ener_d~ values, Hartree |
 | ~values[32]~ | ~CPMDCMDTrajectoryRow~ | trajectory terms in the order of the table above, Hartree |
 | ~hessian_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~hessian~ |
-| ~hessian[4096]~ | ~CPMDCPropertySnapshot~ | nuclear gradient dE/dR packed as ~n_atoms * 3~, atomic units |
+| ~hessian[4096]~ | ~CPMDCPropertySnapshot~ | nuclear gradient dE/dR in Hartree/Bohr packed as ~n_atoms * 3~. It is a gradient, not a Hessian. Only the first 4096 values are kept, and ~hessian_count~ says how many, so a system of more than 1365 atoms is cut short |
 | ~dipole_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~dipole~ |
 | ~dipole[3]~ | ~CPMDCPropertySnapshot~ | OpenCPMD ~ddip%pdipole~ in atomic units, zeros for the reference evaluator |
 | ~polarizability_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~polarizability~ |
-| ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | polarizability when PROP is available, otherwise zeros |
+| ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | always zeros, in atomic units (Bohr^3), with ~polarizability_count~ 9: no build computes it |
 | ~values[9]~ | ~CPMDCStressTensor~ | row-major ~[xx, xy, xz, yx, yy, yz, zx, zy, zz]~, Hartree/Bohr^3 |
 | ~ranks~ | ~CPMDCRankSpread~ | ~int~, ranks in the calculator communicator |
 | ~energy_h~ | ~CPMDCRankSpread~ | largest absolute energy difference from rank 0 over the ranks, Hartree |
