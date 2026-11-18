@@ -125,6 +125,11 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "CALL stopgm('embed_restore_orbitals'",
         "saved orbitals do not match c0; call embed_reset_warm_orbitals",
         "USE rinitwf_driver,                  ONLY: embed_have_orbitals",
+        "IF (.NOT. embed_slots(src)%converged) RETURN",
+        "embed_slots(i)%converged = embed_store_converged",
+        "embed_store_converged = embed_slots(i)%converged",
+        "embed_store_converged = embed_slots(best)%converged",
+        "ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
@@ -248,6 +253,16 @@ def assert_embed_extrapolate(patch: Path) -> None:
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
+    stale = text.split(
+        "ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN", 1
+    )
+    if len(stale) != 2 or "CALL embed_break_history()" not in stale[1].split(
+        "ELSE IF", 1
+    )[0]:
+        raise AssertionError(
+            f"{patch.name}: an unconverged pass that already holds orbitals "
+            "must break the extrapolation history"
+        )
     # control_test still turns cntl%textrap off, so cpmd.x keeps its jobs.
     if "-       cntl%textrap=.FALSE." in text:
         raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")

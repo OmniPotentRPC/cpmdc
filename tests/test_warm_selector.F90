@@ -138,6 +138,62 @@ PROGRAM test_warm_selector
   orbitals = 0
   CALL embed_restore_orbitals(orbitals)
   IF (ABS(orbitals(1,1,1)-CMPLX(31D0,0D0,real_8)) > 1D-12) ERROR STOP 22
+  ! Same key is a no-op while the donor is converged. An unconverged pass
+  ! marks it stale. The copy is refused from the live store, from the
+  ! parked slot, after that slot is selected again, and after a warm start
+  ! adopts the parked slot.
+  CALL embed_reset_warm_orbitals()
+  CALL embed_select_orbital_slot(41_embed_key_kind)
+  geo = [.2D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(41D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  IF (.NOT. embed_copy_orbital_slot(41_embed_key_kind, 41_embed_key_kind)) &
+       ERROR STOP 23
+  CALL embed_select_orbital_slot(50_embed_key_kind)
+  geo = [3D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(50D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  IF (.NOT. embed_copy_orbital_slot(41_embed_key_kind, 41_embed_key_kind)) &
+       ERROR STOP 24
+  IF (.NOT. embed_copy_orbital_slot(41_embed_key_kind, 43_embed_key_kind)) &
+       ERROR STOP 25
+  CALL embed_select_orbital_slot(41_embed_key_kind)
+  embed_store_converged = .FALSE.
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 41_embed_key_kind)) &
+       ERROR STOP 26
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 44_embed_key_kind)) &
+       ERROR STOP 27
+  CALL embed_select_orbital_slot(50_embed_key_kind)
+  nslots = embed_orbital_slot_count()
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 41_embed_key_kind)) &
+       ERROR STOP 28
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 45_embed_key_kind)) &
+       ERROR STOP 29
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 30
+  orbitals = CMPLX(50D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(41_embed_key_kind)
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 46_embed_key_kind)) &
+       ERROR STOP 31
+  CALL embed_reset_warm_orbitals()
+  CALL embed_select_orbital_slot(41_embed_key_kind)
+  geo = [.2D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(41D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  embed_store_converged = .FALSE.
+  CALL embed_select_orbital_slot(50_embed_key_kind)
+  geo = [3D0, 0D0, 0D0]
+  CALL choose(.TRUE., .5D0)
+  orbitals = CMPLX(50D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  geo = [.2D0, 0D0, 0D0]
+  CALL choose(.TRUE., 5D0)
+  IF (source /= 1 .OR. donor /= 41_embed_key_kind) ERROR STOP 32
+  IF (embed_copy_orbital_slot(41_embed_key_kind, 47_embed_key_kind)) &
+       ERROR STOP 33
 CONTAINS
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic

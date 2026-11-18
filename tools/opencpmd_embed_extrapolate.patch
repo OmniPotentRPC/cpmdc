@@ -83,9 +83,10 @@ index 985c887..c27c353 100644
    !public :: lseprof
  
  CONTAINS
-@@ -217,6 +232,8 @@ CONTAINS
+@@ -217,7 +232,9 @@ CONTAINS
      embed_have_orbitals = .FALSE.
      embed_have_partial = .FALSE.
+     embed_store_converged = .FALSE.
      embed_history_set = .FALSE.
 +    CALL embed_break_history()
 +    IF (ALLOCATED(embed_xhist)) DEALLOCATE(embed_xhist)
@@ -102,16 +103,17 @@ index 985c887..c27c353 100644
      INTEGER :: i, ierr
      IF (embed_have_key .AND. key == embed_current_key) RETURN
 +    CALL embed_break_history()
-     ! Park the converged c0 of the key being left. A partial copy is not
-     ! a result and stays with the store.
+     ! Park the c0 of the key being left and record whether it converged.
+     ! A partial copy is not a result and stays with the store.
      IF (embed_have_key .AND. embed_have_orbitals .AND. &
-@@ -451,6 +469,7 @@ CONTAINS
+@@ -451,7 +469,8 @@ CONTAINS
        RETURN
      ENDIF
      IF (dist > rmax) THEN
 +      CALL embed_break_history()
        embed_have_orbitals = .FALSE.
        embed_have_partial = .FALSE.
+       embed_store_converged = .FALSE.
        source = -1
 @@ -464,6 +483,7 @@ CONTAINS
             __LINE__,__FILE__)
@@ -216,15 +218,20 @@ index 985c887..c27c353 100644
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -1303,10 +1391,12 @@ CONTAINS
+@@ -1303,14 +1391,17 @@ CONTAINS
      IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
        CALL embed_save_orbitals(c0)
        embed_have_partial = .FALSE.
+       embed_store_converged = .TRUE.
 +      embed_xstate = 1
+     ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN
+       embed_store_converged = .FALSE.
++      CALL embed_break_history()
      ELSE IF (embed_warm_orbitals .AND. .NOT. embed_have_orbitals) THEN
        CALL embed_save_orbitals(c0)
        embed_have_orbitals = .FALSE.
        embed_have_partial = .TRUE.
+       embed_store_converged = .FALSE.
 +      CALL embed_break_history()
      ENDIF
      ! CB: TAUP,FION handled by BS_WFO

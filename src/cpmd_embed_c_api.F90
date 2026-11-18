@@ -464,8 +464,9 @@ CONTAINS
   END SUBROUTINE
 
   ! Duplicate from_key's converged orbitals into to_key. 0 on success, -1
-  ! when from_key has no converged orbitals. Without OpenCPMD there is no
-  ! orbital store; the session layer treats that as nothing to copy.
+  ! when from_key has no converged orbitals. Without OpenCPMD this link
+  ! stub returns -1 when the keys differ. The reference build's session
+  ! copy does not call it and returns 0.
   FUNCTION cpmdc_embed_copy_orbitals(from_key, to_key) RESULT(rc) &
       BIND(C, NAME='cpmdc_embed_copy_orbitals')
 #if defined(CPMDC_HAS_CPMD)
@@ -479,7 +480,7 @@ CONTAINS
          INT(to_key, KIND=SELECTED_INT_KIND(18))))
 #else
     rc = 0_c_int
-    IF (from_key /= to_key) rc = 0_c_int
+    IF (from_key /= to_key) rc = -1_c_int
 #endif
   END FUNCTION
 
