@@ -32,6 +32,13 @@ MODULE cpmdc_embed_host_iface
     SUBROUTINE cpmdc_note_deck_external_potential() &
         BIND(C, NAME='cpmdc_note_deck_external_potential')
     END SUBROUTINE
+    FUNCTION cpmdc_deck_defines_external_potential(deck, deck_len) &
+        BIND(C, NAME='cpmdc_deck_defines_external_potential')
+      IMPORT :: c_char, c_int, c_size_t
+      CHARACTER(KIND=c_char), INTENT(IN) :: deck(*)
+      INTEGER(c_size_t), INTENT(IN), VALUE :: deck_len
+      INTEGER(c_int) :: cpmdc_deck_defines_external_potential
+    END FUNCTION
     FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
@@ -196,24 +203,45 @@ MODULE cpmd_embed_c_api
     CHARACTER(LEN=1024) :: cpmd_root = ' '
   END TYPE
 
-  ! Direct evaluation of erf(r/(sqrt(2)*sigma))/r subtracts two terms of
-  ! size O(1/r^2) whose difference is O(1/sigma^3). In double precision the
-  ! absolute error of that subtraction exceeds the analytic result by more
-  ! than SQRT(EPSILON) once r/sigma drops below EPSILON**(1/4), that is
-  ! SQRT(SQRT(EPSILON)). Inside that fraction of the Gaussian width the
-  ! potential uses its analytic value at the origin, SQRT(2/pi)/sigma, and
-  ! the force contribution is omitted. The force is odd in r, so the omitted
-  ! piece is O(r/sigma^3) and is far smaller than one cell of a plane-wave
-  ! mesh. The guard tracks sigma, so a narrower charge keeps a tighter cutoff.
-  REAL(real64), PARAMETER :: embed_gaussian_origin_guard = &
-      SQRT(SQRT(EPSILON(1.0_real64)))
+  ! At r/sigma = 1/8 the closed force coefficient loses at most about
+  ! 64*EPSILON to cancellation. Below it, the series through (r/sigma)^14
+  ! has a smaller truncation error than double precision at the boundary.
+  REAL(real64), PARAMETER :: embed_gaussian_series_switch = &
+      1.0_real64 / 8.0_real64
 
 CONTAINS
 
-  LOGICAL FUNCTION embed_within_gaussian_origin(rr, sigma)
+  SUBROUTINE embed_gaussian_kernel(rr, sigma, potential, force_coefficient, &
+      force_derivative)
     REAL(real64), INTENT(IN) :: rr, sigma
-    embed_within_gaussian_origin = rr <= sigma * embed_gaussian_origin_guard
-  END FUNCTION
+    REAL(real64), INTENT(OUT) :: potential, force_coefficient, force_derivative
+    REAL(real64) :: root, t, t2, erfv, expo
+    root = SQRT(2.0_real64 / ACOS(-1.0_real64))
+    t = rr / sigma
+    t2 = t * t
+    IF (t <= embed_gaussian_series_switch) THEN
+      potential = root / sigma * (1.0_real64 - t2 / 6.0_real64 + &
+          t2**2 / 40.0_real64 - t2**3 / 336.0_real64 + &
+          t2**4 / 3456.0_real64 - t2**5 / 42240.0_real64 + &
+          t2**6 / 599040.0_real64 - t2**7 / 9676800.0_real64)
+      force_coefficient = root / sigma**3 * (1.0_real64 / 3.0_real64 - &
+          t2 / 10.0_real64 + t2**2 / 56.0_real64 - &
+          t2**3 / 432.0_real64 + t2**4 / 4224.0_real64 - &
+          t2**5 / 49920.0_real64 + t2**6 / 691200.0_real64 - &
+          t2**7 / 10967040.0_real64)
+      force_derivative = root / sigma**4 * t * (-1.0_real64 / 5.0_real64 + &
+          t2 / 14.0_real64 - t2**2 / 72.0_real64 + &
+          t2**3 / 528.0_real64 - t2**4 / 4992.0_real64 + &
+          t2**5 / 57600.0_real64 - t2**6 / 783360.0_real64)
+    ELSE
+      erfv = ERF(t / SQRT(2.0_real64))
+      expo = EXP(-0.5_real64 * t2)
+      potential = erfv / rr
+      force_coefficient = erfv / rr**3 - root * expo / (sigma * rr**2)
+      force_derivative = 3.0_real64 * root * expo / (sigma * rr**3) + &
+          root * expo / (sigma**3 * rr) - 3.0_real64 * erfv / rr**4
+    END IF
+  END SUBROUTINE
 
 #if defined(CPMDC_HAS_CPMD)
   SUBROUTINE cpmdc_external_charge_density_force(rhoe) &
@@ -222,7 +250,7 @@ CONTAINS
     USE parac, ONLY: parai
     USE mp_interface, ONLY: mp_sum
     REAL(c_double), INTENT(IN) :: rhoe(*)
-    REAL(real64) :: point(3), d(3), rr, sigma, erfv, expo, coef, dv
+    REAL(real64) :: point(3), d(3), rr, sigma, potential, coef, derivative, dv
     INTEGER :: ix, iy, iz, lx, idx, m
     IF (embed_external_count <= 0) RETURN
     embed_external_force = 0.0_real64
@@ -239,11 +267,8 @@ CONTAINS
             d = point - embed_external_pos(:,m)
             rr = NORM2(d)
             sigma = embed_external_sigma(m)
-            IF (embed_within_gaussian_origin(rr, sigma)) CYCLE
-            erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
-            expo = EXP(-0.5_real64 * (rr / sigma)**2)
-            coef = embed_external_q(m) * (erfv / rr**3 - &
-                 SQRT(2.0_real64 / ACOS(-1.0_real64)) * expo / (sigma * rr**2))
+            CALL embed_gaussian_kernel(rr, sigma, potential, coef, derivative)
+            coef = embed_external_q(m) * coef
             embed_external_force(:,m) = embed_external_force(:,m) + &
                  REAL(rhoe(idx), real64) * coef * d * dv
           END DO
@@ -263,7 +288,7 @@ CONTAINS
     REAL(c_double), INTENT(IN) :: external_pos(*), external_q(*), external_width(*)
     REAL(real64), INTENT(IN) :: shift_ang(3)
     INTEGER, INTENT(OUT) :: ierr
-    REAL(real64) :: point(3), d(3), rr, value
+    REAL(real64) :: point(3), d(3), rr, value, potential, coef, derivative
     INTEGER :: ix, iy, iz, lx, idx, m, astat
     LOGICAL :: own_potential
     ierr = 0
@@ -315,13 +340,9 @@ CONTAINS
           DO m = 1, n_external
             d = point - embed_external_pos(:,m)
             rr = NORM2(d)
-            IF (.NOT. embed_within_gaussian_origin(rr, embed_external_sigma(m))) THEN
-              value = value - embed_external_q(m) * &
-                  ERF(rr / (SQRT(2.0_real64) * embed_external_sigma(m))) / rr
-            ELSE
-              value = value - embed_external_q(m) * &
-                  SQRT(2.0_real64 / ACOS(-1.0_real64)) / embed_external_sigma(m)
-            END IF
+            CALL embed_gaussian_kernel(rr, embed_external_sigma(m), potential, &
+                 coef, derivative)
+            value = value - embed_external_q(m) * potential
           END DO
           embed_external_potential(idx) = value
         END DO
@@ -337,7 +358,7 @@ CONTAINS
     USE ions, ONLY: ions0, ions1
     USE coor, ONLY: tau0, fion
     REAL(real64), INTENT(INOUT) :: energy
-    REAL(real64) :: d(3), rr, sigma, erfv, expo, coef, pair_force(3)
+    REAL(real64) :: d(3), rr, sigma, potential, coef, derivative, pair_force(3)
     INTEGER :: is, ia, m
     IF (embed_external_count <= 0) RETURN
     DO is = 1, ions1%nsp
@@ -346,20 +367,12 @@ CONTAINS
           d = tau0(:,ia,is) - embed_external_pos(:,m)
           rr = NORM2(d)
           sigma = embed_external_sigma(m)
-          IF (.NOT. embed_within_gaussian_origin(rr, sigma)) THEN
-            erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
-            expo = EXP(-0.5_real64 * (rr / sigma)**2)
-            energy = energy + ions0%zv(is) * embed_external_q(m) * erfv / rr
-            coef = ions0%zv(is) * embed_external_q(m) * &
-                (erfv / rr**3 - SQRT(2.0_real64 / ACOS(-1.0_real64)) * &
-                 expo / (sigma * rr**2))
-            pair_force = coef * d
-            fion(:,ia,is) = fion(:,ia,is) + pair_force
-            embed_external_force(:,m) = embed_external_force(:,m) - pair_force
-          ELSE
-            energy = energy + ions0%zv(is) * embed_external_q(m) * &
-                SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
-          END IF
+          CALL embed_gaussian_kernel(rr, sigma, potential, coef, derivative)
+          energy = energy + ions0%zv(is) * embed_external_q(m) * potential
+          coef = ions0%zv(is) * embed_external_q(m) * coef
+          pair_force = coef * d
+          fion(:,ia,is) = fion(:,ia,is) + pair_force
+          embed_external_force(:,m) = embed_external_force(:,m) - pair_force
         END DO
       END DO
     END DO
@@ -2116,7 +2129,7 @@ CONTAINS
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
     REAL(real64) :: d(3), field(3), induced(3), jac(3,3), force(3)
-    REAL(real64) :: sigma, q, rr, erfv, expo, cexp, a, aprime, alpha
+    REAL(real64) :: sigma, q, rr, potential, a, aprime, alpha
     INTEGER :: i, j, idx, m, u, v
     knobs = knobs_of(image)
     ok = 0_c_int
@@ -2155,14 +2168,9 @@ CONTAINS
         d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
         sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
         rr = NORM2(d)
-        IF (.NOT. embed_within_gaussian_origin(rr, sigma)) THEN
-          q = REAL(external_q(m), KIND=real64)
-          erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
-          expo = EXP(-0.5_real64 * (rr / sigma)**2)
-          cexp = SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
-          a = erfv / rr**3 - cexp * expo / rr**2
-          field = field + q * a * d
-        END IF
+        CALL embed_gaussian_kernel(rr, sigma, potential, a, aprime)
+        q = REAL(external_q(m), KIND=real64)
+        field = field + q * a * d
       END DO
       induced = induced + alpha * field
       energy_h = energy_h - 0.5_real64 * alpha * DOT_PRODUCT(field, field)
@@ -2170,14 +2178,8 @@ CONTAINS
         d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
         sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
         rr = NORM2(d)
-        IF (embed_within_gaussian_origin(rr, sigma)) CYCLE
+        CALL embed_gaussian_kernel(rr, sigma, potential, a, aprime)
         q = REAL(external_q(m), KIND=real64)
-        erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
-        expo = EXP(-0.5_real64 * (rr / sigma)**2)
-        cexp = SQRT(2.0_real64 / ACOS(-1.0_real64)) / sigma
-        a = erfv / rr**3 - cexp * expo / rr**2
-        aprime = 3.0_real64 * cexp * expo / rr**3 + &
-             cexp * expo / (sigma**2 * rr) - 3.0_real64 * erfv / rr**4
         jac = 0.0_real64
         DO u = 1, 3
           jac(u,u) = q * a
@@ -3266,7 +3268,9 @@ CONTAINS
       n_external, external_pos, external_q, external_width, external_force, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
-        cpmdc_restore_host_cwd, cpmdc_note_embed_failure
+        cpmdc_restore_host_cwd, cpmdc_note_embed_failure, &
+        cpmdc_note_deck_external_potential, &
+        cpmdc_deck_defines_external_potential
     USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
@@ -3387,6 +3391,11 @@ CONTAINS
          ierr, knobs)
     IF (ierr /= 0 .OR. nlen < 1 .OR. .NOT. ALLOCATED(deck)) RETURN
     IF (nlen > HUGE(0_c_int)) RETURN
+    IF (n_external > 0 .AND. &
+        cpmdc_deck_defines_external_potential(deck, INT(nlen, KIND=c_size_t)) /= 0_c_int) THEN
+      CALL cpmdc_note_deck_external_potential()
+      RETURN
+    END IF
     mfd = INT(cpmdc_memfd_write(deck, INT(nlen, KIND=c_int), mempath, &
          INT(LEN(mempath), KIND=c_int)))
     IF (mfd < 0) RETURN

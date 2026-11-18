@@ -84,6 +84,8 @@ static CPMDCScalarOverrides g_overrides;
 static char g_overrides_functional[64];
 static int g_has_overrides = 0;
 static _Thread_local CPMDCErrorCode g_last_error_code = CPMDC_ERROR_NONE;
+static _Thread_local char g_last_error[512];
+static _Thread_local char g_embed_detail[512];
 
 static int cpmdc_set_params_ov(const void *params_capnp,
                                size_t params_capnp_size_bytes,
@@ -272,7 +274,13 @@ static CPMDCResult fail_msg_code(const char *msg, CPMDCErrorCode code) {
 }
 
 static CPMDCResult fail_msg(const char *msg) {
-  return fail_msg_code(msg, CPMDC_ERROR_EVALUATION_FAILED);
+  CPMDCErrorCode code = CPMDC_ERROR_EVALUATION_FAILED;
+  if (g_last_error_code != CPMDC_ERROR_NONE &&
+      g_last_error_code != CPMDC_ERROR_EVALUATION_FAILED && msg &&
+      ((g_last_error[0] != '\0' && strcmp(msg, g_last_error) == 0) ||
+       (g_embed_detail[0] != '\0' && strcmp(msg, g_embed_detail) == 0)))
+    code = g_last_error_code;
+  return fail_msg_code(msg, code);
 }
 
 /* CPMDC_DECK_OUT names a file that receives each method deck cpmdc renders
@@ -467,10 +475,6 @@ static int configure_embed_from_session(CPMDCSession *session) {
   g_active_session = session;
   return 0;
 }
-
-/* Diagnostic channel for configuration entry points and evaluation failures. */
-static _Thread_local char g_last_error[512];
-static _Thread_local char g_embed_detail[512];
 
 static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code) {
   snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
@@ -1268,18 +1272,21 @@ static int line_defines_external_potential(const char *line, size_t len) {
 /* The rendered deck is what CPMD reads. EXTERNAL POTENTIAL and
  * EXTERNAL POTENTIAL ADD both start a line with that keyword and turn on
  * the deck-owned external field. */
-static int deck_defines_external_potential(const char *deck) {
+int cpmdc_deck_defines_external_potential(const char *deck, size_t deck_len) {
   const char *p;
-  if (!deck || deck[0] == '\0')
+  size_t left;
+  if (!deck || deck_len == 0)
     return 0;
   p = deck;
-  while (*p) {
-    const char *nl = strchr(p, '\n');
-    size_t len = nl ? (size_t)(nl - p) : strlen(p);
+  left = deck_len;
+  while (left > 0) {
+    const char *nl = (const char *)memchr(p, '\n', left);
+    size_t len = nl ? (size_t)(nl - p) : left;
     if (line_defines_external_potential(p, len))
       return 1;
     if (!nl)
       break;
+    left -= len + 1u;
     p = nl + 1;
   }
   return 0;
@@ -1308,11 +1315,15 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
         "QM cell or clear the external charges",
         CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING);
   }
+#if !defined(CPMDC_HAS_CPMD)
   if (session && session->external_count > 0 &&
-      deck_defines_external_potential(session->input_deck)) {
+      cpmdc_deck_defines_external_potential(
+          session->input_deck,
+          session->input_deck ? strlen(session->input_deck) : 0u)) {
     return fail_msg_code(k_deck_external_potential_msg,
                          CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL);
   }
+#endif
   if (!ensure_embed_init() || !cpmdc_embed_available()) {
     return fail_msg_code("CPMD embed not available", CPMDC_ERROR_UNAVAILABLE);
   }
