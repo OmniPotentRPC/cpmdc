@@ -12,12 +12,17 @@ set NM to use another nm, such as llvm-nm.
 --version-script and --exported-symbols-list write the linker export list of
 libcpmdc from the same declarations, for an ELF linker and for ld64.
 
-The export lists also keep the MPI Fortran sentinels global: the COMMON
-blocks behind MPI_IN_PLACE, MPI_BOTTOM, MPI_STATUS_IGNORE and the like,
-which OpenCPMD's ``USE mpi`` puts in libcpmdc. The MPI library recognizes a
-sentinel by its address, so libcpmdc must use the MPI library's block; a
-local copy turns every MPI_IN_PLACE collective into one on a scratch buffer.
-They are not part of the C ABI and the inventory leaves them out.
+The ELF version script also keeps the MPI Fortran sentinels global: the
+COMMON blocks behind MPI_IN_PLACE, MPI_BOTTOM, MPI_STATUS_IGNORE and the
+like, which OpenCPMD's ``USE mpi`` puts in libcpmdc. The MPI library
+recognizes a sentinel by its address, so libcpmdc must use the MPI library's
+block; a local copy turns every MPI_IN_PLACE collective into one on a
+scratch buffer. They are not part of the C ABI and the inventory leaves them
+out. A version-script pattern exports a symbol only when the link defines
+it. ld64's exported-symbols list requires every literal name to be defined
+while wildcard entries match only defined symbols, so every sentinel uses a
+wildcard pattern and --exported-symbols-list adds them only when
+--mpi-fortran-sentinels is set, which the OpenCPMD build does.
 """
 
 from __future__ import annotations
@@ -43,14 +48,16 @@ DECLARATION = re.compile(r"(?m)^(?!typedef\b)[A-Za-z_][\w\s*]*?\b(cpmdc_\w+)\s*\
 DOC_BEFORE = re.compile(r"/\*\*((?:(?!\*/).)*)\*/\s*$", re.S)
 SINCE = re.compile(r"[@\\]since\s+(?:ABI\s+)?(\d+)", re.I)
 ABI_GENERATION = re.compile(r"(?m)^\s*#\s*define\s+CPMDC_ABI_VERSION\s+(\d+)\b")
-# Open MPI's mpif-sentinels.h, then MPICH's mpif.h.
+# Open MPI's mpif-sentinels.h, then MPICH's mpif.h. Every entry is a
+# wildcard pattern so ld64's -exported_symbols_list exports the blocks
+# the link defines without requiring the other MPI's names to exist.
 MPI_FORTRAN_SENTINELS = (
     "mpi_fortran_*",
-    "mpipriv1_",
-    "mpipriv2_",
-    "mpiprivc_",
-    "mpifcmb5_",
-    "mpifcmb9_",
+    "mpipriv1_*",
+    "mpipriv2_*",
+    "mpiprivc_*",
+    "mpifcmb5_*",
+    "mpifcmb9_*",
 )
 
 
@@ -156,8 +163,11 @@ def version_script(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def exported_symbols_list(root: Path) -> str:
-    names = [*public_symbols(root), *MPI_FORTRAN_SENTINELS]
+def exported_symbols_list(root: Path, mpi_fortran_sentinels: bool = False) -> str:
+    """ld64 export list: literal public names, plus optional sentinel globs."""
+    names = list(public_symbols(root))
+    if mpi_fortran_sentinels:
+        names.extend(MPI_FORTRAN_SENTINELS)
     return "".join(f"_{name}\n" for name in names)
 
 
@@ -233,6 +243,11 @@ def main() -> int:
         help="write the ld64 exported symbols list",
     )
     parser.add_argument(
+        "--mpi-fortran-sentinels",
+        action="store_true",
+        help="also list the MPI Fortran sentinel common blocks",
+    )
+    parser.add_argument(
         "library", type=Path, nargs="?", help="built libcpmdc shared library"
     )
     parser.add_argument("--root", type=Path, default=ROOT, help="source tree")
@@ -243,7 +258,8 @@ def main() -> int:
         return 0
     if args.exported_symbols_list is not None:
         args.exported_symbols_list.write_text(
-            exported_symbols_list(args.root), encoding="utf-8"
+            exported_symbols_list(args.root, args.mpi_fortran_sentinels),
+            encoding="utf-8",
         )
         return 0
     if args.library is None:

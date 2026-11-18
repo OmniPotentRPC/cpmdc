@@ -49,6 +49,19 @@ hidden whatever the list says.
 The version script names no version node, so the exported names carry no symbol
 version.
 
+An ELF version script and an ld64 export list do not treat a missing literal
+name the same way.
+A ~global:~ pattern exports a symbol when the link defines it, and does not
+require the symbol to exist.
+~-exported_symbols_list~ requires every literal name to be defined, reporting
+an absent literal as an undefined symbol, while a wildcard entry matches only
+symbols the link defines.
+Every MPI Fortran sentinel is therefore written as a wildcard pattern so neither
+Open MPI nor MPICH leaves required undefined names for the other implementation.
+The version script always names them; the macOS list adds them when OpenCPMD is
+linked, and the serial macOS library lists the literal public ~cpmdc_~
+functions alone.
+
 Releases up to and including 0.4.0 also export 56 internal functions with the
 ~cpmdc_~ prefix: the glue between ~src/cpmdc.c~, the parameter renderer, and the
 Fortran embed.
