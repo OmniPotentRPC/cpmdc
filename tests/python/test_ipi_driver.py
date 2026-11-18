@@ -31,7 +31,7 @@ from ase.optimize import BFGS
 from conftest import INSTALLED, ROOT, WATER
 
 import cpmdc.ipi
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Session
+from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Session, _elements
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.ipi import Driver, ProtocolError, species_numbers, unix_socket_path
 
@@ -530,14 +530,30 @@ def test_compute_rejects_another_atom_count(params):
 
 
 def test_species_parsing():
+    max_z = len(_elements._SYMBOLS)
     assert species_numbers("O H H") == [8, 1, 1]
     assert species_numbers("O,H,H") == [8, 1, 1]
     assert species_numbers("OH2") == [8, 1, 1]
     assert species_numbers("Si3N4") == [14] * 3 + [7] * 4
     assert species_numbers("8 1 1") == [8, 1, 1]
-    for bad in ("", "Xx", "o h h", "0", "119", "O-H"):
+    assert species_numbers(f"1 {max_z}") == [1, max_z]
+    for bad in ("", "Xx", "o h h", "0", str(max_z + 1), "O-H"):
         with pytest.raises(ValueError):
             species_numbers(bad)
+
+
+def test_driver_atomic_number_bounds(params, monkeypatch):
+    max_z = len(_elements._SYMBOLS)
+    with Driver(params, [1, max_z]) as driver:
+        assert driver.atomic_numbers == [1, max_z]
+    for bad in (0, max_z + 1):
+        with pytest.raises(ValueError, match=rf"atomic number {bad} is outside 1\.\.{max_z}"):
+            Driver(params, [bad])
+    monkeypatch.setattr(_elements, "_SYMBOLS", _elements._SYMBOLS[:10])
+    with Driver(params, [1, 10]) as driver:
+        assert driver.atomic_numbers == [1, 10]
+    with pytest.raises(ValueError, match=r"atomic number 11 is outside 1\.\.10"):
+        Driver(params, [11])
 
 
 def test_unix_socket_path_matches_ase():

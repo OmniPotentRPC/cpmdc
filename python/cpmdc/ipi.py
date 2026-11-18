@@ -46,7 +46,7 @@ import sys
 import time
 from typing import IO, Any, Sequence
 
-from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session, _elements
 from cpmdc._elements import species_numbers
 
 __all__ = [
@@ -207,8 +207,10 @@ class Driver:
         if not self.atomic_numbers:
             raise ValueError("atomic_numbers must name at least one atom")
         for number in self.atomic_numbers:
-            if not 1 <= number <= 118:
-                raise ValueError(f"atomic number {number} is outside 1..118")
+            if not 1 <= number <= len(_elements._SYMBOLS):
+                raise ValueError(
+                    f"atomic number {number} is outside 1..{len(_elements._SYMBOLS)}"
+                )
         self.cluster = cluster
         self.steps = 0
         self._log = log
