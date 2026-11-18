@@ -268,11 +268,13 @@ class FixExternal:
         ordered = np.empty(natoms, dtype=np.int32)
         ordered[index] = numbers
         composition = tuple(sorted(ordered.tolist()))
-        if self._session is None or (
+        if self._session is not None and (
             self._composition is not None and composition != self._composition
         ):
-            if self._session is not None:
-                self._session.close()
+            self._session.close()
+            self._session = None
+            self._composition = None
+        if self._session is None:
             self._session = Session(self._blob, library=self._library)
         if self._forces.size != 3 * natoms:
             self._forces = np.zeros(3 * natoms)
@@ -280,6 +282,9 @@ class FixExternal:
         energy, _, _ = self._session.calculate_au(
             positions, ordered, cell, forces=self._forces, virial=self._virial
         )
+        for name, value in (("energy", energy), ("forces", self._forces), ("virial", self._virial)):
+            if not np.all(np.isfinite(value)):
+                raise CPMDCError(f"the library returned a non-finite {name}")
         self._composition = composition
         force_unit = self.energy_per_hartree / self.length_per_bohr
         forces = self._forces.reshape(natoms, 3)[index] * force_unit

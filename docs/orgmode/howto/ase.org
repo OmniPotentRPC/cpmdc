@@ -86,10 +86,15 @@ with CPMDCCalculator("water.periodic.bin") as calc:
 Units are ASE's: positions and cells in Angstrom, energies in eV, forces in
 eV/Angstrom, and stress in eV/Angstrom^3.
 The calculator converts from the library's Hartree and Bohr with ~HARTREE_TO_EV~
-and ~BOHR_TO_ANGSTROM~.
+and ~BOHR_TO_ANGSTROM~, which are the CODATA 2018 values.
+ASE's default ~ase.units~ are CODATA 2014, so a number converted back with
+~ase.units.Hartree~ differs by about 1e-8 relative;
+~ase.units.create_units("2018")~ agrees to 1e-10.
 Stress has ASE's sign: the derivative of the energy with respect to strain,
 divided by the volume.
 It is positive when the energy rises as the cell expands.
+A tensor that is not exactly symmetric gives each shear component as the mean of
+its two off-diagonal elements, as ASE's ~full_3x3_to_voigt_6_stress~ does.
 The library returns the tensor with the opposite sign, the OpenCPMD convention,
 and the calculator negates it.
 
@@ -228,6 +233,14 @@ a structure until it is evaluated.
 A change of ~initial_charges~ or ~initial_magmoms~ reuses the step, because the
 calculator does not read them.
 ~calc.reset()~ clears the stored step and keeps the session open.
+Calling ~calc.calculate(atoms)~ yourself evaluates the structure whatever is
+stored, and replaces every stored result: a step that gives no stress does not
+leave the stress of an earlier periodic step behind, and a step that fails
+leaves nothing stored, so a later ~get_potential_energy()~ never returns the
+energy of another structure.
+Every step of a calculator, from ~get_property~ or from ~calculate~, runs on the
+same session while the atom count and the elemental composition stay the same.
+~set()~ with the value a parameter already has does not open a session.
 ~calc.get_property(name, atoms, allow_calculation=False)~ returns the stored
 value, or ~None~ when that structure has not been evaluated.
 
@@ -294,7 +307,7 @@ says.
 * Handle errors
 | Condition | Raised |
 |-----------+--------|
-| a step that the library rejects, such as one without a pseudopotential directory | ~cpmdc.ase.CalculationFailed~ |
+| a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
 | a keyword other than ~params~, ~library~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress where the step has none; ~energies~, ~magmoms~, ~charges~, or ~dipole~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, or a periodic cell without three independent vectors | ~ValueError~ |
@@ -324,3 +337,27 @@ a ~params~ buffer given as bytes, because bytes are not JSON data.
 results, and the copy opens its own session on its first step.
 ~close()~ closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
+
+* Check the calculator with ASE
+~tests/python/test_ase_conformance.py~ asks of ~CPMDCCalculator~ what any ASE
+user asks of a calculator, and answers with ASE's own tools.
+It runs on the default build, which needs no OpenCPMD archive: ~pixi run
+test-stub~ builds it, and ~pixi run pytest tests/python/test_ase_conformance.py~
+runs the file.
+The file checks these points:
+
+| Question | ASE tool |
+|----------+----------|
+| ~implemented_properties~ lists only what a step returns, and the results have ASE's shapes | ~calc.results~, ~ase.io.write~ and ~read~ of extended XYZ |
+| a property outside the list raises, without evaluating a step | ~PropertyNotImplementedError~, ~get_charges()~, ~get_magnetic_moment()~ |
+| the stored step is reused and discarded as ASE expects | ~check_state~, ~system_changes~, ~calculation_required~, ~get_property(..., allow_calculation=False)~ |
+| a run of steps keeps one session | a count of the ~Session~ objects opened |
+| a rejected step is ~ase.calculators.calculator.CalculationFailed~ with the library's message | a real library error, not a mock |
+| a relaxation runs with a constraint | ~BFGS~ with ~FixAtoms~ |
+| copies and pickles work, with or without the ~params~ file | ~copy~, ~pickle~ |
+| energies are in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 | ~ase.units~, ~calculate_numerical_forces~, ~calculate_numerical_stress~ |
+
+~cpmdc.lammps.FixExternal~ follows the same conventions where it shares them: the
+same units, a failed step reported as ~CPMDCError~, a step with a NaN or infinite
+result refused, and a new session opened after a change of composition even when
+the previous attempt to open one failed.

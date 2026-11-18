@@ -42,6 +42,7 @@ from ase.calculators.calculator import (
     all_changes,
     equal,
 )
+from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import workdir
 
 from cpmdc import ConstantCutoff, CPMDCError, Potential, _warn_schema
@@ -88,10 +89,9 @@ def _pbc_flags(pbc: Any) -> list[bool]:
     return [bool(flag) for flag in raw]
 
 
-def _voigt(stress: Sequence[float]) -> list[float]:
-    """Row-major 3x3 to ASE Voigt (xx, yy, zz, yz, xz, xy)."""
-    s = list(stress)
-    return [s[0], s[4], s[8], s[5], s[2], s[1]]
+def _voigt(stress: Sequence[float]) -> np.ndarray:
+    """Row-major 3x3 to ASE Voigt (xx, yy, zz, yz, xz, xy), shear parts averaged."""
+    return full_3x3_to_voigt_6_stress(np.asarray(stress, dtype=float).reshape(3, 3))
 
 
 def _params_bytes(params: Any) -> bytes:
@@ -115,6 +115,13 @@ def _param_value(key: str, value: Any) -> Any:
     if isinstance(value, bytes):
         return value
     return os.fspath(value)
+
+
+def _require_finite(evaluated: Any) -> None:
+    """Refuse a step whose energy, forces, or stress is NaN or infinite."""
+    for name in ("energy", "forces", "stress"):
+        if name in evaluated and not np.all(np.isfinite(np.asarray(evaluated[name], dtype=float))):
+            raise CPMDCError(f"the library returned a non-finite {name}")
 
 
 def _working_directory(directory: str) -> AbstractContextManager[Any]:
@@ -287,6 +294,7 @@ class CPMDCCalculator(Calculator):
         if "stress" in properties and not system_changes and self._no_stress:
             raise PropertyNotImplementedError(self._no_stress)
         Calculator.calculate(self, atoms, properties, system_changes)
+        self.results = {}
         if self.atoms is None:
             raise ValueError(_NO_ATOMS)
         self._no_stress = ""
@@ -298,10 +306,11 @@ class CPMDCCalculator(Calculator):
         composition = tuple(sorted(numbers))
         if self._composition is not None and composition != self._composition:
             self._release()
-        potential = self.potential
         try:
+            potential = self.potential
             with _working_directory(self.directory):
                 evaluated = potential.evaluate(self.atoms.get_positions(), numbers, cell)
+            _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
             raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
@@ -311,7 +320,7 @@ class CPMDCCalculator(Calculator):
         self.results["free_energy"] = energy
         self.results["forces"] = np.asarray(evaluated["forces"], dtype=float)
         if "stress" in evaluated:
-            self.results["stress"] = np.asarray(_voigt(evaluated["stress"]), dtype=float)
+            self.results["stress"] = _voigt(evaluated["stress"])
         else:
             self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
             if "stress" in properties:
