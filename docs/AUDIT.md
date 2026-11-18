@@ -293,8 +293,8 @@ how-to, environment variables, and the eOn tutorial.
 above.
 
 `.lychee.toml` excludes `https://doi.org/` links through a regex checked by
-`lychee-toml-excludes`, and treats publisher `403` responses as acceptable so
-automated link checks do not fail on anti-bot redirects.
+`lychee-toml-excludes`, and accepts only `2xx` and `429` responses on URLs
+that are checked.
 The documentation workflow installs lychee 0.24.2 and runs the same source
 link check as `pixi run lychee` before `pixi r docbld`.
 
@@ -312,7 +312,9 @@ Verified on this tree:
 Topics already documented elsewhere and matching the code at BASE:
 
 - Embedding API contracts in `howto/embedding.org` and `reference/c-abi.org`
-- i-PI drivers in `howto/socket-drivers.org` and `python/cpmdc/ipi.py`
+- i-PI drivers in `howto/socket-drivers.org` and `python/cpmdc/ipi.py`;
+  `cpmdc-ipi-c` calls `cpmdc_session_calculate_au()`, and `cpmdc-ipi` uses
+  `Session.energy_forces()` on the C ABI force entry points
 - Restart file library in `reference/c-abi.org` and `howto/embedding.org`
 - Orbital keys and extrapolation in `reference/c-abi.org`,
   `explanation/wavefunction-state.org`, and `howto/extrapolate-orbitals.org`
