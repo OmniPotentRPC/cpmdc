@@ -29,7 +29,11 @@ writes in ~rwfopt~.
 ~rwfopt~ leaves ~fion~ allocated only when ~embed_need_forces~ is true, and
 frees a surviving ~fion~ before its own ~ALLOCATE~.
 It saves ~c0~ only when ~embed_warm_orbitals~ is true and the SCF converged.
-An unconverged pass leaves the previous copy.
+An unconverged pass leaves the previous copy and marks it stale, so a
+later copy from that key is refused.
+When a converged copy was already stored, that pass also empties the
+extrapolation ring. The rwfopt hunk records the stale donor, and
+~opencpmd_embed_extrapolate.patch~ breaks the history on the same branch.
 A failed store allocation calls ~stopgm~.
 On the next call it copies that ~c0~ in before ~initrun~.
 ~rinitwf~ then returns after the phase factors when ~embed_have_orbitals~ is
