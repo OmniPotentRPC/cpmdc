@@ -43,7 +43,9 @@ MPI_SENTINEL_SETS: dict[str, tuple[str, ...]] = {
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, capture_output=True, text=True, check=False)
+    env = os.environ.copy()
+    env.pop("LD_PRELOAD", None)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
 
 
 def _nm_type(obj: Path, name: str) -> str | None:
