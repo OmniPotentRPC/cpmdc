@@ -1598,6 +1598,15 @@ test(
     suite: ['docs', 'abi', 'params'],
   )
   test(
+    'lychee-toml-excludes',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_lychee_toml.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'cpmd-public-header-docs-coverage',
     python,
     args: [
