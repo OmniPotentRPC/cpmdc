@@ -17,6 +17,13 @@ jobs:
         cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         environments: docs
         pixi-version: v0.70.2
+    - name: Install lychee
+      uses: taiki-e/install-action@2888fa399643e4112e7caeaef51d77f1cde0a8d0 # v2
+      with:
+        tool: lychee@0.24.2
+    - name: Link-check documentation sources
+      run: lychee --config .lychee.toml README.md $(find docs/orgmode docs/newsfragments -type f \( -name "*.org" -o -name "*.md" \) 2>/dev/null)
+      shell: pixi run bash -e {0}
     - name: Check API reference
       run: pixi r check-api-reference
       shell: pixi run bash -e {0}
