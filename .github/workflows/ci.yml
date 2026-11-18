@@ -130,7 +130,7 @@ jobs:
           export CFLAGS="${CFLAGS:+$CFLAGS }-include ${GITHUB_WORKSPACE}/tests/distro_cmocka_prefix.h"
           meson setup build-sanitize -Dwith_tests=true -Db_sanitize=address,undefined -Db_lundef=false
           meson compile -C build-sanitize
-          ASAN_OPTIONS=detect_leaks=0 meson test -C build-sanitize --print-errorlogs
+          meson test -C build-sanitize --print-errorlogs
           if nm -A build-sanitize/cpmdc-restart build-sanitize/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
             echo "gcc-13 sanitize restart build references readcon"
             exit 1
