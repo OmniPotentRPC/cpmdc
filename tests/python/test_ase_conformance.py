@@ -324,6 +324,23 @@ def test_a_direct_step_replaces_every_stored_result(periodic_calc):
         cluster.get_stress()
 
 
+def test_a_stress_returned_for_a_cluster_is_not_stored(calc, monkeypatch):
+    evaluate = Potential.evaluate
+
+    def with_stress(self, *args, **kwargs):
+        done = evaluate(self, *args, **kwargs)
+        done["stress"] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        return done
+
+    monkeypatch.setattr(Potential, "evaluate", with_stress)
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    assert set(calc.results) == STEP
+    with pytest.raises(PropertyNotImplementedError, match="fully periodic"):
+        atoms.get_stress()
+
+
 def test_a_failed_direct_step_leaves_no_stale_results(calc, monkeypatch):
     atoms = water()
     atoms.calc = calc
