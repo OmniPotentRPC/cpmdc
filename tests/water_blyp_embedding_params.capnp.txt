@@ -6,7 +6,7 @@
   task = "gradient",
   title = "water BLYP electrostatic embedding tests",
   inputSections = [
-    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-4,
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-7,
         maxStep = 200, maxIter = 200,
         directives = [ ( keyword = "CENTER MOLECULE OFF", args = [] ) ] ) ),
     ( dft = ( functional = "BLYP", lsd = false,

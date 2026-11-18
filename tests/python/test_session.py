@@ -7,7 +7,9 @@ import subprocess
 from array import array
 import ctypes
 import math
+import re
 
+import mpmath
 import pytest
 from conftest import ROOT, WATER
 
@@ -86,12 +88,16 @@ def test_repeated_geometry_is_deterministic(params):
     assert first.stress_h_bohr3 is None
 
 
-def test_external_charge_qm_and_mm_forces_are_energy_derivatives(embedding_params):
+def test_external_charge_qm_and_mm_forces_are_energy_derivatives(
+    embedding_params, monkeypatch, capfd
+):
     width = [0.30]
     charge = [0.7]
     mm = [3.0, 0.2, -0.1]
     step = 1.0e-5
+    monkeypatch.setenv("CPMDC_SCF_STEPS", "1")
     with Session(embedding_params) as session:
+        opencpmd = session.available()
         session.set_external_charges(mm, charge, width)
         done = session.energy_forces(WATER, [8, 1, 1])
         moved = [list(row) for row in WATER]
@@ -100,7 +106,7 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(embedding_param
         moved[0][0] -= 2.0 * step
         minus = session.energy_forces(moved, [8, 1, 1]).energy_h
         qm_fd = -(plus - minus) / (2.0 * step) * cpmdc.BOHR_TO_ANGSTROM
-        assert done.forces_h_bohr[0][0] == pytest.approx(qm_fd, rel=1e-4, abs=2e-8)
+        assert done.forces_h_bohr[0][0] == pytest.approx(qm_fd, rel=2e-6, abs=2e-9)
 
         shifted = list(mm)
         shifted[0] += step
@@ -113,7 +119,15 @@ def test_external_charge_qm_and_mm_forces_are_energy_derivatives(embedding_param
         session.set_external_charges(mm, charge, width)
         session.energy_forces(WATER, [8, 1, 1])
         mm_force = session.external_charge_forces_au(1)
-        assert mm_force[0] == pytest.approx(mm_fd, rel=1e-4, abs=2e-8)
+        assert mm_force[0] == pytest.approx(mm_fd, rel=2e-6, abs=2e-9)
+
+    if opencpmd:
+        scf_steps = [
+            int(value)
+            for value in re.findall(r"^cpmdc_scf_steps (\d+)$", capfd.readouterr().err, re.M)
+        ]
+        assert len(scf_steps) >= 5
+        assert all(0 < value < 200 for value in scf_steps)
 
 
 def test_external_charge_limits_are_finite_and_recover_bare_energy(embedding_params):
@@ -252,6 +266,73 @@ def test_smearing_width_changes_embedding_and_origin_is_finite(embedding_params)
     assert math.isfinite(coincident.energy_h)
     assert all(math.isfinite(value) for row in coincident.forces_h_bohr for value in row)
     assert all(math.isfinite(value) for value in coincident_mm)
+
+
+def _gaussian_reference(radius, sigma, charge):
+    with mpmath.workdps(80):
+        r = mpmath.mpf(radius)
+        width = mpmath.mpf(sigma)
+        q = mpmath.mpf(charge)
+        root = mpmath.sqrt(2 / mpmath.pi)
+        erfv = mpmath.erf(r / (mpmath.sqrt(2) * width))
+        expo = mpmath.exp(-mpmath.mpf("0.5") * (r / width) ** 2)
+        coefficient = erfv / r**3 - root * expo / (width * r**2)
+        derivative = (
+            3 * root * expo / (width * r**3)
+            + root * expo / (width**3 * r)
+            - 3 * erfv / r**4
+        )
+        field = -q * coefficient * r
+        alpha = mpmath.mpf("0.2")
+        energy = -mpmath.mpf("0.5") * alpha * field**2
+        force = -alpha * q * (coefficient + derivative * r) * field
+        return float(energy), float(force)
+
+
+def test_gaussian_small_r_series_is_continuous_and_conservative(embedding_params):
+    sigma_bohr = 8.0e-12
+    charge = sigma_bohr**2
+    series_switch = sigma_bohr / 8.0
+    old_width_guard = sigma_bohr * math.sqrt(math.sqrt(math.ulp(1.0)))
+
+    with Session(embedding_params) as session:
+        if session.available():
+            pytest.skip("the closed-form oracle describes the reference backend")
+        bare = session.energy_forces([[0.0, 0.0, 0.0]], [1]).energy_h
+
+        def observed(radius):
+            session.set_external_charges(
+                [radius * cpmdc.BOHR_TO_ANGSTROM, 0.0, 0.0],
+                [charge],
+                [sigma_bohr * cpmdc.BOHR_TO_ANGSTROM],
+            )
+            result = session.energy_forces([[0.0, 0.0, 0.0]], [1])
+            return result.energy_h - bare, session.external_charge_forces_au(1)[0]
+
+        assert observed(0.0) == pytest.approx((0.0, 0.0), abs=1e-18)
+        for radius in (
+            series_switch * (1.0 - 2.0**-10),
+            series_switch * (1.0 + 2.0**-10),
+            old_width_guard * 0.5,
+            old_width_guard * 2.0,
+        ):
+            energy, force = observed(radius)
+            expected_energy, expected_force = _gaussian_reference(
+                radius, sigma_bohr, charge
+            )
+            assert energy == pytest.approx(expected_energy, rel=3e-13, abs=2e-15)
+            assert force == pytest.approx(expected_force, rel=3e-13)
+
+            step = radius * 2.0**-12
+            plus, _ = observed(radius + step)
+            minus, _ = observed(radius - step)
+            finite_difference = -(plus - minus) / (2.0 * step)
+            assert force == pytest.approx(finite_difference, rel=2e-7)
+
+        below = observed(series_switch * (1.0 - 2.0**-10))
+        above = observed(series_switch * (1.0 + 2.0**-10))
+        assert below[0] == pytest.approx(above[0], rel=5e-3)
+        assert below[1] == pytest.approx(above[1], rel=5e-3)
 
 
 def test_reference_smearing_width_is_converted_from_angstrom(embedding_params):

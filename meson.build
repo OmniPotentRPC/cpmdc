@@ -1137,8 +1137,11 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
     ),
-    args: [cpmd_parser_params_bin.full_path()],
-    depends: [cpmd_parser_params_bin],
+    args: [
+      cpmd_parser_params_bin.full_path(),
+      force_input_step_a_bin.full_path(),
+    ],
+    depends: [cpmd_parser_params_bin, force_input_step_a_bin],
     suite: ['e2e', 'cmocka'],
   )
   test(
