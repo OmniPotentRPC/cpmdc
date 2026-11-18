@@ -206,8 +206,15 @@ to ~CPMDCError~, ~cpmdc.ipi.ProtocolError~ on the i-PI driver, and ASE's
 ~CalculationFailed~.
 
 * Orbitals between steps
-OpenCPMD keeps converged orbitals inside a ~CPMDCSession~ between steps when
-the functional, cutoff, cell, charge, and multiplicity match.
+OpenCPMD keeps one set of converged orbitals for the whole process, not inside a
+~CPMDCSession~, and starts the next step from it when the functional, deck,
+cutoff, cell, charge, multiplicity, atom count, and elemental composition match.
+A change to any of these is a cold start, and so is the first step of the
+process.
+A session refuses a new atom count or composition, so those change only with a
+new session, and a new session whose values match starts warm.
+A constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ may also move the cell
+without a cold start.
 [[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
 explains warm starts, extrapolation, and when a step restarts from atomic
 orbitals.
