@@ -20,9 +20,9 @@ MUTATIONS = {
     ),
     "bogus cpmdc_pwscale_stats.natoms": (
         "docs/orgmode/reference/pwscale.org",
-        "| ~natoms~ | ~int~ | atoms | 1 to 1000000 |\n",
-        "| ~natoms~ | ~int~ | atoms | 1 to 1000000 |\n"
-        "| ~natoms~ | ~cpmdc_pwscale_stats~ | bogus field |\n",
+        "| ~energy_h~ | ~double~ | Hartree | the energy of the sum |\n",
+        "| ~energy_h~ | ~double~ | Hartree | the energy of the sum |\n"
+        "| ~natoms~ | ~int~ | atoms | bogus field |\n",
         "cpmdc_pwscale_stats.natoms",
     ),
 }

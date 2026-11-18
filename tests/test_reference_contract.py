@@ -23,6 +23,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 PAGES = {
@@ -96,41 +97,110 @@ def row_names(rows: list[str]) -> set[str]:
     return names
 
 
+def _table_cells(line: str) -> list[str]:
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def _is_separator_row(cells: list[str]) -> bool:
+    if not cells:
+        return False
+    stripped = [cell.replace(":", "").strip() for cell in cells if cell.strip()]
+    return bool(stripped) and all(re.fullmatch(r"-+", cell) for cell in stripped)
+
+
+def _is_field_table_header(cells: list[str]) -> bool:
+    return bool(cells) and cells[0] == "Field"
+
+
+def _field_names_from_cell(cell: str) -> set[str]:
+    fields: set[str] = set()
+    for span in re.findall(r"~([^~\n]+)~", cell):
+        found = re.search(r"\w+", span)
+        if found:
+            fields.add(found.group())
+    return fields
+
+
+def _structs_in_text(fragment: str, structs: set[str]) -> set[str]:
+    return set(re.findall(r"~(\w+)~", fragment)) & structs
+
+
+def _singular_struct(candidates: set[str]) -> str | None:
+    if len(candidates) == 1:
+        return next(iter(candidates))
+    return None
+
+
+def _intro_struct(lines: list[str], structs: set[str]) -> str | None:
+    for line in reversed(lines):
+        if line.lstrip().startswith("Fields of "):
+            found = _singular_struct(_structs_in_text(line, structs))
+            if found is not None:
+                return found
+    return None
+
+
 def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
-    """Struct-field pairs represented by reference table rows."""
+    """Struct-field pairs represented by field tables (header row starts with Field)."""
     pairs: set[tuple[str, str]] = set()
-    section_struct: str | None = None
-    field_table = False
-    for line in text.splitlines():
+    lines = text.splitlines()
+    last_heading_struct: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
         if line.startswith("*"):
-            heading_names = set(re.findall(r"~(\w+)~", line))
-            section_struct = next(iter(heading_names & structs), None)
-            field_table = False
-            continue
+            heading_names = set(re.findall(r"~(\w+)~", line)) & structs
+            last_heading_struct = next(iter(heading_names), None) if heading_names else None
         if not line.lstrip().startswith("|"):
-            if line.lstrip().startswith("Fields of "):
-                context_names = set(re.findall(r"~(\w+)~", line)) & structs
-                section_struct = next(iter(context_names), None)
-            field_table = False
+            index += 1
             continue
-        cells = line.strip().strip("|").split("|")
-        first_cell = cells[0].strip()
-        if first_cell == "Field":
-            field_table = True
+        header_cells = _table_cells(line)
+        if not _is_field_table_header(header_cells):
+            index += 1
             continue
-        if first_cell and not first_cell.startswith(("~", "-")):
-            field_table = False
-        if not field_table:
-            continue
-        fields = set()
-        for span in re.findall(r"~([^~\n]+)~", cells[0]):
-            found = re.search(r"\w+", span)
-            if found:
-                fields.add(found.group())
-        owners = set(re.findall(r"~(\w+)~", "|".join(cells[1:]))) & structs
-        if not owners and field_table and section_struct is not None:
-            owners = {section_struct}
-        pairs |= {(owner, field) for owner in owners for field in fields}
+        table_start = index
+        has_struct_col = any(cell == "Struct" for cell in header_cells)
+        struct_col = header_cells.index("Struct") if has_struct_col else None
+        table_lines = [line]
+        index += 1
+        while index < len(lines) and lines[index].lstrip().startswith("|"):
+            row_cells = _table_cells(lines[index])
+            if _is_field_table_header(row_cells):
+                break
+            table_lines.append(lines[index])
+            index += 1
+        context_lines: list[str] = []
+        scan = table_start - 1
+        while scan >= 0:
+            prior = lines[scan]
+            if prior.lstrip().startswith("|") or prior.startswith("*"):
+                break
+            context_lines.insert(0, prior)
+            scan -= 1
+        context_block = "\n".join(context_lines)
+        context_structs = _structs_in_text(context_block, structs)
+        default_owner = (
+            _intro_struct(context_lines, structs)
+            or last_heading_struct
+            or _singular_struct(context_structs)
+        )
+        for table_line in table_lines[1:]:
+            row_cells = _table_cells(table_line)
+            if _is_separator_row(row_cells) or _is_field_table_header(row_cells):
+                continue
+            if not row_cells or not row_cells[0].startswith("~"):
+                continue
+            fields = _field_names_from_cell(row_cells[0])
+            if not fields:
+                continue
+            owners: set[str] = set()
+            if struct_col is not None and struct_col < len(row_cells):
+                owners = _structs_in_text(row_cells[struct_col], structs)
+            elif struct_col is None:
+                owners = _structs_in_text("|".join(row_cells[1:]), structs)
+            if not owners and default_owner is not None:
+                owners = {default_owner}
+            pairs |= {(owner, field) for owner in owners for field in fields}
     return pairs
 
 
@@ -296,10 +366,124 @@ def check_python(root: Path, failures: list[str]) -> None:
                     )
 
 
+def test_field_table_with_nonstandard_intro() -> None:
+    text = (
+        "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+    )
+    documented = documented_struct_fields(text, {"DemoStruct"})
+    assert documented == {("DemoStruct", "alpha")}
+
+
+def test_bogus_field_in_nonstandard_intro_table() -> None:
+    valid_page = (
+        "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+    )
+    bogus_page = valid_page + "| ~bogus~ | ~int~ | not in the header |\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "include").mkdir(parents=True)
+        (root / "docs/orgmode/reference").mkdir(parents=True)
+        for rel in PAGES:
+            (root / rel).write_text("", encoding="utf-8")
+        (root / "include/cpmdc.h").write_text(
+            "typedef struct DemoStruct { int alpha; } DemoStruct;\n",
+            encoding="utf-8",
+        )
+        (root / "docs/orgmode/index.org").write_text(
+            "\n".join(f"   reference/{stem}" for stem in sorted(set(PAGES.values())))
+            + "\n",
+            encoding="utf-8",
+        )
+        (root / "docs/orgmode/reference/pwscale.org").write_text("", encoding="utf-8")
+        c_abi = root / "docs/orgmode/reference/c-abi.org"
+        c_abi.write_text(valid_page, encoding="utf-8")
+        clean_failures: list[str] = []
+        check_reference(root, clean_failures)
+        assert not clean_failures, clean_failures
+        c_abi.write_text(bogus_page, encoding="utf-8")
+        failures: list[str] = []
+        check_reference(root, failures)
+        assert failures == [
+            "reference/c-abi.org: table documents nonexistent struct field DemoStruct.bogus"
+        ]
+
+
+def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
+    text = (
+        "* ~HeadingStruct~\n\n"
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | ~int~ | refers to ~OtherStruct~ |\n"
+    )
+    documented = documented_struct_fields(
+        text,
+        {"HeadingStruct", "IntroStruct", "OtherStruct"},
+    )
+    assert documented == {("IntroStruct", "alpha"), ("OtherStruct", "beta")}
+    heading_only = (
+        "* ~HeadingStruct~\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | ~int~ | refers to ~OtherStruct~ |\n"
+    )
+    assert documented_struct_fields(
+        heading_only,
+        {"HeadingStruct", "OtherStruct"},
+    ) == {("HeadingStruct", "alpha"), ("OtherStruct", "beta")}
+    explicit_col = (
+        "* ~HeadingStruct~\n\n"
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Struct | Meaning |\n"
+        "|-------+--------+---------|\n"
+        "| ~alpha~ | ~ColumnStruct~ | refers to ~OtherStruct~ |\n"
+    )
+    assert documented_struct_fields(
+        explicit_col,
+        {"HeadingStruct", "IntroStruct", "ColumnStruct", "OtherStruct"},
+    ) == {("ColumnStruct", "alpha")}
+
+
+def test_row_type_or_meaning_struct_reference_without_struct_column() -> None:
+    text = (
+        "Fields of ~A~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+        "| ~beta~ | see ~B~ | delegated in Type cell |\n"
+        "| ~gamma~ | ~int~ | see ~B~ |\n"
+    )
+    assert documented_struct_fields(text, {"A", "B"}) == {
+        ("A", "alpha"),
+        ("B", "beta"),
+        ("B", "gamma"),
+    }
+
+
+def run_self_tests() -> None:
+    tests = [
+        obj
+        for name, obj in globals().items()
+        if name.startswith("test_") and callable(obj)
+    ]
+    assert tests, "no test_* functions discovered"
+    for test in tests:
+        test()
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: test_reference_contract.py SOURCE_ROOT", file=sys.stderr)
         return 2
+    run_self_tests()
     root = Path(sys.argv[1])
     failures: list[str] = []
     public = check_reference(root, failures)
