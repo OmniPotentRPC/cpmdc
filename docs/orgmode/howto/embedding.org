@@ -226,8 +226,11 @@ minimisation.
 
 * Socket and in-process drivers
 [[file:socket-drivers.org][Drive cpmdc over the i-PI socket protocol]] documents
-~cpmdc-ipi~ and ~cpmdc-ipi-c~; each holds one ~Session~ for the server's
-~GET~ requests.
+~cpmdc-ipi~ and ~cpmdc-ipi-c~.
+~cpmdc-ipi~ holds one Python ~Session~ and ~cpmdc-ipi-c~ holds one
+~CPMDCSession *~.
+Each evaluates when the server's ~POSDATA~ message arrives and sends the
+stored result when ~GETFORCE~ asks for it.
 ~cpmdc-ipi~ evaluates through ~Session.energy_forces()~ in ~python/cpmdc/ipi.py~,
 which calls ~cpmdc_session_energy_forces()~ without a cell or
 ~cpmdc_session_calculate_forces()~ when the step sends a cell.
