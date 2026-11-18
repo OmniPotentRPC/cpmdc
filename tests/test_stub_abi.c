@@ -1,5 +1,6 @@
 #include "cpmdc.h"
 
+#include <stdint.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -218,10 +219,62 @@ static void test_stub_failing_calls_set_last_error(void **state) {
   expect_stub_entry("cpmdc_calculate_result_from_config");
 }
 
+static void assert_zeroed(const void *memory, size_t n) {
+  const unsigned char *bytes = memory;
+  for (size_t i = 0; i < n; i++)
+    assert_int_equal(bytes[i], 0);
+}
+
+static void test_stub_snapshots_zero_a_buffer(void **state) {
+  (void)state;
+  CPMDCSession *dummy = (CPMDCSession *)(uintptr_t)1;
+  assert_int_equal(cpmdc_set_params(NULL, 0), -1);
+  expect_stub_entry("cpmdc_set_params");
+
+#define CHECK_LAST(fn, type)                                                   \
+  do {                                                                         \
+    type value;                                                                \
+    memset(&value, 0xab, sizeof(value));                                      \
+    assert_int_equal(fn(NULL), -1);                                            \
+    assert_int_equal(fn(&value), -1);                                          \
+    assert_zeroed(&value, sizeof(value));                                     \
+  } while (0)
+#define CHECK_SESSION(fn, type)                                                \
+  do {                                                                         \
+    type value;                                                                \
+    memset(&value, 0xab, sizeof(value));                                      \
+    assert_int_equal(fn(NULL, NULL), -1);                                      \
+    assert_int_equal(fn(dummy, NULL), -1);                                     \
+    assert_int_equal(fn(NULL, &value), -1);                                    \
+    assert_zeroed(&value, sizeof(value));                                     \
+    memset(&value, 0xab, sizeof(value));                                      \
+    assert_int_equal(fn(dummy, &value), -1);                                   \
+    assert_zeroed(&value, sizeof(value));                                     \
+  } while (0)
+
+  CHECK_LAST(cpmdc_last_charge_integrals, CPMDCChargeIntegrals);
+  CHECK_LAST(cpmdc_last_multi_state_energies, CPMDCMultiStateEnergies);
+  CHECK_LAST(cpmdc_last_md_trajectory_row, CPMDCMDTrajectoryRow);
+  CHECK_LAST(cpmdc_last_property_snapshot, CPMDCPropertySnapshot);
+  CHECK_LAST(cpmdc_last_stress, CPMDCStressTensor);
+  CHECK_LAST(cpmdc_last_rank_spread, CPMDCRankSpread);
+  CHECK_LAST(cpmdc_last_energy_components, CPMDCEnergyComponents);
+  CHECK_SESSION(cpmdc_session_last_energy_components, CPMDCEnergyComponents);
+  CHECK_SESSION(cpmdc_session_last_charge_integrals, CPMDCChargeIntegrals);
+  CHECK_SESSION(cpmdc_session_last_multi_state_energies, CPMDCMultiStateEnergies);
+  CHECK_SESSION(cpmdc_session_last_md_trajectory_row, CPMDCMDTrajectoryRow);
+  CHECK_SESSION(cpmdc_session_last_property_snapshot, CPMDCPropertySnapshot);
+  CHECK_SESSION(cpmdc_session_last_stress, CPMDCStressTensor);
+#undef CHECK_LAST
+#undef CHECK_SESSION
+  expect_stub_entry("cpmdc_set_params");
+}
+
 int main(void) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_stub_reports_unavailable),
       cmocka_unit_test(test_stub_failing_calls_set_last_error),
+      cmocka_unit_test(test_stub_snapshots_zero_a_buffer),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

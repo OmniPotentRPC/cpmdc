@@ -58,7 +58,8 @@ static int add_count(unsigned char **buf, size_t *len, size_t *cap, int32_t coun
   return add_rec(buf, len, cap, raw, 12);
 }
 
-static int build_sample(unsigned char **out, size_t *nout, int stream, int with_fpos) {
+static int build_sample(unsigned char **out, size_t *nout, int stream, int with_fpos,
+                         int short_coord) {
   unsigned char *buf = NULL;
   size_t len = 0, cap = 0;
   char header[80];
@@ -105,8 +106,12 @@ static int build_sample(unsigned char **out, size_t *nout, int stream, int with_
   if (add_count(&buf, &len, &cap, 3, with_fpos) != 0)
     return -1;
   for (int a = 0; a < 3; a++) {
-    if (add_rec(&buf, &len, &cap, xyz + 3 * a, 24) != 0)
+    if (short_coord && a == 0) {
+      if (add_rec(&buf, &len, &cap, "", 0) != 0)
+        return -1;
+    } else if (add_rec(&buf, &len, &cap, xyz + 3 * a, 24) != 0) {
       return -1;
+    }
   }
   if (add_count(&buf, &len, &cap, 3, with_fpos) != 0)
     return -1;
@@ -347,10 +352,182 @@ static int check_geo1(const char *path) {
 
 /* The docs examples run cpmdc-restart on this sample: three atoms with
  * coordinates and velocities, which the geo1 fixture does not carry. */
+static int expect_reject(const void *bytes, size_t n, const char *fragment) {
+  char err[256];
+  CPMDCRestart *file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  if (file) {
+    cpmdc_restart_free(file);
+    return fail("malformed restart was accepted");
+  }
+  if (!strstr(err, fragment)) {
+    fprintf(stderr, "test_cpmd_restart: diagnostic was: %s\n", err);
+    return fail("unexpected restart diagnostic");
+  }
+  if (cpmdc_restart_read_mem(bytes, n, NULL, 0) != NULL)
+    return fail("null diagnostic buffer accepted a bad image");
+  return 0;
+}
+
+static int check_malformed(void) {
+  unsigned char tiny[3] = {1, 2, 3};
+  int32_t lead = 100;
+  unsigned char past[8];
+  int32_t mismatch_lead = 4;
+  int32_t mismatch_trail = 5;
+  unsigned char mismatch[12];
+  int32_t huge = INT32_MIN;
+  unsigned char marker[4];
+  unsigned char *header_only = NULL;
+  size_t len = 0, cap = 0;
+  char header[80];
+  int32_t count = 5;
+  int32_t count_min = INT32_MIN;
+  unsigned char short_hdr[2] = {1, 2};
+  char err[256];
+  if (expect_reject(NULL, 0, "no records") != 0)
+    return 1;
+  if (expect_reject(tiny, sizeof tiny, "truncated record marker") != 0)
+    return 1;
+  memcpy(past, &lead, 4);
+  memset(past + 4, 0, 4);
+  if (expect_reject(past, sizeof past, "record extends past end of file") != 0)
+    return 1;
+  memcpy(mismatch, &mismatch_lead, 4);
+  memset(mismatch + 4, 0, 4);
+  memcpy(mismatch + 8, &mismatch_trail, 4);
+  if (expect_reject(mismatch, sizeof mismatch,
+                    "leading and trailing record markers differ") != 0)
+    return 1;
+  memcpy(marker, &huge, 4);
+  if (expect_reject(marker, sizeof marker, "record marker out of range") != 0)
+    return 1;
+  if (cpmdc_restart_read_mem(NULL, 4, err, sizeof err) != NULL)
+    return fail("null buffer with a length was accepted");
+  if (!strstr(err, "null restart buffer"))
+    return fail(err);
+
+  memset(header, ' ', sizeof header);
+  memcpy(header, " STUTTGART VERSION 3.0", 22);
+  if (add_rec(&header_only, &len, &cap, header, 80) != 0)
+    return fail("header build");
+  if (add_i32(&header_only, &len, &cap, count) != 0)
+    return fail("count build");
+  if (expect_reject(header_only, len, "section asks for records past the end of the file") !=
+      0) {
+    free(header_only);
+    return 1;
+  }
+  free(header_only);
+  header_only = NULL;
+  len = 0;
+  cap = 0;
+  if (add_rec(&header_only, &len, &cap, header, 80) != 0)
+    return fail("header rebuild");
+  if (add_i32(&header_only, &len, &cap, count_min) != 0)
+    return fail("min count");
+  if (expect_reject(header_only, len, "section record count out of range") != 0) {
+    free(header_only);
+    return 1;
+  }
+  free(header_only);
+  header_only = NULL;
+  len = 0;
+  cap = 0;
+  if (add_rec(&header_only, &len, &cap, header, 80) != 0)
+    return fail("header short");
+  if (add_rec(&header_only, &len, &cap, short_hdr, sizeof short_hdr) != 0)
+    return fail("short header record");
+  if (expect_reject(header_only, len, "section header is shorter than one integer") != 0) {
+    free(header_only);
+    return 1;
+  }
+  free(header_only);
+  return 0;
+}
+
+static int check_edges(const unsigned char *bytes, size_t n) {
+  char err[256];
+  CPMDCRestart *file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  double cell[6];
+  double xyz[9];
+  const char *species[] = {"H", ""};
+  const char *atoms[3];
+  void *rewritten = NULL;
+  size_t rn = 0;
+  if (!file)
+    return fail(err[0] ? err : "edge read failed");
+  if (cpmdc_restart_is_stream(NULL) != 0 || cpmdc_restart_header(NULL) != NULL ||
+      cpmdc_restart_ncoords(NULL) != 0)
+    return fail("null image queries");
+  cpmdc_restart_free(NULL);
+  if (cpmdc_restart_section(file, 0, NULL) == 0 ||
+      cpmdc_restart_section(file, 100, NULL) == 0)
+    return fail("section index outside 1..99 was accepted");
+  if (cpmdc_restart_section(file, 1, NULL) != 0)
+    return fail("section 1 with a null count");
+  if (cpmdc_restart_cell(file, NULL, NULL, NULL) == 0)
+    return fail("cell without a destination was accepted");
+  if (cpmdc_restart_cell(file, NULL, NULL, cell) != 0 || cell[0] != 14.0)
+    return fail("cell with null symmetry outputs");
+  if (cpmdc_restart_species(file, NULL, NULL) != 0)
+    return fail("species with null outputs");
+  if (cpmdc_restart_expand_species_symbols(file, species, 2, atoms, 3) == 0)
+    return fail("an empty species symbol was accepted");
+  if (cpmdc_restart_expand_species_symbols(file, species, 1, atoms, 3) == 0)
+    return fail("the wrong species count was accepted");
+  if (cpmdc_restart_coordinates(file, NULL, 9) == 0 ||
+      cpmdc_restart_coordinates(file, xyz, 6) == 0)
+    return fail("a bad coordinate buffer was accepted");
+  if (cpmdc_restart_set_cell(file, NULL) == 0)
+    return fail("a null cell write was accepted");
+  if (cpmdc_restart_cutoff(file, NULL, NULL, NULL, NULL, NULL, NULL, NULL) != 0)
+    return fail("cutoff with null outputs");
+  if (cpmdc_restart_states(file, NULL, NULL, NULL, NULL, NULL, NULL) != 0)
+    return fail("states with null outputs");
+  if (cpmdc_restart_write_mem(NULL, &rewritten, &rn, err, sizeof err) == 0)
+    return fail("a null image was written");
+  if (!strstr(err, "null write target"))
+    return fail(err);
+  if (cpmdc_restart_write_path(file, NULL, err, sizeof err) == 0)
+    return fail("a null path was written");
+  if (cpmdc_restart_read_path(NULL, err, sizeof err) != NULL)
+    return fail("a null path was read");
+  if (cpmdc_restart_read_path("cpmdc-restart-no-such-file", err, sizeof err) != NULL)
+    return fail("a missing path was read");
+  if (cpmdc_restart_write_path(file, "cpmdc-restart-no-such-dir/out", err,
+                              sizeof err) == 0)
+    return fail("a missing directory was written");
+  cpmdc_restart_free(file);
+  return 0;
+}
+
+static int check_short_coordinate(void) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  char err[256];
+  double xyz[9];
+  CPMDCRestart *file;
+  if (build_sample(&bytes, &n, 0, 1, 1) != 0)
+    return fail("short coordinate build");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail(err[0] ? err : "short coordinate image was rejected");
+  if (cpmdc_restart_ncoords(file) != 3)
+    return fail("short coordinate count");
+  if (cpmdc_restart_coordinates(file, xyz, 9) == 0 ||
+      cpmdc_restart_set_coordinates(file, xyz, 9) == 0) {
+    cpmdc_restart_free(file);
+    return fail("a zero length coordinate record was copied");
+  }
+  cpmdc_restart_free(file);
+  return 0;
+}
+
 static int write_sample(const char *path) {
   unsigned char *bytes = NULL;
   size_t n = 0;
-  if (build_sample(&bytes, &n, 0, 1) != 0)
+  if (build_sample(&bytes, &n, 0, 1, 0) != 0)
     return fail("build");
   FILE *fp = fopen(path, "wb");
   if (fp == NULL) {
@@ -904,7 +1081,7 @@ int main(int argc, char **argv) {
   size_t n = 0;
   if (argc == 3 && strcmp(argv[1], "--write-sample") == 0)
     return write_sample(argv[2]);
-  if (build_sample(&bytes, &n, 0, 1) != 0)
+  if (build_sample(&bytes, &n, 0, 1, 0) != 0)
     return fail("build");
   if (check_sample(bytes, n, 0) != 0) {
     free(bytes);
@@ -912,7 +1089,7 @@ int main(int argc, char **argv) {
   }
   free(bytes);
   bytes = NULL;
-  if (build_sample(&bytes, &n, 1, 1) != 0)
+  if (build_sample(&bytes, &n, 1, 1, 0) != 0)
     return fail("build stream");
   if (check_sample(bytes, n, 1) != 0) {
     free(bytes);
@@ -920,9 +1097,13 @@ int main(int argc, char **argv) {
   }
   free(bytes);
   bytes = NULL;
-  if (build_sample(&bytes, &n, 0, 0) != 0)
+  if (build_sample(&bytes, &n, 0, 0, 0) != 0)
     return fail("build classic");
   if (check_sample(bytes, n, 0) != 0) {
+    free(bytes);
+    return 1;
+  }
+  if (check_edges(bytes, n) != 0) {
     free(bytes);
     return 1;
   }
@@ -932,6 +1113,10 @@ int main(int argc, char **argv) {
   if (check_bad_magic() != 0)
     return 1;
   if (check_atomic_replace() != 0)
+    return 1;
+  if (check_malformed() != 0)
+    return 1;
+  if (check_short_coordinate() != 0)
     return 1;
   if (argc > 1 && check_geo1(argv[1]) != 0)
     return 1;
