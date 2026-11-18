@@ -193,7 +193,24 @@ MODULE cpmd_embed_c_api
     CHARACTER(LEN=1024) :: cpmd_root = ' '
   END TYPE
 
+  ! Direct evaluation of erf(r/(sqrt(2)*sigma))/r subtracts two terms of
+  ! size O(1/r^2) whose difference is O(1/sigma^3). In double precision the
+  ! absolute error of that subtraction exceeds the analytic result by more
+  ! than SQRT(EPSILON) once r/sigma drops below EPSILON**(1/4), that is
+  ! SQRT(SQRT(EPSILON)). Inside that fraction of the Gaussian width the
+  ! potential uses its analytic value at the origin, SQRT(2/pi)/sigma, and
+  ! the force contribution is omitted. The force is odd in r, so the omitted
+  ! piece is O(r/sigma^3) and is far smaller than one cell of a plane-wave
+  ! mesh. The guard tracks sigma, so a narrower charge keeps a tighter cutoff.
+  REAL(real64), PARAMETER :: embed_gaussian_origin_guard = &
+      SQRT(SQRT(EPSILON(1.0_real64)))
+
 CONTAINS
+
+  LOGICAL FUNCTION embed_within_gaussian_origin(rr, sigma)
+    REAL(real64), INTENT(IN) :: rr, sigma
+    embed_within_gaussian_origin = rr <= sigma * embed_gaussian_origin_guard
+  END FUNCTION
 
 #if defined(CPMDC_HAS_CPMD)
   SUBROUTINE cpmdc_external_charge_density_force(rhoe) &
@@ -218,8 +235,8 @@ CONTAINS
           DO m = 1, embed_external_count
             d = point - embed_external_pos(:,m)
             rr = NORM2(d)
-            IF (rr <= 1.0e-12_real64) CYCLE
             sigma = embed_external_sigma(m)
+            IF (embed_within_gaussian_origin(rr, sigma)) CYCLE
             erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
             expo = EXP(-0.5_real64 * (rr / sigma)**2)
             coef = embed_external_q(m) * (erfv / rr**3 - &
@@ -295,7 +312,7 @@ CONTAINS
           DO m = 1, n_external
             d = point - embed_external_pos(:,m)
             rr = NORM2(d)
-            IF (rr > 1.0e-12_real64) THEN
+            IF (.NOT. embed_within_gaussian_origin(rr, embed_external_sigma(m))) THEN
               value = value - embed_external_q(m) * &
                   ERF(rr / (SQRT(2.0_real64) * embed_external_sigma(m))) / rr
             ELSE
@@ -326,7 +343,7 @@ CONTAINS
           d = tau0(:,ia,is) - embed_external_pos(:,m)
           rr = NORM2(d)
           sigma = embed_external_sigma(m)
-          IF (rr > 1.0e-12_real64) THEN
+          IF (.NOT. embed_within_gaussian_origin(rr, sigma)) THEN
             erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
             expo = EXP(-0.5_real64 * (rr / sigma)**2)
             energy = energy + ions0%zv(is) * embed_external_q(m) * erfv / rr
@@ -2135,7 +2152,7 @@ CONTAINS
         d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
         sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
         rr = NORM2(d)
-        IF (rr > 1.0e-12_real64) THEN
+        IF (.NOT. embed_within_gaussian_origin(rr, sigma)) THEN
           q = REAL(external_q(m), KIND=real64)
           erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
           expo = EXP(-0.5_real64 * (rr / sigma)**2)
@@ -2150,7 +2167,7 @@ CONTAINS
         d = REAL(pos(3*i-2:3*i) - external_pos(3*m-2:3*m), KIND=real64) / bohr_to_ang
         sigma = REAL(external_width(m), KIND=real64) / bohr_to_ang
         rr = NORM2(d)
-        IF (rr <= 1.0e-12_real64) CYCLE
+        IF (embed_within_gaussian_origin(rr, sigma)) CYCLE
         q = REAL(external_q(m), KIND=real64)
         erfv = ERF(rr / (SQRT(2.0_real64) * sigma))
         expo = EXP(-0.5_real64 * (rr / sigma)**2)

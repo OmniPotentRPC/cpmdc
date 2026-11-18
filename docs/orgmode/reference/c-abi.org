@@ -258,6 +258,11 @@ A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
 External charges contribute
 \(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic potential.
+Inside \(\sigma \epsilon^{1/4}\) of a charge, where \(\epsilon\) is double-precision
+machine epsilon, that formula is replaced by its analytic value at the origin.
+The direct expression subtracts two terms of size \(O(1/r^2)\), and below this
+fraction of the Gaussian width the cancellation no longer resolves their
+\(O(1/\sigma^3)\) difference.
 The total energy includes electron--MM and ion--MM coupling; QM and MM force
 arrays are both ~-dE/dR~. A periodic step with external charges fails with the
 typed error above because periodic images are not yet implemented.
