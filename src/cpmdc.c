@@ -477,16 +477,42 @@ static int configure_embed_from_session(CPMDCSession *session) {
 }
 
 static void cpmdc_store_error_code(const char *msg, CPMDCErrorCode code) {
+  int empty = !msg || msg[0] == '\0';
   snprintf(g_last_error, sizeof(g_last_error), "%s", msg ? msg : "");
-  g_last_error_code = !msg || msg[0] == '\0' ? CPMDC_ERROR_NONE : code;
+  if (empty) {
+    g_last_error_code = CPMDC_ERROR_NONE;
+    g_embed_detail[0] = '\0';
+    return;
+  }
+  g_last_error_code = code;
+  /* Drop a detail that is not this message so the code is not left
+   * paired with a different embed failure. */
+  if (strcmp(msg, g_embed_detail) != 0)
+    g_embed_detail[0] = '\0';
 }
 
 static void cpmdc_store_error(const char *msg) {
   cpmdc_store_error_code(msg, CPMDC_ERROR_INVALID_ARGUMENT);
 }
 
+/* The embed detail and the code are one value. An empty note clears
+ * both, and every other note stores EVALUATION_FAILED with the text.
+ * A more specific code is written after this returns. */
 void cpmdc_note_embed_failure(const char *msg) {
+  int empty = !msg || msg[0] == '\0';
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
+  snprintf(g_last_error, sizeof(g_last_error), "%s", g_embed_detail);
+  g_last_error_code = empty ? CPMDC_ERROR_NONE : CPMDC_ERROR_EVALUATION_FAILED;
+}
+
+static void cpmdc_clear_embed_failure(void) {
+  int embed = g_last_error_code == CPMDC_ERROR_EVALUATION_FAILED ||
+              g_last_error_code == CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
+  g_embed_detail[0] = '\0';
+  if (!embed)
+    return;
+  g_last_error_code = CPMDC_ERROR_NONE;
+  g_last_error[0] = '\0';
 }
 
 static const char k_deck_external_potential_msg[] =
@@ -494,8 +520,8 @@ static const char k_deck_external_potential_msg[] =
     "EXTERNAL POTENTIAL";
 
 void cpmdc_note_deck_external_potential(void) {
-  g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
   cpmdc_note_embed_failure(k_deck_external_potential_msg);
+  g_last_error_code = CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL;
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
@@ -1205,8 +1231,8 @@ static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
     *stop = 1;
   if (flags[0] && *ok) {
     *ok = 0;
-    snprintf(g_embed_detail, sizeof(g_embed_detail), "%s",
-             "CPMD energy/gradient failed on another rank of the calculator");
+    cpmdc_note_embed_failure(
+        "CPMD energy/gradient failed on another rank of the calculator");
   }
   if (flags[0] || flags[1]) {
     free(root);
@@ -1304,7 +1330,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.ok = 0;
   r.energy_h = 0.0;
   r.message[0] = '\0';
-  g_embed_detail[0] = '\0';
+  cpmdc_clear_embed_failure();
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr) {
     return fail_msg_code("invalid arguments", CPMDC_ERROR_INVALID_ARGUMENT);

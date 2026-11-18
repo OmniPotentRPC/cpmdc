@@ -11,6 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+int cpmdc_embed_compose_cold_deck(int n_atoms, const double *positions_ang,
+                                  const int *atomic_numbers,
+                                  const double *cell_ang, int has_cell,
+                                  char *deck_out, int deck_cap, int *deck_len);
+
 #include <cmocka.h>
 
 static const char *g_params = NULL;
@@ -183,6 +188,40 @@ static void test_deck_external_potential_add(void **state) {
   expect_deck_clash(g_potential_add);
 }
 
+/* A deck clash records DECK_EXTERNAL_POTENTIAL. The next embed failure
+ * is a different variant and has to replace that code, not leave it. */
+static void test_second_embed_failure_replaces_the_code(void **state) {
+  CPMDCSession *session = open_params(g_potential);
+  double positions[3] = {3.0, 0.0, 0.0};
+  double charges[1] = {1.0};
+  double widths[1] = {0.30};
+  double qm_forces[9];
+  const double skewed[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
+                            0.0,  0.0, 12.0};
+  const double atoms[6] = {1.0, 1.0, 1.0, 1.74, 1.0, 1.0};
+  const int numbers[2] = {1, 1};
+  char deck[8192];
+  int len = 0;
+  CPMDCResult clash;
+  (void)state;
+
+  assert_int_equal(cpmdc_session_set_external_charges(session, 1, positions,
+                                                      charges, widths),
+                   0);
+  clash =
+      cpmdc_session_energy_forces(session, 3, k_water, k_numbers, qm_forces);
+  assert_int_equal(clash.ok, 0);
+  assert_int_equal(cpmdc_last_error_code(),
+                   CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL);
+  cpmdc_session_destroy(session);
+
+  assert_int_equal(cpmdc_embed_compose_cold_deck(2, atoms, numbers, skewed, 1,
+                                                 deck, (int)sizeof(deck), &len),
+                   0);
+  assert_int_equal(cpmdc_last_error_code(), CPMDC_ERROR_EVALUATION_FAILED);
+  assert_non_null(strstr(cpmdc_last_error(), "orthorhombic"));
+}
+
 int main(int argc, char **argv) {
   if (argc != 4) {
     fprintf(stderr, "usage: %s PARAMS POTENTIAL POTENTIAL_ADD\n", argv[0]);
@@ -197,6 +236,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_typed_failure_replaces_previous_code),
       cmocka_unit_test(test_deck_external_potential),
       cmocka_unit_test(test_deck_external_potential_add),
+      cmocka_unit_test(test_second_embed_failure_replaces_the_code),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
