@@ -864,6 +864,50 @@ static char *link_target_path(const char *path, const char *target, char *err,
   return out;
 }
 
+/* realpath resolves a chain in one call only when every hop exists; a
+ * dangling chain, even past the first hop, makes it fail with ENOENT and
+ * say nothing about how far it got. Walk the chain by hand in that case,
+ * one readlink per hop, and stop at the first path that is not there: that
+ * is the final target, and every link before it is left untouched. A hop
+ * count bounds the walk so a loop this function reaches on its own, rather
+ * than through the realpath call above, still ends in a clear error. */
+#define CPMDC_RESTART_MAX_HOPS 40
+
+static char *resolve_dangling_chain(const char *path, char *err, size_t err_cap) {
+  char *cur = publish_strdup(path);
+  if (!cur) {
+    set_err(err, err_cap, "out of memory");
+    return NULL;
+  }
+  for (int hop = 0; hop < CPMDC_RESTART_MAX_HOPS; hop++) {
+    struct stat lst;
+    char *text, *next;
+    if (lstat(cur, &lst) != 0) {
+      if (errno == ENOENT)
+        return cur;
+      set_errf(err, err_cap, "cannot stat the RESTART symlink target", strerror(errno));
+      free(cur);
+      return NULL;
+    }
+    if (!S_ISLNK(lst.st_mode))
+      return cur;
+    text = read_link_text(cur, err, err_cap);
+    if (!text) {
+      free(cur);
+      return NULL;
+    }
+    next = link_target_path(cur, text, err, err_cap);
+    free(text);
+    free(cur);
+    if (!next)
+      return NULL;
+    cur = next;
+  }
+  free(cur);
+  set_err(err, err_cap, "the RESTART symlink chain has too many hops, likely a loop");
+  return NULL;
+}
+
 /* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
  * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
  * continues to update RESTART.1 while keeping RESTART as a link. realpath
@@ -884,16 +928,11 @@ static int publish_destination(const char *path, char **effective, mode_t *mode,
   if (exists && S_ISLNK(lst.st_mode)) {
     resolved = realpath(path, NULL);
     if (!resolved) {
-      char *text;
       if (errno != ENOENT) {
         set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
         return -1;
       }
-      text = read_link_text(path, err, err_cap);
-      if (!text)
-        return -1;
-      resolved = link_target_path(path, text, err, err_cap);
-      free(text);
+      resolved = resolve_dangling_chain(path, err, err_cap);
       if (!resolved)
         return -1;
       /* Absent destination: leave the mode at 0666 under the umask. */
