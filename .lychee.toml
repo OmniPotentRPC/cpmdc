@@ -6,13 +6,14 @@ retry_wait_time = 2
 timeout = 20
 
 # GitHub answers bursts of requests with 429 Too Many Requests.
-# Publisher sites often answer HEAD with 403 after a doi.org redirect.
-accept = ["200..=299", "403", "429"]
+accept = ["200..=299", "429"]
 user_agent = "Mozilla/5.0 (compatible; lychee; +https://github.com/lycheeverse/lychee)"
 
 # Check the anchors of links such as README.md#citation.
 include_fragments = "anchor-only"
 
+# Publisher sites often answer HEAD with 403 after a doi.org
+# redirect, so DOI links are skipped rather than accepting every 403.
 exclude = [
-  '^https://doi\\.org/',
+  '^https://doi\.org/',
 ]
