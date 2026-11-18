@@ -251,7 +251,7 @@ directly with Bohr arrays and the virial output.
 ~ForceInput~ owns coordinates, atomic numbers, unit strings, and the optional 3
 by 3 cell for a single evaluation.
 The runtime renders a CPMD ~INPUT~ deck from ~CPMDParams~ and merges the step
-geometry into it on the first evaluation of a session.
+geometry into it on each cold evaluation.
 
 Structured ~inputSections~ should be preferred over raw blocks when a typed arm
 exists:
@@ -302,7 +302,7 @@ Read and rewrite it with ~cpmdc-restart~ or
 Coordinates in that file are Bohr in species order.
 A coordinate patch copies the wavefunction records unchanged, which is how a
 host keeps orbitals while it owns the next geometry.
-Put ~RESTART WAVEFUNCTION~ in the deck to start the first SCF of a session from
+Put ~RESTART WAVEFUNCTION~ in the deck to start a cold SCF from
 the patched file; the OpenCPMD path ignores restarted coordinates, velocities,
 and geometry, because each step supplies them.
 
@@ -313,10 +313,10 @@ from a completed executable build with the patches in ~tools/~; see
 [[file:opencpmd-archive.org][building the archive]].
 
 Set ~CPMDC_PSEUDO_DIR~ to the directory holding the pseudopotential files.
-The first evaluation of a session changes into that directory while CPMD reads
+A cold evaluation changes into that directory while CPMD reads
 them (~ratom~ and ~recpnew~), then returns to the host's directory.
 ~CPMD_PP_LIBRARY_PATH~ is the fallback when ~CPMDC_PSEUDO_DIR~ is unset; with
-neither set, the first evaluation fails.
+neither set, a cold evaluation fails.
 
 ~CPMDC_DECK_OUT~ names a file that receives the method deck cpmdc renders from
 ~CPMDParams~; see [[file:debug-deck.org][debugging a deck]] for what the
