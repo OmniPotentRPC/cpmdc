@@ -12,7 +12,10 @@ add_project_arguments(
 )
 fc = meson.get_compiler('fortran')
 # An ASan libcpmdc loaded by ctypes aborts unless the ASan runtime is the
-# first library of the interpreter process.
+# first library of the interpreter process. Those tests also compile samples
+# with gcc, which inherits the preload. CPython, its extension modules, and
+# cc1 do not free their pools, so LeakSanitizer aborts them. Leak detection
+# stays on for the C and Fortran tests, which do not preload.
 asan_preload_env = {}
 if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
   asan_preload_env = {
@@ -21,7 +24,19 @@ if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
       '-print-file-name=libasan.so',
       check: true,
     ).stdout().strip(),
+    'ASAN_OPTIONS': 'halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0',
   }
+endif
+# Default for every test under AddressSanitizer. tests/lsan.supp names the
+# third party frame. A test that sets its own environment still wins.
+if 'address' in get_option('b_sanitize').split(',')
+  add_test_setup(
+    'lsan',
+    env: environment({
+      'LSAN_OPTIONS': 'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
+    }),
+    is_default: true,
+  )
 endif
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
