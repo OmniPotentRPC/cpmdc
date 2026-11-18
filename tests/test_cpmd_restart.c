@@ -2,6 +2,7 @@
 #include "cpmdc_restart.h"
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -9,6 +10,34 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#ifdef CPMDC_RESTART_TEST_HOOK
+/* Defined in src/cpmdc_restart.c only when this test is built. */
+extern void (*cpmdc_restart_test_before_follow)(void);
+static char hook_swap_path[PATH_MAX];
+static int hook_swap_armed;
+static int hook_swap_ok;
+
+/* Replace one intermediate symlink with a regular file in the window
+ * after realpath has reported the chain missing. */
+static void swap_intermediate_for_file(void) {
+  int fd;
+  ssize_t n;
+  if (!hook_swap_armed)
+    return;
+  hook_swap_armed = 0;
+  if (unlink(hook_swap_path) != 0)
+    return;
+  fd = open(hook_swap_path, O_WRONLY | O_CREAT | O_EXCL, 0644);
+  if (fd < 0)
+    return;
+  n = write(fd, "KEEP", 4);
+  if (n == 4 && close(fd) == 0)
+    hook_swap_ok = 1;
+  else
+    close(fd);
+}
+#endif
 
 static int fail(const char *msg) {
   fprintf(stderr, "test_cpmd_restart: %s\n", msg);
@@ -835,6 +864,69 @@ done:
   return rc == 0 ? 0 : fail(err[0] ? err : "two-link symlink loop was not rejected");
 }
 
+#ifdef CPMDC_RESTART_TEST_HOOK
+/* RESTART -> RESTART.1 -> RESTART.2, with RESTART.2 absent. After realpath
+ * reports ENOENT the hook replaces the intermediate symlink RESTART.1 with
+ * a regular file. The publisher used to return that file as the dangling
+ * destination and rename over it. The write must fail, the file must still
+ * hold the swapped bytes, and RESTART must still name RESTART.1. */
+static int swapped_intermediate_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], link1[PATH_MAX], link2[PATH_MAX], final[PATH_MAX], err[256];
+  char bytes[8];
+  struct stat st;
+  int fd, kept = 0, extra, rc = 1;
+  ssize_t n;
+  if (snprintf(sub, sizeof sub, "%s/swap-mid", dir) >= (int)sizeof sub ||
+      snprintf(link1, sizeof link1, "%s/RESTART", sub) >= (int)sizeof link1 ||
+      snprintf(link2, sizeof link2, "%s/RESTART.1", sub) >= (int)sizeof link2 ||
+      snprintf(final, sizeof final, "%s/RESTART.2", sub) >= (int)sizeof final ||
+      snprintf(hook_swap_path, sizeof hook_swap_path, "%s", link2) >= (int)sizeof hook_swap_path)
+    return fail("swapped intermediate path too long");
+  if (mkdir(sub, 0700) != 0 || symlink("RESTART.1", link1) != 0 || symlink("RESTART.2", link2) != 0)
+    return fail("make the chain a swap can break");
+  hook_swap_armed = 1;
+  hook_swap_ok = 0;
+  cpmdc_restart_test_before_follow = swap_intermediate_for_file;
+  if (write_restart_at(link1, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  cpmdc_restart_test_before_follow = NULL;
+  hook_swap_armed = 0;
+  if (!hook_swap_ok)
+    goto done;
+  if (strstr(err, "the RESTART symlink chain changed before publication") == NULL)
+    goto done;
+  if (!is_symlink_to(link1, "RESTART.1"))
+    goto done;
+  if (lstat(link2, &st) != 0 || !S_ISREG(st.st_mode))
+    goto done;
+  fd = open(link2, O_RDONLY);
+  if (fd < 0)
+    goto done;
+  n = read(fd, bytes, sizeof bytes);
+  close(fd);
+  if (n != 4 || memcmp(bytes, "KEEP", 4) != 0)
+    goto done;
+  if (lstat(final, &st) == 0)
+    goto done;
+  extra = leftovers(sub, "RESTART", &kept);
+  if (extra != 1 || kept != 1)
+    goto done;
+  rc = 0;
+done:
+  cpmdc_restart_test_before_follow = NULL;
+  hook_swap_armed = 0;
+  free(image);
+  unlink(link1);
+  unlink(link2);
+  unlink(final);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "a swapped intermediate was not refused");
+}
+#endif
+
 /* A link that points at itself is not a place to create a file. */
 static int symlink_loop_case(const char *dir) {
   void *image = NULL;
@@ -1021,6 +1113,10 @@ static int check_atomic_replace(void) {
     rc = dangling_chain_3hop_case(dir);
   if (rc == 0)
     rc = dangling_chain_loop_case(dir);
+#ifdef CPMDC_RESTART_TEST_HOOK
+  if (rc == 0)
+    rc = swapped_intermediate_case(dir);
+#endif
   if (rc == 0)
     rc = symlink_loop_case(dir);
   if (rc == 0)
