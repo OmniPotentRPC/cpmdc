@@ -537,9 +537,10 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * The step is the `cpmdc_session_calculate_result()` step of a `ForceInput`
  * with `lengthUnit = "bohr"`, `energyUnit = "hartree"`, and the same
  * positions, atomic numbers, and box (empty for `cell_bohr == NULL`), and
- * gives the same bits. The session rules apply: the first successful step
- * fixes the atom count and the composition, and a repeat of the stored
- * positions and cell returns the stored result.
+ * gives the same bits. `session_accept_topology` fixes the topology as soon
+ * as an evaluation call passes its argument checks, even when the evaluation
+ * then fails, and it is never rolled back. A repeat of the stored positions
+ * and cell returns the stored result.
  *
  * @return 0 on success; -1 on a `NULL` session or output, `n_atoms` outside
  *         1..`INT_MAX / 3`, a topology change, or a failed evaluation.
