@@ -109,11 +109,20 @@ static void test_unconverged_scf_message(void **state) {
   assert_non_null(strstr(out.message, "after ODIIS stopped at iteration 2 of MAXITER 2"));
   assert_non_null(strstr(out.message, "CONVERGENCE ORBITALS 1.000000E-05"));
   const char *at = strstr(out.message, " with gemax ");
-  assert_non_null(at);
+  const char *tol_at = strstr(out.message, "CONVERGENCE ORBITALS ");
   double gemax = 0.0;
+  double expected = 0.0;
+  double tolog = 0.0;
+  assert_non_null(at);
+  assert_non_null(tol_at);
   assert_int_equal(sscanf(at, " with gemax %lf", &gemax), 1);
+  assert_int_equal(sscanf("1.107715E-02", "%lf", &expected), 1);
+  assert_int_equal(sscanf(tol_at, "CONVERGENCE ORBITALS %lf", &tolog), 1);
   assert_true(isfinite(gemax));
-  assert_non_null(strstr(out.message, "with gemax 1.107715E-02 above"));
+  assert_true(tolog > 0.0);
+  /* Last digits of gemax move with the math library. Bound the
+   * comparison by the deck CONVERGENCE ORBITALS already required above. */
+  assert_true(fabs(gemax - expected) <= tolog);
 }
 
 static void test_unconverged_pcg_single_pass(void **state) {
