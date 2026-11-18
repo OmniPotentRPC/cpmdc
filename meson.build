@@ -1441,6 +1441,16 @@ test(
     suite: ['docs', 'abi', 'python'],
   )
   test(
+    'reference-audit-mutations',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_reference_audit_mutations.py',
+      meson.current_source_dir(),
+      meson.project_build_root(),
+    ],
+    suite: ['docs', 'abi', 'python'],
+  )
+  test(
     'python-mypy-strict',
     python,
     args: [
