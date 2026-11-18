@@ -1,0 +1,1 @@
+The LAMMPS pytest modules skip when `rgpot.lammps` cannot be imported, instead of failing collection. That module is not in a released rgpot wheel; CI builds it from the pinned commit that adds the frontend. The `lammps` extra installs the LAMMPS Python module and is separate from the `test` extra.

@@ -37,8 +37,19 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # rgpot.lammps is not in a released wheel. Build it before configure.
+      # The lammps module is installed after configure so the auto plugin
+      # probe does not start building cpmdcplugin.so in this job.
+      - name: rgpot.lammps
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite (stub + embed E2E)
-        run: pixi run test-stub
+        run: |
+          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build'
+          # The lammps wheel is linked to MPICH's libmpi.so.12.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmpich12
+          pixi run python -m pip install lammps
+          pixi run meson test -C build --print-errorlogs
       - name: C ABI inventory matches libcpmdc and the headers
         run: python3 scripts/abi_inventory.py --check build/libcpmdc.so
       - name: Default restart build does not link readcon
@@ -113,7 +124,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential gfortran pkg-config python3 python3-venv \
-            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
+            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev libmpich12 cmake \
             ninja-build file
       # meson finds python3 on PATH, which is this venv, so the test packages go here too.
       - name: Meson, ASE and i-PI
@@ -121,6 +132,8 @@ jobs:
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
           "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      - name: rgpot.lammps
+        run: PYTHON="${RUNNER_TEMP}/meson-venv/bin/python" bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite
         run: |
           . scripts/with_baseline_flags.sh
@@ -129,6 +142,7 @@ jobs:
           export CFLAGS="${CFLAGS:+$CFLAGS }-include ${GITHUB_WORKSPACE}/tests/distro_cmocka_prefix.h"
           meson setup build -Dwith_tests=true
           meson compile -C build
+          python3 -m pip install lammps
           meson test -C build --print-errorlogs
           if nm -A build/cpmdc-restart build/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
             echo "arm64 restart build references readcon"

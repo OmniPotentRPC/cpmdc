@@ -267,5 +267,6 @@ class FixExternal(RgpotFixExternal):
         return CPMDCError(f"cpmdc step failed: {error}")
 
     def close(self) -> None:
+        """Close the session and remove the fixes this object added."""
         self._adapter.close()
         super().close()

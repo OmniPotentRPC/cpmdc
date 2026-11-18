@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+pytest.importorskip("rgpot.lammps", reason="rgpot.lammps is not installed")
+
 import cpmdc.lammps
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
 

@@ -1,7 +1,10 @@
 """cpmdc inside LAMMPS: cpmdc.lammps.FixExternal and pair_style cpmdc.
 
 LAMMPS comes from its Python module (``pip install lammps``); every test
-skips with the reason when that module cannot start LAMMPS. The plugin is
+skips with the reason when that module cannot start LAMMPS.
+``rgpot.lammps`` is the frontend ``FixExternal`` subclasses. A released
+rgpot wheel does not ship it, so this module skips when that import fails
+instead of erroring during collection. The plugin is
 ``CPMDC_LAMMPS_PLUGIN`` or ``build/cpmdcplugin.so`` of this checkout, and
 the plugin cases skip when neither exists. Energies, forces, and virials
 are compared with ``CPMDCCalculator``, which reaches the library through
@@ -25,6 +28,8 @@ from ase import Atoms
 from conftest import ROOT
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, ConstantCutoff, CPMDCError
 from cpmdc.ase import CPMDCCalculator
+
+pytest.importorskip("rgpot.lammps", reason="rgpot.lammps is not installed")
 from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_factors
 
 HERE = Path(__file__).resolve().parent

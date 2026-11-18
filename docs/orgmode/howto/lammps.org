@@ -19,7 +19,8 @@ per step (see [[file:../explanation/md-engines.org][cpmdc inside MD engines]]).
 a compatibility wrapper: it presents a ~cpmdc.Session~ as a Python rgpot
 potential and delegates the LAMMPS protocol, unit conversion, cell, virial,
 MPI gather and callback errors to ~rgpot.lammps.FixExternal~.  Install rgpot
-alongside cpmdc to use this route.
+alongside cpmdc to use this route.  ~rgpot.lammps~ is not in a released rgpot
+wheel yet; the Python tests skip, with that reason, when the import fails.
 The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.
 
