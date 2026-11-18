@@ -1045,9 +1045,14 @@ static const char *k_fixture_files[] = {
 };
 
 /* Paths live in main. A heap copy here is a LeakSanitizer failure at exit. */
-static void fixture_path(const char *dir, const char *name, char *path,
-                         size_t cap) {
-  snprintf(path, cap, "%s/%s", dir, name);
+static int fixture_path(const char *dir, const char *name, char *path,
+                        size_t cap) {
+  int n = snprintf(path, cap, "%s/%s", dir, name);
+  if (n < 0 || (size_t)n >= cap) {
+    fprintf(stderr, "fixture path truncated for %s/%s\n", dir, name);
+    return -1;
+  }
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -1060,7 +1065,9 @@ int main(int argc, char **argv) {
   char storage[NFIXTURES + 1][k_fixture_cap];
   char *fixture[NFIXTURES + 1] = {0};
   for (int i = 0; i < NFIXTURES; ++i) {
-    fixture_path(argv[1], k_fixture_files[i], storage[i + 1], k_fixture_cap);
+    if (fixture_path(argv[1], k_fixture_files[i], storage[i + 1],
+                     k_fixture_cap) != 0)
+      return 1;
     fixture[i + 1] = storage[i + 1];
   }
   /* inventory must resolve CP and DFT catalog ids */
