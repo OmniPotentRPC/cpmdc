@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #ifdef _WIN32
 #include <io.h>
 #include <process.h>
-#include <sys/stat.h>
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -762,6 +762,7 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define publish_fdopen _fdopen
 #define publish_close _close
 #define publish_unlink _unlink
+#define publish_strdup _strdup
 #define publish_pid() ((unsigned long)_getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/' || (c) == '\\')
 #else
@@ -770,8 +771,70 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define publish_fdopen fdopen
 #define publish_close close
 #define publish_unlink unlink
+#define publish_strdup strdup
 #define publish_pid() ((unsigned long)getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/')
+#endif
+
+/* Keep the temporary basename short even when the destination basename is at
+ * NAME_MAX. The directory prefix is copied from the effective destination. */
+static char *temporary_path(const char *path, unsigned long token) {
+  static const char stem[] = ".cpmdc-tmp-";
+  size_t dir = strlen(path);
+  size_t cap;
+  char *tmp;
+  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
+    dir--;
+  cap = dir + sizeof stem + 16;
+  tmp = malloc(cap);
+  if (!tmp)
+    return NULL;
+  if (dir)
+    memcpy(tmp, path, dir);
+  snprintf(tmp + dir, cap - dir, "%s%016lx", stem, token);
+  return tmp;
+}
+
+#ifndef _WIN32
+/* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
+ * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
+ * continues to update RESTART.1 while keeping RESTART as a link. */
+static int publish_destination(const char *path, char **effective, mode_t *mode,
+                               int *has_mode, char *err, size_t err_cap) {
+  struct stat lst, st;
+  char *resolved;
+  int exists;
+  *effective = NULL;
+  *has_mode = 0;
+  exists = lstat(path, &lst) == 0;
+  if (!exists && errno != ENOENT) {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    return -1;
+  }
+  if (exists && S_ISLNK(lst.st_mode)) {
+    resolved = realpath(path, NULL);
+    if (!resolved) {
+      set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
+      return -1;
+    }
+  } else {
+    resolved = publish_strdup(path);
+    if (!resolved) {
+      set_err(err, err_cap, "out of memory");
+      return -1;
+    }
+  }
+  if (stat(resolved, &st) == 0) {
+    *mode = st.st_mode & 07777;
+    *has_mode = 1;
+  } else if (errno != ENOENT) {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    free(resolved);
+    return -1;
+  }
+  *effective = resolved;
+  return 0;
+}
 #endif
 
 /* Flush the stream and the file it writes to stable storage. */
@@ -867,18 +930,33 @@ static int replace_path(const char *tmp, const char *path, char *err, size_t err
 static int publish_bytes(const char *path, const void *bytes, size_t n, char *err,
                          size_t err_cap) {
   static _Thread_local unsigned long seq;
-  size_t cap = strlen(path) + 64;
-  char *tmp = malloc(cap);
+  char *effective = NULL;
+  char *tmp = NULL;
   FILE *fp;
   int fd = -1;
-  if (!tmp) {
+#ifndef _WIN32
+  mode_t mode = 0;
+  int has_mode = 0;
+  if (publish_destination(path, &effective, &mode, &has_mode, err, err_cap) != 0)
+    return -1;
+#else
+  effective = publish_strdup(path);
+  if (!effective) {
     set_err(err, err_cap, "out of memory");
     return -1;
   }
+#endif
   /* The thread-local's address tells threads of one process apart. */
   for (int attempt = 0; attempt < 100 && fd < 0; attempt++) {
-    snprintf(tmp, cap, "%s.tmp.%lu.%lx.%lu", path, publish_pid(),
-             (unsigned long)(uintptr_t)&seq, seq++);
+    unsigned long token =
+        seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
+    free(tmp);
+    tmp = temporary_path(effective, token);
+    if (!tmp) {
+      set_err(err, err_cap, "out of memory");
+      free(effective);
+      return -1;
+    }
     fd = publish_open(tmp);
     if (fd < 0 && errno != EEXIST)
       break;
@@ -886,6 +964,7 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
   if (fd < 0) {
     set_errf(err, err_cap, "cannot create a temporary RESTART file", strerror(errno));
     free(tmp);
+    free(effective);
     return -1;
   }
   fp = publish_fdopen(fd, "wb");
@@ -899,6 +978,13 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
     fclose(fp);
     goto discard;
   }
+#ifndef _WIN32
+  if (has_mode && fchmod(fileno(fp), mode) != 0) {
+    set_errf(err, err_cap, "cannot set the RESTART file mode", strerror(errno));
+    fclose(fp);
+    goto discard;
+  }
+#endif
   if (sync_stream(fp) != 0) {
     set_errf(err, err_cap, "cannot sync the RESTART file", strerror(errno));
     fclose(fp);
@@ -908,13 +994,19 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
     set_errf(err, err_cap, "cannot close the RESTART file", strerror(errno));
     goto discard;
   }
-  if (replace_path(tmp, path, err, err_cap) != 0)
+  if (replace_path(tmp, effective, err, err_cap) != 0)
     goto discard;
   free(tmp);
-  return sync_parent(path, err, err_cap);
+  if (sync_parent(effective, err, err_cap) != 0) {
+    free(effective);
+    return -1;
+  }
+  free(effective);
+  return 0;
 discard:
   publish_unlink(tmp);
   free(tmp);
+  free(effective);
   return -1;
 }
 

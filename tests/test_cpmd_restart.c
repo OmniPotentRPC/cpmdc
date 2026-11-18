@@ -533,7 +533,8 @@ static int rename_failure_case(const char *dir) {
   return 0;
 }
 
-/* The published file takes 0666 under the umask, as fopen gave it. */
+/* An existing file keeps its permissions; only a new file takes 0666 under
+ * the umask, matching fopen(path, "wb"). */
 static int mode_case(const char *dir) {
   unsigned char *bytes = NULL;
   size_t n = 0;
@@ -541,10 +542,14 @@ static int mode_case(const char *dir) {
   char err[256];
   CPMDCRestart *file;
   struct stat st;
+  FILE *seed;
   mode_t old;
   int rc;
   if (snprintf(path, sizeof path, "%s/RESTART", dir) >= (int)sizeof path)
     return fail("restart path too long");
+  seed = fopen(path, "wb");
+  if (!seed || fclose(seed) != 0 || chmod(path, 0600) != 0)
+    return fail("seed 0600 restart");
   if (build_sample(&bytes, &n, 0, 1) != 0)
     return fail("mode sample");
   file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
@@ -557,9 +562,119 @@ static int mode_case(const char *dir) {
   cpmdc_restart_free(file);
   if (rc != 0)
     return fail(err);
+  if (stat(path, &st) != 0 || (st.st_mode & 0777) != 0600)
+    return fail("published restart did not preserve mode 0600");
+  if (unlink(path) != 0)
+    return fail("remove mode-preservation restart");
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    return fail("new-file mode sample");
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  if (!file)
+    return fail("new-file mode sample rejected");
+  old = umask(022);
+  rc = cpmdc_restart_write_path(file, path, err, sizeof err);
+  umask(old);
+  cpmdc_restart_free(file);
+  if (rc != 0)
+    return fail(err);
   if (stat(path, &st) != 0 || (st.st_mode & 0777) != 0644)
     return fail("published restart does not take 0666 under the umask");
   return 0;
+}
+
+static int symlink_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  unsigned char *disk = NULL;
+  void *rewritten = NULL;
+  size_t n = 0, have = 0, rn = 0;
+  char sub[PATH_MAX], target[PATH_MAX], linkpath[PATH_MAX], err[256];
+  char linktext[PATH_MAX];
+  struct stat st;
+  CPMDCRestart *file;
+  FILE *seed;
+  ssize_t linklen;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/symlink", dir) >= (int)sizeof sub ||
+      snprintf(target, sizeof target, "%s/RESTART.1", sub) >= (int)sizeof target ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath)
+    return fail("symlink restart path too long");
+  if (mkdir(sub, 0700) != 0)
+    return fail("make symlink restart directory");
+  seed = fopen(target, "wb");
+  if (!seed || fwrite("STALE", 1, 5, seed) != 5 || fclose(seed) != 0)
+    goto done;
+  if (symlink("RESTART.1", linkpath) != 0)
+    goto done;
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    goto done;
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  bytes = NULL;
+  if (!file)
+    goto done;
+  if (cpmdc_restart_write_mem(file, &rewritten, &rn, err, sizeof err) != 0 ||
+      cpmdc_restart_write_path(file, linkpath, err, sizeof err) != 0) {
+    cpmdc_restart_free(file);
+    goto done;
+  }
+  cpmdc_restart_free(file);
+  if (lstat(linkpath, &st) != 0 || !S_ISLNK(st.st_mode))
+    goto done;
+  linklen = readlink(linkpath, linktext, sizeof linktext - 1);
+  if (linklen < 0)
+    goto done;
+  linktext[linklen] = '\0';
+  if (strcmp(linktext, "RESTART.1") != 0 ||
+      read_whole(target, &disk, &have) != 0 ||
+      have != rn || memcmp(disk, rewritten, rn) != 0)
+    goto done;
+  rc = 0;
+done:
+  free(bytes);
+  free(disk);
+  free(rewritten);
+  unlink(linkpath);
+  unlink(target);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail("symlink restart was not updated through its target");
+}
+
+static int long_name_case(const char *dir) {
+  unsigned char *bytes = NULL;
+  size_t n = 0;
+  char err[256];
+  CPMDCRestart *file = NULL;
+  long name_max = pathconf(dir, _PC_NAME_MAX);
+  size_t dir_len = strlen(dir);
+  char *path;
+  int rc = 1;
+  if (name_max < 32)
+    name_max = NAME_MAX;
+  if ((size_t)name_max + dir_len + 2 > PATH_MAX)
+    name_max = (long)(PATH_MAX - dir_len - 2);
+  path = malloc(dir_len + (size_t)name_max + 2);
+  if (!path)
+    return fail("allocate long restart path");
+  memcpy(path, dir, dir_len);
+  path[dir_len] = '/';
+  memset(path + dir_len + 1, 'R', (size_t)name_max);
+  path[dir_len + 1 + (size_t)name_max] = '\0';
+  if (build_sample(&bytes, &n, 0, 1) != 0)
+    goto done;
+  file = cpmdc_restart_read_mem(bytes, n, err, sizeof err);
+  free(bytes);
+  bytes = NULL;
+  if (!file || cpmdc_restart_write_path(file, path, err, sizeof err) != 0)
+    goto done;
+  rc = access(path, F_OK) == 0 ? 0 : 1;
+done:
+  cpmdc_restart_free(file);
+  free(bytes);
+  unlink(path);
+  free(path);
+  return rc == 0 ? 0 : fail("NAME_MAX restart name could not be published");
 }
 
 /* A bare name lands in, and syncs, the current directory. */
@@ -606,6 +721,10 @@ static int check_atomic_replace(void) {
     rc = rename_failure_case(dir);
   if (rc == 0)
     rc = mode_case(dir);
+  if (rc == 0)
+    rc = symlink_case(dir);
+  if (rc == 0)
+    rc = long_name_case(dir);
   if (rc == 0)
     rc = bare_name_case(dir);
   if (snprintf(path, sizeof path, "%s/RESTART", dir) < (int)sizeof path)

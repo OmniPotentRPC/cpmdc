@@ -292,9 +292,11 @@ unchanged; the deck then needs ~RESTART WAVEFUNCTION~.
 ~cpmdc-restart~ and ~cpmdc_restart_write_path()~ replace a ~RESTART~ file in
 one step, so a ~cpmd.x~ or a library call that opens it at the same time reads
 the previous file or the finished one, never part of the new one.
-The image goes to a temporary file next to the destination, named after it
-with a ~.tmp.~ suffix, opened with mode 0666 under the umask as a plain
-~fopen~ would.
+The image goes to a short-named temporary file next to the effective
+destination. A new destination is opened with mode 0666 under the umask as a
+plain ~fopen~ would; replacement keeps the destination's existing mode.
+When ~RESTART~ is a symbolic link, as in CPMD's ~RESTART -> RESTART.1~
+convention, the target is replaced and the link survives.
 The writer flushes that file and syncs it with ~fsync~, renames it over the
 destination, and syncs the directory with ~fsync~, so the new name also
 survives a crash.

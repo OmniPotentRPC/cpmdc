@@ -1705,6 +1705,12 @@ test(
       output: 'water_blyp_maxiter2_params.bin',
       command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
     )
+    water_pcg_maxiter2_params_bin = custom_target(
+      'water_pcg_maxiter2_params_bin',
+      input: 'tests/water_blyp_pcg_maxiter2_params.capnp.txt',
+      output: 'water_blyp_pcg_maxiter2_params.bin',
+      command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+    )
     test(
       'scf-unconverged',
       executable(
@@ -1714,8 +1720,11 @@ test(
         include_directories: [inc],
         c_args: common_c_args,
       ),
-      args: [water_maxiter2_params_bin.full_path()],
-      depends: [water_maxiter2_params_bin],
+      args: [
+        water_maxiter2_params_bin.full_path(),
+        water_pcg_maxiter2_params_bin.full_path(),
+      ],
+      depends: [water_maxiter2_params_bin, water_pcg_maxiter2_params_bin],
       suite: ['e2e', 'cmocka'],
       timeout: 600,
     )

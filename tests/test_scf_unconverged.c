@@ -19,7 +19,7 @@
 
 #include "setup_child.h"
 
-static const char *g_params = NULL;
+static const char *g_params[2] = {NULL, NULL};
 
 enum { kAtoms = 3 };
 
@@ -80,14 +80,11 @@ static unsigned char *read_file(const char *path, size_t *size) {
   return buf;
 }
 
-static void test_unconverged_scf_message(void **state) {
-  (void)state;
-  if (!cpmdc_available())
-    skip();
+static struct scf_out run_scf(const char *params_path) {
   struct scf_ctx ctx;
   struct scf_out out;
   char why[256];
-  unsigned char *params = read_file(g_params, &ctx.params_size);
+  unsigned char *params = read_file(params_path, &ctx.params_size);
   assert_non_null(params);
   ctx.params = params;
   int rc = run_setup_child(scf_child, &ctx, &out, sizeof(out), why, sizeof(why));
@@ -97,6 +94,14 @@ static void test_unconverged_scf_message(void **state) {
   if (!out.created)
     fail_msg("session: %s", out.message);
   printf("message: %s\n", out.message);
+  return out;
+}
+
+static void test_unconverged_scf_message(void **state) {
+  (void)state;
+  if (!cpmdc_available())
+    skip();
+  struct scf_out out = run_scf(g_params[0]);
   assert_int_equal(out.ok, 0);
   assert_string_equal(out.message, out.last_error);
   assert_non_null(strstr(out.message, "CPMD SCF did not converge: "));
@@ -108,17 +113,37 @@ static void test_unconverged_scf_message(void **state) {
   double gemax = 0.0;
   assert_int_equal(sscanf(at, " with gemax %lf", &gemax), 1);
   assert_true(isfinite(gemax));
-  assert_true(gemax > 1.0e-5);
+  assert_non_null(strstr(out.message, "with gemax 1.107715E-02 above"));
+}
+
+static void test_unconverged_pcg_single_pass(void **state) {
+  (void)state;
+  if (!cpmdc_available())
+    skip();
+  struct scf_out out = run_scf(g_params[1]);
+  assert_int_equal(out.ok, 0);
+  assert_string_equal(out.message, out.last_error);
+  assert_non_null(strstr(out.message, "CPMD SCF did not converge: PCG stopped at "
+                                      "iteration 2 of MAXITER 2 with gemax "));
+  assert_non_null(strstr(out.message, "CONVERGENCE ORBITALS 1.000000E-05"));
+  assert_null(strstr(out.message, ", after "));
+  const char *at = strstr(out.message, " with gemax ");
+  double gemax = 0.0;
+  assert_non_null(at);
+  assert_int_equal(sscanf(at, " with gemax %lf", &gemax), 1);
+  assert_true(isfinite(gemax));
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "usage: %s PARAMS_BIN\n", argv[0]);
+  if (argc != 3) {
+    fprintf(stderr, "usage: %s ODIIS_PARAMS_BIN PCG_PARAMS_BIN\n", argv[0]);
     return 2;
   }
-  g_params = argv[1];
+  g_params[0] = argv[1];
+  g_params[1] = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unconverged_scf_message),
+      cmocka_unit_test(test_unconverged_pcg_single_pass),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
