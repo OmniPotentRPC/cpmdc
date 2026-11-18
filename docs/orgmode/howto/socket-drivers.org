@@ -14,14 +14,14 @@ through =rgpot-ipi-driver=.  In =engines/pot_spec.cpp=, =make()= and
 =CPMDParams=.  A user therefore cannot select CPMD with =--pot= or =-m=.
 Two library-level differences also matter before the old route can be retired:
 
-- =IPIDriver::Geometry::openBox()= (=if (!(volume > 0.0)) openBox(&xyz, box);=
-  in =CppCore/rgpot/IPIPot/IPIDriver.cc:364=) replaces an i-PI cell with
-  zero volume (all-zero or singular) with a padded finite cube before
-  =CPMDPot= sees it.  =cellVolume()= returns the absolute determinant, so a
-  left-handed cell has positive volume and is tiled like any other.  This
-  differs from =Session.calculate_au(..., cell=None)= and can replace the
-  cell from the CPMD deck, or silently pad a singular cell that cpmdc
-  rejects.
+- =IPIDriver::Geometry::operator()= in =CppCore/rgpot/IPIPot/IPIDriver.cc=
+  calls =openBox()= when =cellVolume()= of the cell is not greater than
+  zero.  =cellVolume()= returns the absolute determinant, so a left-handed
+  cell has positive volume and is tiled like any other.  A cell with zero
+  volume (all-zero or singular) is replaced by a padded finite cube before
+  =CPMDPot= sees it.  This differs from =Session.calculate_au(..., cell=None)=
+  and can replace the cell from the CPMD deck, or silently pad a singular
+  cell that cpmdc rejects.
 - =IPIDriver::step()= does not mark a direct =POSDATA= as initialized.  A
   following =STATUS= therefore returns =NEEDINIT= instead of =HAVEDATA=.
   ASE and normal i-PI handshakes send =INIT=, but cpmdc's current driver also
