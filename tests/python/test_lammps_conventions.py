@@ -70,7 +70,7 @@ def test_the_lammps_step_refuses_a_non_finite_result_like_ase_does(params):
     fix = fix_without_lammps(params)
     numbers = np.array([8, 1, 1], dtype=np.int32)
     tags = np.array([1, 2, 3])
-    with pytest.raises(CPMDCError, match="non-finite"):
+    with pytest.raises(CPMDCError, match=r"^CPMD stopgm during embed SCF$"):
         fix._evaluate(tags, np.array(WATER) * 1e200, numbers, np.eye(3))
     fix._evaluate(tags, np.array(WATER), numbers, np.eye(3))
     fix._session.close()

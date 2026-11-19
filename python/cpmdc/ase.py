@@ -325,7 +325,7 @@ class CPMDCCalculator(Calculator):
         self.results["energy"] = energy
         self.results["free_energy"] = energy
         self.results["forces"] = np.asarray(evaluated["forces"], dtype=float)
-        if "stress" in evaluated:
+        if cell is not None and "stress" in evaluated:
             self.results["stress"] = _voigt(evaluated["stress"])
         else:
             self._no_stress = _NO_STRESS_CLUSTER if cell is None else _NO_STRESS_DECK
