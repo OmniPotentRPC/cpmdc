@@ -822,7 +822,6 @@ struct publish_hop {
 struct publish_dest {
   int dirfd;
   char *final_name;
-  char *fullpath;
   int absent;
   int mismatch;
   int has_mode;
@@ -851,7 +850,6 @@ static void dest_clear(struct publish_dest *d) {
   if (d->dirfd >= 0)
     close(d->dirfd);
   free(d->final_name);
-  free(d->fullpath);
   for (int i = 0; i < d->nhops; i++) {
     if (d->hops[i].dirfd >= 0)
       close(d->hops[i].dirfd);
@@ -1061,7 +1059,7 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       d->has_mode = 0;
       d->dirfd = fd;
       d->final_name = name;
-      d->fullpath = cur;
+      free(cur);
       return 0;
     }
     if (S_ISLNK(st.st_mode)) {
@@ -1099,7 +1097,7 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       d->mismatch = 1;
     d->dirfd = fd;
     d->final_name = name;
-    d->fullpath = cur;
+    free(cur);
     return 0;
   }
   free(cur);
@@ -1157,11 +1155,6 @@ static int adopt_plain(const char *path, struct publish_dest *d, char *err,
   }
   d->dirfd = fd;
   d->final_name = name;
-  d->fullpath = publish_strdup(path);
-  if (!d->fullpath) {
-    set_err(err, err_cap, "out of memory");
-    return -1;
-  }
   return 0;
 }
 
