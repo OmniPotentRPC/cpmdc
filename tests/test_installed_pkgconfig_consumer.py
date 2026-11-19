@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Install cpmdc into a prefix, then compile and run consumers against it.
 
+Checks the installed prefix in place and after moving it to a relocated
+directory, under plain `pkg-config` and `pkg-config --define-prefix`.
+
 Legs:
-- pkg-config: cc + `pkg-config --cflags --libs cpmdc`
+- pkg-config: cc + `pkg-config --cflags --libs cpmdc` and `cpmdc-restart`
 - libcp2k: cc + `pkg-config --cflags --libs libcp2k` from
   LIBDIR/cpmdc/gromacs/pkgconfig, the file GROMACS -DGMX_CP2K=ON reads, run
   without the prefix on LD_LIBRARY_PATH
@@ -41,6 +44,21 @@ int main(void) {
     return 1;
   }
   printf("installed-consumer ok: %s abi=%d\n", version, cpmdc_abi_version());
+  return 0;
+}
+"""
+
+CONSUMER_RESTART_C = r"""
+#include "cpmdc_restart.h"
+
+#include <stdio.h>
+
+int main(void) {
+  if (cpmdc_restart_read_path(NULL, NULL, 0) != NULL) {
+    fprintf(stderr, "NULL path must not read a restart image\n");
+    return 1;
+  }
+  printf("installed-restart-consumer ok\n");
   return 0;
 }
 """
@@ -97,6 +115,134 @@ def lib_dirs(prefix: Path):
     return found
 
 
+def check_prefix(
+    prefix: Path,
+    work_dir: Path,
+    pkg_config: str,
+    cc: str,
+    extra_link: list[str],
+    extra_run_dirs: list[str],
+    extra_pc_args: list[str],
+) -> None:
+    pc_dirs = [d / "pkgconfig" for d in lib_dirs(prefix) if (d / "pkgconfig").is_dir()]
+    if not pc_dirs:
+        raise SystemExit(f"no pkgconfig dir under {prefix}")
+    env = dict(os.environ)
+    env["PKG_CONFIG_PATH"] = os.pathsep.join(str(d) for d in pc_dirs)
+
+    consumer_dir = work_dir / "consumer"
+    consumer_dir.mkdir(parents=True)
+    (consumer_dir / "main.c").write_text(CONSUMER_C, encoding="utf-8")
+
+    cflags = subprocess.run(
+        [pkg_config, *extra_pc_args, "--cflags", "cpmdc"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    ).stdout.split()
+    libs = subprocess.run(
+        [pkg_config, *extra_pc_args, "--libs", "cpmdc"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    ).stdout.split()
+
+    consumer_bin = consumer_dir / "consumer"
+    run(
+        [cc, consumer_dir / "main.c", "-o", consumer_bin]
+        + cflags
+        + libs
+        + extra_link
+    )
+
+    run_env = dict(os.environ)
+    run_env["LD_LIBRARY_PATH"] = os.pathsep.join(
+        [str(d) for d in lib_dirs(prefix)]
+        + extra_run_dirs
+        + [run_env.get("LD_LIBRARY_PATH", "")]
+    )
+    run([consumer_bin], env=run_env)
+
+    restart_dir = work_dir / "restart-consumer"
+    restart_dir.mkdir()
+    (restart_dir / "main.c").write_text(CONSUMER_RESTART_C, encoding="utf-8")
+    restart_flags = subprocess.run(
+        [pkg_config, *extra_pc_args, "--cflags", "--libs", "cpmdc-restart"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    ).stdout.split()
+    restart_bin = restart_dir / "consumer"
+    run([cc, restart_dir / "main.c", "-o", restart_bin] + restart_flags)
+    run([restart_bin])
+
+    ipi_client = prefix / "bin" / "cpmdc-ipi-c"
+    if os.name == "posix" and not ipi_client.is_file():
+        raise SystemExit(f"cpmdc-ipi-c not installed under {prefix}")
+    if ipi_client.is_file():
+        run([ipi_client, "--help"], env=run_env)
+
+    cp2k_pcs = sorted(prefix.rglob("cpmdc/gromacs/pkgconfig/libcp2k.pc"))
+    if not cp2k_pcs:
+        raise SystemExit(
+            f"libcp2k.pc not installed under {prefix}/LIBDIR/cpmdc/gromacs/pkgconfig"
+        )
+    cp2k_env = dict(os.environ)
+    cp2k_env["PKG_CONFIG_PATH"] = str(cp2k_pcs[0].parent)
+    cp2k_flags = []
+    for query in ("--cflags", "--libs"):
+        cp2k_flags += subprocess.run(
+            [pkg_config, *extra_pc_args, query, "libcp2k"],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=cp2k_env,
+        ).stdout.split()
+    if not any(flag.startswith("-Wl,-rpath,") for flag in cp2k_flags):
+        raise SystemExit(f"libcp2k.pc Libs carry no run path: {cp2k_flags}")
+    cp2k_dir = work_dir / "libcp2k-consumer"
+    cp2k_dir.mkdir()
+    (cp2k_dir / "main.c").write_text(CONSUMER_CP2K_C, encoding="utf-8")
+    cp2k_bin = cp2k_dir / "consumer"
+    run([cc, cp2k_dir / "main.c", "-o", cp2k_bin] + cp2k_flags + extra_link)
+    bare_env = dict(os.environ)
+    bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
+    run([cp2k_bin], env=bare_env)
+
+    cmake = shutil.which("cmake")
+    if cmake is None:
+        print("cmake not found; skipping find_package leg", flush=True)
+        return
+    cmake_dir = work_dir / "cmake-consumer"
+    if cmake_dir.exists():
+        return
+    cmake_dir.mkdir()
+    (cmake_dir / "main.c").write_text(CONSUMER_C, encoding="utf-8")
+    (cmake_dir / "CMakeLists.txt").write_text(CONSUMER_CMAKE, encoding="utf-8")
+    cmake_build = cmake_dir / "build"
+    config_files = list(prefix.rglob("cpmdcConfig.cmake"))
+    if not config_files:
+        raise SystemExit(f"cpmdcConfig.cmake not installed under {prefix}")
+    run(
+        [
+            cmake,
+            "-S",
+            cmake_dir,
+            "-B",
+            cmake_build,
+            f"-DCMAKE_PREFIX_PATH={prefix}",
+            f"-Dcpmdc_DIR={config_files[0].parent}",
+            f"-DCMAKE_C_COMPILER={cc}",
+            "-DCMAKE_EXE_LINKER_FLAGS=" + " ".join(extra_link),
+        ]
+    )
+    run([cmake, "--build", cmake_build])
+    run([cmake_build / "consumer"], env=run_env)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-dir", required=True)
@@ -111,6 +257,7 @@ def main() -> int:
     source = Path(args.source_dir).resolve()
     build_root = Path(args.build_root).resolve()
     prefix = Path(args.install_prefix).resolve()
+    relocated = build_root / "relocated-prefix"
     for stale in (build_root, prefix):
         if stale.exists():
             shutil.rmtree(stale)
@@ -136,31 +283,6 @@ def main() -> int:
     )
     run([args.meson, "install", "-C", inner_build], env=setup_env)
 
-    pc_dirs = [d / "pkgconfig" for d in lib_dirs(prefix) if (d / "pkgconfig").is_dir()]
-    if not pc_dirs:
-        raise SystemExit(f"no pkgconfig dir under {prefix}")
-    env = dict(os.environ)
-    env["PKG_CONFIG_PATH"] = os.pathsep.join(str(d) for d in pc_dirs)
-
-    consumer_dir = build_root / "consumer"
-    consumer_dir.mkdir()
-    (consumer_dir / "main.c").write_text(CONSUMER_C, encoding="utf-8")
-
-    cflags = subprocess.run(
-        [args.pkg_config, "--cflags", "cpmdc"],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=env,
-    ).stdout.split()
-    libs = subprocess.run(
-        [args.pkg_config, "--libs", "cpmdc"],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=env,
-    ).stdout.split()
-
     # libcpmdc.so carries the Fortran embed shell; point the linker and the
     # runtime at the toolchain's libgfortran when cc lives in a conda-style env.
     toolchain_lib = Path(args.cc).resolve().parents[1] / "lib"
@@ -170,81 +292,28 @@ def main() -> int:
         extra_link = [f"-L{toolchain_lib}", f"-Wl,-rpath-link,{toolchain_lib}"]
         extra_run_dirs = [str(toolchain_lib)]
 
-    consumer_bin = consumer_dir / "consumer"
-    run(
-        [args.cc, consumer_dir / "main.c", "-o", consumer_bin]
-        + cflags
-        + libs
-        + extra_link
+    check_prefix(
+        prefix,
+        build_root / "in-place",
+        args.pkg_config,
+        args.cc,
+        extra_link,
+        extra_run_dirs,
+        [],
     )
 
-    run_env = dict(os.environ)
-    run_env["LD_LIBRARY_PATH"] = os.pathsep.join(
-        [str(d) for d in lib_dirs(prefix)]
-        + extra_run_dirs
-        + [run_env.get("LD_LIBRARY_PATH", "")]
-    )
-    run([consumer_bin], env=run_env)
-
-    ipi_client = prefix / "bin" / "cpmdc-ipi-c"
-    if os.name == "posix" and not ipi_client.is_file():
-        raise SystemExit(f"cpmdc-ipi-c not installed under {prefix}")
-    if ipi_client.is_file():
-        run([ipi_client, "--help"], env=run_env)
-
-    cp2k_pcs = sorted(prefix.rglob("cpmdc/gromacs/pkgconfig/libcp2k.pc"))
-    if not cp2k_pcs:
-        raise SystemExit(f"libcp2k.pc not installed under {prefix}/LIBDIR/cpmdc/gromacs/pkgconfig")
-    cp2k_env = dict(os.environ)
-    cp2k_env["PKG_CONFIG_PATH"] = str(cp2k_pcs[0].parent)
-    cp2k_flags = []
-    for query in ("--cflags", "--libs"):
-        cp2k_flags += subprocess.run(
-            [args.pkg_config, query, "libcp2k"],
-            check=True,
-            capture_output=True,
-            text=True,
-            env=cp2k_env,
-        ).stdout.split()
-    if not any(flag.startswith("-Wl,-rpath,") for flag in cp2k_flags):
-        raise SystemExit(f"libcp2k.pc Libs carry no run path: {cp2k_flags}")
-    cp2k_dir = build_root / "libcp2k-consumer"
-    cp2k_dir.mkdir()
-    (cp2k_dir / "main.c").write_text(CONSUMER_CP2K_C, encoding="utf-8")
-    cp2k_bin = cp2k_dir / "consumer"
-    run([args.cc, cp2k_dir / "main.c", "-o", cp2k_bin] + cp2k_flags + extra_link)
-    bare_env = dict(os.environ)
-    bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
-    run([cp2k_bin], env=bare_env)
-
-    cmake = shutil.which("cmake")
-    if cmake is None:
-        print("cmake not found; skipping find_package leg", flush=True)
-        return 0
-    cmake_dir = build_root / "cmake-consumer"
-    cmake_dir.mkdir()
-    (cmake_dir / "main.c").write_text(CONSUMER_C, encoding="utf-8")
-    (cmake_dir / "CMakeLists.txt").write_text(CONSUMER_CMAKE, encoding="utf-8")
-    cmake_build = cmake_dir / "build"
-    config_files = list(prefix.rglob("cpmdcConfig.cmake"))
-    if not config_files:
-        raise SystemExit(f"cpmdcConfig.cmake not installed under {prefix}")
-    run(
-        [
-            cmake,
-            "-S",
-            cmake_dir,
-            "-B",
-            cmake_build,
-            f"-DCMAKE_PREFIX_PATH={prefix}",
-            f"-Dcpmdc_DIR={config_files[0].parent}",
-            f"-DCMAKE_C_COMPILER={args.cc}",
-            "-DCMAKE_EXE_LINKER_FLAGS="
-            + " ".join(extra_link),
-        ]
-    )
-    run([cmake, "--build", cmake_build])
-    run([cmake_build / "consumer"], env=run_env)
+    shutil.move(str(prefix), str(relocated))
+    for label, pc_args in (("plain", []), ("define-prefix", ["--define-prefix"])):
+        check_prefix(
+            relocated,
+            build_root / f"relocated-{label}",
+            args.pkg_config,
+            args.cc,
+            extra_link,
+            extra_run_dirs,
+            pc_args,
+        )
+    shutil.move(str(relocated), str(prefix))
     return 0
 
 
