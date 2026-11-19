@@ -1905,11 +1905,13 @@ renames a file only when a whole symlink chain is unchanged, so a full
 guarantee is not available. The `renameat` uses the directory descriptor
 taken during resolution, which pins that directory inode: replacing an
 earlier path component afterwards does not redirect the write onto the
-replacement. On Linux an absent final name is published with `renameat2`
-and `RENAME_NOREPLACE`, so a name that appears in the gap after the check
-is left alone and the write fails. When the resolved destination is an
-existing file, the last check and the `renameat` are still two calls, and
-a substitution of that directory entry in the gap can be overwritten.
+replacement. On Linux, when the headers and kernel provide `renameat2` with
+`RENAME_NOREPLACE`, an absent final name that appears in the gap is left
+alone and the write fails. If that operation is unavailable or rejected,
+the writer falls back to plain `renameat`; a name that appears in the gap
+can then be overwritten. When the resolved destination is an existing
+file, the last check and the `renameat` are also two calls, and a
+substitution of that directory entry in the gap can be overwritten.
 Windows resolves none of this: the destination is written as given, with
 no symlink handling at all.
 The writer flushes that file and syncs it with `fsync`, renames it over the
@@ -3793,9 +3795,14 @@ done
 `error_handling.mod.o`, `embed_ctrl.mod.o`, `control_test_utils.mod.o`,
 `rinitwf_driver.mod.o`, `initrun_driver.mod.o`,
 `rwfopt_utils.mod.o`, `updwf_utils.mod.o`,
-`rkpnt_utils.mod.o`, `timer.mod.o`, `c_mem_utils.o`, the 33 modules of the teardown patch, and `embed_teardown.mod.o`
+`rkpnt_utils.mod.o`, `timer.mod.o`, `c_mem_utils.o`,
+`gsortho_utils.mod.o`, `atomwf_utils.mod.o`,
+the 33 modules of the teardown patch, and `embed_teardown.mod.o`
 after them, and `scex_utils.mod.o` for the module order, with one Make job, then
 replaces those members with `ar r` and runs `ranlib`.
+`tests/test_opencpmd_embed_objects.py` fails when a source file in
+`tools/opencpmd_*.patch` has no object in that list or in the dedicated
+rebuild scripts.
 It runs one job because gfortran stores a copy of
 `Scex_t` inside `rwfopt_utils.mod`: a parallel rebuild can leave the two module
 files naming different components.
