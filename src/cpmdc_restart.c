@@ -758,7 +758,8 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 }
 
 #ifdef _WIN32
-#define publish_open(p) _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE)
+#define publish_open(p)                                                                            \
+  _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT, _S_IREAD | _S_IWRITE)
 #define publish_fdopen _fdopen
 #define publish_close _close
 #define publish_unlink _unlink
@@ -766,11 +767,8 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define publish_pid() ((unsigned long)_getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/' || (c) == '\\')
 #else
-/* 0666 under the umask is what fopen(path, "wb") created before. */
-#define publish_open(p) open((p), O_WRONLY | O_CREAT | O_EXCL, 0666)
 #define publish_fdopen fdopen
 #define publish_close close
-#define publish_unlink unlink
 #define publish_strdup strdup
 #define publish_pid() ((unsigned long)getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/')
@@ -822,7 +820,6 @@ struct publish_hop {
 struct publish_dest {
   int dirfd;
   char *final_name;
-  char *fullpath;
   int absent;
   int mismatch;
   int has_mode;
@@ -838,6 +835,7 @@ struct publish_dest {
  * this to run after realpath has reported a dangling chain and before the
  * fallback walk, which is the window before the publication rename. */
 void (*cpmdc_restart_test_before_follow)(void);
+void (*cpmdc_restart_test_after_temp_open)(int fd);
 #endif
 
 static void dest_init(struct publish_dest *d) {
@@ -851,7 +849,6 @@ static void dest_clear(struct publish_dest *d) {
   if (d->dirfd >= 0)
     close(d->dirfd);
   free(d->final_name);
-  free(d->fullpath);
   for (int i = 0; i < d->nhops; i++) {
     if (d->hops[i].dirfd >= 0)
       close(d->hops[i].dirfd);
@@ -969,6 +966,54 @@ static int split_parent(const char *path, char **dir_out, char **name_out, char 
   return 0;
 }
 
+/* Open each directory component without following a symlink. The returned
+ * descriptor pins the final directory inode, while rejecting directory
+ * symlinks that are not represented in the recorded RESTART chain. */
+static int open_directory_nofollow(const char *path) {
+  const int flags = O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+  char *copy = publish_strdup(path);
+  char *part;
+  int fd;
+  if (!copy) {
+    errno = ENOMEM;
+    return -1;
+  }
+  fd = open(path[0] == '/' ? "/" : ".", flags);
+  if (fd < 0) {
+    free(copy);
+    return -1;
+  }
+  part = copy;
+  while (CPMDC_IS_SEP(*part))
+    part++;
+  while (*part) {
+    char *end = part;
+    char saved;
+    int next;
+    while (*end && !CPMDC_IS_SEP(*end))
+      end++;
+    saved = *end;
+    *end = '\0';
+    next = openat(fd, part, flags);
+    if (next < 0) {
+      int why = errno;
+      close(fd);
+      free(copy);
+      errno = why;
+      return -1;
+    }
+    close(fd);
+    fd = next;
+    if (!saved)
+      break;
+    part = end + 1;
+    while (CPMDC_IS_SEP(*part))
+      part++;
+  }
+  free(copy);
+  return fd;
+}
+
 /* Walk `path` one symlink at a time. `expect_absent` is 1 when realpath
  * already reported the chain missing: an existing non symlink is then a
  * chain that changed, not a file this call may replace. The directory
@@ -989,7 +1034,7 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       free(cur);
       return -1;
     }
-    fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    fd = open_directory_nofollow(dir);
     free(dir);
     if (fd < 0) {
       set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
@@ -1013,7 +1058,7 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       d->has_mode = 0;
       d->dirfd = fd;
       d->final_name = name;
-      d->fullpath = cur;
+      free(cur);
       return 0;
     }
     if (S_ISLNK(st.st_mode)) {
@@ -1051,12 +1096,45 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       d->mismatch = 1;
     d->dirfd = fd;
     d->final_name = name;
-    d->fullpath = cur;
+    free(cur);
     return 0;
   }
   free(cur);
   set_err(err, err_cap, "the RESTART symlink chain has too many hops, likely a loop");
   return -1;
+}
+
+/* Probe the final component of `path` without lstat(path), whose path walk
+ * follows a directory symlink in an intermediate component. The parent is
+ * opened with open_directory_nofollow first, so a directory symlink that the
+ * recorded RESTART chain does not hold is refused before any stat can pass
+ * through it. */
+static int probe_final(const char *path, struct stat *st, int *exists, char *err,
+                       size_t err_cap) {
+  char *dir = NULL, *name = NULL;
+  int fd;
+  if (split_parent(path, &dir, &name, err, err_cap) != 0)
+    return -1;
+  fd = open_directory_nofollow(dir);
+  free(dir);
+  if (fd < 0) {
+    set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
+    free(name);
+    return -1;
+  }
+  if (fstatat(fd, name, st, AT_SYMLINK_NOFOLLOW) == 0) {
+    *exists = 1;
+  } else if (errno == ENOENT) {
+    *exists = 0;
+  } else {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    close(fd);
+    free(name);
+    return -1;
+  }
+  close(fd);
+  free(name);
+  return 0;
 }
 
 /* A path that is not itself a symlink. Hold its parent and remember
@@ -1067,14 +1145,11 @@ static int adopt_plain(const char *path, struct publish_dest *d, char *err,
   struct stat lst;
   char *dir = NULL, *name = NULL;
   int exists, fd;
-  exists = lstat(path, &lst) == 0;
-  if (!exists && errno != ENOENT) {
-    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+  if (probe_final(path, &lst, &exists, err, err_cap) != 0)
     return -1;
-  }
   if (split_parent(path, &dir, &name, err, err_cap) != 0)
     return -1;
-  fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  fd = open_directory_nofollow(dir);
   free(dir);
   if (fd < 0) {
     set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
@@ -1109,11 +1184,6 @@ static int adopt_plain(const char *path, struct publish_dest *d, char *err,
   }
   d->dirfd = fd;
   d->final_name = name;
-  d->fullpath = publish_strdup(path);
-  if (!d->fullpath) {
-    set_err(err, err_cap, "out of memory");
-    return -1;
-  }
   return 0;
 }
 
@@ -1214,11 +1284,8 @@ static int publish_destination(const char *path, struct publish_dest *d, char *e
   char *resolved;
   int exists;
   dest_init(d);
-  exists = lstat(path, &lst) == 0;
-  if (!exists && errno != ENOENT) {
-    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+  if (probe_final(path, &lst, &exists, err, err_cap) != 0)
     return -1;
-  }
   if (!(exists && S_ISLNK(lst.st_mode))) {
     if (adopt_plain(path, d, err, err_cap) != 0) {
       dest_clear(d);
@@ -1332,7 +1399,8 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
         seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
 #ifndef _WIN32
     snprintf(tmpname, sizeof tmpname, ".cpmdc-tmp-%016lx", token);
-    fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    /* 0666 under the umask is what fopen(path, "wb") created before. */
+    fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
     if (fd < 0 && errno != EEXIST)
       break;
 #else
@@ -1348,6 +1416,10 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
       break;
 #endif
   }
+#ifdef CPMDC_RESTART_TEST_HOOK
+  if (fd >= 0 && cpmdc_restart_test_after_temp_open)
+    cpmdc_restart_test_after_temp_open(fd);
+#endif
   if (fd < 0) {
     set_errf(err, err_cap, "cannot create a temporary RESTART file", strerror(errno));
 #ifndef _WIN32

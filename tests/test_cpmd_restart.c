@@ -14,9 +14,11 @@
 #ifdef CPMDC_RESTART_TEST_HOOK
 /* Defined in src/cpmdc_restart.c only when this test is built. */
 extern void (*cpmdc_restart_test_before_follow)(void);
+extern void (*cpmdc_restart_test_after_temp_open)(int fd);
 static char hook_swap_path[PATH_MAX];
 static int hook_swap_armed;
 static int hook_swap_ok;
+static int hook_temp_cloexec;
 
 /* Replace one intermediate symlink with a regular file in the window
  * after realpath has reported the chain missing. */
@@ -36,6 +38,11 @@ static void swap_intermediate_for_file(void) {
     hook_swap_ok = 1;
   else
     close(fd);
+}
+
+static void inspect_temp_descriptor(int fd) {
+  int flags = fcntl(fd, F_GETFD);
+  hook_temp_cloexec = flags >= 0 && (flags & FD_CLOEXEC) != 0;
 }
 #endif
 
@@ -838,6 +845,28 @@ static int write_restart_at(const char *path, void **image, size_t *image_n, cha
   return rc;
 }
 
+#ifdef CPMDC_RESTART_TEST_HOOK
+static int cloexec_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char path[PATH_MAX], err[256];
+  int rc;
+  if (snprintf(path, sizeof path, "%s/CLOEXEC", dir) >= (int)sizeof path)
+    return fail("close on exec path too long");
+  hook_temp_cloexec = 0;
+  cpmdc_restart_test_after_temp_open = inspect_temp_descriptor;
+  rc = write_restart_at(path, &image, &image_n, err, sizeof err);
+  cpmdc_restart_test_after_temp_open = NULL;
+  free(image);
+  unlink(path);
+  if (rc != 0)
+    return fail(err[0] ? err : "close on exec write failed");
+  if (!hook_temp_cloexec)
+    return fail("temporary restart descriptor is inherited across exec");
+  return 0;
+}
+#endif
+
 static int published_matches(const char *path, const void *image, size_t image_n, mode_t mode) {
   unsigned char *disk = NULL;
   size_t have = 0;
@@ -1179,7 +1208,8 @@ static int symlink_case(const char *dir) {
   if (mkdir(sub, 0700) != 0)
     return fail("make symlink restart directory");
   seed = fopen(target, "wb");
-  if (!seed || fwrite("STALE", 1, 5, seed) != 5 || fclose(seed) != 0)
+  if (!seed || fwrite("STALE", 1, 5, seed) != 5 || fclose(seed) != 0 ||
+      chmod(target, 0600) != 0)
     goto done;
   if (symlink("RESTART.1", linkpath) != 0)
     goto done;
@@ -1204,7 +1234,8 @@ static int symlink_case(const char *dir) {
   linktext[linklen] = '\0';
   if (strcmp(linktext, "RESTART.1") != 0 ||
       read_whole(target, &disk, &have) != 0 ||
-      have != rn || memcmp(disk, rewritten, rn) != 0)
+      have != rn || memcmp(disk, rewritten, rn) != 0 ||
+      stat(target, &st) != 0 || (st.st_mode & 0777) != 0600)
     goto done;
   rc = 0;
 done:
@@ -1216,6 +1247,133 @@ done:
   if (rmdir(sub) != 0 && rc == 0)
     rc = 1;
   return rc == 0 ? 0 : fail("symlink restart was not updated through its target");
+}
+
+/* A directory symlink in the supplied path is not part of the recorded
+ * RESTART chain. Refuse both a plain destination and a RESTART link whose
+ * target passes through that directory, rather than following an untracked
+ * hop. */
+static int intermediate_directory_symlink_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], real[PATH_MAX], via[PATH_MAX], plain[PATH_MAX];
+  char linkpath[PATH_MAX], target[PATH_MAX], err[256];
+  struct stat st;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/intermediate-dir", dir) >= (int)sizeof sub ||
+      snprintf(real, sizeof real, "%s/real", sub) >= (int)sizeof real ||
+      snprintf(via, sizeof via, "%s/via", sub) >= (int)sizeof via ||
+      snprintf(plain, sizeof plain, "%s/PLAIN", via) >= (int)sizeof plain ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath ||
+      snprintf(target, sizeof target, "%s/RESTART.1", real) >= (int)sizeof target)
+    return fail("intermediate directory path too long");
+  if (mkdir(sub, 0700) != 0 || mkdir(real, 0700) != 0 || symlink("real", via) != 0)
+    return fail("make intermediate directory symlink");
+
+  if (write_restart_at(plain, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  free(image);
+  image = NULL;
+  image_n = 0;
+  if (lstat(plain, &st) == 0)
+    goto done;
+
+  if (symlink("via/RESTART.1", linkpath) != 0)
+    goto done;
+  if (write_restart_at(linkpath, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  if (!is_symlink_to(linkpath, "via/RESTART.1") || lstat(target, &st) == 0)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(linkpath);
+  unlink(plain);
+  unlink(target);
+  unlink(via);
+  if ((rmdir(real) != 0 || rmdir(sub) != 0) && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail("an intermediate directory symlink was followed");
+}
+
+/* The first probe of the destination must not walk the path. lstat(path)
+ * follows a directory symlink in an intermediate component, so through a
+ * self-referencing link it fails with ELOOP, and through a link to a
+ * directory without search permission it fails with EACCES, both reported
+ * as a failed stat of the RESTART file. Probing the final component on the
+ * no-follow directory descriptor refuses the link while opening the
+ * directory, so the error names the directory instead. */
+static int stat_through_symlink_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], loop[PATH_MAX], sealed[PATH_MAX], via[PATH_MAX];
+  char loop_file[PATH_MAX], via_plain[PATH_MAX], via_link[PATH_MAX], real_link[PATH_MAX];
+  char err[256];
+  const char *want = "cannot open the RESTART directory";
+  int made_loop = 0, made_sealed = 0, made_link = 0, made_via = 0, rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/stat-through", dir) >= (int)sizeof sub ||
+      snprintf(loop, sizeof loop, "%s/loop", sub) >= (int)sizeof loop ||
+      snprintf(loop_file, sizeof loop_file, "%s/PLAIN", loop) >= (int)sizeof loop_file ||
+      snprintf(sealed, sizeof sealed, "%s/sealed", sub) >= (int)sizeof sealed ||
+      snprintf(via, sizeof via, "%s/via", sub) >= (int)sizeof via ||
+      snprintf(via_plain, sizeof via_plain, "%s/PLAIN", via) >= (int)sizeof via_plain ||
+      snprintf(via_link, sizeof via_link, "%s/RESTART", via) >= (int)sizeof via_link ||
+      snprintf(real_link, sizeof real_link, "%s/RESTART", sealed) >= (int)sizeof real_link)
+    return fail("stat-through path too long");
+  if (mkdir(sub, 0700) != 0)
+    return fail("make stat-through directory");
+  if (symlink("loop", loop) != 0)
+    goto done;
+  made_loop = 1;
+  if (write_restart_at(loop_file, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  free(image);
+  image = NULL;
+  if (strstr(err, want) == NULL)
+    goto done;
+
+  /* Root searches any directory, so the permission variant tells nothing. */
+  if (geteuid() != 0) {
+    if (mkdir(sealed, 0700) != 0)
+      goto done;
+    made_sealed = 1;
+    if (symlink("RESTART.1", real_link) != 0)
+      goto done;
+    made_link = 1;
+    if (symlink("sealed", via) != 0)
+      goto done;
+    made_via = 1;
+    if (chmod(sealed, 0) != 0)
+      goto done;
+    if (write_restart_at(via_plain, &image, &image_n, err, sizeof err) == 0)
+      goto done;
+    free(image);
+    image = NULL;
+    if (strstr(err, want) == NULL)
+      goto done;
+    if (write_restart_at(via_link, &image, &image_n, err, sizeof err) == 0)
+      goto done;
+    free(image);
+    image = NULL;
+    if (strstr(err, want) == NULL)
+      goto done;
+  }
+  rc = 0;
+done:
+  free(image);
+  if (made_sealed)
+    chmod(sealed, 0700);
+  if (made_via)
+    unlink(via);
+  if (made_link)
+    unlink(real_link);
+  if (made_sealed)
+    rmdir(sealed);
+  if (made_loop)
+    unlink(loop);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "a stat followed an intermediate directory symlink");
 }
 
 static int long_name_case(const char *dir) {
@@ -1298,8 +1456,16 @@ static int check_atomic_replace(void) {
     rc = rename_failure_case(dir);
   if (rc == 0)
     rc = mode_case(dir);
+#ifdef CPMDC_RESTART_TEST_HOOK
+  if (rc == 0)
+    rc = cloexec_case(dir);
+#endif
   if (rc == 0)
     rc = symlink_case(dir);
+  if (rc == 0)
+    rc = intermediate_directory_symlink_case(dir);
+  if (rc == 0)
+    rc = stat_through_symlink_case(dir);
   if (rc == 0)
     rc = dangling_relative_case(dir);
   if (rc == 0)
