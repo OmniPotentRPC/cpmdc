@@ -47,7 +47,7 @@ ORG_TITLE = re.compile(r"^#\+TITLE:.*$", re.M)
 
 # key -> what of OpenCPMD the block needs
 OPENCPMD = {
-    "README.md:9": "an OpenCPMD build",
+    "README.md:7": "an OpenCPMD build",
     "contributing/index.org:1": "an OpenCPMD source tree",
     "howto/embedding.org:4": "libcpmdc from an OpenCPMD build and pseudopotentials",
     "explanation/md-engines.org:0": "an OpenCPMD build and an MPI GROMACS built against it",
@@ -79,12 +79,11 @@ SKIP = {
     "README.md:0": "installs from PyPI",
     "README.md:1": "reconfigures the tree",
     "README.md:2": "pixi run test-stub would re-enter this suite",
-    "README.md:4": "expected output",
-    "README.md:5": "example-host-step is its own meson test",
-    "README.md:7": "needs -Dwith_readcon=true; pixi run test-readcon runs restart-con-golden",
-    "README.md:8": "re-runs the inventory suite",
-    "README.md:10": "docs build needs the docs pixi environment",
-    "README.md:11": "docs export needs emacs and ox-rst",
+    "README.md:3": "expected output",
+    "README.md:4": "example-host-step is its own meson test",
+    "README.md:6": "needs -Dwith_readcon=true; pixi run test-readcon runs restart-con-golden",
+    "README.md:8": "docs build needs the docs pixi environment",
+    "README.md:9": "docs export needs emacs and ox-rst",
     "contributing/index.org:0": "reconfigures the tree",
     "contributing/index.org:2": "docs build needs the docs pixi environment",
     "contributing/index.org:3": "docs build needs the docs pixi environment",
@@ -154,7 +153,6 @@ OTHER_MESON_PROJECT = {
 
 # C fragments: hoisted includes, then the body inside a function after PRELUDE.
 COMPILE = {
-    "README.md:3",
     "howto/constant-cutoff.org:2",
     "howto/embedding.org:0",
     "howto/embedding.org:2",
@@ -194,7 +192,7 @@ PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(3)]
 ASE_HOWTO = [f"howto/ase.org:{index}" for index in range(7)]
 
 RUN = {
-    "README.md:6",
+    "README.md:5",
     "tutorials/quickstart.org:4",
     "howto/check-forces.org:0",
     "howto/constant-cutoff.org:0",
@@ -689,9 +687,9 @@ def main() -> int:
             )
             if sample.returncode != 0:
                 return fail(sample.stdout)
-            shell("README.md:6", found["README.md:6"].body, restart, env)
+            shell("README.md:5", found["README.md:5"].body, restart, env)
             if (restart / "RESTART.1.next").read_bytes() != (restart / "RESTART.1").read_bytes():
-                return fail("README.md:6 changed the positions it read back")
+                return fail("README.md:5 changed the positions it read back")
 
             for key in sorted(COMPILE):
                 compile_fragment(key, found[key].body, root, work)
