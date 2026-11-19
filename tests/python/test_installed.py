@@ -20,6 +20,12 @@ def test_package_comes_from_site_packages():
     assert cpmdc.find_schema().resolve() == package / "schema" / "Potentials.capnp"
 
 
+def test_wheel_library_is_found_after_changing_directory(tmp_path, monkeypatch):
+    package = Path(cpmdc.__file__).resolve().parent
+    monkeypatch.chdir(tmp_path)
+    assert cpmdc.find_library().resolve().parent == package.parent / ".cpmdc.mesonpy.libs"
+
+
 def test_wheel_library_is_the_reference_build(params):
     with cpmdc.Session(params) as session:
         assert session.version().startswith("cpmdc/")
