@@ -1,1 +1,0 @@
-`EXTRAPOLATE WFN` on more than one QM rank no longer hangs at the second call: `tools/opencpmd_embed_extrapolate.patch` broadcasts the request, which only the I/O rank read, so every rank takes the prediction.

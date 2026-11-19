@@ -1,1 +1,0 @@
-The documentation landing page no longer repeats the README's input-line and runtime-contract tables; it links to the C ABI reference and the CPMD option mapping, which hold the complete versions. The landing page's SIMD row now says the force path has no hot kernel, matching the SIMD explanation, instead of saying the library has none.

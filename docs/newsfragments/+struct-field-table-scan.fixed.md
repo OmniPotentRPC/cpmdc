@@ -1,1 +1,0 @@
-Reference contract checking now recognizes struct field tables from the table shape alone, so a nonstandard line before the table still associates fields with the right struct and rejects bogus fields. Meson logs when the pwscale FFT failure test is not registered because FFTW is missing, and the Pixi environment pins FFTW so that test is available there.
