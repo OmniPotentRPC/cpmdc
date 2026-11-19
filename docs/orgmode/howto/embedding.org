@@ -309,6 +309,31 @@ Put ~RESTART WAVEFUNCTION~ in the deck to start a cold SCF from
 the patched file; the OpenCPMD path ignores restarted coordinates, velocities,
 and geometry, because each step supplies them.
 
+* In-process cold deck and memfd
+On a cold OpenCPMD evaluation the Fortran bridge in ~src/cpmd_embed_c_api.F90~
+composes the full deck, then ~src/cpmdc_memfd.c~ writes it into an anonymous
+Linux ~memfd_create~ file and exposes it to CPMD as ~/proc/self/fd/N~ so the
+parsers see a path without writing ~INPUT~ to disk.
+~src/cpmdc_embed_host.c~ switches the working directory for pseudopotential
+reads and output, maps species-block gradients back to atom order, and records
+embed failures for the C result path.
+[[file:../explanation/architecture.org][Architecture]] walks the layer list;
+[[file:../reference/environment.org][Environment variables]] name
+~CPMDC_PSEUDO_DIR~ and the embed flags ~CPMDC_STRESS~, ~CPMDC_WARM_RMSD~, and
+the rest.
+
+* MPI adoption and plane-wave scaling
+When a host already split ~MPI_COMM_WORLD~ into calculator groups, call
+~cpmdc_adopt_calculator_comm()~ before the first session instead of
+~cpmdc_bind_calculator()~.
+The rules and a sketch are in [[file:mpi.org][Run under mpirun]].
+The optional plane-wave scaffold in ~include/cpmdc_pwscale.h~ times FFT and
+MPI paths separately from production ~libcpmdc~; see
+[[file:../reference/pwscale.org][Plane-wave scaffold reference]] and
+[[file:pwscale-ranks.org][Time plane-wave scaling across ranks]].
+~cpmdc_pwscale_eval_cuda()~ runs the CUDA kernel when the build uses
+~-Dwith_pwscale_cuda=true~.
+
 * OpenCPMD Runtime Inputs
 Archive builds require ~-Dwith_cpmd=true~ and ~-Dcpmd_root=/path/to/OpenCPMD~.
 That tree must contain ~lib/libcpmd.a~ and the OpenCPMD object/include files
