@@ -303,11 +303,11 @@ python3 scripts/generate_llms_txt.py
 
 Check the links in the README, the Org sources, and the newsfragments:
 
-pixi run lychee
+pixi run -e docs lychee
 
-The task runs lychee (https://lychee.cli.rs) with `.lychee.toml`, which also
-checks the anchor of a link such as `README.md#citation`.
-The Pixi environment does not provide lychee, so put it on the path first.
+The task runs lychee (https://lychee.cli.rs) 0.24.2 from the `docs` Pixi
+environment with `.lychee.toml`, which also checks the anchor of a link such as
+`README.md#citation`.
 A link to a file on the `main` branch fails until that file lands there.
 
 The Sphinx theme injects
@@ -5154,7 +5154,7 @@ The stub archive `libcpmdc_stub.a` is built for the tests and not installed.
 | `check-api-reference` | default | `tests/test_reference_contract.py`: every public C and Python name is in the reference pages |
 | `fortran-lint` | default | `fprettify --diff` over `src/*.f90` |
 | `prek`, `prek-install`, `prek-validate` | default | pre-commit hooks from `prek.toml` |
-| `lychee` | default | link check over README, `docs/orgmode`, and news fragments |
+| `lychee` | `docs` | link check over README, `docs/orgmode`, and news fragments |
 | `release-assert`, `version-sync`, `towncrier-draft`, `release-cog-dry` | default | release metadata checks, and `version.txt` copies |
 | `mkrst` | `docs` | export `docs/orgmode` to `docs/source` RST |
 | `doxybuild` | `docs` | Doxygen XML and Doxyrest pages for the public headers |
@@ -6943,7 +6943,7 @@ Every macro and enum constant of the installed headers.
 
 | Name | Value | Meaning | Python |
 |--------+--------+--------+--------|
-| CPMDC_ABI_VERSION | 0 for the 0.4.0 series | The ABI generation: the major number of `version.txt`, written into the header by cog. Compare it with `cpmdc_abi_version()`. | `cpmdc.Session.abi_version` returns the compiled value. |
+| CPMDC_ABI_VERSION | 0 for every 0.x release | The ABI generation: the major number of `version.txt`, written into the header by cog. Compare it with `cpmdc_abi_version()`. | `cpmdc.Session.abi_version` returns the compiled value. |
 | CPMDC_API | the platform export attribute | Marks an exported function: default visibility on GCC and Clang, `__declspec(dllexport)` or `dllimport` on Windows, empty for a static build. | none |
 | CPMDC_FEATURE_SECTION | 1 | `CPMDCFeatureKind`: a CPMD input section, such as `catalog.section.PIMD`. | none |
 | CPMDC_FEATURE_PARAMS | 2 | `CPMDCFeatureKind`: a `CPMDParams` field. | none |
@@ -10593,7 +10593,7 @@ These versions produced the output below:
 
 | Component | Version |
 |-----------+---------|
-| cpmdc | 0.4.0, this tree |
+| cpmdc | 0.5.0, this tree |
 | OpenCPMD | `062582b` with the patches of the archive how-to (file:../howto/opencpmd-archive.org) |
 | rgpot | `5fec533f`, version 3.7.0 |
 | eOn | `579738a93`, version 3.6.0 |
