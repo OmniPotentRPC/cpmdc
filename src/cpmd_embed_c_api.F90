@@ -628,8 +628,10 @@ CONTAINS
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(n3) / 3) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
     n3 = INT(n_atoms) * 3
-    IF (n3 > 4096) THEN
+    IF (n3 > SIZE(image%prop%hessian)) THEN
       CALL cpmdc_note_embed_failure( &
            'property gradient snapshot supports at most 1365 atoms'//c_null_char)
       RETURN
@@ -638,8 +640,6 @@ CONTAINS
       grad_h_bohr(i) = 0.0_c_double
     END DO
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
-    CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
     CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
@@ -2127,7 +2127,7 @@ CONTAINS
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i, ncopy
+    INTEGER :: i
     LOGICAL :: dipole_valid
     REAL(real64) :: dipole(3)
     image%prop%valid = 1_c_int
@@ -2144,12 +2144,10 @@ CONTAINS
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
     END DO
-    ncopy = n_atoms * 3
-    IF (ncopy < 0) ncopy = 0
-    DO i = 1, ncopy
+    DO i = 1, n_atoms * 3
       image%prop%hessian(i) = grad(i)
     END DO
-    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
+    image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
