@@ -286,10 +286,14 @@ CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size
  * evaluates. `cpmdc_set_params()` detaches the process image without clearing
  * the stored orbitals: a call whose functional, deck, cutoff, charge,
  * multiplicity, atom count, and elemental composition match the latched basis,
- * and whose no-cell step matches the latched cell (no cell, or a cell that
- * moves in place under `CPMDC_CELL_IN_PLACE`), starts from a warm SCF, and any
- * other call starts from a cold SCF after full CPMD setup. On failure `ok` is
- * 0, `message` holds the reason, and `cpmdc_last_error()` repeats it.
+ * and whose step without a cell matches a latched state that also has no cell
+ * (`CPMDC_CELL_IN_PLACE` does not apply without a cell, because
+ * `embed_cell_moves_in_place` returns false when `has_cell` is 0), skips full
+ * CPMD setup. It then starts the SCF from the stored orbitals when the
+ * geometry is within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) of a stored
+ * geometry, and from the deck's guess without full setup beyond that limit. Any
+ * other call runs full CPMD setup and starts from a cold SCF. On failure `ok`
+ * is 0, `message` holds the reason, and `cpmdc_last_error()` repeats it.
  */
 CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                             const int *atomic_numbers,
@@ -317,8 +321,9 @@ CPMDC_API CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_a
 /**
  * @brief Bind this rank to one CPMD calculator of @p ranks_per_calc ranks.
  *
- * Collective on MPI_COMM_WORLD, once, before the first energy call. Calls
- * `MPI_Init` when MPI is not running.
+ * Collective on MPI_COMM_WORLD, once, before the first energy call. On an
+ * OpenCPMD build, calls `MPI_Init` when MPI is not running; the reference
+ * build and the link stub return -1 without calling MPI.
  * World size must divide into groups of ranks_per_calc. Each group is one
  * CPMD calculator: its own communicator, its own wavefunction, the same deck.
  * A value of zero or less takes the whole world as one group.
