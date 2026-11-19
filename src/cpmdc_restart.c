@@ -758,6 +758,8 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 }
 
 #ifdef _WIN32
+/* _O_NOINHERIT is the MSVC CRT counterpart of O_CLOEXEC on the POSIX openat
+ * path, so a temporary is not inherited by child processes. */
 #define publish_open(p)                                                                            \
   _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT, _S_IREAD | _S_IWRITE)
 #define publish_fdopen _fdopen
