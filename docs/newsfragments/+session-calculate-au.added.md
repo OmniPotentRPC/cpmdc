@@ -1,4 +1,0 @@
-`cpmdc_session_calculate_au()` evaluates one session step from plain arrays in atomic units: Bohr positions, atomic numbers, and an optional row-major 3 by 3 cell in Bohr, returning the energy in Hartree, forces in Hartree/Bohr, and optionally the virial `-dE/d(strain)` in Hartree.
-Its arguments come in the order of `cpmdc_session_energy_forces()` and `Session.calculate_au`: session, `n_atoms`, `positions_bohr`, `atomic_numbers`, `cell_bohr`, then the outputs.
-A periodic cell no longer needs a Cap'n Proto `ForceInput`; the results are bit-for-bit those of `cpmdc_session_calculate_result()` with Bohr and Hartree units, which a C test checks for clusters and periodic cells.
-`libcpmdc` now exports 45 functions; the addition is backward compatible, so `CPMDC_ABI_VERSION` and the soversion stay the same.

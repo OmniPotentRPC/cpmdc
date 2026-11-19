@@ -1,2 +1,0 @@
-The C ABI reference gives every function of `cpmdc.h`, `cpmdc_features.h`, and `cpmdc_restart.h` its full parameter list and contract (the array and per-session snapshot calls had `...` or a bare name), lists `CPMDCRankSpread` with the other snapshots, and states the return, naming, argument-order, and unit-suffix conventions in one table.
-The OpenCPMD archive how-to and the wavefunction-state explanation no longer present the hidden `cpmdc_embed_*` and stop-hook functions as if they were callable.

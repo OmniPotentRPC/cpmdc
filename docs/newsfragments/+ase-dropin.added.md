@@ -1,4 +1,0 @@
-`CPMDCCalculator` takes every keyword through ASE's `Calculator.__init__`, as the tblite, xtb-python, and MACE calculators do, so `parameters=` reads a file written by `Parameters.write` and `atoms=` attaches the calculator.
-A step that the library rejects raises `cpmdc.ase.CalculationFailed`, which is both ASE's `CalculationFailed` and `CPMDCError`, with the working directory of the step and the library's reason in the message; the calculator stays usable.
-Use cpmdc as an ASE calculator (`docs/orgmode/howto/ase.org`) covers a single point, stress in a periodic cell, relaxing the positions and the cell, finite-difference checks, caching, the method settings, the working directory, and the errors.
-Its examples run in the `docs-examples` test, and the Python how-to, the Python reference, the ASE tutorial, the docs index, and the README point at it.

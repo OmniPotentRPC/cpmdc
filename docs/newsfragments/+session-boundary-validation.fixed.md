@@ -1,3 +1,0 @@
-`Session.calculate_au` no longer returns NaN for non-finite positions or cell, and `Session.energy_forces` no longer truncates `14.9` to the atomic number 14.
-Atomic numbers must be integers (a whole float such as `8.0` is still accepted) in 1..118, and orbital keys must be integers that fit a signed 64-bit value: `Session.select_orbitals(2**70)` used to wrap to key 0 and `select_orbitals(1.5)` to key 1.
-Strings, `None` and `bool` raise `TypeError` and the other bad values raise `ValueError`, with a message that names the argument, instead of a bare ctypes error or a misleading "topology change" error on the next step.

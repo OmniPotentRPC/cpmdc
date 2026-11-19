@@ -1,1 +1,0 @@
-`cpmdc.lammps.FixExternal` refuses a step whose energy, forces, or virial is NaN or infinite, as `CPMDCCalculator` does, and opens a new session after a change of composition even when the previous attempt to open one failed.

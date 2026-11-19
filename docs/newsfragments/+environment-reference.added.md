@@ -1,1 +1,0 @@
-The environment reference lists every variable the library, the tests, the benchmarks, and the docs export read, including `CPMDC_PARAMS` of the ASE example and the `CPMDC_PWSCALE_MPI_FAULT` test hook.
