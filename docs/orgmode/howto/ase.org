@@ -5,6 +5,11 @@
 Python process, through one cpmdc session.
 Set ~atoms.calc~ to it as to any other ASE calculator: ASE's optimizers, cell
 filters, molecular dynamics, and trajectory files use it unchanged.
+Importing ~cpmdc.ase~ registers ~CPMDCCalculator~ under ~"cpmdc"~ with
+~ase.calculators.calculator.register_calculator_class~, so
+~get_calculator_class("cpmdc")~ returns it, and an installed package also
+exposes ~cpmdc.ase~ in the ~ase.plugins~ entry-point group (guarded so an ASE
+version without ~ase._4.plugins~ registers nothing).
 It starts no ~cpmd.x~ process and writes no input file.
 [[file:python.org][Call cpmdc from Python]] covers ~Session~ and ~Potential~,
 the same library without ASE.
