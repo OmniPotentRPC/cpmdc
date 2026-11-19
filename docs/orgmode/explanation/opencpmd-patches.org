@@ -119,6 +119,22 @@ energy and the mean stress agree with the PCG result to 1e-6 eV and 2e-7
 eV/Angstrom^3.
 A deck without ~CONSTANT CUTOFF~ has A = 0 and keeps the stock diagonal.
 
+The k-point orthogonalization patch fixes two heap buffer overflows when ~atomwf~
+initializes a k-point calculation with more electronic states than atomic
+orbitals (~nstate > atwp%nattot~, or ~nsup > atwp%nattot~ or ~nsdown > atwp%nattot~
+under ~LSD~).
+~gs_ortho_c~ fills ~np * n0~ complex entries in ~ovlap2_c~ and then calls
+~mp_sum(smat, 2*np*n0, parai%allgrp)~ on a ~COMPLEX(real_8)~ matrix, which
+dispatches to ~MPI_Allreduce~ with ~MPI_DOUBLE_COMPLEX~ and reads and overwrites
+twice the overlap matrix size.
+Changing that count to ~np*n0~ matches ~rgs_c~.
+In ~atomwf~, passing ~zmatat(atwp%nattot, atwp%nattot)~ to ~gs_ortho_c~ also
+overflows whenever ~nleft > atwp%nattot~, and the ~tlsd2~ spin-up call passes the
+rank-1 slice ~c0(:, atwp%nattot+1, ikind)~ instead of
+~c0(:, atwp%nattot+1:, ikind)~.
+The patch allocates a local ~smat_c(nleft, MAX(atwp%nattot, nleft))~ around each
+~gs_ortho_c~ call and fixes the spin-up slice.
+
 * Nuclear forces from repeated SCF calls
 A live OpenCPMD link evaluates each geometry with fixed nuclei
 (~OPTIMIZE WAVEFUNCTION~) and then exports nuclear forces from ~coor%fion~, the

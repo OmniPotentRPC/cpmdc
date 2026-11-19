@@ -1,0 +1,101 @@
+Fix k-point `atomwf` orthogonalization buffer sizing and `mp_sum` count
+
+Under `tkpts%tkpnt`, `atomwf` generates random orbitals for states
+beyond `atwp%nattot` and orthogonalizes them with `gs_ortho_c`. Two
+bugs in that path cause heap buffer overflows:
+
+1. `gs_ortho_c` declares `smat` as `COMPLEX(real_8)` and fills
+   `np * n0` elements in `ovlap2_c`, then calls `mp_sum` with count
+   `2*np*n0`. Because `mp_sum_in_place_complex8_r2` passes that count
+   directly to `MPI_Allreduce` with `MPI_DOUBLE_COMPLEX`, it reads and
+   overwrites twice as many complex elements as `smat` holds. Pass
+   `np*n0`, matching `rgs_c`.
+2. `atomwf` passes `zmatat`, allocated as `(atwp%nattot, atwp%nattot)`,
+   to `gs_ortho_c`, which uses `smat(nleft, MAX(atwp%nattot, nleft))`
+   across `ovlap2_c`, `mp_sum`, `zgemm`, and `rgs_c`. Whenever
+   `nleft > atwp%nattot`, `zmatat` is too small. In the `tlsd2` branch,
+   the spin-up call also passes the rank-1 section
+   `c0(:, atwp%nattot+1, ikind)` instead of
+   `c0(:, atwp%nattot+1:, ikind)`.
+
+Allocate a local `smat_c(nleft, MAX(atwp%nattot, nleft))` around each
+`gs_ortho_c` call in `atomwf` and pass `c0(:, atwp%nattot+1:, ikind)`.
+
+diff --git a/src/atomwf_utils.mod.F90 b/src/atomwf_utils.mod.F90
+index 079df2f..aaaba0d 100644
+--- a/src/atomwf_utils.mod.F90
++++ b/src/atomwf_utils.mod.F90
+@@ -99,7 +99,7 @@ CONTAINS
+     COMPLEX(real_8), PARAMETER               :: zone = (1._real_8, 0._real_8),&
+                                                 zzero = (0._real_8, 0._real_8)
+ 
+-    COMPLEX(real_8), ALLOCATABLE             :: cx(:,:), zorkat(:)
++    COMPLEX(real_8), ALLOCATABLE             :: cx(:,:), smat_c(:,:), zorkat(:)
+     COMPLEX(real_8), ALLOCATABLE, TARGET     :: zmatat(:,:)
+     INTEGER :: ierr, ikind, ikk, ikpt, il_eivat, il_workat, il_xmatat, iopt, &
+       isub, kbeg, kend, kinc, nkpoint, nleft, nn, nsmat
+@@ -426,21 +426,42 @@ CONTAINS
+                    nsmat=MAX(2*nleft*atwp%nattot,2*nleft*nleft)
+ 
+                    nleft=spin_mod%nsup-atwp%nattot
+-                   IF (nleft.GT.0)&
+-                        CALL gs_ortho_c(c0(:,:,ikind),atwp%nattot,&
+-                        c0(:, atwp%nattot+1,ikind),nleft,zmatat)
++                   IF (nleft.GT.0) THEN
++                      ALLOCATE(smat_c(nleft,MAX(atwp%nattot,nleft)),STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++                           __LINE__,__FILE__)
++                      CALL gs_ortho_c(c0(:,:,ikind),atwp%nattot,&
++                           c0(:,atwp%nattot+1:,ikind),nleft,smat_c)
++                      DEALLOCATE(smat_c,STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++                           __LINE__,__FILE__)
++                   ENDIF
+                    nleft=spin_mod%nsdown-atwp%nattot
+-                   IF (nleft.GT.0)&
+-                        CALL gs_ortho_c(c0(:,spin_mod%nsup+1:,ikind),atwp%nattot,&
+-                        c0(:,spin_mod%nsup+atwp%nattot+1:,ikind),nleft,zmatat)
++                   IF (nleft.GT.0) THEN
++                      ALLOCATE(smat_c(nleft,MAX(atwp%nattot,nleft)),STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++                           __LINE__,__FILE__)
++                      CALL gs_ortho_c(c0(:,spin_mod%nsup+1:,ikind),atwp%nattot,&
++                           c0(:,spin_mod%nsup+atwp%nattot+1:,ikind),nleft,smat_c)
++                      DEALLOCATE(smat_c,STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++                           __LINE__,__FILE__)
++                   ENDIF
+ 
+                 ELSE
+                    nleft=nstate-atwp%nattot
+                    nsmat=MAX(2*nleft*atwp%nattot,2*nleft*nleft)
+ 
+-                   IF (nleft.GT.0)&
+-                        CALL gs_ortho_c(c0(:,:,ikind),atwp%nattot,&
+-                        c0(:,atwp%nattot+1:,ikind),nleft,zmatat)
++                   IF (nleft.GT.0) THEN
++                      ALLOCATE(smat_c(nleft,MAX(atwp%nattot,nleft)),STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
++                           __LINE__,__FILE__)
++                      CALL gs_ortho_c(c0(:,:,ikind),atwp%nattot,&
++                           c0(:,atwp%nattot+1:,ikind),nleft,smat_c)
++                      DEALLOCATE(smat_c,STAT=ierr)
++                      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
++                           __LINE__,__FILE__)
++                   ENDIF
+ 
+                 ENDIF
+              ELSE
+diff --git a/src/gsortho_utils.mod.F90 b/src/gsortho_utils.mod.F90
+index 70b69ee..b594805 100644
+--- a/src/gsortho_utils.mod.F90
++++ b/src/gsortho_utils.mod.F90
+@@ -111,7 +111,7 @@ CONTAINS
+     CALL tiset(' GSORTHO_C',isub)
+     IF (n0.GT.0) THEN
+        CALL ovlap2_c(nkpt%ngwk,np,n0,smat,cp,c0)
+-       CALL mp_sum(smat,2*np*n0,parai%allgrp)
++       CALL mp_sum(smat,np*n0,parai%allgrp)
+        CALL zgemm('N','C',nkpt%ngwk,np,n0,-zone,c0,nkpt%ngwk,smat,np,&
+             zone,cp,nkpt%ngwk)
+     ENDIF

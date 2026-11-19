@@ -11,6 +11,7 @@ add_project_arguments(
   language: 'c',
 )
 fc = meson.get_compiler('fortran')
+has_sanitize = get_option('b_sanitize') not in ['', 'none']
 # An ASan libcpmdc loaded by ctypes aborts unless the ASan runtime is the
 # first library of the interpreter process. Those tests also compile samples
 # with gcc, which inherits the preload. CPython, its extension modules, and
@@ -1127,6 +1128,7 @@ if get_option('with_tests')
     args: [runtime_params_bin.full_path(), force_input_step_a_bin.full_path()],
     depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['abi', 'params', 'cmocka'],
+    timeout: has_sanitize ? 300 : 30,
   )
 
   test(
@@ -1221,7 +1223,7 @@ if get_option('with_tests')
     args: [water_params_bin.full_path(), water_periodic_params_bin.full_path()],
     depends: [water_params_bin, water_periodic_params_bin],
     suite: ['abi', 'e2e', 'cmocka'],
-    timeout: 300,
+    timeout: has_sanitize ? 900 : 300,
   )
 
   fd_check_exe = executable(
@@ -1519,6 +1521,10 @@ test(
     suite: ['python', 'e2e'],
     timeout: has_cpmd ? 3600 : 300,
   )
+  docs_examples_timeout = has_cpmd ? 900 : 180
+  if has_sanitize
+    docs_examples_timeout = has_cpmd ? 2400 : 360
+  endif
   test(
     'docs-examples',
     python,
@@ -1542,7 +1548,7 @@ test(
       example_host_step,
     ],
     suite: ['docs', 'examples'],
-    timeout: has_cpmd ? 900 : 180,
+    timeout: docs_examples_timeout,
   )
   test(
     'tutorials-run',
@@ -2193,6 +2199,7 @@ test(
       potential_config_overlay_arm_bin,
     ],
     suite: ['params', 'capnp'],
+    timeout: has_sanitize ? 300 : 30,
   )
 
   meson_prog = find_program('meson', required: false)

@@ -30,6 +30,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | ~opencpmd_omp_info.patch~ | ~src/rggen_utils.mod.F90~ | a calculator that spans nodes with unequal numbers of ranks calls ~MPI_Allreduce~ with different counts in the report and can stop before the first electronic iteration |
 | ~opencpmd_pcg_step.patch~ (optional) | ~src/pcgrad_driver.mod.F90~ | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see [[file:wavefunction-optimiser.org][the optimiser how-to]] |
 | ~opencpmd_constant_cutoff_precon.patch~ (optional) | ~src/hesele_utils.mod.F90~ | with ~CONSTANT CUTOFF~ the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and ~cpmdc~ falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see [[file:constant-cutoff.org][relaxing a cell at a constant cutoff]] |
+| ~opencpmd_atomwf_kpts_ortho.patch~ | ~src/atomwf_utils.mod.F90~, ~src/gsortho_utils.mod.F90~ | k-point atomic wavefunction initialization with randomized extra states overflows ~zmatat~ because ~gs_ortho_c~ passes ~2*np*n0~ to ~mp_sum~ on a ~COMPLEX(real_8)~ array and ~atomwf~ passes ~zmatat(atwp%nattot, atwp%nattot)~ instead of sizing the orthogonalization scratch to ~(nleft, MAX(atwp%nattot, nleft))~ |
 
 The loops below apply every patch but the optional
 ~pcg_step~ and ~constant_cutoff_precon~; ~scripts/ci/build_opencpmd.sh~ applies
@@ -67,7 +68,8 @@ cd opencpmd
 git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown embed_extrapolate omp_info; do
+         embed_teardown embed_extrapolate omp_info \
+         atomwf_kpts_ortho; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 #+end_src
@@ -109,7 +111,8 @@ rebuild only the affected members:
 cd /path/to/opencpmd-source
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown embed_extrapolate omp_info; do
+         embed_teardown embed_extrapolate omp_info \
+         atomwf_kpts_ortho; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
