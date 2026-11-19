@@ -14,9 +14,11 @@
 #ifdef CPMDC_RESTART_TEST_HOOK
 /* Defined in src/cpmdc_restart.c only when this test is built. */
 extern void (*cpmdc_restart_test_before_follow)(void);
+extern void (*cpmdc_restart_test_after_temp_open)(int fd);
 static char hook_swap_path[PATH_MAX];
 static int hook_swap_armed;
 static int hook_swap_ok;
+static int hook_temp_cloexec;
 
 /* Replace one intermediate symlink with a regular file in the window
  * after realpath has reported the chain missing. */
@@ -36,6 +38,11 @@ static void swap_intermediate_for_file(void) {
     hook_swap_ok = 1;
   else
     close(fd);
+}
+
+static void inspect_temp_descriptor(int fd) {
+  int flags = fcntl(fd, F_GETFD);
+  hook_temp_cloexec = flags >= 0 && (flags & FD_CLOEXEC) != 0;
 }
 #endif
 
@@ -838,6 +845,28 @@ static int write_restart_at(const char *path, void **image, size_t *image_n, cha
   return rc;
 }
 
+#ifdef CPMDC_RESTART_TEST_HOOK
+static int cloexec_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char path[PATH_MAX], err[256];
+  int rc;
+  if (snprintf(path, sizeof path, "%s/CLOEXEC", dir) >= (int)sizeof path)
+    return fail("close on exec path too long");
+  hook_temp_cloexec = 0;
+  cpmdc_restart_test_after_temp_open = inspect_temp_descriptor;
+  rc = write_restart_at(path, &image, &image_n, err, sizeof err);
+  cpmdc_restart_test_after_temp_open = NULL;
+  free(image);
+  unlink(path);
+  if (rc != 0)
+    return fail(err[0] ? err : "close on exec write failed");
+  if (!hook_temp_cloexec)
+    return fail("temporary restart descriptor is inherited across exec");
+  return 0;
+}
+#endif
+
 static int published_matches(const char *path, const void *image, size_t image_n, mode_t mode) {
   unsigned char *disk = NULL;
   size_t have = 0;
@@ -1347,6 +1376,10 @@ static int check_atomic_replace(void) {
     rc = rename_failure_case(dir);
   if (rc == 0)
     rc = mode_case(dir);
+#ifdef CPMDC_RESTART_TEST_HOOK
+  if (rc == 0)
+    rc = cloexec_case(dir);
+#endif
   if (rc == 0)
     rc = symlink_case(dir);
   if (rc == 0)
