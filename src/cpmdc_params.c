@@ -4570,8 +4570,9 @@ int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
       read_CPMDSystemSection(&body, sec.system);
       if (body.cutOffRy > 0.0)
         *cutoff_ry = body.cutOffRy;
-      *charge = body.charge;
-      if (body.multiplicity > 0)
+      if (body.charge != 0)
+        *charge = body.charge;
+      if (body.multiplicity > 1)
         *multiplicity = body.multiplicity;
     } else if (sec.which == CPMDInputSection_dft) {
       struct CPMDDftSection body;
