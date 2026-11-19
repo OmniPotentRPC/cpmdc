@@ -1304,6 +1304,16 @@ if get_option('with_tests')
   )
 
   test(
+    'opencpmd-embed-objects',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_opencpmd_embed_objects.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['embed', 'inventory'],
+  )
+
+  test(
     'feature-inventory',
     python,
     args: [meson.current_source_dir() / 'tools/check_feature_inventory.py'],

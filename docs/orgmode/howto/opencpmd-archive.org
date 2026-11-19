@@ -123,9 +123,14 @@ done
 ~error_handling.mod.o~, ~embed_ctrl.mod.o~, ~control_test_utils.mod.o~,
 ~rinitwf_driver.mod.o~, ~initrun_driver.mod.o~,
 ~rwfopt_utils.mod.o~, ~updwf_utils.mod.o~,
-~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~, the 33 modules of the teardown patch, and ~embed_teardown.mod.o~
+~rkpnt_utils.mod.o~, ~timer.mod.o~, ~c_mem_utils.o~,
+~gsortho_utils.mod.o~, ~atomwf_utils.mod.o~,
+the 33 modules of the teardown patch, and ~embed_teardown.mod.o~
 after them, and ~scex_utils.mod.o~ for the module order, with one Make job, then
 replaces those members with ~ar r~ and runs ~ranlib~.
+~tests/test_opencpmd_embed_objects.py~ fails when a source file in
+~tools/opencpmd_*.patch~ has no object in that list or in the dedicated
+rebuild scripts.
 It runs one job because gfortran stores a copy of
 ~Scex_t~ inside ~rwfopt_utils.mod~: a parallel rebuild can leave the two module
 files naming different components.

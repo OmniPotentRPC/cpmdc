@@ -55,6 +55,14 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_atomwf_kpts_ortho.patch
 # rebuild libcpmdc against the updated archive
 ```
 
+`rebuild_opencpmd_embed.sh` recompiles each patched member it owns, including
+`gsortho_utils.mod.o` and `atomwf_utils.mod.o` from
+`opencpmd_atomwf_kpts_ortho.patch`, then replaces those members in
+`lib/libcpmd.a`.
+`rebuild_opencpmd_omp_info.sh`, `rebuild_opencpmd_pcg_step.sh`, and
+`rebuild_opencpmd_constant_cutoff.sh` replace `rggen_utils.mod.o`,
+`pcgrad_driver.mod.o`, and `hesele_utils.mod.o`.
+
 The OpenMP report regression compiles the actual patched reporting routine
 with MPI interfaces that represent unequal node populations. Run it inside
 an allocation with at least three MPI ranks:

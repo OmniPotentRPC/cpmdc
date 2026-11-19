@@ -13,8 +13,9 @@ if [[ ! -d "$cpmd_root/obj" || ! -d "$cpmd_root/lib" ]]; then
   exit 2
 fi
 
-# One object per OpenCPMD source file that a patch in tools/ changes, in
-# module dependency order:
+# One object per OpenCPMD source file this script recompiles, in module
+# dependency order. opencpmd_omp_info.patch, opencpmd_pcg_step.patch, and
+# opencpmd_constant_cutoff_precon.patch are rebuilt by their own scripts.
 #   error_handling.mod.o   opencpmd_stopgm_return.patch
 #   embed_ctrl.mod.o       opencpmd_embed_geometry.patch (new module),
 #                          opencpmd_embed_teardown.patch,
@@ -28,6 +29,9 @@ fi
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
 #   c_mem_utils.o          opencpmd_c_mem_addrs.patch
+#   gsortho_utils.mod.o    opencpmd_atomwf_kpts_ortho.patch
+#   atomwf_utils.mod.o     opencpmd_atomwf_kpts_ortho.patch
+#                          atomwf uses gsortho, so gsortho is first
 #   broyden_utils.mod.o .. opencpmd_embed_teardown.patch, the 33 modules
 #   vpsi_utils.mod.o       whose first-call state the teardown resets
 #   embed_teardown.mod.o   opencpmd_embed_teardown.patch (new module)
@@ -51,6 +55,8 @@ objects=(
   rkpnt_utils.mod.o
   timer.mod.o
   c_mem_utils.o
+  gsortho_utils.mod.o
+  atomwf_utils.mod.o
   broyden_utils.mod.o
   calc_alm_utils.mod.o
   chksym_utils.mod.o

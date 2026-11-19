@@ -30,8 +30,8 @@ def main() -> int:
         )
         fake_make.chmod(0o755)
 
-        # One member per patched OpenCPMD source file, plus scex_utils for
-        # module order.
+        # One member per source this helper recompiles, plus scex_utils for
+        # module order. gsortho precedes atomwf because atomwf uses it.
         members = [
             "error_handling.mod.o",
             "scex_utils.mod.o",
@@ -44,6 +44,8 @@ def main() -> int:
             "rkpnt_utils.mod.o",
             "timer.mod.o",
             "c_mem_utils.o",
+            "gsortho_utils.mod.o",
+            "atomwf_utils.mod.o",
             "broyden_utils.mod.o",
             "calc_alm_utils.mod.o",
             "chksym_utils.mod.o",
