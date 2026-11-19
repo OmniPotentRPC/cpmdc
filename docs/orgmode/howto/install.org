@@ -71,7 +71,7 @@ pixi run test-stub
 
 ~test-stub~ configures ~build/~ with tests on, compiles, and runs the Meson
 suite.
-A healthy run ends with every test reported ~OK~ and ~Fail: 0~.
+A healthy run reports no failures.
 The same steps without Pixi:
 
 #+begin_src bash

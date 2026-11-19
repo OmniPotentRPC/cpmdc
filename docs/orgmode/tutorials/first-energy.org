@@ -17,7 +17,7 @@ pixi run test-stub
 export CPMDC=$PWD
 #+end_src
 
-The last lines of the test run report ~Fail: 0~.
+The last lines of the test run report no failures.
 The build directory ~build/~ now contains ~libcpmdc.so~ and the example program
 ~example_host_step~.
 ~CPMDC~ remembers the checkout for the commands below.
