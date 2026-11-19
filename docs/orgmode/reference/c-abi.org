@@ -294,12 +294,20 @@ The arm bytes stay, and an overlay scalar is copied only where the arm still
 has the schema default: ~xcFunctionals~ when the functional is ~BLYP~,
 ~planewaveCutoffEv~ when the cutoff is 70 Ry, ~charge~ when the charge is 0,
 and ~spinMultiplicity~ when the multiplicity is 1.
+Fermi ~smearing~ is copied as ~FREE-ENERGY~ and ~TEMPERATURE ELECTRON~ when
+~&CPMD~ sets no free-energy or electron-temperature control and the arm has
+no raw or generic ~&CPMD~ block.
+~vanDerWaalsS6~ is copied into a ~vdwParams~ section whose ~s6~ is unset.
+~basisSet~ must be unset or ~"planewave"~.
 An unmapped ~xcFunctionals~ token is rejected in that ~BLYP~ case.
 Next to the arm the call rejects ~kMesh~, ~scfMaxIterations~,
-~scfEnergyToleranceEv~, ~vanDerWaalsMethod~, and ~relativityMethod~.
-~basisSet~, ~smearing~, and ~vanDerWaalsS6~ are not applied on that path.
+~scfEnergyToleranceEv~, ~vanDerWaalsMethod~, and ~relativityMethod~, and also
+already-set smearing or ~s6~, ~vanDerWaalsS6~ without ~vdwParams~, a
+non-plane-wave ~basisSet~, and a negative or non-finite overlay scalar.
 With the arm unset, an overlay field without a CPMD lowering is rejected,
 including ~relativityMethod~ and a ~basisSet~ other than ~planewave~.
+That overlay-only lowering also rejects ~vanDerWaalsS6~ without
+~vanDerWaalsMethod~ and a non-zero ~smearing.widthEv~ with ~kind = none~.
 
 * Global array calls
 Each call applies the message it is given and then evaluates.

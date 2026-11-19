@@ -1905,11 +1905,13 @@ renames a file only when a whole symlink chain is unchanged, so a full
 guarantee is not available. The `renameat` uses the directory descriptor
 taken during resolution, which pins that directory inode: replacing an
 earlier path component afterwards does not redirect the write onto the
-replacement. On Linux an absent final name is published with `renameat2`
-and `RENAME_NOREPLACE`, so a name that appears in the gap after the check
-is left alone and the write fails. When the resolved destination is an
-existing file, the last check and the `renameat` are still two calls, and
-a substitution of that directory entry in the gap can be overwritten.
+replacement. On Linux, when the headers and kernel provide `renameat2` with
+`RENAME_NOREPLACE`, an absent final name that appears in the gap is left
+alone and the write fails. If that operation is unavailable or rejected,
+the writer falls back to plain `renameat`; a name that appears in the gap
+can then be overwritten. When the resolved destination is an existing
+file, the last check and the `renameat` are also two calls, and a
+substitution of that directory entry in the gap can be overwritten.
 Windows resolves none of this: the destination is written as given, with
 no symlink handling at all.
 The writer flushes that file and syncs it with `fsync`, renames it over the
@@ -3793,9 +3795,14 @@ done
 `error_handling.mod.o`, `embed_ctrl.mod.o`, `control_test_utils.mod.o`,
 `rinitwf_driver.mod.o`, `initrun_driver.mod.o`,
 `rwfopt_utils.mod.o`, `updwf_utils.mod.o`,
-`rkpnt_utils.mod.o`, `timer.mod.o`, `c_mem_utils.o`, the 33 modules of the teardown patch, and `embed_teardown.mod.o`
+`rkpnt_utils.mod.o`, `timer.mod.o`, `c_mem_utils.o`,
+`gsortho_utils.mod.o`, `atomwf_utils.mod.o`,
+the 33 modules of the teardown patch, and `embed_teardown.mod.o`
 after them, and `scex_utils.mod.o` for the module order, with one Make job, then
 replaces those members with `ar r` and runs `ranlib`.
+`tests/test_opencpmd_embed_objects.py` fails when a source file in
+`tools/opencpmd_*.patch` has no object in that list or in the dedicated
+rebuild scripts.
 It runs one job because gfortran stores a copy of
 `Scex_t` inside `rwfopt_utils.mod`: a parallel rebuild can leave the two module
 files naming different components.
@@ -5466,12 +5473,20 @@ The arm bytes stay, and an overlay scalar is copied only where the arm still
 has the schema default: `xcFunctionals` when the functional is `BLYP`,
 `planewaveCutoffEv` when the cutoff is 70 Ry, `charge` when the charge is 0,
 and `spinMultiplicity` when the multiplicity is 1.
+Fermi `smearing` is copied as `FREE-ENERGY` and `TEMPERATURE ELECTRON` when
+`&CPMD` sets no free-energy or electron-temperature control and the arm has
+no raw or generic `&CPMD` block.
+`vanDerWaalsS6` is copied into a `vdwParams` section whose `s6` is unset.
+`basisSet` must be unset or `"planewave"`.
 An unmapped `xcFunctionals` token is rejected in that `BLYP` case.
 Next to the arm the call rejects `kMesh`, `scfMaxIterations`,
-`scfEnergyToleranceEv`, `vanDerWaalsMethod`, and `relativityMethod`.
-`basisSet`, `smearing`, and `vanDerWaalsS6` are not applied on that path.
+`scfEnergyToleranceEv`, `vanDerWaalsMethod`, and `relativityMethod`, and also
+already-set smearing or `s6`, `vanDerWaalsS6` without `vdwParams`, a
+non-plane-wave `basisSet`, and a negative or non-finite overlay scalar.
 With the arm unset, an overlay field without a CPMD lowering is rejected,
 including `relativityMethod` and a `basisSet` other than `planewave`.
+That overlay-only lowering also rejects `vanDerWaalsS6` without
+`vanDerWaalsMethod` and a non-zero `smearing.widthEv` with `kind = none`.
 
 # Global array calls
 Each call applies the message it is given and then evaluates.
@@ -9134,8 +9149,16 @@ Ge; see writing a CPMDParams message (file:../howto/write-cpmdparams.org).
 
 # ~PotentialConfig~
 A union of backend arms plus a `common` overlay (`CommonMethodSpec`).
-`cpmdc` accepts the `cpmd` arm, which holds a `CPMDParams`, or the overlay
-alone; see the C ABI reference (file:c-abi.org) for the lowering rules.
+`cpmdc` accepts the `cpmd` arm, the overlay alone, or both together. When
+both are set, the arm wins where it differs from schema defaults and the
+overlay fills `xcFunctionals`, `planewaveCutoffEv`, `charge`,
+`spinMultiplicity`, Fermi `smearing` (when `&CPMD` sets none), and
+`vanDerWaalsS6` (into a `vdwParams` section with `s6` unset), requires
+`basisSet` to be unset or `"planewave"`, and rejects negative or non-finite
+scalars and conflicting or unmergeable fields (`kMesh`, SCF controls,
+`vanDerWaalsMethod`, `relativityMethod`, already-set smearing or `s6`, or
+`vanDerWaalsS6` without `vdwParams`); see the C ABI reference (file:c-abi.org)
+for the lowering rules.
 
 
 ## File: docs/orgmode/reference/environment.org

@@ -133,5 +133,13 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~PotentialConfig~
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
-~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, or the overlay
-alone; see the [[file:c-abi.org][C ABI reference]] for the lowering rules.
+~cpmdc~ accepts the ~cpmd~ arm, the overlay alone, or both together. When
+both are set, the arm wins where it differs from schema defaults and the
+overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
+~spinMultiplicity~, Fermi ~smearing~ (when ~&CPMD~ sets none), and
+~vanDerWaalsS6~ (into a ~vdwParams~ section with ~s6~ unset), requires
+~basisSet~ to be unset or ~"planewave"~, and rejects negative or non-finite
+scalars and conflicting or unmergeable fields (~kMesh~, SCF controls,
+~vanDerWaalsMethod~, ~relativityMethod~, already-set smearing or ~s6~, or
+~vanDerWaalsS6~ without ~vdwParams~); see the [[file:c-abi.org][C ABI reference]]
+for the lowering rules.
