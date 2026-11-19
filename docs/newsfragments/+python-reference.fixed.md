@@ -1,0 +1,1 @@
+The Python API reference page `docs/orgmode/reference/python.org` lists the full signatures, parameter names, defaults, units, library and schema search orders, and raised exceptions of `cpmdc`, and `tests/python/test_reference_python.py` checks the page against `cpmdc.__all__` and the inspected signatures of `Session`, `Potential`, `Evaluation`, and `ConstantCutoff`.

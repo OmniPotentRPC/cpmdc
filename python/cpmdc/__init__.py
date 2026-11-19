@@ -117,7 +117,7 @@ class ConstantCutoff:
         return cls(value)
 
     def todict(self) -> dict[str, float]:
-        """The fields that are set, as JSON data."""
+        """The fields that are set, in Rydberg, as JSON data."""
         return {name: value for name, value in asdict(self).items() if value is not None}
 
 
@@ -171,7 +171,7 @@ def find_library(path: str | os.PathLike[str] | None = None) -> Path:
     ``CPMDC_LIBRARY``, ``RGPOT_CPMDC_ENGINE``, and ``RGPOT_CPMD_ENGINE``
     are tried in that order, then the library a wheel installs beside
     this package, then the dynamic linker, then ``build/libcpmdc.so``
-    in the working directory.
+    or ``build/libcpmdc.dylib`` in the working directory.
     """
     if path is not None:
         candidate = Path(path)
@@ -537,9 +537,13 @@ class Session:
     """One ``CPMDCSession`` handle.
 
     ``params`` is a serialized ``CPMDParams`` message, or a path to that
-    file. The session copies the bytes. Close it when the geometry series
-    is finished. A change of atom count or elemental composition is an
-    error from the library; start another session.
+    file. The session copies the bytes. ``library`` is the path of
+    ``libcpmdc``; ``None`` uses :func:`find_library`. :meth:`energy_forces`
+    takes Angstrom and returns Hartree, Hartree/Bohr, and Hartree/Bohr^3;
+    :meth:`calculate_au` takes Bohr and returns Hartree, Hartree/Bohr, and
+    Hartree. Close the session when the geometry series is finished. A
+    change of atom count or elemental composition is an error from the
+    library; start another session.
 
     ``constant_cutoff`` is a :class:`ConstantCutoff`, a mapping of its
     fields, or ``E0`` in Rydberg; the session then evaluates the
@@ -615,7 +619,8 @@ class Session:
         entry per atom, in 1..118. ``cell`` is an Angstrom 3x3 matrix, or
         nine numbers in row-major order. Omit it for an isolated system.
         A cell is sent as a ``ForceInput`` message built in process.
-        A closed session raises :class:`CPMDCError`.
+        Returns :class:`Evaluation` in Hartree, Hartree/Bohr, and
+        Hartree/Bohr^3. A closed session raises :class:`CPMDCError`.
         """
         n_atoms, flat = _positions(positions)
         numbers = _numbers(atomic_numbers, n_atoms)
@@ -687,7 +692,7 @@ class Session:
         return float(energy.value), forces, virial
 
     def select_orbitals(self, key: int) -> None:
-        """Select the orbital key this session evaluates under."""
+        """Select the signed 64-bit integer orbital ``key`` this session evaluates under."""
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
         status = self._lib.cpmdc_session_select_orbitals(
@@ -697,7 +702,7 @@ class Session:
             raise CPMDCError(self._error() or "cpmdc_session_select_orbitals failed")
 
     def copy_orbitals(self, from_key: int, to_key: int) -> None:
-        """Copy stored orbitals from one key to another."""
+        """Copy stored orbitals from signed 64-bit integer ``from_key`` to ``to_key``."""
         if not getattr(self, "_handle", None):
             raise CPMDCError("the session is closed; open a new Session")
         copy_fn = getattr(self._lib, "cpmdc_session_copy_orbitals", None)
@@ -737,14 +742,17 @@ class Session:
 class Potential:
     """rgpot-shaped provider.
 
-    :meth:`evaluate` takes Angstrom positions, atomic numbers, and an
-    optional row-major cell. It returns ``energy`` in eV, ``forces`` in
-    eV/Angstrom with shape (N, 3), and ``stress`` as nine eV/Angstrom^3
-    components in row-major order when the library computed a tensor.
-    The stress sign is ASE's, ``(1/V) dE/d(strain)``.
-    :meth:`caps` reports that stress may be present and per-atom energies
-    are not. ``constant_cutoff`` is passed to :class:`Session`. ``schema``
-    is deprecated and ignored, as for :class:`Session`.
+    ``params`` is a serialized ``CPMDParams`` message or a path to that
+    file; ``library`` is the path of ``libcpmdc`` or ``None`` for
+    :func:`find_library`; ``constant_cutoff`` (in Rydberg) is passed to
+    :class:`Session`; ``schema`` is deprecated and ignored, as for
+    :class:`Session`. :meth:`evaluate` takes Angstrom ``positions``, atomic
+    ``numbers``, and an optional row-major ``box`` in Angstrom. It returns
+    ``energy`` in eV, ``forces`` in eV/Angstrom with shape (N, 3), and
+    ``stress`` as nine eV/Angstrom^3 components in row-major order when the
+    library computed a tensor. The stress sign is ASE's,
+    ``(1/V) dE/d(strain)``. :meth:`caps` reports that stress may be present
+    and per-atom energies are not.
     """
 
     def __init__(
@@ -769,7 +777,7 @@ class Potential:
         numbers: Sequence[int],
         box: Sequence[Sequence[float]] | Sequence[float] | None = None,
     ) -> dict[str, Any]:
-        """One step in ASE units."""
+        """One step from Angstrom ``positions`` and ``box`` to eV, eV/Angstrom, and eV/Angstrom^3."""
         done = self._session.energy_forces(positions, numbers, box)
         out: dict[str, Any] = {
             "energy": done.energy_h * HARTREE_TO_EV,
