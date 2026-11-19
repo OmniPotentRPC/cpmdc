@@ -137,10 +137,17 @@ static void test_unconverged_pcg_single_pass(void **state) {
   assert_non_null(strstr(out.message, "CONVERGENCE ORBITALS 1.000000E-05"));
   assert_null(strstr(out.message, ", after "));
   const char *at = strstr(out.message, " with gemax ");
+  const char *tol_at = strstr(out.message, "CONVERGENCE ORBITALS ");
   double gemax = 0.0;
+  double tolog = 0.0;
   assert_non_null(at);
+  assert_non_null(tol_at);
   assert_int_equal(sscanf(at, " with gemax %lf", &gemax), 1);
+  assert_int_equal(sscanf(tol_at, "CONVERGENCE ORBITALS %lf", &tolog), 1);
   assert_true(isfinite(gemax));
+  assert_true(tolog > 0.0);
+  /* A result reported as unconverged must miss the deck's own tolerance. */
+  assert_true(gemax > tolog);
 }
 
 int main(int argc, char **argv) {

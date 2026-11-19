@@ -776,6 +776,7 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define CPMDC_IS_SEP(c) ((c) == '/')
 #endif
 
+#ifdef _WIN32
 /* Keep the temporary basename short even when the destination basename is at
  * NAME_MAX. The directory prefix is copied from the effective destination. */
 static char *temporary_path(const char *path, unsigned long token) {
@@ -794,11 +795,75 @@ static char *temporary_path(const char *path, unsigned long token) {
   snprintf(tmp + dir, cap - dir, "%s%016lx", stem, token);
   return tmp;
 }
+#endif
 
 #ifndef _WIN32
-/* readlink(2) does not NUL-terminate, and the target can outgrow the first
- * buffer. Grow until the read fits. */
-static char *read_link_text(const char *path, char *err, size_t err_cap) {
+/* realpath resolves a chain in one call only when every hop exists. A
+ * dangling chain makes it fail with ENOENT. The walk below is bounded so
+ * a loop this code reaches on its own still ends in a clear error. */
+#define CPMDC_RESTART_MAX_HOPS 40
+
+/* One symlink hop recorded while resolving. dirfd is the directory that
+ * contained the link at that moment, held open so a later check does not
+ * look the path up again. */
+struct publish_hop {
+  int dirfd;
+  char *name;
+  char *text;
+  dev_t dev;
+  ino_t ino;
+};
+
+/* What publication resolved, and the directory inode the rename must use.
+ * absent means the final component did not exist. mismatch means that
+ * picture already disagreed with itself (realpath said the chain was
+ * missing, but a walk found something else, or the reverse) and the
+ * rename must refuse. */
+struct publish_dest {
+  int dirfd;
+  char *final_name;
+  char *fullpath;
+  int absent;
+  int mismatch;
+  int has_mode;
+  mode_t mode;
+  dev_t dev;
+  ino_t ino;
+  struct publish_hop hops[CPMDC_RESTART_MAX_HOPS];
+  int nhops;
+};
+
+#ifdef CPMDC_RESTART_TEST_HOOK
+/* Test seam, compiled out of the installed library. The restart tests set
+ * this to run after realpath has reported a dangling chain and before the
+ * fallback walk, which is the window before the publication rename. */
+void (*cpmdc_restart_test_before_follow)(void);
+#endif
+
+static void dest_init(struct publish_dest *d) {
+  memset(d, 0, sizeof *d);
+  d->dirfd = -1;
+  for (int i = 0; i < CPMDC_RESTART_MAX_HOPS; i++)
+    d->hops[i].dirfd = -1;
+}
+
+static void dest_clear(struct publish_dest *d) {
+  if (d->dirfd >= 0)
+    close(d->dirfd);
+  free(d->final_name);
+  free(d->fullpath);
+  for (int i = 0; i < d->nhops; i++) {
+    if (d->hops[i].dirfd >= 0)
+      close(d->hops[i].dirfd);
+    free(d->hops[i].name);
+    free(d->hops[i].text);
+  }
+  dest_init(d);
+}
+
+/* readlinkat(2) does not NUL-terminate, and the target can outgrow the
+ * first buffer. Grow until the read fits. */
+static char *read_linkat_text(int dirfd, const char *name, char *err, size_t err_cap) {
   size_t cap = 128;
   char *buf = NULL;
   for (;;) {
@@ -810,7 +875,7 @@ static char *read_link_text(const char *path, char *err, size_t err_cap) {
       return NULL;
     }
     buf = grown;
-    n = readlink(path, buf, cap);
+    n = readlinkat(dirfd, name, buf, cap);
     if (n < 0) {
       set_errf(err, err_cap, "cannot read the RESTART symlink", strerror(errno));
       free(buf);
@@ -864,58 +929,326 @@ static char *link_target_path(const char *path, const char *target, char *err,
   return out;
 }
 
-/* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
- * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
- * continues to update RESTART.1 while keeping RESTART as a link. realpath
- * fails with ENOENT when the target is absent; fopen created that target,
- * so a dangling link is published there as a new file. */
-static int publish_destination(const char *path, char **effective, mode_t *mode,
-                               int *has_mode, char *err, size_t err_cap) {
-  struct stat lst, st;
-  char *resolved;
-  int exists;
-  *effective = NULL;
-  *has_mode = 0;
+/* Split `path` into a directory that can be opened and a final component.
+ * A relative path with no slash is in the current directory. */
+static int split_parent(const char *path, char **dir_out, char **name_out, char *err,
+                        size_t err_cap) {
+  size_t n, slash, dlen;
+  char *dir, *name;
+  *dir_out = NULL;
+  *name_out = NULL;
+  n = strlen(path);
+  slash = n;
+  while (slash > 0 && !CPMDC_IS_SEP(path[slash - 1]))
+    slash--;
+  if (slash == n) {
+    set_err(err, err_cap, "the RESTART path has no final component");
+    return -1;
+  }
+  if (slash == 0) {
+    dir = publish_strdup(".");
+  } else {
+    dlen = slash;
+    if (dlen > 1 && CPMDC_IS_SEP(path[dlen - 1]))
+      dlen--;
+    dir = malloc(dlen + 1);
+    if (dir) {
+      memcpy(dir, path, dlen);
+      dir[dlen] = '\0';
+    }
+  }
+  name = publish_strdup(path + slash);
+  if (!dir || !name) {
+    free(dir);
+    free(name);
+    set_err(err, err_cap, "out of memory");
+    return -1;
+  }
+  *dir_out = dir;
+  *name_out = name;
+  return 0;
+}
+
+/* Walk `path` one symlink at a time. `expect_absent` is 1 when realpath
+ * already reported the chain missing: an existing non symlink is then a
+ * chain that changed, not a file this call may replace. The directory
+ * descriptor of the destination, and one for every symlink followed, stay
+ * open in `d` until publication finishes. */
+static int walk_chain(const char *path, int expect_absent, struct publish_dest *d,
+                      char *err, size_t err_cap) {
+  char *cur = publish_strdup(path);
+  if (!cur) {
+    set_err(err, err_cap, "out of memory");
+    return -1;
+  }
+  for (int hop = 0; hop < CPMDC_RESTART_MAX_HOPS; hop++) {
+    char *dir = NULL, *name = NULL;
+    struct stat st;
+    int fd;
+    if (split_parent(cur, &dir, &name, err, err_cap) != 0) {
+      free(cur);
+      return -1;
+    }
+    fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    free(dir);
+    if (fd < 0) {
+      set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
+      free(name);
+      free(cur);
+      return -1;
+    }
+    if (fstatat(fd, name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+      if (errno != ENOENT) {
+        set_errf(err, err_cap, "cannot stat the RESTART symlink target", strerror(errno));
+        close(fd);
+        free(name);
+        free(cur);
+        return -1;
+      }
+      /* The final component is missing. That is the dangling end when
+       * realpath said so, and a chain that lost its file otherwise. */
+      if (!expect_absent)
+        d->mismatch = 1;
+      d->absent = 1;
+      d->has_mode = 0;
+      d->dirfd = fd;
+      d->final_name = name;
+      d->fullpath = cur;
+      return 0;
+    }
+    if (S_ISLNK(st.st_mode)) {
+      char *text = read_linkat_text(fd, name, err, err_cap);
+      char *next;
+      if (!text) {
+        close(fd);
+        free(name);
+        free(cur);
+        return -1;
+      }
+      d->hops[d->nhops].dirfd = fd;
+      d->hops[d->nhops].name = name;
+      d->hops[d->nhops].text = text;
+      d->hops[d->nhops].dev = st.st_dev;
+      d->hops[d->nhops].ino = st.st_ino;
+      d->nhops++;
+      next = link_target_path(cur, text, err, err_cap);
+      free(cur);
+      if (!next)
+        return -1;
+      cur = next;
+      continue;
+    }
+    /* An existing non symlink. Replacing it is right only when the chain
+     * was already known to end on a real file. After realpath reported
+     * ENOENT this node is an intermediate that changed type, and the
+     * rename must not adopt it. */
+    d->absent = 0;
+    d->dev = st.st_dev;
+    d->ino = st.st_ino;
+    d->mode = st.st_mode & 07777;
+    d->has_mode = expect_absent ? 0 : 1;
+    if (expect_absent)
+      d->mismatch = 1;
+    d->dirfd = fd;
+    d->final_name = name;
+    d->fullpath = cur;
+    return 0;
+  }
+  free(cur);
+  set_err(err, err_cap, "the RESTART symlink chain has too many hops, likely a loop");
+  return -1;
+}
+
+/* A path that is not itself a symlink. Hold its parent and remember
+ * whether the final component exists, so the rename can refuse if that
+ * component changes type. */
+static int adopt_plain(const char *path, struct publish_dest *d, char *err,
+                       size_t err_cap) {
+  struct stat lst;
+  char *dir = NULL, *name = NULL;
+  int exists, fd;
   exists = lstat(path, &lst) == 0;
   if (!exists && errno != ENOENT) {
     set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
     return -1;
   }
-  if (exists && S_ISLNK(lst.st_mode)) {
-    resolved = realpath(path, NULL);
-    if (!resolved) {
-      char *text;
-      if (errno != ENOENT) {
-        set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
-        return -1;
-      }
-      text = read_link_text(path, err, err_cap);
-      if (!text)
-        return -1;
-      resolved = link_target_path(path, text, err, err_cap);
-      free(text);
-      if (!resolved)
-        return -1;
-      /* Absent destination: leave the mode at 0666 under the umask. */
-      *effective = resolved;
-      return 0;
+  if (split_parent(path, &dir, &name, err, err_cap) != 0)
+    return -1;
+  fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  free(dir);
+  if (fd < 0) {
+    set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
+    free(name);
+    return -1;
+  }
+  if (fstatat(fd, name, &lst, AT_SYMLINK_NOFOLLOW) != 0) {
+    if (errno != ENOENT) {
+      set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+      close(fd);
+      free(name);
+      return -1;
     }
+    d->absent = 1;
+    d->has_mode = 0;
+    if (exists)
+      d->mismatch = 1;
+  } else if (S_ISLNK(lst.st_mode)) {
+    d->mismatch = 1;
+    d->absent = 0;
+    d->has_mode = 0;
   } else {
-    resolved = publish_strdup(path);
-    if (!resolved) {
-      set_err(err, err_cap, "out of memory");
+    d->absent = 0;
+    d->dev = lst.st_dev;
+    d->ino = lst.st_ino;
+    d->mode = lst.st_mode & 07777;
+    d->has_mode = 1;
+    if (!exists) {
+      d->mismatch = 1;
+      d->has_mode = 0;
+    }
+  }
+  d->dirfd = fd;
+  d->final_name = name;
+  d->fullpath = publish_strdup(path);
+  if (!d->fullpath) {
+    set_err(err, err_cap, "out of memory");
+    return -1;
+  }
+  return 0;
+}
+
+static void set_chain_changed(char *err, size_t err_cap) {
+  set_err(err, err_cap, "the RESTART symlink chain changed before publication");
+}
+
+/* Re-read every recorded symlink and the final component through the
+ * directory descriptors taken during resolution. A symlink that is no
+ * longer that link, or a final component that is not the absent name or
+ * the same file, is a chain this call must not publish onto. */
+static int chain_unchanged(const struct publish_dest *d, char *err, size_t err_cap) {
+  struct stat st;
+  if (d->mismatch || d->dirfd < 0 || !d->final_name) {
+    set_chain_changed(err, err_cap);
+    return -1;
+  }
+  for (int i = 0; i < d->nhops; i++) {
+    char *text;
+    const struct publish_hop *h = &d->hops[i];
+    if (fstatat(h->dirfd, h->name, &st, AT_SYMLINK_NOFOLLOW) != 0 || !S_ISLNK(st.st_mode) ||
+        st.st_dev != h->dev || st.st_ino != h->ino) {
+      set_chain_changed(err, err_cap);
+      return -1;
+    }
+    text = read_linkat_text(h->dirfd, h->name, err, err_cap);
+    if (!text)
+      return -1;
+    if (strcmp(text, h->text) != 0) {
+      free(text);
+      set_chain_changed(err, err_cap);
+      return -1;
+    }
+    free(text);
+  }
+  if (fstatat(d->dirfd, d->final_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+    if (errno != ENOENT) {
+      set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+      return -1;
+    }
+    if (!d->absent) {
+      set_chain_changed(err, err_cap);
+      return -1;
+    }
+  } else if (d->absent || S_ISLNK(st.st_mode) || st.st_dev != d->dev || st.st_ino != d->ino) {
+    set_chain_changed(err, err_cap);
+    return -1;
+  }
+  return 0;
+}
+
+static int rename_onto_dest(const char *tmpname, const struct publish_dest *d, char *err,
+                            size_t err_cap) {
+#if defined(RENAME_NOREPLACE)
+  if (d->absent) {
+    if (renameat2(d->dirfd, tmpname, d->dirfd, d->final_name, RENAME_NOREPLACE) == 0)
+      return 0;
+    /* The final name appeared after the check. Do not replace it. A kernel
+     * without this flag returns EINVAL or ENOSYS and the plain renameat
+     * below is the POSIX fallback. */
+    if (errno == EEXIST || errno == ENOTEMPTY || errno == EBUSY) {
+      set_chain_changed(err, err_cap);
+      return -1;
+    }
+    if (errno != EINVAL && errno != ENOSYS && errno != EPERM) {
+      set_errf(err, err_cap, "cannot replace the RESTART file", strerror(errno));
       return -1;
     }
   }
-  if (stat(resolved, &st) == 0) {
-    *mode = st.st_mode & 07777;
-    *has_mode = 1;
-  } else if (errno != ENOENT) {
-    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
-    free(resolved);
+#endif
+  if (renameat(d->dirfd, tmpname, d->dirfd, d->final_name) != 0) {
+    set_errf(err, err_cap, "cannot replace the RESTART file", strerror(errno));
     return -1;
   }
-  *effective = resolved;
+  return 0;
+}
+
+/* Check the resolved chain, then rename the temporary name onto the final
+ * component. Both calls use the directory descriptor held from resolution. */
+static int commit_dest(const char *tmpname, const struct publish_dest *d, char *err,
+                       size_t err_cap) {
+  if (chain_unchanged(d, err, err_cap) != 0)
+    return -1;
+  return rename_onto_dest(tmpname, d, err, err_cap);
+}
+
+/* rename(2) replaces a symlink itself, unlike fopen(3), which follows it.
+ * Resolve an existing link first so CPMD's RESTART -> RESTART.1 convention
+ * continues to update RESTART.1 while keeping RESTART as a link. realpath
+ * fails with ENOENT when the target is absent; fopen created that target,
+ * so a dangling link is published there as a new file. The walk that
+ * follows records directory descriptors. The rename checks them again and
+ * refuses if a symlink or the final component is no longer what was
+ * resolved, instead of replacing a file that appeared in that window. */
+static int publish_destination(const char *path, struct publish_dest *d, char *err,
+                               size_t err_cap) {
+  struct stat lst;
+  char *resolved;
+  int exists;
+  dest_init(d);
+  exists = lstat(path, &lst) == 0;
+  if (!exists && errno != ENOENT) {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    return -1;
+  }
+  if (!(exists && S_ISLNK(lst.st_mode))) {
+    if (adopt_plain(path, d, err, err_cap) != 0) {
+      dest_clear(d);
+      return -1;
+    }
+    return 0;
+  }
+  resolved = realpath(path, NULL);
+  if (!resolved) {
+    if (errno != ENOENT) {
+      set_errf(err, err_cap, "cannot resolve the RESTART symlink", strerror(errno));
+      return -1;
+    }
+#ifdef CPMDC_RESTART_TEST_HOOK
+    /* The tests swap a link here. Production leaves the pointer unset,
+     * so this is a null check and nothing else. */
+    if (cpmdc_restart_test_before_follow)
+      cpmdc_restart_test_before_follow();
+#endif
+    if (walk_chain(path, 1, d, err, err_cap) != 0) {
+      dest_clear(d);
+      return -1;
+    }
+    return 0;
+  }
+  free(resolved);
+  if (walk_chain(path, 0, d, err, err_cap) != 0) {
+    dest_clear(d);
+    return -1;
+  }
   return 0;
 }
 #endif
@@ -936,61 +1269,28 @@ static int sync_stream(FILE *fp) {
 #endif
 }
 
-/* Make the rename durable. Windows has no directory handle to flush;
- * MOVEFILE_WRITE_THROUGH covers it there. Filesystems that cannot sync a
- * directory say EINVAL, and there is nothing more to do on them. */
-static int sync_parent(const char *path, char *err, size_t err_cap) {
-#ifdef _WIN32
-  (void)path;
-  (void)err;
-  (void)err_cap;
-  return 0;
-#else
-  size_t dir = strlen(path);
-  char *name;
-  int fd, rc = 0;
-  while (dir > 0 && !CPMDC_IS_SEP(path[dir - 1]))
-    dir--;
-  if (dir == 0) {
-    name = strdup(".");
-  } else {
-    name = malloc(dir + 1);
-    if (name) {
-      memcpy(name, path, dir);
-      name[dir] = '\0';
-    }
-  }
-  if (!name) {
-    set_err(err, err_cap, "out of memory");
-    return -1;
-  }
-#ifdef O_DIRECTORY
-  fd = open(name, O_RDONLY | O_DIRECTORY);
-#else
-  fd = open(name, O_RDONLY);
-#endif
-  if (fd < 0) {
-    set_errf(err, err_cap, "cannot open the RESTART directory to sync it", strerror(errno));
-    free(name);
-    return -1;
-  }
+/* Make the rename durable. The descriptor is the directory inode held
+ * from resolution, so this flush is not a second path lookup. Filesystems
+ * that cannot sync a directory say EINVAL, and there is nothing more to
+ * do on them. Windows has no directory handle; MOVEFILE_WRITE_THROUGH
+ * covers that path. */
+#ifndef _WIN32
+static int sync_fd(int fd, char *err, size_t err_cap) {
   while (fsync(fd) != 0) {
     if (errno == EINTR)
       continue;
     if (errno != EINVAL) {
       set_errf(err, err_cap, "cannot sync the RESTART directory", strerror(errno));
-      rc = -1;
+      return -1;
     }
     break;
   }
-  close(fd);
-  free(name);
-  return rc;
-#endif
+  return 0;
 }
+#endif
 
-static int replace_path(const char *tmp, const char *path, char *err, size_t err_cap) {
 #ifdef _WIN32
+static int replace_path(const char *tmp, const char *path, char *err, size_t err_cap) {
   if (!MoveFileExA(tmp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
     char why[64];
     snprintf(why, sizeof why, "MoveFileEx error %lu", (unsigned long)GetLastError());
@@ -998,31 +1298,28 @@ static int replace_path(const char *tmp, const char *path, char *err, size_t err
     return -1;
   }
   return 0;
-#else
-  if (rename(tmp, path) != 0) {
-    set_errf(err, err_cap, "cannot replace the RESTART file", strerror(errno));
-    return -1;
-  }
-  return 0;
-#endif
 }
+#endif
 
 /* Publish `path` by rename. A reader opens either the previous file or the
- * finished one, never a prefix of the new bytes. The temporary file is in
- * the destination's directory so the rename stays on one filesystem. */
+ * finished one, never a prefix of the new bytes. On POSIX the temporary
+ * file is created in the directory descriptor held from resolution, and
+ * renameat publishes it there, so both stay on one filesystem and on the
+ * directory inode that was resolved. */
 static int publish_bytes(const char *path, const void *bytes, size_t n, char *err,
                          size_t err_cap) {
   static _Thread_local unsigned long seq;
-  char *effective = NULL;
-  char *tmp = NULL;
+  char tmpname[sizeof ".cpmdc-tmp-" + 16];
   FILE *fp;
   int fd = -1;
+  tmpname[0] = '\0';
 #ifndef _WIN32
-  mode_t mode = 0;
-  int has_mode = 0;
-  if (publish_destination(path, &effective, &mode, &has_mode, err, err_cap) != 0)
+  struct publish_dest dest;
+  if (publish_destination(path, &dest, err, err_cap) != 0)
     return -1;
 #else
+  char *effective = NULL;
+  char *tmp = NULL;
   effective = publish_strdup(path);
   if (!effective) {
     set_err(err, err_cap, "out of memory");
@@ -1033,6 +1330,12 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
   for (int attempt = 0; attempt < 100 && fd < 0; attempt++) {
     unsigned long token =
         seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
+#ifndef _WIN32
+    snprintf(tmpname, sizeof tmpname, ".cpmdc-tmp-%016lx", token);
+    fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd < 0 && errno != EEXIST)
+      break;
+#else
     free(tmp);
     tmp = temporary_path(effective, token);
     if (!tmp) {
@@ -1043,11 +1346,16 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
     fd = publish_open(tmp);
     if (fd < 0 && errno != EEXIST)
       break;
+#endif
   }
   if (fd < 0) {
     set_errf(err, err_cap, "cannot create a temporary RESTART file", strerror(errno));
+#ifndef _WIN32
+    dest_clear(&dest);
+#else
     free(tmp);
     free(effective);
+#endif
     return -1;
   }
   fp = publish_fdopen(fd, "wb");
@@ -1062,7 +1370,7 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
     goto discard;
   }
 #ifndef _WIN32
-  if (has_mode && fchmod(fileno(fp), mode) != 0) {
+  if (dest.has_mode && fchmod(fileno(fp), dest.mode) != 0) {
     set_errf(err, err_cap, "cannot set the RESTART file mode", strerror(errno));
     fclose(fp);
     goto discard;
@@ -1077,19 +1385,32 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
     set_errf(err, err_cap, "cannot close the RESTART file", strerror(errno));
     goto discard;
   }
+#ifndef _WIN32
+  if (commit_dest(tmpname, &dest, err, err_cap) != 0)
+    goto discard;
+  if (sync_fd(dest.dirfd, err, err_cap) != 0) {
+    dest_clear(&dest);
+    return -1;
+  }
+  dest_clear(&dest);
+  return 0;
+#else
   if (replace_path(tmp, effective, err, err_cap) != 0)
     goto discard;
   free(tmp);
-  if (sync_parent(effective, err, err_cap) != 0) {
-    free(effective);
-    return -1;
-  }
   free(effective);
   return 0;
+#endif
 discard:
+#ifndef _WIN32
+  if (tmpname[0] != '\0')
+    unlinkat(dest.dirfd, tmpname, 0);
+  dest_clear(&dest);
+#else
   publish_unlink(tmp);
   free(tmp);
   free(effective);
+#endif
   return -1;
 }
 

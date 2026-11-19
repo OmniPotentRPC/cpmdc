@@ -622,12 +622,14 @@ if get_option('with_tests')
     ] + fc.cmd_array(),
     depends: warm_selector_source,
   )
+  # The restart source is compiled into the test with the publication hook
+  # defined, so the suite can swap a symlink between realpath and the
+  # fallback walk. The installed library is built without that seam.
   restart_test_exe = executable(
     'test_cpmd_restart',
-    'tests/test_cpmd_restart.c',
-    dependencies: [cpmdc_restart_dep],
+    ['tests/test_cpmd_restart.c', 'src/cpmdc_restart.c'],
     include_directories: inc,
-    c_args: common_c_args,
+    c_args: common_c_args + ['-DCPMDC_RESTART_TEST_HOOK'],
   )
   test(
     'restart-file',
