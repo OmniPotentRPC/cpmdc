@@ -19,6 +19,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Version copies match version.txt
         run: python3 scripts/release_assert.py
+      - name: LLM index files match doc sources
+        run: python3 scripts/generate_llms_txt.py --check
 
   stub-and-e2e:
     runs-on: ubuntu-latest

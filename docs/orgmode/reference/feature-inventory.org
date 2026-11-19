@@ -84,6 +84,8 @@ suite selects the last five.
 | ~examples-documented~ | the public docs do not point to the runnable ~examples/host_step.c~ host program |
 | ~readme-navigation~ | the README or the build-and-test how-to loses its entry paths, work-loop labels, or current wording, or the README Documentation section misses a page |
 | ~inventory-docs~ | this table, the contributing guide, or the option mapping stops naming these tests |
+| ~llms-txt~ | ~llms.txt~ or ~llms-full.txt~ differ from ~scripts/generate_llms_txt.py~ output |
+| ~docs-coverage-inventory~ | ~scripts/docs_coverage_inventory.py~ reports a missing C symbol, Python name, parameter feature, or embed term |
 
 Run them together:
 
