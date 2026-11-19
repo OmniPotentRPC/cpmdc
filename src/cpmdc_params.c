@@ -4799,6 +4799,13 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
+      if (overrides && overrides->free_energy) {
+        if (!body.freeEnergy)
+          body.freeEnergy = 1;
+        if (overrides->temperature_electron > 0.0 &&
+            body.temperatureElectron <= 0.0)
+          body.temperatureElectron = overrides->temperature_electron;
+      }
       if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
                               spin_polarized, &sets) != 0)
         return -1;
@@ -4824,6 +4831,8 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     case CPMDInputSection_vdwParams: {
       struct CPMDVdwSection vdw_body;
       read_CPMDVdwSection(&vdw_body, sec.vdwParams);
+      if (overrides && overrides->vdw_s6 > 0.0 && vdw_body.s6 <= 0.0)
+        vdw_body.s6 = overrides->vdw_s6;
       if (render_vdw_section(dst, dst_size, &used, &vdw_body, &sets) != 0)
         return -1;
       break;
@@ -4928,6 +4937,11 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-6;
+    if (overrides && overrides->free_energy) {
+      def.freeEnergy = 1;
+      if (overrides->temperature_electron > 0.0)
+        def.temperatureElectron = overrides->temperature_electron;
+    }
     if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
                             spin_polarized, &sets) != 0)
       return -1;
@@ -5229,6 +5243,13 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDCpmdSection body;
       read_CPMDCpmdSection(&body, sec.cpmd);
       has_cpmd = 1;
+      if (overrides && overrides->free_energy) {
+        if (!body.freeEnergy)
+          body.freeEnergy = 1;
+        if (overrides->temperature_electron > 0.0 &&
+            body.temperatureElectron <= 0.0)
+          body.temperatureElectron = overrides->temperature_electron;
+      }
       if (render_cpmd_section(dst, dst_size, &used, &body, task, file_path,
                               spin_polarized, &sets) != 0)
         return -1;
@@ -5254,6 +5275,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
     case CPMDInputSection_vdwParams: {
       struct CPMDVdwSection vdw_body;
       read_CPMDVdwSection(&vdw_body, sec.vdwParams);
+      if (overrides && overrides->vdw_s6 > 0.0 && vdw_body.s6 <= 0.0)
+        vdw_body.s6 = overrides->vdw_s6;
       if (render_vdw_section(dst, dst_size, &used, &vdw_body, &sets) != 0)
         return -1;
       break;
@@ -5358,6 +5381,11 @@ int cpmdc_params_render_deck_with_geometry_ov(
     memset(&def, 0, sizeof(def));
     def.optimizeWavefunction = 1;
     def.convergenceOrbitals = 1.0e-5;
+    if (overrides && overrides->free_energy) {
+      def.freeEnergy = 1;
+      if (overrides->temperature_electron > 0.0)
+        def.temperatureElectron = overrides->temperature_electron;
+    }
     if (render_cpmd_section(dst, dst_size, &used, &def, task, file_path,
                             spin_polarized, &sets) != 0)
       return -1;
