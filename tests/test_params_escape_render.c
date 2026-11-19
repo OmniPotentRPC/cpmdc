@@ -37,6 +37,12 @@ static void test_escape_tokens_in_deck(void **state) {
   assert_non_null(strstr(deck, "O_MT_BLYP.psp"));
   assert_non_null(strstr(deck, "H_CVB_BLYP.psp"));
   assert_non_null(strstr(deck, "FUNCTIONAL BLYP"));
+  char tiny[8];
+  assert_int_equal(cpmdc_params_render_input_deck(root, NULL, sizeof(deck)), -1);
+  assert_int_equal(cpmdc_params_render_input_deck(root, tiny, 0), -1);
+  assert_int_equal(cpmdc_params_render_input_deck(root, tiny, sizeof(tiny)), -1);
+  assert_int_equal(cpmdc_params_render_input_deck(root, deck, sizeof(deck)), 0);
+  assert_non_null(strstr(deck, "FUNCTIONAL BLYP"));
   cpmdc_params_release(&arena);
   free(msg);
 }

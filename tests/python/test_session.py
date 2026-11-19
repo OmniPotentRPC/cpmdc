@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import shutil
 import subprocess
 from array import array
@@ -102,3 +103,87 @@ def test_evaluation_has_a_readable_repr_and_keeps_identity_semantics():
     assert first != second
     assert len({first, second}) == 2
     assert cpmdc.Evaluation(energy_h=2.0, forces_h_bohr=[], stress_h_bohr3=[0.0] * 9).energy_h == 2.0
+
+
+def test_session_rejects_bad_inputs(params, tmp_path, monkeypatch):
+    import numpy as np
+
+    with pytest.raises(CPMDCError, match="empty"):
+        Session(b"")
+    with pytest.raises(CPMDCError, match="parse failed"):
+        Session(b"not a CPMDParams message")
+    bogus = tmp_path / "notlib.so"
+    bogus.write_bytes(b"not a shared library")
+    with pytest.raises(CPMDCError, match="failed to load"):
+        Session(params, library=bogus)
+    with pytest.raises(CPMDCError, match="library not found"):
+        cpmdc.find_library(tmp_path / "missing.so")
+    with pytest.raises(CPMDCError, match="schema not found"):
+        cpmdc.find_schema(tmp_path / "missing.capnp")
+
+    real = cpmdc.find_library()
+    monkeypatch.setenv("CPMDC_LIBRARY", str(tmp_path / "missing.so"))
+    monkeypatch.setenv("RGPOT_CPMDC_ENGINE", str(real))
+    assert cpmdc.find_library() == real
+    monkeypatch.delenv("CPMDC_LIBRARY")
+    monkeypatch.delenv("RGPOT_CPMDC_ENGINE")
+    monkeypatch.delenv("RGPOT_CPMD_ENGINE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(CPMDCError, match="library not found"):
+        cpmdc.find_library()
+    monkeypatch.undo()
+
+    with pytest.raises(ValueError, match="9 components"):
+        cpmdc.stress_to_ev_per_angstrom3([0.0] * 8)
+
+    session = Session(params)
+    assert isinstance(session.abi_version(), int)
+
+    with pytest.raises(ValueError, match="finite"):
+        session.energy_forces([[float("nan"), 0.0, 0.0]], [1])
+    with pytest.raises(ValueError, match="at least one atom"):
+        session.energy_forces([], [])
+    with pytest.raises(ValueError, match="three coordinates"):
+        session.energy_forces([[0.0, 0.0]], [1])
+    with pytest.raises(ValueError, match="one entry per atom"):
+        session.energy_forces(WATER, [8, 1])
+    with pytest.raises(ValueError, match="3x3 or 9"):
+        session.energy_forces(WATER, [8, 1, 1], [1.0, 0.0, 0.0])
+    with pytest.raises(ValueError, match="3x3 or 9"):
+        session.energy_forces(
+            WATER, [8, 1, 1], [[1.0, 0.0, 0.0], [0.0, 1.0], [0.0, 0.0, 1.0]]
+        )
+    with pytest.raises(ValueError, match="finite"):
+        session.energy_forces(
+            WATER,
+            [8, 1, 1],
+            [[1.0, 0.0, 0.0], [0.0, float("nan"), 0.0], [0.0, 0.0, 1.0]],
+        )
+
+    bohr = [[coord / cpmdc.BOHR_TO_ANGSTROM for coord in row] for row in WATER]
+    rows = [tuple(row) for row in bohr]
+    energy, forces, virial = session.calculate_au(rows, [8, 1, 1])
+    done = session.energy_forces(WATER, [8, 1, 1])
+    assert energy == done.energy_h
+    assert len(list(forces)) == 9
+    assert len(list(virial)) == 9
+    readonly = np.zeros(9, dtype=np.float64)
+    readonly.setflags(write=False)
+    with pytest.raises(ValueError, match="writable"):
+        session.calculate_au(rows, [8, 1, 1], forces=readonly)
+    with pytest.raises(ValueError, match="positions_bohr"):
+        session.calculate_au([0.0, 0.0], [8, 1, 1])
+    with pytest.raises(ValueError, match="at least one atom"):
+        session.calculate_au([], [])
+    session.close()
+    with pytest.raises(CPMDCError, match="closed"):
+        session.calculate_au(rows, [8, 1, 1])
+
+
+def test_available_matches_the_build(params):
+    library = ctypes.CDLL(str(cpmdc.find_library()))
+    library.cpmdc_available.restype = ctypes.c_int
+    with Session(params) as session:
+        assert session.available() is bool(library.cpmdc_available())
+    with Potential(params) as pot:
+        assert pot.caps() == {"stress": True, "energies": False}

@@ -1181,6 +1181,20 @@ if get_option('with_tests')
     suite: ['cmocka'],
   )
   test(
+    'session-lifecycle',
+    executable(
+      'test_session_lifecycle',
+      'tests/test_session_lifecycle.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [water_params_bin.full_path()],
+    depends: [water_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: 300,
+  )
+  test(
     'session-cached-geometry',
     executable(
       'test_session_cached_geometry',
