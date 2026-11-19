@@ -245,7 +245,13 @@ def test_a_change_discards_the_stored_step(periodic_calc, steps, opencpmd, what)
     other.calc = periodic_calc
     other.get_forces()
     assert len(steps) == 2
-    assert periodic_calc.results["energy"] != before["energy"]
+    if what == "pbc":
+        # The periodic deck holds the cube that the structure had. A step
+        # without a cell is that same system, so the energy can repeat and
+        # the stress of the replaced step is what must be gone.
+        assert "stress" not in periodic_calc.results
+    else:
+        assert periodic_calc.results["energy"] != before["energy"]
 
 
 def test_a_change_of_one_part_of_a_step_is_never_served_stale(periodic_calc, steps):
@@ -322,6 +328,23 @@ def test_a_direct_step_replaces_every_stored_result(periodic_calc):
     cluster.calc = periodic_calc
     with pytest.raises(PropertyNotImplementedError):
         cluster.get_stress()
+
+
+def test_a_stress_returned_for_a_cluster_is_not_stored(calc, monkeypatch):
+    evaluate = Potential.evaluate
+
+    def with_stress(self, *args, **kwargs):
+        done = evaluate(self, *args, **kwargs)
+        done["stress"] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        return done
+
+    monkeypatch.setattr(Potential, "evaluate", with_stress)
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    assert set(calc.results) == STEP
+    with pytest.raises(PropertyNotImplementedError, match="fully periodic"):
+        atoms.get_stress()
 
 
 def test_a_failed_direct_step_leaves_no_stale_results(calc, monkeypatch):
@@ -460,13 +483,37 @@ def test_the_calculator_recovers_after_a_failure(calc, params, tolerance):
 
 
 @pytest.mark.parametrize("scale", [1e200, -1e200])
-def test_a_non_finite_result_is_a_calculation_failure(calc, scale):
+def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd):
+    """The reference well returns an infinite energy for this geometry.
+
+    OpenCPMD stops in RATOM while it reads the coordinates of the deck, so
+    no result exists and the library gives its own reason. ASE fixes the
+    exception, not the text.
+    """
     atoms = water()
     atoms.positions *= scale
     atoms.calc = calc
-    with pytest.raises(CalculationFailed, match="non-finite"):
+    with pytest.raises(CalculationFailed, match=None if opencpmd else "non-finite"):
         atoms.get_potential_energy()
     assert calc.results == {}
+
+
+@pytest.mark.parametrize("name", ["energy", "forces", "stress"])
+def test_a_non_finite_value_from_the_library_is_a_calculation_failure(
+    periodic_params, monkeypatch, name
+):
+    def poisoned(self, *args, **kwargs):
+        done = {"energy": 0.0, "forces": [0.0] * 9, "stress": [0.0] * 9}
+        done[name] = float("nan") if name == "energy" else [float("inf")] * 9
+        return done
+
+    monkeypatch.setattr(Potential, "evaluate", poisoned)
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(periodic_params) as calc:
+        atoms.calc = calc
+        with pytest.raises(CalculationFailed, match=f"non-finite {name}"):
+            atoms.get_stress()
+        assert calc.results == {}
 
 
 def test_a_failure_in_a_relaxation_reaches_the_caller(calc, monkeypatch):

@@ -191,8 +191,10 @@ jobs:
           path: isa-audit-libs/
 
   # The only job that links OpenCPMD. Every target of the with_cpmd build
-  # compiles, and extrapolate-wfn, which the reference build skips, has to
-  # pass against the cpmd.x run in tests/golden.
+  # compiles, extrapolate-wfn, which the reference build skips, has to
+  # pass against the cpmd.x run in tests/golden, and the ASE and LAMMPS
+  # convention tests, which every other job runs on the reference well
+  # only, run against cpmd.x.
   opencpmd-embed:
     runs-on: ubuntu-latest
     steps:
@@ -215,6 +217,15 @@ jobs:
           grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
           pixi run meson test -C build-cpmd session-orbital-keys --print-errorlogs
           grep -q '^PASS=1$' build-cpmd/meson-logs/testlog.txt
+      - name: ASE and LAMMPS conventions against cpmd.x, not skipped
+        run: |
+          pixi run meson test -C build-cpmd python-pytest --print-errorlogs \
+            --test-args="-rs -k 'test_ase_conformance or test_lammps_conventions'"
+          grep -E '[0-9]+ passed' build-cpmd/meson-logs/testlog.txt
+          if grep -E '^SKIPPED' build-cpmd/meson-logs/testlog.txt; then
+            echo "convention tests skipped"
+            exit 1
+          fi
 
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})

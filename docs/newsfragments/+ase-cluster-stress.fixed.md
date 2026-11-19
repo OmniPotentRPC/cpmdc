@@ -1,0 +1,1 @@
+`CPMDCCalculator` stores a stress only for a step that sent a periodic cell. With OpenCPMD and a periodic CPMDParams deck, a structure with every `pbc` flag false used to get the stress of the deck's own cell, so `get_stress()` after `get_potential_energy()` returned a tensor where it raises `PropertyNotImplementedError` as the first request.
