@@ -52,6 +52,8 @@ def build(spec: dict[str, Any]) -> Any:
     )
     if created != count:
         raise RuntimeError(f"LAMMPS created {created} of {count} atoms")
+    for command in spec.get("after_create", []):
+        lmp.command(command)
     return lmp
 
 

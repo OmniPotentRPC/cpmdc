@@ -128,9 +128,9 @@ def finish(handles) -> None:
     lmp.close()
 
 
-def ase_reference(params: Path, positions, cell, **calculator) -> dict:
+def ase_reference(params: Path, positions, cell, *, symbols=SYMBOLS, **calculator) -> dict:
     """eV, eV/Angstrom, and the virial -dE/d(strain) in eV, xx yy zz xy xz yz."""
-    atoms = Atoms(SYMBOLS, positions=positions)
+    atoms = Atoms(symbols, positions=positions)
     if cell is not None:
         atoms.cell = cell
         atoms.pbc = True
@@ -210,6 +210,37 @@ def test_cluster_step_matches_ase(route, params):
     finish(handles)
     ref = ase_reference(params, WATERS, None)
     assert_matches(got, ref, "metal")
+
+
+def test_plugin_accepts_sparse_atom_ids(periodic_params):
+    if PLUGIN is None:
+        pytest.skip("cpmdcplugin.so is not built")
+    removed = {1, 4}
+    kept = [position for index, position in enumerate(WATERS) if index not in removed]
+    symbols = "".join(symbol for index, symbol in enumerate(SYMBOLS) if index not in removed)
+    case = spec("plugin", "metal", periodic_params)
+    case["after_create"] = [
+        "group cpmdc_removed id 2 5",
+        "delete_atoms group cpmdc_removed compress no",
+    ]
+    lmp = build(case)
+    try:
+        attach(lmp, case)
+        lmp.commands_string("\n".join(THERMO))
+        lmp.command("run 0")
+        assert lmp.get_thermo("pe") == pytest.approx(
+            ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["pe"],
+            rel=1e-11,
+            abs=1e-12,
+        )
+        nlocal = int(lmp.extract_setting("nlocal"))
+        tags = np.asarray(lmp.numpy.extract_atom("id")[:nlocal], dtype=np.int64)
+        assert set(tags) == {1, 3, 4, 6}
+        forces = np.asarray(lmp.numpy.extract_atom("f")[:nlocal], dtype=float)
+        expected = ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["forces"]
+        np.testing.assert_allclose(forces[np.argsort(tags)], expected, rtol=1e-10, atol=1e-12)
+    finally:
+        lmp.close()
 
 
 @pytest.mark.parametrize("route", ROUTES)

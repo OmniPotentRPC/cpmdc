@@ -3482,8 +3482,9 @@ evaluates the whole system once per step:
 - The other ranks wait during the evaluation, so extra ranks speed up only
   LAMMPS' own work.
   The traffic per step is `O(N)` doubles.
-- Atom IDs must be the integers 1..N, as LAMMPS assigns them; after
-  `delete_atoms` or `fix evaporate`, renumber with `reset_atoms id`.
+- The `pair_style cpmdc` route orders a step by increasing atom ID. Positive,
+  unique IDs may have gaps, so `delete_atoms ... compress no` and
+  `fix evaporate` work without a `reset_atoms id` pass.
 - A step with a new elemental composition opens a new session.
 
 `FixExternal` needs `mpi4py` for this, and `comm=` when the `lammps` object was
@@ -9825,6 +9826,14 @@ A box with all three axes periodic sends the cell; a box with none sends no
 cell, and the `CPMDParams` deck sets the box.
 A box with some axes periodic and others not is refused; `FixExternal` raises
 `ValueError`.
+
+# Atom IDs
+`pair_style cpmdc` gathers the system and orders its call to cpmdc by increasing
+atom ID. IDs must be positive and unique, but need not be the consecutive
+integers 1 through N: deleting atoms without compression leaves holes that the
+pair style preserves while it returns each force to its original atom. This
+keeps a run on the same cpmdc session after `delete_atoms ... compress no` or
+`fix evaporate`.
 
 # Virial and pressure
 cpmdc returns the virial `W = -dE/d(strain)` in Hartree.
