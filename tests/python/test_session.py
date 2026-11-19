@@ -123,7 +123,8 @@ def test_evaluation_has_a_readable_repr_and_keeps_identity_semantics():
     first = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
     second = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
     assert repr(first) == (
-        "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], stress_h_bohr3=None)"
+        "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], "
+        "stress_h_bohr3=None, dipole_e_bohr=None)"
     )
     assert first != second
     assert len({first, second}) == 2
@@ -218,4 +219,8 @@ def test_available_matches_the_build(params):
     with Session(params) as session:
         assert session.available() is bool(library.cpmdc_available())
     with Potential(params) as pot:
-        assert pot.caps() == {"stress": True, "energies": False}
+        assert pot.caps() == {
+            "stress": True,
+            "dipole": bool(library.cpmdc_available()),
+            "energies": False,
+        }

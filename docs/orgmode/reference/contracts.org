@@ -591,6 +591,54 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Python | not wrapped. |
 | Defaults | none |
 
+*** ~cpmdc_last_gradient~
+
+| Item | Description |
+|--------+--------|
+| Units | ~out~ receives the nuclear gradient in Hartree/Bohr; ~capacity~ and ~count~ count doubles. |
+| Layout | ~out~ points at ~capacity~ doubles; ~count~ points at one ~size_t~ that receives the required component count. |
+| Ownership | The caller owns ~out~ and ~count~; the copied gradient does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 after copying the complete gradient; -1 for a NULL argument, no valid gradient, a zero-length gradient, or insufficient ~capacity~. The legacy snapshot limits successful evaluations to 4096 components. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped; ~cpmdc.Session.energy_forces~ returns the force, the negative of this gradient. |
+| Defaults | none |
+
+*** ~cpmdc_session_last_gradient~
+
+| Item | Description |
+|--------+--------|
+| Units | ~out~ receives the nuclear gradient in Hartree/Bohr; ~capacity~ and ~count~ count doubles. |
+| Layout | ~out~ points at ~capacity~ doubles; ~count~ points at one ~size_t~ that receives the required component count. |
+| Ownership | ~session~ is borrowed and stays owned by the caller; the caller owns ~out~ and ~count~, and the copy does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 after copying the session's complete last gradient; -1 for a NULL argument, no valid gradient, a zero-length gradient, or insufficient ~capacity~. The legacy snapshot limits successful evaluations to 4096 components. Does not write ~cpmdc_last_error()~. |
+| Python | not wrapped; ~cpmdc.Session.energy_forces~ returns the force, the negative of this gradient. |
+| Defaults | none |
+
+*** ~cpmdc_last_dipole~
+
+| Item | Description |
+|--------+--------|
+| Units | the fields of ~CPMDCDipole~ in electron Bohr. |
+| Layout | ~out~ points at one ~CPMDCDipole~ that the call clears before checking availability. |
+| Ownership | The caller owns ~out~; the copied dipole does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when OpenCPMD recomputed the dipole for the current geometry; -1 for NULL ~out~ or when the reference, isolated, k-point, or unrequested evaluation has no dipole. An unavailable call leaves ~out->valid~ zero and does not write ~cpmdc_last_error()~. |
+| Python | not wrapped directly; ~cpmdc.Session.energy_forces~ uses the session form. |
+| Defaults | none |
+
+*** ~cpmdc_session_last_dipole~
+
+| Item | Description |
+|--------+--------|
+| Units | the fields of ~CPMDCDipole~ in electron Bohr. |
+| Layout | ~out~ points at one ~CPMDCDipole~ that the call clears before checking availability. |
+| Ownership | ~session~ is borrowed and stays owned by the caller; the caller owns ~out~ and the copy does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when that session's last evaluation recomputed the dipole for its current geometry; -1 for a NULL argument or when the reference, isolated, k-point, or unrequested evaluation has no dipole. An unavailable call leaves ~out->valid~ zero and does not write ~cpmdc_last_error()~. |
+| Python | ~cpmdc.Session.energy_forces~ reads this value; -1 gives ~Evaluation.dipole_e_bohr~ of ~None~. |
+| Defaults | none |
+
 *** ~cpmdc_last_stress~
 
 | Item | Description |
@@ -1133,9 +1181,18 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Item | Description |
 |--------+--------|
 | Layout | An ~int valid~, then ~size_t hessian_count~ and ~double hessian[4096]~, ~size_t dipole_count~ and ~double dipole[3]~, ~size_t polarizability_count~ and ~double polarizability[9]~. |
-| Units | Atomic units: ~hessian~ holds the nuclear gradient in Hartree/Bohr (it is a gradient, cut at 4096 values), ~dipole~ is the dipole in atomic units, ~polarizability~ is always zeros. |
+| Units | Atomic units: ~hessian~ holds the nuclear gradient in Hartree/Bohr, ~dipole~ is the molecular dipole in electron Bohr, and ~polarizability~ is always zeros. Evaluations above the 4096-component gradient capacity fail instead of truncating. |
 | Ownership | Filled by ~cpmdc_last_property_snapshot()~ into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
+
+** ~CPMDCDipole~
+
+| Item | Description |
+|--------+--------|
+| Layout | An ~int valid~, followed by ~double values[3]~ in Cartesian x, y, z order. |
+| Units | Electron Bohr. The periodic Berry-phase dipole is defined for a neutral cell modulo a lattice quantum. |
+| Ownership | Filled by ~cpmdc_last_dipole()~ or ~cpmdc_session_last_dipole()~ into a caller-owned struct; no pointers. |
+| Python | ~cpmdc.Evaluation.dipole_e_bohr~ holds the three values, or ~None~ when ~valid~ is 0. |
 
 ** ~CPMDCStressTensor~
 
@@ -1367,12 +1424,12 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 
 | Item | Description |
 |--------+--------|
-| Signature | ~Evaluation(energy_h, forces_h_bohr, stress_h_bohr3)~ |
-| Units | Hartree, Hartree/Bohr and Hartree/Bohr^3 (atomic units, not eV). |
-| Shape and dtype | A dataclass of three fields, compared and hashed by identity: ~energy_h~ a ~float~, ~forces_h_bohr~ an N by 3 ~list[list[float]]~, ~stress_h_bohr3~ nine floats or ~None~. |
+| Signature | ~Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None)~ |
+| Units | Hartree, Hartree/Bohr, Hartree/Bohr^3 and electron Bohr (atomic units, not eV). |
+| Shape and dtype | A dataclass of four fields, compared and hashed by identity: ~energy_h~ a ~float~, ~forces_h_bohr~ an N by 3 ~list[list[float]]~, ~stress_h_bohr3~ nine floats or ~None~, and ~dipole_e_bohr~ three floats or ~None~. |
 | Ownership and threads | Plain data the caller owns; it holds no handle. Not thread-safe to mutate; reading it from several threads is safe. |
 | Raises | none |
-| Defaults | none: the three fields are required, in this order or by keyword. |
+| Defaults | ~dipole_e_bohr=None~; the first three fields are required, in this order or by keyword. |
 
 *** ~cpmdc.Evaluation.energy_h~
 
@@ -1406,6 +1463,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
 | Raises | none |
 | Defaults | No default. |
+
+*** ~cpmdc.Evaluation.dipole_e_bohr~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~dipole_e_bohr (attribute)~ |
+| Units | Electron Bohr. |
+| Shape and dtype | Three ~float~ values in Cartesian x, y, z order, or ~None~ unless OpenCPMD recomputed the dipole for the current geometry. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | ~None~. |
 
 *** ~cpmdc.Potential~
 
@@ -1482,6 +1550,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Shape and dtype | Returns a ~bool~. |
 | Ownership and threads | Calls ~cpmdc_available()~, which initialises the embed on the first call, so call it from one thread first; otherwise thread-safe. MPI: local. |
 | Raises | none: cannot fail, even on a closed session. |
+| Defaults | none |
+
+*** ~cpmdc.Session.dipole_possible~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~dipole_possible()~ |
+| Units | none |
+| Shape and dtype | Returns a ~bool~: before the first step it reports whether OpenCPMD is linked; afterward it reports whether the last evaluation produced a dipole. |
+| Ownership and threads | Reads the session handle and its last dipole state. Not thread-safe against evaluation or close on the same session. MPI: local. |
+| Raises | none: a closed session and the reference evaluator return ~False~. |
 | Defaults | none |
 
 *** ~cpmdc.Session.calculate_au~
@@ -1581,6 +1660,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Shape and dtype | N rows of three floats in; a new N by 3 ~list[list[float]]~ out. |
 | Ownership and threads | Stateless pure function: thread-safe, keeps nothing, returns new objects. |
 | Raises | none: a row that is not a sequence of numbers raises the ordinary ~TypeError~ of the multiplication. |
+| Defaults | none |
+
+*** ~cpmdc.dipole_to_e_angstrom~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~dipole_to_e_angstrom(dipole_e_bohr)~ |
+| Units | Electron Bohr in, e*Angstrom out. |
+| Shape and dtype | Three Cartesian floats in; a new list of three floats out. |
+| Ownership and threads | Stateless pure function: thread-safe, keeps nothing, returns a new object. |
+| Raises | ~ValueError~ when there are not three components. |
 | Defaults | none |
 
 *** ~cpmdc.stress_to_ev_per_angstrom3~
@@ -2115,6 +2205,7 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 | free_energy | eV | scalar ~float~ | Equal to ~energy~. | As for ~energy~. |
 | forces | eV/Angstrom | (N, 3) ~float64~ array | The negative nuclear gradient ~-dE/dR~. | As for ~energy~. |
 | stress | eV/Angstrom^3 | (6,) ~float64~ array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, ~(1/V) dE/d(strain)~, the opposite of the OpenCPMD sign; shear parts are averaged. | ~PropertyNotImplementedError~ for a cluster (every ~pbc~ flag false) or for a step the library gave no stress for; ~ValueError~ for a partly periodic cell. |
+| dipole | e*Angstrom | (3,) ~float64~ Cartesian array | Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum. | ~PropertyNotImplementedError~ when the reference, isolated, k-point or unrequested evaluation produced no dipole. |
 
 * ASE parameters
 
