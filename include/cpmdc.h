@@ -237,8 +237,14 @@ typedef struct CPMDCSession CPMDCSession;
  *
  * @param params_capnp Pointer to an unpacked flat `CPMDParams` message.
  * @param params_capnp_size_bytes Size of `params_capnp` in bytes.
- * @return 0 on success, -1 on parse or configuration failure.
- *         Failure text is `cpmdc_last_error()`.
+ * @return 0 on success, -1 on a NULL or empty buffer, a parse, render, or
+ *         configuration failure, an embed that is not available, or an
+ *         allocation failure. Failure text is `cpmdc_last_error()`.
+ *
+ * The call replaces the process-wide parameters that `cpmdc_energy()`,
+ * `cpmdc_energy_gradient()`, and `cpmdc_energy_forces()` evaluate with, and
+ * makes the process-wide calculator the active one, which the no-session
+ * `cpmdc_last_*` getters read. No `CPMDCSession` is modified.
  */
 CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_size_bytes);
 
@@ -260,15 +266,34 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * lists. Overlay fields without a CPMD lowering are rejected and reported
  * through `cpmdc_last_error()`.
  *
- * @return 0 on success, -1 on parse, lowering, or apply failure.
+ * A message with neither the arm nor an overlay applies nothing and returns
+ * 0. An arm other than `none` and `cpmd` is rejected.
+ *
+ * @return 0 on success, -1 on a NULL or empty buffer, a parse, lowering, or
+ *         apply failure, or an embed that is not available.
  */
 CPMDC_API int cpmdc_configure(const void *config_capnp, size_t config_capnp_size_bytes);
 
 /**
  * @brief Compute energy and nuclear gradient for an atomic configuration.
  *
- * Positions are Angstrom; gradient is Hartree/Bohr (CPMD ionic forces are
- * negated into a nuclear gradient for API symmetry with nwchemc).
+ * Positions are Angstrom, `3 * n_atoms` doubles, atom-major. The gradient
+ * buffer holds `3 * n_atoms` doubles and receives Hartree/Bohr (CPMD ionic
+ * forces are negated into a nuclear gradient for API symmetry with nwchemc).
+ * Atomic numbers must be in 1..118.
+ *
+ * Each call applies `params_capnp` like `cpmdc_set_params()` and then
+ * evaluates. `cpmdc_set_params()` detaches the process image without clearing
+ * the stored orbitals: a call whose functional, deck, cutoff, charge,
+ * multiplicity, atom count, and elemental composition match the latched basis,
+ * and whose step without a cell matches a latched state that also has no cell
+ * (`CPMDC_CELL_IN_PLACE` does not apply without a cell, because
+ * `embed_cell_moves_in_place` returns false when `has_cell` is 0), skips full
+ * CPMD setup. It then starts the SCF from the stored orbitals when the
+ * geometry is within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) of a stored
+ * geometry, and from the deck's guess without full setup beyond that limit. Any
+ * other call runs full CPMD setup and starts from a cold SCF. On failure `ok`
+ * is 0, `message` holds the reason, and `cpmdc_last_error()` repeats it.
  */
 CPMDC_API CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                             const int *atomic_numbers,
@@ -296,13 +321,37 @@ CPMDC_API CPMDCResult cpmdc_energy_forces(int n_atoms, const double *positions_a
 /**
  * @brief Bind this rank to one CPMD calculator of @p ranks_per_calc ranks.
  *
- * Collective on MPI_COMM_WORLD, once, before the first energy call.
- * World size must divide into groups of ranks_per_calc. Each group is one
- * CPMD calculator: its own communicator, its own wavefunction, the same deck.
- * A value of zero or less takes the whole world as one group.
- * Returns the group index, or -1 when the split is refused or the library
- * carries no CPMD backend. Failure text is `cpmdc_last_error()`.
- * A second call returns the same index and does not split again.
+ * Collective on MPI_COMM_WORLD, before the first energy call. Each group is
+ * one CPMD calculator: its own communicator, its own wavefunction, the same
+ * deck.
+ *
+ * On an OpenCPMD build the call starts MPI with `MPI_Init` when MPI is not
+ * running, before it looks at @p ranks_per_calc. No other build starts MPI:
+ * the reference build and the link stub return -1 without calling MPI.
+ *
+ * How ranks are divided. A value of zero or less means the world size, which
+ * makes one group of every rank. Otherwise the world size must be a multiple
+ * of @p ranks_per_calc. There is no remainder group and no smaller last
+ * group: a world size that is not a multiple, or a value above the world
+ * size, is refused on every rank and nothing is split. The groups are
+ * consecutive blocks of world ranks. Group `g` holds the world ranks
+ * `g * ranks_per_calc` to `(g + 1) * ranks_per_calc - 1`, and there are
+ * `world_size / ranks_per_calc` groups. A rank is in group
+ * `world_rank / ranks_per_calc` (integer division) and has rank
+ * `world_rank % ranks_per_calc` inside it; the group's first rank is its
+ * parent rank.
+ *
+ * Returns the group index, or -1 when the world size is not a multiple of
+ * @p ranks_per_calc, `MPI_Comm_split` returns an error, or the library
+ * carries no CPMD backend (the reference build and the stub). Failure text is
+ * `cpmdc_last_error()`.
+ *
+ * The first call that is not refused splits `MPI_COMM_WORLD` with
+ * `MPI_Comm_split`. A later call does not split again, whether the
+ * communicator in use came from an earlier bind or from
+ * `cpmdc_adopt_calculator_comm()`. It checks its own @p ranks_per_calc as
+ * above and returns `world_rank / ranks_per_calc` for that value, which is
+ * the index of the group in use only when the value is the same.
  */
 CPMDC_API int cpmdc_bind_calculator(int ranks_per_calc);
 
@@ -330,9 +379,10 @@ CPMDC_API int cpmdc_bind_calculator(int ranks_per_calc);
  * does not block the call. If any rank of the group has a live session that
  * has evaluated, every rank returns -1 and the stored communicator stays as
  * it was.
- * Returns -1 when `comm` is null, `comm_bytes` is not the size of an
- * `MPI_Comm`, MPI is not initialized, or this build has no MPI. Failure
- * text is `cpmdc_last_error()`.
+ * Returns the calculator index, or -1 when `comm` is null, `comm_bytes` is
+ * not the size of an `MPI_Comm`, `comm` is `MPI_COMM_NULL`, MPI is not
+ * initialized, or this build has no MPI. Failure text is
+ * `cpmdc_last_error()`.
  * Call adopt, `cpmdc_session_create`, and `cpmdc_session_destroy` from one
  * thread: `g_evaluated_sessions` and `g_active_session` are process globals, and
  * OpenCPMD state is process-global too.
@@ -345,8 +395,10 @@ CPMDC_API int cpmdc_adopt_calculator_comm(const void *comm, size_t comm_bytes,
  *
  * `out` receives an `MPI_Comm` of `nbytes` bytes. On an OpenCPMD build that
  * handle is `mp_comm_world`. Returns 0 when a calculator communicator is
- * stored, and -1 when `out` is null, `nbytes` is not that size, or no
- * communicator has been adopted. Does not write `cpmdc_last_error()`.
+ * stored, and -1 when `out` is null, `nbytes` is not that size, or none is
+ * stored. `cpmdc_adopt_calculator_comm()` stores one on every build with
+ * MPI; `cpmdc_bind_calculator()` stores its split on an OpenCPMD build only.
+ * Does not write `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_adopted_comm(void *out, size_t nbytes);
 
@@ -363,11 +415,21 @@ CPMDC_API CPMDCSession *cpmdc_session_create(const void *params_capnp,
 /**
  * @brief Replace Cap'n Proto parameters before the session accepts topology.
  *
- * The call replaces the parameters and drops any common overlay a
- * `cpmdc_session_configure()` call installed. It is all or nothing: when it
+ * The first evaluation call that passes its argument checks fixes the
+ * topology, whether or not the evaluation then succeeds. The session keeps a
+ * copy of the new bytes, drops any `common` overlay that
+ * `cpmdc_session_create_from_config()` or `cpmdc_session_configure()`
+ * installed, and keeps a constant cutoff set by
+ * `cpmdc_session_set_constant_cutoff()`. The call is all or nothing: when it
  * returns -1 the session keeps its previous parameters, rendered deck,
  * effective scalars, overlay, and embed state, and only `cpmdc_last_error()`
  * changes.
+ *
+ * @return 0, or -1 when `session` is `NULL`, the buffer is NULL or empty,
+ * the topology is fixed, the message does not parse or render, the embed
+ * is not available, or an allocation fails. Every failure returns -1.
+ * Failure text is `cpmdc_last_error()`; it is `out of memory` when the copy
+ * of the buffer cannot be allocated.
  */
 CPMDC_API int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
                                        size_t params_capnp_size_bytes);
@@ -399,6 +461,11 @@ CPMDC_API int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cu
  *
  * Resolves the config exactly like `cpmdc_configure()` and installs the
  * effective `CPMDParams` on a new session.
+ *
+ * @return The session, or `NULL` on a failure `cpmdc_configure()` reports,
+ * and when the message carries nothing CPMD can apply (neither the `cpmd`
+ * arm nor an overlay), unlike `cpmdc_configure()`, which returns 0 then.
+ * The reason is `cpmdc_last_error()`.
  */
 CPMDC_API CPMDCSession *cpmdc_session_create_from_config(const void *config_capnp,
                                                          size_t config_capnp_size_bytes);
@@ -406,10 +473,16 @@ CPMDC_API CPMDCSession *cpmdc_session_create_from_config(const void *config_capn
 /**
  * @brief Configure an existing session from a `PotentialConfig` message.
  *
- * Accepted only before the session evaluates; resolution matches
- * `cpmdc_configure()`. The call is all or nothing: when it returns -1 the
- * session keeps its previous parameters, overlay, and effective settings, and
- * only `cpmdc_last_error()` changes.
+ * Accepted only before the session accepts a topology, as for
+ * `cpmdc_session_set_params()`; resolution matches `cpmdc_configure()`. A
+ * message with nothing CPMD can apply changes nothing and returns 0. The call
+ * is all or nothing: when it returns -1 the session keeps its previous
+ * parameters, overlay, and effective settings, and only `cpmdc_last_error()`
+ * changes.
+ *
+ * @return 0, or -1 when `session` is `NULL`, the config fails as in
+ * `cpmdc_configure()`, or it has something to apply and the topology is
+ * fixed. The reason is `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
                                       size_t config_capnp_size_bytes);
@@ -496,8 +569,14 @@ CPMDC_API CPMDCResult cpmdc_session_energy_forces(CPMDCSession *session, int n_a
 /**
  * @brief Compute energy and forces for one Cap'n Proto `ForceInput` step.
  *
- * Session keeps persistent `CPMDParams`; each call supplies geometry. Returned
- * energy/forces use CPMD native units: Hartree and Hartree/Bohr.
+ * Session keeps persistent `CPMDParams`; each call supplies geometry. The
+ * positions and cell are read in `ForceInput.lengthUnit`. The returned
+ * energy and the forces use CPMD native units whatever the message names:
+ * Hartree and Hartree/Bohr, forces being the negative nuclear gradient.
+ * `forces_h_bohr` receives `3 * n_atoms` doubles and `forces_len` is its
+ * capacity in doubles; a `forces_len` below `3 * n_atoms` fails with
+ * `ok == 0`. The same topology and stored-result rules as
+ * `cpmdc_session_energy_forces()` apply.
  */
 CPMDC_API CPMDCResult cpmdc_session_calculate_forces(
     CPMDCSession *session, const void *force_input_capnp,
@@ -511,9 +590,13 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_forces(
  * `ForceInput`, output energy/forces converted to `ForceInput.energyUnit` and
  * `energyUnit / lengthUnit`.
  *
- * When `potential_result_capnp_capacity_bytes` is too small, returns `ok == 0`,
- * writes the required byte count to `potential_result_capnp_size_bytes`, and
- * does not evaluate CPMD.
+ * When `potential_result_capnp_capacity_bytes` is too small, or
+ * `potential_result_capnp` is `NULL`, returns `ok == 0`, writes the required
+ * byte count to `potential_result_capnp_size_bytes`, and does not evaluate
+ * CPMD. `potential_result_capnp_size_bytes` is required: a `NULL` there
+ * fails with `ok == 0`. It is set to 0 when the `ForceInput` does not parse
+ * or its geometry is invalid.
+ * Size the buffer with `cpmdc_potential_result_size_for_force_input()`.
  */
 CPMDC_API CPMDCResult cpmdc_session_calculate_result(
     CPMDCSession *session, const void *force_input_capnp,
@@ -528,21 +611,40 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * without a Cap'n Proto encoder (C, Fortran `BIND(C)`, LAMMPS plugins, i-PI
  * clients). The arguments come in the order of
  * `cpmdc_session_energy_forces()`: atom count, positions, atomic numbers.
- * Every quantity is atomic units:
+ * Every quantity is atomic units.
+ *
+ * `session` comes from `cpmdc_session_create()` or
+ * `cpmdc_session_create_from_config()` and is not yet destroyed. Every
+ * pointer is borrowed for the call: the session copies what it keeps, and
+ * the caller allocates and owns every buffer. The call is not thread-safe,
+ * and with OpenCPMD linked it is collective on the calculator communicator,
+ * so every rank of a calculator passes the same arguments in the same order.
+ * The stub build returns -1.
  *
  * - `positions_bohr`: `3 * n_atoms` doubles, Bohr, atom-major row-major
  *   (`x0 y0 z0 x1 ...`).
- * - `atomic_numbers`: `n_atoms` values in 1..118.
- * - `cell_bohr`: `NULL` for a system without a cell (the deck's `CELL`
- *   applies, or a 12 Angstrom cube), or 9 doubles, Bohr, row-major with one
- *   lattice vector per row (`a_x a_y a_z b_x ...`), the layout of
- *   `ForceInput.box`. An all-zero cell is a system without a cell too.
+ * - `atomic_numbers`: `n_atoms` values in 1..118. A value outside that range
+ *   fails the call.
+ * - `cell_bohr`: `NULL` for a step without a cell, or 9 doubles, Bohr,
+ *   row-major with one lattice vector per row (`a_x a_y a_z b_x ...`), the
+ *   layout of `ForceInput.box`. A cell with a non-zero entry replaces the
+ *   deck's `CELL`. `NULL` and an all-zero cell give the deck the same
+ *   treatment: its `CELL` stays, or a 12 Angstrom cube when it has none.
+ *   The call still keeps an all-zero cell as a step with a cell, which is
+ *   not a step without one. A `NULL` cell and an all-zero cell are different
+ *   steps for the repeat match below. With OpenCPMD linked, stored orbitals
+ *   follow the same rule: a step with an all-zero cell can start from them
+ *   only when the latched step had a cell equal to it, never when it had
+ *   none, and a `NULL` step only when the latched step had none.
  * - `energy_h`: receives the total energy, Hartree.
  * - `forces_h_bohr`: receives `3 * n_atoms` forces, Hartree/Bohr, laid out as
  *   the positions. Forces are the negative nuclear gradient, `-dE/dR`. On
- *   an isolated OpenCPMD deck the atoms are first moved to the middle of the
- *   deck's cell and the net force is removed (`CPMDC_RECENTER`), so the
- *   energy and forces do not depend on where the caller puts the atoms.
+ *   an isolated OpenCPMD deck the atoms are first moved rigidly so that their
+ *   centre of mass is the middle of the deck's cell along every non-periodic
+ *   lattice vector, and the net force of the grid is removed
+ *   (`CPMDC_RECENTER`, default `mass`), so the energy and forces do not
+ *   depend on where the caller puts the atoms. The caller's positions are
+ *   not changed.
  * - `virial_h`: `NULL`, or receives 9 doubles, Hartree, row-major, the
  *   virial `-dE/d(strain)`. It is `|det(cell)|` times the stress of
  *   `cpmdc_session_last_stress()`, whose sign is `-(1/V) dE/d(strain)`.
@@ -559,9 +661,22 @@ CPMDC_API CPMDCResult cpmdc_session_calculate_result(
  * then fails, and it is never rolled back. A repeat of the stored positions
  * and cell returns the stored result.
  *
- * @return 0 on success; -1 on a `NULL` session or output, `n_atoms` outside
- *         1..`INT_MAX / 3`, a topology change, or a failed evaluation.
- *         Failure text is `cpmdc_last_error()`.
+ * A repeat matches the stored step atom by atom, in any atom order, when
+ * the element agrees and every position component and every cell component
+ * agrees within 1e-8 Angstrom, and when both steps have a cell or both have
+ * none. A `NULL` cell and an all-zero cell are different steps for that
+ * match. A repeat does not evaluate: it copies the stored forces into the
+ * caller's atom order, returns the stored energy, and forms the virial from
+ * the stress that evaluation stored.
+ *
+ * @return 0 on success; -1 on a `NULL` `session`, `positions_bohr`,
+ *         `atomic_numbers`, `energy_h`, or `forces_h_bohr`; `n_atoms`
+ *         outside 1..`INT_MAX / 3`; an atomic number outside 1..118; a
+ *         change of the atom count or of the element counts after the
+ *         topology is fixed; an allocation failure; or a failed evaluation.
+ *         Failure text is `cpmdc_last_error()`, empty after a success.
+ *         On -1 `energy_h` and `virial_h` are not written, and the contents
+ *         of `forces_h_bohr` are unspecified.
  */
 CPMDC_API int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                          const double *positions_bohr,
@@ -620,13 +735,17 @@ CPMDC_API size_t cpmdc_potential_result_size_for_force_input(
  * Returns 0 on success. On a too-small buffer (including the pure size query
  * `capabilities_capnp == NULL`, `capabilities_capnp_capacity_bytes == 0`)
  * returns -1 with `*capabilities_capnp_size_bytes` set to the required size.
+ * A `NULL` `capabilities_capnp_size_bytes` returns -1 and writes nothing.
  * That -1 does not write `cpmdc_last_error()`.
  */
 CPMDC_API int cpmdc_capabilities_result(void *capabilities_capnp,
                                         size_t capabilities_capnp_capacity_bytes,
                                         size_t *capabilities_capnp_size_bytes);
 
-/** @brief Compiled library version string. */
+/**
+ * @brief Compiled library version string: `cpmdc/` followed by the version,
+ *        or `cpmdc-stub/` followed by the version in the link stub.
+ */
 CPMDC_API const char *cpmdc_version(void);
 
 /**
@@ -636,8 +755,8 @@ CPMDC_API const char *cpmdc_version(void);
  * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
  * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
  * `cpmdc_session_create()`,
- * `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,
- * `cpmdc_session_copy_orbitals()`,
+ * `cpmdc_session_set_params()`, `cpmdc_session_set_constant_cutoff()`,
+ * `cpmdc_session_select_orbitals()`, `cpmdc_session_copy_orbitals()`,
  * `cpmdc_session_create_from_config()`,
  * `cpmdc_session_configure()`, `cpmdc_potential_result_size_for_force_input()`,
  * and every evaluation entry point (`cpmdc_energy()`,
@@ -664,7 +783,14 @@ CPMDC_API int cpmdc_abi_version(void);
 /** @brief 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub. */
 CPMDC_API int cpmdc_available(void);
 
-/** @brief Finalize an owned embedded CPMD runtime. */
+/**
+ * @brief Mark the embedded runtime finalized.
+ *
+ * Afterwards every evaluation fails with "CPMD embed not available" and
+ * `cpmdc_available()` returns 0, for the rest of the process. The call does
+ * not call `MPI_Finalize`, does not destroy sessions, and does not free
+ * OpenCPMD module state.
+ */
 CPMDC_API void cpmdc_finalize(void);
 
 /**

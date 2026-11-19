@@ -100,10 +100,10 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 | Item | Description |
 |--------+--------|
 | Units | none |
-| Layout | none: ~ranks_per_calc~ is a rank count; the world is split into consecutive blocks of that size. |
+| Layout | none: ~ranks_per_calc~ is a rank count; the world is split into consecutive blocks of that size, group ~g~ holding world ranks ~g * ranks_per_calc~ to ~(g + 1) * ranks_per_calc - 1~. |
 | Ownership | none: the library keeps the new communicator and the caller cannot free it. |
-| Threads and MPI | Not thread-safe: call once, from one thread, before the first evaluation. MPI: collective on ~MPI_COMM_WORLD~; initialises MPI when it is not running and splits the world with ~MPI_Comm_split~; every rank passes the same value. |
-| Returns and errors | Returns this rank's calculator index, 0 or more; -1 when the world size is not a multiple of ~ranks_per_calc~, the split is refused, or the library has no CPMD backend (the reference build always returns -1); the text is ~cpmdc_last_error()~. A second call returns the same index and does not split again. |
+| Threads and MPI | Not thread-safe: call from one thread, before the first evaluation. MPI: collective on ~MPI_COMM_WORLD~; on an OpenCPMD build it initialises MPI when it is not running, and the reference build and the link stub never call MPI; it splits the world with ~MPI_Comm_split~; every rank passes the same value. |
+| Returns and errors | Returns this rank's calculator index ~world_rank / ranks_per_calc~, 0 or more; -1 when the world size is not a multiple of ~ranks_per_calc~ (no remainder group is made, nothing is split, and every rank gets -1), ~MPI_Comm_split~ returns an error, or the library has no CPMD backend (the reference build and the link stub always return -1); the text is ~cpmdc_last_error()~. A second call does not split again; it returns the index its own ~ranks_per_calc~ gives, and checks that value as the first call does. |
 | Python | not wrapped; use ~cpmdc.lammps.FixExternal~ or the host's own communicator. |
 | Defaults | ~ranks_per_calc~ zero or less takes the whole world as one calculator |
 

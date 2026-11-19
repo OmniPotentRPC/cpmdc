@@ -59,9 +59,12 @@ each contract.
 
 The suites group the tests by layer:
 
+- ~schema~ :: ~schema/Potentials.capnp~ matches the pinned ~potentials-schema~
+  subproject
 - ~stub~ :: ~tests/test_stub_abi.c~
 - ~abi~ :: exported header and feature-discovery surface
 - ~cmocka~ / ~capnp~ :: structured ~CPMDParams~ deck rendering
+- ~capnp-fortran~ :: Fortran ~CPMDParams~ decoding (~capnp-fortran-apply~)
 - ~params~ / ~inventory~ :: schema field coverage and CPMD catalog feature IDs
 - ~socket~ :: ~ForceInput~ sizing and session ~PotentialResult~ buffer contract
 - ~e2e~ :: one-shot and session calls through the deterministic reference
@@ -69,7 +72,24 @@ The suites group the tests by layer:
   ~cpmdc_energy_forces~ on one ~ForceInput~, and ~e2e-optimizer-session~ runs
   three geometry steps on one ~CPMDCSession~, the topology rejection, and a
   second session for a change of species
+- ~fd-check~ :: ~cpmdc-fd-check~ against the reference evaluator
 - ~docs~ :: the documentation examples and the reference contract
+- ~embed~ :: the embedded OpenCPMD shell, shared-library loading, and the
+  patch checks
+- ~dlopen~ :: loading ~libcpmdc.so~ with ~dlopen~ (~shared-dlopen-abi~)
+- ~examples~ :: ~example-host-step~, the documented examples, and the
+  tutorial runs
+- ~python~ :: the Python package, its type check, and the reference audit
+- ~packaging~ :: an installed ~pkg-config~ consumer
+  (~cpmdc-installed-package-consumer~)
+- ~restart~ :: the RESTART file API; ~restart-con~ adds the optional readcon
+  bridge when configured with ~-Dwith_readcon=true~
+- ~mpi~ :: the MPI tests, which exist when MPI is found
+- ~opencpmd~ / ~water~ :: the live OpenCPMD ~adopt-comm-shell~,
+  ~bind-calculator-shell~, and ~water-capnp-cli-parity~ tests when configured
+  with ~-Dwith_cpmd=true~
+- ~pwscale~ :: the plane-wave scaffold, which exists when configured with
+  ~-Dwith_pwscale=true~
 
 cmocka is resolved through pkg-config.
 The parser tests use Cap'n Proto text fixtures encoded by the ~capnp~ CLI

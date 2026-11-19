@@ -43,7 +43,7 @@ Rank 0 of ~MPI_COMM_WORLD~ is then CPMD's parent rank.
 ~ranks_per_calc~ consecutive ranks.
 Each group becomes one CPMD calculator with its own communicator and its own
 wavefunction, running the same deck.
-Call it on every rank, once, before the first evaluation:
+Call it on every rank, before the first evaluation:
 
 #+begin_src c
 #include <cpmdc.h>
@@ -69,15 +69,55 @@ int main(int argc, char **argv) {
 }
 #+end_src
 
+** How the ranks are divided
+~ranks_per_calc~ is the number of ranks in each group.
+The world size must be a multiple of it.
+~cpmdc~ makes no group of a different size: there is no remainder group and no
+smaller last group.
+A world size that is not a multiple, such as 6 ranks with ~ranks_per_calc~ 4, or
+a ~ranks_per_calc~ above the world size, is refused on every rank and nothing is
+split.
+
+The groups are consecutive blocks of world ranks.
+Group ~g~ holds world ranks ~g * ranks_per_calc~ to
+~(g + 1) * ranks_per_calc - 1~, and there are ~world_size / ranks_per_calc~
+groups.
+With 16 ranks and ~ranks_per_calc~ 4, group 0 is ranks 0 to 3, group 1 is ranks
+4 to 7, and so on.
+A rank's group index is ~world_rank / ranks_per_calc~, with integer division,
+and its rank inside the group is ~world_rank % ranks_per_calc~.
+The group's first rank, world rank ~group * ranks_per_calc~, is its parent rank.
+
 | Argument or result | Meaning |
 |--------------------+---------|
 | ~ranks_per_calc > 0~ | ranks per calculator; the world size must be a multiple of it |
-| ~ranks_per_calc <= 0~ | one calculator over the whole world |
-| return value ~>= 0~ | index of this rank's calculator, ~world_rank / ranks_per_calc~ |
-| return value ~-1~ | the split was refused, or the library has no CPMD backend (the default build and the stub) |
+| ~ranks_per_calc <= 0~ | the world size is used: one calculator over every rank |
+| return value ~>= 0~ | index of this rank's calculator: ~world_rank / ranks_per_calc~, or 0 when ~ranks_per_calc <= 0~ |
+| return value ~-1~ | the world size is not a multiple of ~ranks_per_calc~, ~MPI_Comm_split~ returned an error, or the library has no CPMD backend (the default build and the stub) |
 
-A second call returns the same index without splitting again.
-The group's first rank, world rank ~group * ranks_per_calc~, is its parent rank.
+A call that returns -1 for the world size splits nothing, and a later call with
+a valid value can still split.
+~cpmdc_last_error()~ gives the reason.
+
+** Calls after the first
+The first call that is not refused splits ~MPI_COMM_WORLD~.
+A later call does not split again, also when the communicator in use came from
+~cpmdc_adopt_calculator_comm~ instead of an earlier bind.
+It still checks its own ~ranks_per_calc~ as above, and it returns
+~world_rank / ranks_per_calc~ for that value.
+That is the index of the group in use only when the value is the same as the
+one that made the split.
+
+** MPI start
+On an OpenCPMD build, ~cpmdc_bind_calculator~ calls ~MPI_Init~ when MPI is not
+running, before it looks at ~ranks_per_calc~, so the call starts MPI even when
+it then refuses the value.
+~cpmdc~ starts MPI only in OpenCPMD builds.
+The default build, which runs the reference evaluator, and the link stub never
+call ~MPI_Init~.
+In those builds ~cpmdc_bind_calculator~ returns -1 without calling MPI, and
+~cpmdc_adopt_calculator_comm~ returns -1 while MPI is not running, so the host
+has to start MPI itself.
 ~cpmdc~ remembers the split in ~embed_calculator_bound~.
 ~mp_start~ assigns ~mp_comm_world~ only when CPMD itself calls ~MPI_Init~, and
 ~cpmdc_bind_calculator~ has already initialised MPI and stored the calculator
