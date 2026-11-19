@@ -27,8 +27,11 @@ def test_wheel_library_is_the_reference_build(params):
 
 
 def test_calculator_runs_from_the_wheel(params, periodic_params):
+    from ase.calculators.calculator import get_calculator_class
+
     from cpmdc.ase import CPMDCCalculator
 
+    assert get_calculator_class("cpmdc") is CPMDCCalculator
     cluster = Atoms("OHH", positions=WATER)
     with CPMDCCalculator(params) as calc:
         cluster.calc = calc
@@ -37,3 +40,27 @@ def test_calculator_runs_from_the_wheel(params, periodic_params):
     with CPMDCCalculator(periodic_params) as calc:
         periodic.calc = calc
         assert periodic.get_stress().shape == (6,)
+
+
+def test_wheel_exposes_ase_plugin_entry_point(params):
+    from importlib.metadata import entry_points
+
+    import cpmdc.ase as ase_mod
+
+    eps = [ep for ep in entry_points(group="ase.plugins") if ep.name == "cpmdc"]
+    assert len(eps) == 1
+    assert eps[0].value == "cpmdc.ase"
+    assert eps[0].load() is ase_mod
+    pytest.importorskip("ase._4.plugins", reason="ASE v4 plugin API is not present")
+    from ase._4.plugins import PluginCollection
+
+    plugins = PluginCollection.from_entry_points().calculators
+    by_name = {plugin.name: plugin for plugin in plugins}
+    assert "cpmdc" in by_name
+    cls = by_name["cpmdc"]()
+    assert cls is ase_mod.CPMDCCalculator
+    atoms = Atoms("OHH", positions=WATER)
+    with cls(params) as calc:
+        atoms.calc = calc
+        assert atoms.get_forces().shape == (3, 3)
+
