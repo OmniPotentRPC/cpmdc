@@ -181,7 +181,7 @@ def build_llms_full() -> str:
         chunks.append("")
         chunks.append(org_plaintext(path.read_text(encoding="utf-8")))
         chunks.append("")
-    return "\n".join(chunks)
+    return "\n".join(chunks).rstrip("\n") + "\n"
 
 
 def write_outputs() -> tuple[str, str]:

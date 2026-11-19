@@ -11095,4 +11095,3 @@ troubleshooting (file:../howto/troubleshooting.org).
 | Call the C ABI from a host process | Embedding cpmdc (file:../howto/embedding.org) and the C ABI reference (file:../reference/c-abi.org) |
 | Choose structured `CPMDParams` fields | Write a CPMDParams message (file:../howto/write-cpmdparams.org) and the CPMD option mapping (file:../reference/cpmd-options.org) |
 | Understand sessions, units, and topology | Architecture (file:../explanation/architecture.org) |
-
