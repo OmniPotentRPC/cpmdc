@@ -58,7 +58,6 @@ add_project_arguments(
 # Every in-tree target but libcpmdc compiles the cpmdc sources or links a
 # static archive. libcpmdc adds CPMDC_BUILDING_LIBRARY, which takes precedence.
 add_project_arguments('-DCPMDC_STATIC', language: 'c')
-pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
 dl_dep = dependency('dl', required: false)
 if not dl_dep.found()
@@ -554,22 +553,40 @@ if not get_option('with_gromacs_shim').disabled() and not get_option('with_pytho
   # build/tools/gromacs here and <libdir>/cpmdc/gromacs once installed.
   subdir('tools/gromacs/pkgconfig')
 endif
-pkgconfig.generate(
-  name: 'cpmdc-restart',
-  filebase: 'cpmdc-restart',
-  libraries: cpmdc_restart_lib,
-  subdirs: 'cpmdc',
-  version: meson.project_version(),
-  description: 'C reader and writer for CPMD RESTART files',
-)
-pkgconfig.generate(
-  name: 'cpmdc',
-  filebase: 'cpmdc',
-  libraries: cpmdc_shared,
-  subdirs: 'cpmdc',
-  version: meson.project_version(),
-  description: 'Stable C ABI for embedding CPMD',
-)
+pc_up = ['${pcfiledir}']
+foreach _ : range(get_option('libdir').split('/').length() + 1)
+  pc_up += ['..']
+endforeach
+pc_prefix = '/'.join(pc_up)
+foreach pc_spec : [
+  [
+    'cpmdc-restart',
+    'cpmdc_restart',
+    'C reader and writer for CPMD RESTART files',
+  ],
+  [
+    'cpmdc',
+    'cpmdc',
+    'Stable C ABI for embedding CPMD',
+  ],
+]
+  pc_conf = configuration_data()
+  pc_conf.set('PREFIX', pc_prefix)
+  pc_conf.set('INCLUDEDIR', pc_prefix / get_option('includedir'))
+  pc_conf.set('LIBDIR', '${pcfiledir}/..')
+  pc_conf.set('NAME', pc_spec[0])
+  pc_conf.set('LIB', pc_spec[1])
+  pc_conf.set('DESCRIPTION', pc_spec[2])
+  pc_conf.set('VERSION', meson.project_version())
+  configure_file(
+    input: 'cmake/cpmdc.pc.in',
+    output: pc_spec[0] + '.pc',
+    configuration: pc_conf,
+    install: true,
+    install_dir: get_option('libdir') / 'pkgconfig',
+    install_tag: 'devel',
+  )
+endforeach
 cmake = import('cmake')
 cmake.configure_package_config_file(
   name: 'cpmdc',
