@@ -767,11 +767,8 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define publish_pid() ((unsigned long)_getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/' || (c) == '\\')
 #else
-/* 0666 under the umask is what fopen(path, "wb") created before. */
-#define publish_open(p) open((p), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666)
 #define publish_fdopen fdopen
 #define publish_close close
-#define publish_unlink unlink
 #define publish_strdup strdup
 #define publish_pid() ((unsigned long)getpid())
 #define CPMDC_IS_SEP(c) ((c) == '/')
@@ -1375,6 +1372,7 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
         seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
 #ifndef _WIN32
     snprintf(tmpname, sizeof tmpname, ".cpmdc-tmp-%016lx", token);
+    /* 0666 under the umask is what fopen(path, "wb") created before. */
     fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
     if (fd < 0 && errno != EEXIST)
       break;

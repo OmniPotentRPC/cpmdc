@@ -638,6 +638,24 @@ if get_option('with_tests')
     suite: ['restart'],
     args: [meson.current_source_dir() / 'tests/restart_geo1.bin'],
   )
+  # A macro the active platform branch never expands is dead code.
+  cc_cmd = cc.cmd_array()
+  if host_machine.system() != 'windows' and cc_cmd.length() == 1 and cc.has_argument('-Wunused-macros')
+    test(
+      'restart-unused-macros',
+      find_program(cc_cmd[0]),
+      args: [
+        '-std=c11',
+        '-fsyntax-only',
+        '-DCPMDC_STATIC',
+        '-Werror=unused-macros',
+        '-I' + meson.current_source_dir() / 'include',
+        '-I' + meson.current_source_dir() / 'src',
+        meson.current_source_dir() / 'src/cpmdc_restart.c',
+      ],
+      suite: ['restart'],
+    )
+  endif
   if get_option('with_readcon')
     test(
       'restart-con-golden',
