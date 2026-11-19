@@ -1,5 +1,10 @@
 """ASE calculator for one cpmdc session.
 
+Importing this module registers :class:`CPMDCCalculator` under the name
+``"cpmdc"`` with :func:`ase.calculators.calculator.register_calculator_class`,
+so :func:`ase.calculators.calculator.get_calculator_class` returns it for
+``"cpmdc"``.
+
 Units are ASE units: energy in eV, forces in eV/Angstrom, stress in
 eV/Angstrom^3. Stress is Voigt order ``(xx, yy, zz, yz, xz, xy)`` and is
 ``(1/V) dE/d(strain)``, the ASE sign of the library tensor.
@@ -27,6 +32,7 @@ Importing this module imports ASE. ``import cpmdc`` does not.
 
 from __future__ import annotations
 
+import functools
 import os
 import warnings
 from contextlib import AbstractContextManager, nullcontext
@@ -42,6 +48,8 @@ from ase.calculators.calculator import (
     ReadError,
     all_changes,
     equal,
+    external_calculators,
+    register_calculator_class,
 )
 from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import workdir
@@ -402,3 +410,51 @@ class CPMDCCalculator(Calculator):
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self.get_spin_polarized = self._deprecated_get_spin_polarized
+
+
+def _register_calculator() -> None:
+    """Register :class:`CPMDCCalculator` with ASE under ``"cpmdc"`` once."""
+    if external_calculators.get("cpmdc") is CPMDCCalculator:
+        return
+    if "cpmdc" not in external_calculators:
+        register_calculator_class("cpmdc", CPMDCCalculator)
+    else:
+        external_calculators["cpmdc"] = CPMDCCalculator
+
+
+@functools.cache
+def _make_ase_plugins() -> frozenset[Any]:
+    """Return the ``ase.plugins`` set for ASE's plugin discovery.
+
+    ASE releases without ``ase._4.plugins`` get an empty set. The calculator
+    is named by dotted path, so building the set imports no cpmdc code.
+    """
+    try:
+        from ase._4.plugins.plugin import CalculatorPlugin
+    except ImportError:
+        return frozenset()
+    return frozenset(
+        {
+            CalculatorPlugin(
+                name="cpmdc",
+                citation="https://github.com/OmniPotentRPC/cpmdc",
+                implementation="cpmdc.ase.CPMDCCalculator",
+            ),
+        }
+    )
+
+
+def __getattr__(name: str) -> Any:
+    """Build ``__ase_plugins__`` on first read.
+
+    ``ase._4.plugins`` loads every ``ase.plugins`` entry point while it is
+    first imported. A module-level import of it here would run that load
+    from inside this import, find ``__ase_plugins__`` unset, and leave
+    ``ase._4.plugins.plugins`` without the calculator.
+    """
+    if name == "__ase_plugins__":
+        return _make_ase_plugins()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+_register_calculator()
