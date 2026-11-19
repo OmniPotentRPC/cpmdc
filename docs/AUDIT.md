@@ -280,9 +280,9 @@ OpenCPMD and GROMACS patches, whose blank context lines they broke. Every
 Org page that the audit touches passes `snapper --check` at
 `max_width = 80`.
 
-## Release audit at 8fe88c67
+## Release audit at c1a3f04b
 
-BASE is develop at `8fe88c67ab7b6312e7296765f826ee22bdc4c3f7`.
+BASE is develop at `c1a3f04b04b5222c111254269a4adef2b80ea30a`.
 
 The embedding how-to now ties the C ABI entry paths to status and error
 handling (`CPMDCResult`, `cpmdc_last_error`), orbital keys between steps,
