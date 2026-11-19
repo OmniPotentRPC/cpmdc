@@ -238,7 +238,7 @@ Read the docs in this order:
   [eOn through rgpot](docs/orgmode/tutorials/eon-rgpot.org), a minimisation
   driven by eOn with a `CPMDParams` file
 - How-tos: [install and build](docs/orgmode/howto/install.org),
-  [build and test cpmdc](docs/orgmode/tutorials/quickstart.org),
+  [build and test cpmdc](docs/orgmode/howto/quickstart.org),
   [OpenCPMD archive](docs/orgmode/howto/opencpmd-archive.org),
   [write a CPMDParams message](docs/orgmode/howto/write-cpmdparams.org),
   [embedding cpmdc](docs/orgmode/howto/embedding.org),
