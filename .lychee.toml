@@ -1,4 +1,4 @@
-# Configuration for `pixi run lychee`.
+# Configuration for `pixi run -e docs lychee`.
 # Options: https://lychee.cli.rs/guides/config/
 no_progress = true
 max_retries = 3

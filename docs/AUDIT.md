@@ -295,8 +295,8 @@ above.
 `.lychee.toml` excludes `https://doi.org/` links through a regex checked by
 `lychee-toml-excludes`, and accepts only `2xx` and `429` responses on URLs
 that are checked.
-The documentation workflow installs lychee 0.24.2 and runs the same source
-link check as `pixi run lychee` before `pixi r docbld`.
+The documentation workflow runs `pixi run -e docs lychee`, the same source link
+check as contributors, before `pixi r docbld`.
 
 `explanation/md-engines.org` had a duplicated Org heading before its
 references list; that duplicate is removed.
@@ -306,8 +306,8 @@ Verified on this tree:
 - `pixi run -e docs docbld` with `warningiserror = true`
 - `pixi run test-stub` (full default Meson suite)
 - `meson test -C build --suite docs`
-- lychee 0.24.2 over README, `docs/orgmode`, and news fragments (122 links,
-  9 excluded, 0 errors)
+- `pixi run -e docs lychee` (lychee 0.24.2) over README, `docs/orgmode`, and
+  news fragments (122 links, 9 excluded, 0 errors)
 
 Topics already documented elsewhere and matching the code at BASE:
 
@@ -323,10 +323,7 @@ Topics already documented elsewhere and matching the code at BASE:
 - rgpot `CPMDPot` in `tutorials/eon-rgpot.org`, `reference/environment.org`,
   and the glossary
 
-Remaining: `pixi run lychee` still expects lychee on `PATH`; the CI docs job
-installs it, and contributors can use the same `taiki-e/install-action` pin or
-cargo once rustc meets lychee 0.24.2.
-Constant-cutoff NPT methodology citations (Bernasconi et al. and related
+Remaining: constant-cutoff NPT methodology citations (Bernasconi et al. and related
 papers) were checked as written; excluded from lychee HTTP checks because
 publishers block automated HEAD.
 No cpmdc-specific method paper is cited beyond `CITATION.cff` and third-party

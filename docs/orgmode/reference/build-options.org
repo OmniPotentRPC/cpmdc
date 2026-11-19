@@ -66,7 +66,7 @@ The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 | ~check-api-reference~ | default | ~tests/test_reference_contract.py~: every public C and Python name is in the reference pages |
 | ~fortran-lint~ | default | ~fprettify --diff~ over ~src/*.f90~ |
 | ~prek~, ~prek-install~, ~prek-validate~ | default | pre-commit hooks from ~prek.toml~ |
-| ~lychee~ | default | link check over README, ~docs/orgmode~, and news fragments |
+| ~lychee~ | ~docs~ | link check over README, ~docs/orgmode~, and news fragments |
 | ~release-assert~, ~version-sync~, ~towncrier-draft~, ~release-cog-dry~ | default | release metadata checks, and ~version.txt~ copies |
 | ~mkrst~ | ~docs~ | export ~docs/orgmode~ to ~docs/source~ RST |
 | ~doxybuild~ | ~docs~ | Doxygen XML and Doxyrest pages for the public headers |

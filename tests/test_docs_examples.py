@@ -89,7 +89,7 @@ SKIP = {
     "contributing/index.org:2": "docs build needs the docs pixi environment",
     "contributing/index.org:3": "docs build needs the docs pixi environment",
     "contributing/index.org:4": "docs export needs emacs and ox-rst",
-    "contributing/index.org:5": "link check needs lychee",
+    "contributing/index.org:5": "link check needs the docs pixi environment",
     "tutorials/quickstart.org:0": "pixi run test-stub would re-enter this suite",
     "tutorials/quickstart.org:1": "reconfigures the tree",
     "tutorials/quickstart.org:2": "example-host-step is its own meson test",

@@ -37,6 +37,7 @@ platforms = ["linux-64"]
 doxygen = ">=1.13.2,<2"
 doxyrest = ">=2.1.2,<3"
 emacs = ">=30.2,<31"
+lychee = "==0.24.2"
 pandoc = ">=3.1,<4"
 sphinx = ">=8.0,<9"
 
@@ -60,7 +61,10 @@ prek-validate = { cmd = "prek validate-config prek.toml", description = "Validat
 prek = { cmd = "prek run --all-files", description = "Run all prek hooks on the tree" }
 prek-install = { cmd = "prek install", description = "Install prek git hooks in this clone" }
 fortran-lint = { cmd = "bash -c 'for f in src/*.f90; do [ -f \"$f\" ] || continue; fprettify --diff \"$f\" >/dev/null || { echo \"fprettify would change $f\"; exit 1; }; done'", description = "Fortran fprettify check on src/" }
-lychee = { cmd = "bash -c 'lychee --config .lychee.toml README.md $(find docs/orgmode docs/newsfragments -type f \\( -name \"*.org\" -o -name \"*.md\" \\) 2>/dev/null)'", description = "Link-check owned docs/README" }
+
+[feature.docs.tasks.lychee]
+cmd = "bash -c 'lychee --config .lychee.toml README.md $(find docs/orgmode docs/newsfragments -type f \\( -name \"*.org\" -o -name \"*.md\" \\) 2>/dev/null)'"
+description = "Link-check owned docs/README"
 
 [feature.docs.tasks.mkrst]
 cmd = "emacs --batch --load export.el"
