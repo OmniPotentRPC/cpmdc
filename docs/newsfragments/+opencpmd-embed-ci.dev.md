@@ -1,3 +1,0 @@
-`tests/test_extrapolate_wfn.c` compiles again in an OpenCPMD build tree with GCC 14, which stopped on the implicit declaration of `setenv` under `-std=c11`; it defines `_POSIX_C_SOURCE 200809L` like the other tests that call POSIX.
-The `extrapolate-wfn` Meson test is now defined in every build and skips with exit 77 when `cpmdc_available()` is 0, as in the reference build.
-`scripts/ci/build_opencpmd.sh` builds the patched OpenCPMD archive, and the new CI job `opencpmd-embed` compiles the `with_cpmd` build against it and fails unless `extrapolate-wfn` passes against the `cpmd.x` run in `tests/golden`.
