@@ -1104,6 +1104,39 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
   return -1;
 }
 
+/* Probe the final component of `path` without lstat(path), whose path walk
+ * follows a directory symlink in an intermediate component. The parent is
+ * opened with open_directory_nofollow first, so a directory symlink that the
+ * recorded RESTART chain does not hold is refused before any stat can pass
+ * through it. */
+static int probe_final(const char *path, struct stat *st, int *exists, char *err,
+                       size_t err_cap) {
+  char *dir = NULL, *name = NULL;
+  int fd;
+  if (split_parent(path, &dir, &name, err, err_cap) != 0)
+    return -1;
+  fd = open_directory_nofollow(dir);
+  free(dir);
+  if (fd < 0) {
+    set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
+    free(name);
+    return -1;
+  }
+  if (fstatat(fd, name, st, AT_SYMLINK_NOFOLLOW) == 0) {
+    *exists = 1;
+  } else if (errno == ENOENT) {
+    *exists = 0;
+  } else {
+    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+    close(fd);
+    free(name);
+    return -1;
+  }
+  close(fd);
+  free(name);
+  return 0;
+}
+
 /* A path that is not itself a symlink. Hold its parent and remember
  * whether the final component exists, so the rename can refuse if that
  * component changes type. */
@@ -1112,11 +1145,8 @@ static int adopt_plain(const char *path, struct publish_dest *d, char *err,
   struct stat lst;
   char *dir = NULL, *name = NULL;
   int exists, fd;
-  exists = lstat(path, &lst) == 0;
-  if (!exists && errno != ENOENT) {
-    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+  if (probe_final(path, &lst, &exists, err, err_cap) != 0)
     return -1;
-  }
   if (split_parent(path, &dir, &name, err, err_cap) != 0)
     return -1;
   fd = open_directory_nofollow(dir);
@@ -1254,11 +1284,8 @@ static int publish_destination(const char *path, struct publish_dest *d, char *e
   char *resolved;
   int exists;
   dest_init(d);
-  exists = lstat(path, &lst) == 0;
-  if (!exists && errno != ENOENT) {
-    set_errf(err, err_cap, "cannot stat the RESTART file", strerror(errno));
+  if (probe_final(path, &lst, &exists, err, err_cap) != 0)
     return -1;
-  }
   if (!(exists && S_ISLNK(lst.st_mode))) {
     if (adopt_plain(path, d, err, err_cap) != 0) {
       dest_clear(d);

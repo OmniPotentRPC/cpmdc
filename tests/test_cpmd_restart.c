@@ -1296,6 +1296,86 @@ done:
   return rc == 0 ? 0 : fail("an intermediate directory symlink was followed");
 }
 
+/* The first probe of the destination must not walk the path. lstat(path)
+ * follows a directory symlink in an intermediate component, so through a
+ * self-referencing link it fails with ELOOP, and through a link to a
+ * directory without search permission it fails with EACCES, both reported
+ * as a failed stat of the RESTART file. Probing the final component on the
+ * no-follow directory descriptor refuses the link while opening the
+ * directory, so the error names the directory instead. */
+static int stat_through_symlink_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], loop[PATH_MAX], sealed[PATH_MAX], via[PATH_MAX];
+  char loop_file[PATH_MAX], via_plain[PATH_MAX], via_link[PATH_MAX], real_link[PATH_MAX];
+  char err[256];
+  const char *want = "cannot open the RESTART directory";
+  int made_loop = 0, made_sealed = 0, made_link = 0, made_via = 0, rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/stat-through", dir) >= (int)sizeof sub ||
+      snprintf(loop, sizeof loop, "%s/loop", sub) >= (int)sizeof loop ||
+      snprintf(loop_file, sizeof loop_file, "%s/PLAIN", loop) >= (int)sizeof loop_file ||
+      snprintf(sealed, sizeof sealed, "%s/sealed", sub) >= (int)sizeof sealed ||
+      snprintf(via, sizeof via, "%s/via", sub) >= (int)sizeof via ||
+      snprintf(via_plain, sizeof via_plain, "%s/PLAIN", via) >= (int)sizeof via_plain ||
+      snprintf(via_link, sizeof via_link, "%s/RESTART", via) >= (int)sizeof via_link ||
+      snprintf(real_link, sizeof real_link, "%s/RESTART", sealed) >= (int)sizeof real_link)
+    return fail("stat-through path too long");
+  if (mkdir(sub, 0700) != 0)
+    return fail("make stat-through directory");
+  if (symlink("loop", loop) != 0)
+    goto done;
+  made_loop = 1;
+  if (write_restart_at(loop_file, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  free(image);
+  image = NULL;
+  if (strstr(err, want) == NULL)
+    goto done;
+
+  /* Root searches any directory, so the permission variant tells nothing. */
+  if (geteuid() != 0) {
+    if (mkdir(sealed, 0700) != 0)
+      goto done;
+    made_sealed = 1;
+    if (symlink("RESTART.1", real_link) != 0)
+      goto done;
+    made_link = 1;
+    if (symlink("sealed", via) != 0)
+      goto done;
+    made_via = 1;
+    if (chmod(sealed, 0) != 0)
+      goto done;
+    if (write_restart_at(via_plain, &image, &image_n, err, sizeof err) == 0)
+      goto done;
+    free(image);
+    image = NULL;
+    if (strstr(err, want) == NULL)
+      goto done;
+    if (write_restart_at(via_link, &image, &image_n, err, sizeof err) == 0)
+      goto done;
+    free(image);
+    image = NULL;
+    if (strstr(err, want) == NULL)
+      goto done;
+  }
+  rc = 0;
+done:
+  free(image);
+  if (made_sealed)
+    chmod(sealed, 0700);
+  if (made_via)
+    unlink(via);
+  if (made_link)
+    unlink(real_link);
+  if (made_sealed)
+    rmdir(sealed);
+  if (made_loop)
+    unlink(loop);
+  if (rmdir(sub) != 0 && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail(err[0] ? err : "a stat followed an intermediate directory symlink");
+}
+
 static int long_name_case(const char *dir) {
   unsigned char *bytes = NULL;
   size_t n = 0;
@@ -1384,6 +1464,8 @@ static int check_atomic_replace(void) {
     rc = symlink_case(dir);
   if (rc == 0)
     rc = intermediate_directory_symlink_case(dir);
+  if (rc == 0)
+    rc = stat_through_symlink_case(dir);
   if (rc == 0)
     rc = dangling_relative_case(dir);
   if (rc == 0)
