@@ -1179,7 +1179,8 @@ static int symlink_case(const char *dir) {
   if (mkdir(sub, 0700) != 0)
     return fail("make symlink restart directory");
   seed = fopen(target, "wb");
-  if (!seed || fwrite("STALE", 1, 5, seed) != 5 || fclose(seed) != 0)
+  if (!seed || fwrite("STALE", 1, 5, seed) != 5 || fclose(seed) != 0 ||
+      chmod(target, 0600) != 0)
     goto done;
   if (symlink("RESTART.1", linkpath) != 0)
     goto done;
@@ -1204,7 +1205,8 @@ static int symlink_case(const char *dir) {
   linktext[linklen] = '\0';
   if (strcmp(linktext, "RESTART.1") != 0 ||
       read_whole(target, &disk, &have) != 0 ||
-      have != rn || memcmp(disk, rewritten, rn) != 0)
+      have != rn || memcmp(disk, rewritten, rn) != 0 ||
+      stat(target, &st) != 0 || (st.st_mode & 0777) != 0600)
     goto done;
   rc = 0;
 done:
@@ -1216,6 +1218,53 @@ done:
   if (rmdir(sub) != 0 && rc == 0)
     rc = 1;
   return rc == 0 ? 0 : fail("symlink restart was not updated through its target");
+}
+
+/* A directory symlink in the supplied path is not part of the recorded
+ * RESTART chain. Refuse both a plain destination and a RESTART link whose
+ * target passes through that directory, rather than following an untracked
+ * hop. */
+static int intermediate_directory_symlink_case(const char *dir) {
+  void *image = NULL;
+  size_t image_n = 0;
+  char sub[PATH_MAX], real[PATH_MAX], via[PATH_MAX], plain[PATH_MAX];
+  char linkpath[PATH_MAX], target[PATH_MAX], err[256];
+  struct stat st;
+  int rc = 1;
+  if (snprintf(sub, sizeof sub, "%s/intermediate-dir", dir) >= (int)sizeof sub ||
+      snprintf(real, sizeof real, "%s/real", sub) >= (int)sizeof real ||
+      snprintf(via, sizeof via, "%s/via", sub) >= (int)sizeof via ||
+      snprintf(plain, sizeof plain, "%s/PLAIN", via) >= (int)sizeof plain ||
+      snprintf(linkpath, sizeof linkpath, "%s/RESTART", sub) >= (int)sizeof linkpath ||
+      snprintf(target, sizeof target, "%s/RESTART.1", real) >= (int)sizeof target)
+    return fail("intermediate directory path too long");
+  if (mkdir(sub, 0700) != 0 || mkdir(real, 0700) != 0 || symlink("real", via) != 0)
+    return fail("make intermediate directory symlink");
+
+  if (write_restart_at(plain, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  free(image);
+  image = NULL;
+  image_n = 0;
+  if (lstat(plain, &st) == 0)
+    goto done;
+
+  if (symlink("via/RESTART.1", linkpath) != 0)
+    goto done;
+  if (write_restart_at(linkpath, &image, &image_n, err, sizeof err) == 0)
+    goto done;
+  if (!is_symlink_to(linkpath, "via/RESTART.1") || lstat(target, &st) == 0)
+    goto done;
+  rc = 0;
+done:
+  free(image);
+  unlink(linkpath);
+  unlink(plain);
+  unlink(target);
+  unlink(via);
+  if ((rmdir(real) != 0 || rmdir(sub) != 0) && rc == 0)
+    rc = 1;
+  return rc == 0 ? 0 : fail("an intermediate directory symlink was followed");
 }
 
 static int long_name_case(const char *dir) {
@@ -1300,6 +1349,8 @@ static int check_atomic_replace(void) {
     rc = mode_case(dir);
   if (rc == 0)
     rc = symlink_case(dir);
+  if (rc == 0)
+    rc = intermediate_directory_symlink_case(dir);
   if (rc == 0)
     rc = dangling_relative_case(dir);
   if (rc == 0)

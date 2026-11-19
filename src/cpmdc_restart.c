@@ -969,6 +969,54 @@ static int split_parent(const char *path, char **dir_out, char **name_out, char 
   return 0;
 }
 
+/* Open each directory component without following a symlink. The returned
+ * descriptor pins the final directory inode, while rejecting directory
+ * symlinks that are not represented in the recorded RESTART chain. */
+static int open_directory_nofollow(const char *path) {
+  const int flags = O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW;
+  char *copy = publish_strdup(path);
+  char *part;
+  int fd;
+  if (!copy) {
+    errno = ENOMEM;
+    return -1;
+  }
+  fd = open(path[0] == '/' ? "/" : ".", flags);
+  if (fd < 0) {
+    free(copy);
+    return -1;
+  }
+  part = copy;
+  while (CPMDC_IS_SEP(*part))
+    part++;
+  while (*part) {
+    char *end = part;
+    char saved;
+    int next;
+    while (*end && !CPMDC_IS_SEP(*end))
+      end++;
+    saved = *end;
+    *end = '\0';
+    next = openat(fd, part, flags);
+    if (next < 0) {
+      int why = errno;
+      close(fd);
+      free(copy);
+      errno = why;
+      return -1;
+    }
+    close(fd);
+    fd = next;
+    if (!saved)
+      break;
+    part = end + 1;
+    while (CPMDC_IS_SEP(*part))
+      part++;
+  }
+  free(copy);
+  return fd;
+}
+
 /* Walk `path` one symlink at a time. `expect_absent` is 1 when realpath
  * already reported the chain missing: an existing non symlink is then a
  * chain that changed, not a file this call may replace. The directory
@@ -989,7 +1037,7 @@ static int walk_chain(const char *path, int expect_absent, struct publish_dest *
       free(cur);
       return -1;
     }
-    fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    fd = open_directory_nofollow(dir);
     free(dir);
     if (fd < 0) {
       set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
@@ -1074,7 +1122,7 @@ static int adopt_plain(const char *path, struct publish_dest *d, char *err,
   }
   if (split_parent(path, &dir, &name, err, err_cap) != 0)
     return -1;
-  fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  fd = open_directory_nofollow(dir);
   free(dir);
   if (fd < 0) {
     set_errf(err, err_cap, "cannot open the RESTART directory", strerror(errno));
