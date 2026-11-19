@@ -44,6 +44,8 @@ public change:
 | Public host example docs | ~meson test -C build examples-documented --print-errorlogs~ |
 | README and build-and-test navigation | ~meson test -C build readme-navigation --print-errorlogs~ |
 | Reference contract of every public name, no hidden names in the docs | ~meson test -C build reference-contract public-api-docs --print-errorlogs~ |
+| LLM index files match Org sources | ~python3 scripts/generate_llms_txt.py --check~ or ~meson test -C build llms-txt --print-errorlogs~ |
+| Public inventory JSON coverage report | ~python3 scripts/docs_coverage_inventory.py~ or ~meson test -C build docs-coverage-inventory --print-errorlogs~ |
 | Every README and Org code block runs, compiles, or names why not | ~meson test -C build docs-examples --print-errorlogs~ |
 | OpenCPMD archive build | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
 
@@ -261,6 +263,13 @@ Regenerate RST after editing Org sources:
 
 #+begin_src bash
 pixi run -e docs mkrst
+#+end_src
+
+Regenerate the LLM index files after editing ~docs/orgmode/~ or the feature
+inventory:
+
+#+begin_src bash
+python3 scripts/generate_llms_txt.py
 #+end_src
 
 Check the links in the README, the Org sources, and the newsfragments:
