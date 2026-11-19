@@ -60,6 +60,13 @@ REQUIRED_GROUPS = {
         "cpmdc-ipi",
         "cpmdc-ipi-c",
     ],
+    "embed implementation": [
+        "cpmd_embed_c_api.F90",
+        "cpmdc_embed_host",
+        "memfd",
+        "cpmdc_adopt_calculator_comm",
+        "cpmdc_pwscale_eval_cuda",
+    ],
 }
 
 

@@ -1671,6 +1671,24 @@ test(
     suite: ['docs'],
   )
   test(
+    'llms-txt',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_llms_txt.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
+    'docs-coverage-inventory',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_docs_coverage_inventory.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs', 'inventory'],
+  )
+  test(
     'docs-site-chrome',
     python,
     args: [
