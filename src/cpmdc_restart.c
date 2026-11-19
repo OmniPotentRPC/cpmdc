@@ -758,7 +758,8 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 }
 
 #ifdef _WIN32
-#define publish_open(p) _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE)
+#define publish_open(p)                                                                            \
+  _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT, _S_IREAD | _S_IWRITE)
 #define publish_fdopen _fdopen
 #define publish_close _close
 #define publish_unlink _unlink
@@ -767,7 +768,7 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 #define CPMDC_IS_SEP(c) ((c) == '/' || (c) == '\\')
 #else
 /* 0666 under the umask is what fopen(path, "wb") created before. */
-#define publish_open(p) open((p), O_WRONLY | O_CREAT | O_EXCL, 0666)
+#define publish_open(p) open((p), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666)
 #define publish_fdopen fdopen
 #define publish_close close
 #define publish_unlink unlink
@@ -837,6 +838,7 @@ struct publish_dest {
  * this to run after realpath has reported a dangling chain and before the
  * fallback walk, which is the window before the publication rename. */
 void (*cpmdc_restart_test_before_follow)(void);
+void (*cpmdc_restart_test_after_temp_open)(int fd);
 #endif
 
 static void dest_init(struct publish_dest *d) {
@@ -1373,7 +1375,7 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
         seq++ ^ publish_pid() ^ (unsigned long)(uintptr_t)&seq;
 #ifndef _WIN32
     snprintf(tmpname, sizeof tmpname, ".cpmdc-tmp-%016lx", token);
-    fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL, 0666);
+    fd = openat(dest.dirfd, tmpname, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666);
     if (fd < 0 && errno != EEXIST)
       break;
 #else
@@ -1389,6 +1391,10 @@ static int publish_bytes(const char *path, const void *bytes, size_t n, char *er
       break;
 #endif
   }
+#ifdef CPMDC_RESTART_TEST_HOOK
+  if (fd >= 0 && cpmdc_restart_test_after_temp_open)
+    cpmdc_restart_test_after_temp_open(fd);
+#endif
   if (fd < 0) {
     set_errf(err, err_cap, "cannot create a temporary RESTART file", strerror(errno));
 #ifndef _WIN32
