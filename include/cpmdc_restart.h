@@ -147,9 +147,9 @@ int cpmdc_restart_species(const CPMDCRestart *file, int *nsp,
  * @param nspecies Must equal the stored species count.
  * @param atom_symbols Receives `n_atoms` pointers. Required.
  * @param n_atoms Must equal the coordinate count.
- * @return 0 on success; -1 on a NULL argument, a species count other than
- *         `nspecies`, an empty symbol, or an atom count other than
- *         `n_atoms`.
+ * @return 0 on success; -1 on a NULL argument, a negative `n_atoms`, an image
+ *         without a species section, a species count other than `nspecies`,
+ *         an empty symbol, or an atom count other than `n_atoms`.
  */
 int cpmdc_restart_expand_species_symbols(const CPMDCRestart *file,
                                         const char *const *species_symbols,
@@ -290,6 +290,12 @@ int cpmdc_restart_write_mem(const CPMDCRestart *file, void **bytes,
  * (`MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows). A reader
  * sees the previous file or the finished one. On POSIX the directory is
  * synced after the rename, so the new name survives a crash.
+ *
+ * On POSIX, when `path` is a symbolic link the link stays and the file it
+ * names is replaced, in that file's directory: the temporary file and the
+ * directory sync are there too. A link whose target is absent gets the new
+ * file at that target. A replaced file keeps its permission bits, and a new
+ * file is created with mode 0666 under the umask.
  *
  * A failure before the rename removes the temporary file and leaves
  * `path` untouched. A failure to sync the directory returns -1 with
