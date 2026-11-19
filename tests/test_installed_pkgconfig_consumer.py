@@ -3,6 +3,8 @@
 
 Checks the installed prefix in place and after moving it to a relocated
 directory, under plain `pkg-config` and `pkg-config --define-prefix`.
+After the move, an installed `.so` or `.dylib` fails the run when its
+`RUNPATH` or `RPATH` points at the build tree or the original prefix.
 
 Legs:
 - pkg-config: cc + `pkg-config --cflags --libs cpmdc` and `cpmdc-restart`
@@ -95,6 +97,106 @@ target_link_libraries(consumer PRIVATE cpmdc::cpmdc)
 def run(cmd, **kw):
     print("+", shlex.join(str(c) for c in cmd), flush=True)
     subprocess.run([str(c) for c in cmd], check=True, **kw)
+
+
+def installed_shared_objects(prefix: Path):
+    """Real installed shared libraries and plugins, not symlinks."""
+    found = []
+    for path in prefix.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        name = path.name
+        if ".so" in name or ".dylib" in name:
+            found.append(path)
+    return found
+
+
+def _macho_or_elf(path: Path) -> bool:
+    magic = path.read_bytes()[:4]
+    return magic == b"\x7fELF" or magic in (
+        b"\xfe\xed\xfa\xce",
+        b"\xfe\xed\xfa\xcf",
+        b"\xce\xfa\xed\xfe",
+        b"\xcf\xfa\xed\xfe",
+    )
+
+
+def runtime_path_entries(path: Path) -> list[str]:
+    """`DT_RPATH` and `DT_RUNPATH`, or Mach-O `LC_RPATH` entries."""
+    if sys.platform == "darwin":
+        argv = ["otool", "-l", str(path)]
+    else:
+        argv = ["readelf", "-d", str(path)]
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        raise SystemExit(f"cannot read run paths, {exc.filename} is missing") from exc
+    if out.returncode != 0:
+        if _macho_or_elf(path):
+            raise SystemExit(
+                f"{argv[0]} failed on {path}: {out.stderr.strip() or out.stdout.strip()}"
+            )
+        return []
+    entries: list[str] = []
+    if sys.platform == "darwin":
+        current = ""
+        for line in out.stdout.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("cmd "):
+                current = stripped.split(None, 1)[1]
+                continue
+            if current == "LC_RPATH" and stripped.startswith("path "):
+                value = stripped.split(None, 1)[1]
+                entries.append(value.split(" (", 1)[0].strip())
+        return entries
+    for line in out.stdout.splitlines():
+        if "(RPATH)" not in line and "(RUNPATH)" not in line:
+            continue
+        if "[" not in line or "]" not in line:
+            continue
+        payload = line.split("[", 1)[1].rsplit("]", 1)[0]
+        entries.extend(part for part in payload.split(":") if part)
+    return entries
+
+
+def entry_hits_root(entry: str, root: Path) -> bool:
+    root_s = str(root)
+    if root_s and root_s in entry:
+        return True
+    if entry.startswith(("$ORIGIN", "@loader_path", "@executable_path")):
+        return False
+    candidate = Path(entry)
+    if not candidate.is_absolute():
+        return False
+    resolved = candidate.resolve()
+    root_resolved = root.resolve()
+    return resolved == root_resolved or root_resolved in resolved.parents
+
+
+def reject_fixed_runpaths(tree: Path, forbidden: list[Path]) -> None:
+    libraries = installed_shared_objects(tree)
+    if not libraries:
+        raise SystemExit(f"no installed shared libraries under {tree}")
+    for library in libraries:
+        for entry in runtime_path_entries(library):
+            for root in forbidden:
+                if entry_hits_root(entry, root):
+                    raise SystemExit(
+                        f"{library}: run path {entry!r} points into {root} "
+                        "(build tree or original prefix)"
+                    )
+
+
+def libcp2k_loader_flags() -> list[str]:
+    """Make libcp2k resolve `libcpmdc` through the library, not the executable.
+
+    `--as-needed` drops the unused direct `-lcpmdc`. `--enable-new-dtags`
+    stores a `RUNPATH`, which the loader does not apply to dependencies of
+    `libcpmdc_gromacs`.
+    """
+    if sys.platform.startswith("linux"):
+        return ["-Wl,--as-needed", "-Wl,--enable-new-dtags"]
+    return []
 
 
 def lib_dirs(prefix: Path):
@@ -207,7 +309,12 @@ def check_prefix(
     cp2k_dir.mkdir()
     (cp2k_dir / "main.c").write_text(CONSUMER_CP2K_C, encoding="utf-8")
     cp2k_bin = cp2k_dir / "consumer"
-    run([cc, cp2k_dir / "main.c", "-o", cp2k_bin] + cp2k_flags + extra_link)
+    run(
+        [cc, cp2k_dir / "main.c", "-o", cp2k_bin]
+        + libcp2k_loader_flags()
+        + cp2k_flags
+        + extra_link
+    )
     bare_env = dict(os.environ)
     bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
     run([cp2k_bin], env=bare_env)
@@ -303,6 +410,7 @@ def main() -> int:
     )
 
     shutil.move(str(prefix), str(relocated))
+    reject_fixed_runpaths(relocated, [prefix, inner_build])
     for label, pc_args in (("plain", []), ("define-prefix", ["--define-prefix"])):
         check_prefix(
             relocated,

@@ -367,6 +367,23 @@ elif fc.get_linker_id().startswith('ld64')
   cpmdc_shared_link_depends += [cpmdc_export_list]
 endif
 
+# install_rpath is what `meson install` writes. build_rpath stays unset so
+# uninstalled binaries keep Meson's build-tree run path. $ORIGIN
+# (@loader_path on macOS) is relative to the installed file. An empty
+# install_rpath means that file does not need another library from the prefix.
+if host_machine.system() == 'darwin'
+  install_origin = '@loader_path'
+else
+  install_origin = '$ORIGIN'
+endif
+install_sibling_rpath = install_origin
+install_plugin_rpath = install_origin + '/..'
+install_bindir_ups = []
+foreach _ : get_option('bindir').split('/')
+  install_bindir_ups += '..'
+endforeach
+install_exe_rpath = install_origin + '/' + '/'.join(install_bindir_ups) + '/' + get_option('libdir')
+
 cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
@@ -379,6 +396,7 @@ cpmdc_shared = shared_library(
   link_args: cpmdc_shared_link_args,
   link_depends: cpmdc_shared_link_depends,
   install: true,
+  install_rpath: '',
   kwargs: cpmdc_shared_install,
 )
 
@@ -474,7 +492,7 @@ if cc.has_header('sys/un.h')
     dependencies: [math_dep],
     c_args: common_c_args,
     install: not get_option('with_python'),
-    install_rpath: get_option('prefix') / get_option('libdir'),
+    install_rpath: install_exe_rpath,
   )
 endif
 # pair_style cpmdc, a LAMMPS plugin and another consumer of the public header
@@ -520,7 +538,7 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
       override_options: ['cpp_std=c++17'],
       install: true,
       install_dir: get_option('libdir') / 'cpmdc',
-      install_rpath: get_option('prefix') / get_option('libdir'),
+      install_rpath: install_plugin_rpath,
     )
   elif lammps_plugin_opt.enabled()
     error('with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package')
@@ -546,7 +564,7 @@ if not get_option('with_gromacs_shim').disabled() and not get_option('with_pytho
     c_args: gromacs_c_args,
     override_options: ['c_std=c11'],
     install: true,
-    install_rpath: get_option('prefix') / get_option('libdir'),
+    install_rpath: install_sibling_rpath,
   )
   install_headers('tools/gromacs/libcp2k.h', subdir: 'cpmdc' / 'gromacs')
   # GROMACS reads ${CP2K_DIR}/pkgconfig/libcp2k.pc: CP2K_DIR is
