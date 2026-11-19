@@ -220,7 +220,7 @@ jobs:
       - name: ASE and LAMMPS conventions against cpmd.x, not skipped
         run: |
           pixi run meson test -C build-cpmd python-pytest --print-errorlogs \
-            --test-args="-rs -k 'test_ase_conformance or test_lammps_conventions'"
+            --test-args="-rs -k 'test_ase_conformance or test_lammps_conventions or test_cold_start'"
           grep -E '[0-9]+ passed' build-cpmd/meson-logs/testlog.txt
           if grep -E '^SKIPPED' build-cpmd/meson-logs/testlog.txt; then
             echo "convention tests skipped"
