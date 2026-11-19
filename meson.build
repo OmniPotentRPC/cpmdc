@@ -1077,6 +1077,12 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  water_maxiter2_session_params_bin = custom_target(
+    'water_maxiter2_session_params_bin',
+    input: 'tests/water_blyp_maxiter2_params.capnp.txt',
+    output: 'water_blyp_maxiter2_session_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   test(
     'session-orbital-keys',
     executable(
@@ -1086,8 +1092,11 @@ if get_option('with_tests')
       include_directories: inc,
       c_args: common_c_args,
     ),
-    args: [runtime_params_bin.full_path()],
-    depends: [runtime_params_bin],
+    args: [
+      runtime_params_bin.full_path(),
+      water_maxiter2_session_params_bin.full_path(),
+    ],
+    depends: [runtime_params_bin, water_maxiter2_session_params_bin],
     suite: ['e2e', 'cmocka'],
     timeout: 900,
   )
