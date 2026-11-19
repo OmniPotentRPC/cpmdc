@@ -9,6 +9,14 @@ The public names live in ~python/cpmdc~.
 The [[file:contracts.org][API contracts]] page gives each name its signature, units, shape and dtype, ownership, thread behaviour, exceptions and defaults, and the ~reference-audit~ test keeps it in step with the code.
 Importing ~cpmdc~ does not import ASE.
 Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
+Importing ~cpmdc.ase~ registers ~CPMDCCalculator~ under ~"cpmdc"~ with
+~ase.calculators.calculator.register_calculator_class~ (idempotently), so
+~get_calculator_class("cpmdc")~ returns ~CPMDCCalculator~; ~pyproject.toml~ also
+declares ~cpmdc = "cpmdc.ase"~ in the ~ase.plugins~ entry-point group.
+The module reads ~__ase_plugins__~ as a ~CalculatorPlugin~ set built on first
+access, which is empty on an ASE release without ~ase._4.plugins~, so importing
+~cpmdc.ase~ never imports ~ase._4~ and cannot hide the plugin from ASE's own
+discovery.
 ~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
 ~--structure~.
 ~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it imports
@@ -47,7 +55,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~find_schema~ | ~find_schema(path=None)~: return the ~Path~ of ~schema/Potentials.capnp~ for ~capnp encode~ of ~CPMDParams~ text; tries an explicit ~path~ first, then ~CPMDC_SCHEMA~, then the wheel's ~cpmdc/schema/Potentials.capnp~, then ~schema/Potentials.capnp~ in the working directory; raises ~CPMDCError~ when not found |
 | ~forces_to_ev_per_angstrom~ | ~forces_to_ev_per_angstrom(forces_h_bohr)~: convert N by 3 forces ~forces_h_bohr~ from Hartree/Bohr to eV/Angstrom |
 | ~stress_to_ev_per_angstrom3~ | ~stress_to_ev_per_angstrom3(stress_h_bohr3)~: convert a nine-component row-major tensor ~stress_h_bohr3~ from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises ~ValueError~ unless there are nine components |
-| ~CPMDCCalculator~ | ASE calculator: ~CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)~ for ~energy~ (eV), ~free_energy~ (eV), ~forces~ (eV/Angstrom), and ~stress~ (eV/Angstrom^3, Voigt); takes ~params~, ~library~, and ~constant_cutoff~ (Rydberg), and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
+| ~CPMDCCalculator~ | ASE calculator: ~CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)~ for ~energy~ (eV), ~free_energy~ (eV), ~forces~ (eV/Angstrom), and ~stress~ (eV/Angstrom^3, Voigt); takes ~params~, ~library~, and ~constant_cutoff~ (Rydberg), and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~; registered under ~"cpmdc"~ for ~get_calculator_class("cpmdc")~ and in ~ase.plugins~ |
 | ~CPMDCCalculator.default_parameters~ | ~params~, ~library~, and ~constant_cutoff~, all ~None~; a ~params~ or ~library~ path is stored absolute, resolved against the working directory of the process when it is set; a ~constant_cutoff~ is stored as E0 in Ry, or as the mapping of ~ConstantCutoff.todict~ when it sets a height or a width |
 | ~CPMDCCalculator.implemented_properties~ | ~energy~, ~free_energy~, ~forces~, and ~stress~ |
 | ~CPMDCCalculator.ignored_changes~ | ~initial_charges~ and ~initial_magmoms~: a change of either keeps the stored results, because ~params~ sets the charge and the multiplicity |
