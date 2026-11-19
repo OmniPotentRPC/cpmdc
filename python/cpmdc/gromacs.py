@@ -15,6 +15,11 @@ checks (``CHARGE``, ``MULTIPLICITY``, ``RUN_TYPE ENERGY_FORCE``,
 the ``&CPMDC`` section carries the cpmdc settings that
 ``libcpmdc_gromacs`` reads.
 
+For a PBE or BLYP input generated from an mdp and stored in a tpr, set
+``CPMDC_GROMACS_PARAMS`` when running mdrun. Its effective functional,
+charge, and multiplicity must match the generated input. An explicit
+``&CPMDC`` section takes precedence.
+
 Units: GROMACS works in nm, kJ/mol, and ps; its QM/MM module converts to
 Bohr and Hartree with its own constants, which :data:`BOHR_TO_NM` and
 :data:`HARTREE_TO_KJ_PER_MOL` reproduce (``src/gromacs/math/units.h``,
