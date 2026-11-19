@@ -1,0 +1,80 @@
+# cpmdc
+
+> C ABI for embedding OpenCPMD in OmniPotentRPC tools. Hosts pass Cap'n Proto CPMDParams once, ForceInput per geometry step, and receive native C results or PotentialResult messages for rgpot and other drivers.
+
+Machine-readable inventory: schema/inventory/cpmd_features.json.
+Human docs source: docs/orgmode/ (export to Sphinx with pixi run -e docs docbld).
+
+The C ABI exposes 47 functions; the feature table lists 47 ABI rows, 521 parameter fields, 25 deck sections, and 624 catalog keywords.
+Authoritative API tables: reference/c-abi, reference/contracts, reference/python, reference/cpmd-options.
+
+AGENTS.md at the repository root describes layout, build, test, and docs for agents.
+Full plain text of every page: https://cpmdc.rgoswami.me/llms-full.txt (committed as llms-full.txt).
+
+## Tutorials
+
+- [First energy and forces through the C API](https://cpmdc.rgoswami.me/tutorials/first-energy)
+- [An energy and forces from ASE](https://cpmdc.rgoswami.me/tutorials/ase-energy)
+- [Minimise a structure from eOn through rgpot](https://cpmdc.rgoswami.me/tutorials/eon-rgpot)
+
+## How-To Guides
+
+- [Install and build](https://cpmdc.rgoswami.me/howto/install)
+- [Build and test cpmdc](https://cpmdc.rgoswami.me/tutorials/quickstart)
+- [Build the OpenCPMD archive for embedding](https://cpmdc.rgoswami.me/howto/opencpmd-archive)
+- [Write a CPMDParams message](https://cpmdc.rgoswami.me/howto/write-cpmdparams)
+- [Embedding cpmdc](https://cpmdc.rgoswami.me/howto/embedding)
+- [Call cpmdc from Python](https://cpmdc.rgoswami.me/howto/python)
+- [Use cpmdc as an ASE calculator](https://cpmdc.rgoswami.me/howto/ase)
+- [Relax a cell at a constant cutoff](https://cpmdc.rgoswami.me/howto/constant-cutoff)
+- [Drive cpmdc over the i-PI socket protocol](https://cpmdc.rgoswami.me/howto/socket-drivers)
+- [Run LAMMPS on cpmdc forces](https://cpmdc.rgoswami.me/howto/lammps)
+- [Run GROMACS on cpmdc forces](https://cpmdc.rgoswami.me/howto/gromacs)
+- [Run under mpirun](https://cpmdc.rgoswami.me/howto/mpi)
+- [Choose the wavefunction optimiser](https://cpmdc.rgoswami.me/howto/wavefunction-optimiser)
+- [Extrapolate the orbitals along a trajectory](https://cpmdc.rgoswami.me/howto/extrapolate-orbitals)
+- [Debug an input with CPMDC_DECK_OUT](https://cpmdc.rgoswami.me/howto/debug-deck)
+- [Check forces and stress by finite differences](https://cpmdc.rgoswami.me/howto/check-forces)
+- [Time the plane-wave scaffold on ranks](https://cpmdc.rgoswami.me/howto/pwscale-ranks)
+- [Troubleshooting](https://cpmdc.rgoswami.me/howto/troubleshooting)
+
+## Reference
+
+- [C ABI reference](https://cpmdc.rgoswami.me/reference/c-abi)
+- [Plane-wave scaffold reference](https://cpmdc.rgoswami.me/reference/pwscale)
+- [Python API](https://cpmdc.rgoswami.me/reference/python)
+- [GROMACS interface reference](https://cpmdc.rgoswami.me/reference/gromacs)
+- [LAMMPS interface reference](https://cpmdc.rgoswami.me/reference/lammps)
+- [Environment variables](https://cpmdc.rgoswami.me/reference/environment)
+- [Build options, artifacts, and Pixi tasks](https://cpmdc.rgoswami.me/reference/build-options)
+- [CPMDParams schema fields](https://cpmdc.rgoswami.me/reference/cpmdparams-schema)
+- [CPMD option mapping](https://cpmdc.rgoswami.me/reference/cpmd-options)
+- [Feature inventory](https://cpmdc.rgoswami.me/reference/feature-inventory)
+- [Public C surface map](https://cpmdc.rgoswami.me/reference/surface-map)
+- [API contracts](https://cpmdc.rgoswami.me/reference/contracts)
+- [Glossary](https://cpmdc.rgoswami.me/reference/glossary)
+
+## Explanation
+
+- [Architecture](https://cpmdc.rgoswami.me/explanation/architecture)
+- [The file route and the in-process route](https://cpmdc.rgoswami.me/explanation/routes)
+- [Wavefunction state between calls](https://cpmdc.rgoswami.me/explanation/wavefunction-state)
+- [The MPI model](https://cpmdc.rgoswami.me/explanation/mpi-model)
+- [Atoms in an isolated cell](https://cpmdc.rgoswami.me/explanation/isolated-cells)
+- [cpmdc inside MD engines](https://cpmdc.rgoswami.me/explanation/md-engines)
+- [Density of water at a constant cutoff](https://cpmdc.rgoswami.me/explanation/constant-cutoff-npt)
+- [How the OpenCPMD patches work](https://cpmdc.rgoswami.me/explanation/opencpmd-patches)
+- [SIMD paths and dispatch](https://cpmdc.rgoswami.me/explanation/simd-paths)
+
+## Contributing
+
+- [Contributing](https://cpmdc.rgoswami.me/contributing/index)
+
+## Project
+
+- [Changelog](https://cpmdc.rgoswami.me/changelog)
+
+## Repository
+
+- [Source](https://github.com/OmniPotentRPC/cpmdc): MIT licensed cpmdc
+- [Schema](https://cpmdc.rgoswami.me/reference/cpmdparams-schema): Potentials.capnp CPMDParams
