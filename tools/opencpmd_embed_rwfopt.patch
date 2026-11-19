@@ -19,7 +19,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE ropt
    USE rscpot_utils,                    ONLY: give_scr_rscpot,&
                                               rscpot
-@@ -106,10 +108,509 @@
+@@ -106,10 +108,521 @@
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -66,6 +66,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     immediately. A from_key with no converged orbitals returns .FALSE.
 +  !     A stale or partial copy is not converged and is refused.
 +  PUBLIC :: embed_copy_orbital_slot
++  PUBLIC :: embed_park_partial_orbital_slot
 +  !   embed_choose_warm_start_metric_v2 receives species-ordered Cartesian positions,
 +  !     the row-major cell, periodicity, and a geometry-distance callback.
 +  !     Geometry and cell use Angstrom units. The stored
@@ -337,6 +338,17 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    ENDIF
 +    embed_copy_orbital_slot = .TRUE.
 +  END FUNCTION embed_copy_orbital_slot
++
++  ! ==================================================================
++  SUBROUTINE embed_park_partial_orbital_slot(next_key)
++    ! Park a partial live store as an explicitly unconverged slot.
++    INTEGER(embed_key_kind), INTENT(IN) :: next_key
++    IF (.NOT. embed_have_partial) RETURN
++    embed_have_orbitals = .TRUE.
++    embed_store_converged = .FALSE.
++    CALL embed_select_orbital_slot(next_key)
++    embed_have_orbitals = .FALSE.
++  END SUBROUTINE embed_park_partial_orbital_slot
 +
 +  ! ==================================================================
 +  SUBROUTINE embed_select_orbital_slot(key)
