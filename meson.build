@@ -2116,6 +2116,12 @@ test(
     output: 'potential_config_common_cpmd.bin',
     command: encode + ['PotentialConfig', '@INPUT@', '@OUTPUT@'],
   )
+  potential_config_overlay_arm_bin = custom_target(
+    'potential_config_overlay_arm_bin',
+    input: 'tests/potential_config_overlay_arm.capnp.txt',
+    output: 'potential_config_overlay_arm.bin',
+    command: encode + ['PotentialConfig', '@INPUT@', '@OUTPUT@'],
+  )
   potential_config_common_cpmd_reject_bin = custom_target(
     'potential_config_common_cpmd_reject_bin',
     input: 'tests/potential_config_common_cpmd_reject.capnp.txt',
@@ -2172,6 +2178,8 @@ test(
       potential_config_common_cpmd_bin,
       potential_config_common_cpmd_reject_bin,
       force_input_overlay_step_bin,
+      params_system_bad_occupation_bin,
+      potential_config_overlay_arm_bin,
     ],
     suite: ['params', 'capnp'],
   )

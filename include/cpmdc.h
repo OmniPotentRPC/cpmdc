@@ -357,6 +357,12 @@ CPMDC_API CPMDCSession *cpmdc_session_create(const void *params_capnp,
 
 /**
  * @brief Replace Cap'n Proto parameters before the session accepts topology.
+ *
+ * The call replaces the parameters and drops any common overlay a
+ * `cpmdc_session_configure()` call installed. It is all or nothing: when it
+ * returns -1 the session keeps its previous parameters, rendered deck,
+ * effective scalars, overlay, and embed state, and only `cpmdc_last_error()`
+ * changes.
  */
 CPMDC_API int cpmdc_session_set_params(CPMDCSession *session, const void *params_capnp,
                                        size_t params_capnp_size_bytes);
@@ -396,7 +402,9 @@ CPMDC_API CPMDCSession *cpmdc_session_create_from_config(const void *config_capn
  * @brief Configure an existing session from a `PotentialConfig` message.
  *
  * Accepted only before the session evaluates; resolution matches
- * `cpmdc_configure()`.
+ * `cpmdc_configure()`. The call is all or nothing: when it returns -1 the
+ * session keeps its previous parameters, overlay, and effective settings, and
+ * only `cpmdc_last_error()` changes.
  */
 CPMDC_API int cpmdc_session_configure(CPMDCSession *session, const void *config_capnp,
                                       size_t config_capnp_size_bytes);
