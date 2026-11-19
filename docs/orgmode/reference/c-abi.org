@@ -235,7 +235,7 @@ entries a call filled.
 
 | Function | Returns |
 |----------+---------|
-| ~const char *cpmdc_version(void)~ | ~"cpmdc/"~ followed by the project version |
+| ~const char *cpmdc_version(void)~ | ~"cpmdc/"~ followed by the project version, or ~"cpmdc-stub/"~ followed by the project version in the link stub |
 | ~int cpmdc_abi_version(void)~ | the ABI generation, equal to ~CPMDC_ABI_VERSION~ and the shared-library soversion, which are the first field of ~version.txt~ |
 | ~int cpmdc_available(void)~ | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
 | ~void cpmdc_finalize(void)~ | marks the runtime finalized; later evaluations fail with ~CPMD embed not available~; does not call ~MPI_Finalize~ |
@@ -262,7 +262,7 @@ A capabilities return of -1 is the size query.
 
 | Function | Behaviour |
 |----------+-----------|
-| ~int cpmdc_bind_calculator(int ranks_per_calc)~ | collective on ~MPI_COMM_WORLD~; initialises MPI when needed and splits the world into calculators of ~ranks_per_calc~ consecutive ranks; ~ranks_per_calc <= 0~ keeps one calculator; returns this rank's calculator index, or -1 when the world size is not a multiple or the library has no CPMD backend; a second call returns the same index |
+| ~int cpmdc_bind_calculator(int ranks_per_calc)~ | collective on ~MPI_COMM_WORLD~; initialises MPI when needed and splits the world into calculators of ~ranks_per_calc~ consecutive ranks; ~ranks_per_calc <= 0~ keeps one calculator; returns this rank's calculator index, or -1 when the world size is not a multiple or the library has no CPMD backend; a second call does not split again and returns the index its own ~ranks_per_calc~ gives |
 | ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no live ~CPMDCSession~ has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
 | ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies the stored calculator communicator into ~out~ (on an OpenCPMD build, ~mp_comm_world~); returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
 
@@ -300,14 +300,17 @@ Next to the arm the call rejects ~kMesh~, ~scfMaxIterations~,
 ~basisSet~, ~smearing~, and ~vanDerWaalsS6~ are not applied on that path.
 With the arm unset, an overlay field without a CPMD lowering is rejected,
 including ~relativityMethod~ and a ~basisSet~ other than ~planewave~.
+A message with neither the arm nor an overlay applies nothing and returns 0.
 
 * Global array calls
-Each call applies the message it is given and then evaluates.
-The call is cold when the process has no stored basis, or when the
-functional, deck, cell, cutoff, charge, multiplicity, atom count, or
-elemental composition differs from that basis.
-A matching basis is warm, including a constant-cutoff cell that stays
-within ~CPMDC_CELL_IN_PLACE~.
+Each call applies the message it is given like ~cpmdc_set_params()~ and then
+evaluates.
+~cpmdc_set_params()~ detaches the process image without clearing the stored
+orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom
+count, and elemental composition match the latched basis, and whose no-cell
+step matches the latched cell (no cell, or a cell that moves in place under
+~CPMDC_CELL_IN_PLACE~), starts from a warm SCF, and any other call starts from
+a cold SCF after full CPMD setup.
 
 | Function | Output |
 |----------+--------|
@@ -323,7 +326,7 @@ The output array holds ~3 * n_atoms~ doubles.
 |----------+-----------|
 | ~CPMDCSession *cpmdc_session_create(const void *params, size_t size)~ | copy and render ~CPMDParams~; ~NULL~ on a decode or render failure |
 | ~CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)~ | resolve a ~PotentialConfig~ like ~cpmdc_configure()~, then create a session |
-| ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters and drop any overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
+| ~int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)~ | replace the parameters and drop any ~common~ overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
 | ~int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)~ | add ~CONSTANT CUTOFF~ to the rendered ~&SYSTEM~; ~cutoff_ry <= 0~ removes it; same topology rule |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule, and a failed call keeps the previous parameters and overlay |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
