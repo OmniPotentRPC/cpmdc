@@ -133,5 +133,7 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~PotentialConfig~
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
-~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, or the overlay
-alone; see the [[file:c-abi.org][C ABI reference]] for the lowering rules.
+~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, the overlay alone,
+or both, in which case the arm is the params and the overlay fills only what
+the arm leaves at the schema defaults; see the
+[[file:c-abi.org][C ABI reference]] for the lowering rules.
