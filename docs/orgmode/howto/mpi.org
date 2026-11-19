@@ -76,7 +76,10 @@ int main(int argc, char **argv) {
 | return value ~>= 0~ | index of this rank's calculator, ~world_rank / ranks_per_calc~ |
 | return value ~-1~ | the split was refused, or the library has no CPMD backend (the default build and the stub) |
 
-A second call returns the same index without splitting again.
+A second call does not split again.
+It returns the index its own ~ranks_per_calc~ gives, which is the first call's
+index only for the same value.
+The call initialises MPI when the host has not.
 The group's first rank, world rank ~group * ranks_per_calc~, is its parent rank.
 ~cpmdc~ remembers the split in ~embed_calculator_bound~.
 ~mp_start~ assigns ~mp_comm_world~ only when CPMD itself calls ~MPI_Init~, and
