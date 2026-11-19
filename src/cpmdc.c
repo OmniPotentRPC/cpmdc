@@ -1526,21 +1526,31 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
-/* The overrides a session renders its deck with: the common overlay and the
- * constant cutoff. NULL when it has neither. */
+/* The overrides a deck is rendered with: an overlay and the session's
+ * constant cutoff. NULL when there is neither. */
 static const CPMDCScalarOverrides *
-session_render_overrides(const CPMDCSession *session,
-                         CPMDCScalarOverrides *scratch) {
+render_overrides_with(const CPMDCSession *session,
+                      const CPMDCScalarOverrides *overlay,
+                      CPMDCScalarOverrides *scratch) {
   if (session->constant_cutoff_ry <= 0.0)
-    return session->has_overrides ? &session->overrides : NULL;
-  if (session->has_overrides)
-    *scratch = session->overrides;
+    return overlay;
+  if (overlay)
+    *scratch = *overlay;
   else
     memset(scratch, 0, sizeof(*scratch));
   scratch->constant_cutoff_ry = session->constant_cutoff_ry;
   scratch->constant_cutoff_height_ry = session->constant_cutoff_height_ry;
   scratch->constant_cutoff_width_ry = session->constant_cutoff_width_ry;
   return scratch;
+}
+
+/* The overrides a session renders its deck with: the common overlay and the
+ * constant cutoff. NULL when it has neither. */
+static const CPMDCScalarOverrides *
+session_render_overrides(const CPMDCSession *session,
+                         CPMDCScalarOverrides *scratch) {
+  return render_overrides_with(
+      session, session->has_overrides ? &session->overrides : NULL, scratch);
 }
 
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
@@ -1579,6 +1589,10 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   return session;
 }
 
+/* Replaces the parameters and the overlay together. Everything is validated
+ * into temporaries first, so a call that fails leaves the session as it was:
+ * parameters, deck, effective scalars, overlay, and embed image. Only the
+ * last error changes. */
 static int cpmdc_session_set_params_ov(CPMDCSession *session,
                                        const void *params_capnp,
                                        size_t params_capnp_size_bytes,
@@ -1600,40 +1614,67 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
     cpmdc_store_error("out of memory");
     return -1;
   }
+  CPMDCScalarOverrides overlay;
+  char overlay_functional[sizeof(session->overrides_functional)];
+  memset(&overlay, 0, sizeof(overlay));
   if (overrides) {
-    session->overrides = *overrides;
+    overlay = *overrides;
+    if (overrides->functional) {
+      snprintf(overlay_functional, sizeof(overlay_functional), "%s",
+               overrides->functional);
+      overlay.functional = overlay_functional;
+    }
+  }
+  char functional[sizeof(session->functional)];
+  char cpmd_root[sizeof(session->cpmd_root)];
+  double cutoff_ry = session->cutoff_ry;
+  int charge = session->charge;
+  int multiplicity = session->multiplicity;
+  memcpy(functional, session->functional, sizeof(functional));
+  memcpy(cpmd_root, session->cpmd_root, sizeof(cpmd_root));
+  char *deck = NULL;
+  CPMDCScalarOverrides render;
+  if (apply_params_buffer(
+          params_capnp, params_capnp_size_bytes,
+          render_overrides_with(session, overrides ? &overlay : NULL, &render),
+          functional, sizeof(functional), &cutoff_ry, &charge, &multiplicity,
+          &deck, cpmd_root, sizeof(cpmd_root)) != 0) {
+    free(deck);
+    free(bytes);
+    return -1;
+  }
+  memcpy(bytes, params_capnp, params_capnp_size_bytes);
+
+  const CPMDCSession before = *session;
+  memcpy(session->functional, functional, sizeof(functional));
+  memcpy(session->cpmd_root, cpmd_root, sizeof(cpmd_root));
+  session->cutoff_ry = cutoff_ry;
+  session->charge = charge;
+  session->multiplicity = multiplicity;
+  session->params_bytes = bytes;
+  session->params_size = params_capnp_size_bytes;
+  session->input_deck = deck;
+  if (overrides) {
+    session->overrides = overlay;
     if (overrides->functional) {
       snprintf(session->overrides_functional,
                sizeof(session->overrides_functional), "%s",
-               overrides->functional);
+               overlay.functional);
       session->overrides.functional = session->overrides_functional;
     }
     session->has_overrides = 1;
   } else {
     session->has_overrides = 0;
   }
-  char *deck = NULL;
-  CPMDCScalarOverrides render;
-  if (apply_params_buffer(params_capnp, params_capnp_size_bytes,
-                          session_render_overrides(session, &render),
-                          session->functional, sizeof(session->functional),
-                          &session->cutoff_ry, &session->charge,
-                          &session->multiplicity, &deck, session->cpmd_root,
-                          sizeof(session->cpmd_root)) != 0) {
+  if (configure_embed_from_session(session) != 0) {
+    *session = before;
     free(deck);
     free(bytes);
-    return -1;
-  }
-  memcpy(bytes, params_capnp, params_capnp_size_bytes);
-  free(session->params_bytes);
-  session->params_bytes = bytes;
-  session->params_size = params_capnp_size_bytes;
-  free(session->input_deck);
-  session->input_deck = deck;
-  if (configure_embed_from_session(session) != 0) {
     cpmdc_store_error("CPMD embed not available");
     return -1;
   }
+  free(before.params_bytes);
+  free(before.input_deck);
   cpmdc_store_error("");
   return 0;
 }
