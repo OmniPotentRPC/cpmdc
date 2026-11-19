@@ -12,7 +12,9 @@ linked the comparisons take the SCF tolerance.
 from __future__ import annotations
 
 import copy
+import os
 import pickle
+import re
 from pathlib import Path
 from typing import Any
 
@@ -483,17 +485,21 @@ def test_the_calculator_recovers_after_a_failure(calc, params, tolerance):
 
 
 @pytest.mark.parametrize("scale", [1e200, -1e200])
-def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd):
+def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd, cold_start):
     """The reference well returns an infinite energy for this geometry.
 
-    OpenCPMD stops in RATOM while it reads the coordinates of the deck, so
-    no result exists and the library gives its own reason. ASE fixes the
-    exception, not the text.
+    OpenCPMD returns no result. A cold step writes the coordinates into
+    the deck, CPMD reads asterisks and stops, and the library gives its
+    own reason, which the ``cold_start`` fixture makes the one to expect.
+    ASE fixes the exception, not the text.
     """
     atoms = water()
     atoms.positions *= scale
     atoms.calc = calc
-    with pytest.raises(CalculationFailed, match=None if opencpmd else "non-finite"):
+    reason = "CPMD stopgm during embed SCF" if opencpmd else "non-finite"
+    where = re.escape(os.path.abspath(calc.directory))
+    pattern = f"^cpmdc could not evaluate the step in {where}: .*{reason}"
+    with pytest.raises(CalculationFailed, match=pattern):
         atoms.get_potential_energy()
     assert calc.results == {}
 
