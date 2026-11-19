@@ -337,11 +337,13 @@ renames a file only when a whole symlink chain is unchanged, so a full
 guarantee is not available. The ~renameat~ uses the directory descriptor
 taken during resolution, which pins that directory inode: replacing an
 earlier path component afterwards does not redirect the write onto the
-replacement. On Linux an absent final name is published with ~renameat2~
-and ~RENAME_NOREPLACE~, so a name that appears in the gap after the check
-is left alone and the write fails. When the resolved destination is an
-existing file, the last check and the ~renameat~ are still two calls, and
-a substitution of that directory entry in the gap can be overwritten.
+replacement. On Linux, when the headers and kernel provide ~renameat2~ with
+~RENAME_NOREPLACE~, an absent final name that appears in the gap is left
+alone and the write fails. If that operation is unavailable or rejected,
+the writer falls back to plain ~renameat~; a name that appears in the gap
+can then be overwritten. When the resolved destination is an existing
+file, the last check and the ~renameat~ are also two calls, and a
+substitution of that directory entry in the gap can be overwritten.
 Windows resolves none of this: the destination is written as given, with
 no symlink handling at all.
 The writer flushes that file and syncs it with ~fsync~, renames it over the
