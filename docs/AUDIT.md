@@ -222,6 +222,32 @@ repository root, so lychee failed on them.
 They now give the paths as code, and lychee finds no broken link inside
 the tree.
 
+### Gaps six and eight
+
+This part grades gaps six and eight again on top of commit `7c90229`.
+Both are closed.
+
+Gap six is closed by `docs(howto): move the build-and-test page under
+howto`. The build-and-test page is now
+`howto/quickstart.org`, in the How-To toctree. Its list of Meson test
+suites moved to the reference page `reference/build-options.org`.
+`tutorials/quickstart.org` is an orphan page that links to the new page
+and refreshes to it, so the published address keeps working. The docs
+build has no redirect extension, and the change adds none.
+`readme-navigation` skips orphan pages.
+
+Gap eight is closed by `docs(readme): link the reference pages instead
+of copying their tables`. At `7c90229` the README still
+carried the session sample and session contract of `reference/c-abi.org`,
+the carrier table and mapping rules of `reference/cpmd-options.org`, and
+the inventory test list of `reference/feature-inventory.org`. Each of
+those sections is now two sentences and a link. The option mapping gained
+the three manual lines of the old option-mapping sample and a carrier row
+for catalog sections. It no longer says that `feature-inventory` reads the
+README. `docs/orgmode/index.org` had already dropped its option-mapping
+sample and its runtime-contract table, and it links to the reference
+pages.
+
 ## Diataxis follow-up
 
 `tutorials/quickstart.org` is now the how-to "Build and test cpmdc" and sits

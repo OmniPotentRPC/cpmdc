@@ -20,7 +20,7 @@ Full plain text of every page: https://cpmdc.rgoswami.me/llms-full.txt (committe
 ## How-To Guides
 
 - [Install and build](https://cpmdc.rgoswami.me/howto/install)
-- [Build and test cpmdc](https://cpmdc.rgoswami.me/tutorials/quickstart)
+- [Build and test cpmdc](https://cpmdc.rgoswami.me/howto/quickstart)
 - [Build the OpenCPMD archive for embedding](https://cpmdc.rgoswami.me/howto/opencpmd-archive)
 - [Write a CPMDParams message](https://cpmdc.rgoswami.me/howto/write-cpmdparams)
 - [Embedding cpmdc](https://cpmdc.rgoswami.me/howto/embedding)
