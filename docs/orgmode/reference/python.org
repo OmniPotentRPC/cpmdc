@@ -21,6 +21,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~ATOMIC_NUMBER_MIN~, ~ATOMIC_NUMBER_MAX~ | 1 and 118, the range of atomic numbers that ~Session~ and the C evaluation calls accept |
 | ~CPMDCError~ | failure from the library or from loading it |
 | ~CpmdcError~ | deprecated name of ~CPMDCError~, the same class; reading it warns with ~DeprecationWarning~ |
+| ~MethodInfo~ | frozen dataclass of the effective functional, charge, and multiplicity decoded from ~CPMDParams~ |
+| ~MethodInfo.functional~, ~MethodInfo.charge~, ~MethodInfo.multiplicity~ | functional token, total system charge, and spin multiplicity |
 | ~Evaluation~ | dataclass of ~energy_h~, ~forces_h_bohr~, ~stress_h_bohr3~ (~None~ without a tensor); it compares by identity |
 | ~Evaluation.energy_h~, ~Evaluation.forces_h_bohr~, ~Evaluation.stress_h_bohr3~ | Hartree, an N by 3 list in Hartree/Bohr, and nine Hartree/Bohr^3 values with the OpenCPMD sign |
 | ~ConstantCutoff~ | frozen dataclass of the constant-cutoff kinetic functional, ~ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)~; a value that is not finite and positive raises ~ValueError~, and one that is not a number ~TypeError~ |
@@ -42,6 +44,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~Potential.close~ | close the owned session |
 | ~find_library~ | explicit path, the three environment variables, the wheel's library, the dynamic linker, then ~build/~ |
 | ~find_schema~ | explicit path, ~CPMDC_SCHEMA~, the wheel's copy, then ~schema/Potentials.capnp~; for ~capnp encode~ of ~CPMDParams~ text |
+| ~params_method~ | decode the effective ~MethodInfo~ from serialized ~CPMDParams~ bytes or a path without applying the deck |
 | ~forces_to_ev_per_angstrom~ | Hartree/Bohr forces to eV/Angstrom |
 | ~stress_to_ev_per_angstrom3~ | row-major Hartree/Bohr^3 tensor to eV/Angstrom^3, library sign |
 | ~CPMDCCalculator~ | ASE calculator: energy, free_energy, forces, stress; keywords ~params~, ~library~, and ~constant_cutoff~, and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
