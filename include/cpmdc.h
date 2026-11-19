@@ -245,15 +245,23 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
 /**
  * @brief Apply configuration from a `PotentialConfig` message.
  *
- * The `cpmd` union arm carries `CPMDParams` and wins wholesale when present.
- * With the arm unset, a set `common` overlay (`CommonMethodSpec`) lowers to
- * synthesized `CPMDParams`: functional, basis set, plane-wave cutoff,
- * charge, multiplicity, SCF energy tolerance, MAXITER, the Monkhorst-Pack
- * kMesh, smearing, and the van der Waals method and S6, the fields
- * `cpmdc_capabilities_result()` lists. Setting both the
- * cpmd arm and the overlay is rejected (capnp cannot distinguish unset arm
- * fields from defaults). Overlay fields without a CPMD lowering are rejected
- * and reported through `cpmdc_last_error()`.
+ * The `cpmd` union arm carries `CPMDParams`. With `common` unset, the arm is
+ * applied as given. With the arm unset, a set `common` overlay
+ * (`CommonMethodSpec`) lowers to synthesized `CPMDParams`: functional, basis
+ * set, plane-wave cutoff, charge, multiplicity, SCF energy tolerance,
+ * MAXITER, the Monkhorst-Pack kMesh, smearing, and the van der Waals method
+ * and S6, the fields `cpmdc_capabilities_result()` lists. When both the
+ * `cpmd` arm and the `common` overlay are set, the arm wins where it differs
+ * from schema defaults, and the overlay fills `xcFunctionals`,
+ * `planewaveCutoffEv`, `charge`, `spinMultiplicity`, Fermi `smearing` (when
+ * `&CPMD` sets no free-energy or electron-temperature control), and
+ * `vanDerWaalsS6` (into a `vdwParams` section with `s6` unset); `basisSet`
+ * must be unset or `"planewave"`, and conflicting or unmergeable fields
+ * (`kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`,
+ * `relativityMethod`, already-set `smearing` or `s6`, or `vanDerWaalsS6`
+ * without `vdwParams`) are rejected through `cpmdc_last_error()`. Overlay
+ * fields without a CPMD lowering are rejected and reported through
+ * `cpmdc_last_error()`.
  *
  * @return 0 on success, -1 on parse, lowering, or apply failure.
  */
