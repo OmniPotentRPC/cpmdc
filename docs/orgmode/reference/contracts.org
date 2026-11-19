@@ -233,7 +233,7 @@ A session is created by one of two functions and released by ~cpmdc_session_dest
 | Layout | ~params_capnp~ points at ~params_capnp_size_bytes~ bytes of one unpacked flat ~CPMDParams~ message. |
 | Ownership | ~session~ stays owned by the caller; ~params_capnp~ may be freed on return, since the session copies it. |
 | Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
-| Returns and errors | Returns 0 on success and -1 for a NULL session, a NULL or empty buffer, a parse failure, or a session that has accepted a topology (~session topology is already fixed~); the session keeps its parameters on failure and the text is ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 on success and -1 for a NULL session, a NULL or empty buffer, a parse failure, or a session that has accepted a topology (~session topology is already fixed~). A successful call also drops any common overlay a ~cpmdc_session_configure()~ call installed. A failed call leaves the session exactly as it was (parameters, deck, effective settings, overlay, and embed state) and only the text of ~cpmdc_last_error()~ changes. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -245,7 +245,7 @@ A session is created by one of two functions and released by ~cpmdc_session_dest
 | Layout | ~config_capnp~ points at ~config_capnp_size_bytes~ bytes of one unpacked flat ~PotentialConfig~ message. |
 | Ownership | ~session~ stays owned by the caller; ~config_capnp~ may be freed on return. |
 | Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
-| Returns and errors | Returns 0 on success and -1 for a NULL session, a session that has evaluated, or any failure ~cpmdc_configure()~ reports; the text is ~cpmdc_last_error()~. |
+| Returns and errors | Returns 0 on success and -1 for a NULL session, a session that has evaluated, or any failure ~cpmdc_configure()~ reports; a failed call keeps the previous parameters and overlay, and the text is ~cpmdc_last_error()~. |
 | Python | not wrapped. |
 | Defaults | none |
 

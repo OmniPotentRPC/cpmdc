@@ -18,6 +18,8 @@
 static const char *g_overlay = NULL;
 static const char *g_reject = NULL;
 static const char *g_step = NULL;
+static const char *g_bad_params = NULL;
+static const char *g_arm_overlay = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -122,18 +124,85 @@ static void test_overlay_kmesh_reaches_deck(void **state) {
   free(config);
 }
 
+/* Renders the deck of a constant-cutoff call on the session into a text
+ * file, which shows the overlay the session currently renders with. */
+static char *deck_after_constant_cutoff(CPMDCSession *session) {
+  char deck_path[] = "overlay_atomic_deck_XXXXXX";
+  int fd = mkstemp(deck_path);
+  assert_true(fd >= 0);
+  close(fd);
+  setenv("CPMDC_DECK_OUT", deck_path, 1);
+  int rc = cpmdc_session_set_constant_cutoff(session, 10.0, 0.0, 0.0);
+  unsetenv("CPMDC_DECK_OUT");
+  assert_int_equal(rc, 0);
+  size_t size = 0;
+  unsigned char *deck = read_file(deck_path, &size);
+  remove(deck_path);
+  assert_non_null(deck);
+  char *text = (char *)realloc(deck, size + 1);
+  assert_non_null(text);
+  text[size] = '\0';
+  return text;
+}
+
+static void test_failed_set_params_keeps_overlay(void **state) {
+  (void)state;
+  size_t config_size = 0, bad_size = 0;
+  unsigned char *config = read_file(g_arm_overlay, &config_size);
+  unsigned char *bad = read_file(g_bad_params, &bad_size);
+  assert_non_null(config);
+  assert_non_null(bad);
+
+  CPMDCSession *control =
+      cpmdc_session_create_from_config(config, config_size);
+  assert_non_null(control);
+  char *expected = deck_after_constant_cutoff(control);
+  assert_non_null(strstr(expected, "FUNCTIONAL PBE"));
+  assert_non_null(strstr(expected, "CHARGE\n  -1\n"));
+  assert_non_null(strstr(expected, "MULTIPLICITY\n  3\n"));
+
+  CPMDCSession *session =
+      cpmdc_session_create_from_config(config, config_size);
+  assert_non_null(session);
+
+  const unsigned char garbage[] = {0xde, 0xad, 0xbe, 0xef, 0x01, 0x02,
+                                   0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+  assert_int_equal(cpmdc_session_set_params(session, garbage, sizeof(garbage)),
+                   -1);
+  assert_string_equal(cpmdc_last_error(), "CPMDParams parse failed");
+
+  assert_int_equal(cpmdc_session_set_params(session, bad, bad_size), -1);
+  assert_non_null(strstr(cpmdc_last_error(), "deck render failed"));
+
+  char *actual = deck_after_constant_cutoff(session);
+  assert_string_equal(actual, expected);
+
+  free(actual);
+  free(expected);
+  cpmdc_session_destroy(session);
+  cpmdc_session_destroy(control);
+  free(bad);
+  free(config);
+}
+
 int main(int argc, char **argv) {
-  if (argc != 4) {
-    fprintf(stderr, "usage: %s OVERLAY_BIN REJECT_BIN STEP_BIN\n", argv[0]);
+  if (argc != 6) {
+    fprintf(stderr,
+            "usage: %s OVERLAY_BIN REJECT_BIN STEP_BIN BAD_PARAMS_BIN "
+            "ARM_OVERLAY_BIN\n",
+            argv[0]);
     return 2;
   }
   g_overlay = argv[1];
   g_reject = argv[2];
   g_step = argv[3];
+  g_bad_params = argv[4];
+  g_arm_overlay = argv[5];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_overlay_session_evaluates),
       cmocka_unit_test(test_overlay_rejects_unlowerable_field),
       cmocka_unit_test(test_overlay_kmesh_reaches_deck),
+      cmocka_unit_test(test_failed_set_params_keeps_overlay),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
