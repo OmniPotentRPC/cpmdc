@@ -266,12 +266,12 @@ pixi run -e docs mkrst
 Check the links in the README, the Org sources, and the newsfragments:
 
 #+begin_src bash
-pixi run lychee
+pixi run -e docs lychee
 #+end_src
 
-The task runs [[https://lychee.cli.rs][lychee]] with ~.lychee.toml~, which also
-checks the anchor of a link such as ~README.md#citation~.
-The Pixi environment does not provide lychee, so put it on the path first.
+The task runs [[https://lychee.cli.rs][lychee]] 0.24.2 from the ~docs~ Pixi
+environment with ~.lychee.toml~, which also checks the anchor of a link such as
+~README.md#citation~.
 A link to a file on the ~main~ branch fails until that file lands there.
 
 The Sphinx theme injects

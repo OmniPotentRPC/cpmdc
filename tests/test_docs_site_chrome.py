@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 
@@ -168,6 +169,19 @@ def main() -> int:
             failures.append(f"ci_docs.yml action is not SHA-pinned: {use}")
     if "cname: cpmdc.rgoswami.me" not in workflow:
         failures.append("ci_docs.yml lost the cpmdc CNAME")
+    if "taiki-e/install-action" in workflow and "lychee" in workflow:
+        failures.append("ci_docs.yml installs lychee outside pixi")
+    if "pixi run -e docs lychee" not in workflow:
+        failures.append("ci_docs.yml does not run pixi run -e docs lychee")
+
+    pixi = tomllib.loads((root / "pixi.toml").read_text(encoding="utf-8"))
+    docs_deps = pixi.get("feature", {}).get("docs", {}).get("dependencies", {})
+    lychee_pin = docs_deps.get("lychee", "")
+    if "0.24.2" not in str(lychee_pin):
+        failures.append("pixi docs feature does not pin lychee 0.24.2")
+    tasks = pixi.get("feature", {}).get("docs", {}).get("tasks", {})
+    if "lychee" not in tasks:
+        failures.append("pixi lychee task is not in feature.docs.tasks")
 
     commenter = (root / ".github/workflows/ci_doc_commenter.yml").read_text(
         encoding="utf-8"
