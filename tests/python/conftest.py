@@ -35,6 +35,9 @@ WATER = [
     [0.0, -0.7572, -0.4692],
 ]
 
+# No test evaluates this molecule, so the orbitals parked on it match no test.
+PARKING = ([[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]], [1, 1])
+
 
 def _params(env: str, source: str, tmp: pytest.TempPathFactory) -> Path:
     named = os.environ.get(env)
@@ -75,3 +78,26 @@ def opencpmd(params: Path) -> bool:
 
     with Session(params) as session:
         return session.available()
+
+
+def park_orbitals(params: Path) -> None:
+    """Drop the orbitals OpenCPMD keeps for the process, on a live build.
+
+    The library keeps them after a ``Session`` closes and reuses them for
+    any later session of the same elements, cell, and deck, so the first
+    step of a test starts warm or cold depending on what ran before it.
+    Orbitals of another composition replace them, and the next step of
+    water then sets CPMD up again from its deck. The reference well keeps
+    nothing, so this does nothing there.
+    """
+    from cpmdc import Session
+
+    with Session(params) as session:
+        if session.available():
+            session.energy_forces(*PARKING)
+
+
+@pytest.fixture
+def cold_start(params: Path) -> None:
+    """The first step of the test sets CPMD up from its deck."""
+    park_orbitals(params)
