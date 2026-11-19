@@ -24,12 +24,15 @@
  * Exported by the embed layer (src/cpmd_embed_c_api.F90) for tests. */
 int cpmdc_embed_orbital_slots(void);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
+#if defined(CPMDC_HAS_CPMD)
+void cpmdc_test_park_partial_orbitals(long long next_key);
+#endif
 /* Where the last SCF started: 0 the selected key's orbitals, 1 another
  * key's, -1 the guess (every stored geometry beyond CPMDC_WARM_RMSD), -2
  * the guess (nothing stored). Exported by the same layer for tests. */
 int cpmdc_embed_last_warm_source(void);
 
-static const char *g_params = NULL;
+static const char *g_params[2] = {NULL, NULL};
 
 enum { kAtoms = 3, kSteps = 4 };
 
@@ -129,7 +132,7 @@ static void test_keys_keep_their_orbitals(void **state) {
     skip();
   }
   size_t params_size = 0;
-  unsigned char *params = read_file(g_params, &params_size);
+  unsigned char *params = read_file(g_params[0], &params_size);
   assert_non_null(params);
 
   struct keyed_out keyed;
@@ -222,7 +225,7 @@ static void test_far_orbitals_give_way_to_the_guess(void **state) {
     skip();
   }
   size_t params_size = 0;
-  unsigned char *params = read_file(g_params, &params_size);
+  unsigned char *params = read_file(g_params[0], &params_size);
   assert_non_null(params);
   struct far_out far;
   struct keyed_ctx fctx = {params, params_size, 1};
@@ -301,7 +304,7 @@ static void test_copy_orbitals_seeds_target_key(void **state) {
     skip();
   }
   size_t params_size = 0;
-  unsigned char *params = read_file(g_params, &params_size);
+  unsigned char *params = read_file(g_params[0], &params_size);
   assert_non_null(params);
   struct copy_out out;
   struct keyed_ctx ctx = {params, params_size, 1};
@@ -340,6 +343,34 @@ struct edge_out {
   int ok_donor;
   int ok_current;
   char error[256];
+  char message[256];
+};
+
+struct copy_flag_ctx {
+  const unsigned char *params;
+  size_t params_size;
+  const unsigned char *params_unconverged;
+  size_t params_unconverged_size;
+};
+
+struct copy_flag_out {
+  int ok_seed;
+  int copy_converged_rc;
+  int copy_from_destination_rc;
+  int ok_destination_eval;
+  int ok_source_eval;
+  int destination_source;
+  int source_source;
+  double destination_energy;
+  double source_energy;
+  double destination_grad[3 * kAtoms];
+  double source_grad[3 * kAtoms];
+  int ok_unconverged_eval;
+  int unconverged_slots;
+  int copy_unconverged_rc;
+  int copy_unconverged_repeat_rc;
+  int copy_from_unconverged_destination_rc;
+  char unconverged_error[256];
   char message[256];
 };
 
@@ -460,6 +491,82 @@ static void edge_child(void *vctx, void *vout) {
   cpmdc_session_destroy(session);
 }
 
+static void copy_flag_child(void *vctx, void *vout) {
+  const struct copy_flag_ctx *ctx = (const struct copy_flag_ctx *)vctx;
+  struct copy_flag_out *o = (struct copy_flag_out *)vout;
+  CPMDCSession *session = NULL;
+  CPMDCSession *session_unconverged = NULL;
+  CPMDCResult r;
+  double unconverged_grad[3 * kAtoms];
+  memset(o, 0, sizeof(*o));
+
+  session = cpmdc_session_create(ctx->params, ctx->params_size);
+  if (!session) {
+    snprintf(o->message, sizeof(o->message), "session: %s", cpmdc_last_error());
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 10);
+  r = cpmdc_session_energy_gradient(session, kAtoms, kA, kZ, o->source_grad);
+  o->ok_seed = r.ok;
+  if (!r.ok) {
+    snprintf(o->message, sizeof(o->message), "seed: %s", r.message);
+    cpmdc_session_destroy(session);
+    return;
+  }
+  o->copy_converged_rc = cpmdc_session_copy_orbitals(session, 10, 11);
+  o->copy_from_destination_rc = cpmdc_session_copy_orbitals(session, 11, 12);
+  if (o->copy_converged_rc != 0 || o->copy_from_destination_rc != 0) {
+    snprintf(o->message, sizeof(o->message), "copy: %s", cpmdc_last_error());
+    cpmdc_session_destroy(session);
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 11);
+  r = cpmdc_session_energy_gradient(session, kAtoms, kA2, kZ, o->destination_grad);
+  o->ok_destination_eval = r.ok;
+  o->destination_energy = r.energy_h;
+  o->destination_source = cpmdc_embed_last_warm_source();
+  if (!r.ok) {
+    snprintf(o->message, sizeof(o->message), "dest eval: %s", r.message);
+    cpmdc_session_destroy(session);
+    return;
+  }
+  cpmdc_session_select_orbitals(session, 10);
+  r = cpmdc_session_energy_gradient(session, kAtoms, kA2, kZ, o->source_grad);
+  o->ok_source_eval = r.ok;
+  o->source_energy = r.energy_h;
+  o->source_source = cpmdc_embed_last_warm_source();
+  if (!r.ok) {
+    snprintf(o->message, sizeof(o->message), "source eval: %s", r.message);
+    cpmdc_session_destroy(session);
+    return;
+  }
+  cpmdc_session_destroy(session);
+
+  session_unconverged =
+      cpmdc_session_create(ctx->params_unconverged, ctx->params_unconverged_size);
+  if (!session_unconverged) {
+    snprintf(o->message, sizeof(o->message), "session maxiter2: %s", cpmdc_last_error());
+    return;
+  }
+  cpmdc_session_select_orbitals(session_unconverged, 30);
+  r = cpmdc_session_energy_gradient(session_unconverged, kAtoms, kA, kZ,
+                                    unconverged_grad);
+  o->ok_unconverged_eval = r.ok;
+#if defined(CPMDC_HAS_CPMD)
+  cpmdc_test_park_partial_orbitals(33);
+#endif
+  o->unconverged_slots = cpmdc_embed_orbital_slots();
+  o->copy_unconverged_rc =
+      cpmdc_session_copy_orbitals(session_unconverged, 30, 31);
+  snprintf(o->unconverged_error, sizeof(o->unconverged_error), "%s",
+           cpmdc_last_error());
+  o->copy_unconverged_repeat_rc =
+      cpmdc_session_copy_orbitals(session_unconverged, 30, 31);
+  o->copy_from_unconverged_destination_rc =
+      cpmdc_session_copy_orbitals(session_unconverged, 31, 32);
+  cpmdc_session_destroy(session_unconverged);
+}
+
 static void test_copy_and_select_keep_their_contracts(void **state) {
   (void)state;
   if (!cpmdc_available()) {
@@ -467,7 +574,7 @@ static void test_copy_and_select_keep_their_contracts(void **state) {
     skip();
   }
   size_t params_size = 0;
-  unsigned char *params = read_file(g_params, &params_size);
+  unsigned char *params = read_file(g_params[0], &params_size);
   assert_non_null(params);
   struct edge_out out;
   struct keyed_ctx ctx = {params, params_size, 1};
@@ -495,6 +602,45 @@ static void test_copy_and_select_keep_their_contracts(void **state) {
   free(params);
 }
 
+static void test_copy_sets_convergence_for_destination_only(void **state) {
+  (void)state;
+  if (!cpmdc_available()) {
+    print_message("[  SKIP   ] libcpmd embed not linked\n");
+    skip();
+  }
+  size_t params_size = 0, unconverged_size = 0;
+  unsigned char *params = read_file(g_params[0], &params_size);
+  unsigned char *params_unconverged = read_file(g_params[1], &unconverged_size);
+  assert_non_null(params);
+  assert_non_null(params_unconverged);
+  struct copy_flag_out out;
+  struct copy_flag_ctx ctx = {params, params_size, params_unconverged, unconverged_size};
+  RUN_SETUP_CHILD(copy_flag_child, &ctx, &out);
+  if (out.message[0] != '\0')
+    print_message("copy flag run: %s\n", out.message);
+
+  assert_int_equal(out.ok_seed, 1);
+  assert_int_equal(out.copy_converged_rc, 0);
+  assert_int_equal(out.copy_from_destination_rc, 0);
+  assert_int_equal(out.ok_destination_eval, 1);
+  assert_int_equal(out.ok_source_eval, 1);
+  assert_int_equal(out.destination_source, 0);
+  assert_int_equal(out.source_source, 0);
+  assert_float_equal(out.destination_energy, out.source_energy, 1e-7);
+  for (int k = 0; k < 3 * kAtoms; ++k)
+    assert_float_equal(out.destination_grad[k], out.source_grad[k], 1e-4);
+
+  assert_int_equal(out.ok_unconverged_eval, 0);
+  assert_true(out.unconverged_slots >= 1);
+  assert_int_equal(out.copy_unconverged_rc, -1);
+  assert_non_null(strstr(out.unconverged_error, "converged"));
+  assert_int_equal(out.copy_unconverged_repeat_rc, -1);
+  assert_int_equal(out.copy_from_unconverged_destination_rc, -1);
+
+  free(params_unconverged);
+  free(params);
+}
+
 static void test_null_session_is_refused(void **state) {
   (void)state;
   assert_int_equal(cpmdc_session_select_orbitals(NULL, 3), -1);
@@ -510,11 +656,12 @@ static void test_embed_copy_without_orbitals_is_refused(void **state) {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    fprintf(stderr, "usage: %s PARAMS_BIN\n", argv[0]);
+  if (argc != 3) {
+    fprintf(stderr, "usage: %s PARAMS_BIN MAXITER2_PARAMS_BIN\n", argv[0]);
     return 2;
   }
-  g_params = argv[1];
+  g_params[0] = argv[1];
+  g_params[1] = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_null_session_is_refused),
       cmocka_unit_test(test_embed_copy_without_orbitals_is_refused),
@@ -522,6 +669,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_far_orbitals_give_way_to_the_guess),
       cmocka_unit_test(test_copy_orbitals_seeds_target_key),
       cmocka_unit_test(test_copy_and_select_keep_their_contracts),
+      cmocka_unit_test(test_copy_sets_convergence_for_destination_only),
   };
   int failed = cmocka_run_group_tests(tests, NULL, NULL);
   /* `extrapolate-wfn` prints this line when the embed comparison ran.

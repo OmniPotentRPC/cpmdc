@@ -1080,17 +1080,31 @@ if get_option('with_tests')
     timeout: 300,
   )
 
+  water_maxiter2_session_params_bin = custom_target(
+    'water_maxiter2_session_params_bin',
+    input: 'tests/water_blyp_maxiter2_params.capnp.txt',
+    output: 'water_blyp_maxiter2_session_params.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  session_orbital_key_sources = ['tests/test_session_orbital_keys.c']
+  if has_cpmd
+    session_orbital_key_sources += ['tests/park_partial_orbitals.F90']
+  endif
   test(
     'session-orbital-keys',
     executable(
       'test_session_orbital_keys',
-      'tests/test_session_orbital_keys.c',
+      session_orbital_key_sources,
       dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
       include_directories: inc,
-      c_args: common_c_args,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+      fortran_args: cpmd_embed_f_args,
     ),
-    args: [runtime_params_bin.full_path()],
-    depends: [runtime_params_bin],
+    args: [
+      runtime_params_bin.full_path(),
+      water_maxiter2_session_params_bin.full_path(),
+    ],
+    depends: [runtime_params_bin, water_maxiter2_session_params_bin],
     suite: ['e2e', 'cmocka'],
     timeout: 900,
   )
