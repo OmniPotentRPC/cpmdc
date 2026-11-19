@@ -1215,7 +1215,7 @@ Every macro and enum constant of the installed headers.
 
 | Name | Value | Meaning | Python |
 |--------+--------+--------+--------|
-| CPMDC_ABI_VERSION | 0 for the 0.4.0 series | The ABI generation: the major number of ~version.txt~, written into the header by cog. Compare it with ~cpmdc_abi_version()~. | ~cpmdc.Session.abi_version~ returns the compiled value. |
+| CPMDC_ABI_VERSION | 0 for every 0.x release | The ABI generation: the major number of ~version.txt~, written into the header by cog. Compare it with ~cpmdc_abi_version()~. | ~cpmdc.Session.abi_version~ returns the compiled value. |
 | CPMDC_API | the platform export attribute | Marks an exported function: default visibility on GCC and Clang, ~__declspec(dllexport)~ or ~dllimport~ on Windows, empty for a static build. | none |
 | CPMDC_FEATURE_SECTION | 1 | ~CPMDCFeatureKind~: a CPMD input section, such as ~catalog.section.PIMD~. | none |
 | CPMDC_FEATURE_PARAMS | 2 | ~CPMDCFeatureKind~: a ~CPMDParams~ field. | none |
