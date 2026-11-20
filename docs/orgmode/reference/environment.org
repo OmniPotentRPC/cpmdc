@@ -109,6 +109,12 @@ reason even when the value is unusable.
 A rank that rejects its own call still joins the agreement, and every other
 rank then fails the call too, with a message that another rank rejected it,
 instead of waiting for it.
+A session evaluation validates its topology without mutating the session and
+commits it only after the collective preflight succeeds on every rank, so a
+failed preflight leaves the session unchanged.
+Every rank also agrees whether an orbital key is selected, whether stale
+orbitals were cleared, and whether orbital preparation succeeded, failing
+every rank with the same error when any rank diverges or fails.
 ~cpmd.x~ and a warm-start call that does not go through the library read the
 variable themselves.
 
