@@ -55,7 +55,7 @@ from cpmdc import (
     _load,
     find_library,
 )
-from cpmdc.ipi import species_numbers
+from cpmdc._elements import species_numbers
 
 __all__ = ["UNIT_STYLES", "FixExternal", "box_rows", "type_numbers", "unit_factors"]
 

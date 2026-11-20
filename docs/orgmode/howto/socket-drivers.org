@@ -1,6 +1,50 @@
 #+TITLE: Drive cpmdc over the i-PI socket protocol
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
+* Migration status
+Protocol frontends belong in [[https://github.com/OmniPotentRPC/rgpot][rgpot]], where they can wrap every potential.
+The intended route is rgpot's =IPIDriver= over =CPMDPot=, while direct
+=Session.calculate_au()= calls and rgpot's Cap'n Proto RPC remain the
+preferred in-process and remote interfaces.
+
+The cpmdc-specific drivers remain for now because rgpot develop at
+=424629e5ba9c0948b8d6224f5b49c014ffb4ac7c= does not yet expose =CPMDPot=
+through =rgpot-ipi-driver=.  In =engines/pot_spec.cpp=, =make()= and
+=names()= contain no CPMD case, and the command has no way to read serialized
+=CPMDParams=.  A user therefore cannot select CPMD with =--pot= or =-m=.
+Three library-level differences also matter before the old route can be retired:
+
+- The =Geometry= helper inside =CppCore/rgpot/IPIPot/IPIDriver.cc= (it lives
+  in an anonymous namespace, not in the public =IPIDriver= class) calls
+  =openBox()= when =cellVolume()= of the cell is not greater than zero.
+  =cellVolume()= returns the absolute determinant, so a left-handed cell
+  has positive volume and is tiled like any other.  A cell with zero volume
+  (all-zero or singular) is replaced by a padded finite cube before =CPMDPot=
+  sees it.  This differs from =Session.calculate_au(..., cell=None)=
+  and can replace the cell from the CPMD deck, or silently pad a singular
+  cell that cpmdc rejects.
+- =IPIDriver::step()= does not mark a direct =POSDATA= as initialized.  A
+  following =STATUS= therefore returns =NEEDINIT= instead of =HAVEDATA=.
+  ASE and normal i-PI handshakes send =INIT=, but cpmdc's current driver also
+  accepts the init-less sequence.
+- =IPIDriver::step()= accepts an =INIT= string requesting =batch_size= above
+  one and then processes one structure.  cpmdc rejects that unsupported
+  request explicitly.
+
+| Capability | cpmdc driver | rgpot =IPIDriver= and =CPMDPot= |
+|------------+--------------+----------------------------------|
+| Protocol messages | =STATUS=, =INIT=, =POSDATA=, =GETFORCE=, =EXIT=; pipelined =POSDATA=/=GETFORCE=; rejects =batch_size > 1= | the same standard messages and pipeline, but the audited base ignores =batch_size= |
+| Wire units | Bohr, Hartree, Hartree/Bohr; Hartree virial | the same, converted around rgpot's Angstrom/eV evaluator |
+| Cell | transpose i-PI columns to CPMD rows; zero cell can preserve the deck cell; inverse is read and ignored | transpose to rgpot rows; inverse ignored; a cell with zero volume (all-zero or singular) is currently padded, while a left-handed cell is tiled like any other |
+| Sockets | UNIX names/paths and IPv4/IPv6 TCP, with retry | UNIX names/paths and TCP, with retry and message timeout |
+| Command | =cpmdc-ipi= and =cpmdc-ipi-c= take serialized =CPMDParams= | =rgpot-ipi-driver= exists, but =pot_spec= cannot construct =CPMDPot= |
+| ASE | =SocketIOCalculator= over UNIX or TCP | generic driver is tested with =SocketIOCalculator=, but not selectable with CPMD |
+| LAMMPS =fix ipi= | both are clients and meet through an i-PI server | same topology once the CPMD command path exists |
+
+The commands below document the transitional cpmdc driver.  They should not
+be copied into a new engine frontend; close the rgpot gaps and replace this
+page with the generic route first.
+
 ~cpmdc-ipi~ is a client for the i-PI wire protocol.
 It connects to a server over a UNIX or TCP socket, receives positions and
 cells, and returns energies, forces, and virials from one ~Session~.

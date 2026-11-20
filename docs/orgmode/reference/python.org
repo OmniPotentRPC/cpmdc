@@ -69,6 +69,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.ipi.unix_socket_path~ | ~unix_socket_path(name, prefix=None)~: the socket file for an address, with the i-PI and ASE prefix |
 | ~cpmdc.ipi.HEADER_BYTES~, ~cpmdc.ipi.DEFAULT_SOCKET_PREFIX~ | the 12-byte width of a protocol header, and the socket-name prefix that i-PI and ASE use |
 | ~cpmdc.ipi.main~ | ~main(argv=None)~: the ~cpmdc-ipi~ command; returns the exit status |
+| ~cpmdc._elements.species_numbers~ | shared internal parser used by the transitional i-PI driver and the LAMMPS adapter |
 | ~cpmdc.lammps.FixExternal~ | ~FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)~: cpmdc as the force engine of a ~fix external pf/callback~ |
 | ~FixExternal.run~ | ~run(steps, *keywords)~: run ~steps~ with LAMMPS keywords; raises ~CPMDCError~ for a failed step |
 | ~FixExternal.close~ | ~close()~: close the session and remove the fixes it added; also on leaving a ~with~ block |
