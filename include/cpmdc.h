@@ -434,8 +434,11 @@ CPMDC_API void cpmdc_session_destroy(CPMDCSession *session);
  * Every rank of a calculator names the same key before the same
  * evaluation. The call records the key. The evaluation applies it, so a
  * key that is named and then replaced before an evaluation does not park
- * orbitals. A basis change clears every key's orbitals. A session that
- * never names a key keeps one stored copy.
+ * orbitals. CPMDC_ORBITAL_SLOT_LIMIT, a positive integer, is the most parked
+ * copies. An evaluation that would park another copy past that limit fails,
+ * cpmdc_last_error() names the variable, and the copies already stored are
+ * left unchanged. Unset storage is unbounded. A basis change clears every
+ * key's orbitals. A session that never names a key keeps one stored copy.
  *
  * @return 0, or -1 when `session` is `NULL`.
  */
@@ -450,10 +453,13 @@ CPMDC_API int cpmdc_session_select_orbitals(CPMDCSession *session, long long key
  * selected key, its live store is replaced immediately; otherwise the live
  * store is unchanged. Selecting `to_key` afterwards starts from that copy.
  * A donor whose last pass did not converge is refused, including a parked
- * copy and a copy onto the same key. The reference build has no orbital
- * store and returns 0. The link stub returns -1, including a same key
- * copy. Every rank of a calculator names the same keys, the same rule
- * `cpmdc_session_select_orbitals()` has.
+ * copy and a copy onto the same key. A copy that would park a new key past
+ * CPMDC_ORBITAL_SLOT_LIMIT returns -1, cpmdc_last_error() names that
+ * variable, and the copies already stored stay. The reference build has no
+ * orbital store and returns 0, unless the limit is set to a value that is
+ * not a positive integer, which fails the call. The link stub returns -1,
+ * including a same key copy. Every rank of a calculator names the same
+ * keys, the same rule `cpmdc_session_select_orbitals()` has.
  *
  * @return 0, or -1 when `session` is `NULL`, no evaluation has run yet,
  * `from_key` has no converged orbitals, or the copy cannot be completed.

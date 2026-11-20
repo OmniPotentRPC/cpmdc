@@ -113,6 +113,14 @@ the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
+~CPMDC_ORBITAL_SLOT_LIMIT~, a positive integer, is the most of those parked
+copies.
+A park that would pass it fails the evaluation or the copy, the result names
+the variable through ~cpmdc_last_error()~, and the copies already stored stay
+in the table.
+Lowering the limit does not drop a copy that is already parked.
+Unset, the table is unbounded.
+A value that is not a positive integer fails the call.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
 A session that never selects a key keeps one stored copy.
