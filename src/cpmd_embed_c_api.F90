@@ -83,6 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_commit_orbitals
   PUBLIC :: cpmdc_embed_drop_stale_orbitals
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
@@ -503,6 +504,34 @@ CONTAINS
     CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
 #else
     IF (key == 0_c_long_long) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! Reserve a key selection without changing orbital state. C agrees the
+  ! result across ranks before calling the matching commit entry point.
+  FUNCTION cpmdc_embed_prepare_orbitals(key, fail_allocation) RESULT(rc) &
+      BIND(C, NAME='cpmdc_embed_prepare_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_prepare_orbital_slot
+#endif
+    INTEGER(c_long_long), INTENT(IN), VALUE :: key
+    INTEGER(c_int), INTENT(IN), VALUE :: fail_allocation
+    INTEGER(c_int) :: rc
+#if defined(CPMDC_HAS_CPMD)
+    rc = INT(embed_prepare_orbital_slot( &
+         INT(key, KIND=SELECTED_INT_KIND(18)), fail_allocation /= 0_c_int), &
+         c_int)
+#else
+    rc = 0_c_int
+    IF (key == 0_c_long_long .OR. fail_allocation == 0_c_int) CONTINUE
+#endif
+  END FUNCTION
+
+  SUBROUTINE cpmdc_embed_commit_orbitals() &
+      BIND(C, NAME='cpmdc_embed_commit_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_commit_orbital_slot
+    CALL embed_commit_orbital_slot()
 #endif
   END SUBROUTINE
 

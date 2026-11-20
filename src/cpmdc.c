@@ -65,7 +65,6 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             int has_cell, double *energy_h,
                             double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
-void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_drop_stale_orbitals(int n_atoms, const int *atomic_numbers,
@@ -1965,12 +1964,19 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
 int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
                                 long long to_key) {
   const char *err = NULL;
+  int has_from_key = 1;
+  int has_to_key = 1;
   if (!session)
     err = "null session";
   else if (!session->evaluated)
     err = "no stored orbitals; evaluate at least once before copy";
   err = orbital_limit_gate(err);
   if (err) {
+    cpmdc_store_error(err);
+    return -1;
+  }
+  if (cpmdc_orbital_key_agree(&has_from_key, from_key, &err) != 0 ||
+      cpmdc_orbital_key_agree(&has_to_key, to_key, &err) != 0) {
     cpmdc_store_error(err);
     return -1;
   }
@@ -2183,15 +2189,20 @@ CPMDCResult cpmdc_session_calculate_result(
                                    session->step_atomic_numbers, cell_ang,
                                    has_cell, forces);
   if (r.ok) {
+    const char *write_err = NULL;
     for (size_t i = 0; i < force_count; ++i)
       forces[i] = -forces[i] * force_factor;
-    if (cpmdc_potential_result_write(r.energy_h * energy_factor, forces,
-                                     force_count, stress_factor, &session->image,
-                                     potential_result_capnp,
-                                     potential_result_capnp_capacity_bytes,
-                                     potential_result_capnp_size_bytes) != 0) {
+    if (test_fault("potential-result-write") ||
+        cpmdc_potential_result_write(
+            r.energy_h * energy_factor, forces, force_count, stress_factor,
+            &session->image, potential_result_capnp,
+            potential_result_capnp_capacity_bytes,
+            potential_result_capnp_size_bytes) != 0)
+      write_err = "PotentialResult write failed";
+    write_err = collective_call_gate(write_err);
+    if (write_err) {
       r.ok = 0;
-      snprintf(r.message, sizeof(r.message), "PotentialResult write failed");
+      snprintf(r.message, sizeof(r.message), "%s", write_err);
       cpmdc_store_error(r.message);
     }
   }

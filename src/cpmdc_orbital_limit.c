@@ -63,7 +63,8 @@ static int g_limit_ready = 0;
 void cpmdc_embed_set_orbital_slot_limit(int limit);
 void cpmdc_embed_set_cell_in_place(double limit);
 int cpmdc_embed_slot_limit_code(void);
-void cpmdc_embed_select_orbitals(long long key);
+int cpmdc_embed_prepare_orbitals(long long key, int fail_allocation);
+void cpmdc_embed_commit_orbitals(void);
 
 const char *cpmdc_orbital_limit_message(int code) {
   if (code == CPMDC_ORBITAL_SLOT_INVALID)
@@ -106,15 +107,6 @@ static int parked_reserve(void) {
     return -1;
   g_parked = grown;
   g_parked_cap = cap;
-  return 0;
-}
-
-static int parked_add(long long key) {
-  if (parked_index(key) >= 0)
-    return 0;
-  if (parked_reserve() != 0)
-    return -1;
-  g_parked[g_parked_n++] = key;
   return 0;
 }
 
@@ -166,20 +158,22 @@ static int ledger_would_exceed(long long key) {
   return 0;
 }
 
-static int ledger_commit(long long key) {
+/* cpmdc_orbital_prepare reserves a slot before collective agreement, so this
+ * commit contains no allocation and cannot fail on only one rank. */
+static void ledger_commit(long long key) {
   int leaving = 0;
   int dest = -1;
   if (!g_have_selected) {
     g_have_selected = 1;
     g_selected_key = key;
     g_selected_has_store = g_live_store;
-    return 0;
+    return;
   }
   if (key == g_selected_key)
-    return 0;
+    return;
   (void)select_extra(key, &leaving, &dest);
-  if (leaving && parked_add(g_selected_key) != 0)
-    return -1;
+  if (leaving)
+    g_parked[g_parked_n++] = g_selected_key;
   if (dest >= 0) {
     parked_remove_at(dest);
     g_selected_has_store = 1;
@@ -187,7 +181,6 @@ static int ledger_commit(long long key) {
     g_selected_has_store = 0;
   }
   g_selected_key = key;
-  return 0;
 }
 
 static void parse_orbital_slot_limit(int *limit_out, int *kind_out) {
@@ -413,20 +406,22 @@ int cpmdc_orbital_key_agree(int *has_key, long long key, const char **err) {
 int cpmdc_orbital_prepare(long long key, const char **err) {
 #if defined(CPMDC_HAS_CPMD)
   int code = CPMDC_ORBITAL_SLOT_OK;
+  int fail_allocation = 0;
   const char *msg;
-  (void)key;
   if (!g_limit_ready)
     code = CPMDC_ORBITAL_SLOT_INVALID;
   else {
-    cpmdc_embed_select_orbitals(key);
-    code = cpmdc_embed_slot_limit_code();
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
     {
       const char *fault = getenv("CPMDC_TEST_ORBITAL_FAULT");
+      if (fault && strcmp(fault, "selector-allocation") == 0)
+        fail_allocation = 1;
       if (fault && strcmp(fault, "prepare") == 0)
         code = CPMDC_ORBITAL_SLOT_NO_MEMORY;
     }
 #endif
+    if (code == CPMDC_ORBITAL_SLOT_OK)
+      code = cpmdc_embed_prepare_orbitals(key, fail_allocation);
   }
   if (orbital_allreduce(&code, 1) != 0) {
     *err = k_orbital_limit_mpi;
@@ -441,6 +436,7 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
     *err = msg;
     return -1;
   }
+  cpmdc_embed_commit_orbitals();
   *err = NULL;
   return 0;
 #else
@@ -475,10 +471,7 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
     *err = k_orbital_limit_exceeded;
     return -1;
   }
-  if (ledger_commit(key) != 0) {
-    *err = k_orbital_limit_memory;
-    return -1;
-  }
+  ledger_commit(key);
   *err = NULL;
   return 0;
 #endif
