@@ -82,6 +82,16 @@ def test_property_gradient_limit_fails_without_truncation(params):
             session.energy_forces(positions, [1] * 1366)
 
 
+def test_topology_change_is_not_reported_as_the_gradient_limit(params):
+    big = [[0.0, 0.0, 0.0]] * 1366
+    with Session(params) as session:
+        session.energy_forces(WATER, [8, 1, 1])
+        with pytest.raises(CPMDCError, match="topology change"):
+            session.energy_forces(big, [1] * 1366)
+        again = session.energy_forces(WATER, [8, 1, 1])
+    assert again.forces_h_bohr is not None
+
+
 def test_closed_session_raises(params):
     session = Session(params)
     session.close()

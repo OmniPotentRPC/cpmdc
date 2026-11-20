@@ -1530,6 +1530,13 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
+static void session_forget_topology(CPMDCSession *session) {
+  free(session->fixed_atomic_numbers);
+  session->fixed_atomic_numbers = NULL;
+  session->fixed_n_atoms = 0;
+  session->topology_fixed = 0;
+}
+
 /* The overrides a deck is rendered with: an overlay and the session's
  * constant cutoff. NULL when there is neither. */
 static const CPMDCScalarOverrides *
@@ -1757,10 +1764,6 @@ static CPMDCResult session_energy_gradient_cell(
     double *grad_h_bohr) {
   if (!session)
     return fail_msg("null session");
-  if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
-                      (3u * sizeof(session->image.prop.hessian[0]))))
-    return fail_msg(
-        "property gradient snapshot supports at most 1365 atoms");
   /* A missing buffer is a bad call, including on a session that already
    * stored a result. The cache lookup reads these pointers. */
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
@@ -1768,8 +1771,19 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("invalid arguments");
   if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     return fail_msg("atomic numbers must be in 1..118");
+  int topology_was_fixed = session->topology_fixed;
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
+  /* After the topology check, so a session that already holds another
+   * system reports the topology change. A first call that is too large
+   * leaves the session without a topology, so a valid call can follow. */
+  if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
+                      (3u * sizeof(session->image.prop.hessian[0])))) {
+    if (!topology_was_fixed)
+      session_forget_topology(session);
+    return fail_msg(
+        "property gradient snapshot supports at most 1365 atoms");
+  }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,

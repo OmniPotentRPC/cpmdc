@@ -211,6 +211,71 @@ static void test_gradient_limit_fails_before_evaluation(void **state) {
   free(params);
 }
 
+static void water_step(double *positions, int *numbers) {
+  static const double water[9] = {0.0, 0.0, 0.1173, 0.0, 0.7572, -0.4692,
+                                  0.0, -0.7572, -0.4692};
+  memcpy(positions, water, sizeof(water));
+  numbers[0] = 8;
+  numbers[1] = 1;
+  numbers[2] = 1;
+}
+
+static void test_topology_change_is_reported_before_the_gradient_limit(
+    void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *session = cpmdc_session_create(params, ps);
+  assert_non_null(session);
+  double *positions = calloc(components, sizeof(*positions));
+  double *gradient = calloc(components, sizeof(*gradient));
+  int *numbers = malloc(atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+
+  double water_positions[9];
+  int water_numbers[3];
+  water_step(water_positions, water_numbers);
+
+  /* A first call that is too large is refused for its size and leaves the
+   * session without a topology. Water is then accepted as the topology; the
+   * reference build has no array evaluator and says so after that. */
+  CPMDCResult big = cpmdc_session_energy_gradient(session, atoms, positions,
+                                                  numbers, gradient);
+  assert_int_equal(big.ok, 0);
+  assert_non_null(strstr(big.message, "at most 1365 atoms"));
+  CPMDCResult first = cpmdc_session_energy_gradient(
+      session, 3, water_positions, water_numbers, gradient);
+  assert_null(strstr(first.message, "topology change"));
+  assert_null(strstr(first.message, "at most 1365 atoms"));
+
+  /* The session now holds water. Another system, even one that is too
+   * large, is a topology change. */
+  CPMDCResult changed = cpmdc_session_energy_gradient(session, atoms, positions,
+                                                      numbers, gradient);
+  assert_int_equal(changed.ok, 0);
+  assert_non_null(strstr(changed.message, "topology change"));
+  assert_null(strstr(changed.message, "at most 1365 atoms"));
+  assert_non_null(strstr(cpmdc_last_error(), "topology change"));
+
+  /* The refused call did not disturb the stored topology. */
+  CPMDCResult again = cpmdc_session_energy_gradient(
+      session, 3, water_positions, water_numbers, gradient);
+  assert_null(strstr(again.message, "topology change"));
+  assert_int_equal(again.ok, first.ok);
+
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: %s params.bin step.bin\n", argv[0]);
@@ -222,6 +287,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_unsupported_rejected),
       cmocka_unit_test(test_all_results_through_c_and_wire),
       cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
+      cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
