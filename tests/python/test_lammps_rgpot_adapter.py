@@ -94,3 +94,77 @@ def test_session_adapter_rejects_non_finite_results(monkeypatch, name):
             np.array([1], dtype=np.int32),
             np.eye(3),
         )
+
+
+class _FillSession:
+    """A session that fills forces and virial with chosen values."""
+
+    def __init__(self, force=1.0, virial=2.0, energy=3.0):
+        self.values = (force, virial, energy)
+        self.cells = []
+
+    def calculate_au(self, positions, numbers, cell, *, forces, virial):
+        self.cells.append(cell)
+        forces[:] = self.values[0]
+        virial[:] = self.values[1]
+        return self.values[2], None, None
+
+    def close(self):
+        pass
+
+
+def _potential(session, periodic=True):
+    potential = cpmdc.lammps._SessionPotential(b"params", None, periodic)
+    potential.session = session
+    return potential
+
+
+def test_session_adapter_volume_is_the_absolute_determinant():
+    rng = np.random.default_rng(7)
+    for cell in (np.diag([8.0, 9.0, 10.0]), rng.normal(size=(3, 3)), -np.eye(3)):
+        assert cpmdc.lammps._volume(cell) == pytest.approx(abs(np.linalg.det(cell)), rel=1e-13)
+
+
+def test_session_adapter_accepts_large_finite_results():
+    potential = _potential(_FillSession(force=1e200, virial=1e200), periodic=False)
+    result = potential.evaluate(
+        np.array([[1.0, 2.0, 3.0]]), np.array([1], dtype=np.int32), np.eye(3)
+    )
+    assert np.all(np.isfinite(result["forces"] / 1e170))
+
+
+def test_session_adapter_sends_no_cell_without_periodicity():
+    session = _FillSession()
+    potential = _potential(session, periodic=False)
+    result = potential.evaluate(
+        np.array([[1.0, 2.0, 3.0]]), np.array([1], dtype=np.int32), np.eye(3)
+    )
+    assert session.cells == [None]
+    assert result["stress"] is None
+
+
+@pytest.mark.parametrize("style", ["metal", "real", "electron"])
+def test_session_adapter_units_follow_the_lammps_style(style):
+    from rgpot.lammps import unit_factors as rgpot_unit_factors
+
+    length_per_angstrom, energy_per_ev = rgpot_unit_factors(style)
+    length_per_bohr, energy_per_hartree = cpmdc.lammps.unit_factors(style)
+    session = _FillSession()
+    potential = _potential(session)
+    potential.set_units(length_per_angstrom, energy_per_ev, length_per_bohr, energy_per_hartree)
+    positions = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    cell = np.diag([8.0, 9.0, 10.0])
+    result = potential.evaluate(positions, np.array([8, 1], dtype=np.int32), cell)
+
+    angstrom_per_bohr = length_per_bohr / length_per_angstrom
+    native_per_hartree = energy_per_hartree / energy_per_ev
+    np.testing.assert_allclose(session.cells[0], cell / angstrom_per_bohr, rtol=1e-12)
+    assert result["energy"] == pytest.approx(3.0 * native_per_hartree, rel=1e-12)
+    np.testing.assert_allclose(
+        result["forces"],
+        np.full((2, 3), native_per_hartree / angstrom_per_bohr),
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        result["stress"], np.full((3, 3), -2.0 * native_per_hartree / 720.0), rtol=1e-12
+    )

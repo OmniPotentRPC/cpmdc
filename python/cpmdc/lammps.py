@@ -37,6 +37,7 @@ as :class:`cpmdc.CPMDCError`.
 
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 from typing import Any, Sequence
@@ -120,6 +121,13 @@ def _adopt_self(library: str | os.PathLike[str] | None) -> None:
             )
 
 
+def _volume(cell: np.ndarray) -> float:
+    """Absolute determinant of a 3x3 cell, one lattice vector per row."""
+    (a, b, c), (d, e, f), (g, h, i) = cell.tolist()
+    volume: float = abs(a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g))
+    return volume
+
+
 class _SessionPotential:
     """Expose one cpmdc session through rgpot's Python potential protocol."""
 
@@ -134,12 +142,22 @@ class _SessionPotential:
         self.periodic = periodic
         self.session: Session | None = None
         self.composition: tuple[int, ...] | None = None
-        self.forces = np.zeros(0)
-        self.virial = np.zeros(9)
-        self._length_per_angstrom = 1.0
-        self._energy_per_ev = 1.0
-        self._length_per_bohr = BOHR_TO_ANGSTROM
-        self._energy_per_hartree = HARTREE_TO_EV
+        self._buffer = np.zeros(0)
+        self._forces = self._buffer
+        self._virial = self._buffer
+        self.set_units(1.0, 1.0, BOHR_TO_ANGSTROM, HARTREE_TO_EV)
+
+    def set_units(
+        self,
+        length_per_angstrom: float,
+        energy_per_ev: float,
+        length_per_bohr: float,
+        energy_per_hartree: float,
+    ) -> None:
+        """Factors between rgpot's Angstrom and eV and the session's atomic units."""
+        self._angstrom_per_bohr = length_per_bohr / length_per_angstrom
+        self._energy_scale = energy_per_hartree / energy_per_ev
+        self._force_scale = self._energy_scale / self._angstrom_per_bohr
 
     def open(self, adopt_self: bool = False) -> None:
         if self.session is not None:
@@ -148,46 +166,48 @@ class _SessionPotential:
             _adopt_self(self.library)
         self.session = Session(self.blob, library=self.library)
 
-    def evaluate(
-        self, positions: np.ndarray, numbers: np.ndarray, cell: np.ndarray
-    ) -> dict[str, Any]:
-        composition = tuple(sorted(int(z) for z in numbers))
-        if self.session is None or (
-            self.composition is not None and composition != self.composition
-        ):
-            if self.session is not None:
-                self.session.close()
-                self.session = None
-            self.open()
-        assert self.session is not None
-        if self.forces.size != positions.size:
-            self.forces = np.zeros(positions.size)
-        length_scale = self._length_per_angstrom / self._length_per_bohr
-        energy_scale = self._energy_per_hartree / self._energy_per_ev
-        cell_au = cell * length_scale if self.periodic else None
-        energy, _, _ = self.session.calculate_au(
-            positions * length_scale,
-            numbers,
-            cell_au,
-            forces=self.forces,
-            virial=self.virial,
-        )
+    def _require_finite(self, energy: float) -> None:
         for name, value in (
             ("energy", energy),
-            ("forces", self.forces),
-            ("virial", self.virial),
+            ("forces", self._forces),
+            ("virial", self._virial),
         ):
             if not np.all(np.isfinite(value)):
                 raise CPMDCError(f"the library returned a non-finite {name}")
+
+    def evaluate(
+        self, positions: np.ndarray, numbers: np.ndarray, cell: np.ndarray
+    ) -> dict[str, Any]:
+        composition = tuple(sorted(numbers.tolist()))
+        if self.session is None or (
+            self.composition is not None and composition != self.composition
+        ):
+            self.close()
+            self.open()
+        session = self.session
+        assert session is not None
+        size = positions.size
+        if self._forces.size != size:
+            self._buffer = np.zeros(size + 9)
+            self._forces = self._buffer[:size]
+            self._virial = self._buffer[size:]
+        scale = self._angstrom_per_bohr
+        energy, _, _ = session.calculate_au(
+            positions / scale,
+            numbers,
+            cell / scale if self.periodic else None,
+            forces=self._forces,
+            virial=self._virial,
+        )
+        if not (math.isfinite(energy) and np.isfinite(self._buffer).all()):
+            self._require_finite(energy)
         self.composition = composition
-        forces = self.forces.reshape(positions.shape) * energy_scale * length_scale
         stress = None
         if self.periodic:
-            volume = abs(float(np.linalg.det(cell)))
-            stress = -self.virial.reshape(3, 3) * energy_scale / volume
+            stress = self._virial.reshape(3, 3) * (-self._energy_scale / _volume(cell))
         return {
-            "energy": float(energy) * energy_scale,
-            "forces": forces,
+            "energy": float(energy) * self._energy_scale,
+            "forces": self._forces.reshape(positions.shape) * self._force_scale,
             "stress": stress,
         }
 
@@ -240,10 +260,12 @@ class FixExternal(RgpotFixExternal):
                 ) from exc
             raise
         length_per_bohr, energy_per_hartree = unit_factors(self.units)
-        adapter._length_per_angstrom = self.length_per_angstrom
-        adapter._energy_per_ev = self.energy_per_ev
-        adapter._length_per_bohr = length_per_bohr
-        adapter._energy_per_hartree = energy_per_hartree
+        adapter.set_units(
+            self.length_per_angstrom,
+            self.energy_per_ev,
+            length_per_bohr,
+            energy_per_hartree,
+        )
 
         problem = ""
         if self._root:
