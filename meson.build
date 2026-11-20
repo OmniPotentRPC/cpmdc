@@ -823,6 +823,27 @@ if get_option('with_tests')
       timeout: 180,
       is_parallel: false,
     )
+    orbital_limit_agree = executable(
+      'test_orbital_limit_agree_mpi',
+      'tests/test_orbital_limit_agree_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'orbital-limit-agree-mpi',
+      python,
+      args: [
+        run_mpi_test,
+        '2',
+        orbital_limit_agree.full_path(),
+        runtime_params_bin.full_path(),
+      ],
+      depends: [orbital_limit_agree, runtime_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 120,
+      is_parallel: false,
+    )
     # The reference evaluator gives exact per-rank values to compare against.
     if not has_cpmd
       rank_consensus = executable(
