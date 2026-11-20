@@ -290,10 +290,10 @@ The fields it lowers are the ones ~cpmdc_capabilities_result()~ lists:
 threshold and the total-energy change between steps, which ends a smeared
 (free-energy) SCF once the energy settles.
 A set ~cpmd~ arm and a set ~common~ overlay are merged.
-The arm bytes stay, and one resolved configuration decides the functional,
-cutoff, charge, and multiplicity.
-Both deck renderers and the configuration the embed records read it, so the
-deck text and the recorded settings agree.
+The arm bytes stay.
+Both deck renderers and the configuration the embed records apply the same
+precedence to the functional, cutoff, charge, and multiplicity lines cpmdc
+writes.
 A value a typed field sets beats the overlay, and the overlay beats a schema
 default.
 A typed ~dft~ or ~system~ section beats the top-level field of the same name.
@@ -310,15 +310,20 @@ divides by the Rydberg energy in eV (13.605693 eV).
 included, is merged and checked like the other overlay scalars.
 An ~xcFunctionals~ list is mapped before that precedence, and an unmapped
 token is rejected for every arm functional.
-A scalar the overlay would copy is rejected when ~inputBlocks~, a raw
-section, or a generic section opens the owning section (~&DFT~ for
-~xcFunctionals~, ~&SYSTEM~ for the cutoff, charge, and multiplicity), when a
-set directive names ~DFT.FUNCTIONAL~, ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
+An opaque carrier is rendered as given and is not read back into the
+recorded functional, cutoff, charge, or multiplicity.
+So the carrier check runs for every set overlay field, whether or not a
+typed field also sets it.
+The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
+section opens the owning section (~&DFT~ for ~xcFunctionals~, ~&SYSTEM~ for
+the cutoff, charge, and multiplicity), when a set directive names
+~DFT.FUNCTIONAL~, ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
 ~SYSTEM.MULTIPLICITY~, or when the ~directives~ list of the typed ~dft~
 section holds ~FUNCTIONAL~ or that of the typed ~system~ section holds
 ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
-Those carriers are rendered, and they are not read back into the recorded
-functional, cutoff, charge, or multiplicity.
+Without an overlay, a ~FUNCTIONAL~ directive in the typed ~dft~ section or a
+~DFT.FUNCTIONAL~ set directive is rejected when the deck is rendered, because
+the rendered ~&DFT~ section already carries the functional.
 Fermi ~smearing~ is copied as ~FREE-ENERGY~ and ~TEMPERATURE ELECTRON~ when
 ~&CPMD~ sets no free-energy or electron-temperature control (including split
 ~TEMPERATURE~ and ~ELECTRON~ arguments in ~cpmd.directives~ or

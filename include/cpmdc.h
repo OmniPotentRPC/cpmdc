@@ -247,9 +247,9 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  *
  * The `cpmd` union arm carries `CPMDParams`. With `common` unset, the arm is
  * applied as given. A set `common` overlay (`CommonMethodSpec`) is merged
- * over that arm. The arm bytes stay, and one resolved result decides the
- * functional, cutoff, charge, and multiplicity that both deck renderers and
- * the recorded settings use. A value a typed field sets beats the overlay,
+ * over that arm. The arm bytes stay, and the deck renderers and the recorded
+ * settings apply the same precedence to the functional, cutoff, charge, and
+ * multiplicity lines cpmdc writes. A value a typed field sets beats the overlay,
  * the overlay beats a schema default, and a typed `dft` or `system` section
  * beats the top-level field. A field that is omitted or holds its schema
  * default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1) is
@@ -259,17 +259,21 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * `spinMultiplicity` 0 is unset, and any other value, an explicit singlet
  * included, is set. An `xcFunctionals` list is mapped before that
  * precedence, and an unmapped token is rejected for every arm functional.
- * An overlay scalar for a field no typed field sets is rejected when
- * `inputBlocks`, a raw section, or a generic section opens the owning
- * section (`&DFT` for `xcFunctionals`, `&SYSTEM` for the cutoff, charge, and
- * multiplicity), when a set directive names `DFT.FUNCTIONAL`,
- * `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or when the
- * `directives` list of the typed `dft` section holds `FUNCTIONAL` or that
- * of the typed `system` section holds `CUTOFF`, `CHARGE`, or
- * `MULTIPLICITY`. Those carriers are rendered and are not read back into
- * the recorded settings. Fermi `smearing` is copied as `FREE-ENERGY` and
- * `TEMPERATURE ELECTRON` when `&CPMD` sets no free-energy or
- * electron-temperature control (including split `TEMPERATURE` and
+ * Those opaque carriers are rendered as given and are not read back into
+ * the recorded settings, so the carrier check runs for every set overlay
+ * field, whether or not a typed field also sets it: the overlay field is
+ * rejected when `inputBlocks`, a raw section, or a generic section opens
+ * the owning section (`&DFT` for `xcFunctionals`, `&SYSTEM` for the
+ * cutoff, charge, and multiplicity), when a set directive names
+ * `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or
+ * `SYSTEM.MULTIPLICITY`, or when the `directives` list of the typed `dft`
+ * section holds `FUNCTIONAL` or that of the typed `system` section holds
+ * `CUTOFF`, `CHARGE`, or `MULTIPLICITY`. Without an overlay, a `FUNCTIONAL`
+ * directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive
+ * is rejected when the deck is rendered, because the rendered `&DFT`
+ * section already carries the functional. Fermi `smearing` is copied as
+ * `FREE-ENERGY` and `TEMPERATURE ELECTRON` when `&CPMD` sets no free-energy
+ * or electron-temperature control (including split `TEMPERATURE` and
  * `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set
  * directives) and the arm has no raw or generic `&CPMD` block.
  * `vanDerWaalsS6` is copied into a `vdwParams` section whose `s6` is
