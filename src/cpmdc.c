@@ -930,6 +930,55 @@ static int cpmd_text_has_keyword_ci(const char *s, size_t len, const char *kw) {
   return 1;
 }
 
+static int cpmd_text_is_kw_ci(const char *s, size_t len, const char *kw) {
+  size_t klen = strlen(kw);
+  while (len > 0 && (*s == ' ' || *s == '\t')) {
+    s++;
+    len--;
+  }
+  while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t' ||
+                     s[len - 1] == '\r' || s[len - 1] == '\n')) {
+    len--;
+  }
+  if (len != klen)
+    return 0;
+  for (size_t i = 0; i < klen; ++i) {
+    char a = s[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (a != kw[i])
+      return 0;
+  }
+  return 1;
+}
+
+static int cpmd_text_has_two_kw_ci(const char *s, size_t len, const char *kw1,
+                                   const char *kw2) {
+  size_t k1 = strlen(kw1);
+  while (len > 0 && (*s == ' ' || *s == '\t')) {
+    s++;
+    len--;
+  }
+  if (len <= k1)
+    return 0;
+  for (size_t i = 0; i < k1; ++i) {
+    char a = s[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (a != kw1[i])
+      return 0;
+  }
+  if (s[k1] != ' ' && s[k1] != '\t' && s[k1] != '\r' && s[k1] != '\n')
+    return 0;
+  s += k1;
+  len -= k1;
+  while (len > 0 && (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')) {
+    s++;
+    len--;
+  }
+  return cpmd_text_has_keyword_ci(s, len, kw2);
+}
+
 static int cpmd_directives_have_kw(CPMDDirective_list directives,
                                    const char *kw) {
   capn_resolve(&directives.p);
@@ -943,6 +992,47 @@ static int cpmd_directives_have_kw(CPMDDirective_list directives,
     if (d.keyword.str && d.keyword.len > 0 &&
         cpmd_text_has_keyword_ci(d.keyword.str, (size_t)d.keyword.len, kw))
       return 1;
+  }
+  return 0;
+}
+
+static int cpmd_directives_have_temp_electron(CPMDDirective_list directives) {
+  capn_resolve(&directives.p);
+  if (directives.p.type == CAPN_NULL)
+    return 0;
+  if (directives.p.type != CAPN_LIST)
+    return -1;
+  for (int i = 0; i < directives.p.len; ++i) {
+    struct CPMDDirective d;
+    get_CPMDDirective(&d, directives, i);
+    if (!d.keyword.str || d.keyword.len <= 0)
+      continue;
+    if (cpmd_text_has_two_kw_ci(d.keyword.str, (size_t)d.keyword.len,
+                                "TEMPERATURE", "ELECTRON"))
+      return 1;
+    if (cpmd_text_is_kw_ci(d.keyword.str, (size_t)d.keyword.len,
+                           "TEMPERATURE")) {
+      int na = common_text_list_len(d.args);
+      if (na < 0)
+        return -1;
+      for (int j = 0; j < na; ++j) {
+        capn_text arg = capn_get_text(d.args, j, k_empty_text);
+        if (!arg.str || arg.len <= 0)
+          continue;
+        const char *p = arg.str;
+        size_t rem = (size_t)arg.len;
+        while (rem > 0 &&
+               (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
+          p++;
+          rem--;
+        }
+        if (rem == 0)
+          continue;
+        if (cpmd_text_has_keyword_ci(p, rem, "ELECTRON"))
+          return 1;
+        break;
+      }
+    }
   }
   return 0;
 }
@@ -968,6 +1058,43 @@ static int cpmd_set_matches_kw(capn_text key, const char *section,
   const char *k = dot + 1;
   size_t klen = (size_t)key.len - sec_len - 1u;
   return cpmd_text_has_keyword_ci(k, klen, kw);
+}
+
+static int
+cpmd_set_matches_temp_electron(const struct CPMDSetDirective *set_dir) {
+  if (!set_dir->key.str || set_dir->key.len <= 2)
+    return 0;
+  const char *dot =
+      (const char *)memchr(set_dir->key.str, '.', (size_t)set_dir->key.len);
+  if (!dot || dot == set_dir->key.str ||
+      dot == set_dir->key.str + (size_t)set_dir->key.len - 1)
+    return 0;
+  size_t sec_len = (size_t)(dot - set_dir->key.str);
+  if (sec_len != 4)
+    return 0;
+  for (size_t i = 0; i < 4; ++i) {
+    char a = set_dir->key.str[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (a != "CPMD"[i])
+      return 0;
+  }
+  const char *k = dot + 1;
+  size_t klen = (size_t)set_dir->key.len - sec_len - 1u;
+  if (cpmd_text_has_two_kw_ci(k, klen, "TEMPERATURE", "ELECTRON"))
+    return 1;
+  if (cpmd_text_is_kw_ci(k, klen, "TEMPERATURE") && set_dir->value.str &&
+      set_dir->value.len > 0) {
+    const char *v = set_dir->value.str;
+    size_t vlen = (size_t)set_dir->value.len;
+    while (vlen > 0 && (*v == ' ' || *v == '\t' || *v == '\r' || *v == '\n')) {
+      v++;
+      vlen--;
+    }
+    if (cpmd_text_has_keyword_ci(v, vlen, "ELECTRON"))
+      return 1;
+  }
+  return 0;
 }
 
 static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
@@ -1016,7 +1143,7 @@ static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
       struct CPMDSetDirective set_dir;
       read_CPMDSetDirective(&set_dir, sec.set);
       if (cpmd_set_matches_kw(set_dir.key, "CPMD", "FREE-ENERGY") ||
-          cpmd_set_matches_kw(set_dir.key, "CPMD", "TEMPERATURE ELECTRON")) {
+          cpmd_set_matches_temp_electron(&set_dir)) {
         cpmdc_store_error(
             "common overlay: smearing conflicts with &CPMD free-energy or "
             "electron-temperature settings already on the cpmd arm");
@@ -1027,8 +1154,7 @@ static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
       struct CPMDCpmdSection cpmd_sec;
       read_CPMDCpmdSection(&cpmd_sec, sec.cpmd);
       int has_fe = cpmd_directives_have_kw(cpmd_sec.directives, "FREE-ENERGY");
-      int has_te =
-          cpmd_directives_have_kw(cpmd_sec.directives, "TEMPERATURE ELECTRON");
+      int has_te = cpmd_directives_have_temp_electron(cpmd_sec.directives);
       if (has_fe < 0 || has_te < 0) {
         cpmdc_store_error("common overlay: invalid cpmd directives list");
         return -1;
@@ -1133,14 +1259,123 @@ static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
   return 0;
 }
 
+/* inputBlocks, a raw section, and a generic section are emitted as that
+ * section and are not read back into the effective functional, cutoff,
+ * charge, or multiplicity. A set directive or typed section directive for the
+ * same keyword is appended after the generated line and is not read back
+ * either. An overlay scalar that would fill a schema default is rejected in
+ * those cases so the recorded settings cannot name a value the deck does not
+ * render. */
+static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section,
+                                     const char *set_kw, const char *field) {
+  char msg[512];
+  int nblocks = common_text_list_len(arm->inputBlocks);
+  if (nblocks < 0) {
+    cpmdc_store_error("common overlay: invalid inputBlocks list");
+    return -1;
+  }
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(arm->inputBlocks, i, k_empty_text);
+    if (cpmd_raw_has_section(block, section)) {
+      snprintf(msg, sizeof(msg),
+               "common overlay: %s conflicts with an inputBlocks &%s block on "
+               "the cpmd arm",
+               field, section);
+      cpmdc_store_error(msg);
+      return -1;
+    }
+  }
+  capn_resolve(&arm->inputSections.p);
+  if (arm->inputSections.p.type == CAPN_NULL)
+    return 0;
+  if (arm->inputSections.p.type != CAPN_LIST) {
+    cpmdc_store_error("common overlay: invalid inputSections list");
+    return -1;
+  }
+  for (int i = 0; i < arm->inputSections.p.len; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, arm->inputSections, i);
+    if (sec.which == CPMDInputSection_raw &&
+        cpmd_raw_has_section(sec.raw, section)) {
+      snprintf(msg, sizeof(msg),
+               "common overlay: %s conflicts with a raw &%s block on the cpmd "
+               "arm",
+               field, section);
+      cpmdc_store_error(msg);
+      return -1;
+    }
+    if (sec.which == CPMDInputSection_generic) {
+      struct CPMDGenericSection gen;
+      read_CPMDGenericSection(&gen, sec.generic);
+      if (cpmd_text_equals_ci(gen.name, section)) {
+        snprintf(msg, sizeof(msg),
+                 "common overlay: %s conflicts with a generic &%s section on "
+                 "the cpmd arm",
+                 field, section);
+        cpmdc_store_error(msg);
+        return -1;
+      }
+    }
+    if (sec.which == CPMDInputSection_set) {
+      struct CPMDSetDirective set_dir;
+      read_CPMDSetDirective(&set_dir, sec.set);
+      if (cpmd_set_matches_kw(set_dir.key, section, set_kw)) {
+        snprintf(msg, sizeof(msg),
+                 "common overlay: %s conflicts with %s.%s already set on the "
+                 "cpmd arm",
+                 field, section, set_kw);
+        cpmdc_store_error(msg);
+        return -1;
+      }
+    }
+    if (sec.which == CPMDInputSection_dft && strcmp(section, "DFT") == 0) {
+      struct CPMDDftSection dft_sec;
+      read_CPMDDftSection(&dft_sec, sec.dft);
+      int has_dir = cpmd_directives_have_kw(dft_sec.directives, set_kw);
+      if (has_dir < 0) {
+        cpmdc_store_error("common overlay: invalid dft directives list");
+        return -1;
+      }
+      if (has_dir > 0) {
+        snprintf(msg, sizeof(msg),
+                 "common overlay: %s conflicts with %s.%s directive already "
+                 "set on the cpmd arm",
+                 field, section, set_kw);
+        cpmdc_store_error(msg);
+        return -1;
+      }
+    }
+    if (sec.which == CPMDInputSection_system &&
+        strcmp(section, "SYSTEM") == 0) {
+      struct CPMDSystemSection sys_sec;
+      read_CPMDSystemSection(&sys_sec, sec.system);
+      int has_dir = cpmd_directives_have_kw(sys_sec.directives, set_kw);
+      if (has_dir < 0) {
+        cpmdc_store_error("common overlay: invalid system directives list");
+        return -1;
+      }
+      if (has_dir > 0) {
+        snprintf(msg, sizeof(msg),
+                 "common overlay: %s conflicts with %s.%s directive already "
+                 "set on the cpmd arm",
+                 field, section, set_kw);
+        cpmdc_store_error(msg);
+        return -1;
+      }
+    }
+  }
+  return 0;
+}
+
 /* Merge a set common overlay over a native cpmd arm: the arm's bytes are the
  * params; overlay scalars fill fields the arm carries at schema defaults
  * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1), apply Fermi
  * smearing when &CPMD has none, copy vanDerWaalsS6 into vdwParams when s6 is
  * unset, and require basisSet to be unset or "planewave". An unmapped
- * xcFunctionals token is rejected before that precedence, for every arm
- * functional. Conflicting or unmergeable overlay fields are rejected through
- * cpmdc_last_error(). */
+ * xcFunctionals token is rejected for any arm functional. A scalar the
+ * overlay would copy is rejected when inputBlocks, a raw section, a generic
+ * section, or a set directive already supplies that setting. Conflicting or
+ * unmergeable overlay fields are rejected through cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
@@ -1200,23 +1435,37 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
       return -1;
     }
     if (strcmp(base_functional, "BLYP") == 0) {
+      if (cpmd_reject_opaque_scalar(&arm_view, "DFT", "FUNCTIONAL",
+                                    "xcFunctionals") != 0)
+        return -1;
       ov->functional = ov_functional;
       *has_ov = 1;
     }
   }
   if (c.planewaveCutoffEv > 0.0 && base_cutoff == 70.0) {
+    if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CUTOFF",
+                                  "planewaveCutoffEv") != 0)
+      return -1;
     ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
     *has_ov = 1;
   }
   if (c.charge != 0 && base_charge == 0) {
+    if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CHARGE", "charge") !=
+        0)
+      return -1;
     ov->has_charge = 1;
     ov->charge = c.charge;
     *has_ov = 1;
   }
-  if (c.spinMultiplicity > 1 && base_mult == 1) {
-    ov->has_multiplicity = 1;
-    ov->multiplicity = c.spinMultiplicity;
-    *has_ov = 1;
+  if (c.spinMultiplicity > 0 && base_mult == 1) {
+    if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "MULTIPLICITY",
+                                  "spinMultiplicity") != 0)
+      return -1;
+    if (c.spinMultiplicity > 1) {
+      ov->has_multiplicity = 1;
+      ov->multiplicity = c.spinMultiplicity;
+      *has_ov = 1;
+    }
   }
   if (smear_temperature_k > 0.0) {
     if (cpmd_arm_check_smearing(&arm_view) != 0)

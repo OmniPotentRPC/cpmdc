@@ -1041,49 +1041,6 @@ static void attach_section(struct capn *arena, struct CPMDParams *arm,
   arm->inputSections = secs;
 }
 
-static void attach_two_sections(struct capn *arena, struct CPMDParams *arm,
-                                struct CPMDInputSection *s0,
-                                struct CPMDInputSection *s1) {
-  capn_ptr root = capn_root(arena);
-  CPMDInputSection_list secs = new_CPMDInputSection_list(root.seg, 2);
-  set_CPMDInputSection(s0, secs, 0);
-  set_CPMDInputSection(s1, secs, 1);
-  arm->inputSections = secs;
-}
-
-static PotentialConfig_ptr make_cpmd_only(struct capn *arena,
-                                          struct CPMDParams *arm_view) {
-  capn_ptr root = capn_root(arena);
-  PotentialConfig_ptr cfg_ptr = new_PotentialConfig(root.seg);
-  struct PotentialConfig cfg;
-  memset(&cfg, 0, sizeof(cfg));
-  CPMDParams_ptr arm_ptr = new_CPMDParams(root.seg);
-  write_CPMDParams(arm_view, arm_ptr);
-  cfg.which = PotentialConfig_cpmd;
-  cfg.cpmd = arm_ptr;
-  write_PotentialConfig(&cfg, cfg_ptr);
-  return cfg_ptr;
-}
-
-static CPMDSystemSection_ptr make_wire_default_system(struct capn *arena) {
-  capn_ptr root = capn_root(arena);
-  CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
-  struct CPMDSystemSection sys;
-  read_CPMDSystemSection(&sys, sys_ptr);
-  write_CPMDSystemSection(&sys, sys_ptr);
-  return sys_ptr;
-}
-
-static CPMDDftSection_ptr make_wire_default_dft(struct capn *arena) {
-  capn_ptr root = capn_root(arena);
-  CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
-  struct CPMDDftSection dft;
-  read_CPMDDftSection(&dft, dft_ptr);
-  dft.oldCode = 1;
-  write_CPMDDftSection(&dft, dft_ptr);
-  return dft_ptr;
-}
-
 static char *deck_keeping_session_all(const unsigned char *config,
                                       size_t config_size, char **functional_out,
                                       double *cutoff_out, int *charge_out,
@@ -1140,6 +1097,81 @@ static char *deck_keeping_session(const unsigned char *config,
                                   charge_out, NULL);
 }
 
+static PotentialConfig_ptr make_cpmd_only(struct capn *arena,
+                                          struct CPMDParams *arm_view) {
+  capn_ptr root = capn_root(arena);
+  PotentialConfig_ptr cfg_ptr = new_PotentialConfig(root.seg);
+  struct PotentialConfig cfg;
+  memset(&cfg, 0, sizeof(cfg));
+  CPMDParams_ptr arm_ptr = new_CPMDParams(root.seg);
+  write_CPMDParams(arm_view, arm_ptr);
+  cfg.which = PotentialConfig_cpmd;
+  cfg.cpmd = arm_ptr;
+  write_PotentialConfig(&cfg, cfg_ptr);
+  return cfg_ptr;
+}
+
+static CPMDSystemSection_ptr make_wire_default_system(struct capn *arena) {
+  capn_ptr root = capn_root(arena);
+  CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+  struct CPMDSystemSection sys;
+  read_CPMDSystemSection(&sys, sys_ptr);
+  write_CPMDSystemSection(&sys, sys_ptr);
+  return sys_ptr;
+}
+
+static CPMDDftSection_ptr make_wire_default_dft(struct capn *arena) {
+  capn_ptr root = capn_root(arena);
+  CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+  struct CPMDDftSection dft;
+  read_CPMDDftSection(&dft, dft_ptr);
+  dft.oldCode = 1;
+  write_CPMDDftSection(&dft, dft_ptr);
+  return dft_ptr;
+}
+
+static void attach_two_sections(struct capn *arena, struct CPMDParams *arm,
+                                struct CPMDInputSection *s0,
+                                struct CPMDInputSection *s1) {
+  capn_ptr root = capn_root(arena);
+  CPMDInputSection_list secs = new_CPMDInputSection_list(root.seg, 2);
+  set_CPMDInputSection(s0, secs, 0);
+  set_CPMDInputSection(s1, secs, 1);
+  arm->inputSections = secs;
+}
+
+static CPMDDirective_list make_single_directive(struct capn *arena,
+                                                const char *keyword,
+                                                const char *const *args,
+                                                int nargs) {
+  capn_ptr root = capn_root(arena);
+  struct CPMDDirective d;
+  memset(&d, 0, sizeof(d));
+  d.keyword = capn_str(keyword);
+  if (nargs > 0) {
+    capn_ptr list = capn_new_ptr_list(root.seg, nargs);
+    for (int i = 0; i < nargs; ++i)
+      capn_set_text(list, i, capn_str(args[i]));
+    d.args = list;
+  }
+  CPMDDirective_list dirs = new_CPMDDirective_list(root.seg, 1);
+  set_CPMDDirective(&d, dirs, 0);
+  return dirs;
+}
+
+static void set_fermi_smearing(struct capn *arena,
+                               struct CommonMethodSpec *com) {
+  capn_ptr root = capn_root(arena);
+  CommonMethodSpec_Smearing_ptr sm_ptr =
+      new_CommonMethodSpec_Smearing(root.seg);
+  struct CommonMethodSpec_Smearing sm;
+  memset(&sm, 0, sizeof(sm));
+  sm.kind = CommonMethodSpec_Smearing_Kind_fermi;
+  sm.widthEv = 0.025851999786;
+  write_CommonMethodSpec_Smearing(&sm, sm_ptr);
+  com->smearing = sm_ptr;
+}
+
 /* An unmapped token is rejected before arm-wins, including when the arm
  * functional is already not the schema default. */
 static void test_merge_rejects_unmapped_xc_when_arm_wins(void **state) {
@@ -1194,6 +1226,7 @@ static void test_merge_unset_system_charge_keeps_root(void **state) {
     free(buf);
   }
   {
+    /* Same with common omitted: root charge=2 is kept. */
     struct capn arena;
     capn_init_malloc(&arena);
     struct CPMDParams arm;
@@ -1216,6 +1249,8 @@ static void test_merge_unset_system_charge_keeps_root(void **state) {
     free(buf);
   }
   {
+    /* An explicit non-zero system charge still wins over the root and the
+     * overlay. */
     struct capn arena;
     capn_init_malloc(&arena);
     capn_ptr root = capn_root(&arena);
@@ -1248,6 +1283,203 @@ static void test_merge_unset_system_charge_keeps_root(void **state) {
     free(deck);
     free(buf);
   }
+}
+
+static void test_merge_rejects_raw_dft_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDInputSection_list secs = new_CPMDInputSection_list(root.seg, 1);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_raw;
+  sec.raw = capn_str("&DFT\n FUNCTIONAL LDA\n&END");
+  set_CPMDInputSection(&sec, secs, 0);
+  arm.inputSections = secs;
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
+static void test_merge_rejects_inputblocks_dft_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  capn_ptr blocks = capn_new_ptr_list(root.seg, 1);
+  capn_set_text(blocks, 0, capn_str("&DFT\n FUNCTIONAL LDA\n&END"));
+  arm.inputBlocks = blocks;
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
+static void test_merge_rejects_generic_dft_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDGenericSection gen;
+  memset(&gen, 0, sizeof(gen));
+  gen.name = capn_str("DFT");
+  CPMDGenericSection_ptr gen_ptr = new_CPMDGenericSection(root.seg);
+  write_CPMDGenericSection(&gen, gen_ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_generic;
+  sec.generic = gen_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
+static void test_merge_rejects_set_functional_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDSetDirective setd;
+  memset(&setd, 0, sizeof(setd));
+  setd.key = capn_str("DFT.FUNCTIONAL");
+  setd.value = capn_str("LDA");
+  CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+  write_CPMDSetDirective(&setd, set_ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_set;
+  sec.set = set_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
+static void test_merge_rejects_raw_system_charge_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_raw;
+  sec.raw = capn_str("&SYSTEM\n SYMMETRY\n  0\n&END");
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.charge = -1;
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "charge");
+  free(buf);
+}
+
+static void test_merge_rejects_set_charge_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDSetDirective setd;
+  memset(&setd, 0, sizeof(setd));
+  setd.key = capn_str("SYSTEM.CHARGE");
+  setd.value = capn_str("3");
+  CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+  write_CPMDSetDirective(&setd, set_ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_set;
+  sec.set = set_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.charge = -1;
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "charge");
+  free(buf);
+}
+
+/* A set directive that does not name the functional still accepts the
+ * overlay, and the rendered deck carries that functional. */
+static void test_merge_set_other_dft_keeps_overlay_functional(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDSetDirective setd;
+  memset(&setd, 0, sizeof(setd));
+  setd.key = capn_str("DFT.OLDCODE");
+  CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+  write_CPMDSetDirective(&setd, set_ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_set;
+  sec.set = set_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  char *functional = NULL;
+  char *deck = deck_keeping_session(buf, sz, NULL, &functional);
+  assert_string_equal(functional, "PBE");
+  assert_non_null(strstr(deck, "FUNCTIONAL PBE\n"));
+  assert_non_null(strstr(deck, "OLDCODE\n"));
+  free(functional);
+  free(deck);
+  free(buf);
 }
 
 /* Wire-default typed system cutOffRy=70.0 takes common planewaveCutoffEv. */
@@ -1650,6 +1882,489 @@ static void test_merge_unset_dft_functional_keeps_root(void **state) {
   }
 }
 
+/* Typed dft.directives carrying FUNCTIONAL conflicts with common xcFunctionals;
+ * an unrelated dft.directives entry still accepts the overlay. */
+static void test_merge_rejects_dft_directive_functional_overlay(void **state) {
+  (void)state;
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+    struct CPMDDftSection dft;
+    read_CPMDDftSection(&dft, dft_ptr);
+    dft.directives = make_single_directive(&arena, "FUNCTIONAL LDA", NULL, 0);
+    write_CPMDDftSection(&dft, dft_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_dft;
+    sec.dft = dft_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_xc(&arena, &com, "PBE");
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "xcFunctionals");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+    struct CPMDDftSection dft;
+    read_CPMDDftSection(&dft, dft_ptr);
+    const char *args[] = {"LDA"};
+    dft.directives = make_single_directive(&arena, "FUNCTIONAL", args, 1);
+    write_CPMDDftSection(&dft, dft_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_dft;
+    sec.dft = dft_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_xc(&arena, &com, "PBE");
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "xcFunctionals");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+    struct CPMDDftSection dft;
+    read_CPMDDftSection(&dft, dft_ptr);
+    dft.directives = make_single_directive(&arena, "OLDCODE", NULL, 0);
+    write_CPMDDftSection(&dft, dft_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_dft;
+    sec.dft = dft_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_xc(&arena, &com, "PBE");
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    char *functional = NULL;
+    char *deck =
+        deck_keeping_session_all(buf, sz, &functional, NULL, NULL, NULL);
+    assert_string_equal(functional, "PBE");
+    assert_non_null(strstr(deck, "FUNCTIONAL PBE\n"));
+    assert_non_null(strstr(deck, "OLDCODE\n"));
+    free(functional);
+    free(deck);
+    free(buf);
+  }
+}
+
+/* Typed system.directives carrying CUTOFF, CHARGE, or MULTIPLICITY conflicts
+ * with the matching common overlay scalar; unrelated directives still merge. */
+static void test_merge_rejects_system_directive_scalar_overlays(void **state) {
+  (void)state;
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"90"};
+    sys.directives = make_single_directive(&arena, "CUTOFF", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.planewaveCutoffEv = 1088.45544983952;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "planewaveCutoffEv");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"3"};
+    sys.directives = make_single_directive(&arena, "CHARGE", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = -1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"3"};
+    sys.directives = make_single_directive(&arena, "MULTIPLICITY", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.spinMultiplicity = 2;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "spinMultiplicity");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"HOCKNEY"};
+    sys.directives = make_single_directive(&arena, "POISSON SOLVER", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = -1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int charge = 0;
+    char *deck = deck_keeping_session_all(buf, sz, NULL, NULL, &charge, NULL);
+    assert_int_equal(charge, -1);
+    assert_non_null(strstr(deck, "CHARGE\n  -1\n"));
+    free(deck);
+    free(buf);
+  }
+}
+
+/* Explicit singlet spinMultiplicity=1 (where 0 means unset) still conflicts
+ * with opaque &SYSTEM carriers (raw, set, system.directives). */
+static void test_merge_rejects_explicit_singlet_against_opaque_system(
+    void **state) {
+  (void)state;
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_raw;
+    sec.raw = capn_str("&SYSTEM\n SYMMETRY\n  0\n MULTIPLICITY\n  3\n&END");
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.spinMultiplicity = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "spinMultiplicity");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("SYSTEM.MULTIPLICITY");
+    setd.value = capn_str("3");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.spinMultiplicity = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "spinMultiplicity");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"3"};
+    sys.directives = make_single_directive(&arena, "MULTIPLICITY", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.spinMultiplicity = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "spinMultiplicity");
+    free(buf);
+  }
+  {
+    /* Clean typed system without MULTIPLICITY directive accepts singlet. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = make_wire_default_system(&arena);
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.spinMultiplicity = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int mult = 0;
+    char *deck = deck_keeping_session_all(buf, sz, NULL, NULL, NULL, &mult);
+    assert_int_equal(mult, 1);
+    assert_null(strstr(deck, "MULTIPLICITY\n"));
+    free(deck);
+    free(buf);
+  }
+}
+
+/* Split-argument TEMPERATURE + ELECTRON in cpmd.directives and CPMD.TEMPERATURE
+ * set directives conflict with common Fermi smearing; ionic TEMPERATURE still
+ * accepts Fermi smearing. */
+static void test_merge_rejects_split_temperature_electron_smearing(
+    void **state) {
+  (void)state;
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
+    struct CPMDCpmdSection cpmd_sec;
+    read_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    const char *args[] = {"ELECTRON", "500"};
+    cpmd_sec.directives = make_single_directive(&arena, "TEMPERATURE", args, 2);
+    write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_cpmd;
+    sec.cpmd = cpmd_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_fermi_smearing(&arena, &com);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "smearing");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
+    struct CPMDCpmdSection cpmd_sec;
+    read_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    const char *args[] = {"ELECTRON 500"};
+    cpmd_sec.directives = make_single_directive(&arena, "TEMPERATURE", args, 1);
+    write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_cpmd;
+    sec.cpmd = cpmd_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_fermi_smearing(&arena, &com);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "smearing");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("CPMD.TEMPERATURE");
+    setd.value = capn_str("ELECTRON 500");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_fermi_smearing(&arena, &com);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "smearing");
+    free(buf);
+  }
+  {
+    /* Ionic TEMPERATURE directive does not conflict with Fermi smearing. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
+    struct CPMDCpmdSection cpmd_sec;
+    read_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    const char *args[] = {"300"};
+    cpmd_sec.directives = make_single_directive(&arena, "TEMPERATURE", args, 1);
+    write_CPMDCpmdSection(&cpmd_sec, cpmd_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_cpmd;
+    sec.cpmd = cpmd_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_fermi_smearing(&arena, &com);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    char *deck = render_deck_from_config(buf, sz);
+    assert_non_null(strstr(deck, " FREE-ENERGY\n"));
+    assert_non_null(strstr(deck, " TEMPERATURE ELECTRON\n  300\n"));
+    free(deck);
+    free(buf);
+  }
+  {
+    /* Ionic CPMD.TEMPERATURE set directive does not conflict with smearing. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("CPMD.TEMPERATURE");
+    setd.value = capn_str("300");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    set_fermi_smearing(&arena, &com);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    char *deck = render_deck_from_config(buf, sz);
+    assert_non_null(strstr(deck, " FREE-ENERGY\n"));
+    assert_non_null(strstr(deck, " TEMPERATURE ELECTRON\n  300\n"));
+    free(deck);
+    free(buf);
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr,
@@ -1671,6 +2386,13 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_xc_functionals),
       cmocka_unit_test(test_merge_rejects_unmapped_xc_when_arm_wins),
       cmocka_unit_test(test_merge_unset_system_charge_keeps_root),
+      cmocka_unit_test(test_merge_rejects_raw_dft_overlay),
+      cmocka_unit_test(test_merge_rejects_inputblocks_dft_overlay),
+      cmocka_unit_test(test_merge_rejects_generic_dft_overlay),
+      cmocka_unit_test(test_merge_rejects_set_functional_overlay),
+      cmocka_unit_test(test_merge_rejects_raw_system_charge_overlay),
+      cmocka_unit_test(test_merge_rejects_set_charge_overlay),
+      cmocka_unit_test(test_merge_set_other_dft_keeps_overlay_functional),
       cmocka_unit_test(test_merge_wire_default_system_cutoff_takes_common),
       cmocka_unit_test(
           test_merge_wire_default_system_multiplicity_takes_common),
@@ -1679,6 +2401,10 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_unset_system_cutoff_keeps_root),
       cmocka_unit_test(test_merge_unset_system_multiplicity_keeps_root),
       cmocka_unit_test(test_merge_unset_dft_functional_keeps_root),
+      cmocka_unit_test(test_merge_rejects_dft_directive_functional_overlay),
+      cmocka_unit_test(test_merge_rejects_system_directive_scalar_overlays),
+      cmocka_unit_test(test_merge_rejects_explicit_singlet_against_opaque_system),
+      cmocka_unit_test(test_merge_rejects_split_temperature_electron_smearing),
       cmocka_unit_test(test_merge_basis_set),
       cmocka_unit_test(test_merge_cutoff_charge_multiplicity),
       cmocka_unit_test(test_merge_rejects_kmesh_scf_vdw_method_relativity),
