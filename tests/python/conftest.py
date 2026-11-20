@@ -9,6 +9,7 @@ imported and ``build/libcpmdc.so`` is used when ``CPMDC_LIBRARY`` is unset.
 
 from __future__ import annotations
 
+import inspect
 import os
 import shutil
 import subprocess
@@ -71,13 +72,127 @@ def periodic_params(tmp_path_factory: pytest.TempPathFactory) -> Path:
     )
 
 
+def library_is_opencpmd() -> bool:
+    """True when this process's libcpmdc is the OpenCPMD archive.
+
+    ``cpmdc_available()`` is 1 only for that archive. The reference well
+    returns 0. :func:`opencpmd` reports the same bit.
+    ``pytest_pycollect_makeitem`` omits a ``cpmd_backend`` test whose name
+    is the other one, and ``pytest_generate_tests`` parametrizes the test
+    that remains.
+    """
+    from cpmdc import _load, find_library
+
+    lib = _load(find_library())
+    return bool(lib.cpmdc_available())
+
+
+_LINKED_BACKEND: str | None = None
+
+
+def linked_backend() -> str:
+    """``opencpmd`` or ``reference``, from :func:`library_is_opencpmd`."""
+    global _LINKED_BACKEND
+    if _LINKED_BACKEND is None:
+        _LINKED_BACKEND = "opencpmd" if library_is_opencpmd() else "reference"
+    return _LINKED_BACKEND
+
+
+def _cpmd_backend_mark(obj: object):
+    func = getattr(obj, "__func__", obj)
+    if not inspect.isfunction(func):
+        return None
+    raw = getattr(func, "pytestmark", [])
+    marks = raw if isinstance(raw, list) else [raw]
+    found = None
+    for decorator in marks:
+        mark = getattr(decorator, "mark", decorator)
+        if getattr(mark, "name", None) != "cpmd_backend":
+            continue
+        if found is not None:
+            raise pytest.UsageError(f"{func.__name__}: cpmd_backend is set twice")
+        found = mark
+    return found
+
+
+def _checked_backend(name: str, mark: pytest.Mark) -> str:
+    if len(mark.args) != 1 or mark.args[0] not in ("reference", "opencpmd"):
+        raise pytest.UsageError(
+            f"{name}: cpmd_backend takes reference or opencpmd"
+        )
+    reason = mark.kwargs.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        raise pytest.UsageError(f"{name}: cpmd_backend needs a reason")
+    if set(mark.kwargs) - {"reason"}:
+        raise pytest.UsageError(f"{name}: cpmd_backend takes only reason=")
+    return str(mark.args[0])
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "cpmd_backend(name, *, reason): collect this test only when "
+        "linked_backend() is name (reference or opencpmd); reason says why "
+        "the other library does not run it",
+    )
+
+
+def pytest_pycollect_makeitem(
+    collector: pytest.Collector, name: str, obj: object
+):
+    """Omit a cpmd_backend test the linked library does not run.
+
+    Returning an empty list means the test is not collected. That is not a
+    skip and not a deselection. The matching tests fall through to pytest's
+    own collector, and ``pytest_generate_tests`` gives them the fixture.
+    """
+    del collector
+    mark = _cpmd_backend_mark(obj)
+    if mark is None:
+        return None
+    if _checked_backend(name, mark) != linked_backend():
+        return []
+    return None
+
+
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    mark = metafunc.definition.get_closest_marker("cpmd_backend")
+    if mark is None:
+        return
+    wanted = _checked_backend(metafunc.definition.nodeid, mark)
+    metafunc.parametrize("cpmd_backend", [wanted], indirect=True, ids=[wanted])
+
+
+@pytest.fixture
+def cpmd_backend(request: pytest.FixtureRequest, opencpmd: bool) -> str:
+    """The backend this test was collected for.
+
+    Collection keeps the test only when ``linked_backend()`` equals the
+    marker. This fixture repeats that check with the ``opencpmd`` fixture,
+    which is the session's reading of the same ``cpmdc_available()`` bit.
+    """
+    wanted = request.param
+    active = "opencpmd" if opencpmd else "reference"
+    if wanted != active:
+        raise AssertionError(
+            f"collected for the {wanted} backend, but the opencpmd fixture "
+            f"says {active}"
+        )
+    return active
+
+
 @pytest.fixture(scope="session")
 def opencpmd(params: Path) -> bool:
     """True when the library is linked to OpenCPMD, not the reference well."""
     from cpmdc import Session
 
     with Session(params) as session:
-        return session.available()
+        available = bool(session.available())
+    if available != library_is_opencpmd():
+        raise RuntimeError(
+            "cpmdc_available() changed between collection and the opencpmd fixture"
+        )
+    return available
 
 
 def park_orbitals(params: Path) -> None:
