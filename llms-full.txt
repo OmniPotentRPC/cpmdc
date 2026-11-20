@@ -372,9 +372,9 @@ Keeping them apart is what lets a warm step skip CPMD's setup.
    multiplicity with `capnp-fortran`.
 2. `cpmdc_session_calculate_result()` decodes the `ForceInput`, converts
    positions and the cell to Angstrom, and sizes the result buffer.
-   `session_accept_topology` fixes the topology as soon as that call passes
-   its argument checks, even when the evaluation then fails, and it is never
-   rolled back. All of that is before any CPMD work.
+   `session_accept_topology` fixes the topology after that call passes its
+   argument checks and collective orbital preflight. A rejected preflight
+   leaves it configurable. All of that is before any CPMD work.
 3. On a cold evaluation, the bridge composes the full deck from the method
    deck and the step geometry, writes it to an anonymous `memfd` exposed as
    `/proc/self/fd/N`, and runs OpenCPMD's own setup on it (`control`,
@@ -406,10 +406,10 @@ The geometry never goes into `CPMDParams`: the bridge writes `&ATOMS` from the
 step on a cold evaluation and moves atoms through `tau0` on a warm step.
 
 # Sessions, topology, and state
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back, because the species tables, the plane-wave setup, and the
-stored orbitals are sized for one composition.
+`session_accept_topology` fixes the topology after an evaluation call passes
+its argument checks and collective orbital preflight, because the species
+tables, the plane-wave setup, and the stored orbitals are sized for one
+composition. A rejected preflight leaves it configurable.
 A reordering of those elements stays on the session.
 Coordinates may change freely. A changed cell runs setup again, except a
 constant-cutoff cell that stays within `CPMDC_CELL_IN_PLACE`.
@@ -2264,9 +2264,9 @@ reason.
 The calculator stays usable, and the next call evaluates the step again.
 
 # Sessions and copies
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A reordering of the same atoms stays on the session.
 After a successful step, a structure with another composition closes the
 session and opens a new one from the same `params`.
@@ -2794,9 +2794,9 @@ contract; these are the ones that shape a host loop:
   `ok == 0` with the needed size in `potential_result_size`.
 - `cpmdc_session_create()` copies the `CPMDParams` bytes, so the caller may free
   them at once.
-- `session_accept_topology` fixes the topology as soon as an evaluation call
-  passes its argument checks, even when the evaluation then fails, and it is
-  never rolled back.
+- `session_accept_topology` fixes the topology only after an evaluation call
+  passes its argument checks and collective orbital preflight. A rejected
+  preflight leaves the topology configurable.
   Change the atom count, the elemental composition, or the method after that
   call, by creating a new `CPMDCSession`;
   `cpmdc_session_set_params()` only works before it.
@@ -4527,9 +4527,8 @@ With more than one MPI rank, `cpmdc` aborts the other ranks, which would
 otherwise stay blocked in the call `stopgm` returned from.
 
 ## ~topology change requires a new session~
-# Cause:* ~session_accept_topology~ fixes the topology as soon as an
-evaluation call passes its argument checks, even when the evaluation then
-fails, and it is never rolled back.
+# Cause:* ~session_accept_topology~ fixes the topology after an evaluation call
+passes its argument checks and collective orbital preflight.
 A later step with a different count or composition is refused before CPMD runs.
 A reordering of the same elements stays on the session.
 
@@ -4963,9 +4962,9 @@ Long-running drivers create one `CPMDCSession` from `CPMDParams`, then pass
 The result-carrier call, `cpmdc_session_calculate_result()`, writes the same
 `PotentialResult` message used by `rgpot` RPC clients.
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.
@@ -5381,9 +5380,9 @@ An opaque handle.
 A session holds a copy of the `CPMDParams` bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 
 ## Result snapshots
 Each snapshot struct starts with `int valid`, set by a successful evaluation.
@@ -5589,9 +5588,9 @@ previous setting.
 It survives a later `cpmdc_session_set_params()`.
 The link stub returns -1.
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 `topology change requires a new session` before CPMD runs.
 A reordering of the same elements stays on the session.
@@ -6101,9 +6100,9 @@ A session is created by one of two functions and released by `cpmdc_session_dest
 
 ## Session evaluation
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back; see the C ABI reference.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable; see the C ABI reference.
 
 ### ~cpmdc_session_energy_gradient~
 
@@ -9608,9 +9607,9 @@ focused test command.
 - `tau0` :: OpenCPMD's array of ionic positions in Bohr, `coor%tau0`, written by
   `cpmdc` from each step's positions.
 - Topology :: The atom count and elemental composition of a session.
-  `session_accept_topology` fixes the topology as soon as an evaluation call
-  passes its argument checks, even when the evaluation then fails, and it is
-  never rolled back.
+  `session_accept_topology` fixes the topology only after an evaluation call
+  passes its argument checks and collective orbital preflight. A rejected
+  preflight leaves the topology configurable.
   A reordering of those elements stays on the session.
 
 # W
