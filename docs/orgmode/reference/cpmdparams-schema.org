@@ -150,17 +150,19 @@ unset and a non-zero one is explicit.
 ~planewaveCutoffEv~ is in eV and is converted to the Ry the deck carries.
 ~spinMultiplicity~ 0 is unset, so an explicit singlet of 1 is merged and
 checked like the other overlay scalars.
-The deck and the recorded settings come from this one resolved result.
+The functional, cutoff, charge, and multiplicity lines the deck renderers
+write and the recorded settings follow this precedence.
 An unmapped ~xcFunctionals~ token is rejected for every arm functional,
 before that precedence.
-A scalar the overlay would copy is rejected when ~inputBlocks~, a raw
-section, or a generic section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~
-(cutoff, charge, multiplicity), when a set directive names
-~DFT.FUNCTIONAL~, ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
-~SYSTEM.MULTIPLICITY~, or when the ~directives~ list of the typed ~dft~
-section holds ~FUNCTIONAL~ or that of the typed ~system~ section holds
-~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
-Those carriers are not folded into the recorded settings.
+Opaque carriers are rendered as given and are not folded into the recorded
+settings, so the carrier check runs for every set overlay field, whether or
+not a typed field also sets it.
+The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
+section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~ (cutoff, charge,
+multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the
+~directives~ list of the typed ~dft~ section holds ~FUNCTIONAL~ or that of
+the typed ~system~ section holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
 Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments
 in ~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
 The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects

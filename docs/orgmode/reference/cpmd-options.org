@@ -186,7 +186,16 @@ Missing core sections receive minimal defaults from the renderer so a sparse
 When structured ~dft~ or ~system~ sections provide scalar method values
 (functional, cutoff, charge, multiplicity), those section values are also the
 effective embed configuration passed through the C ABI.
-The deck text and that configuration come from one resolved result.
+The functional, cutoff, charge, and multiplicity lines the renderer writes
+and that configuration follow the same precedence.
+~raw~, ~generic~, and ~set~ sections, ~inputBlocks~, and section ~directives~
+are rendered as given and are not read back into that configuration, so the
+carrier check runs for every set overlay field of a ~common~ overlay,
+whether or not a typed field also sets it, and a carrier of the same setting
+rejects that field.
+A ~FUNCTIONAL~ directive in a typed ~dft~ section or a ~DFT.FUNCTIONAL~ set
+directive is rejected when the deck is rendered, because the rendered ~&DFT~
+section already carries the functional.
 A section value that differs from the schema default (functional ~BLYP~,
 cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field and beats
 the overlay.
