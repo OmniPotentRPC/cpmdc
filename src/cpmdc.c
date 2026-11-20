@@ -1328,37 +1328,32 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
         return -1;
       }
     }
-    if (sec.which == CPMDInputSection_dft && strcmp(section, "DFT") == 0) {
-      struct CPMDDftSection dft_sec;
-      read_CPMDDftSection(&dft_sec, sec.dft);
-      int has_dir = cpmd_directives_have_kw(dft_sec.directives, set_kw);
-      if (has_dir < 0) {
-        cpmdc_store_error("common overlay: invalid dft directives list");
-        return -1;
-      }
-      if (has_dir > 0) {
-        snprintf(msg, sizeof(msg),
-                 "common overlay: %s conflicts with %s.%s directive already "
-                 "set on the cpmd arm",
-                 field, section, set_kw);
-        cpmdc_store_error(msg);
-        return -1;
-      }
+    CPMDDirective_list typed_directives;
+    int has_typed_directives = 0;
+    memset(&typed_directives, 0, sizeof(typed_directives));
+    if (strcmp(section, "DFT") == 0 && sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      typed_directives = body.directives;
+      has_typed_directives = 1;
+    } else if (strcmp(section, "SYSTEM") == 0 &&
+               sec.which == CPMDInputSection_system) {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      typed_directives = body.directives;
+      has_typed_directives = 1;
     }
-    if (sec.which == CPMDInputSection_system &&
-        strcmp(section, "SYSTEM") == 0) {
-      struct CPMDSystemSection sys_sec;
-      read_CPMDSystemSection(&sys_sec, sec.system);
-      int has_dir = cpmd_directives_have_kw(sys_sec.directives, set_kw);
-      if (has_dir < 0) {
-        cpmdc_store_error("common overlay: invalid system directives list");
+    if (has_typed_directives) {
+      int has_keyword = cpmd_directives_have_kw(typed_directives, set_kw);
+      if (has_keyword < 0) {
+        cpmdc_store_error("common overlay: invalid typed-section directives");
         return -1;
       }
-      if (has_dir > 0) {
+      if (has_keyword) {
         snprintf(msg, sizeof(msg),
-                 "common overlay: %s conflicts with %s.%s directive already "
-                 "set on the cpmd arm",
-                 field, section, set_kw);
+                 "common overlay: %s conflicts with a typed &%s directive "
+                 "already on the cpmd arm",
+                 field, section);
         cpmdc_store_error(msg);
         return -1;
       }
@@ -1374,8 +1369,10 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
  * unset, and require basisSet to be unset or "planewave". An unmapped
  * xcFunctionals token is rejected for any arm functional. A scalar the
  * overlay would copy is rejected when inputBlocks, a raw section, a generic
- * section, or a set directive already supplies that setting. Conflicting or
- * unmergeable overlay fields are rejected through cpmdc_last_error(). */
+ * section, or a set or typed-section directive already supplies that
+ * setting. Omitted fields in typed DFT and SYSTEM sections remain unset.
+ * Conflicting or unmergeable overlay fields are rejected through
+ * cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
