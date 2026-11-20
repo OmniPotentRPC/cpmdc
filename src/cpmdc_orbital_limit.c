@@ -41,6 +41,8 @@ static const char k_orbital_limit_differs[] =
 static const char k_orbital_limit_mpi[] =
     "CPMDC_ORBITAL_SLOT_LIMIT: MPI collective failed";
 static const char k_orbital_limit_memory[] = "out of memory";
+static const char k_orbital_limit_peer[] =
+    "another rank of the calculator rejected this call";
 
 /* Reference-evaluator ledger. Parked keys exclude the selected key.
  * g_selected_has_store is the live copy of the selected key. */
@@ -250,20 +252,36 @@ static int orbital_allreduce(int *values, int count) {
 }
 #endif
 
-int cpmdc_orbital_agree(const char **err) {
+/* Agrees CPMDC_ORBITAL_SLOT_LIMIT across the calculator ranks, with
+ * `local_failed` set when a check of this call already failed here. Every
+ * rank calls this exactly once per evaluation, after its own checks, and
+ * runs the collective even when its own check failed, so a rank whose
+ * check failed alone does not leave the others waiting. A failure on any
+ * rank fails the call on all of them. Returns 0 when no rank failed and
+ * the limit agrees. Otherwise returns -1 and sets `*err` to the reason, or
+ * to NULL on a rank whose own check failed, which reports its own reason. */
+int cpmdc_orbital_agree(int local_failed, const char **err) {
   int limit = CPMDC_ORBITAL_SLOT_UNLIMITED;
   int kind = CPMDC_ORBITAL_SLOT_KIND_UNSET;
-  int buf[5];
+  int buf[6];
   int min_limit;
   g_limit_ready = 0;
+  *err = NULL;
   parse_orbital_slot_limit(&limit, &kind);
   buf[0] = kind == CPMDC_ORBITAL_SLOT_KIND_INVALID;
   buf[1] = kind == CPMDC_ORBITAL_SLOT_KIND_SET ? limit : 0;
   buf[2] = kind == CPMDC_ORBITAL_SLOT_KIND_SET;
   buf[3] = kind == CPMDC_ORBITAL_SLOT_KIND_UNSET;
   buf[4] = kind == CPMDC_ORBITAL_SLOT_KIND_SET ? -limit : INT_MIN;
-  if (orbital_allreduce(buf, 5) != 0) {
-    *err = k_orbital_limit_mpi;
+  buf[5] = local_failed != 0;
+  if (orbital_allreduce(buf, 6) != 0) {
+    if (!local_failed)
+      *err = k_orbital_limit_mpi;
+    return -1;
+  }
+  if (buf[5]) {
+    if (!local_failed)
+      *err = k_orbital_limit_peer;
     return -1;
   }
   if (buf[0]) {
@@ -286,7 +304,6 @@ int cpmdc_orbital_agree(const char **err) {
   }
   cpmdc_embed_set_orbital_slot_limit(g_agreed_limit);
   g_limit_ready = 1;
-  *err = NULL;
   return 0;
 }
 

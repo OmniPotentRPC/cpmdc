@@ -68,7 +68,7 @@ void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 int cpmdc_embed_slot_limit_code(void);
-int cpmdc_orbital_agree(const char **err);
+int cpmdc_orbital_agree(int local_failed, const char **err);
 int cpmdc_orbital_prepare(long long key, const char **err);
 int cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
@@ -1873,15 +1873,31 @@ static int atomic_numbers_in_range(int n_atoms, const int *atomic_numbers) {
   return 1;
 }
 
+/* Agrees the orbital slot limit across the calculator ranks once the checks
+ * of this call have run, and always runs the collective so that a check
+ * failing on one rank does not leave the others in it. `local_err` is the
+ * reason a check of this rank failed, or NULL. Returns the reason the call
+ * fails, or NULL when it goes on. A reason of this rank comes first. */
+static const char *orbital_limit_gate(const char *local_err) {
+  const char *limit_err = NULL;
+  if (cpmdc_orbital_agree(local_err != NULL, &limit_err) == 0)
+    return NULL;
+  if (local_err)
+    return local_err;
+  return limit_err ? limit_err : "CPMDC_ORBITAL_SLOT_LIMIT could not be agreed";
+}
+
 static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
-                                        double *grad_h_bohr) {
-  const char *limit_err = NULL;
-  if (cpmdc_orbital_agree(&limit_err) != 0)
-    return fail_msg(limit_err);
-  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
-    return fail_msg("atomic numbers must be in 1..118");
+                                        double *grad_h_bohr,
+                                        const char *params_err) {
+  const char *err = params_err;
+  if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
+    err = "atomic numbers must be in 1..118";
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
                                           g_has_overrides ? &g_overrides : NULL,
                                           n_atoms,
@@ -1895,14 +1911,14 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                   const void *params_capnp,
                                   size_t params_capnp_size_bytes,
                                   double *grad_h_bohr) {
+  const char *params_err = NULL;
   if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
-    const char *err = cpmdc_last_error();
-    if (!err || err[0] == '\0')
-      err = "embed config failed";
-    return fail_msg(err);
+    params_err = cpmdc_last_error();
+    if (!params_err || params_err[0] == '\0')
+      params_err = "embed config failed";
   }
   return energy_gradient_cell(n_atoms, positions_ang, atomic_numbers, NULL, 0,
-                              grad_h_bohr);
+                              grad_h_bohr, params_err);
 }
 
 CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
@@ -2380,20 +2396,26 @@ static CPMDCResult session_energy_gradient_cell(
     CPMDCSession *session, int n_atoms, const double *positions_ang,
     const int *atomic_numbers, const double *cell_ang, int has_cell,
     double *grad_h_bohr) {
-  const char *limit_err = NULL;
-  if (cpmdc_orbital_agree(&limit_err) != 0)
-    return fail_msg(limit_err);
+  const char *err = NULL;
+  /* Every check that can fail runs before the collective that agrees the
+   * orbital slot limit. A rank that fails one still joins that collective,
+   * so the ranks that passed do not wait for it, and its own reason is the
+   * one it reports. */
   if (!session)
-    return fail_msg("null session");
+    err = "null session";
   /* A missing buffer is a bad call, including on a session that already
    * stored a result. The cache lookup reads these pointers. */
-  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
-      !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
-    return fail_msg("invalid arguments");
-  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
-    return fail_msg("atomic numbers must be in 1..118");
-  if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
-    return fail_msg("topology change requires a new session");
+  else if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+           !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
+    err = "invalid arguments";
+  else if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    err = "atomic numbers must be in 1..118";
+  else if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) !=
+           0)
+    err = "topology change requires a new session";
+  err = orbital_limit_gate(err);
+  if (err)
+    return fail_msg(err);
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
@@ -2451,19 +2473,14 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
 
 int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
                                 long long to_key) {
-  if (!session) {
-    cpmdc_store_error("null session");
-    return -1;
-  }
-  {
-    const char *limit_err = NULL;
-    if (cpmdc_orbital_agree(&limit_err) != 0) {
-      cpmdc_store_error(limit_err);
-      return -1;
-    }
-  }
-  if (!session->evaluated) {
-    cpmdc_store_error("no stored orbitals; evaluate at least once before copy");
+  const char *err = NULL;
+  if (!session)
+    err = "null session";
+  else if (!session->evaluated)
+    err = "no stored orbitals; evaluate at least once before copy";
+  err = orbital_limit_gate(err);
+  if (err) {
+    cpmdc_store_error(err);
     return -1;
   }
   /* The reference evaluator has no orbital store. An OpenCPMD build

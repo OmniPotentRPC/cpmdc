@@ -1,0 +1,1 @@
+A session evaluation and an orbital copy check their arguments and session before they agree `CPMDC_ORBITAL_SLOT_LIMIT` across the calculator ranks, so a null session or a bad argument is reported as that and not as the limit. A rank whose own check fails still joins the agreement and every other rank fails the call too, instead of waiting for it.

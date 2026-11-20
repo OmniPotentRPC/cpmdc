@@ -403,6 +403,128 @@ static void test_alternating_keys_keep_bounded_storage(void **state) {
   free(params);
 }
 
+/* An invalid limit does not leak into the call a bad argument fails, and a
+ * limit that cannot be used fails the copy that would have parked. */
+struct order_ctx {
+  const unsigned char *params;
+  size_t params_n;
+  const char *limit;
+};
+
+struct order_result {
+  int null_session_ok;
+  char null_session[k_msg];
+  char null_session_last[k_msg];
+  char null_buffer[k_msg];
+  char bad_atomic_number[k_msg];
+  char first_valid[k_msg];
+  char topology[k_msg];
+  char valid_args[k_msg];
+  int copy_null_rc;
+  char copy_null_last[k_msg];
+  int copy_unevaluated_rc;
+  char copy_unevaluated_last[k_msg];
+  int copy_evaluated_rc;
+  char copy_evaluated_last[k_msg];
+  int select_rc;
+};
+
+static void order_checks(void *ctx_void, void *out_void) {
+  struct order_ctx *ctx = ctx_void;
+  struct order_result *out = out_void;
+  static const int k_bad_z[3] = {8, 0, 1};
+  static const int k_other_z[3] = {8, 8, 1};
+  CPMDCSession *session;
+  CPMDCSession *fresh;
+  double pos[9];
+  double forces[9];
+  CPMDCResult r;
+  positions_for(0, pos);
+  setenv(k_limit_name, ctx->limit, 1);
+  r = cpmdc_session_energy_forces(NULL, 3, pos, k_z, forces);
+  out->null_session_ok = r.ok;
+  copy_text(out->null_session, k_msg, r.message);
+  copy_text(out->null_session_last, k_msg, cpmdc_last_error());
+  out->copy_null_rc = cpmdc_session_copy_orbitals(NULL, 1, 2);
+  copy_text(out->copy_null_last, k_msg, cpmdc_last_error());
+
+  unsetenv(k_limit_name);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  fresh = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session || !fresh) {
+    copy_text(out->first_valid, k_msg, cpmdc_last_error());
+    return;
+  }
+  out->select_rc = cpmdc_session_select_orbitals(session, 1);
+
+  r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  copy_text(out->first_valid, k_msg, r.message);
+  setenv(k_limit_name, ctx->limit, 1);
+  r = cpmdc_session_energy_forces(fresh, 3, NULL, k_z, forces);
+  copy_text(out->null_buffer, k_msg, r.message);
+  r = cpmdc_session_energy_forces(fresh, 3, pos, k_bad_z, forces);
+  copy_text(out->bad_atomic_number, k_msg, r.message);
+  out->copy_unevaluated_rc = cpmdc_session_copy_orbitals(fresh, 1, 2);
+  copy_text(out->copy_unevaluated_last, k_msg, cpmdc_last_error());
+  r = cpmdc_session_energy_forces(fresh, 3, pos, k_z, forces);
+  copy_text(out->valid_args, k_msg, r.message);
+  r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
+  copy_text(out->topology, k_msg, r.message);
+
+  out->copy_evaluated_rc = cpmdc_session_copy_orbitals(session, 1, 2);
+  copy_text(out->copy_evaluated_last, k_msg, cpmdc_last_error());
+  cpmdc_session_destroy(fresh);
+  cpmdc_session_destroy(session);
+}
+
+static void check_error_order(const char *limit) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct order_ctx ctx;
+  struct order_result out;
+  char why[256];
+  assert_non_null(params);
+  memset(&out, 0, sizeof(out));
+  ctx.params = params;
+  ctx.params_n = n;
+  ctx.limit = limit;
+  assert_int_equal(
+      run_setup_child(order_checks, &ctx, &out, sizeof(out), why, sizeof(why)), 0);
+  /* A bad call is reported as that, not as the limit. */
+  assert_int_equal(out.null_session_ok, 0);
+  assert_string_equal(out.null_session, "null session");
+  assert_string_equal(out.null_session_last, "null session");
+  assert_string_equal(out.null_buffer, "invalid arguments");
+  assert_non_null(strstr(out.bad_atomic_number, "atomic numbers"));
+  assert_null(strstr(out.bad_atomic_number, k_limit_name));
+  assert_int_equal(out.copy_null_rc, -1);
+  assert_string_equal(out.copy_null_last, "null session");
+  assert_int_equal(out.copy_unevaluated_rc, -1);
+  assert_non_null(strstr(out.copy_unevaluated_last, "no stored orbitals"));
+  assert_null(strstr(out.copy_unevaluated_last, k_limit_name));
+  /* A well formed call names the limit. */
+  assert_int_equal(out.select_rc, 0);
+  assert_string_equal(out.first_valid, "ok");
+  assert_non_null(strstr(out.valid_args, k_limit_name));
+  assert_int_equal(out.copy_evaluated_rc, -1);
+  assert_non_null(strstr(out.copy_evaluated_last, k_limit_name));
+  assert_null(strstr(out.copy_evaluated_last, k_exceeded));
+  /* The first evaluation fixed the topology, so a change of it is the
+   * reason for the failure while the limit stays unusable. */
+  assert_non_null(strstr(out.topology, "topology change"));
+  free(params);
+}
+
+static void test_bad_call_is_not_reported_as_the_limit(void **state) {
+  (void)state;
+  check_error_order("abc");
+}
+
+static void test_empty_limit_orders_errors_the_same_way(void **state) {
+  (void)state;
+  check_error_order("");
+}
+
 int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_limit_rejects_a_new_park),
@@ -410,6 +532,8 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_invalid_limit_names_the_variable),
       cmocka_unit_test(test_unset_limit_parks_every_key),
       cmocka_unit_test(test_alternating_keys_keep_bounded_storage),
+      cmocka_unit_test(test_bad_call_is_not_reported_as_the_limit),
+      cmocka_unit_test(test_empty_limit_orders_errors_the_same_way),
   };
   if (argc < 2)
     return 1;
