@@ -15,6 +15,7 @@
 | ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ or ~0~ keeps the caller's coordinates; ~MASS~, ~GEOMETRY~ and ~OFF~ are accepted too; any other value fails the call |
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
+| ~CPMDC_ORBITAL_SLOT_LIMIT~ | ~src/cpmdc.c~ on each evaluation and orbital copy, and ~tools/opencpmd_embed_rwfopt.patch~ when the host has not already agreed a value | unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call |
 
 A cold OpenCPMD evaluation fails when neither ~CPMDC_PSEUDO_DIR~ nor
 ~CPMD_PP_LIBRARY_PATH~ names an existing directory.
@@ -88,6 +89,22 @@ starts from the stored orbitals and keeps the ~EXTRAPOLATE WFN~ history.
 (section Cell changes at a constant cutoff) gives the conditions and what the
 move changes in the energy and the stress.
 Set it to the same value on every rank.
+
+~CPMDC_ORBITAL_SLOT_LIMIT~ is the most parked orbital copies a calculator keeps,
+excluding the key that is selected.
+Unset, the table grows with each new key.
+A positive integer refuses a park that would pass that count: the evaluation
+or the copy fails, ~cpmdc_last_error()~ names the variable, and the copies
+already stored stay where they are.
+Lowering the value does not discard copies already parked; the next new park
+fails until the count is within the new limit.
+An empty value, zero, a negative value, or any value that is not a positive
+integer fails the call and does not leave the table unbounded.
+Every calculator rank must use the same value.
+A rank that disagrees, or an MPI collective that fails, fails the call on
+every rank.
+~cpmd.x~ and a warm-start call that does not go through the library read the
+variable themselves.
 
 ~CPMDC_RANK_CONSENSUS=1~ adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or ~MPI_COMM_WORLD~ when

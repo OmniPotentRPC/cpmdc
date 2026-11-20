@@ -1692,6 +1692,14 @@ the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of `c0`.
+`CPMDC_ORBITAL_SLOT_LIMIT`, a positive integer, is the most of those parked
+copies.
+A park that would pass it fails the evaluation or the copy, the result names
+the variable through `cpmdc_last_error()`, and the copies already stored stay
+in the table.
+Lowering the limit does not drop a copy that is already parked.
+Unset, the table is unbounded.
+A value that is not a positive integer fails the call.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
 A session that never selects a key keeps one stored copy.
@@ -2831,6 +2839,8 @@ orbitals.
 `cpmdc_session_select_orbitals()` and `cpmdc_session_copy_orbitals()` name
 orbital stores by integer keys when a host runs several trajectories on one
 session; see extrapolate the orbitals (file:extrapolate-orbitals.org).
+`CPMDC_ORBITAL_SLOT_LIMIT` caps how many of those copies stay parked, and a
+new park past the cap fails without discarding the ones already stored.
 
 # rgpot CPMDPot
 rgpot (https://github.com/OmniPotentRPC/rgpot) loads `libcpmdc.so` in
@@ -5587,8 +5597,8 @@ The output array holds `3 * n_atoms` doubles.
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
-| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; -1 for a `NULL` session |
-| `int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)` | duplicate the converged orbitals of `from_key`, and the geometry they converged at, into `to_key`, replacing any previous copy; the selected key is unchanged; when `to_key` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting `to_key` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; every calculator rank names the same keys, the same rule `cpmdc_session_select_orbitals()` has; the reference build returns 0 because it has no orbital store; the link stub returns -1, including a same key copy; -1 for a `NULL` session, before any evaluation, when `from_key` has no converged orbitals, or on backend copy failure |
+| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past `CPMDC_ORBITAL_SLOT_LIMIT` fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
+| `int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)` | duplicate the converged orbitals of `from_key`, and the geometry they converged at, into `to_key`, replacing any previous copy; the selected key is unchanged; when `to_key` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting `to_key` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past `CPMDC_ORBITAL_SLOT_LIMIT` returns -1, `cpmdc_last_error()` names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule `cpmdc_session_select_orbitals()` has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a `NULL` session, before any evaluation, when `from_key` has no converged orbitals, or on backend copy failure |
 
 `cpmdc_session_set_constant_cutoff()` sets the constant-cutoff kinetic
 functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +
@@ -9272,6 +9282,7 @@ C ABI reference (file:c-abi.org) for the lowering rules.
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | `CPMDC_RANK_CONSENSUS` | `src/cpmdc.c`, each evaluation under a running MPI | `1` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
+| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, and `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value | unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call |
 
 A cold OpenCPMD evaluation fails when neither `CPMDC_PSEUDO_DIR` nor
 `CPMD_PP_LIBRARY_PATH` names an existing directory.
@@ -9345,6 +9356,22 @@ Wavefunction state between calls (file:../explanation/wavefunction-state.org)
 (section Cell changes at a constant cutoff) gives the conditions and what the
 move changes in the energy and the stress.
 Set it to the same value on every rank.
+
+`CPMDC_ORBITAL_SLOT_LIMIT` is the most parked orbital copies a calculator keeps,
+excluding the key that is selected.
+Unset, the table grows with each new key.
+A positive integer refuses a park that would pass that count: the evaluation
+or the copy fails, `cpmdc_last_error()` names the variable, and the copies
+already stored stay where they are.
+Lowering the value does not discard copies already parked; the next new park
+fails until the count is within the new limit.
+An empty value, zero, a negative value, or any value that is not a positive
+integer fails the call and does not leave the table unbounded.
+Every calculator rank must use the same value.
+A rank that disagrees, or an MPI collective that fails, fails the call on
+every rank.
+`cpmd.x` and a warm-start call that does not go through the library read the
+variable themselves.
 
 `CPMDC_RANK_CONSENSUS=1` adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or `MPI_COMM_WORLD` when
