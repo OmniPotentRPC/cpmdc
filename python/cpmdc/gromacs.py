@@ -41,15 +41,22 @@ __all__ = [
 
 # GROMACS' c_bohr2Nm, and c_hartree2Kj * c_avogadro built as units.h does:
 # 2 R_inf h c, with h in kJ/mol ps and c in nm/ps.
+# src/gromacs/math/units.h (CODATA 2018) stores h in kJ mol^-1 ps, so a
+# joule is 10^3 of those energy units and a second is 10^12 picoseconds.
 BOHR_TO_NM = 0.0529177210903
 _AVOGADRO = 6.02214076e23
-_PLANCK = 6.62607015e-34 * _AVOGADRO / (1e-12 * 1e3)
+_JOULES_PER_KILOJOULE = 10.0**3
+_SECONDS_PER_PICOSECOND = 10.0**-12
+_PLANCK = 6.62607015e-34 * _AVOGADRO / (_SECONDS_PER_PICOSECOND * _JOULES_PER_KILOJOULE)
 _HARTREE_TO_KJ = 2.0 * 1.0973731568160e-02 * _PLANCK * 2.99792458e05 / _AVOGADRO
 HARTREE_TO_KJ_PER_MOL = _HARTREE_TO_KJ * _AVOGADRO
 HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM = HARTREE_TO_KJ_PER_MOL / BOHR_TO_NM
 
 _CELLS = ("PERIODIC", "NONE")
 _EMBEDDINGS = ("MECHANICAL", "NONE")
+# erfc(alpha * rcut) stored when EWALD_PRECISION is omitted.
+# tools/gromacs/cpmdc_gromacs.c assigns this to env->ewald_precision.
+_DEFAULT_EWALD_PRECISION = 10.0**-8
 
 
 def _number(value: Any, what: str, *, positive: bool = False) -> str:
@@ -98,7 +105,8 @@ def qmi_input(
         the smaller of 1 nm and half the shortest box height.
     ewald_precision:
         ``erfc(alpha * rcut)``, which also sets the reciprocal-space cutoff.
-        The library default is 1e-8.
+        The library default is ``_DEFAULT_EWALD_PRECISION``, the value
+        ``tools/gromacs/cpmdc_gromacs.c`` stores when the key is omitted.
     qm_ranks:
         Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
         calculation on every rank mdrun gives the interface, as one cpmdc

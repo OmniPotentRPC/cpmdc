@@ -412,6 +412,7 @@ cpmdc_shared = shared_library(
 if get_option('with_python')
   py.install_sources(
     'python/cpmdc/__init__.py',
+    'python/cpmdc/_rank.py',
     'python/cpmdc/_elements.py',
     'python/cpmdc/ase.py',
     'python/cpmdc/gromacs.py',

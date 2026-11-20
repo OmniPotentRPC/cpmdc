@@ -582,8 +582,12 @@ class Session:
             raise CPMDCError(self._error() or "cpmdc_session_create failed")
         self._handle = handle
         if cutoff is not None:
+            # src/cpmdc_params.c treats a non-positive height or width as unset
+            # and then uses 50 times the deck cutoff and a tenth of E0.
+            height = 0.0 if cutoff.height_ry is None else cutoff.height_ry
+            width = 0.0 if cutoff.width_ry is None else cutoff.width_ry
             status = self._lib.cpmdc_session_set_constant_cutoff(
-                handle, cutoff.cutoff_ry, cutoff.height_ry or 0.0, cutoff.width_ry or 0.0
+                handle, cutoff.cutoff_ry, height, width
             )
             if status != 0:
                 message = self._error() or "cpmdc_session_set_constant_cutoff failed"
