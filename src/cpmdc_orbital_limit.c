@@ -4,9 +4,9 @@
  * this build links CPMD. This file agrees the cap across calculator ranks
  * and, on the reference evaluator, applies the same rule to keyed
  * evaluations. Exceeding the cap reports an error and leaves the parked
- * keys in place. The numeric codes match the Fortran parameters
- * embed_slot_limit_ok, embed_slot_limit_invalid and
- * embed_slot_limit_exceeded. */
+ * keys in place. The codes ok, invalid and exceeded match the Fortran
+ * parameters embed_slot_limit_ok, embed_slot_limit_invalid and
+ * embed_slot_limit_exceeded. The no memory code has no Fortran twin. */
 #include "cpmdc.h"
 
 #include <limits.h>
@@ -24,7 +24,9 @@ enum {
   CPMDC_ORBITAL_SLOT_OK = 0,
   CPMDC_ORBITAL_SLOT_INVALID = 1,
   CPMDC_ORBITAL_SLOT_EXCEEDED = 2,
+  CPMDC_ORBITAL_SLOT_NO_MEMORY = 3,
   CPMDC_ORBITAL_SLOT_DECIMAL_BASE = 10,
+  CPMDC_ORBITAL_SLOT_FIRST_CAP = 8,
   CPMDC_ORBITAL_SLOT_KIND_UNSET = 0,
   CPMDC_ORBITAL_SLOT_KIND_SET = 1,
   CPMDC_ORBITAL_SLOT_KIND_INVALID = 2
@@ -78,14 +80,17 @@ static int parked_index(long long key) {
   return -1;
 }
 
-static int parked_add(long long key) {
-  size_t cap;
+/* Makes room for one more parked key. Grows the table only when it is
+ * full, and leaves it as it was when the growth cannot be sized or
+ * allocated. */
+static int parked_reserve(void) {
   long long *grown;
-  if (parked_index(key) >= 0)
+  size_t cap;
+  if (g_parked_n < g_parked_cap)
     return 0;
   if (g_parked_cap == 0)
-    cap = 8;
-  else if (g_parked_cap > SIZE_MAX / 2)
+    cap = CPMDC_ORBITAL_SLOT_FIRST_CAP;
+  else if (g_parked_cap > SIZE_MAX / (2u * sizeof(*grown)))
     return -1;
   else
     cap = g_parked_cap * 2u;
@@ -94,9 +99,20 @@ static int parked_add(long long key) {
     return -1;
   g_parked = grown;
   g_parked_cap = cap;
+  return 0;
+}
+
+static int parked_add(long long key) {
+  if (parked_index(key) >= 0)
+    return 0;
+  if (parked_reserve() != 0)
+    return -1;
   g_parked[g_parked_n++] = key;
   return 0;
 }
+
+/* Slots allocated for parked keys. For tests that bound the table. */
+size_t cpmdc_orbital_ledger_capacity(void) { return g_parked_cap; }
 
 static void parked_remove_at(int index) {
   size_t at;
@@ -294,13 +310,23 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
   return 0;
 #else
   int fail;
+  int leaving = 0;
   if (!g_limit_ready) {
     *err = k_orbital_limit_invalid;
     return -1;
   }
-  fail = ledger_would_exceed(key);
+  /* The table grows before the collective, so a rank that cannot grow it
+   * fails every rank and no rank is left evaluating alone. */
+  fail = ledger_would_exceed(key) ? CPMDC_ORBITAL_SLOT_EXCEEDED : 0;
+  (void)select_extra(key, &leaving, NULL);
+  if (!fail && leaving && parked_reserve() != 0)
+    fail = CPMDC_ORBITAL_SLOT_NO_MEMORY;
   if (orbital_allreduce(&fail, 1) != 0) {
     *err = k_orbital_limit_mpi;
+    return -1;
+  }
+  if (fail == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
+    *err = k_orbital_limit_memory;
     return -1;
   }
   if (fail) {

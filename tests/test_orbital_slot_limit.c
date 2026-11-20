@@ -13,12 +13,26 @@
 
 #include <setjmp.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #include <cmocka.h>
+
+#if defined(__SANITIZE_ADDRESS__)
+#define CPMDC_TEST_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define CPMDC_TEST_ASAN 1
+#endif
+#endif
+
+/* Slots the reference ledger holds for parked keys. Zero on a CPMD build,
+ * whose store lives in Fortran. Exported by the embed layer for tests. */
+size_t cpmdc_orbital_ledger_capacity(void);
 
 static const char *g_params = NULL;
 
@@ -282,12 +296,120 @@ static void test_unset_limit_parks_every_key(void **state) {
   free(params);
 }
 
+/* Two keys that alternate, as the images of a band do between iterations.
+ * Each switch parks the key it leaves and restores the other, so at most
+ * one key is parked and the table never has to grow past its first block. */
+enum {
+  k_switches = 1000,
+  k_first_block = 16,
+  k_address_space_margin = 64 * 1024 * 1024,
+  k_bytes_per_kib = 1024
+};
+
+struct alternate_ctx {
+  const unsigned char *params;
+  size_t params_n;
+  int limit_address_space;
+};
+
+struct alternate_result {
+  int switches_ok;
+  int rlimit_set;
+  size_t capacity;
+  char first_error[k_msg];
+};
+
+/* Virtual size of this process, in bytes. Zero when it cannot be read. */
+static size_t virtual_size_bytes(void) {
+  unsigned long pages = 0;
+  FILE *fp = fopen("/proc/self/statm", "r");
+  if (!fp)
+    return 0;
+  if (fscanf(fp, "%lu", &pages) != 1)
+    pages = 0;
+  fclose(fp);
+  return (size_t)pages * (size_t)sysconf(_SC_PAGESIZE);
+}
+
+static void alternate_keys(void *ctx_void, void *out_void) {
+  struct alternate_ctx *ctx = ctx_void;
+  struct alternate_result *out = out_void;
+  CPMDCSession *session;
+  int step;
+  unsetenv(k_limit_name);
+  if (ctx->limit_address_space) {
+    size_t base = virtual_size_bytes();
+    struct rlimit lim;
+    if (base != 0) {
+      lim.rlim_cur = (rlim_t)(base + (size_t)k_address_space_margin);
+      lim.rlim_max = lim.rlim_cur;
+      out->rlimit_set = setrlimit(RLIMIT_AS, &lim) == 0;
+    }
+  }
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session) {
+    copy_text(out->first_error, k_msg, cpmdc_last_error());
+    return;
+  }
+  for (step = 0; step < k_switches; ++step) {
+    double pos[9];
+    double forces[9];
+    CPMDCResult r;
+    positions_for(0, pos);
+    pos[0] += 0.001 * (double)(step + 1);
+    cpmdc_session_select_orbitals(session, step % 2 == 0 ? 1 : 2);
+    r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+    if (!r.ok) {
+      if (out->first_error[0] == '\0')
+        copy_text(out->first_error, k_msg, r.message);
+      break;
+    }
+    out->switches_ok++;
+  }
+  out->capacity = cpmdc_orbital_ledger_capacity();
+  cpmdc_session_destroy(session);
+}
+
+static void test_alternating_keys_keep_bounded_storage(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct alternate_ctx ctx;
+  struct alternate_result out;
+  char why[256];
+  (void)state;
+#if defined(CPMDC_HAS_CPMD)
+  free(params);
+  skip();
+#endif
+  assert_non_null(params);
+  memset(&out, 0, sizeof(out));
+  ctx.params = params;
+  ctx.params_n = n;
+  ctx.limit_address_space = 1;
+#if defined(CPMDC_TEST_ASAN)
+  /* The sanitizer maps address space the limit would refuse. The capacity
+   * check below still catches a table that grows on every switch. */
+  ctx.limit_address_space = 0;
+#endif
+  assert_int_equal(run_setup_child(alternate_keys, &ctx, &out, sizeof(out), why,
+                                   sizeof(why)),
+                   0);
+  if (ctx.limit_address_space)
+    assert_int_equal(out.rlimit_set, 1);
+  assert_string_equal(out.first_error, "");
+  assert_int_equal(out.switches_ok, k_switches);
+  assert_true(out.capacity > 0);
+  assert_true(out.capacity <= (size_t)k_first_block);
+  free(params);
+}
+
 int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_limit_rejects_a_new_park),
       cmocka_unit_test(test_lowering_keeps_stored_keys),
       cmocka_unit_test(test_invalid_limit_names_the_variable),
       cmocka_unit_test(test_unset_limit_parks_every_key),
+      cmocka_unit_test(test_alternating_keys_keep_bounded_storage),
   };
   if (argc < 2)
     return 1;
