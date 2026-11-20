@@ -44,6 +44,8 @@ static int g_fail = 0;
 static int g_step = 0;
 static unsigned char *g_params = NULL;
 static size_t g_params_size = 0;
+static unsigned char *g_force_input = NULL;
+static size_t g_force_input_size = 0;
 
 struct outcome {
   int ok;
@@ -71,6 +73,23 @@ static int read_params(const char *path) {
   }
   fclose(file);
   g_params_size = (size_t)length;
+  return 0;
+}
+
+static int read_force_input(const char *path) {
+  FILE *file = path ? fopen(path, "rb") : NULL;
+  long length;
+  if (!file)
+    return -1;
+  if (fseek(file, 0, SEEK_END) != 0 || (length = ftell(file)) <= 0 ||
+      fseek(file, 0, SEEK_SET) != 0 ||
+      !(g_force_input = (unsigned char *)malloc((size_t)length)) ||
+      fread(g_force_input, 1, (size_t)length, file) != (size_t)length) {
+    fclose(file);
+    return -1;
+  }
+  fclose(file);
+  g_force_input_size = (size_t)length;
   return 0;
 }
 
@@ -199,6 +218,8 @@ static void case_bad_call_on_one_rank(void) {
   struct outcome after;
   double pos[kCoords];
   CPMDCSession *session;
+  int configure_rc;
+  int configure_all[kRanks];
   set_limit(limits);
   session = cpmdc_session_create(g_params, g_params_size);
   check(session != NULL, "session_create");
@@ -209,11 +230,17 @@ static void case_bad_call_on_one_rank(void) {
   mine = evaluate(session, g_rank == 1 ? kBadZ : kZ, pos);
   share(&mine, all);
   check(!all[0].ok && !all[1].ok, "a bad call on one rank fails both ranks");
-  check(mentions(&all[1], "atomic numbers"),
-        "the rank with the bad call reports it");
-  check(mentions(&all[0], "another rank"),
-        "the other rank reports that a peer rejected the call");
+  check(mentions(&all[0], "atomic numbers") &&
+            mentions(&all[1], "atomic numbers"),
+        "both ranks report the agreed call error");
   report("a bad call on one rank fails both ranks");
+
+  configure_rc = cpmdc_session_set_constant_cutoff(session, 70.0, 1.0, 0.5);
+  MPI_Allgather(&configure_rc, 1, MPI_INT, configure_all, 1, MPI_INT,
+                MPI_COMM_WORLD);
+  check(configure_all[0] == 0 && configure_all[1] == 0,
+        "a rejected first call does not latch topology on either rank");
+  report("a rejected first call leaves topology unfixed on every rank");
 
   geometry(pos);
   after = evaluate(session, kZ, pos);
@@ -246,6 +273,121 @@ static void case_bad_call_and_bad_limit(void) {
         "the rank with the bad call does not report the limit");
   cpmdc_session_destroy(session);
   report("a bad call keeps its own reason beside a bad limit");
+}
+
+static void case_orbital_fault(const char *variable, const char *fault,
+                               const char *label) {
+  const char *limits[kRanks] = {"2", "2"};
+  struct outcome mine;
+  struct outcome all[kRanks];
+  double pos[kCoords];
+  CPMDCSession *session;
+  set_limit(limits);
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+  cpmdc_session_select_orbitals(session, 71);
+  if (g_rank == 1)
+    setenv(variable, fault, 1);
+  else
+    unsetenv(variable);
+  geometry(pos);
+  mine = evaluate(session, kZ, pos);
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok, label);
+  unsetenv(variable);
+  geometry(pos);
+  mine = evaluate(session, kZ, pos);
+  share(&mine, all);
+  check(all[0].ok && all[1].ok,
+        "ranks stay in step after an orbital preflight failure");
+  cpmdc_session_destroy(session);
+  report(label);
+}
+
+static void check_collective_failure(CPMDCResult result, const char *label) {
+  struct outcome mine;
+  struct outcome all[kRanks];
+  record(&mine, result.ok, result.message);
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok, label);
+  report(label);
+}
+
+static void case_wrapper_preflights(void) {
+  const char *limits[kRanks] = {"2", "2"};
+  double pos[kCoords];
+  double energy = 0.0;
+  double forces[kCoords];
+  double virial[9];
+  size_t result_size;
+  unsigned char *result_buf;
+  CPMDCSession *session;
+  CPMDCResult result;
+  int rc;
+  int rcs[kRanks];
+  set_limit(limits);
+  geometry(pos);
+
+  result = cpmdc_energy(g_rank == 1 ? 0 : kAtoms, pos, kZ, g_params,
+                        g_params_size);
+  check_collective_failure(result, "cpmdc_energy agrees a one-rank error");
+
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+  result = cpmdc_session_energy(session, g_rank == 1 ? 0 : kAtoms, pos, kZ);
+  check_collective_failure(result,
+                           "cpmdc_session_energy agrees a one-rank error");
+  cpmdc_session_destroy(session);
+
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+  result = cpmdc_session_calculate_forces(
+      session, g_force_input, g_force_input_size, forces,
+      g_rank == 1 ? 0 : kCoords);
+  check_collective_failure(
+      result, "cpmdc_session_calculate_forces agrees a one-rank error");
+  cpmdc_session_destroy(session);
+
+  result_size = cpmdc_potential_result_size_for_force_input(
+      g_force_input, g_force_input_size);
+  result_buf = (unsigned char *)malloc(result_size);
+  check(result_size > 0 && result_buf != NULL, "allocate PotentialResult");
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session || !result_buf) {
+    cpmdc_session_destroy(session);
+    free(result_buf);
+    return;
+  }
+  {
+    size_t written = 0;
+    result = cpmdc_session_calculate_result(
+        session, g_force_input, g_force_input_size, result_buf,
+        g_rank == 1 ? 0 : result_size, &written);
+  }
+  check_collective_failure(
+      result, "cpmdc_session_calculate_result agrees a one-rank error");
+  cpmdc_session_destroy(session);
+  free(result_buf);
+
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+  rc = cpmdc_session_calculate_au(
+      session, kAtoms, g_rank == 1 ? NULL : pos, kZ, NULL, &energy, forces,
+      virial);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == -1 && rcs[1] == -1,
+        "cpmdc_session_calculate_au agrees a one-rank error");
+  cpmdc_session_destroy(session);
+  report("cpmdc_session_calculate_au agrees a one-rank error");
 }
 
 #if !defined(CPMDC_HAS_CPMD)
@@ -293,9 +435,10 @@ int main(int argc, char **argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   alarm(kAlarmSeconds);
-  if (size != kRanks || read_params(argc > 1 ? argv[1] : NULL) != 0) {
+  if (size != kRanks || read_params(argc > 1 ? argv[1] : NULL) != 0 ||
+      read_force_input(argc > 2 ? argv[2] : NULL) != 0) {
     if (g_rank == 0)
-      fprintf(stderr, "needs 2 ranks and a CPMDParams file\n");
+      fprintf(stderr, "needs 2 ranks, CPMDParams and ForceInput files\n");
     MPI_Finalize();
     return 2;
   }
@@ -327,8 +470,14 @@ int main(int argc, char **argv) {
 #if !defined(CPMDC_HAS_CPMD)
   case_limit_reached_on_both_ranks();
 #endif
+  case_orbital_fault("CPMDC_TEST_FAULT", "drop-stale",
+                     "a stale-orbital failure is agreed");
+  case_orbital_fault("CPMDC_TEST_ORBITAL_FAULT", "prepare",
+                     "an orbital-prepare failure is agreed");
+  case_wrapper_preflights();
 
   free(g_params);
+  free(g_force_input);
   MPI_Allreduce(&g_fail, &any, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
   MPI_Finalize();
   return any ? 1 : 0;

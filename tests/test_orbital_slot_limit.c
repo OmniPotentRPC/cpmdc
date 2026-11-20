@@ -419,6 +419,7 @@ struct order_result {
   char bad_atomic_number[k_msg];
   char first_valid[k_msg];
   char topology[k_msg];
+  char after_rejected_gate[k_msg];
   char valid_args[k_msg];
   int copy_null_rc;
   char copy_null_last[k_msg];
@@ -470,7 +471,11 @@ static void order_checks(void *ctx_void, void *out_void) {
   copy_text(out->valid_args, k_msg, r.message);
   r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
   copy_text(out->topology, k_msg, r.message);
+  unsetenv(k_limit_name);
+  r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
+  copy_text(out->after_rejected_gate, k_msg, r.message);
 
+  setenv(k_limit_name, ctx->limit, 1);
   out->copy_evaluated_rc = cpmdc_session_copy_orbitals(session, 1, 2);
   copy_text(out->copy_evaluated_last, k_msg, cpmdc_last_error());
   cpmdc_session_destroy(fresh);
@@ -509,9 +514,9 @@ static void check_error_order(const char *limit) {
   assert_int_equal(out.copy_evaluated_rc, -1);
   assert_non_null(strstr(out.copy_evaluated_last, k_limit_name));
   assert_null(strstr(out.copy_evaluated_last, k_exceeded));
-  /* The first evaluation fixed the topology, so a change of it is the
-   * reason for the failure while the limit stays unusable. */
-  assert_non_null(strstr(out.topology, "topology change"));
+  /* A gate rejection does not latch the first topology. */
+  assert_non_null(strstr(out.topology, k_limit_name));
+  assert_string_equal(out.after_rejected_gate, "ok");
   free(params);
 }
 
@@ -523,6 +528,58 @@ static void test_bad_call_is_not_reported_as_the_limit(void **state) {
 static void test_empty_limit_orders_errors_the_same_way(void **state) {
   (void)state;
   check_error_order("");
+}
+
+struct preflight_result {
+  char topology_oom[k_msg];
+  int configure_after_oom;
+  char stateless_invalid[k_msg];
+};
+
+static void preflight_checks(void *ctx_void, void *out_void) {
+  struct order_ctx *ctx = ctx_void;
+  struct preflight_result *out = out_void;
+  CPMDCSession *session;
+  double pos[9];
+  double grad[9];
+  CPMDCResult r;
+  positions_for(0, pos);
+  unsetenv(k_limit_name);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session)
+    return;
+  setenv("CPMDC_TEST_FAULT", "topology-allocation", 1);
+  r = cpmdc_session_energy_gradient(session, 3, pos, k_z, grad);
+  copy_text(out->topology_oom, k_msg, r.message);
+  unsetenv("CPMDC_TEST_FAULT");
+  out->configure_after_oom =
+      cpmdc_session_set_params(session, ctx->params, ctx->params_n);
+  cpmdc_session_destroy(session);
+
+  setenv(k_limit_name, "abc", 1);
+  r = cpmdc_energy_gradient(3, NULL, k_z, ctx->params, ctx->params_n, grad);
+  copy_text(out->stateless_invalid, k_msg, r.message);
+}
+
+static void test_preflight_errors_do_not_latch_topology(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct order_ctx ctx;
+  struct preflight_result out;
+  char why[256];
+  (void)state;
+  assert_non_null(params);
+  memset(&out, 0, sizeof(out));
+  ctx.params = params;
+  ctx.params_n = n;
+  ctx.limit = NULL;
+  assert_int_equal(run_setup_child(preflight_checks, &ctx, &out, sizeof(out),
+                                   why, sizeof(why)),
+                   0);
+  assert_string_equal(out.topology_oom, "out of memory");
+  assert_int_equal(out.configure_after_oom, 0);
+  assert_string_equal(out.stateless_invalid, "invalid arguments");
+  free(params);
 }
 
 #if defined(CPMDC_HAS_CPMD)
@@ -608,6 +665,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_alternating_keys_keep_bounded_storage),
       cmocka_unit_test(test_bad_call_is_not_reported_as_the_limit),
       cmocka_unit_test(test_empty_limit_orders_errors_the_same_way),
+      cmocka_unit_test(test_preflight_errors_do_not_latch_topology),
 #if defined(CPMDC_HAS_CPMD)
       cmocka_unit_test(test_new_basis_clears_a_saturated_limit),
 #endif

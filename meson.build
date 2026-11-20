@@ -280,6 +280,9 @@ cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmdc_orbital_lim
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
+if get_option('with_tests')
+  cpmd_embed_c_args += ['-DCPMDC_ENABLE_TEST_FAULTS=1']
+endif
 if has_cpmd
   cpmd_embed_c_args += ['-DCPMDC_HAS_CPMD=1', '-DCPMDC_HAVE_MPI=1']
 elif mpi_c_dep.found()
@@ -838,8 +841,9 @@ if get_option('with_tests')
         '2',
         orbital_limit_agree.full_path(),
         runtime_params_bin.full_path(),
+        force_input_step_a_bin.full_path(),
       ],
-      depends: [orbital_limit_agree, runtime_params_bin],
+      depends: [orbital_limit_agree, runtime_params_bin, force_input_step_a_bin],
       suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
       timeout: 120,
       is_parallel: false,
@@ -1261,6 +1265,15 @@ if get_option('with_tests')
     depends: [water_params_bin],
     suite: ['e2e', 'cmocka'],
     timeout: 300,
+  )
+  test(
+    'orbital-note-stored',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_orbital_note_stored.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['embed', 'inventory'],
   )
   test(
     'session-cached-geometry',
