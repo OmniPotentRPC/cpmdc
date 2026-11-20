@@ -1285,6 +1285,128 @@ static void test_merge_unset_system_charge_keeps_root(void **state) {
   }
 }
 
+/* These messages deliberately leave the typed field absent on the wire.
+ * Populating a zeroed generated C view is not equivalent for fields whose
+ * schema default is nonzero. */
+static void test_merge_omitted_dft_functional_uses_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_dft;
+  sec.dft = dft_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  char *deck = render_deck_from_config(buf, sz);
+  assert_non_null(strstr(deck, "FUNCTIONAL PBE\n"));
+  assert_null(strstr(deck, "FUNCTIONAL BLYP\n"));
+  free(deck);
+  free(buf);
+}
+
+static void test_merge_omitted_system_cutoff_uses_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_system;
+  sec.system = sys_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.planewaveCutoffEv = 1088.45544983952;
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  char *deck = render_deck_from_config(buf, sz);
+  assert_non_null(strstr(deck, "CUTOFF\n  80\n"));
+  assert_null(strstr(deck, "CUTOFF\n  70\n"));
+  free(deck);
+  free(buf);
+}
+
+static void test_merge_omitted_system_multiplicity_keeps_arm(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  arm.multiplicity = 2;
+  CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_system;
+  sec.system = sys_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.spinMultiplicity = 3;
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  char *deck = render_deck_from_config(buf, sz);
+  assert_non_null(strstr(deck, "MULTIPLICITY\n  2\n"));
+  assert_null(strstr(deck, "MULTIPLICITY\n  3\n"));
+  free(deck);
+  free(buf);
+}
+
+static void test_merge_rejects_typed_dft_directive_overlay(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDDirective_list directives = new_CPMDDirective_list(root.seg, 1);
+  struct CPMDDirective directive;
+  memset(&directive, 0, sizeof(directive));
+  directive.keyword = capn_str("FUNCTIONAL");
+  set_CPMDDirective(&directive, directives, 0);
+  struct CPMDDftSection dft;
+  memset(&dft, 0, sizeof(dft));
+  dft.directives = directives;
+  CPMDDftSection_ptr dft_ptr = new_CPMDDftSection(root.seg);
+  write_CPMDDftSection(&dft, dft_ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_dft;
+  sec.dft = dft_ptr;
+  attach_section(&arena, &arm, &sec);
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "PBE");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
 static void test_merge_rejects_raw_dft_overlay(void **state) {
   (void)state;
   struct capn arena;
@@ -2386,6 +2508,10 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_xc_functionals),
       cmocka_unit_test(test_merge_rejects_unmapped_xc_when_arm_wins),
       cmocka_unit_test(test_merge_unset_system_charge_keeps_root),
+      cmocka_unit_test(test_merge_omitted_dft_functional_uses_overlay),
+      cmocka_unit_test(test_merge_omitted_system_cutoff_uses_overlay),
+      cmocka_unit_test(test_merge_omitted_system_multiplicity_keeps_arm),
+      cmocka_unit_test(test_merge_rejects_typed_dft_directive_overlay),
       cmocka_unit_test(test_merge_rejects_raw_dft_overlay),
       cmocka_unit_test(test_merge_rejects_inputblocks_dft_overlay),
       cmocka_unit_test(test_merge_rejects_generic_dft_overlay),
