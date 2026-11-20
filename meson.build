@@ -843,6 +843,27 @@ if get_option('with_tests')
       timeout: 300,
       is_parallel: false,
     )
+    slot_limit_mpi_sync = executable(
+      'test_orbital_slot_limit_mpi_sync',
+      'tests/test_orbital_slot_limit_mpi_sync.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    )
+    test(
+      'orbital-slot-limit-mpi-sync',
+      python,
+      args: [
+        run_mpi_test,
+        '2',
+        slot_limit_mpi_sync.full_path(),
+        runtime_params_bin.full_path(),
+      ],
+      depends: [slot_limit_mpi_sync, runtime_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 180,
+      is_parallel: false,
+    )
     # The reference evaluator gives exact per-rank values to compare against.
     if not has_cpmd
       rank_consensus = executable(
