@@ -139,11 +139,15 @@ After a converged periodic Gamma-point, non-broken-symmetry evaluation,
 calls ~ddipo~ with its original argument list.
 The flag forces the dipole matrices to be recomputed even when a Wannier
 sampling interval would reuse them.
-~ddipo~ itself keeps the argument list that its ten callers (~mdclas~,
+~ddipo~ itself keeps the argument list that its eleven callers (~mdclas~,
 ~mdmain~, ~mdshop_cp~, ~mm_mdmain~, ~mm_mdshop_cp~, ~pi_md~, ~pi_npt_cpmd~,
-~prbomd~, ~prcpmd~, and ~proppt~) were compiled with, so an already built tree needs only
-~ddipo_utils~ and ~wfopts_utils~ recompiled, which
+~prbomd~, ~prcpmd~, ~proppt~, and ~secder_driver~, which calls it at two sites
+for the minimum structure and for the displaced ones) were compiled with, so an
+already built tree needs only ~ddipo_utils~ and ~wfopts_utils~ recompiled, which
 ~tools/rebuild_opencpmd_embed.sh~ does.
+~secder_driver~ needs no patch: it passes the same seven arguments, runs only in
+a frequency calculation, which an embedded evaluation never enters, and
+~embed_force_recompute~ stays false there.
 An optional argument on ~ddipo~ would be read by those callers from a
 register they never set.
 It snapshots ~moment%dmom~ and marks that evaluation valid.
