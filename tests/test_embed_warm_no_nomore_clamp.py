@@ -73,12 +73,48 @@ def test_calculator_once_flag_and_stop_reset() -> None:
     assert scf, "run_embed_scf not found"
     scf_body = scf.group(0)
     assert "embed_basis_changed" in scf_body
-    assert "CALL embed_reset_warm_orbitals()" in scf_body
+    assert "CALL drop_stale_basis(image)" in scf_body
+    drop = re.search(
+        r"SUBROUTINE drop_stale_basis.*?END SUBROUTINE",
+        embed,
+        re.S,
+    )
+    assert drop, "drop_stale_basis not found"
+    assert "CALL embed_reset_warm_orbitals()" in drop.group(0)
+    assert "CALL clear_embed_basis_latch()" in drop.group(0)
+    assert "image%cfg_warm_steps = 0" in drop.group(0)
     assert "latch_embed_basis" in scf_body
     assert "embed_basis_latched" in embed
     # A failed warm SCF increments nothing and does not clear the counter.
     assert "IF (ok /= 0_c_int) THEN" in scf_body
     assert "image%cfg_warm_steps = 0" in scf_body
+
+
+def test_stale_basis_is_dropped_before_a_key_is_selected() -> None:
+    embed = EMBED.read_text(encoding="utf-8", errors="replace")
+    host = (ROOT / "src" / "cpmdc.c").read_text(encoding="utf-8", errors="replace")
+    evaluate = re.search(
+        r"static CPMDCResult session_energy_gradient_cell\(.*?^\}",
+        host,
+        re.S | re.M,
+    )
+    assert evaluate, "session_energy_gradient_cell not found"
+    body = evaluate.group(0)
+    drop = body.find("cpmdc_embed_drop_stale_orbitals(")
+    prepare = body.find("cpmdc_orbital_prepare(")
+    assert 0 <= drop < prepare, (
+        "a new basis must free the parked orbitals before the key of the "
+        "call is selected"
+    )
+    stale = re.search(
+        r"FUNCTION cpmdc_embed_drop_stale_orbitals.*?END FUNCTION",
+        embed,
+        re.S,
+    )
+    assert stale, "cpmdc_embed_drop_stale_orbitals not found"
+    assert "embed_basis_changed(" in stale.group(0)
+    assert "embed_cell_moves_in_place(" in stale.group(0)
+    assert "CALL drop_stale_basis(image)" in stale.group(0)
 
 
 def test_new_session_keeps_matching_orbitals() -> None:
@@ -124,5 +160,6 @@ def test_new_session_keeps_matching_orbitals() -> None:
 if __name__ == "__main__":
     test_no_warm_nomore_iter_clamp()
     test_calculator_once_flag_and_stop_reset()
+    test_stale_basis_is_dropped_before_a_key_is_selected()
     test_new_session_keeps_matching_orbitals()
     print("ok")
