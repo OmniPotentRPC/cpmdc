@@ -1681,6 +1681,10 @@ the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of `c0`.
+`CPMDC_ORBITAL_SLOT_LIMIT` bounds how many inactive keys stay parked beside the
+active store: when a new key needs a parked slot at the limit, the oldest
+parked copy is evicted, while the active store and any key being selected are
+kept; leaving it unset retains every parked key.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
 A session that never selects a key keeps one stored copy.
@@ -9157,6 +9161,7 @@ alone; see the C ABI reference (file:c-abi.org) for the lowering rules.
 | `CPMDC_STRESS` | `src/cpmd_embed_c_api.F90`, each evaluation, OpenCPMD or the reference evaluator | `0` skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | `CPMDC_SCF_STEPS` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation | `1` writes `cpmdc_warm_start`, `cpmdc_wfn_extrapolated K`, and `cpmdc_scf_steps N` to the error stream |
 | `CPMDC_WARM_RMSD` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
+| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmd_embed_c_api.F90` and `tools/opencpmd_embed_rwfopt.patch`, each evaluation | positive integer cap on inactive orbital sets parked under `cpmdc_session_select_orbitals()` keys; unset keeps every parked key; zero, negative, empty, or non-integer values fail the call |
 | `CPMDC_CELL_IN_PLACE` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation whose cell differs from the stored one | largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
@@ -9225,6 +9230,23 @@ runs.
 the stored orbitals (file:../explanation/wavefunction-state.org) (section
 Distance limit).
 A value that does not parse as a number keeps the default.
+
+`CPMDC_ORBITAL_SLOT_LIMIT` caps the number of inactive wavefunctions parked
+beside the active orbital store when a session visits many keys with
+`cpmdc_session_select_orbitals()`, such as instanton or ring-polymer beads.
+The selected key's wavefunction stays in the active store and is never counted
+against the cap or evicted.
+When parking a key would exceed the cap, the oldest parked wavefunction is
+evicted first; selecting a key that is already parked moves its wavefunction
+back into the active store without evicting it.
+Leaving the variable unset keeps every parked key, unchanged from earlier
+releases.
+Zero, negative, empty, overflowing, or non-integer values fail the evaluation
+and write a diagnostic naming `CPMDC_ORBITAL_SLOT_LIMIT` to `message` and
+`cpmdc_last_error()`.
+Across the MPI ranks of one calculator, a limit set on a subset of ranks is
+shared with the unset ranks, while conflicting positive limits or an invalid
+value on any rank fail every rank of that calculator together.
 
 `CPMDC_CELL_IN_PLACE` acts only on a periodic deck with `CONSTANT CUTOFF`; any
 other deck sets CPMD up again for every new cell, whatever the variable says.

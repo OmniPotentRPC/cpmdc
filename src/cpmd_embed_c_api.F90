@@ -484,6 +484,21 @@ CONTAINS
 #endif
   END FUNCTION
 
+  ! Install the agreed parked-slot cap. 0 keeps every parked key. The host
+  ! has already rejected a non-positive value that was actually set.
+  SUBROUTINE cpmdc_embed_apply_orbital_slot_limit(limit) &
+      BIND(C, NAME='cpmdc_embed_apply_orbital_slot_limit')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
+#endif
+    INTEGER(c_int), INTENT(IN), VALUE :: limit
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_set_orbital_slot_limit(INT(limit))
+#else
+    IF (limit < 0_c_int) RETURN
+#endif
+  END SUBROUTINE
+
   ! Keys with parked orbitals in this process, the selected key excluded.
   FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &
       BIND(C, NAME='cpmdc_embed_orbital_slots')
