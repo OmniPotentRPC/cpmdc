@@ -1,1 +1,1 @@
-`pair_style cpmdc` now accepts positive, unique LAMMPS atom IDs with gaps, preserving forces after atom deletion without renumbering.
+Both LAMMPS routes now accept positive, unique atom IDs with gaps, reopen their session after atom deletion, and report multi-rank input errors without deadlocking.

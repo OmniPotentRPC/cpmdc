@@ -125,9 +125,9 @@ evaluates the whole system once per step:
 - The other ranks wait during the evaluation, so extra ranks speed up only
   LAMMPS' own work.
   The traffic per step is ~O(N)~ doubles.
-- The ~pair_style cpmdc~ route orders a step by increasing atom ID. Positive,
-  unique IDs may have gaps, so ~delete_atoms ... compress no~ and
-  ~fix evaporate~ work without a ~reset_atoms id~ pass.
+- Both routes order a step by increasing atom ID. Positive, unique IDs may
+  have gaps, so ~delete_atoms ... compress no~ and ~fix evaporate~ work
+  without a ~reset_atoms id~ pass.
 - A step with a new elemental composition opens a new session.
 
 ~FixExternal~ needs ~mpi4py~ for this, and ~comm=~ when the ~lammps~ object was

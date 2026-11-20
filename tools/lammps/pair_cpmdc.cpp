@@ -247,11 +247,13 @@ void PairCPMDC::compute(int eflag, int vflag)
       coordinate_offsets[rank] = 3 * total;
       total += counts[rank];
     }
-    if (total != natoms) error->all(FLERR, "pair_style cpmdc received an incomplete atom set");
+    bad = total != natoms;
     tags.resize(natoms);
     positions.resize(3 * (size_t) natoms);
     owner.resize(natoms);
   }
+  MPI_Bcast(&bad, 1, MPI_INT, 0, world);
+  if (bad) error->all(FLERR, "pair_style cpmdc received an incomplete atom set");
   MPI_Gatherv(local_tags.data(), nlocal, MPI_LONG_LONG, comm->me == 0 ? tags.data() : nullptr,
               comm->me == 0 ? counts.data() : nullptr, comm->me == 0 ? offsets.data() : nullptr,
               MPI_LONG_LONG, 0, world);
@@ -332,12 +334,20 @@ void PairCPMDC::compute(int eflag, int vflag)
   MPI_Bcast(forces.data(), 3 * natoms, MPI_DOUBLE, 0, world);
 
   const double force_unit = energy_per_hartree / length_per_bohr;
+  bad = 0;
   for (int i = 0; i < nlocal; i++) {
     const long long id = static_cast<long long>(tag[i]);
     const std::vector<long long>::const_iterator found =
         std::lower_bound(tags.begin(), tags.end(), id);
-    if (found == tags.end() || *found != id)
-      error->all(FLERR, "pair_style cpmdc lost an atom ID while distributing forces");
+    if (found == tags.end() || *found != id) bad = 1;
+  }
+  MPI_Allreduce(&bad, &any_bad, 1, MPI_INT, MPI_MAX, world);
+  if (any_bad)
+    error->all(FLERR, "pair_style cpmdc lost an atom ID while distributing forces");
+  for (int i = 0; i < nlocal; i++) {
+    const long long id = static_cast<long long>(tag[i]);
+    const std::vector<long long>::const_iterator found =
+        std::lower_bound(tags.begin(), tags.end(), id);
     const int k = (int) std::distance(tags.cbegin(), found);
     for (int d = 0; d < 3; d++) f[i][d] += forces[3 * k + d] * force_unit;
   }

@@ -44,12 +44,15 @@ A box with some axes periodic and others not is refused; ~FixExternal~ raises
 ~ValueError~.
 
 * Atom IDs
-~pair_style cpmdc~ gathers the system and orders its call to cpmdc by increasing
-atom ID. IDs must be positive and unique, but need not be the consecutive
-integers 1 through N: deleting atoms without compression leaves holes that the
-pair style preserves while it returns each force to its original atom. This
-keeps a run on the same cpmdc session after ~delete_atoms ... compress no~ or
-~fix evaporate~.
+Both routes gather the system and order their call to cpmdc by increasing atom
+ID. IDs must be positive and unique, but need not be the consecutive integers
+1 through N: deleting atoms without compression leaves holes that are
+preserved while each force is returned to its original atom.
+
+Changing the atoms' elemental composition, including by ~delete_atoms ... compress
+no~ or ~fix evaporate~, closes the current cpmdc session before the next
+evaluation and opens a new session for the changed topology. An unchanged
+composition continues on the existing session.
 
 * Virial and pressure
 cpmdc returns the virial ~W = -dE/d(strain)~ in Hartree.

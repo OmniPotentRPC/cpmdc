@@ -10,6 +10,7 @@ version = "0.5.0"
 
 [environments]
 docs = { features = ["docs"] }
+lammps = ["lammps"]
 
 [dependencies]
 ase = ">=3.23,<4"
@@ -84,3 +85,10 @@ description = "Build the Sphinx HTML documentation (Antics in extra-head)"
 [feature.docs.tasks.docbld]
 depends-on = ["sphinxbld"]
 description = "Build the full documentation site"
+
+[feature.lammps]
+platforms = ["linux-64"]
+
+[feature.lammps.dependencies]
+lammps = ">=2025.7.22,<2026"
+mpi4py = ">=4.1.2,<5"

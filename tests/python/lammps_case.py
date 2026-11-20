@@ -101,8 +101,15 @@ def main(path: str) -> int:
     with open(path, encoding="utf-8") as handle:
         spec = json.load(handle)
     lmp = build(spec)
+    if spec.get("duplicate_nonroot_id") and lmp.extract_setting("world_rank") != 0:
+        nlocal = int(lmp.extract_setting("nlocal"))
+        if nlocal:
+            lmp.numpy.extract_atom("id")[0] = 1
     driver = attach(lmp, spec)
-    lmp.commands_string("\n".join(THERMO))
+    if spec.get("thermo", True):
+        lmp.commands_string("\n".join(THERMO))
+    else:
+        lmp.command("thermo_style custom step pe")
     for command in spec.get("run", ["run 0"]):
         if driver is not None and command.startswith("run "):
             driver.run(*command.split()[1:])

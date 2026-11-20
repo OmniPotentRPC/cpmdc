@@ -60,6 +60,29 @@ jobs:
           name: unstripped-libs-x86_64
           path: isa-audit-libs/
 
+  lammps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.8.3
+        with:
+          pixi-version: latest
+          cache: true
+      - name: Build the LAMMPS test fixtures
+        run: pixi run -e lammps bash -c '. scripts/with_baseline_flags.sh && meson setup build-lammps -Dwith_tests=true && meson compile -C build-lammps && meson compile -C build-lammps water_params_bin water_periodic_params_bin'
+      - name: FixExternal Python and two-rank tests
+        run: |
+          set -o pipefail
+          export CPMDC_LIBRARY="$PWD/build-lammps/libcpmdc.so"
+          export CPMDC_TEST_PARAMS="$PWD/build-lammps/water_blyp_params.bin"
+          export CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-lammps/water_blyp_periodic_params.bin"
+          pixi run -e lammps python -m pytest -q -rs tests/python/test_lammps.py -k 'not plugin' | tee lammps-pytest.log
+          grep -E '[1-9][0-9]* passed' lammps-pytest.log
+          if grep -E 'SKIPPED.*lammps Python module' lammps-pytest.log; then
+            echo "LAMMPS route tests skipped"
+            exit 1
+          fi
+
   sanitize:
     runs-on: ubuntu-latest
     steps:
