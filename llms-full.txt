@@ -5528,12 +5528,38 @@ The arm bytes stay, and an overlay scalar is copied only where the arm still
 has the schema default: `xcFunctionals` when the functional is `BLYP`,
 `planewaveCutoffEv` when the cutoff is 70 Ry, `charge` when the charge is 0,
 and `spinMultiplicity` when the multiplicity is 1.
-An unmapped `xcFunctionals` token is rejected in that `BLYP` case.
+Schema defaults on typed `system` (`cutOffRy` 70 Ry, `charge` 0,
+`multiplicity` 1) and `dft` (`functional` `BLYP`) sections are treated as
+unset, so they do not replace explicit root `CPMDParams` values and do not
+block merged overlay scalars from reaching the rendered deck, cluster HFX
+solver selection, or recorded embed configuration; explicit non-default
+section values win.
+An `xcFunctionals` list is mapped before that precedence, and an unmapped
+token is rejected for every arm functional.
+An explicit overlay scalar (including singlet `spinMultiplicity` 1) that
+would fill a schema default is rejected when `inputBlocks`, a raw section,
+or a generic section opens the owning section (`&DFT` for `xcFunctionals`,
+`&SYSTEM` for the cutoff, charge, and multiplicity), when a set directive
+names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or
+`SYSTEM.MULTIPLICITY`, or when typed `dft.directives` or `system.directives`
+carries that keyword.
+Those carriers are rendered, and they are not read back into the recorded
+functional, cutoff, charge, or multiplicity.
+Fermi `smearing` is copied as `FREE-ENERGY` and `TEMPERATURE ELECTRON` when
+`&CPMD` sets no free-energy or electron-temperature control (including split
+`TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or
+`CPMD.TEMPERATURE` set directives) and the arm has no raw or generic `&CPMD`
+block.
+`vanDerWaalsS6` is copied into a `vdwParams` section whose `s6` is unset.
+`basisSet` must be unset or `"planewave"`.
 Next to the arm the call rejects `kMesh`, `scfMaxIterations`,
-`scfEnergyToleranceEv`, `vanDerWaalsMethod`, and `relativityMethod`.
-`basisSet`, `smearing`, and `vanDerWaalsS6` are not applied on that path.
+`scfEnergyToleranceEv`, `vanDerWaalsMethod`, and `relativityMethod`, and also
+already-set smearing or `s6`, `vanDerWaalsS6` without `vdwParams`, a
+non-plane-wave `basisSet`, and a negative or non-finite overlay scalar.
 With the arm unset, an overlay field without a CPMD lowering is rejected,
 including `relativityMethod` and a `basisSet` other than `planewave`.
+That overlay-only lowering also rejects `vanDerWaalsS6` without
+`vanDerWaalsMethod` and a non-zero `smearing.widthEv` with `kind = none`.
 
 # Global array calls
 Each call applies the message it is given and then evaluates.
@@ -5947,7 +5973,7 @@ differs, and warm when the basis matches.
 | Layout | `config_capnp` points at `config_capnp_size_bytes` bytes of one unpacked flat `PotentialConfig` message. |
 | Ownership | The caller owns `config_capnp` and may free it on return. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
-| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token when that arm's functional is still `BLYP`, or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()`. |
+| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token for any arm functional, an explicit overlay scalar (including singlet `spinMultiplicity` 1) that would fill a schema default while `inputBlocks`, a raw section, or a generic section opens the owning `&DFT` or `&SYSTEM` section, a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or typed `dft.directives` or `system.directives` carries that keyword, Fermi `smearing` next to `FREE-ENERGY` or `TEMPERATURE ELECTRON` controls (including split `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set directives), or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()`. Schema defaults on typed `system` (`cutOffRy` 70 Ry, `charge` 0, `multiplicity` 1) and `dft` (`functional` `BLYP`) sections are unset and do not replace explicit root `CPMDParams` values or block merged overlay scalars. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -8110,9 +8136,15 @@ page.
 
 Missing core sections receive minimal defaults from the renderer so a sparse
 `CPMDParams` still produces a valid-looking deck for debugging.
-When structured `dft` or `system` sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
-effective embed configuration passed through the C ABI.
+When structured `dft` or `system` sections provide explicit non-default
+scalar method values (functional, cutoff, charge, multiplicity), those
+section values are also the effective embed configuration passed through the
+C ABI.
+Schema defaults on typed `system` (`cutOffRy` 70 Ry, `charge` 0,
+`multiplicity` 1) and `dft` (`functional` `BLYP`) sections are treated as
+unset, so they neither replace explicit root `CPMDParams` values nor block
+merged `common` overlay scalars in the rendered deck, cluster HFX solver
+selection, or embed configuration.
 For geometry deck rendering, `atoms.pseudopotentials` groups `ForceInput`
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover
@@ -9196,8 +9228,32 @@ Ge; see writing a CPMDParams message (file:../howto/write-cpmdparams.org).
 
 # ~PotentialConfig~
 A union of backend arms plus a `common` overlay (`CommonMethodSpec`).
-`cpmdc` accepts the `cpmd` arm, which holds a `CPMDParams`, or the overlay
-alone; see the C ABI reference (file:c-abi.org) for the lowering rules.
+`cpmdc` accepts the `cpmd` arm, the overlay alone, or both together. When
+both are set, the arm wins where it differs from schema defaults and the
+overlay fills `xcFunctionals`, `planewaveCutoffEv`, `charge`,
+`spinMultiplicity`, Fermi `smearing` (when `&CPMD` sets none), and
+`vanDerWaalsS6` (into a `vdwParams` section with `s6` unset).
+Schema defaults on typed `system` (`cutOffRy` 70 Ry, `charge` 0,
+`multiplicity` 1) and `dft` (`functional` `BLYP`) sections are treated as
+unset, so they neither replace explicit root `CPMDParams` values nor block
+merged overlay scalars from reaching the rendered deck, cluster HFX solver
+selection, or embed configuration; explicit non-default section values win.
+An unmapped `xcFunctionals` token is rejected for every arm functional,
+before that precedence.
+An explicit overlay scalar (including singlet `spinMultiplicity` 1) that
+would fill a schema default is rejected when `inputBlocks`, a raw section,
+or a generic section opens `&DFT` (`xcFunctionals`) or `&SYSTEM` (cutoff,
+charge, multiplicity), when a set directive names `DFT.FUNCTIONAL`,
+`SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or when typed
+`dft.directives` or `system.directives` carries that keyword.
+Those carriers are not folded into the recorded settings.
+Fermi `smearing` also rejects split `TEMPERATURE` and `ELECTRON` arguments
+in `cpmd.directives` and `CPMD.TEMPERATURE` set directives.
+The merge requires `basisSet` to be unset or `"planewave"`, and rejects
+negative or non-finite scalars and conflicting or unmergeable fields
+(`kMesh`, SCF controls, `vanDerWaalsMethod`, `relativityMethod`, already-set
+smearing or `s6`, or `vanDerWaalsS6` without `vdwParams`); see the
+C ABI reference (file:c-abi.org) for the lowering rules.
 
 
 ## File: docs/orgmode/reference/environment.org

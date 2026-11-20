@@ -133,5 +133,29 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~PotentialConfig~
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
-~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, or the overlay
-alone; see the [[file:c-abi.org][C ABI reference]] for the lowering rules.
+~cpmdc~ accepts the ~cpmd~ arm, the overlay alone, or both together. When
+both are set, the arm wins where it differs from schema defaults and the
+overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
+~spinMultiplicity~, Fermi ~smearing~ (when ~&CPMD~ sets none), and
+~vanDerWaalsS6~ (into a ~vdwParams~ section with ~s6~ unset).
+Schema defaults on typed ~system~ (~cutOffRy~ 70 Ry, ~charge~ 0,
+~multiplicity~ 1) and ~dft~ (~functional~ ~BLYP~) sections are treated as
+unset, so they neither replace explicit root ~CPMDParams~ values nor block
+merged overlay scalars from reaching the rendered deck, cluster HFX solver
+selection, or embed configuration; explicit non-default section values win.
+An unmapped ~xcFunctionals~ token is rejected for every arm functional,
+before that precedence.
+An explicit overlay scalar (including singlet ~spinMultiplicity~ 1) that
+would fill a schema default is rejected when ~inputBlocks~, a raw section,
+or a generic section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~ (cutoff,
+charge, multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when typed
+~dft.directives~ or ~system.directives~ carries that keyword.
+Those carriers are not folded into the recorded settings.
+Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments
+in ~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
+The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects
+negative or non-finite scalars and conflicting or unmergeable fields
+(~kMesh~, SCF controls, ~vanDerWaalsMethod~, ~relativityMethod~, already-set
+smearing or ~s6~, or ~vanDerWaalsS6~ without ~vdwParams~); see the
+[[file:c-abi.org][C ABI reference]] for the lowering rules.
