@@ -145,6 +145,7 @@ static void case_agreed_limit(void) {
   double pos[kCoords];
   CPMDCSession *session;
   set_limit(limits);
+  setenv("CPMDC_CELL_IN_PLACE", g_rank == 0 ? "0" : "1", 1);
   session = cpmdc_session_create(g_params, g_params_size);
   check(session != NULL, "session_create");
   if (!session)
@@ -155,7 +156,8 @@ static void case_agreed_limit(void) {
   share(&mine, all);
   check(all[0].ok && all[1].ok, "an equal valid limit lets both ranks evaluate");
   cpmdc_session_destroy(session);
-  report("an equal valid limit lets both ranks evaluate");
+  unsetenv("CPMDC_CELL_IN_PLACE");
+  report("root broadcasts CPMDC_CELL_IN_PLACE and an equal limit evaluates");
 }
 
 static void case_limit_is_refused_together(const char *label,
@@ -287,6 +289,14 @@ static void case_orbital_fault(const char *variable, const char *fault,
   check(session != NULL, "session_create");
   if (!session)
     return;
+  if (!strcmp(fault, "selector-allocation")) {
+    cpmdc_session_select_orbitals(session, 70);
+    geometry(pos);
+    mine = evaluate(session, kZ, pos);
+    share(&mine, all);
+    check(all[0].ok && all[1].ok,
+          "selector allocation fault has stored orbitals to park");
+  }
   cpmdc_session_select_orbitals(session, 71);
   if (g_rank == 1)
     setenv(variable, fault, 1);
@@ -304,6 +314,60 @@ static void case_orbital_fault(const char *variable, const char *fault,
         "ranks stay in step after an orbital preflight failure");
   cpmdc_session_destroy(session);
   report(label);
+}
+
+static void case_orbital_key_mismatch(void) {
+  const char *limits[kRanks] = {"4", "4"};
+  struct outcome mine;
+  struct outcome all[kRanks];
+  double pos[kCoords];
+  CPMDCSession *session;
+  int rc;
+  int rcs[kRanks];
+  set_limit(limits);
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+
+  cpmdc_session_select_orbitals(session, g_rank == 0 ? 81 : 82);
+  geometry(pos);
+  mine = evaluate(session, kZ, pos);
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok,
+        "different selected keys fail both ranks");
+  check(mentions(&all[0], "differs") && mentions(&all[1], "differs"),
+        "different selected keys report the mismatch");
+
+  cpmdc_session_destroy(session);
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+  if (g_rank == 1)
+    cpmdc_session_select_orbitals(session, 83);
+  geometry(pos);
+  mine = evaluate(session, kZ, pos);
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok,
+        "rank-different selected-key presence fails both ranks");
+
+  cpmdc_session_select_orbitals(session, 84);
+  geometry(pos);
+  mine = evaluate(session, kZ, pos);
+  share(&mine, all);
+  check(all[0].ok && all[1].ok,
+        "matching selected keys recover after a mismatch");
+
+  rc = cpmdc_session_copy_orbitals(
+      session, g_rank == 0 ? 84 : 85, g_rank == 0 ? 86 : 87);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == -1 && rcs[1] == -1,
+        "different copy key pairs fail both ranks");
+  check(strstr(cpmdc_last_error(), "differs") != NULL,
+        "different copy key pairs report the mismatch");
+  cpmdc_session_destroy(session);
+  report("orbital key mismatches fail collectively");
 }
 
 static void check_collective_failure(CPMDCResult result, const char *label) {
@@ -333,6 +397,12 @@ static void case_wrapper_preflights(void) {
   result = cpmdc_energy(g_rank == 1 ? 0 : kAtoms, pos, kZ, g_params,
                         g_params_size);
   check_collective_failure(result, "cpmdc_energy agrees a one-rank error");
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "energy-allocation", 1);
+  result = cpmdc_energy(kAtoms, pos, kZ, g_params, g_params_size);
+  check_collective_failure(
+      result, "cpmdc_energy agrees a one-rank allocation failure");
+  unsetenv("CPMDC_TEST_FAULT");
 
   session = cpmdc_session_create(g_params, g_params_size);
   check(session != NULL, "session_create");
@@ -341,6 +411,12 @@ static void case_wrapper_preflights(void) {
   result = cpmdc_session_energy(session, g_rank == 1 ? 0 : kAtoms, pos, kZ);
   check_collective_failure(result,
                            "cpmdc_session_energy agrees a one-rank error");
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "session-energy-allocation", 1);
+  result = cpmdc_session_energy(session, kAtoms, pos, kZ);
+  check_collective_failure(
+      result, "cpmdc_session_energy agrees a one-rank allocation failure");
+  unsetenv("CPMDC_TEST_FAULT");
   cpmdc_session_destroy(session);
 
   session = cpmdc_session_create(g_params, g_params_size);
@@ -352,6 +428,13 @@ static void case_wrapper_preflights(void) {
       g_rank == 1 ? 0 : kCoords);
   check_collective_failure(
       result, "cpmdc_session_calculate_forces agrees a one-rank error");
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "calculate-forces-reserve", 1);
+  result = cpmdc_session_calculate_forces(
+      session, g_force_input, g_force_input_size, forces, kCoords);
+  check_collective_failure(
+      result, "calculate_forces agrees a one-rank reserve failure");
+  unsetenv("CPMDC_TEST_FAULT");
   cpmdc_session_destroy(session);
 
   result_size = cpmdc_potential_result_size_for_force_input(
@@ -373,6 +456,42 @@ static void case_wrapper_preflights(void) {
   }
   check_collective_failure(
       result, "cpmdc_session_calculate_result agrees a one-rank error");
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "calculate-result-reserve", 1);
+  {
+    size_t written = 0;
+    result = cpmdc_session_calculate_result(
+        session, g_force_input, g_force_input_size, result_buf, result_size,
+        &written);
+  }
+  check_collective_failure(
+      result, "calculate_result agrees a one-rank reserve failure");
+  unsetenv("CPMDC_TEST_FAULT");
+  cpmdc_session_destroy(session);
+  free(result_buf);
+
+  result_buf = (unsigned char *)malloc(result_size);
+  check(result_buf != NULL, "allocate PotentialResult for write failure");
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session || !result_buf) {
+    cpmdc_session_destroy(session);
+    free(result_buf);
+    return;
+  }
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "potential-result-write", 1);
+  else
+    unsetenv("CPMDC_TEST_FAULT");
+  {
+    size_t written = 0;
+    result = cpmdc_session_calculate_result(
+        session, g_force_input, g_force_input_size, result_buf, result_size,
+        &written);
+  }
+  check_collective_failure(
+      result, "PotentialResult write failure is agreed across ranks");
+  unsetenv("CPMDC_TEST_FAULT");
   cpmdc_session_destroy(session);
   free(result_buf);
 
@@ -386,6 +505,14 @@ static void case_wrapper_preflights(void) {
   MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
   check(rcs[0] == -1 && rcs[1] == -1,
         "cpmdc_session_calculate_au agrees a one-rank error");
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "calculate-au-reserve", 1);
+  rc = cpmdc_session_calculate_au(session, kAtoms, pos, kZ, NULL, &energy,
+                                  forces, virial);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == -1 && rcs[1] == -1,
+        "calculate_au agrees a one-rank reserve failure");
+  unsetenv("CPMDC_TEST_FAULT");
   cpmdc_session_destroy(session);
   report("cpmdc_session_calculate_au agrees a one-rank error");
 }
@@ -474,6 +601,11 @@ int main(int argc, char **argv) {
                      "a stale-orbital failure is agreed");
   case_orbital_fault("CPMDC_TEST_ORBITAL_FAULT", "prepare",
                      "an orbital-prepare failure is agreed");
+#if defined(CPMDC_HAS_CPMD)
+  case_orbital_fault("CPMDC_TEST_ORBITAL_FAULT", "selector-allocation",
+                     "a selector allocation failure is agreed");
+#endif
+  case_orbital_key_mismatch();
   case_wrapper_preflights();
 
   free(g_params);
