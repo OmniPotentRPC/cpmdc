@@ -384,9 +384,14 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
 #endif
+    INTERFACE
+      SUBROUTINE cpmdc_orbital_ledger_reset() BIND(C, NAME='cpmdc_orbital_ledger_reset')
+      END SUBROUTINE cpmdc_orbital_ledger_reset
+    END INTERFACE
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
+    CALL cpmdc_orbital_ledger_reset()
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
@@ -481,6 +486,36 @@ CONTAINS
 #else
     rc = -1_c_int
     IF (from_key == to_key) rc = -1_c_int
+#endif
+  END FUNCTION
+
+  ! limit > 0 is the most parked copies. -1 leaves them unbounded.
+  ! -2 makes the next park read CPMDC_ORBITAL_SLOT_LIMIT.
+  SUBROUTINE cpmdc_embed_set_orbital_slot_limit(limit) &
+      BIND(C, NAME='cpmdc_embed_set_orbital_slot_limit')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
+#endif
+    INTEGER(c_int), INTENT(IN), VALUE :: limit
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_set_orbital_slot_limit(INT(limit))
+#else
+    IF (limit == 0_c_int) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! 0 the last park was allowed, 1 CPMDC_ORBITAL_SLOT_LIMIT is not a
+  ! positive integer, 2 the park would have passed that limit and the
+  ! stored copies were left unchanged.
+  FUNCTION cpmdc_embed_slot_limit_code() RESULT(code) &
+      BIND(C, NAME='cpmdc_embed_slot_limit_code')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_orbital_slot_limit_code
+#endif
+    INTEGER(c_int) :: code
+    code = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    code = INT(embed_orbital_slot_limit_code(), KIND=c_int)
 #endif
   END FUNCTION
 
