@@ -37,12 +37,41 @@ as :class:`cpmdc.CPMDCError`.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 from pathlib import Path
 from typing import Any, Sequence
 
 import numpy as np
-from rgpot.lammps import FixExternal as RgpotFixExternal
+
+
+def _rgpot_fix_external() -> type | None:
+    """The generic LAMMPS frontend, or None when that module is not installed.
+
+    A broken installation still raises. Only a missing ``rgpot`` or
+    ``rgpot.lammps`` is optional.
+    """
+    try:
+        spec = importlib.util.find_spec("rgpot.lammps")
+    except ModuleNotFoundError as exc:
+        if exc.name in {"rgpot", "rgpot.lammps"}:
+            return None
+        raise
+    if spec is None:
+        return None
+    module = importlib.import_module("rgpot.lammps")
+    return module.FixExternal
+
+
+_RgpotFixExternal = _rgpot_fix_external()
+_RGPOT_MISSING = _RgpotFixExternal is None
+if _RGPOT_MISSING:
+    _RgpotFixExternal = object
+
+
+def _require_rgpot() -> None:
+    if _RGPOT_MISSING:
+        raise ImportError("rgpot.lammps is required to drive a LAMMPS fix external")
 
 from cpmdc import (
     BOHR_TO_ANGSTROM,
@@ -178,6 +207,13 @@ class _SessionPotential:
             virial=self.virial,
         )
         self.composition = composition
+        for name, value in (
+            ("energy", energy),
+            ("forces", self.forces),
+            ("virial", self.virial),
+        ):
+            if not np.all(np.isfinite(value)):
+                raise CPMDCError(f"the library returned a non-finite {name}")
         forces = self.forces.reshape(positions.shape) * energy_scale * length_scale
         stress = None
         if self.periodic:
@@ -195,7 +231,7 @@ class _SessionPotential:
             self.session = None
 
 
-class FixExternal(RgpotFixExternal):
+class FixExternal(_RgpotFixExternal):
     """cpmdc compatibility wrapper around :class:`rgpot.lammps.FixExternal`."""
 
     def __init__(
@@ -209,11 +245,19 @@ class FixExternal(RgpotFixExternal):
         library: str | os.PathLike[str] | None = None,
         comm: Any = None,
     ) -> None:
+        _require_rgpot()
         blob = params if isinstance(params, bytes) else Path(params).read_bytes()
         periodicity = list(lmp.extract_box()[5])
-        unit_factors(str(lmp.extract_global("units")))
+        self.fix_id = fix_id
+        self.units = str(lmp.extract_global("units"))
+        self.length_per_bohr, self.energy_per_hartree = unit_factors(self.units)
         numbers = type_numbers(elements, int(lmp.extract_global("ntypes")))
-        adapter = _SessionPotential(blob, library, all(periodicity))
+        self.type_numbers = numbers
+        self.periodic = all(periodicity)
+        self.energy = 0.0
+        self.error = None
+        self.evaluations = 0
+        adapter = _SessionPotential(blob, library, self.periodic)
         self._adapter = adapter
         try:
             super().__init__(
@@ -237,11 +281,11 @@ class FixExternal(RgpotFixExternal):
                     + axes
                 ) from exc
             raise
-        length_per_bohr, energy_per_hartree = unit_factors(self.units)
+        self.length_per_bohr, self.energy_per_hartree = unit_factors(self.units)
         adapter._length_per_angstrom = self.length_per_angstrom
         adapter._energy_per_ev = self.energy_per_ev
-        adapter._length_per_bohr = length_per_bohr
-        adapter._energy_per_hartree = energy_per_hartree
+        adapter._length_per_bohr = self.length_per_bohr
+        adapter._energy_per_hartree = self.energy_per_hartree
 
         problem = ""
         if self._root:
@@ -258,7 +302,81 @@ class FixExternal(RgpotFixExternal):
     @property
     def _session(self) -> Session | None:
         """The compatibility session attribute used by existing callers."""
-        return self._adapter.session
+        adapter = self.__dict__.get("_adapter")
+        if adapter is not None:
+            return adapter.session
+        return self.__dict__.get("_session_held")
+
+    @_session.setter
+    def _session(self, value: Session | None) -> None:
+        adapter = self.__dict__.get("_adapter")
+        if adapter is not None:
+            adapter.session = value
+            return
+        self.__dict__["_session_held"] = value
+
+    def _evaluate(
+        self, tags: np.ndarray, xu: np.ndarray, numbers: np.ndarray, rows: np.ndarray
+    ) -> tuple[float, np.ndarray, np.ndarray]:
+        """Rank 0: energy, forces in tag order, and the 3x3 virial, LAMMPS units.
+
+        The LAMMPS callback, gather, and halt path live in ``rgpot.lammps``.
+        This step is the cpmdc session call those mechanics used to make, and
+        the convention tests drive it without a LAMMPS object.
+        """
+        natoms = tags.size
+        if natoms == 0 or tags.min() != 1 or tags.max() != natoms:
+            raise CPMDCError(
+                f"cpmdc needs atom IDs 1..N; LAMMPS holds {natoms} atoms with IDs "
+                f"{tags.min() if natoms else '-'}..{tags.max() if natoms else '-'}"
+            )
+        index = tags - 1
+        positions = np.empty((natoms, 3), dtype=float)
+        positions[index] = xu / self.length_per_bohr
+        ordered = np.empty(natoms, dtype=np.int32)
+        ordered[index] = numbers
+        composition = tuple(sorted(ordered.tolist()))
+        if self._session is not None and (
+            self._composition is not None and composition != self._composition
+        ):
+            self._session.close()
+            self._session = None
+            self._composition = None
+        if self._session is None:
+            self._session = Session(self._blob, library=self._library)
+        if self._forces.size != 3 * natoms:
+            self._forces = np.zeros(3 * natoms)
+        cell = rows / self.length_per_bohr if self.periodic else None
+        energy, _, _ = self._session.calculate_au(
+            positions, ordered, cell, forces=self._forces, virial=self._virial
+        )
+        for name, value in (
+            ("energy", energy),
+            ("forces", self._forces),
+            ("virial", self._virial),
+        ):
+            if not np.all(np.isfinite(value)):
+                raise CPMDCError(f"the library returned a non-finite {name}")
+        self._composition = composition
+        force_unit = self.energy_per_hartree / self.length_per_bohr
+        forces = self._forces.reshape(natoms, 3)[index] * force_unit
+        virial = self._virial.reshape(3, 3) * self.energy_per_hartree
+        return energy * self.energy_per_hartree, forces, virial
+
+    def run(self, steps: int, *keywords: str) -> None:
+        """``run steps keywords...``; raise :class:`CPMDCError` for a failed step."""
+        _require_rgpot()
+        command_error: BaseException | None = None
+        try:
+            super().run(steps, *keywords)
+        except Exception as exc:
+            command_error = exc
+        if self.error is not None:
+            if command_error is not None:
+                raise self._take_error() from command_error
+            raise self._take_error()
+        if command_error is not None:
+            raise command_error
 
     def _take_error(self) -> CPMDCError:
         error = super()._take_error()
@@ -268,5 +386,15 @@ class FixExternal(RgpotFixExternal):
 
     def close(self) -> None:
         """Close the session and remove the fixes this object added."""
-        self._adapter.close()
-        super().close()
+        adapter = self.__dict__.get("_adapter")
+        if adapter is not None:
+            adapter.close()
+        closer = getattr(super(), "close", None)
+        if closer is not None:
+            closer()
+
+    def __enter__(self) -> FixExternal:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
