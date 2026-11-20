@@ -206,13 +206,13 @@ int main(int argc, char **argv) {
   if (compose_case(zero, 0, deck, (int)sizeof(deck)) == 0) {
     require_has(deck, " SYMMETRY\n  0\n", "missing-box compose");
     require_has(deck, "POISSON SOLVER HOCKNEY", "missing-box compose");
-    require_has(deck, "12.000000", "missing-box compose");
+    require_has(deck, "1.2000000000000000E+001", "missing-box compose");
   }
 
   memset(deck, 0, sizeof(deck));
   if (compose_case(tilt, 1, deck, (int)sizeof(deck)) == 0) {
     require_has(deck, "CELL VECTORS", "tilted compose");
-    require_has(deck, "0.5", "tilted compose");
+    require_has(deck, "5.0000000000000000E-001", "tilted compose");
     require_absent(deck, "SYMMETRY", "tilted compose");
     require_absent(deck, "HOCKNEY", "tilted compose");
   }

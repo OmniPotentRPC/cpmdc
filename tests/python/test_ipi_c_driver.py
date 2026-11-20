@@ -231,6 +231,29 @@ def test_small_full_rank_cell_matches_python_driver(
     assert client.finish()[0] == 0
 
 
+def test_rank_cutoff_rejects_a_short_cell_vector(
+    mini, socket_dir, periodic_params, drivers
+):
+    short = 0.25 * 3.0 * np.finfo(np.float64).eps
+    cell = np.diag([1.0, 1.0, short])
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(periodic_params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(mini.posdata(cell, WATER))
+    code, err = client.finish()
+    assert code == 1
+    assert "without three independent vectors" in err
+
+
 def test_pipelined_posdata_and_getforce(mini, socket_dir, params, drivers):
     drivers("c", "--unix", str(socket_dir / "s"), "--params", str(params), "--species", "OHH")
     mini.accept()

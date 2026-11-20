@@ -1,4 +1,5 @@
 #include "cpmdc_params.h"
+#include "cpmdc_cell_rank.h"
 #include "cpmdc_embed_image.h"
 
 _Static_assert(offsetof(CPMDCEnergyComponents, eefield) -
@@ -592,26 +593,26 @@ static int append_cpmd_cell(char *dst, size_t dst_size, size_t *used,
       ac = cos(ac * deg);
       bc = cos(bc * deg);
     }
-    return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g %.10g %.10g %.10g\n",
+    return append_fmt(dst, dst_size, used, " %.17g %.17g %.17g %.17g %.17g %.17g\n",
                       a, b, c, ab, ac, bc);
   }
   /* Typed lists use one record; geometry overrides use three vector rows. */
   if (vectors && vector_rows) {
     for (int row = 0; row < 3; ++row) {
-      if (append_fmt(dst, dst_size, used, " %.10g %.10g %.10g\n",
+      if (append_fmt(dst, dst_size, used, " %.17g %.17g %.17g\n",
                      cell[3 * row], cell[3 * row + 1], cell[3 * row + 2]) != 0)
         return -1;
     }
     return 0;
   }
-  if (!vectors && fabs(cell[1]) < 1e-12 && fabs(cell[2]) < 1e-12 &&
-      fabs(cell[3]) < 1e-12 && fabs(cell[5]) < 1e-12 &&
-      fabs(cell[6]) < 1e-12 && fabs(cell[7]) < 1e-12 && cell[0] != 0.0) {
-    return append_fmt(dst, dst_size, used, " %.10g %.10g %.10g 0 0 0\n",
+  if (!vectors && cell[1] == 0.0 && cell[2] == 0.0 && cell[3] == 0.0 &&
+      cell[5] == 0.0 && cell[6] == 0.0 && cell[7] == 0.0 &&
+      cell[0] != 0.0) {
+    return append_fmt(dst, dst_size, used, " %.17g %.17g %.17g 0 0 0\n",
                       cell[0], cell[4] / cell[0], cell[8] / cell[0]);
   }
   for (int i = 0; i < ncell; ++i) {
-    if (append_fmt(dst, dst_size, used, " %.10g", cell[i]) != 0)
+    if (append_fmt(dst, dst_size, used, " %.17g", cell[i]) != 0)
       return -1;
   }
   return append_text(dst, dst_size, used, "\n");
@@ -642,16 +643,9 @@ static int append_kpoints_block_options(char *dst, size_t dst_size,
   return 0;
 }
 
-static double cell_determinant(const double *c) {
-  return c[0] * (c[4] * c[8] - c[5] * c[7]) -
-         c[1] * (c[3] * c[8] - c[5] * c[6]) +
-         c[2] * (c[3] * c[7] - c[4] * c[6]);
-}
-
 static int cell_is_diagonal(const double *c) {
-  return fabs(c[1]) + fabs(c[2]) + fabs(c[3]) + fabs(c[5]) + fabs(c[6]) +
-             fabs(c[7]) <=
-         1e-8;
+  return c[1] == 0.0 && c[2] == 0.0 && c[3] == 0.0 && c[5] == 0.0 &&
+         c[6] == 0.0 && c[7] == 0.0;
 }
 
 /* 0 keeps an isolated deck. 1 is cubic, 8 orthorhombic.
@@ -660,8 +654,13 @@ static int cell_is_diagonal(const double *c) {
 static int periodic_symmetry_from_cell(const double *cell, int ncell) {
   double b_over_a;
   double c_over_a;
-  if (!cell || ncell != 9 || fabs(cell_determinant(cell)) <= 1e-8)
+  if (!cell || ncell != 9)
     return 0;
+  int state = cpmdc_cell_rank3_state(cell);
+  if (state == CPMDC_CELL_ZERO)
+    return 0;
+  if (state != CPMDC_CELL_FULL_RANK)
+    return -3;
   if (!cell_is_diagonal(cell) || cell[0] == 0.0)
     return -2;
   b_over_a = cell[4] / cell[0];
@@ -5445,6 +5444,8 @@ int cpmdc_params_render_deck_with_geometry_ov(
     int sym = periodic_symmetry_from_cell(box, nbox);
     int emit_symmetry = 1;
     int force_vectors = 0;
+    if (sym == -3)
+      return -1;
     if (caller_asked_isolated(&sets) || !has_cell || sym == 0) {
       sym = 0;
     } else if (sym < 0) {
