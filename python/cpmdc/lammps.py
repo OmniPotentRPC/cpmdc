@@ -19,8 +19,8 @@ LAMMPS' fix virial ``sum r f`` in energy units, symmetrized and sent as
 ``xx yy zz xy xz yz``.
 
 Atom types map to elements through ``elements``: one symbol or atomic
-number per type, in type order. Atom IDs must be the integers 1..N; the
-step sent to cpmdc is in ID order.
+number per type, in type order. Atom IDs must be positive and unique, but
+may have gaps; the step sent to cpmdc is in increasing ID order.
 
 Under ``mpirun`` every rank runs the same script, and LAMMPS spreads the
 atoms over the ranks. World rank 0 owns the session: it gathers the
@@ -257,16 +257,14 @@ class FixExternal:
     ) -> tuple[float, np.ndarray, np.ndarray]:
         """Rank 0: energy, forces in tag order, and the 3x3 virial, LAMMPS units."""
         natoms = tags.size
-        if natoms == 0 or tags.min() != 1 or tags.max() != natoms:
-            raise CPMDCError(
-                f"cpmdc needs atom IDs 1..N; LAMMPS holds {natoms} atoms with IDs "
-                f"{tags.min() if natoms else '-'}..{tags.max() if natoms else '-'}"
-            )
-        index = tags - 1
-        positions = np.empty((natoms, 3), dtype=float)
-        positions[index] = xu / self.length_per_bohr
-        ordered = np.empty(natoms, dtype=np.int32)
-        ordered[index] = numbers
+        if natoms == 0 or np.any(tags < 1):
+            raise CPMDCError("cpmdc needs positive atom IDs")
+        order = np.argsort(tags, kind="stable")
+        ordered_tags = tags[order]
+        if np.any(ordered_tags[1:] == ordered_tags[:-1]):
+            raise CPMDCError("cpmdc needs unique atom IDs")
+        positions = xu[order] / self.length_per_bohr
+        ordered = numbers[order]
         composition = tuple(sorted(ordered.tolist()))
         if self._session is not None and (
             self._composition is not None and composition != self._composition
@@ -287,7 +285,9 @@ class FixExternal:
                 raise CPMDCError(f"the library returned a non-finite {name}")
         self._composition = composition
         force_unit = self.energy_per_hartree / self.length_per_bohr
-        forces = self._forces.reshape(natoms, 3)[index] * force_unit
+        inverse = np.empty(natoms, dtype=np.intp)
+        inverse[order] = np.arange(natoms)
+        forces = self._forces.reshape(natoms, 3)[inverse] * force_unit
         virial = self._virial.reshape(3, 3) * self.energy_per_hartree
         return energy * self.energy_per_hartree, forces, virial
 

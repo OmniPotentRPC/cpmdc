@@ -6,9 +6,10 @@
  * The style evaluates the whole system with cpmdc_session_calculate_au()
  * once per force call. It requests no neighbor list: every rank sends the
  * unwrapped positions of the atoms it owns, by atom ID, to world rank 0,
- * which owns the session, evaluates, and broadcasts the forces. Rank 0 adds
- * the energy and the virial -dE/d(strain) to its tallies; LAMMPS sums those
- * over the ranks. Atom IDs must be 1..N.
+ * which owns the session, evaluates, and broadcasts the forces. The step is
+ * ordered by increasing atom ID, so sparse IDs left by delete_atoms work.
+ * Rank 0 adds the energy and the virial -dE/d(strain) to its tallies; LAMMPS
+ * sums those over the ranks.
  *
  * Units metal, real, and electron are converted; any other style is an
  * error. The cell is the restricted triclinic box with one lattice vector
@@ -33,6 +34,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <numeric>
 
 using namespace LAMMPS_NS;
 
@@ -210,32 +212,58 @@ void PairCPMDC::compute(int eflag, int vflag)
   double **x = atom->x;
   double **f = atom->f;
 
-  positions.assign(3 * (size_t) natoms, 0.0);
-  owner.assign(natoms, 0);
+  std::vector<long long> local_tags(nlocal);
+  std::vector<double> local_positions(3 * (size_t) nlocal);
+  std::vector<int> local_owner(nlocal);
   int bad = 0;
   for (int i = 0; i < nlocal; i++) {
-    if (tag[i] < 1 || tag[i] > natoms) {
+    if (tag[i] < 1) {
       bad = 1;
       continue;
     }
-    const int k = (int) tag[i] - 1;
+    local_tags[i] = static_cast<long long>(tag[i]);
     double xu[3];
     domain->unmap(x[i], image[i], xu);
-    for (int d = 0; d < 3; d++) positions[3 * k + d] = xu[d] / length_per_bohr;
-    owner[k] = type[i];
+    for (int d = 0; d < 3; d++)
+      local_positions[3 * i + d] = xu[d] / length_per_bohr;
+    local_owner[i] = type[i];
   }
   int any_bad = 0;
   MPI_Allreduce(&bad, &any_bad, 1, MPI_INT, MPI_MAX, world);
-  if (any_bad) error->all(FLERR, "pair_style cpmdc needs atom IDs 1..{}", natoms);
-  if (comm->nprocs > 1) {
-    if (comm->me == 0) {
-      MPI_Reduce(MPI_IN_PLACE, positions.data(), 3 * natoms, MPI_DOUBLE, MPI_SUM, 0, world);
-      MPI_Reduce(MPI_IN_PLACE, owner.data(), natoms, MPI_INT, MPI_SUM, 0, world);
-    } else {
-      MPI_Reduce(positions.data(), nullptr, 3 * natoms, MPI_DOUBLE, MPI_SUM, 0, world);
-      MPI_Reduce(owner.data(), nullptr, natoms, MPI_INT, MPI_SUM, 0, world);
+  if (any_bad) error->all(FLERR, "pair_style cpmdc needs positive atom IDs");
+
+  std::vector<int> counts, offsets, coordinate_counts, coordinate_offsets;
+  if (comm->me == 0) counts.resize(comm->nprocs);
+  MPI_Gather(&nlocal, 1, MPI_INT, comm->me == 0 ? counts.data() : nullptr, 1, MPI_INT, 0,
+             world);
+  if (comm->me == 0) {
+    offsets.resize(comm->nprocs);
+    coordinate_counts.resize(comm->nprocs);
+    coordinate_offsets.resize(comm->nprocs);
+    int total = 0;
+    for (int rank = 0; rank < comm->nprocs; ++rank) {
+      offsets[rank] = total;
+      coordinate_counts[rank] = 3 * counts[rank];
+      coordinate_offsets[rank] = 3 * total;
+      total += counts[rank];
     }
+    bad = total != natoms;
+    tags.resize(natoms);
+    positions.resize(3 * (size_t) natoms);
+    owner.resize(natoms);
   }
+  MPI_Bcast(&bad, 1, MPI_INT, 0, world);
+  if (bad) error->all(FLERR, "pair_style cpmdc received an incomplete atom set");
+  MPI_Gatherv(local_tags.data(), nlocal, MPI_LONG_LONG, comm->me == 0 ? tags.data() : nullptr,
+              comm->me == 0 ? counts.data() : nullptr, comm->me == 0 ? offsets.data() : nullptr,
+              MPI_LONG_LONG, 0, world);
+  MPI_Gatherv(local_positions.data(), 3 * nlocal, MPI_DOUBLE,
+              comm->me == 0 ? positions.data() : nullptr,
+              comm->me == 0 ? coordinate_counts.data() : nullptr,
+              comm->me == 0 ? coordinate_offsets.data() : nullptr, MPI_DOUBLE, 0, world);
+  MPI_Gatherv(local_owner.data(), nlocal, MPI_INT, comm->me == 0 ? owner.data() : nullptr,
+              comm->me == 0 ? counts.data() : nullptr, comm->me == 0 ? offsets.data() : nullptr,
+              MPI_INT, 0, world);
 
   // status, energy, and the row-major virial, from rank 0
   double head[11] = {0.0};
@@ -243,10 +271,33 @@ void PairCPMDC::compute(int eflag, int vflag)
   forces.assign(3 * (size_t) natoms, 0.0);
   if (comm->me == 0) {
     std::string problem;
+    std::vector<int> order(natoms);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [this](int left, int right) {
+      return tags[left] < tags[right];
+    });
+    for (int k = 1; k < natoms; ++k)
+      if (tags[order[k - 1]] == tags[order[k]]) {
+        problem = "pair_style cpmdc needs unique atom IDs";
+        break;
+      }
+    std::vector<long long> ordered_tags(natoms);
+    std::vector<double> ordered_positions(3 * (size_t) natoms);
+    std::vector<int> ordered_owner(natoms);
+    for (int k = 0; k < natoms; ++k) {
+      const int source = order[k];
+      ordered_tags[k] = tags[source];
+      ordered_owner[k] = owner[source];
+      for (int d = 0; d < 3; ++d)
+        ordered_positions[3 * k + d] = positions[3 * source + d];
+    }
+    tags.swap(ordered_tags);
+    positions.swap(ordered_positions);
+    owner.swap(ordered_owner);
     numbers.resize(natoms);
     for (int k = 0; k < natoms && problem.empty(); k++) {
       if (owner[k] < 1 || owner[k] > atom->ntypes)
-        problem = "pair_style cpmdc needs atom IDs 1..N with no gaps";
+        problem = "pair_style cpmdc received an invalid atom type";
       else
         numbers[k] = type_z[owner[k]];
     }
@@ -278,11 +329,26 @@ void PairCPMDC::compute(int eflag, int vflag)
     MPI_Bcast(why, (int) sizeof(why), MPI_CHAR, 0, world);
     error->all(FLERR, "pair_style cpmdc: {}", why);
   }
+  if (comm->me != 0) tags.resize(natoms);
+  MPI_Bcast(tags.data(), natoms, MPI_LONG_LONG, 0, world);
   MPI_Bcast(forces.data(), 3 * natoms, MPI_DOUBLE, 0, world);
 
   const double force_unit = energy_per_hartree / length_per_bohr;
+  bad = 0;
   for (int i = 0; i < nlocal; i++) {
-    const int k = (int) tag[i] - 1;
+    const long long id = static_cast<long long>(tag[i]);
+    const std::vector<long long>::const_iterator found =
+        std::lower_bound(tags.begin(), tags.end(), id);
+    if (found == tags.end() || *found != id) bad = 1;
+  }
+  MPI_Allreduce(&bad, &any_bad, 1, MPI_INT, MPI_MAX, world);
+  if (any_bad)
+    error->all(FLERR, "pair_style cpmdc lost an atom ID while distributing forces");
+  for (int i = 0; i < nlocal; i++) {
+    const long long id = static_cast<long long>(tag[i]);
+    const std::vector<long long>::const_iterator found =
+        std::lower_bound(tags.begin(), tags.end(), id);
+    const int k = (int) std::distance(tags.cbegin(), found);
     for (int d = 0; d < 3; d++) f[i][d] += forces[3 * k + d] * force_unit;
   }
   if (comm->me == 0) {
