@@ -235,7 +235,7 @@ static void case_bad_call_on_one_rank(void) {
         "both ranks report the agreed call error");
   report("a bad call on one rank fails both ranks");
 
-  configure_rc = cpmdc_session_set_constant_cutoff(session, 70.0, 1.0, 0.5);
+  configure_rc = cpmdc_session_set_params(session, g_params, g_params_size);
   MPI_Allgather(&configure_rc, 1, MPI_INT, configure_all, 1, MPI_INT,
                 MPI_COMM_WORLD);
   check(configure_all[0] == 0 && configure_all[1] == 0,
