@@ -3219,6 +3219,74 @@ static void test_merge_rejects_typed_multiplicity_singlet_with_carrier(
   check_overlay_scalar_carriers(SCALAR_MULTIPLICITY, 1);
 }
 
+/* With no overlay, a FUNCTIONAL directive in the typed &DFT section or a
+ * DFT.FUNCTIONAL set directive would follow the FUNCTIONAL line the
+ * renderer writes, so the deck would carry two functionals. */
+static unsigned char *build_dft_functional_directive_config(int use_set,
+                                                            int typed,
+                                                            size_t *size) {
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDDirective_list dirs;
+  memset(&dirs, 0, sizeof(dirs));
+  if (!use_set) {
+    dirs = new_CPMDDirective_list(root.seg, 1);
+    struct CPMDDirective d;
+    memset(&d, 0, sizeof(d));
+    d.keyword = capn_str("FUNCTIONAL PBE0");
+    set_CPMDDirective(&d, dirs, 0);
+  }
+  CPMDInputSection_list secs = new_sections(&arena, use_set ? 2 : 1);
+  put_dft(&arena, secs, 0, typed ? "LDA" : NULL, dirs, !use_set);
+  if (use_set) {
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("DFT.FUNCTIONAL");
+    setd.value = capn_str("PBE0");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    set_CPMDInputSection(&sec, secs, 1);
+  }
+  arm.inputSections = secs;
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), size);
+  capn_free(&arena);
+  return buf;
+}
+
+static void test_render_rejects_second_dft_functional(void **state) {
+  (void)state;
+  int failures = 0;
+  for (int use_set = 0; use_set < 2; ++use_set) {
+    for (int typed = 0; typed < 2; ++typed) {
+      char label[96];
+      snprintf(label, sizeof(label), "%s, %s",
+               use_set ? "DFT.FUNCTIONAL set directive"
+                       : "typed &DFT FUNCTIONAL directive",
+               typed ? "typed functional" : "no typed functional");
+      size_t sz = 0;
+      unsigned char *buf =
+          build_dft_functional_directive_config(use_set, typed, &sz);
+      failures += expect_rejected_without_deck(
+          buf, sz,
+          use_set ? "a DFT.FUNCTIONAL set directive"
+                  : "a FUNCTIONAL directive in the typed &DFT section",
+          label);
+      free(buf);
+    }
+  }
+  assert_int_equal(failures, 0);
+}
+
 enum ArmOverlayField {
   ARM_OV_XC,
   ARM_OV_CUTOFF,
@@ -3469,6 +3537,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_rejects_typed_multiplicity_with_carrier),
       cmocka_unit_test(
           test_merge_rejects_typed_multiplicity_singlet_with_carrier),
+      cmocka_unit_test(test_render_rejects_second_dft_functional),
       cmocka_unit_test(test_merge_arm_check_failures_name_cause),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

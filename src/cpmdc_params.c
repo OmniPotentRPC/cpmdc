@@ -741,13 +741,16 @@ struct ResolvedScalars {
   CPMDCTypedScalars typed;
 };
 
-/* The one place that decides the functional, cutoff, charge, and
- * multiplicity. A value that a typed field sets beats the overlay, the
- * overlay beats a schema default, and a typed &SYSTEM or &DFT section beats
- * the top-level field. A typed field sets a value when it differs from the
- * schema default (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1).
- * The deck renderers and the recorded configuration read this result and
- * nothing else, so they cannot disagree. The overlay cutoff is in Ry. */
+/* The functional, cutoff, charge, and multiplicity lines cpmdc writes. A
+ * value that a typed field sets beats the overlay, the overlay beats a
+ * schema default, and a typed &SYSTEM or &DFT section beats the top-level
+ * field. A typed field sets a value when it differs from the schema default
+ * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). The deck
+ * renderers and the recorded configuration both read this result. Raw,
+ * generic, and set sections, inputBlocks, and section directives are not
+ * read here; the overlay merge rejects a set overlay scalar next to one, and
+ * render_dft_section() rejects a second FUNCTIONAL. The overlay cutoff is in
+ * Ry. */
 static int resolve_scalars(struct CPMDParams *view,
                            const CPMDCScalarOverrides *overrides,
                            struct ResolvedScalars *out) {
@@ -3779,6 +3782,23 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
                               const struct CPMDDftSection *dft,
                               const char *functional,
                               struct RenderSetList *sets) {
+  /* The FUNCTIONAL line below is the resolved functional the configuration
+   * records. A second FUNCTIONAL from the directives or a set directive
+   * would follow it in the same section. */
+  int has_functional = directives_have_prefix(dft->directives, "FUNCTIONAL");
+  if (has_functional < 0)
+    return -1;
+  if (has_functional) {
+    g_render_reason = "a FUNCTIONAL directive in the typed &DFT section "
+                      "conflicts with the functional cpmdc writes; set "
+                      "functional instead";
+    return -1;
+  }
+  if (set_directives_have_prefix(sets, "DFT", "FUNCTIONAL")) {
+    g_render_reason = "a DFT.FUNCTIONAL set directive conflicts with the "
+                      "functional cpmdc writes; set functional instead";
+    return -1;
+  }
   if (append_text(dst, dst_size, used, "&DFT\n") != 0)
     return -1;
   if (append_fmt(dst, dst_size, used, " FUNCTIONAL %s\n", functional) != 0)
