@@ -5,6 +5,7 @@
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
+#include "cpmdc_scf_report.h"
 
 #ifndef CPMDC_VERSION_STRING
 #define CPMDC_VERSION_STRING "unknown"
@@ -65,7 +66,7 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             double *grad_h_bohr, CPMDCEmbedImage *image);
 void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
-int cpmdc_embed_prepare_orbital_slot(int has_key, long long key);
+int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
 int cpmdc_embed_store_comm(int fcomm);
@@ -431,6 +432,14 @@ static void cpmdc_store_error(const char *msg) {
 
 void cpmdc_note_embed_failure(const char *msg) {
   snprintf(g_embed_detail, sizeof(g_embed_detail), "%s", msg ? msg : "");
+}
+
+void cpmdc_note_scf_unconverged(int minimizer, int iterations, int maxiter,
+                                double gemax, double tolog,
+                                int first_minimizer, int first_iterations) {
+  (void)cpmdc_format_scf_unconverged(g_embed_detail, sizeof(g_embed_detail),
+                                     minimizer, iterations, maxiter, gemax,
+                                     tolog, first_minimizer, first_iterations);
 }
 
 const char *cpmdc_last_error(void) { return g_last_error; }
@@ -1187,7 +1196,6 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  int n_atoms, const double *positions_ang,
                                  const int *atomic_numbers,
                                  const double *cell_ang, int has_cell,
-                                 int has_orbital_key, long long orbital_key,
                                  double *grad_h_bohr, CPMDCEmbedImage *image) {
   CPMDCResult r;
   r.ok = 0;
@@ -1210,13 +1218,9 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
-  int ok = cpmdc_embed_prepare_orbital_slot(has_orbital_key ? 1 : 0,
-                                            orbital_key);
-  if (ok) {
-    ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
-                                 has_cell ? 1 : 0, &energy, grad_h_bohr,
-                                 image);
-  }
+  int ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
+                                   has_cell ? 1 : 0, &energy, grad_h_bohr,
+                                   image);
   int stop = cpmdc_stop_code();
   cpmdc_stop_disarm();
   if (rank_consensus(&ok, &stop, (size_t)n_atoms * 3u, &energy, grad_h_bohr,
@@ -1245,16 +1249,31 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   return r;
 }
 
+#define CPMDC_ATOMIC_NUMBER_MAX 118
+
+/* Zero when an entry is outside 1..CPMDC_ATOMIC_NUMBER_MAX. A NULL array is
+ * left to the argument checks of the caller. */
+static int atomic_numbers_in_range(int n_atoms, const int *atomic_numbers) {
+  if (!atomic_numbers)
+    return 1;
+  for (int i = 0; i < n_atoms; ++i) {
+    if (atomic_numbers[i] < 1 || atomic_numbers[i] > CPMDC_ATOMIC_NUMBER_MAX)
+      return 0;
+  }
+  return 1;
+}
+
 static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang,
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
                                         double *grad_h_bohr) {
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return fail_msg("atomic numbers must be in 1..118");
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
                                           g_has_overrides ? &g_overrides : NULL,
                                           n_atoms,
                                           positions_ang, atomic_numbers,
-                                          cell_ang, has_cell, 0, 0,
-                                          grad_h_bohr,
+                                          cell_ang, has_cell, grad_h_bohr,
                                           &g_image);
 }
 
@@ -1507,21 +1526,31 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
-/* The overrides a session renders its deck with: the common overlay and the
- * constant cutoff. NULL when it has neither. */
+/* The overrides a deck is rendered with: an overlay and the session's
+ * constant cutoff. NULL when there is neither. */
 static const CPMDCScalarOverrides *
-session_render_overrides(const CPMDCSession *session,
-                         CPMDCScalarOverrides *scratch) {
+render_overrides_with(const CPMDCSession *session,
+                      const CPMDCScalarOverrides *overlay,
+                      CPMDCScalarOverrides *scratch) {
   if (session->constant_cutoff_ry <= 0.0)
-    return session->has_overrides ? &session->overrides : NULL;
-  if (session->has_overrides)
-    *scratch = session->overrides;
+    return overlay;
+  if (overlay)
+    *scratch = *overlay;
   else
     memset(scratch, 0, sizeof(*scratch));
   scratch->constant_cutoff_ry = session->constant_cutoff_ry;
   scratch->constant_cutoff_height_ry = session->constant_cutoff_height_ry;
   scratch->constant_cutoff_width_ry = session->constant_cutoff_width_ry;
   return scratch;
+}
+
+/* The overrides a session renders its deck with: the common overlay and the
+ * constant cutoff. NULL when it has neither. */
+static const CPMDCScalarOverrides *
+session_render_overrides(const CPMDCSession *session,
+                         CPMDCScalarOverrides *scratch) {
+  return render_overrides_with(
+      session, session->has_overrides ? &session->overrides : NULL, scratch);
 }
 
 CPMDCSession *cpmdc_session_create(const void *params_capnp,
@@ -1560,6 +1589,10 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   return session;
 }
 
+/* Replaces the parameters and the overlay together. Everything is validated
+ * into temporaries first, so a call that fails leaves the session as it was:
+ * parameters, deck, effective scalars, overlay, and embed image. Only the
+ * last error changes. */
 static int cpmdc_session_set_params_ov(CPMDCSession *session,
                                        const void *params_capnp,
                                        size_t params_capnp_size_bytes,
@@ -1581,40 +1614,67 @@ static int cpmdc_session_set_params_ov(CPMDCSession *session,
     cpmdc_store_error("out of memory");
     return -1;
   }
+  CPMDCScalarOverrides overlay;
+  char overlay_functional[sizeof(session->overrides_functional)];
+  memset(&overlay, 0, sizeof(overlay));
   if (overrides) {
-    session->overrides = *overrides;
+    overlay = *overrides;
+    if (overrides->functional) {
+      snprintf(overlay_functional, sizeof(overlay_functional), "%s",
+               overrides->functional);
+      overlay.functional = overlay_functional;
+    }
+  }
+  char functional[sizeof(session->functional)];
+  char cpmd_root[sizeof(session->cpmd_root)];
+  double cutoff_ry = session->cutoff_ry;
+  int charge = session->charge;
+  int multiplicity = session->multiplicity;
+  memcpy(functional, session->functional, sizeof(functional));
+  memcpy(cpmd_root, session->cpmd_root, sizeof(cpmd_root));
+  char *deck = NULL;
+  CPMDCScalarOverrides render;
+  if (apply_params_buffer(
+          params_capnp, params_capnp_size_bytes,
+          render_overrides_with(session, overrides ? &overlay : NULL, &render),
+          functional, sizeof(functional), &cutoff_ry, &charge, &multiplicity,
+          &deck, cpmd_root, sizeof(cpmd_root)) != 0) {
+    free(deck);
+    free(bytes);
+    return -1;
+  }
+  memcpy(bytes, params_capnp, params_capnp_size_bytes);
+
+  const CPMDCSession before = *session;
+  memcpy(session->functional, functional, sizeof(functional));
+  memcpy(session->cpmd_root, cpmd_root, sizeof(cpmd_root));
+  session->cutoff_ry = cutoff_ry;
+  session->charge = charge;
+  session->multiplicity = multiplicity;
+  session->params_bytes = bytes;
+  session->params_size = params_capnp_size_bytes;
+  session->input_deck = deck;
+  if (overrides) {
+    session->overrides = overlay;
     if (overrides->functional) {
       snprintf(session->overrides_functional,
                sizeof(session->overrides_functional), "%s",
-               overrides->functional);
+               overlay.functional);
       session->overrides.functional = session->overrides_functional;
     }
     session->has_overrides = 1;
   } else {
     session->has_overrides = 0;
   }
-  char *deck = NULL;
-  CPMDCScalarOverrides render;
-  if (apply_params_buffer(params_capnp, params_capnp_size_bytes,
-                          session_render_overrides(session, &render),
-                          session->functional, sizeof(session->functional),
-                          &session->cutoff_ry, &session->charge,
-                          &session->multiplicity, &deck, session->cpmd_root,
-                          sizeof(session->cpmd_root)) != 0) {
+  if (configure_embed_from_session(session) != 0) {
+    *session = before;
     free(deck);
     free(bytes);
-    return -1;
-  }
-  memcpy(bytes, params_capnp, params_capnp_size_bytes);
-  free(session->params_bytes);
-  session->params_bytes = bytes;
-  session->params_size = params_capnp_size_bytes;
-  free(session->input_deck);
-  session->input_deck = deck;
-  if (configure_embed_from_session(session) != 0) {
     cpmdc_store_error("CPMD embed not available");
     return -1;
   }
+  free(before.params_bytes);
+  free(before.input_deck);
   cpmdc_store_error("");
   return 0;
 }
@@ -1698,6 +1758,8 @@ static CPMDCResult session_energy_gradient_cell(
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang))
     return fail_msg("invalid arguments");
+  if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
+    return fail_msg("atomic numbers must be in 1..118");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
   if (rank_consensus_all(
@@ -1715,6 +1777,8 @@ static CPMDCResult session_energy_gradient_cell(
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
+  if (session->has_orbital_key)
+    cpmdc_embed_select_orbitals(session->orbital_key);
   if (!session->evaluated) {
     session->evaluated = 1;
     g_evaluated_sessions++;
@@ -1723,8 +1787,7 @@ static CPMDCResult session_energy_gradient_cell(
     CPMDCResult evaluated = energy_gradient_cell_with_params(
         session->params_bytes, session->params_size,
         session->has_overrides ? &session->overrides : NULL, n_atoms,
-        positions_ang, atomic_numbers, cell_ang, has_cell,
-        session->has_orbital_key, session->orbital_key, grad_h_bohr,
+        positions_ang, atomic_numbers, cell_ang, has_cell, grad_h_bohr,
         &session->image);
     if (evaluated.ok && grad_h_bohr) {
       if (session_store_cache(session, (size_t)n_atoms, positions_ang,
@@ -1745,6 +1808,35 @@ int cpmdc_session_select_orbitals(CPMDCSession *session, long long key) {
   }
   session->has_orbital_key = 1;
   session->orbital_key = key;
+  /* Record only. The evaluation selects the key, so a key named and then
+   * replaced before an evaluation does not join the warm-start donors. */
+  cpmdc_store_error("");
+  return 0;
+}
+
+int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
+                                long long to_key) {
+  if (!session) {
+    cpmdc_store_error("null session");
+    return -1;
+  }
+  if (!session->evaluated) {
+    cpmdc_store_error("no stored orbitals; evaluate at least once before copy");
+    return -1;
+  }
+  /* The reference evaluator has no orbital store. An OpenCPMD build
+   * duplicates the converged copy and refuses a key that never converged. */
+  if (cpmdc_available()) {
+    if ((!session->embed_configured || g_active_session != session) &&
+        configure_embed_from_session(session) != 0) {
+      cpmdc_store_error("CPMD embed not available");
+      return -1;
+    }
+    if (cpmdc_embed_copy_orbitals(from_key, to_key) != 0) {
+      cpmdc_store_error("from_key has no converged orbitals");
+      return -1;
+    }
+  }
   cpmdc_store_error("");
   return 0;
 }

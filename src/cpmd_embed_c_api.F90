@@ -29,6 +29,14 @@ MODULE cpmdc_embed_host_iface
       IMPORT :: c_char
       CHARACTER(KIND=c_char), INTENT(IN) :: msg(*)
     END SUBROUTINE
+    SUBROUTINE cpmdc_note_scf_unconverged(minimizer, iterations, maxiter, gemax, &
+        tolog, first_minimizer, first_iterations) &
+        BIND(C, NAME='cpmdc_note_scf_unconverged')
+      IMPORT :: c_int, c_double
+      INTEGER(c_int), VALUE :: minimizer, iterations, maxiter, first_minimizer, &
+          first_iterations
+      REAL(c_double), VALUE :: gemax, tolog
+    END SUBROUTINE
     FUNCTION cpmdc_enter_output_cwd(output_dir) BIND(C, NAME='cpmdc_enter_output_cwd')
       IMPORT :: c_char, c_int
       CHARACTER(KIND=c_char), INTENT(IN) :: output_dir(*)
@@ -75,7 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
-  PUBLIC :: cpmdc_embed_prepare_orbital_slot
+  PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
   LOGICAL, SAVE :: runtime_ready = .FALSE.
@@ -374,13 +382,11 @@ CONTAINS
 
   FUNCTION cpmdc_embed_reset_state(image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_reset_state')
 #if defined(CPMDC_HAS_CPMD)
-    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals, &
-        embed_set_orbital_slot_limit
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
 #endif
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
-    INTEGER, PARAMETER :: slot_limit_from_env = -1
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
@@ -392,7 +398,6 @@ CONTAINS
     image%warm_cell = 0.0_c_double
 #if defined(CPMDC_HAS_CPMD)
     CALL embed_reset_warm_orbitals()
-    CALL embed_set_orbital_slot_limit(slot_limit_from_env)
     CALL clear_embed_basis_latch()
 #endif
     ok = cpmdc_embed_teardown()
@@ -406,16 +411,13 @@ CONTAINS
   FUNCTION cpmdc_embed_teardown() RESULT(ok) BIND(C, NAME='cpmdc_embed_teardown')
 #if defined(CPMDC_HAS_CPMD)
     USE embed_teardown, ONLY: embed_teardown_state
-    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
     USE rmas, ONLY: rmass, rmass_t
 #endif
     INTEGER(c_int) :: ok
-    INTEGER, PARAMETER :: slot_limit_from_env = -1
     ok = 1_c_int
 #if defined(CPMDC_HAS_CPMD)
     IF (.NOT. cpmd_set_up) RETURN
     CALL embed_teardown_state()
-    CALL embed_set_orbital_slot_limit(slot_limit_from_env)
     ! The pseudopotential readers set a species mass only while it is zero,
     ! so the next deck's species would keep this deck's masses, and the
     ! centre of mass of embed_recentre_cluster would be wrong.
@@ -444,154 +446,6 @@ CONTAINS
     ok = 1_c_int
   END FUNCTION
 
-  SUBROUTINE parse_orbital_slot_limit_env(limit, is_set, is_valid)
-    INTEGER, INTENT(OUT) :: limit
-    LOGICAL, INTENT(OUT) :: is_set, is_valid
-    INTEGER, PARAMETER :: decimal_base = 10
-    CHARACTER(LEN=:), ALLOCATABLE :: raw
-    INTEGER :: st, raw_len, ierr, first, last, pos, digit
-    limit = 0
-    is_set = .FALSE.
-    is_valid = .TRUE.
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_ORBITAL_SLOT_LIMIT', &
-         LENGTH=raw_len, STATUS=st)
-    IF (st > 0) RETURN
-    is_set = .TRUE.
-    is_valid = .FALSE.
-    IF (st < 0 .OR. raw_len <= 0) RETURN
-    ALLOCATE(CHARACTER(LEN=raw_len) :: raw, STAT=ierr)
-    IF (ierr /= 0) RETURN
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_ORBITAL_SLOT_LIMIT', &
-         VALUE=raw, STATUS=st)
-    IF (st /= 0) THEN
-      DEALLOCATE(raw, STAT=ierr)
-      RETURN
-    END IF
-    first = 1
-    DO WHILE (first <= raw_len)
-      IF (raw(first:first) /= ' ') EXIT
-      first = first + 1
-    END DO
-    last = raw_len
-    DO WHILE (last >= first)
-      IF (raw(last:last) /= ' ') EXIT
-      last = last - 1
-    END DO
-    IF (first > last) THEN
-      DEALLOCATE(raw, STAT=ierr)
-      RETURN
-    END IF
-    pos = first
-    IF (raw(pos:pos) == '+') pos = pos + 1
-    IF (pos > last) THEN
-      DEALLOCATE(raw, STAT=ierr)
-      RETURN
-    END IF
-    limit = 0
-    DO WHILE (pos <= last)
-      IF (raw(pos:pos) < '0' .OR. raw(pos:pos) > '9') THEN
-        limit = 0
-        DEALLOCATE(raw, STAT=ierr)
-        RETURN
-      END IF
-      digit = IACHAR(raw(pos:pos)) - IACHAR('0')
-      IF (limit > (HUGE(limit) - digit) / decimal_base) THEN
-        limit = 0
-        DEALLOCATE(raw, STAT=ierr)
-        RETURN
-      END IF
-      limit = limit * decimal_base + digit
-      pos = pos + 1
-    END DO
-    DEALLOCATE(raw, STAT=ierr)
-    IF (limit <= 0) THEN
-      limit = 0
-      RETURN
-    END IF
-    is_valid = .TRUE.
-  END SUBROUTINE parse_orbital_slot_limit_env
-
-  SUBROUTINE sync_orbital_slot_limit(ok)
-    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
-#if defined(CPMDC_HAS_CPMD)
-    USE mpi
-    USE mp_interface, ONLY: mp_comm_world
-    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
-#endif
-    INTEGER(c_int), INTENT(OUT) :: ok
-    INTEGER :: local_limit, agreed_limit
-    LOGICAL :: local_set, local_valid
-#if defined(CPMDC_HAS_CPMD)
-    INTEGER :: comm, npe, ierr, rbuf(3)
-    LOGICAL :: inited, finalized
-    INTERFACE
-      FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
-        IMPORT :: c_int
-        INTEGER(c_int) :: code
-      END FUNCTION cpmdc_stop_code
-    END INTERFACE
-#endif
-    ok = 0_c_int
-    CALL parse_orbital_slot_limit_env(local_limit, local_set, local_valid)
-    agreed_limit = MERGE(local_limit, 0, local_valid .AND. local_set)
-#if defined(CPMDC_HAS_CPMD)
-    inited = .FALSE.
-    finalized = .FALSE.
-    CALL MPI_INITIALIZED(inited, ierr)
-    IF (ierr == 0 .AND. inited) CALL MPI_FINALIZED(finalized, ierr)
-    IF (ierr == 0 .AND. inited .AND. .NOT. finalized) THEN
-      comm = MERGE(mp_comm_world, MPI_COMM_WORLD, embed_calculator_bound)
-      npe = 1
-      CALL MPI_Comm_size(comm, npe, ierr)
-      IF (ierr /= 0) THEN
-        CALL cpmdc_note_embed_failure( &
-             'CPMDC_ORBITAL_SLOT_LIMIT: MPI communicator query failed'//c_null_char)
-        RETURN
-      END IF
-      IF (npe > 1) THEN
-        rbuf(1) = MERGE(0, 1, local_valid)
-        rbuf(2) = MERGE(local_limit, 0, local_valid .AND. local_set)
-        rbuf(3) = MERGE(-local_limit, -HUGE(local_limit), local_valid .AND. local_set)
-        CALL MPI_Allreduce(MPI_IN_PLACE, rbuf, 3, MPI_INTEGER, MPI_MAX, comm, ierr)
-        IF (ierr /= 0) THEN
-          CALL cpmdc_note_embed_failure( &
-               'CPMDC_ORBITAL_SLOT_LIMIT: MPI collective failed'//c_null_char)
-          RETURN
-        END IF
-        IF (rbuf(1) /= 0) THEN
-          CALL cpmdc_note_embed_failure( &
-               'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer'//c_null_char)
-          RETURN
-        END IF
-        IF (rbuf(2) > 0 .AND. (-rbuf(3)) /= rbuf(2)) THEN
-          CALL cpmdc_note_embed_failure( &
-               'CPMDC_ORBITAL_SLOT_LIMIT differs across calculator ranks'//c_null_char)
-          RETURN
-        END IF
-        agreed_limit = rbuf(2)
-      ELSE IF (.NOT. local_valid) THEN
-        CALL cpmdc_note_embed_failure( &
-             'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer'//c_null_char)
-        RETURN
-      END IF
-    ELSE IF (.NOT. local_valid) THEN
-      CALL cpmdc_note_embed_failure( &
-           'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer'//c_null_char)
-      RETURN
-    END IF
-    CALL embed_set_orbital_slot_limit(agreed_limit)
-    IF (cpmdc_stop_code() /= 0_c_int) RETURN
-#else
-    IF (.NOT. local_valid) THEN
-      CALL cpmdc_note_embed_failure( &
-           'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer'//c_null_char)
-      RETURN
-    END IF
-    IF (agreed_limit < 0) RETURN
-#endif
-    ok = 1_c_int
-  END SUBROUTINE sync_orbital_slot_limit
-
   ! The stored c0 follows the key the caller names: the next SCF starts
   ! from the orbitals the last converged call under that key left. A key
   ! with none starts from the orbitals already stored. Every rank of the
@@ -609,33 +463,26 @@ CONTAINS
 #endif
   END SUBROUTINE
 
-  FUNCTION cpmdc_embed_prepare_orbital_slot(has_key, key) RESULT(ok) &
-      BIND(C, NAME='cpmdc_embed_prepare_orbital_slot')
+  ! Duplicate from_key's converged orbitals into to_key. 0 on success, -1
+  ! when from_key has no converged orbitals. Without OpenCPMD this link
+  ! stub returns -1, including a same key copy. The reference build's
+  ! session copy does not call it and returns 0.
+  FUNCTION cpmdc_embed_copy_orbitals(from_key, to_key) RESULT(rc) &
+      BIND(C, NAME='cpmdc_embed_copy_orbitals')
 #if defined(CPMDC_HAS_CPMD)
-    USE rwfopt_utils, ONLY: embed_select_orbital_slot
+    USE rwfopt_utils, ONLY: embed_copy_orbital_slot
 #endif
-    INTEGER(c_int), INTENT(IN), VALUE :: has_key
-    INTEGER(c_long_long), INTENT(IN), VALUE :: key
-    INTEGER(c_int) :: ok
+    INTEGER(c_long_long), INTENT(IN), VALUE :: from_key, to_key
+    INTEGER(c_int) :: rc
 #if defined(CPMDC_HAS_CPMD)
-    INTERFACE
-      FUNCTION cpmdc_stop_code() BIND(C, NAME='cpmdc_stop_code') RESULT(code)
-        IMPORT :: c_int
-        INTEGER(c_int) :: code
-      END FUNCTION cpmdc_stop_code
-    END INTERFACE
-#endif
-    CALL sync_orbital_slot_limit(ok)
-    IF (ok == 0_c_int) RETURN
-#if defined(CPMDC_HAS_CPMD)
-    IF (has_key /= 0_c_int) THEN
-      CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
-      IF (cpmdc_stop_code() /= 0_c_int) ok = 0_c_int
-    END IF
+    rc = MERGE(0_c_int, -1_c_int, embed_copy_orbital_slot( &
+         INT(from_key, KIND=SELECTED_INT_KIND(18)), &
+         INT(to_key, KIND=SELECTED_INT_KIND(18))))
 #else
-    IF (has_key == 0_c_int .AND. key == 0_c_long_long) CONTINUE
+    rc = -1_c_int
+    IF (from_key == to_key) rc = -1_c_int
 #endif
-  END FUNCTION cpmdc_embed_prepare_orbital_slot
+  END FUNCTION
 
   ! Keys with parked orbitals in this process, the selected key excluded.
   FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &
@@ -862,16 +709,20 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN) :: s
     INTEGER, INTENT(OUT) :: ierr
     CHARACTER(LEN=:), ALLOCATABLE :: grown
-    INTEGER :: m, need, stat
+    INTEGER :: m, need, cur_len, stat
     ierr = 1
     m = LEN(s)
     IF (n < 0 .OR. m < 0) RETURN
     IF (m > HUGE(need) - MAX(n, 0)) RETURN
     need = n + m
-    IF (.NOT. ALLOCATED(buf) .OR. need > LEN(buf)) THEN
+    cur_len = 0
+    IF (ALLOCATED(buf)) cur_len = LEN(buf)
+    IF (.NOT. ALLOCATED(buf) .OR. need > cur_len) THEN
       ALLOCATE(CHARACTER(LEN=need) :: grown, STAT=stat)
       IF (stat /= 0) RETURN
-      IF (n > 0 .AND. ALLOCATED(buf)) grown(1:n) = buf(1:n)
+      IF (ALLOCATED(buf)) THEN
+        IF (n > 0) grown(1:n) = buf(1:n)
+      END IF
       CALL MOVE_ALLOC(grown, buf)
     END IF
     IF (m > 0) buf(n + 1:n + m) = s(1:m)
@@ -915,7 +766,8 @@ CONTAINS
           END DO
           IF (end_at > 0) THEN
             i = end_at + 1
-            DO WHILE (i <= n .AND. (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ' '))
+            DO WHILE (i <= n)
+              IF (src(i:i) /= NEW_LINE('A') .AND. src(i:i) /= ' ') EXIT
               i = i + 1
             END DO
             CYCLE
@@ -982,7 +834,8 @@ CONTAINS
     dst = ' '
     n = LEN_TRIM(src)
     i = 1
-    DO WHILE (i <= n .AND. (src(i:i) == ' ' .OR. src(i:i) == ACHAR(9)))
+    DO WHILE (i <= n)
+      IF (src(i:i) /= ' ' .AND. src(i:i) /= ACHAR(9)) EXIT
       i = i + 1
     END DO
     k = n - i + 1
@@ -1012,12 +865,14 @@ CONTAINS
     INTEGER :: n, i, k
     tok = ' '
     n = LEN_TRIM(line)
-    DO WHILE (pos <= n .AND. (line(pos:pos) == ' ' .OR. line(pos:pos) == ACHAR(9)))
+    DO WHILE (pos <= n)
+      IF (line(pos:pos) /= ' ' .AND. line(pos:pos) /= ACHAR(9)) EXIT
       pos = pos + 1
     END DO
     IF (pos > n) RETURN
     i = pos
-    DO WHILE (i <= n .AND. line(i:i) /= ' ' .AND. line(i:i) /= ACHAR(9))
+    DO WHILE (i <= n)
+      IF (line(i:i) == ' ' .OR. line(i:i) == ACHAR(9)) EXIT
       i = i + 1
     END DO
     k = MIN(i - pos, LEN(tok))
@@ -1035,13 +890,18 @@ CONTAINS
     IF (pos < 1) pos = 1
     IF (pos > zend) RETURN
     i = pos
-    DO WHILE (i <= zend .AND. src(i:i) /= NEW_LINE('A') .AND. src(i:i) /= ACHAR(13))
+    DO WHILE (i <= zend)
+      IF (src(i:i) == NEW_LINE('A') .OR. src(i:i) == ACHAR(13)) EXIT
       i = i + 1
     END DO
     k = MIN(i - pos, LEN(line))
     IF (k > 0) line(1:k) = src(pos:pos + k - 1)
-    IF (i <= zend .AND. src(i:i) == ACHAR(13)) i = i + 1
-    IF (i <= zend .AND. src(i:i) == NEW_LINE('A')) i = i + 1
+    IF (i <= zend) THEN
+      IF (src(i:i) == ACHAR(13)) i = i + 1
+    END IF
+    IF (i <= zend) THEN
+      IF (src(i:i) == NEW_LINE('A')) i = i + 1
+    END IF
     pos = i
   END SUBROUTINE
 
@@ -1629,7 +1489,8 @@ CONTAINS
     IF (icpmd == 0) icpmd = INDEX(deck(1:nlen), '&cpmd')
     IF (icpmd <= 0) RETURN
     ins_at = icpmd
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1717,7 +1578,8 @@ CONTAINS
     ELSE
       ins_at = isys
     END IF
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1791,7 +1653,8 @@ CONTAINS
     IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
     IF (isys <= 0) RETURN
     ins_at = isys
-    DO WHILE (ins_at <= nlen .AND. deck(ins_at:ins_at) /= NEW_LINE('A'))
+    DO WHILE (ins_at <= nlen)
+      IF (deck(ins_at:ins_at) == NEW_LINE('A')) EXIT
       ins_at = ins_at + 1
     END DO
     IF (ins_at <= nlen) ins_at = ins_at + 1
@@ -1854,6 +1717,7 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: deck
     INTEGER, INTENT(OUT) :: nlen, ierr
+    LOGICAL :: use_box
     nlen = 0
     ierr = 1
     deck = ''
@@ -1878,7 +1742,9 @@ CONTAINS
       ! The caller's box is the cell. A deck CELL is replaced by it. An
       ! all-zero box is a system without a cell (eOn's non-periodic
       ! convention), so the deck's CELL, or the default, stays.
-      IF (has_cell /= 0 .AND. ANY(ABS(cell(1:9)) > 0.0_c_double)) THEN
+      use_box = .FALSE.
+      IF (has_cell /= 0) use_box = ANY(ABS(cell(1:9)) > 0.0_c_double)
+      IF (use_box) THEN
         CALL impose_box_cell(deck, nlen, cell, ierr)
       ELSE
         CALL inject_cell_if_missing(deck, nlen, cell, has_cell, ierr)
@@ -2509,7 +2375,8 @@ CONTAINS
 
   SUBROUTINE embed_eval_energy_grad(image, n_atoms, pos, z, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
-        cpmdc_note_embed_failure
+        cpmdc_note_embed_failure, cpmdc_note_scf_unconverged
+    USE norm, ONLY: scf_gemax => gemax
     USE wfopts_utils, ONLY: wfopts
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start_metric_v2
@@ -2520,7 +2387,7 @@ CONTAINS
     USE coor, ONLY: tau0, fion, taup
     USE ions, ONLY: ions0, ions1
     USE store_types, ONLY: cprint, iprint_force, restart1
-    USE system, ONLY: cnti, cntl, parm
+    USE system, ONLY: cnti, cntl, cntr, parm
     USE benc, ONLY: ibench
     USE strs, ONLY: paiu
     USE isos, ONLY: isos1
@@ -2540,6 +2407,8 @@ CONTAINS
     REAL(real64) :: omega
     LOGICAL :: stress_computed, was_diis, was_pcg, was_pcgmin, was_prec
     INTEGER :: inwfun_deck, ibench_deck, warm_source
+    INTEGER(c_int) :: scf_minimizer, scf_steps, first_minimizer, first_steps
+    REAL(c_double) :: scf_gemax_final
     REAL(real64) :: warm_dist, warm_cell(9)
     INTEGER(SELECTED_INT_KIND(18)) :: warm_donor
     INTERFACE
@@ -2639,6 +2508,11 @@ CONTAINS
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
     CALL note_scf_steps(iteropt%nfi)
+    first_minimizer = 0_c_int
+    first_steps = 0_c_int
+    scf_minimizer = scf_minimizer_code()
+    scf_steps = INT(iteropt%nfi, KIND=c_int)
+    scf_gemax_final = REAL(scf_gemax, KIND=c_double)
     ! ODIIS can exhaust MAXITER short of the orbital threshold. That pass
     ! does not replace the stored c0. Continue once with PCG MINIMIZE from
     ! the previous converged copy, which still counts as a warm start.
@@ -2662,6 +2536,11 @@ CONTAINS
       IF (ALLOCATED(taup)) DEALLOCATE(taup)
       CALL wfopts
       CALL note_scf_steps(iteropt%nfi)
+      first_minimizer = scf_minimizer
+      first_steps = scf_steps
+      scf_minimizer = scf_minimizer_code()
+      scf_steps = INT(iteropt%nfi, KIND=c_int)
+      scf_gemax_final = REAL(scf_gemax, KIND=c_double)
       cntl%diis = was_diis
       cntl%pcg = was_pcg
       cntl%pcgmin = was_pcgmin
@@ -2735,9 +2614,34 @@ CONTAINS
     CALL snapshot_prop_from_modules(image, n_atoms, grad)
     ! rwfopt computes the ionic forces only for converged orbitals: an SCF
     ! that ran out of MAXITER leaves fion zero, which a caller would read as
-    ! a stationary point. Report it as a failure instead.
+    ! a stationary point. Report it as a failure instead, with the last
+    ! pass's minimizer, step count, MAXITER and orbital gradient. A stopgm
+    ! has its own report.
     IF (ropt_mod%convwf .AND. ABS(energy_h) > 1.0e-8_c_double) ok = 1_c_int
+    IF (.NOT. ropt_mod%convwf) THEN
+      IF (cpmdc_stop_code() == 0_c_int) &
+          CALL cpmdc_note_scf_unconverged(scf_minimizer, scf_steps, &
+          INT(cnti%nomore_iter, KIND=c_int), scf_gemax_final, &
+          REAL(cntr%tolog, KIND=c_double), first_minimizer, first_steps)
+    END IF
   END SUBROUTINE
+
+  ! The minimizer the cntl flags select, in the codes of
+  ! src/cpmdc_scf_report.h.
+  INTEGER(c_int) FUNCTION scf_minimizer_code() RESULT(code)
+    USE system, ONLY: cntl
+    IF (cntl%diis) THEN
+      code = 1_c_int
+    ELSE IF (cntl%pcg .AND. cntl%pcgmin) THEN
+      code = 3_c_int
+    ELSE IF (cntl%pcg) THEN
+      code = 2_c_int
+    ELSE IF (cntl%tsde) THEN
+      code = 4_c_int
+    ELSE
+      code = 0_c_int
+    END IF
+  END FUNCTION
 
 
   ! CPMDC_SCF_STEPS=1 reports the iteration count of the SCF that just
@@ -3318,12 +3222,6 @@ CONTAINS
     END IF
     CALL init_fileopen
     CALL startpa
-    CALL sync_orbital_slot_limit(ok)
-    IF (ok == 0_c_int) THEN
-      ierr = cpmdc_restore_host_cwd()
-      RETURN
-    END IF
-    ok = 0_c_int
     CALL New(bicanonicalCpmdInputConfig)
     tinfo = .TRUE.
     CALL init_pinf_pointers()
