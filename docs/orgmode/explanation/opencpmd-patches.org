@@ -71,8 +71,10 @@ The calculator split does not need a patch:
 ~mp_start~ assigns ~mp_comm_world~ only when CPMD itself calls ~MPI_Init~, and
 ~cpmdc_bind_calculator()~ initialises MPI and stores its communicator before
 that.
-A module flag, ~embed_calculator_bound~, makes a second bind return the same
-index.
+A module flag, ~embed_calculator_bound~, stops a second bind from splitting
+again: it returns ~world_rank / ranks_per_calc~ for its own value, or -1 when
+that value does not divide the world size or is above it, and keeps the
+communicator it has.
 The timer patch changes ~tistopgm~.
 ~trace_depth~ stays ~HUGE(0)~ until ~tistart~, and without the guard the call-stack walk indexes ~trace_names~
 from that value, so a ~stopgm~ before ~tistart~ faults instead of writing

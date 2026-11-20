@@ -16,12 +16,15 @@ Each session keeps a counter of its own successful calls.
 | Call | Condition | What runs |
 |------+-----------+-----------|
 | cold | first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition | the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from ~RESTART~ when the deck has ~RESTART WAVEFUNCTION~ |
-| warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers | new positions into ~tau0~, ~phfac~, then the SCF from the stored ~c0~ |
-| in place | as warm, but a constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ whose new cell lies within the strain limit of the setup cell | the new cell on the setup's plane waves, then as warm |
+| warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers, and the geometry is within ~CPMDC_WARM_RMSD~ (default 0.15 Angstrom) of a stored geometry | new positions into ~tau0~, ~phfac~, then the SCF from the stored ~c0~ |
+| deck guess without full setup | the same basis and cell match as a warm call, but every stored geometry lies beyond ~CPMDC_WARM_RMSD~ | new positions into ~tau0~, ~phfac~, then the SCF from the deck's guess without re-running CPMD setup |
+| in place | as warm or deck guess without full setup, on a constant-cutoff deck under ~CPMDC_CELL_IN_PLACE~ whose new periodic cell lies within the strain limit of the setup cell (~has_cell~ and ~embed_saved_has_cell~ are both non-zero) | the new cell on the setup's plane waves, then as warm within ~CPMDC_WARM_RMSD~ or from the deck's guess beyond it |
 
 A cell counts as unchanged when every component of ~ForceInput.box~ matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
-all.
+all (a step without a cell matches only when the latched state also has no
+cell; ~CPMDC_CELL_IN_PLACE~ does not apply there because
+~embed_cell_moves_in_place~ returns false when ~has_cell~ is 0).
 A new session has no cell of its own yet, so that comparison uses the cell
 stored with the orbitals.
 The cutoff matches within 1e-8 Rydberg.
@@ -128,8 +131,9 @@ It is either the store, which holds the selected key's own copy or, when that
 key has none, the copy of the key last left, or another key's parked copy, which
 is copied so the donor keeps its own.
 When that distance exceeds ~CPMDC_WARM_RMSD~ (default 0.15 Angstrom), the SCF
-starts from the deck's guess instead, and the stored copy of that call is
-dropped.
+starts from the deck's guess without full CPMD setup instead, a third case that
+is neither a warm start from stored orbitals nor a cold start after full setup,
+and the stored copy of that call is dropped.
 A negative limit starts from the store at any distance.
 When the native ~tclust~ flag is false, the metric uses minimage's Euclidean
 closest lattice image in the native cell, including skew cells.

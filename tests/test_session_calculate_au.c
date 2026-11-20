@@ -6,6 +6,12 @@
  * steps, so both start from the same process state. Energies, forces, and
  * stresses are compared with memcmp; the virial against |det(cell)| times
  * the PotentialResult stress.
+ *
+ * A NULL cell and an all-zero cell are the same for the deck but different
+ * steps for the session. A repeat answered from the stored result needs no
+ * embed, so after cpmdc_finalize() only a repeat that matches the stored
+ * step still succeeds. With OpenCPMD linked, the stored orbitals follow the
+ * same rule, seen through the source of the last SCF start.
  */
 #define _GNU_SOURCE
 #include "cpmdc.h"
@@ -20,6 +26,8 @@
 #include <cmocka.h>
 
 #include "setup_child.h"
+
+int cpmdc_embed_last_warm_source(void);
 
 #include "schema/Potentials.capnp.h"
 #include <capn.h>
@@ -338,6 +346,130 @@ static void test_errors_return_minus_one(void **state) {
   assert_int_equal(o.changed_species, -1);
 }
 
+enum repeat_kind { REPEAT_NULL, REPEAT_ZERO };
+
+struct repeat_case {
+  const char *params_path;
+  enum repeat_kind stored;
+  enum repeat_kind asked;
+};
+
+struct repeat_out {
+  int first;
+  int again;
+  int again_same_bits;
+  int other;
+  char other_text[160];
+};
+
+static const double *repeat_cell(enum repeat_kind kind) {
+  return kind == REPEAT_ZERO ? k_zero_cell : NULL;
+}
+
+static void repeat_child(void *vctx, void *vout) {
+  const struct repeat_case *c = (const struct repeat_case *)vctx;
+  struct repeat_out *o = (struct repeat_out *)vout;
+  double energy = 0.0;
+  double forces[3 * N_ATOMS];
+  double energy_again = 0.0;
+  double forces_again[3 * N_ATOMS];
+  CPMDCSession *session = open_session(c->params_path);
+  if (!session)
+    return;
+  o->first = cpmdc_session_calculate_au(
+      session, N_ATOMS, k_steps[0], k_numbers, repeat_cell(c->stored), &energy,
+      forces, NULL);
+  cpmdc_finalize();
+  o->again = cpmdc_session_calculate_au(
+      session, N_ATOMS, k_steps[0], k_numbers, repeat_cell(c->stored),
+      &energy_again, forces_again, NULL);
+  o->again_same_bits = memcmp(&energy, &energy_again, sizeof(energy)) == 0 &&
+                       memcmp(forces, forces_again, sizeof(forces)) == 0;
+  o->other = cpmdc_session_calculate_au(
+      session, N_ATOMS, k_steps[0], k_numbers, repeat_cell(c->asked),
+      &energy_again, forces_again, NULL);
+  snprintf(o->other_text, sizeof(o->other_text), "%s", cpmdc_last_error());
+  cpmdc_session_destroy(session);
+}
+
+static void expect_repeat(enum repeat_kind stored, enum repeat_kind asked) {
+  static struct repeat_out o;
+  struct repeat_case c = {g_cluster, stored, asked};
+  RUN_SETUP_CHILD(repeat_child, &c, &o);
+  assert_int_equal(o.first, 0);
+  assert_int_equal(o.again, 0);
+  assert_true(o.again_same_bits);
+  if (stored == asked) {
+    assert_int_equal(o.other, 0);
+  } else {
+    assert_int_equal(o.other, -1);
+    assert_non_null(strstr(o.other_text, "CPMD embed not available"));
+  }
+}
+
+static void test_repeat_matches_the_same_kind_of_cell(void **state) {
+  (void)state;
+  expect_repeat(REPEAT_NULL, REPEAT_NULL);
+  expect_repeat(REPEAT_ZERO, REPEAT_ZERO);
+}
+
+static void test_null_and_zero_cells_are_different_steps(void **state) {
+  (void)state;
+  expect_repeat(REPEAT_NULL, REPEAT_ZERO);
+  expect_repeat(REPEAT_ZERO, REPEAT_NULL);
+}
+
+struct warm_out {
+  int ran;
+  int available;
+  int first_ok;
+  int second_ok;
+  int source;
+};
+
+static void warm_child(void *vctx, void *vout) {
+  const struct repeat_case *c = (const struct repeat_case *)vctx;
+  struct warm_out *o = (struct warm_out *)vout;
+  double energy = 0.0;
+  double forces[3 * N_ATOMS];
+  CPMDCSession *session = open_session(c->params_path);
+  o->available = cpmdc_available();
+  if (!session)
+    return;
+  o->first_ok = cpmdc_session_calculate_au(
+                    session, N_ATOMS, k_steps[0], k_numbers,
+                    repeat_cell(c->stored), &energy, forces, NULL) == 0;
+  o->second_ok = cpmdc_session_calculate_au(
+                     session, N_ATOMS, k_steps[1], k_numbers,
+                     repeat_cell(c->asked), &energy, forces, NULL) == 0;
+  o->source = cpmdc_embed_last_warm_source();
+  o->ran = 1;
+  cpmdc_session_destroy(session);
+}
+
+/* The second step moves the atoms well inside CPMDC_WARM_RMSD. Source 0 is
+ * a start from the stored orbitals. -2 is a call that set CPMD up again,
+ * which finds nothing stored. */
+static void expect_warm_source(enum repeat_kind first, enum repeat_kind second,
+                               int source) {
+  static struct warm_out o;
+  struct repeat_case c = {g_cluster, first, second};
+  RUN_SETUP_CHILD(warm_child, &c, &o);
+  assert_int_equal(o.ran, 1);
+  assert_true(o.first_ok);
+  assert_true(o.second_ok);
+  if (o.available)
+    assert_int_equal(o.source, source);
+}
+
+static void test_stored_orbitals_follow_the_cell_kind(void **state) {
+  (void)state;
+  expect_warm_source(REPEAT_NULL, REPEAT_NULL, 0);
+  expect_warm_source(REPEAT_ZERO, REPEAT_ZERO, 0);
+  expect_warm_source(REPEAT_NULL, REPEAT_ZERO, -2);
+  expect_warm_source(REPEAT_ZERO, REPEAT_NULL, -2);
+}
+
 int main(int argc, char **argv) {
   if (argc != 3) {
     fprintf(stderr, "usage: %s CLUSTER_PARAMS PERIODIC_PARAMS\n", argv[0]);
@@ -350,6 +482,9 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_zero_cell_matches_capnp),
       cmocka_unit_test(test_periodic_matches_capnp),
       cmocka_unit_test(test_errors_return_minus_one),
+      cmocka_unit_test(test_repeat_matches_the_same_kind_of_cell),
+      cmocka_unit_test(test_null_and_zero_cells_are_different_steps),
+      cmocka_unit_test(test_stored_orbitals_follow_the_cell_kind),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
