@@ -1020,6 +1020,35 @@ static void test_merge_raw_cpmd_and_session_configure(void **state) {
   }
 }
 
+static void set_xc(struct capn *arena, struct CommonMethodSpec *com,
+                   const char *name) {
+  capn_ptr root = capn_root(arena);
+  capn_ptr xc = capn_new_ptr_list(root.seg, 1);
+  capn_set_text(xc, 0, capn_str(name));
+  com->xcFunctionals = xc;
+}
+
+/* An unmapped token is rejected before arm-wins, including when the arm
+ * functional is already not the schema default. */
+static void test_merge_rejects_unmapped_xc_when_arm_wins(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  arm.functional = capn_str("LDA");
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  set_xc(&arena, &com, "BOGUS");
+  size_t sz = 0;
+  unsigned char *buf =
+      serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                       &sz);
+  capn_free(&arena);
+  expect_config_rejected(buf, sz, "xcFunctionals");
+  free(buf);
+}
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr,
@@ -1039,6 +1068,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_overlay_kmesh_reaches_deck),
       cmocka_unit_test(test_failed_set_params_keeps_overlay),
       cmocka_unit_test(test_merge_xc_functionals),
+      cmocka_unit_test(test_merge_rejects_unmapped_xc_when_arm_wins),
       cmocka_unit_test(test_merge_basis_set),
       cmocka_unit_test(test_merge_cutoff_charge_multiplicity),
       cmocka_unit_test(test_merge_rejects_kmesh_scf_vdw_method_relativity),

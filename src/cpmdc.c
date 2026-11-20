@@ -1137,8 +1137,10 @@ static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
  * params; overlay scalars fill fields the arm carries at schema defaults
  * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1), apply Fermi
  * smearing when &CPMD has none, copy vanDerWaalsS6 into vdwParams when s6 is
- * unset, and require basisSet to be unset or "planewave". Conflicting or
- * unmergeable overlay fields are rejected through cpmdc_last_error(). */
+ * unset, and require basisSet to be unset or "planewave". An unmapped
+ * xcFunctionals token is rejected before that precedence, for every arm
+ * functional. Conflicting or unmergeable overlay fields are rejected through
+ * cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
@@ -1192,13 +1194,15 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
     cpmdc_store_error("common overlay: invalid xcFunctionals list");
     return -1;
   }
-  if (xc_len > 0 && strcmp(base_functional, "BLYP") == 0) {
+  if (xc_len > 0) {
     if (cpmd_common_xc_token(c.xcFunctionals, ov_functional, ov_len) != 0) {
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
       return -1;
     }
-    ov->functional = ov_functional;
-    *has_ov = 1;
+    if (strcmp(base_functional, "BLYP") == 0) {
+      ov->functional = ov_functional;
+      *has_ov = 1;
+    }
   }
   if (c.planewaveCutoffEv > 0.0 && base_cutoff == 70.0) {
     ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
