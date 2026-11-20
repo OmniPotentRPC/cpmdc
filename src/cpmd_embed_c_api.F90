@@ -83,6 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_apply_orbital_slot_limit
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
@@ -483,6 +484,20 @@ CONTAINS
     IF (from_key == to_key) rc = -1_c_int
 #endif
   END FUNCTION
+
+  ! Install the agreed parked-slot limit. 0 keeps every parked key.
+  SUBROUTINE cpmdc_embed_apply_orbital_slot_limit(limit) &
+      BIND(C, NAME='cpmdc_embed_apply_orbital_slot_limit')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
+#endif
+    INTEGER(c_int), INTENT(IN), VALUE :: limit
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_set_orbital_slot_limit(INT(limit))
+#else
+    IF (limit < 0_c_int) RETURN
+#endif
+  END SUBROUTINE
 
   ! Keys with parked orbitals in this process, the selected key excluded.
   FUNCTION cpmdc_embed_orbital_slots() RESULT(n) &
