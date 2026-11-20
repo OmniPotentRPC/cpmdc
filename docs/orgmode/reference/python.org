@@ -103,12 +103,12 @@ covers ~cpmdc.lammps~.
 | missing ~params~ file | ~FileNotFoundError~ |
 | empty or non-3D positions, mismatched ~atomic_numbers~ or ~numbers~ length, a cell or box that is not 3x3 or 9 numbers, a ~stress_h_bohr3~ without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite ~ConstantCutoff~ field, a whole-number argument that is a fraction such as ~14.9~, an orbital key outside the signed 64-bit range | ~ValueError~ |
 | an atomic number, orbital key, ~ConstantCutoff~ field, or ~charge~ that is a string, ~None~, or ~bool~; a coordinate or cell value that is not a real number | ~TypeError~ |
-| ~atoms.pbc~ mixes periodic and open axes, or is periodic without three independent cell vectors | ~ValueError~ |
+| ~atoms.pbc~ mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff | ~ValueError~ |
 | a ~CPMDCCalculator~ step without atoms | ~ValueError~ |
 | stress on free boundaries or an isolated deck; a property outside ~implemented_properties~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | a keyword to ~CPMDCCalculator~ or ~CPMDCCalculator.set~ other than ~params~, ~library~, ~constant_cutoff~, and ASE's own, such as ~charge~ or ~multiplicity~; no ~params~, or ~params=None~ | ~TypeError~ |
 | ~schema=~ on any class, ~restart=~ on ~CPMDCCalculator~ | ~DeprecationWarning~ |
-| a changed atom count, a batched ~INIT~, a message out of order, a connection closed mid-message, or a flat cell on the socket | ~cpmdc.ipi.ProtocolError~ |
+| a changed atom count, an ~INIT~ whose ~batch_size~ is not the integer 1, a message out of order, a connection closed mid-message, or a cell of rank below 3 on the socket | ~cpmdc.ipi.ProtocolError~ |
 | ~Session.calculate_au~ with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size, or non-writable or non-contiguous ~forces~ or ~virial~ buffers | ~CPMDCError~; ~ValueError~ for the sizes, buffers, non-finite values, and atomic numbers outside 1..118; ~TypeError~ for non-numeric coordinates or non-integer atomic numbers |
 | ~FixExternal~ on a unit style other than ~metal~, ~real~, ~electron~, on a box with mixed periodicity, or with the wrong number of elements | ~ValueError~ |
 | ~FixExternal~ with unreadable ~params~, on several ranks without ~mpi4py~, or a failed step in ~FixExternal.run~ | ~CPMDCError~ |
