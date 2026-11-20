@@ -38,7 +38,7 @@ def lammps_problem() -> str:
     except Exception as exc:  # ImportError, or a missing MPI library
         return f"the lammps Python module is not importable: {exc}"
     try:
-        lmp = lammps.lammps(cmdargs=CMDARGS)
+        lmp = lammps.lammps(cmdargs=list(CMDARGS))
     except Exception as exc:
         return f"the lammps Python module cannot start LAMMPS: {exc}"
     lmp.close()
