@@ -22,6 +22,11 @@ typedef struct CPMDCScalarOverrides {
   int charge;
   int has_multiplicity;
   int multiplicity;
+  /* Fermi smearing from common overlay: FREE-ENERGY + TEMPERATURE ELECTRON. */
+  int free_energy;
+  double temperature_electron; /* Kelvin; <= 0 => omit. */
+  /* Dispersion scaling s6 from common overlay into vdwParams. */
+  double vdw_s6; /* <= 0 => keep params value. */
   /* CONSTANT CUTOFF E0, A, and sigma in Ry. constant_cutoff_ry <= 0 => none;
    * a height or width <= 0 => 50 times the basis cutoff, or E0 / 10. */
   double constant_cutoff_ry;

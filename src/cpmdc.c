@@ -83,6 +83,9 @@ static int g_has_overrides = 0;
 static int cpmdc_set_params_ov(const void *params_capnp,
                                size_t params_capnp_size_bytes,
                                const CPMDCScalarOverrides *overrides);
+static CPMDCSession *cpmdc_session_create_ov(
+    const void *params_capnp, size_t params_capnp_size_bytes,
+    const CPMDCScalarOverrides *overrides);
 static int cpmdc_session_set_params_ov(CPMDCSession *session,
                                        const void *params_capnp,
                                        size_t params_capnp_size_bytes,
@@ -548,10 +551,85 @@ static int cpmd_common_xc_token(capn_ptr list, char *out, size_t out_size) {
 
 #define CPMDC_RYDBERG_EV 13.605693122994
 #define CPMDC_HARTREE_EV 27.211386245988
+#define CPMDC_BOLTZMANN_EV_K 8.617333262e-5
+
+static int cpmd_common_validate_basis_set(capn_text basis_set) {
+  if (basis_set.len <= 0)
+    return 0;
+  if (!cpmd_text_equals_ci(basis_set, "planewave")) {
+    cpmdc_store_error(
+        "common overlay: CPMD is plane-wave only; basisSet must be "
+        "\"planewave\" or unset");
+    return -1;
+  }
+  return 0;
+}
+
+static int cpmd_common_validate_smearing(struct CommonMethodSpec *c,
+                                         double *temperature_k) {
+  *temperature_k = 0.0;
+  capn_resolve(&c->smearing.p);
+  if (c->smearing.p.type == CAPN_NULL)
+    return 0;
+  if (c->smearing.p.type != CAPN_STRUCT) {
+    cpmdc_store_error("common overlay: invalid smearing");
+    return -1;
+  }
+  struct CommonMethodSpec_Smearing smear;
+  memset(&smear, 0, sizeof(smear));
+  read_CommonMethodSpec_Smearing(&smear, c->smearing);
+  if (smear.kind == CommonMethodSpec_Smearing_Kind_fermi) {
+    /* CPMD free-energy functional with electron temperature; kT = width. */
+    if (!isfinite(smear.widthEv) || smear.widthEv <= 0.0) {
+      cpmdc_store_error("common overlay: fermi smearing needs widthEv > 0");
+      return -1;
+    }
+    *temperature_k = smear.widthEv / CPMDC_BOLTZMANN_EV_K;
+    return 0;
+  }
+  if (smear.kind == CommonMethodSpec_Smearing_Kind_none) {
+    if (!isfinite(smear.widthEv) || smear.widthEv != 0.0) {
+      cpmdc_store_error("common overlay: smearing widthEv requires kind = fermi");
+      return -1;
+    }
+    return 0;
+  }
+  cpmdc_store_error(
+      "common overlay: only fermi smearing has a CPMD lowering "
+      "(free-energy functional)");
+  return -1;
+}
+
+static int cpmd_common_validate_scalar_ranges(const struct CommonMethodSpec *c) {
+  if (!isfinite(c->planewaveCutoffEv) || c->planewaveCutoffEv < 0.0) {
+    cpmdc_store_error(
+        "common overlay: planewaveCutoffEv must be finite and >= 0");
+    return -1;
+  }
+  if (c->spinMultiplicity < 0) {
+    cpmdc_store_error("common overlay: spinMultiplicity must be >= 0");
+    return -1;
+  }
+  if (!isfinite(c->scfEnergyToleranceEv) || c->scfEnergyToleranceEv < 0.0) {
+    cpmdc_store_error(
+        "common overlay: scfEnergyToleranceEv must be finite and >= 0");
+    return -1;
+  }
+  if (c->scfMaxIterations < 0) {
+    cpmdc_store_error("common overlay: scfMaxIterations must be >= 0");
+    return -1;
+  }
+  if (!isfinite(c->vanDerWaalsS6) || c->vanDerWaalsS6 < 0.0) {
+    cpmdc_store_error("common overlay: vanDerWaalsS6 must be finite and >= 0");
+    return -1;
+  }
+  return 0;
+}
 
 /* Lower the normalized overlay into a synthesized CPMDParams message.
- * Slice: functional, plane-wave cutoff, charge, multiplicity; every other
- * set field is rejected loudly. Returns malloc'd flat bytes. */
+ * Slice: functional, basis set, plane-wave cutoff, charge, multiplicity,
+ * SCF tolerance/iterations, kMesh, fermi smearing, vdW method and s6; every
+ * other set field is rejected loudly. Returns malloc'd flat bytes. */
 static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
                                  unsigned char **out, size_t *out_size) {
   *out = NULL;
@@ -559,6 +637,9 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
   struct CommonMethodSpec c;
   memset(&c, 0, sizeof(c));
   read_CommonMethodSpec(&c, common_root);
+
+  if (cpmd_common_validate_scalar_ranges(&c) != 0)
+    return -1;
 
   const char *grimme_token = NULL;
   if (c.vanDerWaalsMethod.len > 0) {
@@ -575,48 +656,29 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
       return -1;
     }
   }
+  if (c.vanDerWaalsS6 > 0.0 && !grimme_token) {
+    cpmdc_store_error(
+        "common overlay: vanDerWaalsS6 requires vanDerWaalsMethod");
+    return -1;
+  }
   if (c.relativityMethod.len > 0) {
     cpmdc_store_error(
         "common overlay: relativityMethod has no CPMD lowering yet");
     return -1;
   }
   double smear_temperature_k = 0.0;
-  capn_resolve(&c.smearing.p);
-  if (c.smearing.p.type == CAPN_STRUCT) {
-    struct CommonMethodSpec_Smearing smear;
-    read_CommonMethodSpec_Smearing(&smear, c.smearing);
-    if (smear.kind == CommonMethodSpec_Smearing_Kind_fermi) {
-      /* CPMD free-energy functional with electron temperature; kT = width. */
-      if (smear.widthEv <= 0.0) {
-        cpmdc_store_error("common overlay: fermi smearing needs widthEv > 0");
-        return -1;
-      }
-      smear_temperature_k = smear.widthEv / 8.617333262e-5;
-    } else if (smear.kind != CommonMethodSpec_Smearing_Kind_none) {
-      cpmdc_store_error(
-          "common overlay: only fermi smearing has a CPMD lowering "
-          "(free-energy functional)");
-      return -1;
-    }
-  }
-  if (c.basisSet.len > 0) {
-    const char *pw = "planewave";
-    int is_pw = c.basisSet.len == (int)strlen(pw);
-    for (int i = 0; is_pw && i < c.basisSet.len; ++i) {
-      char ch = c.basisSet.str[i];
-      if ((char)((ch >= 'A' && ch <= 'Z') ? ch + ('a' - 'A') : ch) != pw[i])
-        is_pw = 0;
-    }
-    if (!is_pw) {
-      cpmdc_store_error(
-          "common overlay: CPMD is plane-wave only; basisSet must be "
-          "\"planewave\" or unset");
-      return -1;
-    }
-  }
+  if (cpmd_common_validate_smearing(&c, &smear_temperature_k) != 0)
+    return -1;
+  if (cpmd_common_validate_basis_set(c.basisSet) != 0)
+    return -1;
 
   char functional[64] = "";
-  if (common_text_list_len(c.xcFunctionals) > 0) {
+  int xc_len = common_text_list_len(c.xcFunctionals);
+  if (xc_len < 0) {
+    cpmdc_store_error("common overlay: invalid xcFunctionals list");
+    return -1;
+  }
+  if (xc_len > 0) {
     if (cpmd_common_xc_token(c.xcFunctionals, functional,
                              sizeof(functional)) != 0) {
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
@@ -807,11 +869,276 @@ static int cpmd_write_ptr_flat(capn_ptr struct_ptr, unsigned char **out,
   return 0;
 }
 
+static int cpmd_raw_has_section(capn_text block, const char *name) {
+  if (!block.str || block.len <= 0)
+    return 0;
+  size_t nlen = strlen(name);
+  size_t n = (size_t)block.len;
+  size_t i = 0;
+  while (i < n) {
+    size_t line = i;
+    while (line < n && (block.str[line] == ' ' || block.str[line] == '\t'))
+      line++;
+    if (line + 1 + nlen <= n && block.str[line] == '&') {
+      int match = 1;
+      for (size_t j = 0; j < nlen; ++j) {
+        char a = block.str[line + 1 + j];
+        if (a >= 'a' && a <= 'z')
+          a = (char)(a - ('a' - 'A'));
+        if (a != name[j]) {
+          match = 0;
+          break;
+        }
+      }
+      if (match && line + 1 + nlen < n) {
+        char next = block.str[line + 1 + nlen];
+        if ((next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z'))
+          match = 0;
+      }
+      if (match)
+        return 1;
+    }
+    while (i < n && block.str[i] != '\n')
+      i++;
+    if (i < n)
+      i++;
+  }
+  return 0;
+}
+
+static int cpmd_text_has_keyword_ci(const char *s, size_t len, const char *kw) {
+  size_t klen = strlen(kw);
+  while (len > 0 && (*s == ' ' || *s == '\t')) {
+    s++;
+    len--;
+  }
+  if (len < klen)
+    return 0;
+  for (size_t i = 0; i < klen; ++i) {
+    char a = s[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (a != kw[i])
+      return 0;
+  }
+  if (len > klen) {
+    char next = s[klen];
+    if (next != ' ' && next != '\t' && next != '\r' && next != '\n' &&
+        next != '=')
+      return 0;
+  }
+  return 1;
+}
+
+static int cpmd_directives_have_kw(CPMDDirective_list directives,
+                                   const char *kw) {
+  capn_resolve(&directives.p);
+  if (directives.p.type == CAPN_NULL)
+    return 0;
+  if (directives.p.type != CAPN_LIST)
+    return -1;
+  for (int i = 0; i < directives.p.len; ++i) {
+    struct CPMDDirective d;
+    get_CPMDDirective(&d, directives, i);
+    if (d.keyword.str && d.keyword.len > 0 &&
+        cpmd_text_has_keyword_ci(d.keyword.str, (size_t)d.keyword.len, kw))
+      return 1;
+  }
+  return 0;
+}
+
+static int cpmd_set_matches_kw(capn_text key, const char *section,
+                               const char *kw) {
+  if (!key.str || key.len <= 2)
+    return 0;
+  const char *dot =
+      (const char *)memchr(key.str, '.', (size_t)key.len);
+  if (!dot || dot == key.str || dot == key.str + (size_t)key.len - 1)
+    return 0;
+  size_t sec_len = (size_t)(dot - key.str);
+  if (sec_len != strlen(section))
+    return 0;
+  for (size_t i = 0; i < sec_len; ++i) {
+    char a = key.str[i];
+    if (a >= 'a' && a <= 'z')
+      a = (char)(a - ('a' - 'A'));
+    if (a != section[i])
+      return 0;
+  }
+  const char *k = dot + 1;
+  size_t klen = (size_t)key.len - sec_len - 1u;
+  return cpmd_text_has_keyword_ci(k, klen, kw);
+}
+
+static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
+  int nblocks = common_text_list_len(arm_view->inputBlocks);
+  if (nblocks < 0) {
+    cpmdc_store_error("common overlay: invalid inputBlocks list");
+    return -1;
+  }
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(arm_view->inputBlocks, i, k_empty_text);
+    if (cpmd_raw_has_section(block, "CPMD")) {
+      cpmdc_store_error(
+          "common overlay: smearing cannot merge into a raw &CPMD block on "
+          "the cpmd arm");
+      return -1;
+    }
+  }
+  capn_resolve(&arm_view->inputSections.p);
+  if (arm_view->inputSections.p.type == CAPN_NULL)
+    return 0;
+  if (arm_view->inputSections.p.type != CAPN_LIST) {
+    cpmdc_store_error("common overlay: invalid inputSections list");
+    return -1;
+  }
+  for (int i = 0; i < arm_view->inputSections.p.len; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, arm_view->inputSections, i);
+    if (sec.which == CPMDInputSection_raw &&
+        cpmd_raw_has_section(sec.raw, "CPMD")) {
+      cpmdc_store_error(
+          "common overlay: smearing cannot merge into a raw &CPMD block on "
+          "the cpmd arm");
+      return -1;
+    }
+    if (sec.which == CPMDInputSection_generic) {
+      struct CPMDGenericSection gen;
+      read_CPMDGenericSection(&gen, sec.generic);
+      if (cpmd_text_equals_ci(gen.name, "CPMD")) {
+        cpmdc_store_error(
+            "common overlay: smearing cannot merge into a generic &CPMD "
+            "section on the cpmd arm");
+        return -1;
+      }
+    }
+    if (sec.which == CPMDInputSection_set) {
+      struct CPMDSetDirective set_dir;
+      read_CPMDSetDirective(&set_dir, sec.set);
+      if (cpmd_set_matches_kw(set_dir.key, "CPMD", "FREE-ENERGY") ||
+          cpmd_set_matches_kw(set_dir.key, "CPMD", "TEMPERATURE ELECTRON")) {
+        cpmdc_store_error(
+            "common overlay: smearing conflicts with &CPMD free-energy or "
+            "electron-temperature settings already on the cpmd arm");
+        return -1;
+      }
+    }
+    if (sec.which == CPMDInputSection_cpmd) {
+      struct CPMDCpmdSection cpmd_sec;
+      read_CPMDCpmdSection(&cpmd_sec, sec.cpmd);
+      int has_fe = cpmd_directives_have_kw(cpmd_sec.directives, "FREE-ENERGY");
+      int has_te =
+          cpmd_directives_have_kw(cpmd_sec.directives, "TEMPERATURE ELECTRON");
+      if (has_fe < 0 || has_te < 0) {
+        cpmdc_store_error("common overlay: invalid cpmd directives list");
+        return -1;
+      }
+      if (cpmd_sec.freeEnergy || cpmd_sec.temperatureElectron != 0.0 ||
+          has_fe > 0 || has_te > 0) {
+        cpmdc_store_error(
+            "common overlay: smearing conflicts with &CPMD free-energy or "
+            "electron-temperature settings already on the cpmd arm");
+        return -1;
+      }
+    }
+  }
+  return 0;
+}
+
+static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
+  int nblocks = common_text_list_len(arm_view->inputBlocks);
+  if (nblocks < 0) {
+    cpmdc_store_error("common overlay: invalid inputBlocks list");
+    return -1;
+  }
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(arm_view->inputBlocks, i, k_empty_text);
+    if (cpmd_raw_has_section(block, "VDW")) {
+      cpmdc_store_error(
+          "common overlay: vanDerWaalsS6 cannot merge into a raw &VDW block "
+          "on the cpmd arm; use vdwParams without s6 or set s6 on the arm");
+      return -1;
+    }
+  }
+  int has_vdw_params = 0;
+  capn_resolve(&arm_view->inputSections.p);
+  if (arm_view->inputSections.p.type != CAPN_NULL) {
+    if (arm_view->inputSections.p.type != CAPN_LIST) {
+      cpmdc_store_error("common overlay: invalid inputSections list");
+      return -1;
+    }
+    for (int i = 0; i < arm_view->inputSections.p.len; ++i) {
+      struct CPMDInputSection sec;
+      get_CPMDInputSection(&sec, arm_view->inputSections, i);
+      if (sec.which == CPMDInputSection_raw &&
+          cpmd_raw_has_section(sec.raw, "VDW")) {
+        cpmdc_store_error(
+            "common overlay: vanDerWaalsS6 cannot merge into a raw &VDW block "
+            "on the cpmd arm; use vdwParams without s6 or set s6 on the arm");
+        return -1;
+      }
+      if (sec.which == CPMDInputSection_vdw) {
+        cpmdc_store_error(
+            "common overlay: vanDerWaalsS6 cannot merge into a directive "
+            "&VDW section on the cpmd arm; use vdwParams without s6 or set s6 "
+            "on the arm");
+        return -1;
+      }
+      if (sec.which == CPMDInputSection_generic) {
+        struct CPMDGenericSection gen;
+        read_CPMDGenericSection(&gen, sec.generic);
+        if (cpmd_text_equals_ci(gen.name, "VDW")) {
+          cpmdc_store_error(
+              "common overlay: vanDerWaalsS6 cannot merge into a generic &VDW "
+              "section on the cpmd arm; use vdwParams without s6 or set s6 on "
+              "the arm");
+          return -1;
+        }
+      }
+      if (sec.which == CPMDInputSection_set) {
+        struct CPMDSetDirective set_dir;
+        read_CPMDSetDirective(&set_dir, sec.set);
+        if (cpmd_set_matches_kw(set_dir.key, "VDW", "S6")) {
+          cpmdc_store_error(
+              "common overlay: vanDerWaalsS6 conflicts with VDW.S6 already "
+              "set on the cpmd arm");
+          return -1;
+        }
+      }
+      if (sec.which == CPMDInputSection_vdwParams) {
+        struct CPMDVdwSection vdw_sec;
+        read_CPMDVdwSection(&vdw_sec, sec.vdwParams);
+        int has_s6 = cpmd_directives_have_kw(vdw_sec.directives, "S6");
+        if (has_s6 < 0) {
+          cpmdc_store_error(
+              "common overlay: invalid vdwParams directives list");
+          return -1;
+        }
+        if (vdw_sec.s6 != 0.0 || has_s6 > 0) {
+          cpmdc_store_error(
+              "common overlay: vanDerWaalsS6 conflicts with s6 already set on "
+              "the cpmd arm");
+          return -1;
+        }
+        has_vdw_params = 1;
+      }
+    }
+  }
+  if (!has_vdw_params) {
+    cpmdc_store_error(
+        "common overlay: vanDerWaalsS6 requires a vdwParams section on the "
+        "cpmd arm (or set s6 on the arm)");
+    return -1;
+  }
+  return 0;
+}
+
 /* Merge a set common overlay over a native cpmd arm: the arm's bytes are the
  * params; overlay scalars fill fields the arm carries at schema defaults
- * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). Overlay fields
- * that would require synthesizing sections next to an arm are not yet
- * mergeable. */
+ * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1), apply Fermi
+ * smearing when &CPMD has none, copy vanDerWaalsS6 into vdwParams when s6 is
+ * unset, and require basisSet to be unset or "planewave". Conflicting or
+ * unmergeable overlay fields are rejected through cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
@@ -822,8 +1149,10 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
   memset(&c, 0, sizeof(c));
   read_CommonMethodSpec(&c, common_root);
 
-  if (common_list32_len(&c.kMesh) != 0 || c.scfMaxIterations > 0 ||
-      c.scfEnergyToleranceEv > 0.0) {
+  if (cpmd_common_validate_scalar_ranges(&c) != 0)
+    return -1;
+  if (common_list32_len(&c.kMesh) != 0 || c.scfMaxIterations != 0 ||
+      c.scfEnergyToleranceEv != 0.0) {
     cpmdc_store_error(
         "common overlay: kMesh/SCF controls next to a native cpmd arm are "
         "not yet mergeable; set them on the arm's system/cpmd sections");
@@ -834,6 +1163,12 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
         "common overlay: vanDerWaals/relativity have no CPMD lowering yet");
     return -1;
   }
+  if (cpmd_common_validate_basis_set(c.basisSet) != 0)
+    return -1;
+
+  double smear_temperature_k = 0.0;
+  if (cpmd_common_validate_smearing(&c, &smear_temperature_k) != 0)
+    return -1;
 
   char base_functional[64];
   double base_cutoff = 70.0;
@@ -846,10 +1181,18 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
     return -1;
   }
 
+  struct CPMDParams arm_view;
+  memset(&arm_view, 0, sizeof(arm_view));
+  read_CPMDParams(&arm_view, arm);
+
   memset(ov, 0, sizeof(*ov));
   *has_ov = 0;
-  if (common_text_list_len(c.xcFunctionals) > 0 &&
-      strcmp(base_functional, "BLYP") == 0) {
+  int xc_len = common_text_list_len(c.xcFunctionals);
+  if (xc_len < 0) {
+    cpmdc_store_error("common overlay: invalid xcFunctionals list");
+    return -1;
+  }
+  if (xc_len > 0 && strcmp(base_functional, "BLYP") == 0) {
     if (cpmd_common_xc_token(c.xcFunctionals, ov_functional, ov_len) != 0) {
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
       return -1;
@@ -869,6 +1212,19 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
   if (c.spinMultiplicity > 1 && base_mult == 1) {
     ov->has_multiplicity = 1;
     ov->multiplicity = c.spinMultiplicity;
+    *has_ov = 1;
+  }
+  if (smear_temperature_k > 0.0) {
+    if (cpmd_arm_check_smearing(&arm_view) != 0)
+      return -1;
+    ov->free_energy = 1;
+    ov->temperature_electron = smear_temperature_k;
+    *has_ov = 1;
+  }
+  if (c.vanDerWaalsS6 > 0.0) {
+    if (cpmd_arm_check_vdw_s6(&arm_view) != 0)
+      return -1;
+    ov->vdw_s6 = c.vanDerWaalsS6;
     *has_ov = 1;
   }
   return cpmd_write_ptr_flat(arm.p, out, out_size);
@@ -977,14 +1333,8 @@ CPMDCSession *cpmdc_session_create_from_config(
     cpmdc_store_error("PotentialConfig carries no CPMD-applicable settings");
     return NULL;
   }
-  CPMDCSession *session = cpmdc_session_create(params, params_size);
-  if (session && has_ov) {
-    /* Re-install with the overlay overrides so scalars and decks merge. */
-    if (cpmdc_session_set_params_ov(session, params, params_size, &ov) != 0) {
-      cpmdc_session_destroy(session);
-      session = NULL;
-    }
-  }
+  CPMDCSession *session =
+      cpmdc_session_create_ov(params, params_size, has_ov ? &ov : NULL);
   free(params);
   return session;
 }
@@ -1553,8 +1903,9 @@ session_render_overrides(const CPMDCSession *session,
       session, session->has_overrides ? &session->overrides : NULL, scratch);
 }
 
-CPMDCSession *cpmdc_session_create(const void *params_capnp,
-                                   size_t params_capnp_size_bytes) {
+static CPMDCSession *cpmdc_session_create_ov(
+    const void *params_capnp, size_t params_capnp_size_bytes,
+    const CPMDCScalarOverrides *overrides) {
   if (!params_capnp || params_capnp_size_bytes == 0) {
     cpmdc_store_error("CPMDParams buffer is empty");
     return NULL;
@@ -1572,6 +1923,16 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   }
   memcpy(session->params_bytes, params_capnp, params_capnp_size_bytes);
   session->params_size = params_capnp_size_bytes;
+  if (overrides) {
+    session->overrides = *overrides;
+    if (overrides->functional) {
+      snprintf(session->overrides_functional,
+               sizeof(session->overrides_functional), "%s",
+               overrides->functional);
+      session->overrides.functional = session->overrides_functional;
+    }
+    session->has_overrides = 1;
+  }
   if (apply_params_buffer(session->params_bytes, session->params_size,
                           session->has_overrides ? &session->overrides : NULL,
                           session->functional, sizeof(session->functional),
@@ -1587,6 +1948,11 @@ CPMDCSession *cpmdc_session_create(const void *params_capnp,
   cpmdc_store_error("");
   g_live_sessions++;
   return session;
+}
+
+CPMDCSession *cpmdc_session_create(const void *params_capnp,
+                                   size_t params_capnp_size_bytes) {
+  return cpmdc_session_create_ov(params_capnp, params_capnp_size_bytes, NULL);
 }
 
 /* Replaces the parameters and the overlay together. Everything is validated
