@@ -27,6 +27,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
+#include "cpmdc_cell_rank.h"
 
 #include <errno.h>
 #include <math.h>
@@ -345,43 +346,96 @@ static int read_int32(int fd, int32_t *v, const char *what) {
   return read_exact(fd, v, sizeof(*v), what, 0) == 1 ? 0 : -1;
 }
 
-/* batch_size from an INIT string of key:value pairs separated by commas;
- * 1 when absent or not an integer. */
-static long batch_size(const char *text) {
-  const char *p = text;
-  while (*p) {
-    const char *end = strchr(p, ',');
-    size_t len = end ? (size_t)(end - p) : strlen(p);
-    const char *colon = memchr(p, ':', len);
+static int valid_utf8(const unsigned char *text, size_t length) {
+  size_t i = 0;
+  while (i < length) {
+    unsigned char c = text[i++];
+    if (c < 0x80)
+      continue;
+    int continuation;
+    unsigned int code;
+    if (c >= 0xc2 && c <= 0xdf) {
+      continuation = 1;
+      code = c & 0x1f;
+    } else if (c >= 0xe0 && c <= 0xef) {
+      continuation = 2;
+      code = c & 0x0f;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+      continuation = 3;
+      code = c & 0x07;
+    } else {
+      return 0;
+    }
+    if (i + (size_t)continuation > length)
+      return 0;
+    for (int j = 0; j < continuation; ++j) {
+      unsigned char next = text[i++];
+      if ((next & 0xc0) != 0x80)
+        return 0;
+      code = (code << 6) | (next & 0x3f);
+    }
+    if ((continuation == 2 && (code < 0x800 || (code >= 0xd800 && code <= 0xdfff))) ||
+        (continuation == 3 && (code < 0x10000 || code > 0x10ffff)))
+      return 0;
+  }
+  return 1;
+}
+
+/* Read the one supported batch size from UTF-8 key:value INIT text. */
+static int parse_batch_size(const unsigned char *text, size_t length,
+                            long *batch) {
+  const unsigned char *p = text;
+  const unsigned char *limit = text + length;
+  int found = 0;
+  *batch = 1;
+  if (!valid_utf8(text, length))
+    return fail("INIT is not UTF-8");
+  while (p < limit) {
+    const unsigned char *end = memchr(p, ',', (size_t)(limit - p));
+    if (!end)
+      end = limit;
+    const unsigned char *colon = memchr(p, ':', (size_t)(end - p));
     if (colon) {
-      const char *k0 = p, *k1 = colon;
-      while (k0 < k1 && (*k0 == ' ' || *k0 == '\t' || *k0 == '\n'))
+      const unsigned char *k0 = p;
+      const unsigned char *k1 = colon;
+      while (k0 < k1 && (*k0 == ' ' || *k0 == '\t' || *k0 == '\n' || *k0 == '\r'))
         ++k0;
-      while (k1 > k0 && (k1[-1] == ' ' || k1[-1] == '\t' || k1[-1] == '\n'))
+      while (k1 > k0 &&
+             (k1[-1] == ' ' || k1[-1] == '\t' || k1[-1] == '\n' || k1[-1] == '\r'))
         --k1;
       if ((size_t)(k1 - k0) == strlen("batch_size") &&
-          strncmp(k0, "batch_size", (size_t)(k1 - k0)) == 0) {
+          memcmp(k0, "batch_size", (size_t)(k1 - k0)) == 0) {
         char value[64];
-        size_t vlen = len - (size_t)(colon + 1 - p);
-        if (vlen >= sizeof(value))
-          return 1;
-        memcpy(value, colon + 1, vlen);
+        const unsigned char *v0 = colon + 1;
+        const unsigned char *v1 = end;
+        while (v0 < v1 && (*v0 == ' ' || *v0 == '\t' || *v0 == '\n' || *v0 == '\r'))
+          ++v0;
+        while (v1 > v0 &&
+               (v1[-1] == ' ' || v1[-1] == '\t' || v1[-1] == '\n' || v1[-1] == '\r'))
+          --v1;
+        if (found)
+          return fail("INIT batch_size appears more than once");
+        found = 1;
+        size_t vlen = (size_t)(v1 - v0);
+        if (vlen == 0 || vlen >= sizeof(value))
+          return fail("INIT batch_size is not an integer");
+        memcpy(value, v0, vlen);
         value[vlen] = '\0';
         char *stop = NULL;
         errno = 0;
-        long n = strtol(value, &stop, 10);
-        while (stop && (*stop == ' ' || *stop == '\t' || *stop == '\n'))
-          ++stop;
-        if (errno != 0 || stop == value || (stop && *stop != '\0'))
-          return 1;
-        return n;
+        long parsed = strtol(value, &stop, 10);
+        if (errno != 0 || stop == value || stop != value + vlen)
+          return fail("INIT batch_size is not an integer: '%s'", value);
+        if (parsed != 1)
+          return fail("the server asked for batch_size %ld; " PROG
+                      " evaluates one structure per request, so set batch_size to 1",
+                      parsed);
+        *batch = parsed;
       }
     }
-    if (!end)
-      break;
-    p = end + 1;
+    p = end < limit ? end + 1 : limit;
   }
-  return 1;
+  return 0;
 }
 
 /* --- driver ------------------------------------------------------------- */
@@ -397,12 +451,6 @@ struct driver {
   double energy;
   double virial[9];
 };
-
-static double det3(const double *m) {
-  return m[0] * (m[4] * m[8] - m[5] * m[7]) -
-         m[1] * (m[3] * m[8] - m[5] * m[6]) +
-         m[2] * (m[3] * m[7] - m[4] * m[6]);
-}
 
 static int check_count(const struct driver *d, int natoms) {
   if (natoms != d->natoms)
@@ -424,20 +472,17 @@ static int cell_rows(const struct driver *d, const double *h, double *rows,
   *periodic = 0;
   if (d->cluster || !any)
     return 0;
-  double lengths[3];
   for (int k = 0; k < 3; ++k) {
-    double sum = 0.0;
     for (int i = 0; i < 3; ++i) {
       rows[3 * k + i] = h[3 * i + k];
-      double c = h[3 * i + k] * BOHR_TO_ANGSTROM;
-      sum += c * c;
     }
-    lengths[k] = sqrt(sum);
   }
-  double smallest = fmin(lengths[0], fmin(lengths[1], lengths[2]));
-  double b3 = BOHR_TO_ANGSTROM * BOHR_TO_ANGSTROM * BOHR_TO_ANGSTROM;
-  if (!(smallest > 0.0) ||
-      fabs(det3(h)) * b3 <= 1.0e-8 * (lengths[0] * lengths[1] * lengths[2]))
+  int state = cpmdc_cell_rank3_state(rows);
+  if (state == CPMDC_CELL_NONFINITE)
+    return fail("the server sent a cell with a non-finite component");
+  if (state == CPMDC_CELL_VOLUME_UNDERFLOW)
+    return fail("the server sent a cell whose volume is too small for binary64");
+  if (state != CPMDC_CELL_FULL_RANK)
     return fail("the server sent a cell without three independent vectors; "
                 "send an all-zero cell or start " PROG " with --cluster for "
                 "an isolated system");
@@ -563,14 +608,12 @@ static int serve(struct driver *d, int fd) {
         break;
       }
       text[nbytes] = '\0';
-      long batch = batch_size(text);
+      long batch = 1;
+      int batch_ok =
+          parse_batch_size((const unsigned char *)text, (size_t)nbytes, &batch);
       free(text);
-      if (batch > 1) {
-        fail("the server asked for batch_size %ld; " PROG " evaluates one "
-             "structure per request, so set batch_size to 1",
-             batch);
+      if (batch_ok != 0)
         break;
-      }
       say("bead %d, %d INIT bytes", (int)bead, (int)nbytes);
       initialised = 1;
     } else if (strcmp(head, "POSDATA") == 0) {
@@ -756,6 +799,9 @@ int main(int argc, char **argv) {
     wait = strtod(o.wait_text, &stop);
     if (stop == o.wait_text || *stop != '\0')
       return usage_error("--wait: invalid float value: '%s'", o.wait_text);
+    if (!isfinite(wait) || wait < 0.0)
+      return usage_error("--wait must be finite and zero or positive: '%s'",
+                         o.wait_text);
   }
 
   signal(SIGPIPE, SIG_IGN);

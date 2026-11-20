@@ -133,7 +133,11 @@ if need_capnp_c
   potentials_schema_canonical = potentials_schema_proj.get_variable('potentials_capnp_file')
   subdir('schema')
   potentials_capnp_c_dep = declare_dependency(sources: potentials_capnp_c)
-  cpmdc_params_sources = ['src/cpmdc_params.c', potentials_capnp_c_src]
+  cpmdc_params_sources = [
+    'src/cpmdc_params.c',
+    'src/cpmdc_cell_rank.c',
+    potentials_capnp_c_src,
+  ]
   cpmdc_params_deps = [capnp_c_dep, potentials_capnp_c_dep]
   cpmdc_params_includes = [include_directories('schema')]
 
@@ -471,7 +475,7 @@ cpmdc_ipi_exe = disabler()
 if cc.has_header('sys/un.h')
   cpmdc_ipi_exe = executable(
     'cpmdc-ipi-c',
-    'tools/cpmdc_ipi.c',
+    ['tools/cpmdc_ipi.c', 'src/cpmdc_cell_rank.c'],
     link_with: cpmdc_shared,
     include_directories: include_directories('include'),
     dependencies: [math_dep],

@@ -13,6 +13,7 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,6 +68,31 @@ static void lines_within_80(const char *deck) {
   }
 }
 
+static void assert_cell_vectors_equal(const char *deck,
+                                      const double expected[9]) {
+  const char *vectors = strstr(deck, " CELL VECTORS\n");
+  double parsed[9];
+  assert_non_null(vectors);
+  vectors += strlen(" CELL VECTORS\n");
+  assert_int_equal(
+      sscanf(vectors, "%lf %lf %lf %lf %lf %lf %lf %lf %lf", &parsed[0],
+             &parsed[1], &parsed[2], &parsed[3], &parsed[4], &parsed[5],
+             &parsed[6], &parsed[7], &parsed[8]),
+      9);
+  assert_memory_equal(parsed, expected, sizeof(parsed));
+}
+
+static void assert_cell_equal(const char *deck, const double expected[3]) {
+  const char *cell = strstr(deck, " CELL\n");
+  double parsed[3];
+  assert_non_null(cell);
+  cell += strlen(" CELL\n");
+  assert_int_equal(sscanf(cell, "%lf %lf %lf", &parsed[0], &parsed[1],
+                          &parsed[2]),
+                   3);
+  assert_memory_equal(parsed, expected, sizeof(parsed));
+}
+
 static int setup(void **state) {
   (void)state;
   return cpmdc_embed_init() != 0 ? 0 : -1;
@@ -82,9 +108,9 @@ static void test_minimal_deck_orthorhombic_box(void **state) {
                                                  (int)sizeof(deck), &len),
                    1);
   assert_non_null(strstr(deck, " SYMMETRY\n0\n CELL\n"));
-  assert_non_null(strstr(deck, "13.370000000000"));
-  assert_non_null(strstr(deck, "1.056354284892"));
-  assert_non_null(strstr(deck, "1.159311892296"));
+  const double expected[3] = {cell[0], cell[4] / cell[0],
+                              cell[8] / cell[0]};
+  assert_cell_equal(deck, expected);
 }
 
 static void test_minimal_deck_refuses_a_skewed_box(void **state) {
@@ -107,7 +133,8 @@ static void test_box_replaces_the_deck_cell(void **state) {
                                      (int)sizeof(deck)),
                    1);
   assert_non_null(strstr(deck, " SYMMETRY\n1\n CELL\n"));
-  assert_non_null(strstr(deck, "14.500000000000"));
+  const double expected_cubic[3] = {cubic[0], 1.0, 1.0};
+  assert_cell_equal(deck, expected_cubic);
   assert_null(strstr(deck, "14.0 1.0 1.0"));
   /* CHECK SYMMETRY is not SYMMETRY, and the rest of the deck stays. */
   assert_non_null(strstr(deck, " CHECK SYMMETRY OFF\n"));
@@ -119,7 +146,9 @@ static void test_box_replaces_the_deck_cell(void **state) {
                                      (int)sizeof(deck)),
                    1);
   assert_non_null(strstr(deck, " SYMMETRY\n8\n CELL\n"));
-  assert_non_null(strstr(deck, "1.034482758621"));
+  const double expected_ortho[3] = {ortho[0], ortho[4] / ortho[0],
+                                    ortho[8] / ortho[0]};
+  assert_cell_equal(deck, expected_ortho);
 
   const double skew[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
                           0.0,  0.0, 12.0};
@@ -127,7 +156,7 @@ static void test_box_replaces_the_deck_cell(void **state) {
                                      (int)sizeof(deck)),
                    1);
   assert_non_null(strstr(deck, " CELL VECTORS\n"));
-  assert_non_null(strstr(deck, "0.123456789012"));
+  assert_cell_vectors_equal(deck, skew);
   assert_null(strstr(deck, " SYMMETRY\n"));
   lines_within_80(deck);
 }
@@ -140,9 +169,7 @@ static void test_small_triclinic_components_are_preserved(void **state) {
   assert_int_equal(compose_with_deck(kPeriodicDeck, cell, deck,
                                      (int)sizeof(deck)),
                    1);
-  assert_non_null(strstr(deck, " CELL VECTORS\n"));
-  assert_non_null(strstr(deck, "2.5800000000000000E-012"));
-  assert_non_null(strstr(deck, "1.0000000000000000E-013"));
+  assert_cell_vectors_equal(deck, cell);
   assert_null(strstr(deck, " SYMMETRY\n"));
   lines_within_80(deck);
 }
@@ -158,7 +185,7 @@ static void test_box_in_bohr_without_angstrom(void **state) {
   const double cubic[9] = {14.5, 0.0, 0.0, 0.0, 14.5, 0.0, 0.0, 0.0, 14.5};
   assert_int_equal(compose_with_deck(bohr_deck, cubic, deck, (int)sizeof(deck)),
                    1);
-  assert_non_null(strstr(deck, "27.401028809352"));
+  assert_non_null(strstr(deck, "2.740102880935"));
 }
 
 static void test_zero_box_keeps_the_deck_cell(void **state) {

@@ -198,6 +198,14 @@ MODULE cpmd_embed_c_api
     CHARACTER(LEN=1024) :: cpmd_root = ' '
   END TYPE
 
+  INTERFACE
+    FUNCTION cpmdc_cell_rank3_state(cell) BIND(C, NAME='cpmdc_cell_rank3_state')
+      IMPORT :: c_double, c_int
+      REAL(c_double), INTENT(IN) :: cell(9)
+      INTEGER(c_int) :: cpmdc_cell_rank3_state
+    END FUNCTION
+  END INTERFACE
+
 CONTAINS
 
   SUBROUTINE clear_last_energy_components(image)
@@ -1177,33 +1185,22 @@ CONTAINS
   ! 0 is an isolated box. 1 is cubic, 8 orthorhombic.
   ! -2 is a tilted cell: CELL VECTORS and no SYMMETRY line.
   ! The cubic test matches OpenCPMD's 1e-5 check on b/a and c/a.
-  REAL(real64) FUNCTION cell_box_determinant(cell)
-    REAL(c_double), INTENT(IN) :: cell(*)
-    REAL(real64) :: c1, c2, c3, c4, c5, c6, c7, c8, c9
-    c1 = REAL(cell(1), KIND=real64)
-    c2 = REAL(cell(2), KIND=real64)
-    c3 = REAL(cell(3), KIND=real64)
-    c4 = REAL(cell(4), KIND=real64)
-    c5 = REAL(cell(5), KIND=real64)
-    c6 = REAL(cell(6), KIND=real64)
-    c7 = REAL(cell(7), KIND=real64)
-    c8 = REAL(cell(8), KIND=real64)
-    c9 = REAL(cell(9), KIND=real64)
-    cell_box_determinant = c1 * (c5 * c9 - c6 * c8) - &
-         c2 * (c4 * c9 - c6 * c7) + &
-         c3 * (c4 * c8 - c5 * c7)
-  END FUNCTION
-
   INTEGER FUNCTION periodic_symmetry_code(cell, has_cell)
     REAL(c_double), INTENT(IN) :: cell(*)
     INTEGER, INTENT(IN) :: has_cell
+    INTEGER(c_int) :: state
     REAL(real64) :: b_over_a, c_over_a, off
     periodic_symmetry_code = 0
     IF (has_cell == 0) RETURN
-    IF (ABS(cell_box_determinant(cell)) <= 1.0e-8_real64) RETURN
+    state = cpmdc_cell_rank3_state(cell(1:9))
+    IF (state == 0_c_int) RETURN
+    IF (state /= 1_c_int) THEN
+      periodic_symmetry_code = -3
+      RETURN
+    END IF
     off = ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
          ABS(cell(7)) + ABS(cell(8))
-    IF (off > 1.0e-8_real64 .OR. cell(1) == 0.0_c_double) THEN
+    IF (off > 0.0_real64 .OR. cell(1) == 0.0_c_double) THEN
       periodic_symmetry_code = -2
       RETURN
     END IF
@@ -1534,18 +1531,18 @@ CONTAINS
       IF (cell(9) > 0.0_c_double .AND. cell_a > 0.0_real64) &
           c_over_a = REAL(cell(9), KIND=real64) / cell_a
       IF (ABS(cell(2)) + ABS(cell(3)) + ABS(cell(4)) + ABS(cell(6)) + &
-          ABS(cell(7)) + ABS(cell(8)) > 1.0e-8_c_double) diagonal = .FALSE.
+          ABS(cell(7)) + ABS(cell(8)) > 0.0_c_double) diagonal = .FALSE.
     END IF
     IF (.NOT. diagonal) THEN
       ! An internal write to one CHARACTER variable has one record; a '/'
       ! edit descriptor would end the write. The rows are joined by
       ! NEW_LINE instead.
-      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
+      WRITE(text, '(2A,3ES24.16E3,A,3ES24.16E3,A,3ES24.16E3,A)') ' CELL VECTORS', &
            NEW_LINE('A'), cell(1), cell(2), cell(3), NEW_LINE('A'), &
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,3F20.12,A)') ' CELL'//NEW_LINE('A')//'  ', &
+      WRITE(text, '(A,3ES24.16E3,A)') ' CELL'//NEW_LINE('A')//'  ', &
            cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)
@@ -1631,6 +1628,7 @@ CONTAINS
   ! or isolated-molecule keyword stays as written. CELL VECTORS is the
   ! tilted cell and gets no SYMMETRY line.
   SUBROUTINE inject_periodicity_if_unset(deck, nlen, cell, has_cell, ierr)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
     CHARACTER(LEN=:), ALLOCATABLE, INTENT(INOUT) :: deck
     INTEGER, INTENT(INOUT) :: nlen
     REAL(c_double), INTENT(IN) :: cell(*)
@@ -1648,6 +1646,12 @@ CONTAINS
     IF (deck_names_symmetry(deck, nlen)) RETURN
     IF (INDEX(deck(1:nlen), 'CELL VECTORS') > 0) RETURN
     code = periodic_symmetry_code(cell, has_cell)
+    IF (code == -3) THEN
+      CALL cpmdc_note_embed_failure('the cell does not have a representable ' // &
+           'rank-3 volume' // c_null_char)
+      ierr = 3
+      RETURN
+    END IF
     IF (code < 0) RETURN
     isys = INDEX(deck(1:nlen), '&SYSTEM')
     IF (isys == 0) isys = INDEX(deck(1:nlen), '&system')
@@ -1778,7 +1782,7 @@ CONTAINS
     CHARACTER(LEN=80) :: head, tok, symtok
     CHARACTER(LEN=600) :: text
     REAL(real64) :: c(9), scale
-    INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k
+    INTEGER :: ls, le, nxt, skip, pos, ntext, sys_end, osym, k, cell_state
     LOGICAL :: in_sys, angstrom, cubic_deck, isolated_deck, diagonal, done
     ierr = 0
     IF (.NOT. ALLOCATED(deck) .OR. nlen < 1) RETURN
@@ -1821,8 +1825,15 @@ CONTAINS
     DO k = 1, 9
       c(k) = REAL(cell(k), KIND=real64)
     END DO
+    cell_state = cpmdc_cell_rank3_state(cell(1:9))
+    IF (.NOT. isolated_deck .AND. cell_state /= 1_c_int) THEN
+      CALL cpmdc_note_embed_failure('the periodic cell does not have a ' // &
+           'representable rank-3 volume' // c_null_char)
+      ierr = 3
+      RETURN
+    END IF
     diagonal = ABS(c(2)) + ABS(c(3)) + ABS(c(4)) + ABS(c(6)) + ABS(c(7)) + &
-        ABS(c(8)) <= 1.0e-8_real64
+        ABS(c(8)) == 0.0_real64
     IF (isolated_deck .AND. .NOT. diagonal) THEN
       CALL cpmdc_note_embed_failure('an isolated deck (SYMMETRY 0) needs ' // &
            'an orthorhombic box; the ForceInput box has off-diagonal ' // &
@@ -1850,12 +1861,12 @@ CONTAINS
       END IF
       symmetry_indent = ''
       IF (osym == 0) symmetry_indent = '  '
-      WRITE(text, '(A,A,A,I0,A,A,A,3F20.12,A,A)') ' SYMMETRY', NEW_LINE('A'), &
+      WRITE(text, '(A,A,A,I0,A,A,A,3ES24.16E3,A,A)') ' SYMMETRY', NEW_LINE('A'), &
            symmetry_indent, k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), &
            c(1), c(5) / c(1), &
            c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
     ELSE
-      WRITE(text, '(2A,3F20.12,A,3F20.12,A,3F20.12,A)') ' CELL VECTORS', &
+      WRITE(text, '(2A,3ES24.16E3,A,3ES24.16E3,A,3ES24.16E3,A)') ' CELL VECTORS', &
            NEW_LINE('A'), c(1), c(2), c(3), NEW_LINE('A'), &
            c(4), c(5), c(6), NEW_LINE('A'), c(7), c(8), c(9), NEW_LINE('A')
     END IF
@@ -2084,7 +2095,7 @@ CONTAINS
     vol = ABS(a(1) * (b(2) * cvec(3) - b(3) * cvec(2)) + &
          a(2) * (b(3) * cvec(1) - b(1) * cvec(3)) + &
          a(3) * (b(1) * cvec(2) - b(2) * cvec(1)))
-    IF (vol <= 1.0e-12_real64) RETURN
+    IF (vol <= 0.0_real64) RETURN
     ded = 0.0_real64
     DO ia = 1, n_atoms
       z_scale = REAL(MAX(1, INT(z(ia))), KIND=real64)

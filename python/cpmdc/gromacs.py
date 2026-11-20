@@ -54,9 +54,6 @@ HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM = HARTREE_TO_KJ_PER_MOL / BOHR_TO_NM
 
 _CELLS = ("PERIODIC", "NONE")
 _EMBEDDINGS = ("MECHANICAL", "NONE")
-# erfc(alpha * rcut) stored when EWALD_PRECISION is omitted.
-# tools/gromacs/cpmdc_gromacs.c assigns this to env->ewald_precision.
-_DEFAULT_EWALD_PRECISION = 10.0**-8
 
 
 def _number(value: Any, what: str, *, positive: bool = False) -> str:
@@ -105,8 +102,8 @@ def qmi_input(
         the smaller of 1 nm and half the shortest box height.
     ewald_precision:
         ``erfc(alpha * rcut)``, which also sets the reciprocal-space cutoff.
-        The library default is ``_DEFAULT_EWALD_PRECISION``, the value
-        ``tools/gromacs/cpmdc_gromacs.c`` stores when the key is omitted.
+        The library default is ``1e-8``, assigned by
+        ``tools/gromacs/cpmdc_gromacs.c`` when the key is omitted.
     qm_ranks:
         Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
         calculation on every rank mdrun gives the interface, as one cpmdc

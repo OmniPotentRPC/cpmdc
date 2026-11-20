@@ -2,6 +2,7 @@
  * Engine work is in Fortran bind(C) embed surface (cpmd_embed_c_api.F90). */
 #include "cpmdc.h"
 #include "cpmdc_adopt.h"
+#include "cpmdc_cell_rank.h"
 #include "cpmdc_embed_host.h"
 #include "cpmdc_embed_image.h"
 #include "cpmdc_params.h"
@@ -1760,6 +1761,15 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("invalid arguments");
   if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     return fail_msg("atomic numbers must be in 1..118");
+  if (has_cell) {
+    int cell_state = cpmdc_cell_rank3_state(cell_ang);
+    if (cell_state == CPMDC_CELL_NONFINITE)
+      return fail_msg("cell contains a non-finite component");
+    if (cell_state == CPMDC_CELL_RANK_DEFICIENT)
+      return fail_msg("cell does not have three independent vectors");
+    if (cell_state == CPMDC_CELL_VOLUME_UNDERFLOW)
+      return fail_msg("cell volume is too small for binary64");
+  }
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
   if (rank_consensus_all(

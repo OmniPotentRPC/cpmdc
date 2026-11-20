@@ -39,6 +39,7 @@ sees the trajectory in order.
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import socket
 import struct
@@ -98,6 +99,8 @@ def connect(
     """
     if (unix is None) == (port is None):
         raise ValueError("give exactly one of unix and port")
+    if not math.isfinite(wait):
+        raise ValueError(f"wait must be finite, got {wait}")
     if wait < 0.0:
         raise ValueError(f"wait must be zero or positive, got {wait}")
     where = unix_socket_path(unix, prefix) if unix is not None else f"{host}:{port}"
@@ -143,10 +146,13 @@ def _batch_size(init: bytes) -> int:
         text = init.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ProtocolError("INIT is not UTF-8") from exc
+    found: int | None = None
     for token in text.split(","):
         key, sep, value = token.partition(":")
         if not sep or key.strip() != "batch_size":
             continue
+        if found is not None:
+            raise ProtocolError("INIT batch_size appears more than once")
         raw = value.strip()
         try:
             batch = int(raw)
@@ -157,8 +163,8 @@ def _batch_size(init: bytes) -> int:
                 f"the server asked for batch_size {batch}; cpmdc-ipi evaluates "
                 "one structure per request, so set batch_size to 1"
             )
-        return batch
-    return 1
+        found = batch
+    return 1 if found is None else found
 
 
 class _Wire:
