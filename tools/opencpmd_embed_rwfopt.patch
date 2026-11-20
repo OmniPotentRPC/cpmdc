@@ -1,7 +1,7 @@
 diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 --- c/src/rwfopt_utils.mod.F90
 +++ w/src/rwfopt_utils.mod.F90
-@@ -21,6 +21,7 @@
+@@ -21,6 +21,7 @@ MODULE rwfopt_utils
    USE dynit_utils,                     ONLY: dynit
    USE efld
    USE ehrenfest_utils,                 ONLY: ehrenfest
@@ -9,7 +9,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE elct
    USE enbandpri_utils,                 ONLY: enbandpri
    USE ener
-@@ -65,7 +66,8 @@
+@@ -65,7 +66,8 @@ MODULE rwfopt_utils
    USE rhoofr_utils,                    ONLY: rhoofr
    USE rhopri_utils,                    ONLY: give_scr_rhopri,&
                                               rhopri
@@ -19,7 +19,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    USE ropt
    USE rscpot_utils,                    ONLY: give_scr_rscpot,&
                                               rscpot
-@@ -106,10 +108,521 @@
+@@ -106,10 +108,694 @@ MODULE rwfopt_utils
  
    PUBLIC :: rwfopt
    PUBLIC :: give_scr_rwfopt
@@ -58,15 +58,6 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  !     one stored c0.
 +  PUBLIC :: embed_select_orbital_slot
 +  PUBLIC :: embed_orbital_slot_count
-+  !   embed_copy_orbital_slot(from_key, to_key): duplicate from_key's
-+  !     converged c0 and the geometry it converged at into to_key. An
-+  !     occupied to_key is replaced. The selected key stays selected. The
-+  !     live store is left as it is when another key owns it; when to_key
-+  !     is the selected key, the duplicate replaces that live store
-+  !     immediately. A from_key with no converged orbitals returns .FALSE.
-+  !     A stale or partial copy is not converged and is refused.
-+  PUBLIC :: embed_copy_orbital_slot
-+  PUBLIC :: embed_park_partial_orbital_slot
 +  !   embed_choose_warm_start_metric_v2 receives species-ordered Cartesian positions,
 +  !     the row-major cell, periodicity, and a geometry-distance callback.
 +  !     Geometry and cell use Angstrom units. The stored
@@ -86,17 +77,29 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +  TYPE :: embed_orbital_slot
 +    INTEGER(embed_key_kind) :: key = 0
 +    LOGICAL :: used = .FALSE.
-+    LOGICAL :: converged = .FALSE.
 +    COMPLEX(real_8), ALLOCATABLE :: c0(:,:,:)
 +    REAL(real_8), ALLOCATABLE :: geo(:)
 +  END TYPE embed_orbital_slot
++  PUBLIC :: embed_set_orbital_slot_limit
++  PUBLIC :: embed_parse_orbital_slot_limit
++  INTEGER, PARAMETER :: embed_limit_from_env = -1
++  INTEGER, PARAMETER :: embed_limit_unlimited = 0
++  INTEGER, PARAMETER :: embed_initial_slot_cap = 1
++  INTEGER, PARAMETER :: embed_slot_growth_factor = 2
++  INTEGER, PARAMETER :: embed_decimal_base = 10
++  INTEGER, PARAMETER :: embed_err_none = 0
++  INTEGER, PARAMETER :: embed_err_limit = 1
++  INTEGER, PARAMETER :: embed_err_dealloc = 2
++  INTEGER, PARAMETER :: embed_err_alloc = 3
 +  TYPE(embed_orbital_slot), ALLOCATABLE, SAVE :: embed_slots(:)
++  INTEGER(embed_key_kind), ALLOCATABLE, SAVE :: embed_slot_stamps(:)
++  INTEGER(embed_key_kind), SAVE :: embed_park_seq = 0
++  INTEGER, SAVE :: embed_slot_limit_override = embed_limit_from_env
 +  LOGICAL, SAVE :: embed_have_key = .FALSE.
 +  INTEGER(embed_key_kind), SAVE :: embed_current_key = 0, embed_store_key = 0
 +  LOGICAL, SAVE :: embed_warm_orbitals = .FALSE.
 +  LOGICAL, SAVE :: embed_need_forces = .FALSE.
 +  LOGICAL, SAVE :: embed_have_partial = .FALSE.
-+  LOGICAL, SAVE :: embed_store_converged = .FALSE.
 +  COMPLEX(real_8), ALLOCATABLE, SAVE :: embed_c0_store(:,:,:)
 +  INTEGER, SAVE :: embed_store_s1 = 0, embed_store_s2 = 0, embed_store_s3 = 0
 +  ! The geometry embed_c0_store converged at, and the geometry of the call
@@ -142,12 +145,14 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_warm_orbitals = .FALSE.
 +    embed_have_orbitals = .FALSE.
 +    embed_have_partial = .FALSE.
-+    embed_store_converged = .FALSE.
 +    embed_history_set = .FALSE.
 +    IF (ALLOCATED(embed_c0_store)) THEN
 +      DEALLOCATE(embed_c0_store,STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+           __LINE__,__FILE__)
++      IF(ierr/=0) THEN
++        CALL stopgm(procedureN,'deallocation problem',&
++             __LINE__,__FILE__)
++        RETURN
++      ENDIF
 +    ENDIF
 +    embed_store_s1 = 0
 +    embed_store_s2 = 0
@@ -158,197 +163,385 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    ! the caller selected stays selected.
 +    IF (ALLOCATED(embed_slots)) THEN
 +      DEALLOCATE(embed_slots,STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+           __LINE__,__FILE__)
++      IF(ierr/=0) THEN
++        CALL stopgm(procedureN,'deallocation problem',&
++             __LINE__,__FILE__)
++        RETURN
++      ENDIF
 +    ENDIF
++    IF (ALLOCATED(embed_slot_stamps)) THEN
++      DEALLOCATE(embed_slot_stamps,STAT=ierr)
++      IF(ierr/=0) THEN
++        CALL stopgm(procedureN,'deallocation problem',&
++             __LINE__,__FILE__)
++        RETURN
++      ENDIF
++    ENDIF
++    embed_park_seq = 0
 +  END SUBROUTINE embed_reset_warm_orbitals
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_count_parked_locked() RESULT(n)
++    ! ==--------------------------------------------------------------==
++    INTEGER :: i
++    n = 0
++    IF (.NOT. ALLOCATED(embed_slots)) RETURN
++    DO i = 1, SIZE(embed_slots)
++      IF (embed_slots(i)%used .AND. ALLOCATED(embed_slots(i)%c0)) &
++           n = n + 1
++    ENDDO
++  END FUNCTION embed_count_parked_locked
 +
 +  ! ==================================================================
 +  INTEGER FUNCTION embed_orbital_slot_count()
 +    ! ==--------------------------------------------------------------==
 +    ! Keys with parked orbitals, the selected key excluded.
-+    INTEGER :: i
-+    embed_orbital_slot_count = 0
-+    IF (.NOT. ALLOCATED(embed_slots)) RETURN
-+    DO i = 1, SIZE(embed_slots)
-+      IF (embed_slots(i)%used .AND. ALLOCATED(embed_slots(i)%c0)) &
-+           embed_orbital_slot_count = embed_orbital_slot_count + 1
-+    ENDDO
++    INTEGER :: counted
++    counted = 0
++    !$omp critical (embed_orbital_slots)
++    counted = embed_count_parked_locked()
++    !$omp end critical (embed_orbital_slots)
++    embed_orbital_slot_count = counted
 +  END FUNCTION embed_orbital_slot_count
 +
 +  ! ==================================================================
-+  INTEGER FUNCTION embed_slot_index(key, create)
++  SUBROUTINE embed_parse_orbital_slot_limit(limit, valid)
 +    ! ==--------------------------------------------------------------==
-+    ! Index of key in embed_slots, 0 when absent and create is false.
++    ! Unset leaves parked storage unbounded (limit = embed_limit_unlimited,
++    ! valid = .TRUE.). Any set value must be a positive decimal integer;
++    ! zero, negative, empty, or non-integer values set valid = .FALSE.
++    INTEGER, INTENT(OUT) :: limit
++    LOGICAL, INTENT(OUT) :: valid
++    CHARACTER(LEN=:), ALLOCATABLE :: raw
++    INTEGER :: st, raw_len, ierr, first, last, pos, digit
++    limit = embed_limit_unlimited
++    valid = .TRUE.
++    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_ORBITAL_SLOT_LIMIT', &
++         LENGTH=raw_len, STATUS=st)
++    IF (st > 0) RETURN
++    valid = .FALSE.
++    IF (st < 0 .OR. raw_len <= 0) RETURN
++    ALLOCATE(CHARACTER(LEN=raw_len) :: raw, STAT=ierr)
++    IF (ierr /= 0) RETURN
++    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_ORBITAL_SLOT_LIMIT', &
++         VALUE=raw, STATUS=st)
++    IF (st /= 0) THEN
++      DEALLOCATE(raw, STAT=ierr)
++      RETURN
++    ENDIF
++    first = 1
++    DO WHILE (first <= raw_len)
++      IF (raw(first:first) /= ' ') EXIT
++      first = first + 1
++    ENDDO
++    last = raw_len
++    DO WHILE (last >= first)
++      IF (raw(last:last) /= ' ') EXIT
++      last = last - 1
++    ENDDO
++    IF (first > last) THEN
++      DEALLOCATE(raw, STAT=ierr)
++      RETURN
++    ENDIF
++    pos = first
++    IF (raw(pos:pos) == '+') pos = pos + 1
++    IF (pos > last) THEN
++      DEALLOCATE(raw, STAT=ierr)
++      RETURN
++    ENDIF
++    limit = 0
++    DO WHILE (pos <= last)
++      IF (raw(pos:pos) < '0' .OR. raw(pos:pos) > '9') THEN
++        limit = embed_limit_unlimited
++        DEALLOCATE(raw, STAT=ierr)
++        RETURN
++      ENDIF
++      digit = IACHAR(raw(pos:pos)) - IACHAR('0')
++      IF (limit > (HUGE(limit) - digit) / embed_decimal_base) THEN
++        limit = embed_limit_unlimited
++        DEALLOCATE(raw, STAT=ierr)
++        RETURN
++      ENDIF
++      limit = limit * embed_decimal_base + digit
++      pos = pos + 1
++    ENDDO
++    DEALLOCATE(raw, STAT=ierr)
++    IF (limit <= 0) THEN
++      limit = embed_limit_unlimited
++      RETURN
++    ENDIF
++    valid = .TRUE.
++  END SUBROUTINE embed_parse_orbital_slot_limit
++
++  ! ==================================================================
++  SUBROUTINE embed_effective_slot_limit(limit, valid)
++    ! ==--------------------------------------------------------------==
++    INTEGER, INTENT(OUT) :: limit
++    LOGICAL, INTENT(OUT) :: valid
++    IF (embed_slot_limit_override >= embed_limit_unlimited) THEN
++      limit = embed_slot_limit_override
++      valid = .TRUE.
++    ELSE
++      CALL embed_parse_orbital_slot_limit(limit, valid)
++    ENDIF
++  END SUBROUTINE embed_effective_slot_limit
++
++  ! ==================================================================
++  SUBROUTINE embed_clear_slot(idx, ierr)
++    ! ==--------------------------------------------------------------==
++    INTEGER, INTENT(IN) :: idx
++    INTEGER, INTENT(OUT) :: ierr
++    ierr = 0
++    IF (ALLOCATED(embed_slots(idx)%c0)) THEN
++      DEALLOCATE(embed_slots(idx)%c0, STAT=ierr)
++      IF (ierr /= 0) RETURN
++    ENDIF
++    IF (ALLOCATED(embed_slots(idx)%geo)) THEN
++      DEALLOCATE(embed_slots(idx)%geo, STAT=ierr)
++      IF (ierr /= 0) RETURN
++    ENDIF
++    embed_slots(idx)%used = .FALSE.
++    embed_slots(idx)%key = 0
++    IF (ALLOCATED(embed_slot_stamps)) THEN
++      IF (idx >= 1 .AND. idx <= SIZE(embed_slot_stamps)) &
++           embed_slot_stamps(idx) = 0_embed_key_kind
++    ENDIF
++  END SUBROUTINE embed_clear_slot
++
++  ! ==================================================================
++  INTEGER FUNCTION embed_find_slot_locked(key) RESULT(idx)
++    ! ==--------------------------------------------------------------==
 +    INTEGER(embed_key_kind), INTENT(IN) :: key
-+    LOGICAL, INTENT(IN) :: create
-+    CHARACTER(*), PARAMETER :: procedureN = 'embed_slot_index'
++    INTEGER :: i
++    idx = 0
++    IF (.NOT. ALLOCATED(embed_slots)) RETURN
++    DO i = 1, SIZE(embed_slots)
++      IF (embed_slots(i)%used .AND. embed_slots(i)%key == key) THEN
++        idx = i
++        RETURN
++      ENDIF
++    ENDDO
++  END FUNCTION embed_find_slot_locked
++
++  ! ==================================================================
++  SUBROUTINE embed_evict_oldest_locked(protect_a, has_a, protect_b, has_b, &
++      evicted, ierr)
++    ! ==--------------------------------------------------------------==
++    ! Evict the oldest parked wavefunction (smallest stamp), excluding any
++    ! protected active or incoming key.
++    INTEGER(embed_key_kind), INTENT(IN) :: protect_a, protect_b
++    LOGICAL, INTENT(IN) :: has_a, has_b
++    LOGICAL, INTENT(OUT) :: evicted
++    INTEGER, INTENT(OUT) :: ierr
++    INTEGER :: i, victim
++    INTEGER(embed_key_kind) :: oldest
++    evicted = .FALSE.
++    ierr = 0
++    victim = 0
++    oldest = 0
++    IF (.NOT. ALLOCATED(embed_slots)) RETURN
++    DO i = 1, SIZE(embed_slots)
++      IF (.NOT. embed_slots(i)%used) CYCLE
++      IF (.NOT. ALLOCATED(embed_slots(i)%c0)) CYCLE
++      IF (has_a .AND. embed_slots(i)%key == protect_a) CYCLE
++      IF (has_b .AND. embed_slots(i)%key == protect_b) CYCLE
++      IF (victim == 0 .OR. embed_slot_stamps(i) < oldest) THEN
++        victim = i
++        oldest = embed_slot_stamps(i)
++      ENDIF
++    ENDDO
++    IF (victim == 0) RETURN
++    CALL embed_clear_slot(victim, ierr)
++    IF (ierr == 0) evicted = .TRUE.
++  END SUBROUTINE embed_evict_oldest_locked
++
++  ! ==================================================================
++  SUBROUTINE embed_acquire_free_slot_locked(idx, ierr)
++    ! ==--------------------------------------------------------------==
++    INTEGER, INTENT(OUT) :: idx, ierr
 +    TYPE(embed_orbital_slot), ALLOCATABLE :: grown(:)
-+    INTEGER :: i, n, ierr
-+    embed_slot_index = 0
++    INTEGER(embed_key_kind), ALLOCATABLE :: grown_stamps(:)
++    INTEGER :: i, n, next_cap
++    idx = 0
++    ierr = 0
 +    n = 0
 +    IF (ALLOCATED(embed_slots)) n = SIZE(embed_slots)
 +    DO i = 1, n
-+      IF (embed_slots(i)%used .AND. embed_slots(i)%key == key) THEN
-+        embed_slot_index = i
-+        RETURN
-+      ENDIF
-+    ENDDO
-+    IF (.NOT. create) RETURN
-+    DO i = 1, n
 +      IF (.NOT. embed_slots(i)%used) THEN
-+        embed_slots(i)%used = .TRUE.
-+        embed_slots(i)%key = key
-+        embed_slots(i)%converged = .FALSE.
-+        embed_slot_index = i
++        idx = i
 +        RETURN
 +      ENDIF
 +    ENDDO
-+    ALLOCATE(grown(MAX(8, 2*n)),STAT=ierr)
-+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-+         __LINE__,__FILE__)
++    next_cap = MAX(embed_initial_slot_cap, embed_slot_growth_factor * n)
++    ALLOCATE(grown(next_cap), STAT=ierr)
++    IF (ierr /= 0) RETURN
++    ALLOCATE(grown_stamps(next_cap), STAT=ierr)
++    IF (ierr /= 0) THEN
++      DEALLOCATE(grown)
++      RETURN
++    ENDIF
++    grown_stamps = 0_embed_key_kind
 +    DO i = 1, n
 +      grown(i)%used = embed_slots(i)%used
 +      grown(i)%key = embed_slots(i)%key
-+      grown(i)%converged = embed_slots(i)%converged
++      IF (ALLOCATED(embed_slot_stamps)) THEN
++        IF (i <= SIZE(embed_slot_stamps)) grown_stamps(i) = embed_slot_stamps(i)
++      ENDIF
 +      IF (ALLOCATED(embed_slots(i)%c0)) &
 +           CALL MOVE_ALLOC(embed_slots(i)%c0, grown(i)%c0)
 +      IF (ALLOCATED(embed_slots(i)%geo)) &
 +           CALL MOVE_ALLOC(embed_slots(i)%geo, grown(i)%geo)
 +    ENDDO
 +    CALL MOVE_ALLOC(grown, embed_slots)
-+    embed_slots(n+1)%used = .TRUE.
-+    embed_slots(n+1)%key = key
-+    embed_slots(n+1)%converged = .FALSE.
-+    embed_slot_index = n + 1
-+  END FUNCTION embed_slot_index
++    CALL MOVE_ALLOC(grown_stamps, embed_slot_stamps)
++    idx = n + 1
++  END SUBROUTINE embed_acquire_free_slot_locked
 +
 +  ! ==================================================================
-+  SUBROUTINE embed_replace_key_store(c0, geo, key)
++  SUBROUTINE embed_set_orbital_slot_limit(limit)
 +    ! ==--------------------------------------------------------------==
-+    ! The live store becomes a duplicate of c0. key is recorded as the
-+    ! owner. This does not change which key is selected.
-+    COMPLEX(real_8), INTENT(IN) :: c0(:,:,:)
-+    REAL(real_8), ALLOCATABLE, INTENT(IN) :: geo(:)
-+    INTEGER(embed_key_kind), INTENT(IN) :: key
-+    CHARACTER(*), PARAMETER :: procedureN = 'embed_replace_key_store'
-+    INTEGER :: ierr, s1, s2, s3
-+    s1 = SIZE(c0, 1)
-+    s2 = SIZE(c0, 2)
-+    s3 = SIZE(c0, 3)
-+    IF (ALLOCATED(embed_c0_store)) THEN
-+      IF (SIZE(embed_c0_store, 1) /= s1 .OR. &
-+           SIZE(embed_c0_store, 2) /= s2 .OR. &
-+           SIZE(embed_c0_store, 3) /= s3) THEN
-+        DEALLOCATE(embed_c0_store,STAT=ierr)
-+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+             __LINE__,__FILE__)
-+      ENDIF
-+    ENDIF
-+    IF (.NOT. ALLOCATED(embed_c0_store)) THEN
-+      ALLOCATE(embed_c0_store(s1, s2, s3),STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-+           __LINE__,__FILE__)
-+    ENDIF
-+    embed_store_s1 = s1
-+    embed_store_s2 = s2
-+    embed_store_s3 = s3
-+    embed_c0_store = c0
-+    ! copied c0 replaces the selected key
-+    embed_store_key = key
-+    embed_have_orbitals = .TRUE.
-+    embed_have_partial = .FALSE.
-+    embed_store_converged = .TRUE.
-+    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
-+    IF (ALLOCATED(geo)) embed_store_geo = geo
-+  END SUBROUTINE embed_replace_key_store
-+
-+  ! ==================================================================
-+  LOGICAL FUNCTION embed_copy_orbital_slot(from_key, to_key)
-+    ! ==--------------------------------------------------------------==
-+    ! Duplicate from_key's converged c0 and geometry into to_key. The
-+    ! selected key is not changed. A store owned by another key is not
-+    ! written. from_key without a converged copy returns .FALSE.
-+    INTEGER(embed_key_kind), INTENT(IN) :: from_key, to_key
-+    CHARACTER(*), PARAMETER :: procedureN = 'embed_copy_orbital_slot'
-+    COMPLEX(real_8), ALLOCATABLE :: tmp(:,:,:)
-+    REAL(real_8), ALLOCATABLE :: tmp_geo(:)
-+    INTEGER :: src, dst, ierr, s1, s2, s3
-+    LOGICAL :: use_store
-+    embed_copy_orbital_slot = .FALSE.
-+    use_store = embed_have_orbitals .AND. ALLOCATED(embed_c0_store) .AND. &
-+         embed_store_key == from_key
-+    src = 0
-+    IF (.NOT. use_store) THEN
-+      src = embed_slot_index(from_key, .FALSE.)
-+      IF (src == 0) RETURN
-+      IF (.NOT. embed_slots(src)%converged) RETURN
-+      IF (.NOT. ALLOCATED(embed_slots(src)%c0)) RETURN
-+    ENDIF
-+    IF (use_store .AND. .NOT. embed_store_converged) RETURN
-+    IF (from_key == to_key) THEN
-+      embed_copy_orbital_slot = .TRUE.
++    ! Host override after calculator-rank consensus: embed_limit_from_env
++    ! reads CPMDC_ORBITAL_SLOT_LIMIT directly, embed_limit_unlimited leaves
++    ! parked slots unbounded, and a positive integer caps parked slots.
++    INTEGER, INTENT(IN) :: limit
++    CHARACTER(*), PARAMETER :: procedureN = 'embed_set_orbital_slot_limit'
++    INTEGER :: ierr, err_kind
++    LOGICAL :: evicted
++    IF (limit < embed_limit_from_env) THEN
++      CALL stopgm(procedureN, &
++           'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer', &
++           __LINE__, __FILE__)
 +      RETURN
 +    ENDIF
-+    IF (use_store) THEN
-+      s1 = SIZE(embed_c0_store, 1)
-+      s2 = SIZE(embed_c0_store, 2)
-+      s3 = SIZE(embed_c0_store, 3)
-+    ELSE
-+      s1 = SIZE(embed_slots(src)%c0, 1)
-+      s2 = SIZE(embed_slots(src)%c0, 2)
-+      s3 = SIZE(embed_slots(src)%c0, 3)
-+    ENDIF
-+    ALLOCATE(tmp(s1, s2, s3),STAT=ierr)
-+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-+         __LINE__,__FILE__)
-+    IF (use_store) THEN
-+      tmp = embed_c0_store
-+      IF (ALLOCATED(embed_store_geo)) tmp_geo = embed_store_geo
-+    ELSE
-+      tmp = embed_slots(src)%c0
-+      IF (ALLOCATED(embed_slots(src)%geo)) tmp_geo = embed_slots(src)%geo
-+    ENDIF
-+    IF (embed_have_key .AND. embed_current_key == to_key) THEN
-+      CALL embed_replace_key_store(tmp, tmp_geo, to_key)
-+      embed_store_converged = .TRUE.
-+      dst = embed_slot_index(to_key, .FALSE.)
-+      IF (dst /= 0) THEN
-+        IF (ALLOCATED(embed_slots(dst)%c0)) THEN
-+          DEALLOCATE(embed_slots(dst)%c0,STAT=ierr)
-+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+               __LINE__,__FILE__)
++    err_kind = embed_err_none
++    !$omp critical (embed_orbital_slots)
++    embed_slot_limit_override = limit
++    IF (limit > embed_limit_unlimited) THEN
++      DO WHILE (embed_count_parked_locked() > limit)
++        CALL embed_evict_oldest_locked(embed_current_key, embed_have_key, &
++             0_embed_key_kind, .FALSE., evicted, ierr)
++        IF (ierr /= 0) THEN
++          err_kind = embed_err_dealloc
++          EXIT
 +        ENDIF
-+        IF (ALLOCATED(embed_slots(dst)%geo)) DEALLOCATE(embed_slots(dst)%geo)
-+      ENDIF
-+    ELSE
-+      dst = embed_slot_index(to_key, .TRUE.)
-+      IF (ALLOCATED(embed_slots(dst)%c0)) THEN
-+        DEALLOCATE(embed_slots(dst)%c0,STAT=ierr)
-+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+             __LINE__,__FILE__)
-+      ENDIF
-+      ALLOCATE(embed_slots(dst)%c0(s1, s2, s3),STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-+           __LINE__,__FILE__)
-+      embed_slots(dst)%c0 = tmp
-+      embed_slots(dst)%converged = .TRUE.
-+      IF (ALLOCATED(embed_slots(dst)%geo)) DEALLOCATE(embed_slots(dst)%geo)
-+      IF (ALLOCATED(tmp_geo)) embed_slots(dst)%geo = tmp_geo
++        IF (.NOT. evicted) EXIT
++      ENDDO
 +    ENDIF
-+    embed_copy_orbital_slot = .TRUE.
-+  END FUNCTION embed_copy_orbital_slot
++    !$omp end critical (embed_orbital_slots)
++    IF (err_kind /= embed_err_none) THEN
++      CALL stopgm(procedureN, 'deallocation problem', &
++           __LINE__, __FILE__)
++      RETURN
++    ENDIF
++  END SUBROUTINE embed_set_orbital_slot_limit
 +
 +  ! ==================================================================
-+  SUBROUTINE embed_park_partial_orbital_slot(next_key)
-+    ! Park a partial live store as an explicitly unconverged slot.
-+    INTEGER(embed_key_kind), INTENT(IN) :: next_key
-+    IF (.NOT. embed_have_partial) RETURN
++  SUBROUTINE embed_swap_orbital_slot_locked(key, do_park, err_kind)
++    ! ==--------------------------------------------------------------==
++    INTEGER(embed_key_kind), INTENT(IN) :: key
++    LOGICAL, INTENT(IN) :: do_park
++    INTEGER, INTENT(OUT) :: err_kind
++    COMPLEX(real_8), ALLOCATABLE :: next_c0(:,:,:)
++    REAL(real_8), ALLOCATABLE :: next_geo(:)
++    LOGICAL :: valid, has_next, evicted
++    INTEGER :: limit, idx, ierr
++    err_kind = embed_err_none
++    CALL embed_effective_slot_limit(limit, valid)
++    IF (.NOT. valid) THEN
++      err_kind = embed_err_limit
++      RETURN
++    ENDIF
++    ! Extract the newly selected key first so it is never a candidate for
++    ! eviction and its slot no longer counts against the parked limit.
++    has_next = .FALSE.
++    idx = embed_find_slot_locked(key)
++    IF (idx > 0) THEN
++      IF (ALLOCATED(embed_slots(idx)%c0)) THEN
++        CALL MOVE_ALLOC(embed_slots(idx)%c0, next_c0)
++        IF (ALLOCATED(embed_slots(idx)%geo)) &
++             CALL MOVE_ALLOC(embed_slots(idx)%geo, next_geo)
++        has_next = .TRUE.
++      ENDIF
++      CALL embed_clear_slot(idx, ierr)
++      IF (ierr /= 0) THEN
++        err_kind = embed_err_dealloc
++        RETURN
++      ENDIF
++    ENDIF
++    IF (do_park) THEN
++      idx = embed_find_slot_locked(embed_current_key)
++      IF (idx > 0) THEN
++        CALL embed_clear_slot(idx, ierr)
++        IF (ierr /= 0) THEN
++          err_kind = embed_err_dealloc
++          RETURN
++        ENDIF
++      ENDIF
++      IF (limit > embed_limit_unlimited) THEN
++        DO WHILE (embed_count_parked_locked() >= limit)
++          CALL embed_evict_oldest_locked(embed_current_key, .TRUE., &
++               key, .TRUE., evicted, ierr)
++          IF (ierr /= 0) THEN
++            err_kind = embed_err_dealloc
++            RETURN
++          ENDIF
++          IF (.NOT. evicted) EXIT
++        ENDDO
++      ENDIF
++      CALL embed_acquire_free_slot_locked(idx, ierr)
++      IF (ierr /= 0 .OR. idx == 0) THEN
++        err_kind = embed_err_alloc
++        RETURN
++      ENDIF
++      IF (has_next) THEN
++        CALL MOVE_ALLOC(embed_c0_store, embed_slots(idx)%c0)
++        IF (ALLOCATED(embed_store_geo)) &
++             CALL MOVE_ALLOC(embed_store_geo, embed_slots(idx)%geo)
++      ELSE
++        ALLOCATE(embed_slots(idx)%c0(embed_store_s1, embed_store_s2, &
++             embed_store_s3), STAT=ierr)
++        IF (ierr /= 0) THEN
++          err_kind = embed_err_alloc
++          RETURN
++        ENDIF
++        embed_slots(idx)%c0 = embed_c0_store
++        IF (ALLOCATED(embed_store_geo)) embed_slots(idx)%geo = embed_store_geo
++      ENDIF
++      embed_park_seq = embed_park_seq + 1_embed_key_kind
++      embed_slots(idx)%used = .TRUE.
++      embed_slots(idx)%key = embed_current_key
++      embed_slot_stamps(idx) = embed_park_seq
++    ELSE IF (limit > embed_limit_unlimited) THEN
++      DO WHILE (embed_count_parked_locked() > limit)
++        CALL embed_evict_oldest_locked(key, .TRUE., &
++             embed_current_key, embed_have_key, evicted, ierr)
++        IF (ierr /= 0) THEN
++          err_kind = embed_err_dealloc
++          RETURN
++        ENDIF
++        IF (.NOT. evicted) EXIT
++      ENDDO
++    ENDIF
++    embed_have_key = .TRUE.
++    embed_current_key = key
++    IF (.NOT. has_next) RETURN
++    IF (ALLOCATED(embed_c0_store)) THEN
++      DEALLOCATE(embed_c0_store, STAT=ierr)
++      IF (ierr /= 0) THEN
++        err_kind = embed_err_dealloc
++        RETURN
++      ENDIF
++    ENDIF
++    CALL MOVE_ALLOC(next_c0, embed_c0_store)
++    embed_store_key = key
++    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
++    IF (ALLOCATED(next_geo)) CALL MOVE_ALLOC(next_geo, embed_store_geo)
++    embed_store_s1 = SIZE(embed_c0_store, 1)
++    embed_store_s2 = SIZE(embed_c0_store, 2)
++    embed_store_s3 = SIZE(embed_c0_store, 3)
 +    embed_have_orbitals = .TRUE.
-+    embed_store_converged = .FALSE.
-+    CALL embed_select_orbital_slot(next_key)
-+    embed_have_orbitals = .FALSE.
-+  END SUBROUTINE embed_park_partial_orbital_slot
++    embed_have_partial = .FALSE.
++  END SUBROUTINE embed_swap_orbital_slot_locked
 +
 +  ! ==================================================================
 +  SUBROUTINE embed_select_orbital_slot(key)
@@ -357,48 +550,32 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
 +    INTEGER :: i, ierr
 +    IF (embed_have_key .AND. key == embed_current_key) RETURN
-+    ! Park the c0 of the key being left and record whether it converged.
-+    ! A partial copy is not a result and stays with the store.
++    ! Park the converged c0 of the key being left. A partial copy is not
++    ! a result and stays with the store.
 +    IF (embed_have_key .AND. embed_have_orbitals .AND. &
 +        ALLOCATED(embed_c0_store)) THEN
-+      i = embed_slot_index(embed_current_key, .TRUE.)
-+      IF (ALLOCATED(embed_slots(i)%c0)) THEN
-+        DEALLOCATE(embed_slots(i)%c0,STAT=ierr)
-+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+             __LINE__,__FILE__)
-+      ENDIF
-+      ALLOCATE(embed_slots(i)%c0(embed_store_s1, embed_store_s2, &
-+           embed_store_s3),STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-+           __LINE__,__FILE__)
-+      embed_slots(i)%c0 = embed_c0_store
-+      embed_slots(i)%converged = embed_store_converged
-+      IF (ALLOCATED(embed_slots(i)%geo)) DEALLOCATE(embed_slots(i)%geo)
-+      IF (ALLOCATED(embed_store_geo)) embed_slots(i)%geo = embed_store_geo
++      i = 1
++    ELSE
++      i = 0
 +    ENDIF
-+    embed_have_key = .TRUE.
-+    embed_current_key = key
-+    ! Restore what the new key parked. Without one, the store keeps the
-+    ! orbitals of the key just left as this key's start.
-+    i = embed_slot_index(key, .FALSE.)
-+    IF (i == 0) RETURN
-+    IF (.NOT. ALLOCATED(embed_slots(i)%c0)) RETURN
-+    IF (ALLOCATED(embed_c0_store)) THEN
-+      DEALLOCATE(embed_c0_store,STAT=ierr)
-+      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-+           __LINE__,__FILE__)
++    ierr = embed_err_none
++    !$omp critical (embed_orbital_slots)
++    CALL embed_swap_orbital_slot_locked(key, i /= 0, ierr)
++    !$omp end critical (embed_orbital_slots)
++    IF (ierr == embed_err_limit) THEN
++      CALL stopgm(procedureN, &
++           'CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer', &
++           __LINE__, __FILE__)
++      RETURN
++    ELSE IF (ierr == embed_err_dealloc) THEN
++      CALL stopgm(procedureN, 'deallocation problem', &
++           __LINE__, __FILE__)
++      RETURN
++    ELSE IF (ierr /= embed_err_none) THEN
++      CALL stopgm(procedureN, 'allocation problem', &
++           __LINE__, __FILE__)
++      RETURN
 +    ENDIF
-+    CALL MOVE_ALLOC(embed_slots(i)%c0, embed_c0_store)
-+    embed_store_key = embed_slots(i)%key
-+    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
-+    IF (ALLOCATED(embed_slots(i)%geo)) &
-+         CALL MOVE_ALLOC(embed_slots(i)%geo, embed_store_geo)
-+    embed_store_s1 = SIZE(embed_c0_store, 1)
-+    embed_store_s2 = SIZE(embed_c0_store, 2)
-+    embed_store_s3 = SIZE(embed_c0_store, 3)
-+    embed_have_orbitals = .TRUE.
-+    embed_have_partial = .FALSE.
-+    embed_store_converged = embed_slots(i)%converged
 +  END SUBROUTINE embed_select_orbital_slot
 +
 +  ! ==================================================================
@@ -430,7 +607,6 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (ALLOCATED(embed_store_geo)) DEALLOCATE(embed_store_geo)
 +    IF (ALLOCATED(embed_call_geo)) embed_store_geo = embed_call_geo
 +    embed_have_orbitals = .TRUE.
-+    embed_store_converged = .TRUE.
 +  END SUBROUTINE embed_save_orbitals
 +
 +  ! ==================================================================
@@ -483,9 +659,8 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    source = -2
 +    best = -1
 +    donor = 0
-+    ! The store holds the selected key's c0 when a parked copy was
-+    ! restored, otherwise the c0 of the key last left. An unconverged
-+    ! pass leaves that c0 in place and marks it stale.
++    ! The store, which holds the selected key's own c0 when that key
++    ! parked one, else the c0 of the key last left.
 +    IF (embed_have_orbitals .AND. ALLOCATED(embed_c0_store)) THEN
 +      source = 0
 +      best = 0
@@ -514,7 +689,6 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (dist > rmax) THEN
 +      embed_have_orbitals = .FALSE.
 +      embed_have_partial = .FALSE.
-+      embed_store_converged = .FALSE.
 +      source = -1
 +      RETURN
 +    ENDIF
@@ -533,7 +707,6 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    embed_store_geo = embed_slots(best)%geo
 +    embed_have_orbitals = .TRUE.
 +    embed_have_partial = .FALSE.
-+    embed_store_converged = embed_slots(best)%converged
 +    source = 1
 +  END SUBROUTINE embed_choose_warm_start_metric_v2
 +
@@ -541,7 +714,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
      ! ==--------------------------------------------------------------==
-@@ -180,7 +664,7 @@
+@@ -180,7 +866,7 @@ CONTAINS
      IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
           __LINE__,__FILE__)
      ! ==--------------------------------------------------------------==
@@ -550,7 +723,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (lqmmm%qmmm) THEN
         IF (textfld) THEN
            ALLOCATE(extf(fpar%kr1*fpar%kr2s*fpar%kr3s),STAT=ierr)
-@@ -196,6 +680,8 @@
+@@ -196,6 +882,8 @@ CONTAINS
         ALLOCATE(taup(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
@@ -559,7 +732,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ALLOCATE(fion(3,maxsys%nax,maxsys%nsx),STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
              __LINE__,__FILE__)
-@@ -305,7 +791,20 @@
+@@ -305,7 +993,20 @@ CONTAINS
         CALL syscomb(c0,c2,sccomm%n_s0,sccomm%n_s1,sccomm%n_s0up,sccomm%n_s1up)
         GOTO 150
      ENDIF
@@ -580,7 +753,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -460,7 +959,7 @@
+@@ -460,7 +1161,7 @@ CONTAINS
                          infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf).AND.MOD(cdfti,store1%isctore).EQ.0)&
                          THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -589,7 +762,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     IF (ropt_mod%convwf) THEN
-@@ -476,7 +975,7 @@
+@@ -476,7 +1177,7 @@ CONTAINS
                  IF (convtest) THEN
                     IF (.NOT.cntl%bsymm.AND.MOD(cdfti,store1%isctore).NE.0)THEN
                        CALL mm_dim(mm_go_mm,statusdummy)
@@ -598,7 +771,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                        CALL mm_dim(mm_revert,statusdummy)
                     ENDIF
                     ropt_mod%convwf=.TRUE.
-@@ -551,7 +1050,7 @@
+@@ -551,7 +1252,7 @@ CONTAINS
                  IF (.NOT.cntl%bsymm.AND.&
                       (MOD(infi,store1%istore).EQ.0.OR.infi.EQ.cnti%nomore_iter.OR.ropt_mod%convwf))THEN
                     CALL mm_dim(mm_go_mm,statusdummy)
@@ -607,7 +780,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
                     CALL mm_dim(mm_revert,statusdummy)
                  ENDIF
                  IF (ropt_mod%convwf) THEN
-@@ -863,7 +1362,7 @@
+@@ -863,7 +1564,7 @@ CONTAINS
      IF (cntl%tpspec) THEN
         IF (rout1%rhoout) CALL rhopri(c0,tau0,rhoe,psi(:,1),crge%n,nkpt%nkpnt)
         CALL mm_dim(mm_go_mm,statusdummy)
@@ -616,7 +789,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
      ENDIF
      ! EHR]
      !
-@@ -882,7 +1381,7 @@
+@@ -882,7 +1583,7 @@ CONTAINS
         CALL prcplngs(cplion,cplcfg,.TRUE.)
         IF (tfor.AND.tcplfd.OR.tcpllr) THEN
            IF (tcplfd) irec(irec_phes) = 1
@@ -625,7 +798,7 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
         ENDIF
         DEALLOCATE(cplion,STAT=ierr)
         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -913,16 +1412,36 @@
+@@ -913,16 +1614,32 @@ CONTAINS
      IF (paral%parent) THEN
         CALL prmem('    RWFOPT')
         IF (.NOT.cntl%bsymm.OR.ropt_mod%convwf) CALL finalp(tau0,fion,tau0,eigv)
@@ -640,14 +813,10 @@ diff --git c/src/rwfopt_utils.mod.F90 w/src/rwfopt_utils.mod.F90
 +    IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
 +      CALL embed_save_orbitals(c0)
 +      embed_have_partial = .FALSE.
-+      embed_store_converged = .TRUE.
-+    ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN
-+      embed_store_converged = .FALSE.
 +    ELSE IF (embed_warm_orbitals .AND. .NOT. embed_have_orbitals) THEN
 +      CALL embed_save_orbitals(c0)
 +      embed_have_orbitals = .FALSE.
 +      embed_have_partial = .TRUE.
-+      embed_store_converged = .FALSE.
      ENDIF
      ! CB: TAUP,FION handled by BS_WFO
      IF (.NOT.cntl%bsymm) THEN

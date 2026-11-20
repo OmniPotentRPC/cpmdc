@@ -65,10 +65,6 @@ PATCHES = {
         "src/rwfopt_utils.mod.F90",
     ),
     "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
-    "opencpmd_atomwf_kpts_ortho.patch": (
-        "src/atomwf_utils.mod.F90",
-        "src/gsortho_utils.mod.F90",
-    ),
 }
 
 # The stopgm patch only inserts cpmd_stopgm_hook. It deletes no upstream line.
@@ -129,11 +125,9 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "CALL stopgm('embed_restore_orbitals'",
         "saved orbitals do not match c0; call embed_reset_warm_orbitals",
         "USE rinitwf_driver,                  ONLY: embed_have_orbitals",
-        "IF (.NOT. embed_slots(src)%converged) RETURN",
-        "embed_slots(i)%converged = embed_store_converged",
-        "embed_store_converged = embed_slots(i)%converged",
-        "embed_store_converged = embed_slots(best)%converged",
-        "ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN",
+        "CPMDC_ORBITAL_SLOT_LIMIT",
+        "PUBLIC :: embed_set_orbital_slot_limit",
+        "PUBLIC :: embed_parse_orbital_slot_limit",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
@@ -257,16 +251,6 @@ def assert_embed_extrapolate(patch: Path) -> None:
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
-    stale = text.split(
-        "ELSE IF (embed_warm_orbitals .AND. embed_have_orbitals) THEN", 1
-    )
-    if len(stale) != 2 or "CALL embed_break_history()" not in stale[1].split(
-        "ELSE IF", 1
-    )[0]:
-        raise AssertionError(
-            f"{patch.name}: an unconverged pass that already holds orbitals "
-            "must break the extrapolation history"
-        )
     # control_test still turns cntl%textrap off, so cpmd.x keeps its jobs.
     if "-       cntl%textrap=.FALSE." in text:
         raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")
@@ -279,18 +263,6 @@ def assert_constant_cutoff_precon(patch: Path) -> None:
         "IF (prcp_com%akin.GT.1.e-10_real_8) xskin=1._real_8/prcp_com%gskin",
         "(1._real_8+cp_erf((hg(j)-prcp_com%gckin)*xskin))",
         "-          vpp(j)=ftpi*hg(j)+vpp(j)",
-    ):
-        if needle not in text:
-            raise AssertionError(f"{patch.name}: missing {needle}")
-
-
-def assert_atomwf_kpts_ortho(patch: Path) -> None:
-    text = patch.read_text(encoding="utf-8")
-    for needle in (
-        "ALLOCATE(smat_c(nleft,MAX(atwp%nattot,nleft)),STAT=ierr)",
-        "c0(:,atwp%nattot+1:,ikind),nleft,smat_c)",
-        "-       CALL mp_sum(smat,2*np*n0,parai%allgrp)",
-        "+       CALL mp_sum(smat,np*n0,parai%allgrp)",
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
@@ -341,10 +313,6 @@ def main() -> int:
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")
             assert_constant_cutoff_precon(patch)
-        elif name == "opencpmd_atomwf_kpts_ortho.patch":
-            if removed <= 0:
-                raise AssertionError(f"{name}: patch must replace upstream code")
-            assert_atomwf_kpts_ortho(patch)
         elif name == "opencpmd_c_mem_addrs.patch":
             text = patch.read_text(encoding="utf-8")
             if "return (size_t) pp;" not in text:

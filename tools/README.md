@@ -8,7 +8,7 @@ linking `libcpmdc`.
 | --- | --- |
 | `opencpmd_embed_rinitwf.patch` | Publish `embed_have_orbitals`. When that flag is true, `rinitwf` returns after `phfac` and, when `corel%tinlc`, `copot`. The atomic, random, and primitive guesses do not run. `cpmd.x` never sets the flag. Apply this before the rwfopt patch |
 | `opencpmd_embed_geometry.patch` | Add `embed_ctrl` and `embed_write_files` (default `.TRUE.`). `embed_set_write_files(.FALSE.)` skips the `geofile` `GEOMETRY` write in `initrun` as well as the `zhwwf` and `geofile` writes in `rwfopt`. `wrgeof` still prints coordinates. Apply this before the rwfopt patch |
-| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, `embed_reset_warm_orbitals`, and `embed_set_write_files`. Leave `fion` allocated only when `embed_need_forces` is true. An unconverged call leaves `fion` zero. Save `c0` when `embed_warm_orbitals` is true and the SCF converged. Copy that `c0` in before `initrun` and again after it. An unconverged pass keeps a partial copy only while no converged copy exists, and only a PCG MINIMIZE continuation restores it. `embed_set_warm_orbitals(.FALSE.)` frees the saved copy. A shape mismatch on restore calls `stopgm`. `embed_select_orbital_slot` parks and restores `c0` per caller key, and every copy carries the geometry it converged at: `embed_choose_warm_start` starts the SCF from the nearest stored copy within a caller's root-mean-square limit and drops the store beyond it, so `rinitwf` builds the guess. `embed_copy_orbital_slot` duplicates one key's converged `c0` and geometry into another key and leaves a store owned by a different key in place. A stale donor is refused, including a parked copy and a copy onto the same key |
+| `opencpmd_embed_rwfopt.patch` | Publish `embed_set_warm_orbitals`, `embed_set_need_forces`, `embed_reset_warm_orbitals`, `embed_set_write_files`, `embed_set_orbital_slot_limit`, and `embed_parse_orbital_slot_limit`. Leave `fion` allocated only when `embed_need_forces` is true. An unconverged call leaves `fion` zero. Save `c0` when `embed_warm_orbitals` is true and the SCF converged. Copy that `c0` in before `initrun` and again after it. An unconverged pass keeps a partial copy only while no converged copy exists, and only a PCG MINIMIZE continuation restores it. `embed_set_warm_orbitals(.FALSE.)` frees the saved copy. A shape mismatch on restore calls `stopgm`. `embed_select_orbital_slot` parks and restores `c0` per caller key, bounded by `CPMDC_ORBITAL_SLOT_LIMIT` when set, and every copy carries the geometry it converged at: `embed_choose_warm_start` starts the SCF from the nearest stored copy within a caller's root-mean-square limit and drops the store beyond it, so `rinitwf` builds the guess |
 | `opencpmd_converged_state.patch` | Keep the converged `c0` synchronized with the energy and forces computed by `forcedr`. DIIS/PCG/steepest-descent updates run only while the pre-update gradient is unconverged. Steepest descent with `iproj <= 1` raises `gemax` before that check |
 | `opencpmd_kpoints_inputfile.patch` | Name the deck CPMD read (`cnts%inputfile`) in the k-point report instead of `argv[1]`, which in an embedding host is the host's own argument and stops CPMD with `STOP 12345` when it is missing or longer than 80 characters |
 | `opencpmd_stopgm_return.patch` | Publish `cpmd_stopgm_hook`. While an embed call is armed, cpmdc installs a catch that records the stop code and returns 1, so `stopgm` returns instead of calling `my_stopall`. The wavefunction and forces of that call are undefined, the next call sets CPMD up again, and more than one rank aborts the others. A null hook leaves `cpmd.x` calling `my_stopall` |
@@ -18,7 +18,6 @@ linking `libcpmdc`.
 | `opencpmd_embed_extrapolate.patch` | Keep the `EXTRAPOLATE WFN` request that `control_test` turns off outside Born-Oppenheimer molecular dynamics (BO-MD) in `embed_extrap_wfn` of `embed_ctrl` |
 | `opencpmd_omp_info.patch` | The I/O node supplies the report array size to every calculator rank. Unequal numbers of ranks on different nodes otherwise produce mismatched `MPI_Allreduce` counts. OpenMP place lists also use the reporting rank's broadcast size |
 | `opencpmd_constant_cutoff_precon.patch` | Add the `CONSTANT CUTOFF` penalty `A [1 + erf((G^2 - E0) / sigma)]` to the kinetic diagonal of the ODIIS preconditioner in `hesele`, which `kin_energy` and `vpsi` already apply. Without it ODIIS stops at its step limit on a constant-cutoff deck and the PCG fallback is about six times slower. A deck without `CONSTANT CUTOFF` is unchanged. Optional; rebuild with `rebuild_opencpmd_constant_cutoff.sh` |
-| `opencpmd_atomwf_kpts_ortho.patch` | Fix k-point atomic wavefunction initialization (`atomwf` and `gs_ortho_c`) when `nstate > atwp%nattot`. `gs_ortho_c` passed `2*np*n0` to `mp_sum` on a `COMPLEX(real_8)` array (`MPI_DOUBLE_COMPLEX`), reading and overwriting twice the overlap matrix size. `atomwf` also passed `zmatat(atwp%nattot, atwp%nattot)` instead of sizing the scratch array to `(nleft, MAX(atwp%nattot, nleft))` and passed a rank-1 slice `c0(:, atwp%nattot+1, ikind)` in the `tlsd2` spin-up call |
 | PEF stress (no extra OpenCPMD patch) | Embed sets `cntl%tpres` before `wfopts`; snapshots `paiu/omega` (Ha/Bohr^3) into the caller image and `PotentialResult.stress` |
 
 When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` passes them to `extrapwf`.
@@ -26,9 +25,6 @@ When `embed_extrap_wfn` is set and a call starts from stored orbitals, `rwfopt` 
 From that ring, `extrapwf` returns the always stable predictor-corrector (ASPC) or polynomial prediction.
 `embed_extrapolation_used` returns how many sets that prediction combined.
 A call that does not converge, another orbital key, a store beyond the distance limit, or a reset empties the ring.
-An unconverged pass does so even when a converged copy is already stored.
-The rwfopt patch marks that donor stale, and the extrapolate patch breaks
-the ring on that branch.
 `cpmd.x` never sets `embed_warm_orbitals`, so it never takes this path.
 Apply `opencpmd_embed_extrapolate.patch` after the teardown patch.
 
@@ -47,21 +43,12 @@ patch -p1 < /path/to/cpmdc/tools/opencpmd_embed_extrapolate.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_omp_info.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_pcg_step.patch
 patch -p1 < /path/to/cpmdc/tools/opencpmd_constant_cutoff_precon.patch
-patch -p1 < /path/to/cpmdc/tools/opencpmd_atomwf_kpts_ortho.patch
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_pcg_step.sh /path/to/cpmd-root
 /path/to/cpmdc/tools/rebuild_opencpmd_constant_cutoff.sh /path/to/cpmd-root
 # rebuild libcpmdc against the updated archive
 ```
-
-`rebuild_opencpmd_embed.sh` recompiles each patched member it owns, including
-`gsortho_utils.mod.o` and `atomwf_utils.mod.o` from
-`opencpmd_atomwf_kpts_ortho.patch`, then replaces those members in
-`lib/libcpmd.a`.
-`rebuild_opencpmd_omp_info.sh`, `rebuild_opencpmd_pcg_step.sh`, and
-`rebuild_opencpmd_constant_cutoff.sh` replace `rggen_utils.mod.o`,
-`pcgrad_driver.mod.o`, and `hesele_utils.mod.o`.
 
 The OpenMP report regression compiles the actual patched reporting routine
 with MPI interfaces that represent unequal node populations. Run it inside

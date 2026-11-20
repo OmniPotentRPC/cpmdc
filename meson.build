@@ -822,6 +822,27 @@ if get_option('with_tests')
       timeout: 180,
       is_parallel: false,
     )
+    slot_limit_mpi = executable(
+      'test_orbital_slot_limit_mpi',
+      'tests/test_orbital_slot_limit_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    )
+    test(
+      'orbital-slot-limit-mpi',
+      python,
+      args: [
+        run_mpi_test,
+        '2',
+        slot_limit_mpi.full_path(),
+        runtime_params_bin.full_path(),
+      ],
+      depends: [slot_limit_mpi, runtime_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 300,
+      is_parallel: false,
+    )
     # The reference evaluator gives exact per-rank values to compare against.
     if not has_cpmd
       rank_consensus = executable(
@@ -1125,6 +1146,21 @@ if get_option('with_tests')
     depends: [runtime_params_bin, water_maxiter2_session_params_bin],
     suite: ['e2e', 'cmocka'],
     timeout: 900,
+  )
+
+  test(
+    'orbital-slot-limit',
+    executable(
+      'test_orbital_slot_limit',
+      'tests/test_orbital_slot_limit.c',
+      dependencies: [cpmdc_embed_shell_dep, cmocka_dep, math_dep],
+      include_directories: inc,
+      c_args: common_c_args,
+    ),
+    args: [runtime_params_bin.full_path()],
+    depends: [runtime_params_bin],
+    suite: ['e2e', 'cmocka'],
+    timeout: 600,
   )
 
   params_escape_bin = custom_target(

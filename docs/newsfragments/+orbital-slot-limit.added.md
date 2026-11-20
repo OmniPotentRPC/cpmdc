@@ -1,0 +1,2 @@
+`CPMDC_ORBITAL_SLOT_LIMIT` caps the number of inactive orbital wavefunctions parked under `cpmdc_session_select_orbitals()` keys so memory stays bounded when a session sweeps across many instanton or ring-polymer bead geometries.
+The active orbital store and any newly selected key are never evicted, the oldest parked wavefunction is evicted first when the cap is reached, leaving the variable unset keeps every parked key as before, and zero, negative, empty, or non-integer values fail the evaluation with a diagnostic naming `CPMDC_ORBITAL_SLOT_LIMIT`.

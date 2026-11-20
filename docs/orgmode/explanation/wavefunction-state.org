@@ -113,6 +113,10 @@ the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of ~c0~.
+~CPMDC_ORBITAL_SLOT_LIMIT~ bounds how many inactive keys stay parked beside the
+active store: when a new key needs a parked slot at the limit, the oldest
+parked copy is evicted, while the active store and any key being selected are
+kept; leaving it unset retains every parked key.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
 A session that never selects a key keeps one stored copy.
