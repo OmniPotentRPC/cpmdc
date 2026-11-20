@@ -503,11 +503,10 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
   if have_cpp and lammps_include != ''
     cpp = meson.get_compiler('cpp')
     mpi_cpp_dep = dependency('mpi', language: 'cpp', required: lammps_plugin_opt)
-    lammps_inc = include_directories(lammps_include, is_system: true)
+    lammps_inc_dep = declare_dependency(compile_args: ['-I' + lammps_include])
     lammps_plugin_ok = mpi_cpp_dep.found() and cpp.has_header(
       'pair.h',
-      include_directories: lammps_inc,
-      dependencies: mpi_cpp_dep,
+      dependencies: [mpi_cpp_dep, lammps_inc_dep],
       args: '-std=c++17',
     )
   endif
@@ -516,9 +515,9 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
       'cpmdcplugin',
       ['tools/lammps/pair_cpmdc.cpp', 'tools/lammps/cpmdc_plugin.cpp'],
       name_prefix: '',
-      include_directories: [include_directories('include'), lammps_inc],
+      include_directories: include_directories('include'),
       link_with: cpmdc_shared,
-      dependencies: mpi_cpp_dep,
+      dependencies: [mpi_cpp_dep, lammps_inc_dep],
       override_options: ['cpp_std=c++17'],
       install: true,
       install_dir: get_option('libdir') / 'cpmdc',
