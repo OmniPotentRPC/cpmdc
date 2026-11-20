@@ -598,10 +598,16 @@ def test_two_ranks_match_one(route, periodic_params, tmp_path):
         ],
     )
     one = run_case(case, tmp_path, None)
+    launched = run_case(case, tmp_path, 1)
     two = run_case(case, tmp_path, 2)
-    if two["world_size"] != 2:
-        pytest.skip("mpiexec did not start one two-rank MPI world that LAMMPS joins")
+    assert launched["world_size"] == 1, launched["world_size"]
+    assert two["world_size"] == 2, (
+        f"mpiexec -n 2 gave LAMMPS a world of {two['world_size']} rank(s); "
+        "the LAMMPS library and the launcher use different MPI installations"
+    )
     assert min(two["nlocal"]) > 0, two["nlocal"]
+    assert launched["pe"] == pytest.approx(one["pe"], rel=1e-12)
+    np.testing.assert_allclose(launched["forces"], one["forces"], rtol=1e-10, atol=1e-12)
     assert two["pe"] == pytest.approx(one["pe"], rel=1e-12)
     np.testing.assert_allclose(two["forces"], one["forces"], rtol=1e-10, atol=1e-12)
     np.testing.assert_allclose(two["virial"], one["virial"], rtol=1e-10, atol=1e-10)
