@@ -844,6 +844,29 @@ if get_option('with_tests')
       timeout: 120,
       is_parallel: false,
     )
+    orbital_divergence = executable(
+      'test_orbital_divergence_mpi',
+      'tests/test_orbital_divergence_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'orbital-divergence-mpi',
+      python,
+      args: [
+        run_mpi_test,
+        '--timeout',
+        has_cpmd ? '240' : '45',
+        '2',
+        orbital_divergence.full_path(),
+        runtime_params_bin.full_path(),
+      ],
+      depends: [orbital_divergence, runtime_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: has_cpmd ? 300 : 90,
+      is_parallel: false,
+    )
     # The reference evaluator gives exact per-rank values to compare against.
     if not has_cpmd
       rank_consensus = executable(
