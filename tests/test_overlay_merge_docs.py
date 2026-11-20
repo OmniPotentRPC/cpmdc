@@ -8,7 +8,9 @@ block an overlay scalar, that the carrier check runs for every set overlay
 field, and the message an unreadable arm list stores, in the format
 src/cpmdc.c writes. No overlay doc may claim that the scalars are resolved
 once or come from one result, and the merge in src/cpmdc.c must not skip the
-carrier check when a typed field sets the value.
+carrier check when a typed field sets the value. The pages that describe the
+rendered `&SYSTEM` scalars must say a `CUTOFF`, `CHARGE`, or `MULTIPLICITY`
+directive is rejected for a default value and for any other value.
 """
 
 from __future__ import annotations
@@ -31,6 +33,11 @@ STALE = (
 )
 
 CARRIER_CHECK = "the carrier check runs for every set overlay field"
+SYSTEM_DIRECTIVE = (
+    "a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in the typed "
+    "`system` section"
+)
+SYSTEM_VALUES = "rejected for a default value and for any other value"
 
 
 def configure_comment(header: str) -> str:
@@ -166,6 +173,36 @@ def main() -> int:
         for phrase in STALE:
             if phrase in text.lower():
                 failures.append(f"{name}: still says {phrase!r}")
+    system_pages = {
+        "include/cpmdc.h cpmdc_configure()": docs[
+            "include/cpmdc.h cpmdc_configure()"
+        ],
+        "docs/orgmode/reference/c-abi.org": docs[
+            "docs/orgmode/reference/c-abi.org"
+        ],
+        "docs/orgmode/reference/cpmd-options.org": wording[
+            "docs/orgmode/reference/cpmd-options.org"
+        ],
+        "docs/orgmode/reference/cpmdparams-schema.org": wording[
+            "docs/orgmode/reference/cpmdparams-schema.org"
+        ],
+        "docs/orgmode/reference/contracts.org": wording[
+            "docs/orgmode/reference/contracts.org"
+        ],
+    }
+    fragment = fragments / "+system-scalar-directives.fixed.md"
+    try:
+        system_pages["docs/newsfragments/+system-scalar-directives.fixed.md"] = (
+            flat(fragment.read_text())
+        )
+    except FileNotFoundError:
+        failures.append(
+            "docs/newsfragments/+system-scalar-directives.fixed.md: missing"
+        )
+    for name, text in system_pages.items():
+        for phrase in (SYSTEM_DIRECTIVE, SYSTEM_VALUES):
+            if phrase not in text:
+                failures.append(f"{name}: does not say {phrase!r}")
     for failure in failures:
         print(failure, file=sys.stderr)
     return 1 if failures else 0
