@@ -67,6 +67,11 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
 void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
+int cpmdc_embed_slot_limit_code(void);
+int cpmdc_orbital_agree(const char **err);
+int cpmdc_orbital_prepare(long long key, const char **err);
+int cpmdc_orbital_note_stored(void);
+const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
 int cpmdc_embed_store_comm(int fcomm);
@@ -1845,6 +1850,8 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
               "MAXITER, or no energy";
     return fail_msg(detail);
   }
+  if (cpmdc_orbital_note_stored() != 0)
+    return fail_msg("out of memory");
   r.ok = 1;
   r.energy_h = energy;
   snprintf(r.message, sizeof(r.message), "ok");
@@ -1870,6 +1877,9 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
                                         const int *atomic_numbers,
                                         const double *cell_ang, int has_cell,
                                         double *grad_h_bohr) {
+  const char *limit_err = NULL;
+  if (cpmdc_orbital_agree(&limit_err) != 0)
+    return fail_msg(limit_err);
   if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     return fail_msg("atomic numbers must be in 1..118");
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
@@ -2370,6 +2380,9 @@ static CPMDCResult session_energy_gradient_cell(
     CPMDCSession *session, int n_atoms, const double *positions_ang,
     const int *atomic_numbers, const double *cell_ang, int has_cell,
     double *grad_h_bohr) {
+  const char *limit_err = NULL;
+  if (cpmdc_orbital_agree(&limit_err) != 0)
+    return fail_msg(limit_err);
   if (!session)
     return fail_msg("null session");
   /* A missing buffer is a bad call, including on a session that already
@@ -2396,8 +2409,11 @@ static CPMDCResult session_energy_gradient_cell(
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
     return fail_msg("CPMD embed not available");
-  if (session->has_orbital_key)
-    cpmdc_embed_select_orbitals(session->orbital_key);
+  if (session->has_orbital_key) {
+    const char *slot_err = NULL;
+    if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
+      return fail_msg(slot_err);
+  }
   if (!session->evaluated) {
     session->evaluated = 1;
     g_evaluated_sessions++;
@@ -2439,6 +2455,13 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
     cpmdc_store_error("null session");
     return -1;
   }
+  {
+    const char *limit_err = NULL;
+    if (cpmdc_orbital_agree(&limit_err) != 0) {
+      cpmdc_store_error(limit_err);
+      return -1;
+    }
+  }
   if (!session->evaluated) {
     cpmdc_store_error("no stored orbitals; evaluate at least once before copy");
     return -1;
@@ -2452,7 +2475,8 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
       return -1;
     }
     if (cpmdc_embed_copy_orbitals(from_key, to_key) != 0) {
-      cpmdc_store_error("from_key has no converged orbitals");
+      const char *why = cpmdc_orbital_limit_message(cpmdc_embed_slot_limit_code());
+      cpmdc_store_error(why ? why : "from_key has no converged orbitals");
       return -1;
     }
   }

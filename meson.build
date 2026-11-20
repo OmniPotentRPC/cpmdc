@@ -274,7 +274,7 @@ if has_cpmd
   cpmd_embed_link += [math_dep, fc.find_library('gfortran', required: false)]
 endif
 
-cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
+cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmdc_orbital_limit.c', 'src/cpmd_embed_c_api.F90', 'src/cpmd_stop_intercept.c',
                       'src/cpmdc_memfd.c', 'src/cpmdc_embed_host.c', 'src/cpmdc_geometry.c',
                       'src/cpmdc_scf_report.c',
                       'src/cpmdc_features.c',
