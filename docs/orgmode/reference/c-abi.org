@@ -8,7 +8,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 47 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 51 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
