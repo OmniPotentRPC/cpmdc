@@ -974,6 +974,19 @@ if get_option('with_tests')
   )
 
   test(
+    'deck-scalars',
+    executable(
+      'test_deck_scalars',
+      'tests/test_deck_scalars.c',
+      dependencies: [cmocka_dep, math_dep] + cpmdc_params_deps,
+      include_directories: [inc] + cpmdc_params_includes,
+      sources: cpmdc_params_sources,
+      c_args: common_c_args + capnp_generated_c_args,
+    ),
+    suite: ['cmocka', 'params'],
+  )
+
+  test(
     'session-socket',
     executable(
       'test_session_socket',

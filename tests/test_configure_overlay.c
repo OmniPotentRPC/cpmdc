@@ -2487,6 +2487,368 @@ static void test_merge_rejects_split_temperature_electron_smearing(
   }
 }
 
+struct PrecedenceCase {
+  const char *name;
+  const char *root_functional;
+  double root_cutoff_ry;
+  int root_charge;
+  int root_mult;
+  int has_dft;
+  const char *dft_functional;
+  int has_sys;
+  double sys_cutoff_ry;
+  int sys_charge;
+  int sys_mult;
+  const char *xc;
+  double overlay_cutoff_ry;
+  int overlay_charge;
+  int overlay_mult;
+  const char *want_functional;
+  double want_cutoff_ry;
+  int want_charge;
+  int want_mult;
+};
+
+#define RY_EV 13.605693122994
+
+struct Recorded {
+  char functional[64];
+  double cutoff_ry;
+  int charge;
+  int mult;
+};
+
+static void read_recorded(struct Recorded *rec) {
+  char root[64];
+  char *deck = (char *)malloc(1 << 16);
+  assert_non_null(deck);
+  memset(rec, 0, sizeof(*rec));
+  memset(root, 0, sizeof(root));
+  assert_int_equal(
+      cpmdc_embed_get_config(rec->functional, (int)sizeof(rec->functional),
+                             &rec->cutoff_ry, &rec->charge, &rec->mult, deck,
+                             1 << 16, root, (int)sizeof(root)),
+      0);
+  free(deck);
+}
+
+static int count_text(const char *hay, const char *needle) {
+  int n = 0;
+  size_t len = strlen(needle);
+  for (const char *p = hay; (p = strstr(p, needle)) != NULL; p += len)
+    n++;
+  return n;
+}
+
+/* The scalars a deck states. A deck that omits CHARGE or MULTIPLICITY states
+ * the CPMD defaults 0 and 1. Each keyword appears at most once so a
+ * duplicate cannot hide behind the first. */
+static void read_deck_scalars(const char *deck, struct Recorded *out) {
+  memset(out, 0, sizeof(*out));
+  assert_int_equal(count_text(deck, " FUNCTIONAL "), 1);
+  assert_int_equal(count_text(deck, " CUTOFF\n  "), 1);
+  assert_true(count_text(deck, " CHARGE\n  ") <= 1);
+  assert_true(count_text(deck, " MULTIPLICITY\n  ") <= 1);
+  const char *fn = strstr(deck, " FUNCTIONAL ") + strlen(" FUNCTIONAL ");
+  size_t n = strcspn(fn, "\n");
+  assert_true(n < sizeof(out->functional));
+  memcpy(out->functional, fn, n);
+  out->functional[n] = '\0';
+  out->cutoff_ry = strtod(strstr(deck, " CUTOFF\n  ") + strlen(" CUTOFF\n  "),
+                          NULL);
+  const char *ch = strstr(deck, " CHARGE\n  ");
+  out->charge = ch ? (int)strtol(ch + strlen(" CHARGE\n  "), NULL, 10) : 0;
+  const char *mu = strstr(deck, " MULTIPLICITY\n  ");
+  out->mult = mu ? (int)strtol(mu + strlen(" MULTIPLICITY\n  "), NULL, 10) : 1;
+}
+
+static CPMDInputSection_list new_sections(struct capn *arena, int n) {
+  capn_ptr root = capn_root(arena);
+  return new_CPMDInputSection_list(root.seg, n);
+}
+
+static void put_dft(struct capn *arena, CPMDInputSection_list secs, int idx,
+                    const char *functional, CPMDDirective_list directives,
+                    int has_directives) {
+  capn_ptr root = capn_root(arena);
+  struct CPMDDftSection dft;
+  memset(&dft, 0, sizeof(dft));
+  if (functional)
+    dft.functional = capn_str(functional);
+  if (has_directives)
+    dft.directives = directives;
+  CPMDDftSection_ptr ptr = new_CPMDDftSection(root.seg);
+  write_CPMDDftSection(&dft, ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_dft;
+  sec.dft = ptr;
+  set_CPMDInputSection(&sec, secs, idx);
+}
+
+static void put_system(struct capn *arena, CPMDInputSection_list secs, int idx,
+                       double cutoff_ry, int charge, int mult,
+                       CPMDDirective_list directives, int has_directives) {
+  capn_ptr root = capn_root(arena);
+  struct CPMDSystemSection sys;
+  memset(&sys, 0, sizeof(sys));
+  sys.cutOffRy = cutoff_ry;
+  sys.charge = charge;
+  sys.multiplicity = mult;
+  if (has_directives)
+    sys.directives = directives;
+  CPMDSystemSection_ptr ptr = new_CPMDSystemSection(root.seg);
+  write_CPMDSystemSection(&sys, ptr);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_system;
+  sec.system = ptr;
+  set_CPMDInputSection(&sec, secs, idx);
+}
+
+static unsigned char *build_precedence_config(const struct PrecedenceCase *pc,
+                                              size_t *size) {
+  struct capn arena;
+  capn_init_malloc(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  if (pc->root_functional)
+    arm.functional = capn_str(pc->root_functional);
+  if (pc->root_cutoff_ry > 0.0)
+    arm.cutOffRy = pc->root_cutoff_ry;
+  arm.charge = pc->root_charge;
+  if (pc->root_mult > 0)
+    arm.multiplicity = pc->root_mult;
+  int nsec = (pc->has_dft ? 1 : 0) + (pc->has_sys ? 1 : 0);
+  if (nsec > 0) {
+    CPMDInputSection_list secs = new_sections(&arena, nsec);
+    int idx = 0;
+    CPMDDirective_list none;
+    memset(&none, 0, sizeof(none));
+    if (pc->has_dft)
+      put_dft(&arena, secs, idx++, pc->dft_functional, none, 0);
+    if (pc->has_sys)
+      put_system(&arena, secs, idx++, pc->sys_cutoff_ry, pc->sys_charge,
+                 pc->sys_mult, none, 0);
+    arm.inputSections = secs;
+  }
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  if (pc->xc)
+    set_xc(&arena, &com, pc->xc);
+  com.planewaveCutoffEv = pc->overlay_cutoff_ry * RY_EV;
+  com.charge = pc->overlay_charge;
+  com.spinMultiplicity = pc->overlay_mult;
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), size);
+  capn_free(&arena);
+  return buf;
+}
+
+/* The deck text, the configuration the embed records, and the expected
+ * values all agree, through a session and through cpmdc_configure. */
+static int check_precedence_case(const struct PrecedenceCase *pc) {
+  int failures = 0;
+  size_t sz = 0;
+  unsigned char *buf = build_precedence_config(pc, &sz);
+  struct Recorded want;
+  memset(&want, 0, sizeof(want));
+  snprintf(want.functional, sizeof(want.functional), "%s",
+           pc->want_functional);
+  want.cutoff_ry = pc->want_cutoff_ry;
+  want.charge = pc->want_charge;
+  want.mult = pc->want_mult;
+
+  for (int via_session = 0; via_session < 2; ++via_session) {
+    char deck_path[] = "overlay_precedence_deck_XXXXXX";
+    int fd = mkstemp(deck_path);
+    assert_true(fd >= 0);
+    close(fd);
+    setenv("CPMDC_DECK_OUT", deck_path, 1);
+    CPMDCSession *session = NULL;
+    if (via_session) {
+      session = cpmdc_session_create_from_config(buf, sz);
+      assert_non_null(session);
+    } else {
+      assert_int_equal(cpmdc_configure(buf, sz), 0);
+    }
+    unsetenv("CPMDC_DECK_OUT");
+    struct Recorded rec;
+    read_recorded(&rec);
+    if (session)
+      cpmdc_session_destroy(session);
+
+    size_t deck_size = 0;
+    unsigned char *raw = read_file(deck_path, &deck_size);
+    remove(deck_path);
+    assert_non_null(raw);
+    char *deck = (char *)realloc(raw, deck_size + 1);
+    assert_non_null(deck);
+    deck[deck_size] = '\0';
+    struct Recorded text;
+    read_deck_scalars(deck, &text);
+
+    if (strcmp(text.functional, want.functional) != 0 ||
+        strcmp(rec.functional, want.functional) != 0 ||
+        fabs(text.cutoff_ry - want.cutoff_ry) > 1e-9 ||
+        fabs(rec.cutoff_ry - want.cutoff_ry) > 1e-9 ||
+        text.charge != want.charge || rec.charge != want.charge ||
+        text.mult != want.mult || rec.mult != want.mult) {
+      print_error(
+          "%s (%s): want %s %.10g %d %d, deck %s %.10g %d %d, recorded %s "
+          "%.10g %d %d\n",
+          pc->name, via_session ? "session" : "configure", want.functional,
+          want.cutoff_ry, want.charge, want.mult, text.functional,
+          text.cutoff_ry, text.charge, text.mult, rec.functional,
+          rec.cutoff_ry, rec.charge, rec.mult);
+      failures++;
+    }
+    free(deck);
+  }
+  free(buf);
+  return failures;
+}
+
+/* Typed sections at their schema defaults do not hide the overlay. */
+static void test_precedence_overlay_fills_typed_defaults(void **state) {
+  (void)state;
+  const struct PrecedenceCase cases[] = {
+      {.name = "dft at default text, overlay xc",
+       .has_dft = 1, .dft_functional = "BLYP", .xc = "PBE",
+       .want_functional = "PBE", .want_cutoff_ry = 70.0, .want_mult = 1},
+      {.name = "dft unset text, overlay xc",
+       .has_dft = 1, .xc = "PBE",
+       .want_functional = "PBE", .want_cutoff_ry = 70.0, .want_mult = 1},
+      {.name = "system at default 70, overlay cutoff",
+       .has_sys = 1, .sys_cutoff_ry = 70.0, .overlay_cutoff_ry = 80.0,
+       .want_functional = "BLYP", .want_cutoff_ry = 80.0, .want_mult = 1},
+      {.name = "system at 0, overlay cutoff",
+       .has_sys = 1, .overlay_cutoff_ry = 80.0,
+       .want_functional = "BLYP", .want_cutoff_ry = 80.0, .want_mult = 1},
+      {.name = "dft and system at defaults, overlay xc and cutoff",
+       .has_dft = 1, .dft_functional = "BLYP", .has_sys = 1,
+       .sys_cutoff_ry = 70.0, .xc = "PBE", .overlay_cutoff_ry = 80.0,
+       .want_functional = "PBE", .want_cutoff_ry = 80.0, .want_mult = 1},
+      {.name = "dft and system at defaults, overlay all four",
+       .has_dft = 1, .dft_functional = "BLYP", .has_sys = 1,
+       .sys_cutoff_ry = 70.0, .sys_mult = 1, .xc = "PBE",
+       .overlay_cutoff_ry = 50.0, .overlay_charge = -1, .overlay_mult = 3,
+       .want_functional = "PBE", .want_cutoff_ry = 50.0, .want_charge = -1,
+       .want_mult = 3},
+      {.name = "system default charge and multiplicity, overlay both",
+       .has_sys = 1, .overlay_charge = 2, .overlay_mult = 2,
+       .want_functional = "BLYP", .want_cutoff_ry = 70.0, .want_charge = 2,
+       .want_mult = 2},
+      {.name = "no overlay leaves the defaults",
+       .has_dft = 1, .dft_functional = "BLYP", .has_sys = 1,
+       .sys_cutoff_ry = 70.0,
+       .want_functional = "BLYP", .want_cutoff_ry = 70.0, .want_mult = 1},
+  };
+  int failures = 0;
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    failures += check_precedence_case(&cases[i]);
+  assert_int_equal(failures, 0);
+}
+
+/* A value a typed field sets beats the overlay. */
+static void test_precedence_typed_value_beats_overlay(void **state) {
+  (void)state;
+  const struct PrecedenceCase cases[] = {
+      {.name = "typed dft functional beats overlay xc",
+       .has_dft = 1, .dft_functional = "LDA", .xc = "PBE",
+       .want_functional = "LDA", .want_cutoff_ry = 70.0, .want_mult = 1},
+      {.name = "typed system cutoff beats overlay cutoff",
+       .has_sys = 1, .sys_cutoff_ry = 50.0, .overlay_cutoff_ry = 80.0,
+       .want_functional = "BLYP", .want_cutoff_ry = 50.0, .want_mult = 1},
+      {.name = "typed system charge and multiplicity beat the overlay",
+       .has_sys = 1, .sys_charge = 4, .sys_mult = 2, .overlay_charge = -1,
+       .overlay_mult = 3,
+       .want_functional = "BLYP", .want_cutoff_ry = 70.0, .want_charge = 4,
+       .want_mult = 2},
+      {.name = "typed dft, default system, overlay both",
+       .has_dft = 1, .dft_functional = "LDA", .has_sys = 1,
+       .sys_cutoff_ry = 70.0, .xc = "PBE", .overlay_cutoff_ry = 80.0,
+       .want_functional = "LDA", .want_cutoff_ry = 80.0, .want_mult = 1},
+      {.name = "default dft, typed system cutoff, overlay both",
+       .has_dft = 1, .dft_functional = "BLYP", .has_sys = 1,
+       .sys_cutoff_ry = 50.0, .xc = "PBE", .overlay_cutoff_ry = 80.0,
+       .want_functional = "PBE", .want_cutoff_ry = 50.0, .want_mult = 1},
+      {.name = "typed dft and system beat the overlay",
+       .has_dft = 1, .dft_functional = "LDA", .has_sys = 1,
+       .sys_cutoff_ry = 50.0, .sys_charge = 1, .sys_mult = 2, .xc = "PBE",
+       .overlay_cutoff_ry = 80.0, .overlay_charge = -1, .overlay_mult = 3,
+       .want_functional = "LDA", .want_cutoff_ry = 50.0, .want_charge = 1,
+       .want_mult = 2},
+  };
+  int failures = 0;
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    failures += check_precedence_case(&cases[i]);
+  assert_int_equal(failures, 0);
+}
+
+/* A typed section at its default does not erase an explicit top-level
+ * field, and that field still beats the overlay. */
+static void test_precedence_root_value_with_default_sections(void **state) {
+  (void)state;
+  const struct PrecedenceCase cases[] = {
+      {.name = "root functional, default dft, no overlay",
+       .root_functional = "PBE", .has_dft = 1, .dft_functional = "BLYP",
+       .want_functional = "PBE", .want_cutoff_ry = 70.0, .want_mult = 1},
+      {.name = "root functional beats overlay xc",
+       .root_functional = "PBE", .has_dft = 1, .dft_functional = "BLYP",
+       .xc = "LDA",
+       .want_functional = "PBE", .want_cutoff_ry = 70.0, .want_mult = 1},
+      {.name = "root cutoff beats overlay cutoff",
+       .root_cutoff_ry = 50.0, .has_sys = 1, .sys_cutoff_ry = 70.0,
+       .overlay_cutoff_ry = 80.0,
+       .want_functional = "BLYP", .want_cutoff_ry = 50.0, .want_mult = 1},
+      {.name = "root charge and multiplicity, default system",
+       .root_charge = 2, .root_mult = 3, .has_sys = 1, .overlay_charge = -1,
+       .overlay_mult = 2,
+       .want_functional = "BLYP", .want_cutoff_ry = 70.0, .want_charge = 2,
+       .want_mult = 3},
+      {.name = "root multiplicity, default system, no overlay",
+       .root_mult = 3, .has_sys = 1,
+       .want_functional = "BLYP", .want_cutoff_ry = 70.0, .want_mult = 3},
+      {.name = "typed section beats the root field",
+       .root_functional = "PBE", .root_cutoff_ry = 50.0, .has_dft = 1,
+       .dft_functional = "LDA", .has_sys = 1, .sys_cutoff_ry = 60.0,
+       .want_functional = "LDA", .want_cutoff_ry = 60.0, .want_mult = 1},
+  };
+  int failures = 0;
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    failures += check_precedence_case(&cases[i]);
+  assert_int_equal(failures, 0);
+}
+
+/* The overlay cutoff is in eV and the deck cutoff is in Ry. */
+static void test_precedence_overlay_cutoff_unit_conversion(void **state) {
+  (void)state;
+  struct capn arena;
+  capn_init_malloc(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDInputSection_list secs = new_sections(&arena, 1);
+  CPMDDirective_list none;
+  memset(&none, 0, sizeof(none));
+  put_system(&arena, secs, 0, 70.0, 0, 0, none, 0);
+  arm.inputSections = secs;
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.planewaveCutoffEv = 1088.45544983952;
+  size_t sz = 0;
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), &sz);
+  capn_free(&arena);
+  char *deck = render_deck_from_config(buf, sz);
+  assert_non_null(strstr(deck, " CUTOFF\n  80\n"));
+  assert_null(strstr(deck, " CUTOFF\n  70\n"));
+  assert_null(strstr(deck, " CUTOFF\n  1088"));
+  free(deck);
+  free(buf);
+}
+
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr,
@@ -2531,6 +2893,10 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_rejects_system_directive_scalar_overlays),
       cmocka_unit_test(test_merge_rejects_explicit_singlet_against_opaque_system),
       cmocka_unit_test(test_merge_rejects_split_temperature_electron_smearing),
+      cmocka_unit_test(test_precedence_overlay_fills_typed_defaults),
+      cmocka_unit_test(test_precedence_typed_value_beats_overlay),
+      cmocka_unit_test(test_precedence_root_value_with_default_sections),
+      cmocka_unit_test(test_precedence_overlay_cutoff_unit_conversion),
       cmocka_unit_test(test_merge_basis_set),
       cmocka_unit_test(test_merge_cutoff_charge_multiplicity),
       cmocka_unit_test(test_merge_rejects_kmesh_scf_vdw_method_relativity),
