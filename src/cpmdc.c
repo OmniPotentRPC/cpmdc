@@ -354,28 +354,26 @@ static int embed_apply_from_wire(const void *params_capnp, size_t params_size,
                                  const char *input_deck,
                                  const CPMDCScalarOverrides *overrides,
                                  CPMDCEmbedImage *image) {
-  const char *fov = "";
+  /* The embed records the configuration that cpmdc_params_effective_config_ov
+   * resolves, the same one the deck was rendered from. The Fortran decode
+   * receives it as the overlay, which it applies last, so it cannot record
+   * a value the deck does not carry. */
+  char fov[64];
   int fov_len = 0;
   double cutoff_ov = 0.0;
-  int has_charge_ov = 0, charge_ov = 0;
-  int has_mult_ov = 0, mult_ov = 1;
-  if (overrides) {
-    if (overrides->functional && overrides->functional[0] != '\0') {
-      fov = overrides->functional;
-      if (fit_c_int(strlen(overrides->functional), &fov_len) != 0)
-        return -1;
-    }
-    if (overrides->cutoff_ry > 0.0)
-      cutoff_ov = overrides->cutoff_ry;
-    if (overrides->has_charge) {
-      has_charge_ov = 1;
-      charge_ov = overrides->charge;
-    }
-    if (overrides->has_multiplicity) {
-      has_mult_ov = 1;
-      mult_ov = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
-    }
-  }
+  int charge_ov = 0;
+  int mult_ov = 1;
+  struct capn arena;
+  CPMDParams_ptr root;
+  if (cpmdc_params_root(params_capnp, params_size, &arena, &root) != 0)
+    return -1;
+  int resolved = cpmdc_params_effective_config_ov(
+      root, overrides, fov, sizeof(fov), &cutoff_ov, &charge_ov, &mult_ov);
+  cpmdc_params_release(&arena);
+  if (resolved != 0 || fit_c_int(strlen(fov), &fov_len) != 0)
+    return -1;
+  const int has_charge_ov = 1;
+  const int has_mult_ov = 1;
   image->output_dir[0] = '\0';
   /* Same method on a new session keeps the process copy of c0. A
    * different basis drops it on the next force call. A stopgm still
@@ -1363,16 +1361,15 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
 }
 
 /* Merge a set common overlay over a native cpmd arm: the arm's bytes are the
- * params; overlay scalars fill fields the arm carries at schema defaults
- * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1), apply Fermi
- * smearing when &CPMD has none, copy vanDerWaalsS6 into vdwParams when s6 is
- * unset, and require basisSet to be unset or "planewave". An unmapped
- * xcFunctionals token is rejected for any arm functional. A scalar the
- * overlay would copy is rejected when inputBlocks, a raw section, a generic
- * section, or a set or typed-section directive already supplies that
- * setting. Omitted fields in typed DFT and SYSTEM sections remain unset.
- * Conflicting or unmergeable overlay fields are rejected through
- * cpmdc_last_error(). */
+ * params; overlay scalars fill fields no typed field sets, where a field
+ * omitted or at its schema default (functional BLYP, cutoff 70 Ry, charge 0,
+ * multiplicity 1) is unset, apply Fermi smearing when &CPMD has none, copy
+ * vanDerWaalsS6 into vdwParams when s6 is unset, and require basisSet to be
+ * unset or "planewave". An unmapped xcFunctionals token is rejected for any
+ * arm functional. A scalar the overlay would copy is rejected when
+ * inputBlocks, a raw section, a generic section, or a set or typed-section
+ * directive already supplies that setting. Conflicting or unmergeable
+ * overlay fields are rejected through cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
@@ -1404,13 +1401,8 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
   if (cpmd_common_validate_smearing(&c, &smear_temperature_k) != 0)
     return -1;
 
-  char base_functional[64];
-  double base_cutoff = 70.0;
-  int base_charge = 0;
-  int base_mult = 1;
-  if (cpmdc_params_effective_config(arm, base_functional,
-                                    sizeof(base_functional), &base_cutoff,
-                                    &base_charge, &base_mult) != 0) {
+  CPMDCTypedScalars typed;
+  if (cpmdc_params_typed_scalars(arm, &typed) != 0) {
     cpmdc_store_error("PotentialConfig cpmd arm is not readable");
     return -1;
   }
@@ -1431,7 +1423,7 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
       return -1;
     }
-    if (strcmp(base_functional, "BLYP") == 0) {
+    if (!typed.functional) {
       if (cpmd_reject_opaque_scalar(&arm_view, "DFT", "FUNCTIONAL",
                                     "xcFunctionals") != 0)
         return -1;
@@ -1439,14 +1431,14 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
       *has_ov = 1;
     }
   }
-  if (c.planewaveCutoffEv > 0.0 && base_cutoff == 70.0) {
+  if (c.planewaveCutoffEv > 0.0 && !typed.cutoff) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CUTOFF",
                                   "planewaveCutoffEv") != 0)
       return -1;
     ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
     *has_ov = 1;
   }
-  if (c.charge != 0 && base_charge == 0) {
+  if (c.charge != 0 && !typed.charge) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CHARGE", "charge") !=
         0)
       return -1;
@@ -1454,7 +1446,7 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
     ov->charge = c.charge;
     *has_ov = 1;
   }
-  if (c.spinMultiplicity > 0 && base_mult == 1) {
+  if (c.spinMultiplicity > 0 && !typed.multiplicity) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "MULTIPLICITY",
                                   "spinMultiplicity") != 0)
       return -1;
