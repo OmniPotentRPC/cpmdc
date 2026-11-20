@@ -272,7 +272,17 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * `CUTOFF`, `CHARGE`, or `MULTIPLICITY`. Without an overlay, a `FUNCTIONAL`
  * directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive
  * is rejected when the deck is rendered, because the rendered `&DFT`
- * section already carries the functional. Fermi `smearing` is copied as
+ * section already carries the functional. The same render rejects a
+ * `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in the typed `system`
+ * section, and a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`
+ * set directive. `CUTOFF` is written on every deck, including the default
+ * 70 Ry. `CHARGE` is written only when it is not 0 and `MULTIPLICITY` only
+ * when it is greater than 1; an omitted line is the schema default the
+ * recorded configuration carries. Those directives are rejected for a
+ * default value and for any other value alike. A default leaves the
+ * directive as a value the recorded configuration does not carry, and any
+ * other value leaves two lines. The render does not keep one and drop the
+ * other. Fermi `smearing` is copied as
  * `FREE-ENERGY` and `TEMPERATURE ELECTRON` when `&CPMD` sets no free-energy
  * or electron-temperature control (including split `TEMPERATURE` +
  * `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set

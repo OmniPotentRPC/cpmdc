@@ -196,6 +196,18 @@ rejects that field.
 A ~FUNCTIONAL~ directive in a typed ~dft~ section or a ~DFT.FUNCTIONAL~ set
 directive is rejected when the deck is rendered, because the rendered ~&DFT~
 section already carries the functional.
+The same render rejects a ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~ directive in
+the typed ~system~ section, and a ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
+~SYSTEM.MULTIPLICITY~ set directive.
+~CUTOFF~ is written on every deck, including the default 70 Ry.
+~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 A section value that differs from the schema default (functional ~BLYP~,
 cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field and beats
 the overlay.

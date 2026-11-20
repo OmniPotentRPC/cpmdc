@@ -5563,6 +5563,18 @@ section holds `FUNCTIONAL` or that of the typed `system` section holds
 Without an overlay, a `FUNCTIONAL` directive in the typed `dft` section or a
 `DFT.FUNCTIONAL` set directive is rejected when the deck is rendered, because
 the rendered `&DFT` section already carries the functional.
+The same render rejects a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in
+the typed `system` section, and a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or
+`SYSTEM.MULTIPLICITY` set directive.
+`CUTOFF` is written on every deck, including the default 70 Ry.
+`CHARGE` is written only when it is not 0 and `MULTIPLICITY` only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 Fermi `smearing` is copied as `FREE-ENERGY` and `TEMPERATURE ELECTRON` when
 `&CPMD` sets no free-energy or electron-temperature control (including split
 `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or
@@ -5995,7 +6007,7 @@ differs, and warm when the basis matches.
 | Layout | `config_capnp` points at `config_capnp_size_bytes` bytes of one unpacked flat `PotentialConfig` message. |
 | Ownership | The caller owns `config_capnp` and may free it on return. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
-| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token for any arm functional, a set overlay scalar, an explicit singlet `spinMultiplicity` of 1 included and whether or not a typed field also sets it, while `inputBlocks`, a raw section, or a generic section opens the owning `&DFT` or `&SYSTEM` section, a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or the typed `dft` section holds a `FUNCTIONAL` directive or the typed `system` section holds a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive, a `FUNCTIONAL` directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive next to the functional the deck renders, an arm `inputBlocks`, `inputSections`, or `directives` list the merge cannot read, Fermi `smearing` next to `FREE-ENERGY` or `TEMPERATURE ELECTRON` controls (including split `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set directives), or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()` and names the cause. A typed field that is omitted or holds its schema default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1) is unset, including a typed `system` charge of 0, and does not replace an explicit root value or block a merged overlay scalar from the rendered deck, cluster HFX solver selection, or embed configuration. |
+| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token for any arm functional, a set overlay scalar, an explicit singlet `spinMultiplicity` of 1 included and whether or not a typed field also sets it, while `inputBlocks`, a raw section, or a generic section opens the owning `&DFT` or `&SYSTEM` section, a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or the typed `dft` section holds a `FUNCTIONAL` directive or the typed `system` section holds a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive, a `FUNCTIONAL` directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive next to the functional the deck renders, a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in the typed `system` section or a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY` set directive, rejected for a default value and for any other value alike, an arm `inputBlocks`, `inputSections`, or `directives` list the merge cannot read, Fermi `smearing` next to `FREE-ENERGY` or `TEMPERATURE ELECTRON` controls (including split `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set directives), or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()` and names the cause. A typed field that is omitted or holds its schema default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1) is unset, including a typed `system` charge of 0, and does not replace an explicit root value or block a merged overlay scalar from the rendered deck, cluster HFX solver selection, or embed configuration. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -8171,6 +8183,18 @@ rejects that field.
 A `FUNCTIONAL` directive in a typed `dft` section or a `DFT.FUNCTIONAL` set
 directive is rejected when the deck is rendered, because the rendered `&DFT`
 section already carries the functional.
+The same render rejects a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in
+the typed `system` section, and a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or
+`SYSTEM.MULTIPLICITY` set directive.
+`CUTOFF` is written on every deck, including the default 70 Ry.
+`CHARGE` is written only when it is not 0 and `MULTIPLICITY` only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 A section value that differs from the schema default (functional `BLYP`,
 cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field and beats
 the overlay.
@@ -9292,6 +9316,18 @@ multiplicity), when a set directive names `DFT.FUNCTIONAL`,
 `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or when the
 `directives` list of the typed `dft` section holds `FUNCTIONAL` or that of
 the typed `system` section holds `CUTOFF`, `CHARGE`, or `MULTIPLICITY`.
+Without an overlay, the deck render rejects a `CUTOFF`, `CHARGE`, or
+`MULTIPLICITY` directive in the typed `system` section, and a
+`SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY` set directive.
+`CUTOFF` is written on every deck, including the default 70 Ry.
+`CHARGE` is written only when it is not 0 and `MULTIPLICITY` only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 Fermi `smearing` also rejects split `TEMPERATURE` and `ELECTRON` arguments
 in `cpmd.directives` and `CPMD.TEMPERATURE` set directives.
 The merge requires `basisSet` to be unset or `"planewave"`, and rejects
