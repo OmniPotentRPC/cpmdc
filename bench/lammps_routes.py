@@ -79,7 +79,7 @@ ROUTES = (
 def lammps_system():
     from lammps import lammps
 
-    lmp = lammps(cmdargs=CMDARGS)
+    lmp = lammps(cmdargs=list(CMDARGS))
     lmp.commands_string(
         "\n".join(
             [

@@ -26,7 +26,7 @@ CMDARGS = ["-log", "none", "-screen", "none", "-nocite"]
 def build(spec: dict[str, Any]) -> Any:
     from lammps import lammps
 
-    lmp = lammps(cmdargs=CMDARGS)
+    lmp = lammps(cmdargs=list(CMDARGS))
     lines = [f"units {spec['units']}", "atom_modify map array sort 0 0"]
     lines += spec.get("setup", [])
     cell = spec.get("cell")
@@ -116,6 +116,7 @@ def main(path: str) -> int:
     if lmp.extract_setting("world_rank") == 0:
         print(json.dumps(out))
     lmp.close()
+    lmp.finalize()
     return 0
 
 
