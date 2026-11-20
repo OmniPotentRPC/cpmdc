@@ -2134,28 +2134,35 @@ static int session_copy_cached_gradient(const CPMDCSession *session,
   return 1;
 }
 
-static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
-                                   const int *atomic_numbers) {
+static int session_validate_topology(const CPMDCSession *session,
+                                     size_t n_atoms,
+                                     const int *atomic_numbers) {
   if (!session || !atomic_numbers || n_atoms == 0)
     return -1;
-  if (!session->topology_fixed) {
-    int *copy = (int *)malloc(n_atoms * sizeof(int));
-    if (!copy)
-      return -1;
-    memcpy(copy, atomic_numbers, n_atoms * sizeof(int));
-    session->fixed_atomic_numbers = copy;
-    session->fixed_n_atoms = n_atoms;
-    session->topology_fixed = 1;
+  if (!session->topology_fixed)
     return 0;
-  }
   if (session->fixed_n_atoms != n_atoms)
     return -1;
   if (!element_counts_match(n_atoms, session->fixed_atomic_numbers,
                             atomic_numbers))
     return -1;
+  return 0;
+}
+
+static void session_accept_topology(CPMDCSession *session, size_t n_atoms,
+                                    const int *atomic_numbers,
+                                    int **pending_topology) {
+  if (!session->topology_fixed) {
+    int *copy = *pending_topology;
+    *pending_topology = NULL;
+    memcpy(copy, atomic_numbers, n_atoms * sizeof(int));
+    session->fixed_atomic_numbers = copy;
+    session->fixed_n_atoms = n_atoms;
+    session->topology_fixed = 1;
+    return;
+  }
   memcpy(session->fixed_atomic_numbers, atomic_numbers,
          n_atoms * sizeof(int));
-  return 0;
 }
 
 /* The overrides a deck is rendered with: an overlay and the session's
@@ -2413,17 +2420,28 @@ static CPMDCResult session_energy_gradient_cell(
     err = "invalid arguments";
   else if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
-  else if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) !=
-           0)
+  else if (session_validate_topology(session, (size_t)n_atoms,
+                                     atomic_numbers) != 0)
     err = "topology change requires a new session";
+  int *pending_topology = NULL;
+  if (!err && !session->topology_fixed) {
+    pending_topology = (int *)malloc((size_t)n_atoms * sizeof(int));
+    if (!pending_topology)
+      err = "out of memory";
+  }
   err = orbital_limit_gate(err);
-  if (err)
+  if (err) {
+    free(pending_topology);
     return fail_msg(err);
+  }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
                                        atomic_numbers, cell_ang, has_cell,
                                        grad_h_bohr))) {
+    session_accept_topology(session, (size_t)n_atoms, atomic_numbers,
+                            &pending_topology);
+    free(pending_topology);
     CPMDCResult cached;
     cached.ok = 1;
     cached.energy_h = session->cached_energy_h;
@@ -2432,8 +2450,10 @@ static CPMDCResult session_energy_gradient_cell(
     return cached;
   }
   if ((!session->embed_configured || g_active_session != session) &&
-      configure_embed_from_session(session) != 0)
+      configure_embed_from_session(session) != 0) {
+    free(pending_topology);
     return fail_msg("CPMD embed not available");
+  }
   if (session->has_orbital_key) {
     const char *slot_err = NULL;
     double cell[9] = {0};
@@ -2442,9 +2462,14 @@ static CPMDCResult session_energy_gradient_cell(
     /* A new basis frees every key's orbitals before this key parks one. */
     (void)cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
                                           has_cell ? 1 : 0, &session->image);
-    if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
+    if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0) {
+      free(pending_topology);
       return fail_msg(slot_err);
+    }
   }
+  session_accept_topology(session, (size_t)n_atoms, atomic_numbers,
+                          &pending_topology);
+  free(pending_topology);
   if (!session->evaluated) {
     session->evaluated = 1;
     g_evaluated_sessions++;

@@ -420,6 +420,8 @@ struct order_result {
   char first_valid[k_msg];
   char topology[k_msg];
   char valid_args[k_msg];
+  int fresh_reconfig_rc;
+  int fresh_other_ok;
   int copy_null_rc;
   char copy_null_last[k_msg];
   int copy_unevaluated_rc;
@@ -434,10 +436,13 @@ static void order_checks(void *ctx_void, void *out_void) {
   struct order_result *out = out_void;
   static const int k_bad_z[3] = {8, 0, 1};
   static const int k_other_z[3] = {8, 8, 1};
+  static const int k_h2_z[2] = {1, 1};
+  static const double k_h2_pos[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.74};
   CPMDCSession *session;
   CPMDCSession *fresh;
   double pos[9];
   double forces[9];
+  double h2_forces[6];
   CPMDCResult r;
   positions_for(0, pos);
   setenv(k_limit_name, ctx->limit, 1);
@@ -468,11 +473,17 @@ static void order_checks(void *ctx_void, void *out_void) {
   copy_text(out->copy_unevaluated_last, k_msg, cpmdc_last_error());
   r = cpmdc_session_energy_forces(fresh, 3, pos, k_z, forces);
   copy_text(out->valid_args, k_msg, r.message);
-  r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
+  out->fresh_reconfig_rc =
+      cpmdc_session_set_params(fresh, ctx->params, ctx->params_n);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_other_z, forces);
   copy_text(out->topology, k_msg, r.message);
 
   out->copy_evaluated_rc = cpmdc_session_copy_orbitals(session, 1, 2);
   copy_text(out->copy_evaluated_last, k_msg, cpmdc_last_error());
+
+  unsetenv(k_limit_name);
+  r = cpmdc_session_energy_forces(fresh, 2, k_h2_pos, k_h2_z, h2_forces);
+  out->fresh_other_ok = r.ok;
   cpmdc_session_destroy(fresh);
   cpmdc_session_destroy(session);
 }
@@ -502,15 +513,17 @@ static void check_error_order(const char *limit) {
   assert_int_equal(out.copy_unevaluated_rc, -1);
   assert_non_null(strstr(out.copy_unevaluated_last, "no stored orbitals"));
   assert_null(strstr(out.copy_unevaluated_last, k_limit_name));
-  /* A well formed call names the limit. */
+  /* A well formed call names the limit and leaves the topology open. */
   assert_int_equal(out.select_rc, 0);
   assert_string_equal(out.first_valid, "ok");
   assert_non_null(strstr(out.valid_args, k_limit_name));
+  assert_int_equal(out.fresh_reconfig_rc, 0);
+  assert_int_equal(out.fresh_other_ok, 1);
   assert_int_equal(out.copy_evaluated_rc, -1);
   assert_non_null(strstr(out.copy_evaluated_last, k_limit_name));
   assert_null(strstr(out.copy_evaluated_last, k_exceeded));
-  /* The first evaluation fixed the topology, so a change of it is the
-   * reason for the failure while the limit stays unusable. */
+  /* The first evaluation on `session` fixed its topology, so a change of it
+   * is the reason for the failure while the limit stays unusable. */
   assert_non_null(strstr(out.topology, "topology change"));
   free(params);
 }
