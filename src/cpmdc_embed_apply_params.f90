@@ -174,17 +174,24 @@ contains
       if (tag == C_P_M_D_INPUT_SECTION_SYSTEM_TAG) then
         sys = c_p_m_d_input_section_system_get(sec, err)
         if (err /= CAPNP_OK .or. sys%p%kind == CAPNP_PK_NULL) cycle
+        ! Schema defaults (70.0 Ry, charge 0, multiplicity 1) decode when omitted;
+        ! treat them as unset, matching cpmdc_params_effective_config.
         cut = c_p_m_d_system_section_cut_off_ry_get(sys)
-        if (cut > 0.0_real64) cutoff_l = cut
-        charge_l = int(c_p_m_d_system_section_charge_get(sys))
+        if (cut > 0.0_real64 .and. abs(cut - 70.0_real64) > 0.0_real64) then
+          cutoff_l = cut
+        end if
+        n = int(c_p_m_d_system_section_charge_get(sys))
+        if (n /= 0) charge_l = n
         n = int(c_p_m_d_system_section_multiplicity_get(sys))
-        if (n > 0) mult_l = n
+        if (n > 1) mult_l = n
       else if (tag == C_P_M_D_INPUT_SECTION_DFT_TAG) then
         dft = c_p_m_d_input_section_dft_get(sec, err)
         if (err /= CAPNP_OK .or. dft%p%kind == CAPNP_PK_NULL) cycle
         call c_p_m_d_dft_section_functional_get(dft, s, err)
         if (err == CAPNP_OK .and. allocated(s)) then
-          if (len_trim(s) > 0) call copy_alloc_text(s, functional_l, 64)
+          if (len_trim(s) > 0 .and. trim(s) /= 'BLYP') then
+            call copy_alloc_text(s, functional_l, 64)
+          end if
         end if
       end if
     end do

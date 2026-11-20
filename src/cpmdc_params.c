@@ -704,10 +704,35 @@ static int functional_needs_cluster_hfx(const char *name, size_t len) {
   return 0;
 }
 
-/* The deck's functional is the &DFT section's when one names it, else the
- * top-level one. */
+/* Cap'n Proto schema defaults on typed CPMDSystemSection and CPMDDftSection
+ * decode as 70.0 Ry, charge 0, multiplicity 1, and functional "BLYP" when
+ * omitted on the wire. Treat those defaults as unset so omitted section fields
+ * neither clobber explicit root CPMDParams scalars nor block common-overlay
+ * overrides from reaching the rendered deck and cluster HFX detection. */
+static int system_cutoff_is_explicit(double cutoff_ry) {
+  return cutoff_ry > 0.0 && cutoff_ry != 70.0;
+}
+
+static int system_charge_is_explicit(int charge) { return charge != 0; }
+
+static int system_multiplicity_is_explicit(int multiplicity) {
+  return multiplicity > 1;
+}
+
+static int dft_functional_is_explicit(capn_text functional) {
+  if (!functional.str || functional.len <= 0)
+    return 0;
+  if (functional.len == 4 && memcmp(functional.str, "BLYP", 4) == 0)
+    return 0;
+  return 1;
+}
+
+/* The deck's functional is the &DFT section's when one names a non-default
+ * functional, else the top-level / overlay functional. */
 static int deck_needs_cluster_hfx(CPMDInputSection_list sections, int nsec,
                                   const char *functional) {
+  const char *eff = functional;
+  size_t eff_len = functional ? strlen(functional) : 0u;
   for (int i = 0; i < nsec; ++i) {
     struct CPMDInputSection sec;
     get_CPMDInputSection(&sec, sections, i);
@@ -715,18 +740,19 @@ static int deck_needs_cluster_hfx(CPMDInputSection_list sections, int nsec,
       continue;
     struct CPMDDftSection body;
     read_CPMDDftSection(&body, sec.dft);
-    if (body.functional.str && body.functional.len > 0)
-      return functional_needs_cluster_hfx(body.functional.str,
-                                          (size_t)body.functional.len);
+    if (dft_functional_is_explicit(body.functional)) {
+      eff = body.functional.str;
+      eff_len = (size_t)body.functional.len;
+    }
   }
-  return functional && functional_needs_cluster_hfx(functional,
-                                                    strlen(functional));
+  return eff && functional_needs_cluster_hfx(eff, eff_len);
 }
 
 /* The deck's multiplicity is the &SYSTEM section's when it names one above
- * a singlet, else the top-level one. */
+ * a singlet, else the top-level / overlay one. */
 static int deck_multiplicity(CPMDInputSection_list sections, int nsec,
                              int multiplicity) {
+  int eff = multiplicity;
   for (int i = 0; i < nsec; ++i) {
     struct CPMDInputSection sec;
     get_CPMDInputSection(&sec, sections, i);
@@ -734,10 +760,10 @@ static int deck_multiplicity(CPMDInputSection_list sections, int nsec,
       continue;
     struct CPMDSystemSection body;
     read_CPMDSystemSection(&body, sec.system);
-    if (body.multiplicity > 1)
-      return body.multiplicity;
+    if (system_multiplicity_is_explicit(body.multiplicity))
+      eff = body.multiplicity;
   }
-  return multiplicity;
+  return eff;
 }
 
 static int render_system_section_with_cell(
@@ -748,8 +774,10 @@ static int render_system_section_with_cell(
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
-  int charge = sys->charge != 0 ? sys->charge : default_charge;
-  double cutoff = sys->cutOffRy > 0.0 ? sys->cutOffRy : default_cutoff;
+  int charge =
+      system_charge_is_explicit(sys->charge) ? sys->charge : default_charge;
+  double cutoff = system_cutoff_is_explicit(sys->cutOffRy) ? sys->cutOffRy
+                                                           : default_cutoff;
   if ((cell_override && override_ncell == 9) ? force_vectors : sys->cellVectors)
     emit_symmetry = 0;
   if (emit_symmetry &&
@@ -3680,7 +3708,7 @@ static int render_dft_section(char *dst, size_t dst_size, size_t *used,
                               struct RenderSetList *sets) {
   if (append_text(dst, dst_size, used, "&DFT\n") != 0)
     return -1;
-  if (dft->functional.str && dft->functional.len > 0) {
+  if (dft_functional_is_explicit(dft->functional)) {
     if (append_text(dst, dst_size, used, " FUNCTIONAL ") != 0)
       return -1;
     if (append_capn_text(dst, dst_size, used, dft->functional) != 0)
@@ -4568,15 +4596,16 @@ int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
     if (sec.which == CPMDInputSection_system) {
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
-      if (body.cutOffRy > 0.0)
+      if (system_cutoff_is_explicit(body.cutOffRy))
         *cutoff_ry = body.cutOffRy;
-      *charge = body.charge;
-      if (body.multiplicity > 0)
+      if (system_charge_is_explicit(body.charge))
+        *charge = body.charge;
+      if (system_multiplicity_is_explicit(body.multiplicity))
         *multiplicity = body.multiplicity;
     } else if (sec.which == CPMDInputSection_dft) {
       struct CPMDDftSection body;
       read_CPMDDftSection(&body, sec.dft);
-      if (body.functional.str && body.functional.len > 0)
+      if (dft_functional_is_explicit(body.functional))
         copy_capn_text_or(body.functional, "BLYP", functional,
                           functional_size);
     }
@@ -4788,7 +4817,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (body.multiplicity <= 1)
+      if (!system_multiplicity_is_explicit(body.multiplicity))
         body.multiplicity = mult;
       if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
                                 cluster_hfx, &sets, &cc) != 0)
@@ -5230,7 +5259,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (body.multiplicity <= 1)
+      if (!system_multiplicity_is_explicit(body.multiplicity))
         body.multiplicity = mult;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
