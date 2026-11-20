@@ -240,6 +240,15 @@ PROGRAM test_warm_selector
   orbitals = CMPLX(0D0, 0D0, real_8)
   CALL embed_restore_orbitals(orbitals)
   IF (orbitals(1,1,1) /= CMPLX(63D0, 0D0, real_8)) ERROR STOP 52
+  ! An unusable value refuses a copy as well, a replace of a parked copy
+  ! included, and the copies already stored keep their orbitals.
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 82_embed_key_kind)) &
+       ERROR STOP 59
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 60
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 62_embed_key_kind)) &
+       ERROR STOP 61
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 62
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 63
   CALL slot_limit('0')
   CALL embed_select_orbital_slot(64_embed_key_kind)
   IF (embed_orbital_slot_count() /= nslots) ERROR STOP 53
@@ -252,6 +261,14 @@ PROGRAM test_warm_selector
   CALL slot_limit(' ')
   CALL embed_select_orbital_slot(64_embed_key_kind)
   IF (embed_orbital_slot_count() /= nslots) ERROR STOP 56
+  ! A variable that is set to nothing is not an unset variable.
+  CALL slot_limit('')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 64
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 65
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 82_embed_key_kind)) &
+       ERROR STOP 66
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 67
   CALL slot_limit('3')
   CALL embed_select_orbital_slot(64_embed_key_kind)
   IF (embed_orbital_slot_count() /= nslots + 1) ERROR STOP 57
@@ -259,7 +276,7 @@ PROGRAM test_warm_selector
   orbitals = CMPLX(0D0, 0D0, real_8)
   CALL embed_restore_orbitals(orbitals)
   IF (orbitals(1,1,1) /= CMPLX(61D0, 0D0, real_8)) ERROR STOP 58
-  CALL slot_limit('')
+  CALL slot_limit_unset()
 CONTAINS
   SUBROUTINE slot_limit(text)
     USE, INTRINSIC :: iso_c_binding, ONLY: c_char, c_int, c_null_char
@@ -272,6 +289,15 @@ CONTAINS
         INTEGER(c_int), VALUE :: overwrite
         INTEGER(c_int) :: rc
       END FUNCTION
+    END INTERFACE
+    INTEGER(c_int) :: rc
+    rc = c_setenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char, &
+         text//c_null_char, 1_c_int)
+    IF (rc /= 0_c_int) ERROR STOP 39
+  END SUBROUTINE
+  SUBROUTINE slot_limit_unset()
+    USE, INTRINSIC :: iso_c_binding, ONLY: c_char, c_int, c_null_char
+    INTERFACE
       FUNCTION c_unsetenv(name) BIND(C, NAME='unsetenv') RESULT(rc)
         IMPORT c_char, c_int
         CHARACTER(KIND=c_char), INTENT(IN) :: name(*)
@@ -279,13 +305,8 @@ CONTAINS
       END FUNCTION
     END INTERFACE
     INTEGER(c_int) :: rc
-    IF (LEN(text) == 0) THEN
-      rc = c_unsetenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char)
-    ELSE
-      rc = c_setenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char, &
-           text//c_null_char, 1_c_int)
-    END IF
-    IF (rc /= 0_c_int) ERROR STOP 39
+    rc = c_unsetenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char)
+    IF (rc /= 0_c_int) ERROR STOP 38
   END SUBROUTINE
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic
