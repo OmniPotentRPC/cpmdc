@@ -40,8 +40,8 @@ static const double k_pos[9] = {
     0.0, 0.0, 0.1173, 0.0, 0.7572, -0.4692, 0.0, -0.7572, -0.4692,
 };
 static const int k_z[3] = {8, 1, 1};
-/* Distinct from every other step in this file, and far enough that the
- * session cache does not reuse an earlier geometry. */
+/* Small enough that the real SCF converges from a cold start at every step,
+ * and still a new geometry for each step. */
 static const double k_geometry_step = 0.25;
 
 static const char k_limit_name[] = "CPMDC_ORBITAL_SLOT_LIMIT";
@@ -204,7 +204,7 @@ static void eval_lower(void *ctx_void, void *out_void) {
     double pos[9];
     double forces[9];
     CPMDCResult r;
-    positions_for(10 + step, pos);
+    positions_for(step, pos);
     if (cpmdc_session_select_orbitals(session, wide_keys[step]) != 0) {
       out->wide_ok = 0;
       break;
@@ -218,7 +218,7 @@ static void eval_lower(void *ctx_void, void *out_void) {
     double pos[9];
     double forces[9];
     CPMDCResult r;
-    positions_for(20, pos);
+    positions_for(3, pos);
     cpmdc_session_select_orbitals(session, 22);
     r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
     out->kept_ok = r.ok;
@@ -228,7 +228,7 @@ static void eval_lower(void *ctx_void, void *out_void) {
     double pos[9];
     double forces[9];
     CPMDCResult r;
-    positions_for(21, pos);
+    positions_for(4, pos);
     cpmdc_session_select_orbitals(session, 24);
     r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
     out->fresh_ok = r.ok;
@@ -557,7 +557,7 @@ static void new_basis_after_saturation(void *ctx_void, void *out_void) {
   for (step = 0; step < 2; ++step) {
     double pos[9];
     CPMDCResult r;
-    positions_for(30 + step, pos);
+    positions_for(step, pos);
     cpmdc_session_select_orbitals(session, old_keys[step]);
     r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
     out->old_ok[step] = r.ok;
