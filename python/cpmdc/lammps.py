@@ -40,7 +40,7 @@ from __future__ import annotations
 import importlib.util
 import os
 from pathlib import Path
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 
@@ -60,13 +60,16 @@ def _rgpot_fix_external() -> type | None:
     if spec is None:
         return None
     module = importlib.import_module("rgpot.lammps")
-    return module.FixExternal
+    frontend: type = module.FixExternal
+    return frontend
 
 
-_RgpotFixExternal = _rgpot_fix_external()
-_RGPOT_MISSING = _RgpotFixExternal is None
-if _RGPOT_MISSING:
-    _RgpotFixExternal = object
+_FRONTEND = _rgpot_fix_external()
+_RGPOT_MISSING = _FRONTEND is None
+if TYPE_CHECKING:
+    from rgpot.lammps import FixExternal as _RgpotFixExternal
+else:
+    _RgpotFixExternal = _FRONTEND or object
 
 
 def _require_rgpot() -> None:
@@ -263,7 +266,7 @@ class FixExternal(_RgpotFixExternal):
             super().__init__(
                 lmp,
                 adapter,
-                numbers,
+                numbers.tolist(),
                 fix_id=fix_id,
                 create=create,
                 comm=comm,
@@ -301,28 +304,21 @@ class FixExternal(_RgpotFixExternal):
 
     @property
     def _session(self) -> Session | None:
-        """The compatibility session attribute used by existing callers."""
-        adapter = self.__dict__.get("_adapter")
-        if adapter is not None:
-            return adapter.session
-        return self.__dict__.get("_session_held")
+        """The session held by the adapter, for callers that reach into it."""
+        return self._adapter.session
 
     @_session.setter
     def _session(self, value: Session | None) -> None:
-        adapter = self.__dict__.get("_adapter")
-        if adapter is not None:
-            adapter.session = value
-            return
-        self.__dict__["_session_held"] = value
+        self._adapter.session = value
 
     def _evaluate(
         self, tags: np.ndarray, xu: np.ndarray, numbers: np.ndarray, rows: np.ndarray
     ) -> tuple[float, np.ndarray, np.ndarray]:
-        """Rank 0: energy, forces in tag order, and the 3x3 virial, LAMMPS units.
+        """Energy, forces in local order, and virial in LAMMPS units.
 
-        The LAMMPS callback, gather, and halt path live in ``rgpot.lammps``.
-        This step is the cpmdc session call those mechanics used to make, and
-        the convention tests drive it without a LAMMPS object.
+        The evaluation, unit conversion, and session reuse happen in
+        ``rgpot.lammps`` through the session adapter. This step only keeps
+        cpmdc's error type for atom IDs that are not 1..N.
         """
         natoms = tags.size
         if natoms == 0 or tags.min() != 1 or tags.max() != natoms:
@@ -330,38 +326,10 @@ class FixExternal(_RgpotFixExternal):
                 f"cpmdc needs atom IDs 1..N; LAMMPS holds {natoms} atoms with IDs "
                 f"{tags.min() if natoms else '-'}..{tags.max() if natoms else '-'}"
             )
-        index = tags - 1
-        positions = np.empty((natoms, 3), dtype=float)
-        positions[index] = xu / self.length_per_bohr
-        ordered = np.empty(natoms, dtype=np.int32)
-        ordered[index] = numbers
-        composition = tuple(sorted(ordered.tolist()))
-        if self._session is not None and (
-            self._composition is not None and composition != self._composition
-        ):
-            self._session.close()
-            self._session = None
-            self._composition = None
-        if self._session is None:
-            self._session = Session(self._blob, library=self._library)
-        if self._forces.size != 3 * natoms:
-            self._forces = np.zeros(3 * natoms)
-        cell = rows / self.length_per_bohr if self.periodic else None
-        energy, _, _ = self._session.calculate_au(
-            positions, ordered, cell, forces=self._forces, virial=self._virial
+        step: tuple[float, np.ndarray, np.ndarray] = super()._evaluate(
+            tags, xu, numbers, rows
         )
-        for name, value in (
-            ("energy", energy),
-            ("forces", self._forces),
-            ("virial", self._virial),
-        ):
-            if not np.all(np.isfinite(value)):
-                raise CPMDCError(f"the library returned a non-finite {name}")
-        self._composition = composition
-        force_unit = self.energy_per_hartree / self.length_per_bohr
-        forces = self._forces.reshape(natoms, 3)[index] * force_unit
-        virial = self._virial.reshape(3, 3) * self.energy_per_hartree
-        return energy * self.energy_per_hartree, forces, virial
+        return step
 
     def run(self, steps: int, *keywords: str) -> None:
         """``run steps keywords...``; raise :class:`CPMDCError` for a failed step."""
