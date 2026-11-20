@@ -83,6 +83,7 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_drop_stale_orbitals
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
@@ -448,6 +449,42 @@ CONTAINS
     image%warm_cell_set = 0_c_int
     image%warm_has_cell = 0_c_int
     image%warm_cell = 0.0_c_double
+    ok = 1_c_int
+  END FUNCTION
+
+  ! Drops every key's stored orbitals when the next call is on a new
+  ! basis, the same test run_embed_scf applies. A keyed evaluation calls
+  ! this before it selects its key, so a saturated slot limit cannot
+  ! refuse a park on a basis whose old copies are about to be freed.
+  ! Returns 1, or 0 when the image is missing or the embed is not ready.
+  FUNCTION cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell_ang, &
+      has_cell, image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_drop_stale_orbitals')
+    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+#if defined(CPMDC_HAS_CPMD)
+    TYPE(embed_knobs) :: knobs
+#endif
+    INTEGER(c_int) :: ok
+    ok = 0_c_int
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+#if defined(CPMDC_HAS_CPMD)
+    IF (embed_basis_latched .AND. n_atoms > 0) THEN
+      knobs = knobs_of(image)
+      IF (embed_basis_changed(image, INT(n_atoms), atomic_numbers, cell_ang, &
+          INT(has_cell), knobs)) THEN
+        IF (.NOT. embed_cell_moves_in_place(INT(n_atoms), atomic_numbers, &
+            cell_ang, INT(has_cell), knobs)) CALL drop_stale_basis(image)
+      END IF
+    END IF
+#else
+    IF (n_atoms < 0 .OR. has_cell < 0) CONTINUE
+#endif
     ok = 1_c_int
   END FUNCTION
 
@@ -2835,6 +2872,14 @@ CONTAINS
     IF (ALLOCATED(embed_saved_deck)) DEALLOCATE(embed_saved_deck)
   END SUBROUTINE
 
+  SUBROUTINE drop_stale_basis(image)
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    CALL embed_reset_warm_orbitals()
+    CALL clear_embed_basis_latch()
+    image%cfg_warm_steps = 0
+  END SUBROUTINE
+
   SUBROUTINE latch_embed_basis(n_atoms, z, knobs)
     USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     INTEGER, INTENT(IN) :: n_atoms
@@ -3105,7 +3150,6 @@ CONTAINS
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure
-    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
@@ -3201,11 +3245,7 @@ CONTAINS
       END IF
       RETURN
     END IF
-    IF (embed_basis_latched) THEN
-      CALL embed_reset_warm_orbitals()
-      CALL clear_embed_basis_latch()
-      image%cfg_warm_steps = 0
-    END IF
+    IF (embed_basis_latched) CALL drop_stale_basis(image)
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.
     ! 2) Method sections keep their text. &ATOMS is rebuilt from the step.

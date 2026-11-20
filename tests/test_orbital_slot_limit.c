@@ -525,6 +525,80 @@ static void test_empty_limit_orders_errors_the_same_way(void **state) {
   check_error_order("");
 }
 
+#if defined(CPMDC_HAS_CPMD)
+/* A basis change frees every key's orbitals, so a limit the old basis
+ * filled does not refuse the first key of the new one. */
+struct basis_ctx {
+  const unsigned char *params;
+  size_t params_n;
+};
+
+struct basis_result {
+  int old_ok[3];
+  int new_ok;
+  char new_message[k_msg];
+  char new_error[k_msg];
+};
+
+static void new_basis_after_saturation(void *ctx_void, void *out_void) {
+  struct basis_ctx *ctx = ctx_void;
+  struct basis_result *out = out_void;
+  static const long long old_keys[3] = {51, 52, 53};
+  static const int h2_z[2] = {1, 1};
+  static const double h2_pos[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.74};
+  CPMDCSession *session;
+  double forces[9];
+  double h2_forces[6];
+  int step;
+  setenv(k_limit_name, "1", 1);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session)
+    return;
+  for (step = 0; step < 2; ++step) {
+    double pos[9];
+    CPMDCResult r;
+    positions_for(30 + step, pos);
+    cpmdc_session_select_orbitals(session, old_keys[step]);
+    r = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+    out->old_ok[step] = r.ok;
+  }
+  cpmdc_session_destroy(session);
+  session = cpmdc_session_create(ctx->params, ctx->params_n);
+  if (!session)
+    return;
+  {
+    CPMDCResult r;
+    cpmdc_session_select_orbitals(session, old_keys[2]);
+    r = cpmdc_session_energy_forces(session, 2, h2_pos, h2_z, h2_forces);
+    out->new_ok = r.ok;
+    copy_text(out->new_message, k_msg, r.message);
+    copy_text(out->new_error, k_msg, cpmdc_last_error());
+  }
+  cpmdc_session_destroy(session);
+}
+
+static void test_new_basis_clears_a_saturated_limit(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  struct basis_ctx ctx;
+  struct basis_result out;
+  char why[256];
+  (void)state;
+  assert_non_null(params);
+  memset(&out, 0, sizeof(out));
+  ctx.params = params;
+  ctx.params_n = n;
+  assert_int_equal(run_setup_child(new_basis_after_saturation, &ctx, &out,
+                                   sizeof(out), why, sizeof(why)),
+                   0);
+  assert_int_equal(out.old_ok[0], 1);
+  assert_int_equal(out.old_ok[1], 1);
+  assert_int_equal(out.new_ok, 1);
+  assert_string_equal(out.new_error, "");
+  free(params);
+}
+#endif
+
 int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_limit_rejects_a_new_park),
@@ -534,6 +608,9 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_alternating_keys_keep_bounded_storage),
       cmocka_unit_test(test_bad_call_is_not_reported_as_the_limit),
       cmocka_unit_test(test_empty_limit_orders_errors_the_same_way),
+#if defined(CPMDC_HAS_CPMD)
+      cmocka_unit_test(test_new_basis_clears_a_saturated_limit),
+#endif
   };
   if (argc < 2)
     return 1;

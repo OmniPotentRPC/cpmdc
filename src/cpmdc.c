@@ -68,6 +68,9 @@ void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
 int cpmdc_embed_slot_limit_code(void);
+int cpmdc_embed_drop_stale_orbitals(int n_atoms, const int *atomic_numbers,
+                                    const double *cell_ang, int has_cell,
+                                    CPMDCEmbedImage *image);
 int cpmdc_orbital_agree(int local_failed, const char **err);
 int cpmdc_orbital_prepare(long long key, const char **err);
 int cpmdc_orbital_note_stored(void);
@@ -2433,6 +2436,12 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("CPMD embed not available");
   if (session->has_orbital_key) {
     const char *slot_err = NULL;
+    double cell[9] = {0};
+    if (has_cell && cell_ang)
+      memcpy(cell, cell_ang, sizeof(cell));
+    /* A new basis frees every key's orbitals before this key parks one. */
+    (void)cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
+                                          has_cell ? 1 : 0, &session->image);
     if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
       return fail_msg(slot_err);
   }
