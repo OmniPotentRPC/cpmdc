@@ -205,6 +205,32 @@ def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, dr
     assert client.finish()[0] == 0
 
 
+def test_small_full_rank_cell_matches_python_driver(
+    mini, socket_dir, periodic_params, drivers
+):
+    cell = np.array([[1.0, 0.0, 0.0], [0.3, 2.58e-12, 0.0], [0.2, 0.1, 0.8]])
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(periodic_params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init()
+    energy, forces, virial, _ = mini.step(cell, WATER)
+    expected = python_step(periodic_params, cell, WATER)
+    assert energy == expected[0]
+    np.testing.assert_array_equal(forces, expected[1])
+    np.testing.assert_allclose(virial, expected[2], rtol=1e-10, atol=1e-16)
+    assert np.abs(virial).max() > 0.0
+    mini.send(mini.header("EXIT"))
+    assert client.finish()[0] == 0
+
+
 def test_pipelined_posdata_and_getforce(mini, socket_dir, params, drivers):
     drivers("c", "--unix", str(socket_dir / "s"), "--params", str(params), "--species", "OHH")
     mini.accept()
@@ -309,6 +335,36 @@ def test_batched_init_is_refused(mini, socket_dir, params, drivers):
 
 
 @pytest.mark.parametrize(
+    ("init", "expected"),
+    [
+        (b"batch_size:nope", "batch_size is not an integer"),
+        (b"batch_size:0", "batch_size 0"),
+        (b"batch_size:-1", "batch_size -1"),
+        (b"batch_size:1,batch_size:1", "batch_size appears more than once"),
+        (b"\xff", "INIT is not UTF-8"),
+    ],
+    ids=["word", "zero", "negative", "duplicate", "not-utf8"],
+)
+def test_invalid_init_is_refused(mini, socket_dir, params, drivers, init, expected):
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init(init)
+    mini.conn.close()
+    code, err = client.finish()
+    assert code == 1
+    assert expected in err
+
+
+@pytest.mark.parametrize(
     "message, expected",
     [
         (MiniServer.header("GETFORCE"), "GETFORCE arrived before POSDATA"),
@@ -375,6 +431,19 @@ def test_cli_errors_before_connecting(params, drivers, socket_dir):
     assert code == 1 and "cannot read" in err
     code, err = drivers("c", "--params", str(params), "--species", "OHH").finish()
     assert code == 2 and "exactly one of --unix and --port" in err
+    for wait in ("-1", "nan", "inf"):
+        code, err = drivers(
+            "c",
+            "--unix",
+            "x",
+            "--params",
+            str(params),
+            "--species",
+            "OHH",
+            "--wait",
+            wait,
+        ).finish()
+        assert code == 2 and "--wait" in err and "finite and zero or positive" in err
 
 
 # i-PI itself, both drivers
