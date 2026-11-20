@@ -1095,12 +1095,20 @@ cpmd_set_matches_temp_electron(const struct CPMDSetDirective *set_dir) {
   return 0;
 }
 
+static int cpmd_reject_invalid_list(const char *field, const char *list) {
+  char msg[256];
+  snprintf(msg, sizeof(msg),
+           "common overlay: %s cannot merge: the cpmd arm has an invalid %s "
+           "list",
+           field, list);
+  cpmdc_store_error(msg);
+  return -1;
+}
+
 static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
   int nblocks = common_text_list_len(arm_view->inputBlocks);
-  if (nblocks < 0) {
-    cpmdc_store_error("common overlay: invalid inputBlocks list");
-    return -1;
-  }
+  if (nblocks < 0)
+    return cpmd_reject_invalid_list("smearing", "inputBlocks");
   for (int i = 0; i < nblocks; ++i) {
     capn_text block = capn_get_text(arm_view->inputBlocks, i, k_empty_text);
     if (cpmd_raw_has_section(block, "CPMD")) {
@@ -1113,10 +1121,8 @@ static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
   capn_resolve(&arm_view->inputSections.p);
   if (arm_view->inputSections.p.type == CAPN_NULL)
     return 0;
-  if (arm_view->inputSections.p.type != CAPN_LIST) {
-    cpmdc_store_error("common overlay: invalid inputSections list");
-    return -1;
-  }
+  if (arm_view->inputSections.p.type != CAPN_LIST)
+    return cpmd_reject_invalid_list("smearing", "inputSections");
   for (int i = 0; i < arm_view->inputSections.p.len; ++i) {
     struct CPMDInputSection sec;
     get_CPMDInputSection(&sec, arm_view->inputSections, i);
@@ -1153,10 +1159,8 @@ static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
       read_CPMDCpmdSection(&cpmd_sec, sec.cpmd);
       int has_fe = cpmd_directives_have_kw(cpmd_sec.directives, "FREE-ENERGY");
       int has_te = cpmd_directives_have_temp_electron(cpmd_sec.directives);
-      if (has_fe < 0 || has_te < 0) {
-        cpmdc_store_error("common overlay: invalid cpmd directives list");
-        return -1;
-      }
+      if (has_fe < 0 || has_te < 0)
+        return cpmd_reject_invalid_list("smearing", "&CPMD directives");
       if (cpmd_sec.freeEnergy || cpmd_sec.temperatureElectron != 0.0 ||
           has_fe > 0 || has_te > 0) {
         cpmdc_store_error(
@@ -1171,10 +1175,8 @@ static int cpmd_arm_check_smearing(struct CPMDParams *arm_view) {
 
 static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
   int nblocks = common_text_list_len(arm_view->inputBlocks);
-  if (nblocks < 0) {
-    cpmdc_store_error("common overlay: invalid inputBlocks list");
-    return -1;
-  }
+  if (nblocks < 0)
+    return cpmd_reject_invalid_list("vanDerWaalsS6", "inputBlocks");
   for (int i = 0; i < nblocks; ++i) {
     capn_text block = capn_get_text(arm_view->inputBlocks, i, k_empty_text);
     if (cpmd_raw_has_section(block, "VDW")) {
@@ -1187,10 +1189,8 @@ static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
   int has_vdw_params = 0;
   capn_resolve(&arm_view->inputSections.p);
   if (arm_view->inputSections.p.type != CAPN_NULL) {
-    if (arm_view->inputSections.p.type != CAPN_LIST) {
-      cpmdc_store_error("common overlay: invalid inputSections list");
-      return -1;
-    }
+    if (arm_view->inputSections.p.type != CAPN_LIST)
+      return cpmd_reject_invalid_list("vanDerWaalsS6", "inputSections");
     for (int i = 0; i < arm_view->inputSections.p.len; ++i) {
       struct CPMDInputSection sec;
       get_CPMDInputSection(&sec, arm_view->inputSections, i);
@@ -1233,12 +1233,9 @@ static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
         struct CPMDVdwSection vdw_sec;
         read_CPMDVdwSection(&vdw_sec, sec.vdwParams);
         int has_s6 = cpmd_directives_have_kw(vdw_sec.directives, "S6");
-        if (has_s6 < 0) {
-          cpmdc_store_error(
-              "common overlay: invalid vdwParams directives list");
-          return -1;
-        }
-        if (vdw_sec.s6 != 0.0 || has_s6 > 0) {
+        if (has_s6 < 0)
+          return cpmd_reject_invalid_list("vanDerWaalsS6", "&VDW directives");
+        if (vdw_sec.s6 != 0.0 || has_s6) {
           cpmdc_store_error(
               "common overlay: vanDerWaalsS6 conflicts with s6 already set on "
               "the cpmd arm");
@@ -1268,10 +1265,8 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
                                      const char *set_kw, const char *field) {
   char msg[512];
   int nblocks = common_text_list_len(arm->inputBlocks);
-  if (nblocks < 0) {
-    cpmdc_store_error("common overlay: invalid inputBlocks list");
-    return -1;
-  }
+  if (nblocks < 0)
+    return cpmd_reject_invalid_list(field, "inputBlocks");
   for (int i = 0; i < nblocks; ++i) {
     capn_text block = capn_get_text(arm->inputBlocks, i, k_empty_text);
     if (cpmd_raw_has_section(block, section)) {
@@ -1286,10 +1281,8 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
   capn_resolve(&arm->inputSections.p);
   if (arm->inputSections.p.type == CAPN_NULL)
     return 0;
-  if (arm->inputSections.p.type != CAPN_LIST) {
-    cpmdc_store_error("common overlay: invalid inputSections list");
-    return -1;
-  }
+  if (arm->inputSections.p.type != CAPN_LIST)
+    return cpmd_reject_invalid_list(field, "inputSections");
   for (int i = 0; i < arm->inputSections.p.len; ++i) {
     struct CPMDInputSection sec;
     get_CPMDInputSection(&sec, arm->inputSections, i);
@@ -1330,10 +1323,8 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
       struct CPMDDftSection dft_sec;
       read_CPMDDftSection(&dft_sec, sec.dft);
       int has_dir = cpmd_directives_have_kw(dft_sec.directives, set_kw);
-      if (has_dir < 0) {
-        cpmdc_store_error("common overlay: invalid dft directives list");
-        return -1;
-      }
+      if (has_dir < 0)
+        return cpmd_reject_invalid_list(field, "&DFT directives");
       if (has_dir > 0) {
         snprintf(msg, sizeof(msg),
                  "common overlay: %s conflicts with %s.%s directive already "
@@ -1348,10 +1339,8 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
       struct CPMDSystemSection sys_sec;
       read_CPMDSystemSection(&sys_sec, sec.system);
       int has_dir = cpmd_directives_have_kw(sys_sec.directives, set_kw);
-      if (has_dir < 0) {
-        cpmdc_store_error("common overlay: invalid system directives list");
-        return -1;
-      }
+      if (has_dir < 0)
+        return cpmd_reject_invalid_list(field, "&SYSTEM directives");
       if (has_dir > 0) {
         snprintf(msg, sizeof(msg),
                  "common overlay: %s conflicts with %s.%s directive already "
@@ -1409,10 +1398,25 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
   if (cpmd_common_validate_smearing(&c, &smear_temperature_k) != 0)
     return -1;
 
+  int xc_len = common_text_list_len(c.xcFunctionals);
+  if (xc_len < 0) {
+    cpmdc_store_error("common overlay: invalid xcFunctionals list");
+    return -1;
+  }
+
+  /* The arm is a struct here, so only an inputSections value that is not a
+   * struct list makes this fail. The smearing and vanDerWaalsS6 checks
+   * report that list themselves. */
   CPMDCTypedScalars typed;
   if (cpmdc_params_typed_scalars(arm, &typed) != 0) {
-    cpmdc_store_error("PotentialConfig cpmd arm is not readable");
-    return -1;
+    const char *field = xc_len > 0                   ? "xcFunctionals"
+                        : c.planewaveCutoffEv > 0.0 ? "planewaveCutoffEv"
+                        : c.charge != 0             ? "charge"
+                        : c.spinMultiplicity != 0   ? "spinMultiplicity"
+                                                    : NULL;
+    if (field)
+      return cpmd_reject_invalid_list(field, "inputSections");
+    memset(&typed, 0, sizeof(typed));
   }
 
   struct CPMDParams arm_view;
@@ -1421,11 +1425,6 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
 
   memset(ov, 0, sizeof(*ov));
   *has_ov = 0;
-  int xc_len = common_text_list_len(c.xcFunctionals);
-  if (xc_len < 0) {
-    cpmdc_store_error("common overlay: invalid xcFunctionals list");
-    return -1;
-  }
   if (xc_len > 0) {
     if (cpmd_common_xc_token(c.xcFunctionals, ov_functional, ov_len) != 0) {
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
