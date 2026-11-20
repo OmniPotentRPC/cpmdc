@@ -18,6 +18,7 @@ import pytest
 from ase import Atoms
 
 from cpmdc import BOHR_TO_ANGSTROM
+from cpmdc._rank import _cell_is_rank_deficient
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.ipi import Driver, ProtocolError
 
@@ -162,3 +163,24 @@ def test_non_finite_cell_is_not_reported_as_rank_deficient() -> None:
         Driver._cell_rows(SimpleNamespace(cluster=False), wire)
     except ProtocolError as exc:
         assert "independent vectors" not in str(exc)
+
+
+def test_rank_check_requires_a_three_by_three_cell() -> None:
+    with pytest.raises(ValueError, match=r"shape \(3, 3\).+got \(2, 2\)"):
+        _cell_is_rank_deficient(np.eye(2))
+
+
+def test_rank_cutoff_does_not_overflow_for_a_large_cell() -> None:
+    side = float(np.finfo(np.float64).max) / 2.0
+    assert not _cell_is_rank_deficient(np.diag([side, side, side]))
+
+
+def test_subnormal_cell_is_refused_before_its_volume_underflows() -> None:
+    side = float(np.nextafter(0.0, 1.0))
+    cell = np.diag([side, side, side])
+    assert np.linalg.matrix_rank(cell) == 3
+    assert _cell_is_rank_deficient(cell)
+    with pytest.raises(ValueError, match=re.escape(_ASE)):
+        _ase(cell)
+    with pytest.raises(ProtocolError, match=re.escape(_IPI)):
+        _ipi(cell)

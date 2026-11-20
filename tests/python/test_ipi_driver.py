@@ -686,6 +686,16 @@ def test_negative_wait_is_rejected() -> None:
         connect(unix="cpmdc-not-a-socket", wait=-1.0)
 
 
+def test_non_finite_wait_is_rejected() -> None:
+    with pytest.raises(ValueError, match="wait must be finite"):
+        connect(unix="cpmdc-not-a-socket", wait=float("nan"))
+
+
+def test_duplicate_batch_size_is_rejected() -> None:
+    with pytest.raises(ProtocolError, match="batch_size appears more than once"):
+        cpmdc.ipi._batch_size(b"batch_size:1, batch_size:1")
+
+
 def test_zero_wait_tries_once() -> None:
     with pytest.raises(CPMDCError, match="cannot connect"):
         connect(unix="cpmdc-not-a-socket", wait=0.0)

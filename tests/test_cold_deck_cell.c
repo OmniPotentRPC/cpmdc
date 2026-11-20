@@ -132,6 +132,21 @@ static void test_box_replaces_the_deck_cell(void **state) {
   lines_within_80(deck);
 }
 
+static void test_small_triclinic_components_are_preserved(void **state) {
+  (void)state;
+  char deck[8192];
+  const double cell[9] = {1.0,      0.0, 0.0, 2.58e-12, 1.0,
+                          0.0,      1.0e-13, 0.0, 1.0e-13};
+  assert_int_equal(compose_with_deck(kPeriodicDeck, cell, deck,
+                                     (int)sizeof(deck)),
+                   1);
+  assert_non_null(strstr(deck, " CELL VECTORS\n"));
+  assert_non_null(strstr(deck, "2.5800000000000000E-012"));
+  assert_non_null(strstr(deck, "1.0000000000000000E-013"));
+  assert_null(strstr(deck, " SYMMETRY\n"));
+  lines_within_80(deck);
+}
+
 static void test_box_in_bohr_without_angstrom(void **state) {
   (void)state;
   char bohr_deck[sizeof(kPeriodicDeck)];
@@ -162,6 +177,7 @@ int main(void) {
       cmocka_unit_test(test_minimal_deck_orthorhombic_box),
       cmocka_unit_test(test_minimal_deck_refuses_a_skewed_box),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
+      cmocka_unit_test(test_small_triclinic_components_are_preserved),
       cmocka_unit_test(test_box_in_bohr_without_angstrom),
       cmocka_unit_test(test_zero_box_keeps_the_deck_cell),
   };

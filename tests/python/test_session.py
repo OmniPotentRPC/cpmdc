@@ -57,6 +57,13 @@ def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
     assert len(done["stress"]) == 9
 
 
+def test_session_preserves_an_accepted_small_triclinic_cell(periodic_params):
+    cell = [[1.0, 0.0, 0.0], [2.58e-12, 1.0, 0.0], [1.0e-13, 0.0, 1.0e-13]]
+    with Session(periodic_params) as session:
+        done = session.energy_forces(WATER, [8, 1, 1], cell)
+    assert done.stress_h_bohr3 is not None
+
+
 def test_closed_session_raises(params):
     session = Session(params)
     session.close()

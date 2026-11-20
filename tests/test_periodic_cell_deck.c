@@ -97,6 +97,8 @@ int main(int argc, char **argv) {
   double orth[9] = {10.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 15.0};
   double cube[9] = {10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0};
   double tilt[9] = {10.0, 0.5, 0.0, 0.0, 12.0, 0.0, 0.0, 0.0, 14.0};
+  double small_tilt[9] = {1.0, 0.0, 0.0, 0.3, 2.58e-12, 0.0,
+                          0.2, 0.1, 0.8};
   double zero[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
   if (argc < 2) {
@@ -158,6 +160,16 @@ int main(int argc, char **argv) {
   }
 
   memset(deck, 0, sizeof(deck));
+  if (render_case(root, small_tilt, 1, deck, sizeof(deck)) != 0) {
+    fprintf(stderr, "small tilted render failed\n");
+    g_failed = 1;
+  } else {
+    require_has(deck, "CELL VECTORS", "small tilted render");
+    require_absent(deck, "SYMMETRY", "small tilted render");
+    require_absent(deck, "HOCKNEY", "small tilted render");
+  }
+
+  memset(deck, 0, sizeof(deck));
   if (render_case(root, zero, 1, deck, sizeof(deck)) != 0) {
     fprintf(stderr, "zero-cell render failed\n");
     g_failed = 1;
@@ -181,6 +193,13 @@ int main(int argc, char **argv) {
     require_absent(deck, "HOCKNEY", "orthorhombic compose");
     require_absent(deck, " SYMMETRY\n  0\n", "orthorhombic compose");
     require_absent(deck, " SYMMETRY\n  1\n", "orthorhombic compose");
+  }
+
+  memset(deck, 0, sizeof(deck));
+  if (compose_case(small_tilt, 1, deck, (int)sizeof(deck)) == 0) {
+    require_has(deck, "CELL VECTORS", "small tilted compose");
+    require_absent(deck, "SYMMETRY", "small tilted compose");
+    require_absent(deck, "HOCKNEY", "small tilted compose");
   }
 
   memset(deck, 0, sizeof(deck));
