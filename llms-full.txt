@@ -2260,7 +2260,7 @@ says.
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | `cpmdc.ase.CalculationFailed` |
 | a keyword other than `params`, `library`, and ASE's own; no `params` | `TypeError` |
 | stress where the step has none; `energies`, `magmoms`, `charges`, or `dipole` | `ase.calculators.calculator.PropertyNotImplementedError` |
-| mixed `pbc` flags, or a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff) | `ValueError` |
+| mixed `pbc` flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | `ValueError` |
 | a step on a calculator without atoms | `ValueError` |
 | a `params` file that does not exist | `FileNotFoundError` |
 
@@ -4514,9 +4514,10 @@ The options are those of `cpmdc-ipi` without `--structure` and `--library`:
 spellings, `--cluster`, `--socket-prefix`, `--wait`, and `--verbose`.
 A bare `--unix` name gets the same default prefix as i-PI, ASE, and
 `cpmdc-ipi`.
-The messages, the exit statuses (0 after `EXIT` or a close between
-messages, 1 on an error, 2 for a usage error), the units, and the limits
-below are the same.
+The wire messages, units, and limits below are shared with `cpmdc-ipi`.
+For `cpmdc-ipi-c`, status 0 follows `EXIT` or a close between messages,
+status 1 reports a protocol or calculation error, and status 2 reports a
+command-line usage error.
 Energies and forces equal those of `cpmdc-ipi` bit for bit, and the virial
 agrees to rounding in the cell volume: the pytest suite checks both drivers
 to 1e-10 through ASE's `SocketIOCalculator` over UNIX and TCP sockets,
@@ -4549,14 +4550,18 @@ the two agree to 1e-10, which the pytest suite checks.
 - The species are fixed at start. A step with another atom count stops the
   driver with a message; a change of composition at the same count cannot
   be seen on the wire, so restart the driver with the new `--species`.
-- One structure per request: no `batch_size` above 1 and no shared-memory
+- One structure per request: `INIT` must be UTF-8, and `batch_size`, when
+  present, must appear once with the integer value 1. There is no shared-memory
   (`mode="shm"`) transport.
 - The extra string after the virial is empty.
 - A cluster, an isolated deck, or `CPMDC_STRESS=0` sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver. Rank 3
   uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
-  when it exceeds the largest times 3 times the float64 unit roundoff.
+  when it exceeds the largest times 3 times the float64 unit roundoff. A
+  full-rank cell whose volume is too small for a normal float64 is also
+  refused before its virial can underflow to zero.
+- `--wait` must be finite and zero or positive.
 - The driver is one process with one session. It does not run under
   `mpirun`; start several drivers for several beads.
 - `cpmdc-ipi-c` takes the species from `--species` only.
@@ -7622,7 +7627,7 @@ The ASE calculator. Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | `atoms` an `ase.Atoms`; fills `results` with `energy` and `free_energy` floats, `forces` an N by 3 `float64` array, and `stress` a six-component `float64` array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; `atoms` is copied by ASE. Not thread-safe. The step runs with `directory` as the working directory, which is a process-wide change. |
-| Raises | `ValueError` for no atoms, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value. |
+| Raises | `ValueError` for no atoms, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value. |
 | Defaults | `atoms` is `None`: the atoms already attached; `properties` is `None`: `['energy']`, but all four properties are always filled; `system_changes` is ASE's `all_changes`. |
 
 ### ~cpmdc.ase.CPMDCCalculator.close~
@@ -7781,7 +7786,7 @@ Input files and unit constants for GROMACS.
 | Shape and dtype | `params` a path; `qm_charges` a sequence of floats, one per QM atom; the others are scalars or strings. Returns the `qmi` file as one `str` that ends in a newline. |
 | Ownership and threads | Builds a new string and touches no file; stateless, so thread-safe. |
 | Raises | `ValueError` for an unknown `cell` or `embedding` keyword, `qm_ranks` other than `ALL` or `1`, `qm_charges` without `MECHANICAL` embedding or `MECHANICAL` embedding without `qm_charges`, a non-finite value, a non-positive `ewald_rcut` or `ewald_precision`, a `multiplicity` below 1, or a `charge` or `multiplicity` that is not a whole number; `TypeError` for a value that is not a real number or not an integer. |
-| Defaults | `cell`, `embedding`, `qm_charges`, `ewald_rcut`, `ewald_precision` and `qm_ranks` are `None` and not written, so the library defaults apply (`PERIODIC` when every atom is QM and `NONE` otherwise; no embedding; the smaller of 1 nm and half the shortest box height; `_DEFAULT_EWALD_PRECISION`, 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; `ALL`); `charge` is 0 and `multiplicity` is 1. |
+| Defaults | `cell`, `embedding`, `qm_charges`, `ewald_rcut`, `ewald_precision` and `qm_ranks` are `None` and not written, so the library defaults apply (`PERIODIC` when every atom is QM and `NONE` otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; `ALL`); `charge` is 0 and `multiplicity` is 1. |
 
 ### ~cpmdc.gromacs.write_qmi~
 
@@ -7883,7 +7888,7 @@ The i-PI protocol driver.
 | Units | `positions` and `cell` in Bohr; returns the energy in Hartree, forces in Hartree/Bohr and the virial `-dE/d(strain)` in Hartree. |
 | Shape and dtype | `positions` 3N floats; `cell` nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns  of 1, 3N and 9 values. |
 | Ownership and threads | Returns new lists; counts the step in `steps`. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | `ProtocolError` for a position count that is not a multiple of three, an atom count that differs from the driver's, or a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff); `CPMDCError` and `ValueError` from the session. |
+| Raises | `ProtocolError` for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range; `CPMDCError` and `ValueError` from the session. |
 | Defaults | none: both arguments are required. |
 
 ### ~cpmdc.ipi.Driver.serve~
@@ -7894,7 +7899,7 @@ The i-PI protocol driver.
 | Units | Atomic units on the wire, as for `compute`. |
 | Shape and dtype | `sock` a connected stream socket; returns the number of steps served as an `int`. |
 | Ownership and threads | The caller owns the socket and closes it. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | `ProtocolError` for a connection closed in the middle of a message, a message out of order, an unknown header, an `INIT` whose `batch_size` is missing UTF-8 or is not the integer 1, or a negative announced size; `OSError` for a socket failure; `CPMDCError` from the session. A close between messages ends the run like `EXIT`. |
+| Raises | `ProtocolError` for a connection closed in the middle of a message, a message out of order, an unknown header, an `INIT` that is not UTF-8 or whose `batch_size` appears more than once or is not the integer 1, or a negative announced size; `OSError` for a socket failure; `CPMDCError` from the session. A close between messages ends the run like `EXIT`. |
 | Defaults | none |
 
 ### ~cpmdc.ipi.Driver.steps~
@@ -7916,7 +7921,7 @@ The i-PI protocol driver.
 | Units | `wait` in seconds. |
 | Shape and dtype | Returns a connected `socket.socket`; give exactly one of `unix` (a name or a path) and `port`. |
 | Ownership and threads | The caller owns the returned socket and must close it. Thread-safe: it uses no shared state. |
-| Raises | `ValueError` unless exactly one of `unix` and `port` is given, or when `wait` is negative; `CPMDCError` when the server is not listening after `wait` seconds; `OSError` for any other socket failure. |
+| Raises | `ValueError` unless exactly one of `unix` and `port` is given, or when `wait` is negative or non-finite; `CPMDCError` when the server is not listening after `wait` seconds; `OSError` for any other socket failure. |
 | Defaults | `host` is `'localhost'`, `prefix` is `None` (`DEFAULT_SOCKET_PREFIX`), `wait` is 0.0: one attempt. |
 
 ### ~cpmdc.ipi.main~
@@ -9892,7 +9897,7 @@ The cpmdc settings are a `&CPMDC` section inside `&FORCE_EVAL`:
 | `EMBEDDING NONE` | add nothing; allowed only when no MM atom carries a charge |
 | `QM_CHARGES q ...` | one classical charge per QM atom, in index-group order; required by `MECHANICAL` |
 | `EWALD_RCUT r` | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
-| `EWALD_PRECISION p` | `erfc(alpha rcut) = p`, and the reciprocal cutoff `2 alpha sqrt(-ln p)`; default `_DEFAULT_EWALD_PRECISION`, 10^-8 as assigned in `tools/gromacs/cpmdc_gromacs.c` |
+| `EWALD_PRECISION p` | `erfc(alpha rcut) = p`, and the reciprocal cutoff `2 alpha sqrt(-ln p)`; default 10^-8 as assigned in `tools/gromacs/cpmdc_gromacs.c` |
 | `QM_RANKS ALL` | under an MPI GROMACS, every rank of `mdrun` takes part in one cpmdc calculator; the default |
 | `QM_RANKS 1` | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
@@ -10642,12 +10647,13 @@ covers `cpmdc.lammps`.
 | empty or non-3D positions, mismatched `atomic_numbers` or `numbers` length, a cell or box that is not 3x3 or 9 numbers, a `stress_h_bohr3` without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite `ConstantCutoff` field, a whole-number argument that is a fraction such as `14.9`, an orbital key outside the signed 64-bit range | `ValueError` |
 | an atomic number, orbital key, `ConstantCutoff` field, or `charge` that is a string, `None`, or `bool`; a coordinate or cell value that is not a real number | `TypeError` |
 | `CPMDCCalculator.read` with any label | `ase.calculators.calculator.ReadError`, an ASE `CalculatorError` |
-| `atoms.pbc` mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff | `ValueError` |
+| `atoms.pbc` mixes periodic and open axes, or is periodic and the cell has rank below 3 under the numpy.linalg.matrix_rank cutoff or has a volume below the normal float64 range | `ValueError` |
 | a `CPMDCCalculator` step without atoms | `ValueError` |
 | stress on free boundaries or an isolated deck; a property outside `implemented_properties` | `ase.calculators.calculator.PropertyNotImplementedError` |
 | a keyword to `CPMDCCalculator` or `CPMDCCalculator.set` other than `params`, `library`, `constant_cutoff`, and ASE's own, such as `charge` or `multiplicity`; no `params`, or `params=None` | `TypeError` |
 | `schema=` on any class, `restart=` on `CPMDCCalculator` | `DeprecationWarning` |
-| a changed atom count, an `INIT` whose `batch_size` is not the integer 1, a message out of order, a connection closed mid-message, or a cell of rank below 3 on the socket | `cpmdc.ipi.ProtocolError` |
+| a changed atom count, an `INIT` that is not UTF-8 or whose `batch_size` is duplicated or is not the integer 1, a message out of order, a connection closed mid-message, or an unusable periodic cell on the socket | `cpmdc.ipi.ProtocolError` |
+| a negative or non-finite `cpmdc.ipi.connect(wait=...)` | `ValueError` |
 | `Session.calculate_au` with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size, or non-writable or non-contiguous `forces` or `virial` buffers | `CPMDCError`; `ValueError` for the sizes, buffers, non-finite values, and atomic numbers outside 1..118; `TypeError` for non-numeric coordinates or non-integer atomic numbers |
 | `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, or with the wrong number of elements | `ValueError` |
 | `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, or a failed step in `FixExternal.run` | `CPMDCError` |

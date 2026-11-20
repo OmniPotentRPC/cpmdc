@@ -235,9 +235,10 @@ The options are those of ~cpmdc-ipi~ without ~--structure~ and ~--library~:
 spellings, ~--cluster~, ~--socket-prefix~, ~--wait~, and ~--verbose~.
 A bare ~--unix~ name gets the same default prefix as i-PI, ASE, and
 ~cpmdc-ipi~.
-The messages, the exit statuses (0 after ~EXIT~ or a close between
-messages, 1 on an error, 2 for a usage error), the units, and the limits
-below are the same.
+The wire messages, units, and limits below are shared with ~cpmdc-ipi~.
+For ~cpmdc-ipi-c~, status 0 follows ~EXIT~ or a close between messages,
+status 1 reports a protocol or calculation error, and status 2 reports a
+command-line usage error.
 Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and the virial
 agrees to rounding in the cell volume: the pytest suite checks both drivers
 to 1e-10 through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets,
@@ -270,14 +271,18 @@ the two agree to 1e-10, which the pytest suite checks.
 - The species are fixed at start. A step with another atom count stops the
   driver with a message; a change of composition at the same count cannot
   be seen on the wire, so restart the driver with the new ~--species~.
-- One structure per request: no ~batch_size~ above 1 and no shared-memory
+- One structure per request: ~INIT~ must be UTF-8, and ~batch_size~, when
+  present, must appear once with the integer value 1. There is no shared-memory
   (~mode="shm"~) transport.
 - The extra string after the virial is empty.
 - A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver. Rank 3
   uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
-  when it exceeds the largest times 3 times the float64 unit roundoff.
+  when it exceeds the largest times 3 times the float64 unit roundoff. A
+  full-rank cell whose volume is too small for a normal float64 is also
+  refused before its virial can underflow to zero.
+- ~--wait~ must be finite and zero or positive.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.
 - ~cpmdc-ipi-c~ takes the species from ~--species~ only.
