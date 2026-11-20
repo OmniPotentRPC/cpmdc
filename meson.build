@@ -1712,6 +1712,15 @@ test(
     suite: ['docs'],
   )
   test(
+    'overlay-merge-docs',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_overlay_merge_docs.py',
+      meson.current_source_dir(),
+    ],
+    suite: ['docs'],
+  )
+  test(
     'docs-coverage-inventory',
     python,
     args: [
