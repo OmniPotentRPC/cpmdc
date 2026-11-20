@@ -495,15 +495,16 @@ cpmdc_restart_exe = executable(
   c_args: common_c_args,
   install: true,
 )
-# The i-PI client is a consumer of libcpmdc through the public header only.
-# The wheel ships the Python cpmdc-ipi instead.
+# The i-PI client consumes libcpmdc through the public API and compiles the
+# private cell-rank helper for parity with the library. The wheel ships the
+# Python cpmdc-ipi instead.
 cpmdc_ipi_exe = disabler()
 if cc.has_header('sys/un.h')
   cpmdc_ipi_exe = executable(
     'cpmdc-ipi-c',
     ['tools/cpmdc_ipi.c', 'src/cpmdc_cell_rank.c'],
     link_with: cpmdc_shared,
-    include_directories: include_directories('include'),
+    include_directories: include_directories('include', 'src'),
     dependencies: [math_dep],
     c_args: common_c_args,
     install: not get_option('with_python'),
