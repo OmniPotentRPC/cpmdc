@@ -39,6 +39,7 @@ sees the trajectory in order.
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import socket
 import struct
@@ -94,12 +95,12 @@ def connect(
 
     Give ``unix`` for a UNIX-domain socket, or ``port`` (and ``host``) for
     TCP. A server that is not listening yet is retried for ``wait`` seconds.
-    ``wait`` must be zero or positive.
+    ``wait`` must be finite and zero or positive.
     """
     if (unix is None) == (port is None):
         raise ValueError("give exactly one of unix and port")
-    if wait < 0.0:
-        raise ValueError(f"wait must be zero or positive, got {wait}")
+    if not math.isfinite(wait) or wait < 0.0:
+        raise ValueError(f"wait must be finite and zero or positive, got {wait}")
     where = unix_socket_path(unix, prefix) if unix is not None else f"{host}:{port}"
     deadline = time.monotonic() + wait
     while True:
@@ -247,8 +248,11 @@ class Driver:
         if self.cluster or not any(h):
             return None
         rows = [[h[3 * i + k] * BOHR_TO_ANGSTROM for i in range(3)] for k in range(3)]
-        # Same rank test as CPMDCCalculator: numpy.linalg.matrix_rank's cutoff.
-        if _cell_is_rank_deficient(rows):
+        try:
+            deficient = _cell_is_rank_deficient(rows)
+        except ValueError as exc:
+            raise ProtocolError(f"the server sent an invalid cell: {exc}") from exc
+        if deficient:
             raise ProtocolError(
                 "the server sent a cell without three independent vectors; send an "
                 "all-zero cell or start cpmdc-ipi with --cluster for an isolated system"

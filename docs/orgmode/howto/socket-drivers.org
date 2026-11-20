@@ -235,13 +235,12 @@ The options are those of ~cpmdc-ipi~ without ~--structure~ and ~--library~:
 spellings, ~--cluster~, ~--socket-prefix~, ~--wait~, and ~--verbose~.
 A bare ~--unix~ name gets the same default prefix as i-PI, ASE, and
 ~cpmdc-ipi~.
-The messages, the exit statuses (0 after ~EXIT~ or a close between
-messages, 1 on an error, 2 for a usage error), the units, and the limits
-below are the same.
 Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and the virial
-agrees to rounding in the cell volume: the pytest suite checks both drivers
-to 1e-10 through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets,
-through a minimal server, and through a short i-PI NVE run.
+agrees to rounding in the cell volume. The pytest suite starts each driver
+and compares those results to 1e-10 through ASE's ~SocketIOCalculator~ over
+UNIX and TCP sockets, a minimal server, and a short i-PI NVE run. Validation
+that is not covered by those comparisons is documented per driver below
+rather than assumed to be identical.
 
 * Units
 Everything on the wire is atomic units, and the driver converts nothing
@@ -275,9 +274,13 @@ the two agree to 1e-10, which the pytest suite checks.
 - The extra string after the virial is empty.
 - A cluster, an isolated deck, or ~CPMDC_STRESS=0~ sends a zero virial; a
   periodic cell without a library stress warns once on standard error.
-- A cell that is neither all zero nor rank 3 stops the driver. Rank 3
-  uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
-  when it exceeds the largest times 3 times the float64 unit roundoff.
+- In ~cpmdc-ipi~, a cell that is neither all zero nor rank 3 stops the
+  driver. Rank 3 uses the ~numpy.linalg.matrix_rank~ cutoff: a singular
+  value counts only when it exceeds the largest times 3 times the
+  float64 unit roundoff.
+- ~cpmdc-ipi-c~ rejects a nonzero cell when an edge is zero or the absolute
+  volume is at most 1e-8 times the product of the edge lengths. It does not
+  claim the Python driver's rank-cutoff boundary.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.
 - ~cpmdc-ipi-c~ takes the species from ~--species~ only.

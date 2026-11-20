@@ -341,10 +341,10 @@ class CPMDCCalculator(Calculator):
     def _periodic_cell(atoms: Atoms) -> np.ndarray | None:
         """Return the periodic cell, or ``None`` when every axis is open.
 
-        A fully periodic cell must have rank 3. :func:`cpmdc._rank._cell_is_rank_deficient`
-        applies the ``numpy.linalg.matrix_rank`` cutoff: singular values
-        count only above ``sigma_max * 3 * eps``, with ``eps`` the float64
-        unit roundoff.
+        A fully periodic cell must have rank 3 under the
+        ``numpy.linalg.matrix_rank`` cutoff: singular values count only
+        above ``sigma_max * 3 * eps``, with ``eps`` the float64 unit
+        roundoff.
         """
         flags = _pbc_flags(atoms.pbc)
         if not any(flags):

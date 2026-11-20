@@ -24,7 +24,7 @@ The cpmdc settings are a ~&CPMDC~ section inside ~&FORCE_EVAL~:
 | ~EMBEDDING NONE~ | add nothing; allowed only when no MM atom carries a charge |
 | ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
 | ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
-| ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default ~_DEFAULT_EWALD_PRECISION~, 10^-8 as assigned in ~tools/gromacs/cpmdc_gromacs.c~ |
+| ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 10^-8 |
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 

@@ -681,9 +681,16 @@ def test_batch_size_one_is_one() -> None:
     assert cpmdc.ipi._batch_size(b"comment, batch_size: 1") == 1
 
 
-def test_negative_wait_is_rejected() -> None:
-    with pytest.raises(ValueError, match="wait"):
-        connect(unix="cpmdc-not-a-socket", wait=-1.0)
+@pytest.mark.parametrize("wait", [-1.0, float("nan"), float("inf")])
+def test_invalid_wait_is_rejected_before_socket_retry(
+    wait: float, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_socket(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("connect created a socket before validating wait")
+
+    monkeypatch.setattr(socket, "socket", unexpected_socket)
+    with pytest.raises(ValueError, match="wait must be finite and zero or positive"):
+        connect(unix="cpmdc-not-a-socket", wait=wait)
 
 
 def test_zero_wait_tries_once() -> None:
