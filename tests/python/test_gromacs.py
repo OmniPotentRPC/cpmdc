@@ -27,6 +27,7 @@ from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
 from ase.calculators.fd import calculate_numerical_stress
 from conftest import ROOT
+import cpmdc.gromacs as cpmdc_gromacs
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.gromacs import (
@@ -57,6 +58,11 @@ OPENCPMD = LIB is not None and bool(ctypes.CDLL(str(LIB)).cpmdc_available())
 reference_precision = pytest.mark.skipif(
     OPENCPMD, reason="OpenCPMD is linked; test_gromacs_opencpmd.py covers it"
 )
+
+
+def test_private_ewald_default_is_not_exposed() -> None:
+    assert not hasattr(cpmdc_gromacs, "_DEFAULT_EWALD_PRECISION")
+
 
 CUBE_NM = np.diag([1.2, 1.2, 1.2])
 TRICLINIC_NM = np.array([[1.2, 0.0, 0.0], [0.16, 1.13, 0.0], [-0.09, 0.12, 1.25]])
