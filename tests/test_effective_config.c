@@ -100,6 +100,17 @@ static void test_sections_override_top_level_scalars(void **state) {
   assert_non_null(sections);
   assert_non_null(step);
 
+  CPMDCMethodInfo method;
+  assert_int_equal(cpmdc_params_method(top, top_size, &method), 0);
+  assert_string_equal(method.functional, "HYB_GGA_XC_PBE0");
+  assert_int_equal(method.charge, 2);
+  assert_int_equal(method.multiplicity, 2);
+  memset(&method, 0, sizeof(method));
+  assert_int_equal(cpmdc_params_method(sections, section_size, &method), 0);
+  assert_string_equal(method.functional, "HYB_GGA_XC_PBE0");
+  assert_int_equal(method.charge, 2);
+  assert_int_equal(method.multiplicity, 2);
+
   CPMDCResult r_top = eval_result(top, top_size, step, step_size);
   CPMDCResult r_sections = eval_result(sections, section_size, step, step_size);
   if (!r_top.ok)

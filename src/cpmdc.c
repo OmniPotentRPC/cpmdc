@@ -273,6 +273,36 @@ static void write_deck_if_requested(const char *deck) {
   fclose(fp);
 }
 
+int cpmdc_params_method(const void *params_capnp, size_t params_size,
+                        CPMDCMethodInfo *out) {
+  struct capn arena;
+  CPMDParams_ptr root;
+  double cutoff_ry;
+  if (!out) {
+    cpmdc_store_error("CPMDParams method output is missing");
+    return -1;
+  }
+  memset(out, 0, sizeof(*out));
+  if (!params_capnp || params_size == 0) {
+    cpmdc_store_error("CPMDParams buffer is empty");
+    return -1;
+  }
+  if (cpmdc_params_root(params_capnp, params_size, &arena, &root) != 0) {
+    cpmdc_store_error("CPMDParams parse failed");
+    return -1;
+  }
+  if (cpmdc_params_effective_config(root, out->functional,
+                                    sizeof(out->functional), &cutoff_ry,
+                                    &out->charge, &out->multiplicity) != 0) {
+    cpmdc_params_release(&arena);
+    cpmdc_store_error("CPMDParams configuration failed");
+    return -1;
+  }
+  cpmdc_params_release(&arena);
+  cpmdc_store_error("");
+  return 0;
+}
+
 static int apply_params_buffer(const void *params_capnp, size_t params_size,
                                const CPMDCScalarOverrides *overrides,
                                char *functional, size_t functional_size,

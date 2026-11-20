@@ -73,6 +73,13 @@ def test_old_error_name_is_the_same_class():
         cpmdc.NoSuchName
 
 
+def test_params_method_reads_effective_scalars(params):
+    method = cpmdc.params_method(params)
+    assert method == cpmdc.MethodInfo(
+        functional="BLYP", charge=0, multiplicity=1
+    )
+
+
 def test_repeated_geometry_is_deterministic(params):
     with Session(params) as session:
         first = session.energy_forces(WATER, [8, 1, 1])

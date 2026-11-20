@@ -113,8 +113,10 @@ SKIP = {
     "howto/gromacs.org:0": "reconfigures the tree and builds GROMACS",
     "howto/gromacs.org:1": "installs into build/prefix and builds GROMACS; CI's gromacs-qmmm (installed) runs it",
     "howto/gromacs.org:2": "GROMACS mdp fragment",
-    "howto/gromacs.org:4": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
-    "howto/gromacs.org:5": "GROMACS mdp fragment",
+    "howto/gromacs.org:3": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
+    "howto/gromacs.org:4": "GROMACS mdp fragment",
+    "howto/gromacs.org:6": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
+    "howto/gromacs.org:7": "GROMACS mdp fragment",
     "howto/lammps.org:0": "needs the lammps Python module; tests/python/test_lammps.py runs these steps",
     "howto/lammps.org:1": "reconfigures the tree",
     "howto/lammps.org:2": "LAMMPS input script for lmp and the plugin",
@@ -199,7 +201,7 @@ RUN = {
     "howto/check-forces.org:0",
     "howto/constant-cutoff.org:0",
     "howto/debug-deck.org:0",
-    "howto/gromacs.org:3",
+    "howto/gromacs.org:5",
     *PYTHON_HOWTO,
     *ASE_HOWTO,
     "howto/socket-drivers.org:1",
@@ -570,9 +572,9 @@ def main() -> int:
             for key in PYTHON_HOWTO[1:] + ASE_HOWTO[1:] + ["howto/constant-cutoff.org:0"]:
                 run_python(root, library, params, schema, found[key].body)
             run_python(root, library, params, schema, found["howto/socket-drivers.org:1"].body)
-            run_python(root, library, params, schema, found["howto/gromacs.org:3"].body)
+            run_python(root, library, params, schema, found["howto/gromacs.org:5"].body)
             if "&CPMDC" not in (work / "cpmdc.inp").read_text(encoding="utf-8"):
-                return fail("howto/gromacs.org:3 wrote no &CPMDC section")
+                return fail("howto/gromacs.org:5 wrote no &CPMDC section")
             encode(schema, "CPMDParams", found["reference/cpmd-options.org:1"].body)
 
             cluster = work / "write-cpmdparams"

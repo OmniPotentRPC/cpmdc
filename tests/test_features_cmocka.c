@@ -444,6 +444,7 @@ static void test_parser_dft_functional_catalog_keywords(void **state) {
 static void test_abi(void **state) {
   (void)state;
   static const char *const abi_features[] = {
+      "abi.cpmdc_params_method",
       "abi.cpmdc_set_params",
       "abi.cpmdc_energy_gradient",
       "abi.cpmdc_energy",
