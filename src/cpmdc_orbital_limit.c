@@ -9,6 +9,8 @@
  * embed_slot_limit_exceeded. The no memory code has no Fortran twin. */
 #include "cpmdc.h"
 
+#include <ctype.h>
+#include <math.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -43,6 +45,8 @@ static const char k_orbital_limit_mpi[] =
 static const char k_orbital_limit_memory[] = "out of memory";
 static const char k_orbital_limit_peer[] =
     "another rank of the calculator rejected this call";
+static const char k_orbital_key_differs[] =
+    "orbital key selection differs across calculator ranks";
 
 /* Reference-evaluator ledger. Parked keys exclude the selected key.
  * g_selected_has_store is the live copy of the selected key. */
@@ -57,6 +61,7 @@ static int g_agreed_limit = CPMDC_ORBITAL_SLOT_READ_ENV;
 static int g_limit_ready = 0;
 
 void cpmdc_embed_set_orbital_slot_limit(int limit);
+void cpmdc_embed_set_cell_in_place(double limit);
 int cpmdc_embed_slot_limit_code(void);
 void cpmdc_embed_select_orbitals(long long key);
 
@@ -252,6 +257,57 @@ static int orbital_allreduce(int *values, int count) {
 }
 #endif
 
+int cpmdc_orbital_allreduce(int *values, int count) {
+  return orbital_allreduce(values, count);
+}
+
+static double parse_cell_in_place(void) {
+  const char *raw = getenv("CPMDC_CELL_IN_PLACE");
+  char *end = NULL;
+  double value;
+  if (!raw || !*raw)
+    return 0.0;
+  value = strtod(raw, &end);
+  if (end == raw)
+    return 0.0;
+  while (*end && isspace((unsigned char)*end))
+    end++;
+  if (*end || !isfinite(value) || value <= 0.0)
+    return 0.0;
+  return value;
+}
+
+/* The in-place threshold controls whether every parked key is discarded.
+ * Read it on calculator rank zero and distribute one value before any rank
+ * can make that decision. */
+static int agree_cell_in_place(void) {
+  double value = parse_cell_in_place();
+#if defined(CPMDC_HAVE_MPI)
+  int inited = 0;
+  int finalized = 0;
+  MPI_Comm comm;
+  int rank = 0;
+  if (MPI_Initialized(&inited) != MPI_SUCCESS)
+    return -1;
+  if (inited) {
+    if (MPI_Finalized(&finalized) != MPI_SUCCESS)
+      return -1;
+    if (!finalized) {
+      if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+        comm = MPI_COMM_WORLD;
+      if (MPI_Comm_rank(comm, &rank) != MPI_SUCCESS)
+        return -1;
+      if (rank != 0)
+        value = 0.0;
+      if (MPI_Bcast(&value, 1, MPI_DOUBLE, 0, comm) != MPI_SUCCESS)
+        return -1;
+    }
+  }
+#endif
+  cpmdc_embed_set_cell_in_place(value);
+  return 0;
+}
+
 /* Agrees CPMDC_ORBITAL_SLOT_LIMIT across the calculator ranks, with
  * `local_failed` set when a check of this call already failed here. Every
  * rank calls this exactly once per evaluation, after its own checks, and
@@ -274,7 +330,7 @@ int cpmdc_orbital_agree(int local_failed, const char **err) {
   buf[3] = kind == CPMDC_ORBITAL_SLOT_KIND_UNSET;
   buf[4] = kind == CPMDC_ORBITAL_SLOT_KIND_SET ? -limit : INT_MIN;
   buf[5] = local_failed != 0;
-  if (orbital_allreduce(buf, 6) != 0) {
+  if (orbital_allreduce(buf, 6) != 0 || agree_cell_in_place() != 0) {
     if (!local_failed)
       *err = k_orbital_limit_mpi;
     return -1;
@@ -307,17 +363,79 @@ int cpmdc_orbital_agree(int local_failed, const char **err) {
   return 0;
 }
 
-int cpmdc_orbital_prepare(long long key, const char **err) {
-#if defined(CPMDC_HAS_CPMD)
-  int code;
-  const char *msg;
-  (void)key;
-  if (!g_limit_ready) {
-    *err = k_orbital_limit_invalid;
+int cpmdc_orbital_key_agree(int *has_key, long long key, const char **err) {
+  int flags[2] = {*has_key != 0, *has_key == 0};
+#if defined(CPMDC_HAVE_MPI)
+  int inited = 0;
+  int finalized = 0;
+  int size = 1;
+  long long min_key = key;
+  long long max_key = key;
+  MPI_Comm comm;
+  if (orbital_allreduce(flags, 2) != 0) {
+    *err = k_orbital_limit_mpi;
     return -1;
   }
-  cpmdc_embed_select_orbitals(key);
-  code = cpmdc_embed_slot_limit_code();
+  if (flags[0] && flags[1]) {
+    *err = k_orbital_key_differs;
+    return -1;
+  }
+  if (MPI_Initialized(&inited) != MPI_SUCCESS ||
+      (inited && MPI_Finalized(&finalized) != MPI_SUCCESS)) {
+    *err = k_orbital_limit_mpi;
+    return -1;
+  }
+  if (inited && !finalized && flags[0]) {
+    if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+      comm = MPI_COMM_WORLD;
+    if (MPI_Comm_size(comm, &size) != MPI_SUCCESS ||
+        (size > 1 &&
+         (MPI_Allreduce(MPI_IN_PLACE, &min_key, 1, MPI_LONG_LONG, MPI_MIN,
+                        comm) != MPI_SUCCESS ||
+          MPI_Allreduce(MPI_IN_PLACE, &max_key, 1, MPI_LONG_LONG, MPI_MAX,
+                        comm) != MPI_SUCCESS))) {
+      *err = k_orbital_limit_mpi;
+      return -1;
+    }
+    if (min_key != max_key) {
+      *err = k_orbital_key_differs;
+      return -1;
+    }
+  }
+#else
+  (void)key;
+#endif
+  *has_key = flags[0];
+  *err = NULL;
+  return 0;
+}
+
+int cpmdc_orbital_prepare(long long key, const char **err) {
+#if defined(CPMDC_HAS_CPMD)
+  int code = CPMDC_ORBITAL_SLOT_OK;
+  const char *msg;
+  (void)key;
+  if (!g_limit_ready)
+    code = CPMDC_ORBITAL_SLOT_INVALID;
+  else {
+    cpmdc_embed_select_orbitals(key);
+    code = cpmdc_embed_slot_limit_code();
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+    {
+      const char *fault = getenv("CPMDC_TEST_ORBITAL_FAULT");
+      if (fault && strcmp(fault, "prepare") == 0)
+        code = CPMDC_ORBITAL_SLOT_NO_MEMORY;
+    }
+#endif
+  }
+  if (orbital_allreduce(&code, 1) != 0) {
+    *err = k_orbital_limit_mpi;
+    return -1;
+  }
+  if (code == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
+    *err = k_orbital_limit_memory;
+    return -1;
+  }
   msg = cpmdc_orbital_limit_message(code);
   if (msg) {
     *err = msg;
@@ -338,6 +456,13 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
   (void)select_extra(key, &leaving, NULL);
   if (!fail && leaving && parked_reserve() != 0)
     fail = CPMDC_ORBITAL_SLOT_NO_MEMORY;
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+  {
+    const char *fault = getenv("CPMDC_TEST_ORBITAL_FAULT");
+    if (fault && strcmp(fault, "prepare") == 0)
+      fail = CPMDC_ORBITAL_SLOT_NO_MEMORY;
+  }
+#endif
   if (orbital_allreduce(&fail, 1) != 0) {
     *err = k_orbital_limit_mpi;
     return -1;
@@ -359,11 +484,10 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
 #endif
 }
 
-int cpmdc_orbital_note_stored(void) {
+void cpmdc_orbital_note_stored(void) {
 #if !defined(CPMDC_HAS_CPMD)
   g_live_store = 1;
   if (g_have_selected)
     g_selected_has_store = 1;
 #endif
-  return 0;
 }

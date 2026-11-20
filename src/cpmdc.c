@@ -72,8 +72,10 @@ int cpmdc_embed_drop_stale_orbitals(int n_atoms, const int *atomic_numbers,
                                     const double *cell_ang, int has_cell,
                                     CPMDCEmbedImage *image);
 int cpmdc_orbital_agree(int local_failed, const char **err);
+int cpmdc_orbital_allreduce(int *values, int count);
+int cpmdc_orbital_key_agree(int *has_key, long long key, const char **err);
 int cpmdc_orbital_prepare(long long key, const char **err);
-int cpmdc_orbital_note_stored(void);
+void cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
@@ -166,6 +168,16 @@ static CPMDCEmbedImage g_image;
 
 static CPMDCEmbedImage *active_image(void) {
   return g_active_session ? &g_active_session->image : &g_image;
+}
+
+static int test_fault(const char *name) {
+#if defined(CPMDC_ENABLE_TEST_FAULTS)
+  const char *fault = getenv("CPMDC_TEST_FAULT");
+  return fault && strcmp(fault, name) == 0;
+#else
+  (void)name;
+  return 0;
+#endif
 }
 
 static void copy_knob_text(char *dst, int cap, const char *src, size_t src_cap) {
@@ -1117,14 +1129,49 @@ static double rank_difference(double local, double root) {
 /* With consensus on, the flag holds only where it holds on every rank, so
  * every rank takes the same branch into the next collective. */
 static int rank_consensus_all(int flag) {
-#if defined(CPMDC_HAVE_MPI)
-  MPI_Comm comm;
-  if (rank_consensus_comm(&comm) == 0 &&
-      MPI_Allreduce(MPI_IN_PLACE, &flag, 1, MPI_INT, MPI_MIN, comm) !=
-          MPI_SUCCESS)
+  int failed = !flag;
+  if (cpmdc_orbital_allreduce(&failed, 1) != 0)
     return 0;
+  return !failed;
+}
+
+/* Public evaluation wrappers call this after local preflight and before any
+ * rank can enter the evaluation collectives. */
+static const char *collective_call_gate(const char *local_err) {
+#if defined(CPMDC_HAVE_MPI)
+  static char agreed[sizeof(((CPMDCResult *)0)->message)];
+  int inited = 0;
+  int finalized = 0;
+  int rank = 0;
+  int owner;
+  MPI_Comm comm;
+  if (MPI_Initialized(&inited) != MPI_SUCCESS)
+    return "MPI collective failed";
+  if (!inited)
+    return local_err;
+  if (MPI_Finalized(&finalized) != MPI_SUCCESS)
+    return "MPI collective failed";
+  if (finalized)
+    return local_err;
+  if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+    comm = MPI_COMM_WORLD;
+  if (MPI_Comm_rank(comm, &rank) != MPI_SUCCESS)
+    return "MPI collective failed";
+  owner = local_err ? rank : INT_MAX;
+  if (MPI_Allreduce(MPI_IN_PLACE, &owner, 1, MPI_INT, MPI_MIN, comm) !=
+      MPI_SUCCESS)
+    return "MPI collective failed";
+  if (owner == INT_MAX)
+    return NULL;
+  if (rank == owner)
+    snprintf(agreed, sizeof(agreed), "%s", local_err);
+  if (MPI_Bcast(agreed, (int)sizeof(agreed), MPI_CHAR, owner, comm) !=
+      MPI_SUCCESS)
+    return "MPI collective failed";
+  return agreed;
+#else
+  return local_err;
 #endif
-  return flag;
 }
 
 /* CPMD treats rank 0 of the calculator as holding the result. Every rank
@@ -1213,8 +1260,13 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr)
     return fail_msg("invalid arguments");
-  if (!ensure_embed_init() || !cpmdc_embed_available())
-    return fail_msg("CPMD embed not available");
+  {
+    int unavailable = !ensure_embed_init() || !cpmdc_embed_available();
+    if (cpmdc_orbital_allreduce(&unavailable, 1) != 0)
+      return fail_msg("MPI collective failed");
+    if (unavailable)
+      return fail_msg("CPMD embed not available");
+  }
   double cell[9] = {0};
   if (has_cell && cell_ang)
     memcpy(cell, cell_ang, sizeof(cell));
@@ -1250,8 +1302,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
               "MAXITER, or no energy";
     return fail_msg(detail);
   }
-  if (cpmdc_orbital_note_stored() != 0)
-    return fail_msg("out of memory");
+  cpmdc_orbital_note_stored();
   r.ok = 1;
   r.energy_h = energy;
   snprintf(r.message, sizeof(r.message), "ok");
@@ -1279,11 +1330,12 @@ static int atomic_numbers_in_range(int n_atoms, const int *atomic_numbers) {
  * reason a check of this rank failed, or NULL. Returns the reason the call
  * fails, or NULL when it goes on. A reason of this rank comes first. */
 static const char *orbital_limit_gate(const char *local_err) {
+  const char *agreed_err = collective_call_gate(local_err);
   const char *limit_err = NULL;
-  if (cpmdc_orbital_agree(local_err != NULL, &limit_err) == 0)
+  if (cpmdc_orbital_agree(agreed_err != NULL, &limit_err) == 0)
     return NULL;
-  if (local_err)
-    return local_err;
+  if (agreed_err)
+    return agreed_err;
   return limit_err ? limit_err : "CPMDC_ORBITAL_SLOT_LIMIT could not be agreed";
 }
 
@@ -1293,7 +1345,11 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
                                         double *grad_h_bohr,
                                         const char *params_err) {
   const char *err = params_err;
-  if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
+  if (!err &&
+      (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+       !atomic_numbers || !grad_h_bohr || (has_cell && !cell_ang)))
+    err = "invalid arguments";
+  else if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
   err = orbital_limit_gate(err);
   if (err)
@@ -1312,7 +1368,10 @@ CPMDCResult cpmdc_energy_gradient(int n_atoms, const double *positions_ang,
                                   size_t params_capnp_size_bytes,
                                   double *grad_h_bohr) {
   const char *params_err = NULL;
-  if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
+  if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
+      !atomic_numbers || !grad_h_bohr)
+    params_err = "invalid arguments";
+  else if (cpmdc_set_params(params_capnp, params_capnp_size_bytes) != 0) {
     params_err = cpmdc_last_error();
     if (!params_err || params_err[0] == '\0')
       params_err = "embed config failed";
@@ -1326,11 +1385,21 @@ CPMDCResult cpmdc_energy(int n_atoms, const double *positions_ang,
                          size_t params_capnp_size_bytes) {
   size_t n3 = 0;
   double *grad = NULL;
+  const char *err = NULL;
   if (grad_len_from_atoms(n_atoms, &n3) != 0)
-    return fail_msg("invalid arguments");
-  grad = (double *)calloc(n3, sizeof(double));
-  if (!grad)
-    return fail_msg("out of memory");
+    err = "invalid arguments";
+  else {
+    grad = test_fault("energy-allocation")
+               ? NULL
+               : (double *)calloc(n3, sizeof(double));
+    if (!grad)
+      err = "out of memory";
+  }
+  err = collective_call_gate(err);
+  if (err) {
+    free(grad);
+    return fail_msg(err);
+  }
   CPMDCResult r = cpmdc_energy_gradient(n_atoms, positions_ang, atomic_numbers,
                                         params_capnp, params_capnp_size_bytes,
                                         grad);
@@ -1531,27 +1600,17 @@ static int session_copy_cached_gradient(const CPMDCSession *session,
   return 1;
 }
 
-static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
-                                   const int *atomic_numbers) {
+static int session_check_topology(const CPMDCSession *session, size_t n_atoms,
+                                  const int *atomic_numbers) {
   if (!session || !atomic_numbers || n_atoms == 0)
     return -1;
-  if (!session->topology_fixed) {
-    int *copy = (int *)malloc(n_atoms * sizeof(int));
-    if (!copy)
-      return -1;
-    memcpy(copy, atomic_numbers, n_atoms * sizeof(int));
-    session->fixed_atomic_numbers = copy;
-    session->fixed_n_atoms = n_atoms;
-    session->topology_fixed = 1;
+  if (!session->topology_fixed)
     return 0;
-  }
   if (session->fixed_n_atoms != n_atoms)
     return -1;
   if (!element_counts_match(n_atoms, session->fixed_atomic_numbers,
                             atomic_numbers))
     return -1;
-  memcpy(session->fixed_atomic_numbers, atomic_numbers,
-         n_atoms * sizeof(int));
   return 0;
 }
 
@@ -1794,12 +1853,37 @@ static CPMDCResult session_energy_gradient_cell(
     err = "invalid arguments";
   else if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
-  else if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) !=
-           0)
+  else if (session_check_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     err = "topology change requires a new session";
   err = orbital_limit_gate(err);
   if (err)
     return fail_msg(err);
+  {
+    int *topology = NULL;
+    if (!session->topology_fixed) {
+      topology = test_fault("topology-allocation")
+                     ? NULL
+                     : (int *)malloc((size_t)n_atoms * sizeof(*topology));
+      if (!topology)
+        err = "out of memory";
+      else
+        memcpy(topology, atomic_numbers,
+               (size_t)n_atoms * sizeof(*topology));
+    }
+    err = collective_call_gate(err);
+    if (err) {
+      free(topology);
+      return fail_msg(err);
+    }
+    if (topology) {
+      session->fixed_atomic_numbers = topology;
+      session->fixed_n_atoms = (size_t)n_atoms;
+      session->topology_fixed = 1;
+    } else {
+      memcpy(session->fixed_atomic_numbers, atomic_numbers,
+             (size_t)n_atoms * sizeof(*atomic_numbers));
+    }
+  }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
@@ -1814,17 +1898,34 @@ static CPMDCResult session_energy_gradient_cell(
   }
   if ((!session->embed_configured || g_active_session != session) &&
       configure_embed_from_session(session) != 0)
-    return fail_msg("CPMD embed not available");
-  if (session->has_orbital_key) {
+    err = "CPMD embed not available";
+  err = collective_call_gate(err);
+  if (err)
+    return fail_msg(err);
+  {
+    int has_orbital_key = session->has_orbital_key;
     const char *slot_err = NULL;
-    double cell[9] = {0};
-    if (has_cell && cell_ang)
-      memcpy(cell, cell_ang, sizeof(cell));
-    /* A new basis frees every key's orbitals before this key parks one. */
-    (void)cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
-                                          has_cell ? 1 : 0, &session->image);
-    if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
+    if (cpmdc_orbital_key_agree(&has_orbital_key, session->orbital_key,
+                                &slot_err) != 0)
       return fail_msg(slot_err);
+    if (has_orbital_key) {
+      int stale_failed;
+      double cell[9] = {0};
+      if (has_cell && cell_ang)
+        memcpy(cell, cell_ang, sizeof(cell));
+      /* A new basis frees every key's orbitals before this key parks one. */
+      stale_failed =
+          !cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
+                                            has_cell ? 1 : 0, &session->image);
+      if (test_fault("drop-stale"))
+        stale_failed = 1;
+      if (cpmdc_orbital_allreduce(&stale_failed, 1) != 0)
+        return fail_msg("MPI collective failed");
+      if (stale_failed)
+        return fail_msg("failed to discard stale orbitals");
+      if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
+        return fail_msg(slot_err);
+    }
   }
   if (!session->evaluated) {
     session->evaluated = 1;
@@ -1877,13 +1978,20 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
    * duplicates the converged copy and refuses a key that never converged. */
   if (cpmdc_available()) {
     if ((!session->embed_configured || g_active_session != session) &&
-        configure_embed_from_session(session) != 0) {
-      cpmdc_store_error("CPMD embed not available");
+        configure_embed_from_session(session) != 0)
+      err = "CPMD embed not available";
+    err = collective_call_gate(err);
+    if (err) {
+      cpmdc_store_error(err);
       return -1;
     }
     if (cpmdc_embed_copy_orbitals(from_key, to_key) != 0) {
       const char *why = cpmdc_orbital_limit_message(cpmdc_embed_slot_limit_code());
-      cpmdc_store_error(why ? why : "from_key has no converged orbitals");
+      err = why ? why : "from_key has no converged orbitals";
+    }
+    err = collective_call_gate(err);
+    if (err) {
+      cpmdc_store_error(err);
       return -1;
     }
   }
@@ -1904,11 +2012,21 @@ CPMDCResult cpmdc_session_energy(CPMDCSession *session, int n_atoms,
                                  const int *atomic_numbers) {
   size_t n3 = 0;
   double *grad = NULL;
+  const char *err = NULL;
   if (grad_len_from_atoms(n_atoms, &n3) != 0)
-    return fail_msg("invalid arguments");
-  grad = (double *)calloc(n3, sizeof(double));
-  if (!grad)
-    return fail_msg("out of memory");
+    err = "invalid arguments";
+  else {
+    grad = test_fault("session-energy-allocation")
+               ? NULL
+               : (double *)calloc(n3, sizeof(double));
+    if (!grad)
+      err = "out of memory";
+  }
+  err = collective_call_gate(err);
+  if (err) {
+    free(grad);
+    return fail_msg(err);
+  }
   CPMDCResult r = cpmdc_session_energy_gradient(session, n_atoms, positions_ang,
                                                 atomic_numbers, grad);
   free(grad);
@@ -1935,35 +2053,44 @@ CPMDCResult cpmdc_session_calculate_forces(
     CPMDCSession *session, const void *force_input_capnp,
     size_t force_input_capnp_size_bytes, double *forces_h_bohr,
     size_t forces_len) {
-  CPMDCResult r = fail_msg("invalid arguments");
-  if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
-      !forces_h_bohr)
-    return r;
+  CPMDCResult r;
+  const char *err = NULL;
+  int arena_open = 0;
   struct capn arena;
   ForceInput_ptr force_input;
-  if (cpmdc_force_input_root(force_input_capnp, force_input_capnp_size_bytes,
-                             &arena, &force_input) != 0)
-    return fail_msg("invalid ForceInput message");
   size_t n_atoms = 0;
   int has_cell = 0;
-  if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
-      n_atoms == 0 || n_atoms > (size_t)(INT_MAX / 3) ||
-      forces_len < n_atoms * 3u) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput geometry");
+  double cell_ang[9] = {0};
+  if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
+      !forces_h_bohr)
+    err = "invalid arguments";
+  else if (cpmdc_force_input_root(force_input_capnp,
+                                  force_input_capnp_size_bytes, &arena,
+                                  &force_input) != 0)
+    err = "invalid ForceInput message";
+  else {
+    arena_open = 1;
   }
-  if (session_reserve_step_atoms(session, n_atoms) != 0) {
+  if (!err &&
+      (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
+       n_atoms == 0 || n_atoms > (size_t)(INT_MAX / 3) ||
+       forces_len < n_atoms * 3u))
+    err = "invalid ForceInput geometry";
+  if (!err &&
+      (test_fault("calculate-forces-reserve") ||
+       session_reserve_step_atoms(session, n_atoms) != 0))
+    err = "out of memory";
+  if (!err &&
+      cpmdc_force_input_copy_geometry(
+          force_input, session->step_positions_ang,
+          session->step_atomic_numbers, session->step_atom_capacity, cell_ang,
+          &has_cell) != 0)
+    err = "invalid ForceInput geometry";
+  if (arena_open)
     cpmdc_params_release(&arena);
-    return fail_msg("out of memory");
-  }
-  double cell_ang[9];
-  if (cpmdc_force_input_copy_geometry(
-          force_input, session->step_positions_ang, session->step_atomic_numbers,
-          session->step_atom_capacity, cell_ang, &has_cell) != 0) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput geometry");
-  }
-  cpmdc_params_release(&arena);
+  err = collective_call_gate(err);
+  if (err)
+    return fail_msg(err);
   r = session_energy_gradient_cell(session, (int)n_atoms,
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
@@ -1981,70 +2108,76 @@ CPMDCResult cpmdc_session_calculate_result(
     size_t potential_result_capnp_capacity_bytes,
     size_t *potential_result_capnp_size_bytes) {
   CPMDCResult r;
-  r.ok = 0;
-  r.energy_h = 0.0;
-  r.message[0] = '\0';
-  if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
-      !potential_result_capnp_size_bytes)
-    return fail_msg("invalid arguments");
-  *potential_result_capnp_size_bytes = 0;
-
+  const char *err = NULL;
+  int arena_open = 0;
   struct capn arena;
   ForceInput_ptr force_input;
-  if (cpmdc_force_input_root(force_input_capnp, force_input_capnp_size_bytes,
-                             &arena, &force_input) != 0)
-    return fail_msg("invalid ForceInput message");
-
   size_t n_atoms = 0;
   int has_cell = 0;
-  if (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
-      n_atoms > (size_t)INT_MAX || n_atoms > SIZE_MAX / 3u) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput geometry");
-  }
-  size_t force_count = n_atoms * 3u;
-  size_t required_size = cpmdc_potential_result_flat_size(force_count);
-  *potential_result_capnp_size_bytes = required_size;
-  if (required_size == 0 || force_count > (size_t)INT_MAX) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput geometry");
-  }
-
+  size_t force_count = 0;
+  size_t required_size = 0;
   double energy_factor = 1.0;
   double force_factor = 1.0;
   double stress_factor = 1.0;
-  if (cpmdc_force_input_result_factors(force_input, &energy_factor,
-                                       &force_factor) != 0) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput result units");
+  double cell_ang[9] = {0};
+  double *forces = NULL;
+  if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
+      !potential_result_capnp_size_bytes)
+    err = "invalid arguments";
+  if (potential_result_capnp_size_bytes)
+    *potential_result_capnp_size_bytes = 0;
+  if (!err &&
+      cpmdc_force_input_root(force_input_capnp, force_input_capnp_size_bytes,
+                             &arena, &force_input) != 0)
+    err = "invalid ForceInput message";
+  else if (!err)
+    arena_open = 1;
+  if (!err &&
+      (cpmdc_force_input_atom_count(force_input, &n_atoms, &has_cell) != 0 ||
+       n_atoms > (size_t)INT_MAX || n_atoms > SIZE_MAX / 3u))
+    err = "invalid ForceInput geometry";
+  if (!err) {
+    force_count = n_atoms * 3u;
+    required_size = cpmdc_potential_result_flat_size(force_count);
+    *potential_result_capnp_size_bytes = required_size;
+    if (required_size == 0 || force_count > (size_t)INT_MAX)
+      err = "invalid ForceInput geometry";
   }
-  if (cpmdc_force_input_stress_result_factors(force_input, &energy_factor,
-                                              &stress_factor) != 0) {
+  if (!err && cpmdc_force_input_result_factors(force_input, &energy_factor,
+                                                &force_factor) != 0)
+    err = "invalid ForceInput result units";
+  if (!err &&
+      cpmdc_force_input_stress_result_factors(force_input, &energy_factor,
+                                              &stress_factor) != 0)
+    err = "invalid ForceInput stress units";
+  if (!err &&
+      (!potential_result_capnp ||
+       potential_result_capnp_capacity_bytes < required_size))
+    err = "PotentialResult buffer too small";
+  if (!err &&
+      (test_fault("calculate-result-reserve") ||
+       session_reserve_step_atoms(session, n_atoms) != 0))
+    err = "out of memory";
+  if (!err &&
+      cpmdc_force_input_copy_geometry(
+          force_input, session->step_positions_ang,
+          session->step_atomic_numbers, session->step_atom_capacity, cell_ang,
+          &has_cell) != 0)
+    err = "invalid ForceInput geometry";
+  if (arena_open)
     cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput stress units");
+  if (!err) {
+    forces = test_fault("calculate-result-allocation")
+                 ? NULL
+                 : (double *)malloc(force_count * sizeof(*forces));
+    if (!forces)
+      err = "out of memory";
   }
-  if (!potential_result_capnp ||
-      potential_result_capnp_capacity_bytes < required_size) {
-    cpmdc_params_release(&arena);
-    return fail_msg("PotentialResult buffer too small");
+  err = collective_call_gate(err);
+  if (err) {
+    free(forces);
+    return fail_msg(err);
   }
-  if (session_reserve_step_atoms(session, n_atoms) != 0) {
-    cpmdc_params_release(&arena);
-    return fail_msg("out of memory");
-  }
-
-  double cell_ang[9];
-  if (cpmdc_force_input_copy_geometry(
-          force_input, session->step_positions_ang, session->step_atomic_numbers,
-          session->step_atom_capacity, cell_ang, &has_cell) != 0) {
-    cpmdc_params_release(&arena);
-    return fail_msg("invalid ForceInput geometry");
-  }
-  cpmdc_params_release(&arena);
-
-  double *forces = (double *)malloc(force_count * sizeof(*forces));
-  if (!forces)
-    return fail_msg("out of memory");
   r = session_energy_gradient_cell(session, (int)n_atoms,
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
@@ -2080,17 +2213,18 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                const double *cell_bohr, double *energy_h,
                                double *forces_h_bohr, double *virial_h) {
   size_t n3 = 0;
-  if (!session) {
-    (void)fail_msg("null session");
-    return -1;
-  }
-  if (grad_len_from_atoms(n_atoms, &n3) != 0 || !atomic_numbers ||
-      !positions_bohr || !energy_h || !forces_h_bohr) {
-    (void)fail_msg("invalid arguments");
-    return -1;
-  }
-  if (session_reserve_step_atoms(session, (size_t)n_atoms) != 0) {
-    (void)fail_msg("out of memory");
+  const char *err = NULL;
+  if (!session)
+    err = "null session";
+  else if (grad_len_from_atoms(n_atoms, &n3) != 0 || !atomic_numbers ||
+           !positions_bohr || !energy_h || !forces_h_bohr)
+    err = "invalid arguments";
+  else if (test_fault("calculate-au-reserve") ||
+           session_reserve_step_atoms(session, (size_t)n_atoms) != 0)
+    err = "out of memory";
+  err = collective_call_gate(err);
+  if (err) {
+    (void)fail_msg(err);
     return -1;
   }
   for (size_t i = 0; i < n3; ++i)
@@ -2126,30 +2260,38 @@ CPMDCResult cpmdc_calculate_result(const void *params_capnp,
                                    void *potential_result_capnp,
                                    size_t potential_result_capnp_capacity_bytes,
                                    size_t *potential_result_capnp_size_bytes) {
+  const char *err = NULL;
+  size_t required_size = 0;
+  CPMDCSession *session = NULL;
   if (!params_capnp || params_capnp_size_bytes == 0 || !force_input_capnp ||
       force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes)
-    return fail_msg("invalid arguments");
-  *potential_result_capnp_size_bytes = 0;
-
-  size_t required_size = cpmdc_potential_result_size_for_force_input(
-      force_input_capnp, force_input_capnp_size_bytes);
-  *potential_result_capnp_size_bytes = required_size;
-  if (required_size == 0) {
-    const char *err = cpmdc_last_error();
+    err = "invalid arguments";
+  if (potential_result_capnp_size_bytes)
+    *potential_result_capnp_size_bytes = 0;
+  if (!err) {
+    required_size = cpmdc_potential_result_size_for_force_input(
+        force_input_capnp, force_input_capnp_size_bytes);
+    *potential_result_capnp_size_bytes = required_size;
+  }
+  if (!err && required_size == 0) {
+    err = cpmdc_last_error();
     if (!err || err[0] == '\0')
       err = "invalid ForceInput geometry";
-    return fail_msg(err);
   }
-  if (!potential_result_capnp ||
-      potential_result_capnp_capacity_bytes < required_size)
-    return fail_msg("PotentialResult buffer too small");
-
-  CPMDCSession *session =
-      cpmdc_session_create(params_capnp, params_capnp_size_bytes);
-  if (!session) {
-    const char *err = cpmdc_last_error();
+  if (!err &&
+      (!potential_result_capnp ||
+       potential_result_capnp_capacity_bytes < required_size))
+    err = "PotentialResult buffer too small";
+  if (!err)
+    session = cpmdc_session_create(params_capnp, params_capnp_size_bytes);
+  if (!err && !session) {
+    err = cpmdc_last_error();
     if (!err || err[0] == '\0')
       err = "embed config failed";
+  }
+  err = collective_call_gate(err);
+  if (err) {
+    cpmdc_session_destroy(session);
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_session_calculate_result(
@@ -2166,30 +2308,39 @@ CPMDCResult cpmdc_calculate_result_from_config(
     void *potential_result_capnp,
     size_t potential_result_capnp_capacity_bytes,
     size_t *potential_result_capnp_size_bytes) {
+  const char *err = NULL;
+  size_t required_size = 0;
+  CPMDCSession *session = NULL;
   if (!config_capnp || config_capnp_size_bytes == 0 || !force_input_capnp ||
       force_input_capnp_size_bytes == 0 || !potential_result_capnp_size_bytes)
-    return fail_msg("invalid arguments");
-  *potential_result_capnp_size_bytes = 0;
-
-  size_t required_size = cpmdc_potential_result_size_for_force_input(
-      force_input_capnp, force_input_capnp_size_bytes);
-  *potential_result_capnp_size_bytes = required_size;
-  if (required_size == 0) {
-    const char *err = cpmdc_last_error();
+    err = "invalid arguments";
+  if (potential_result_capnp_size_bytes)
+    *potential_result_capnp_size_bytes = 0;
+  if (!err) {
+    required_size = cpmdc_potential_result_size_for_force_input(
+        force_input_capnp, force_input_capnp_size_bytes);
+    *potential_result_capnp_size_bytes = required_size;
+  }
+  if (!err && required_size == 0) {
+    err = cpmdc_last_error();
     if (!err || err[0] == '\0')
       err = "invalid ForceInput geometry";
-    return fail_msg(err);
   }
-  if (!potential_result_capnp ||
-      potential_result_capnp_capacity_bytes < required_size)
-    return fail_msg("PotentialResult buffer too small");
-
-  CPMDCSession *session =
-      cpmdc_session_create_from_config(config_capnp, config_capnp_size_bytes);
-  if (!session) {
-    const char *err = cpmdc_last_error();
+  if (!err &&
+      (!potential_result_capnp ||
+       potential_result_capnp_capacity_bytes < required_size))
+    err = "PotentialResult buffer too small";
+  if (!err)
+    session =
+        cpmdc_session_create_from_config(config_capnp, config_capnp_size_bytes);
+  if (!err && !session) {
+    err = cpmdc_last_error();
     if (!err || err[0] == '\0')
       err = "embed config failed";
+  }
+  err = collective_call_gate(err);
+  if (err) {
+    cpmdc_session_destroy(session);
     return fail_msg(err);
   }
   CPMDCResult r = cpmdc_session_calculate_result(

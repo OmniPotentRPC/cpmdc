@@ -91,6 +91,7 @@ MODULE cpmd_embed_c_api
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
   ! Where the last SCF started; see note_warm_start for the values.
   INTEGER, SAVE :: last_warm_source = -2
+  REAL(c_double), SAVE :: embed_cell_in_place_limit = 0.0_c_double
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
@@ -539,6 +540,14 @@ CONTAINS
 #else
     IF (limit == 0_c_int) CONTINUE
 #endif
+  END SUBROUTINE
+
+  ! The C entry gate reads CPMDC_CELL_IN_PLACE on calculator rank zero and
+  ! broadcasts it before setting this identical value on every rank.
+  SUBROUTINE cpmdc_embed_set_cell_in_place(limit) &
+      BIND(C, NAME='cpmdc_embed_set_cell_in_place')
+    REAL(c_double), INTENT(IN), VALUE :: limit
+    embed_cell_in_place_limit = MAX(0.0_c_double, limit)
   END SUBROUTINE
 
   ! 0 the last park was allowed, 1 CPMDC_ORBITAL_SLOT_LIMIT is not a
@@ -2988,19 +2997,11 @@ CONTAINS
     IF (.NOT. same_element_counts(n_atoms, z)) embed_method_changed = .TRUE.
   END FUNCTION
 
-  ! CPMDC_CELL_IN_PLACE is the largest principal strain of a cell from
-  ! the setup cell, as a fraction of a length, that keeps the setup's plane
-  ! waves on a constant-cutoff deck. Unset, 0, negative, or a value that
-  ! does not parse sets CPMD up again for every new cell.
+  ! CPMDC_CELL_IN_PLACE is the largest principal strain of a cell from the
+  ! setup cell, as a fraction of a length, that keeps the setup's plane waves
+  ! on a constant-cutoff deck. The C entry gate has already read it on root.
   REAL(real64) FUNCTION embed_cell_strain_limit()
-    CHARACTER(LEN=32) :: v
-    INTEGER :: st, ios
-    REAL(real64) :: x
-    embed_cell_strain_limit = 0.0_real64
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_CELL_IN_PLACE', v, STATUS=st)
-    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
-    READ(v, *, IOSTAT=ios) x
-    IF (ios == 0 .AND. x > 0.0_real64) embed_cell_strain_limit = x
+    embed_cell_strain_limit = REAL(embed_cell_in_place_limit, KIND=real64)
   END FUNCTION
 
   ! The largest eigenvalue of a symmetric 3x3 matrix (Smith 1961).
