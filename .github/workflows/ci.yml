@@ -222,6 +222,11 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # The LAMMPS convention tests drive cpmdc.lammps.FixExternal, whose
+      # evaluation step lives in rgpot.lammps, and the skip check below
+      # fails the job when they skip.
+      - name: rgpot.lammps
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Patched OpenCPMD archive
         run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd" "${RUNNER_TEMP}/opencpmd-build"
       - name: Pseudopotentials
