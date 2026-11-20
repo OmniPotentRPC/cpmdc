@@ -1446,15 +1446,13 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
     ov->charge = c.charge;
     *has_ov = 1;
   }
-  if (c.spinMultiplicity > 0 && !typed.multiplicity) {
+  if (c.spinMultiplicity != 0 && !typed.multiplicity) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "MULTIPLICITY",
                                   "spinMultiplicity") != 0)
       return -1;
-    if (c.spinMultiplicity > 1) {
-      ov->has_multiplicity = 1;
-      ov->multiplicity = c.spinMultiplicity;
-      *has_ov = 1;
-    }
+    ov->has_multiplicity = 1;
+    ov->multiplicity = c.spinMultiplicity;
+    *has_ov = 1;
   }
   if (smear_temperature_k > 0.0) {
     if (cpmd_arm_check_smearing(&arm_view) != 0)

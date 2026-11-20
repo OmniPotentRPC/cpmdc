@@ -2851,6 +2851,121 @@ static void test_precedence_overlay_cutoff_unit_conversion(void **state) {
   free(buf);
 }
 
+enum SingletCarrier {
+  SINGLET_NO_CARRIER,
+  SINGLET_INPUT_BLOCK,
+  SINGLET_RAW_SYSTEM,
+  SINGLET_GENERIC_SYSTEM,
+  SINGLET_SET_MULTIPLICITY,
+  SINGLET_TYPED_SYSTEM_DIRECTIVE,
+};
+
+/* spinMultiplicity 0 is unset, so 1 is an explicit singlet and goes through
+ * the same opaque carrier checks as any other multiplicity. */
+static unsigned char *build_singlet_config(enum SingletCarrier carrier,
+                                           size_t *size) {
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  switch (carrier) {
+  case SINGLET_NO_CARRIER:
+    break;
+  case SINGLET_INPUT_BLOCK: {
+    capn_ptr blocks = capn_new_ptr_list(root.seg, 1);
+    capn_set_text(blocks, 0,
+                  capn_str("&SYSTEM\n MULTIPLICITY\n  3\n&END"));
+    arm.inputBlocks = blocks;
+    break;
+  }
+  case SINGLET_RAW_SYSTEM:
+    sec.which = CPMDInputSection_raw;
+    sec.raw = capn_str("&SYSTEM\n MULTIPLICITY\n  3\n&END");
+    attach_section(&arena, &arm, &sec);
+    break;
+  case SINGLET_GENERIC_SYSTEM: {
+    struct CPMDGenericSection gen;
+    memset(&gen, 0, sizeof(gen));
+    gen.name = capn_str("SYSTEM");
+    CPMDGenericSection_ptr gen_ptr = new_CPMDGenericSection(root.seg);
+    write_CPMDGenericSection(&gen, gen_ptr);
+    sec.which = CPMDInputSection_generic;
+    sec.generic = gen_ptr;
+    attach_section(&arena, &arm, &sec);
+    break;
+  }
+  case SINGLET_SET_MULTIPLICITY: {
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("SYSTEM.MULTIPLICITY");
+    setd.value = capn_str("3");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    attach_section(&arena, &arm, &sec);
+    break;
+  }
+  case SINGLET_TYPED_SYSTEM_DIRECTIVE: {
+    CPMDDirective_list dirs = new_CPMDDirective_list(root.seg, 1);
+    struct CPMDDirective d;
+    memset(&d, 0, sizeof(d));
+    d.keyword = capn_str("MULTIPLICITY");
+    capn_ptr args = capn_new_ptr_list(root.seg, 1);
+    capn_set_text(args, 0, capn_str("3"));
+    d.args = args;
+    set_CPMDDirective(&d, dirs, 0);
+    CPMDInputSection_list secs = new_sections(&arena, 1);
+    put_system(&arena, secs, 0, 0.0, 0, 0, dirs, 1);
+    arm.inputSections = secs;
+    break;
+  }
+  }
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  com.spinMultiplicity = 1;
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), size);
+  capn_free(&arena);
+  return buf;
+}
+
+static void test_merge_rejects_explicit_singlet_next_to_carriers(void **state) {
+  (void)state;
+  const enum SingletCarrier carriers[] = {
+      SINGLET_INPUT_BLOCK,
+      SINGLET_RAW_SYSTEM,
+      SINGLET_GENERIC_SYSTEM,
+      SINGLET_SET_MULTIPLICITY,
+      SINGLET_TYPED_SYSTEM_DIRECTIVE,
+  };
+  for (size_t i = 0; i < sizeof(carriers) / sizeof(carriers[0]); ++i) {
+    size_t sz = 0;
+    unsigned char *buf = build_singlet_config(carriers[i], &sz);
+    expect_config_rejected(buf, sz, "spinMultiplicity");
+    free(buf);
+  }
+}
+
+static void test_merge_accepts_explicit_singlet(void **state) {
+  (void)state;
+  size_t sz = 0;
+  unsigned char *buf = build_singlet_config(SINGLET_NO_CARRIER, &sz);
+  assert_int_equal(cpmdc_configure(buf, sz), 0);
+  struct Recorded rec;
+  read_recorded(&rec);
+  assert_int_equal(rec.mult, 1);
+  char *deck = render_deck_from_config(buf, sz);
+  struct Recorded from_deck;
+  read_deck_scalars(deck, &from_deck);
+  assert_int_equal(from_deck.mult, 1);
+  free(deck);
+  free(buf);
+}
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr,
@@ -2905,6 +3020,8 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_precedence_typed_value_beats_overlay),
       cmocka_unit_test(test_precedence_root_value_with_default_sections),
       cmocka_unit_test(test_precedence_overlay_cutoff_unit_conversion),
+      cmocka_unit_test(test_merge_rejects_explicit_singlet_next_to_carriers),
+      cmocka_unit_test(test_merge_accepts_explicit_singlet),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

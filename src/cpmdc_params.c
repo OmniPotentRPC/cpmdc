@@ -815,8 +815,7 @@ static int resolve_scalars(struct CPMDParams *view,
 
   if (out->typed.multiplicity)
     out->multiplicity = multiplicity;
-  else if (overrides && overrides->has_multiplicity &&
-           overrides->multiplicity > 1)
+  else if (overrides && overrides->has_multiplicity)
     out->multiplicity = overrides->multiplicity;
   else
     out->multiplicity = 1;
