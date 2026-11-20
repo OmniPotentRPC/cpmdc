@@ -5,7 +5,7 @@
 Machine-readable inventory: schema/inventory/cpmd_features.json.
 Human docs source: docs/orgmode/ (export to Sphinx with pixi run -e docs docbld).
 
-The C ABI exposes 47 functions; the feature table lists 47 ABI rows, 521 parameter fields, 25 deck sections, and 624 catalog keywords.
+The C ABI exposes 51 functions; the feature table lists 51 ABI rows, 521 parameter fields, 25 deck sections, and 624 catalog keywords.
 Authoritative API tables: reference/c-abi, reference/contracts, reference/python, reference/cpmd-options.
 
 AGENTS.md at the repository root describes layout, build, test, and docs for agents.

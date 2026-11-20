@@ -326,6 +326,16 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     cpmdc_store_error("CPMDParams input is not supported");
     return -1;
   }
+  const char *conflict = cpmdc_params_deck_conflict(deck);
+  if (conflict) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "CPMDParams input is not supported: %s",
+             conflict);
+    free(deck);
+    cpmdc_params_release(&arena);
+    cpmdc_store_error(msg);
+    return -1;
+  }
   cpmdc_params_release(&arena);
   *input_deck = deck;
   return 0;
@@ -1202,6 +1212,10 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   r.energy_h = 0.0;
   r.message[0] = '\0';
   g_embed_detail[0] = '\0';
+  if (n_atoms > (int)(sizeof(image->prop.hessian) /
+                      (3u * sizeof(image->prop.hessian[0]))))
+    return fail_msg(
+        "property gradient snapshot supports at most 1365 atoms");
   if (grad_len_from_atoms(n_atoms, NULL) != 0 || !positions_ang ||
       !atomic_numbers || !grad_h_bohr)
     return fail_msg("invalid arguments");
@@ -1526,6 +1540,13 @@ static int session_accept_topology(CPMDCSession *session, size_t n_atoms,
   return 0;
 }
 
+static void session_forget_topology(CPMDCSession *session) {
+  free(session->fixed_atomic_numbers);
+  session->fixed_atomic_numbers = NULL;
+  session->fixed_n_atoms = 0;
+  session->topology_fixed = 0;
+}
+
 /* The overrides a deck is rendered with: an overlay and the session's
  * constant cutoff. NULL when there is neither. */
 static const CPMDCScalarOverrides *
@@ -1760,8 +1781,19 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("invalid arguments");
   if (!atomic_numbers_in_range(n_atoms, atomic_numbers))
     return fail_msg("atomic numbers must be in 1..118");
+  int topology_was_fixed = session->topology_fixed;
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
+  /* After the topology check, so a session that already holds another
+   * system reports the topology change. A first call that is too large
+   * leaves the session without a topology, so a valid call can follow. */
+  if (n_atoms > (int)(sizeof(session->image.prop.hessian) /
+                      (3u * sizeof(session->image.prop.hessian[0])))) {
+    if (!topology_was_fixed)
+      session_forget_topology(session);
+    return fail_msg(
+        "property gradient snapshot supports at most 1365 atoms");
+  }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
@@ -2265,6 +2297,56 @@ int cpmdc_session_last_property_snapshot(const CPMDCSession *session,
     return -1;
   *out = session->image.prop;
   return out->valid ? 0 : -1;
+}
+
+static int copy_gradient(const CPMDCEmbedImage *image, double *out,
+                         size_t capacity, size_t *count) {
+  size_t n;
+  if (count)
+    *count = 0;
+  if (!image || !out || !count || !image->prop.valid)
+    return -1;
+  n = image->prop.hessian_count;
+  if (n > sizeof(image->prop.hessian) / sizeof(image->prop.hessian[0]))
+    return -1;
+  *count = n;
+  if (n == 0 || capacity < n)
+    return -1;
+  memcpy(out, image->prop.hessian, n * sizeof(*out));
+  return 0;
+}
+
+int cpmdc_last_gradient(double *out, size_t capacity, size_t *count) {
+  return copy_gradient(active_image(), out, capacity, count);
+}
+
+int cpmdc_session_last_gradient(const CPMDCSession *session, double *out,
+                                size_t capacity, size_t *count) {
+  if (!session) {
+    if (count)
+      *count = 0;
+    return -1;
+  }
+  return copy_gradient(&session->image, out, capacity, count);
+}
+
+static int copy_dipole(const CPMDCEmbedImage *image, CPMDCDipole *out) {
+  if (!out)
+    return -1;
+  memset(out, 0, sizeof(*out));
+  if (!image || !image->prop.valid || image->prop.dipole_count != 3)
+    return -1;
+  memcpy(out->values, image->prop.dipole, sizeof(out->values));
+  out->valid = 1;
+  return 0;
+}
+
+int cpmdc_last_dipole(CPMDCDipole *out) {
+  return copy_dipole(active_image(), out);
+}
+
+int cpmdc_session_last_dipole(const CPMDCSession *session, CPMDCDipole *out) {
+  return copy_dipole(session ? &session->image : NULL, out);
 }
 
 int cpmdc_last_stress(CPMDCStressTensor *out) {

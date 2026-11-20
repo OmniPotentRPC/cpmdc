@@ -8,7 +8,7 @@ The public C ABI (application binary interface) of ~libcpmdc~ is declared in
 Installed headers live under ~include/cpmdc/~; include them as
 ~#include <cpmdc.h>~ with the flags of ~pkg-config --cflags cpmdc~.
 Every function has C linkage, and the header compiles as C and as C++.
-~libcpmdc~ exports those 47 functions and no other symbol; the exported symbols
+~libcpmdc~ exports those 51 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 ~schema/inventory/surface_map_abi.txt~ records them; it is generated from the
 built library, and the ~c-abi-inventory~ test fails when the headers, the
@@ -148,7 +148,8 @@ Each snapshot struct starts with ~int valid~, set by a successful evaluation.
 | ~CPMDCChargeIntegrals~ | ~csumg~, ~csumr~, ~csums~, ~csumsabs~ from ~chrg~ | electrons |
 | ~CPMDCMultiStateEnergies~ | ~count~ doubles in ~values[64]~ from ~ener_c~ and ~ener_d~ | Hartree |
 | ~CPMDCMDTrajectoryRow~ | ~count~ doubles in ~values[32]~: ~etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC~ | Hartree |
-| ~CPMDCPropertySnapshot~ | nuclear gradient in ~hessian[4096]~, dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units (Hartree/Bohr for the gradient) |
+| ~CPMDCPropertySnapshot~ | deprecated nuclear-gradient name ~hessian[4096]~, optional molecular dipole in ~dipole[3]~, polarizability in ~polarizability[9]~, each with a count | atomic units (Hartree/Bohr for the gradient) |
+| ~CPMDCDipole~ | ~valid~ and the molecular dipole in ~values[3]~ | electron Bohr |
 | ~CPMDCStressTensor~ | row-major ~values[9]~, ~paiu/omega~ | Hartree/Bohr^3 |
 | ~CPMDCRankSpread~ | ~ranks~, ~energy_h~, ~gradient_h_bohr~ (see [[*Results of the last evaluation][Results of the last evaluation]]) | Hartree, Hartree/Bohr |
 
@@ -157,6 +158,11 @@ With OpenCPMD linked, ~CPMDCEnergyComponents~ fills ~etot~, ~ekin~, ~epseu~,
 The reference evaluator fills ~etot~ only.
 ~EKINC~, the fictitious electronic kinetic energy, is zero for a wavefunction
 optimisation.
+~CPMDCPropertySnapshot.hessian~ and ~hessian_count~ are deprecated because the
+values are the nuclear gradient, not a Hessian.
+Use ~cpmdc_last_gradient()~ or ~cpmdc_session_last_gradient()~.
+The legacy array fixes the current maximum at 4096 gradient components, or
+1365 atoms. An evaluation with more atoms fails; it is not truncated.
 
 Fields of ~CPMDCEnergyComponents~; ~valid~ is an ~int~, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -196,7 +202,7 @@ entries a call filled.
 
 | Field | Struct | Meaning |
 |-------+--------+---------|
-| ~valid~ | ~CPMDCChargeIntegrals~, ~CPMDCMultiStateEnergies~, ~CPMDCMDTrajectoryRow~, ~CPMDCPropertySnapshot~, ~CPMDCStressTensor~, ~CPMDCRankSpread~ | ~int~, non-zero when the snapshot was written |
+| ~valid~ | ~CPMDCChargeIntegrals~, ~CPMDCMultiStateEnergies~, ~CPMDCMDTrajectoryRow~, ~CPMDCPropertySnapshot~, ~CPMDCDipole~, ~CPMDCStressTensor~, ~CPMDCRankSpread~ | ~int~, non-zero when the snapshot was written |
 | ~csumg~ | ~CPMDCChargeIntegrals~ | ~csumg~ of OpenCPMD ~chrg~, electrons |
 | ~csumr~ | ~CPMDCChargeIntegrals~ | ~csumr~ of OpenCPMD ~chrg~, electrons |
 | ~csums~ | ~CPMDCChargeIntegrals~ | ~csums~ of OpenCPMD ~chrg~, electrons |
@@ -205,11 +211,12 @@ entries a call filled.
 | ~values[64]~ | ~CPMDCMultiStateEnergies~ | ~ener_c~ and ~ener_d~ values, Hartree |
 | ~values[32]~ | ~CPMDCMDTrajectoryRow~ | trajectory terms in the order of the table above, Hartree |
 | ~hessian_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~hessian~ |
-| ~hessian[4096]~ | ~CPMDCPropertySnapshot~ | nuclear gradient dE/dR in Hartree/Bohr packed as ~n_atoms * 3~. It is a gradient, not a Hessian. Only the first 4096 values are kept, and ~hessian_count~ says how many, so a system of more than 1365 atoms is cut short |
+| ~hessian[4096]~ | ~CPMDCPropertySnapshot~ | deprecated nuclear gradient dE/dR in Hartree/Bohr packed as ~n_atoms * 3~; use the gradient accessors. Evaluations above its 4096-component capacity fail instead of truncating |
 | ~dipole_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~dipole~ |
-| ~dipole[3]~ | ~CPMDCPropertySnapshot~ | OpenCPMD ~ddip%pdipole~ in atomic units, zeros for the reference evaluator |
+| ~dipole[3]~ | ~CPMDCPropertySnapshot~ | molecular dipole in electron Bohr when OpenCPMD recomputed it for the current geometry; unavailable otherwise |
 | ~polarizability_count~ | ~CPMDCPropertySnapshot~ | ~size_t~, the number of doubles copied into ~polarizability~ |
 | ~polarizability[9]~ | ~CPMDCPropertySnapshot~ | always zeros, in atomic units (Bohr^3), with ~polarizability_count~ 9: no build computes it |
+| ~values[3]~ | ~CPMDCDipole~ | Cartesian molecular dipole, electron Bohr; see the periodic-cell caveat on the struct in ~cpmdc.h~ |
 | ~values[9]~ | ~CPMDCStressTensor~ | row-major ~[xx, xy, xz, yx, yy, yz, zx, zy, zz]~, Hartree/Bohr^3 |
 | ~ranks~ | ~CPMDCRankSpread~ | ~int~, ranks in the calculator communicator |
 | ~energy_h~ | ~CPMDCRankSpread~ | largest absolute energy difference from rank 0 over the ranks, Hartree |
@@ -465,7 +472,33 @@ session has run.
 | ~int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)~ | ~int cpmdc_session_last_multi_state_energies(const CPMDCSession *s, CPMDCMultiStateEnergies *out)~ |
 | ~int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)~ | ~int cpmdc_session_last_md_trajectory_row(const CPMDCSession *s, CPMDCMDTrajectoryRow *out)~ |
 | ~int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)~ | ~int cpmdc_session_last_property_snapshot(const CPMDCSession *s, CPMDCPropertySnapshot *out)~ |
+| ~int cpmdc_last_dipole(CPMDCDipole *out)~ | ~int cpmdc_session_last_dipole(const CPMDCSession *s, CPMDCDipole *out)~ |
 | ~int cpmdc_last_stress(CPMDCStressTensor *out)~ | ~int cpmdc_session_last_stress(const CPMDCSession *s, CPMDCStressTensor *out)~ |
+
+The gradient accessors take a caller buffer:
+
+| Plain | Per session |
+|-------+-------------|
+| ~int cpmdc_last_gradient(double *out, size_t capacity, size_t *count)~ | ~int cpmdc_session_last_gradient(const CPMDCSession *s, double *out, size_t capacity, size_t *count)~ |
+
+~count~ receives the required number of doubles.
+The call returns -1 when there is no gradient, an argument is null, or
+~capacity~ is too small.
+
+The dipole getter returns 0 only when the linked OpenCPMD recomputed
+~dipomod%moment%dmom~ from the converged wavefunction of this evaluation.
+The supported route is a periodic Gamma-point, non-broken-symmetry deck with
+~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
+An isolated deck, a k-point calculation, the reference evaluator, and a deck
+without either request leave the dipole invalid.
+A deck that sets ~DIPOLE DYNAMICS~ in ~&CPMD~ and ~KPOINTS~ in ~&SYSTEM~ is
+rejected before any evaluation, by ~cpmdc_session_create()~,
+~cpmdc_session_set_params()~, and the calls that take parameters, because
+OpenCPMD stops in ~localize2~ on it; ~cpmdc_last_error()~ names both keywords.
+OpenCPMD's ~ddip%pdipole~ is not this molecular dipole: ~ddipo~ adds the ionic
+term to make ~pdipolt~, then multiplies by the cell volume to set
+~moment%dmom~. Reading ~pdipole~ after ~wfopts~ without calling ~ddipo~ would
+return stale module state.
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and

@@ -11,6 +11,7 @@ well take a tolerance there.
 from __future__ import annotations
 
 import copy
+import ctypes
 import json
 import os
 import pickle
@@ -120,7 +121,7 @@ def cluster_variant(tmp_path_factory: pytest.TempPathFactory):
 
 def test_is_an_ase_calculator(calc, params):
     assert isinstance(calc, Calculator)
-    assert calc.implemented_properties == ["energy", "free_energy", "forces", "stress"]
+    assert calc.implemented_properties == ["energy", "free_energy", "forces", "stress", "dipole"]
     assert calc.default_parameters == {"params": None, "library": None, "constant_cutoff": None}
     assert calc.parameters["params"] == str(params)
     assert calc.todict() == {"params": str(params)}
@@ -166,6 +167,114 @@ def test_a_periodic_step_matches_session_and_potential(periodic_calc, periodic_p
     np.testing.assert_allclose(
         atoms.get_stress(voigt=False).ravel(), provider["stress"], rtol=1e-12, atol=stress_atol
     )
+
+
+@pytest.fixture(scope="session")
+def dipole_params(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Periodic water whose deck asks for DIPOLE DYNAMICS."""
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("put capnp on PATH to encode the dipole deck")
+    source = (ROOT / "tests" / "water_blyp_periodic_params.capnp.txt").read_text(
+        encoding="utf-8"
+    )
+    source = source.replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")
+    encoded = subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=source.encode("utf-8"),
+        stdout=subprocess.PIPE,
+        check=True,
+    ).stdout
+    params = tmp_path_factory.mktemp("dipole") / "water-dipole.params.bin"
+    params.write_bytes(encoded)
+    return params
+
+
+def test_opencpmd_dipole_is_recomputed_and_reaches_ase(dipole_params, opencpmd):
+    if not opencpmd:
+        pytest.skip("the reference evaluator has no electronic dipole")
+    params = dipole_params
+    moved = np.asarray(WATER, dtype=float)
+    with Session(params) as session:
+        first = session.energy_forces(moved, [8, 1, 1], CUBE)
+        moved[1, 0] += 0.05
+        second = session.energy_forces(moved, [8, 1, 1], CUBE)
+    assert first.dipole_e_bohr is not None
+    assert second.dipole_e_bohr is not None
+    assert not np.allclose(first.dipole_e_bohr, second.dipole_e_bohr)
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(params) as calc:
+        atoms.calc = calc
+        # The independent session can converge to a slightly different point
+        # within the deck's 1e-5 orbital-gradient threshold.
+        np.testing.assert_allclose(
+            atoms.get_dipole_moment(),
+            np.asarray(first.dipole_e_bohr) * BOHR_TO_ANGSTROM,
+            rtol=0,
+            atol=1.0e-4,
+        )
+
+
+def test_opencpmd_dipole_value_is_pinned(dipole_params, opencpmd):
+    """Real OpenCPMD water in a 10 Angstrom cube, BLYP, 70 Ry.
+
+    The oxygen sits at +z and the hydrogens at -z, so the dipole, which points
+    from the negative to the positive charge, points along -z. OpenCPMD gives
+    (6.1e-6, 2.9e-6, -0.64866) e*Bohr. The range is wide enough for another
+    BLAS and tight enough that a dipole scaled by one half or by a unit
+    factor fails.
+    """
+    if not opencpmd:
+        pytest.skip("the reference evaluator has no electronic dipole")
+    flipped = np.asarray(WATER, dtype=float) * [1.0, 1.0, -1.0]
+    with Session(dipole_params) as session:
+        up = session.energy_forces(WATER, [8, 1, 1], CUBE)
+        assert up.dipole_e_bohr is not None
+        assert session.dipole_possible()
+        x, y, z = up.dipole_e_bohr
+        assert -0.68 < z < -0.62
+        assert abs(x) < 1.0e-3
+        assert abs(y) < 1.0e-3
+        assert 0.62 < float(np.linalg.norm(up.dipole_e_bohr)) < 0.68
+
+        down = session.energy_forces(flipped, [8, 1, 1], CUBE)
+        assert down.dipole_e_bohr is not None
+        assert 0.62 < down.dipole_e_bohr[2] < 0.68
+
+        # calculate_au has no dipole output; the step's dipole is read after it.
+        bohr = np.asarray(WATER, dtype=float).ravel() / BOHR_TO_ANGSTROM
+        cell = np.asarray(CUBE, dtype=float).ravel() / BOHR_TO_ANGSTROM
+        session.calculate_au(bohr, [8, 1, 1], cell)
+        last = cpmdc_last_dipole_values(session)
+    # A warm restart converges to within the deck's 1e-5 orbital gradient,
+    # which moves the dipole by about 1e-4.
+    np.testing.assert_allclose(last, up.dipole_e_bohr, rtol=0, atol=1.0e-3)
+
+
+def cpmdc_last_dipole_values(session: Session) -> list[float]:
+    """The dipole of the last step through the C ABI, electron Bohr."""
+    from cpmdc import _CDipole
+
+    out = _CDipole()
+    assert session._lib.cpmdc_session_last_dipole(session._handle, ctypes.byref(out)) == 0
+    assert out.valid
+    return [float(out.values[i]) for i in range(3)]
+
+
+def test_caps_report_a_dipole_only_when_the_evaluator_can_make_one(
+    params, periodic_params, dipole_params, opencpmd
+):
+    with Potential(params) as pot:
+        assert pot.caps()["dipole"] is opencpmd
+    # A deck without a dipole request produces none, and caps then says so.
+    with Potential(periodic_params) as pot:
+        pot.evaluate(WATER, [8, 1, 1], CUBE)
+        assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+    if opencpmd:
+        with Potential(dipole_params) as pot:
+            assert pot.caps()["dipole"] is True
+            assert "dipole" in pot.evaluate(WATER, [8, 1, 1], CUBE)
+            assert pot.caps() == {"stress": True, "dipole": True, "energies": False}
 
 
 @pytest.mark.parametrize("periodic", [False, True])
@@ -372,12 +481,40 @@ def test_reset_clears_the_step_and_keeps_the_session(calc, calls, opencpmd):
     assert len(calls) == 2
 
 
-@pytest.mark.parametrize("name", ["energies", "magmom", "magmoms", "charges", "dipole"])
+@pytest.mark.parametrize("name", ["energies", "magmom", "magmoms", "charges"])
 def test_unsupported_properties_raise(calc, name):
     atoms = water()
     atoms.calc = calc
     with pytest.raises(PropertyNotImplementedError):
         calc.get_property(name, atoms)
+
+
+def test_an_unavailable_dipole_raises_once(calc, calls):
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    for _ in range(2):
+        with pytest.raises(PropertyNotImplementedError, match="computed no dipole"):
+            atoms.get_dipole_moment()
+    assert len(calls) == 1
+    assert "dipole" not in calc.results
+
+
+def test_a_valid_dipole_is_an_ase_vector(calc, monkeypatch):
+    evaluate = Potential.evaluate
+
+    def with_dipole(self, *args, **kwargs):
+        result = evaluate(self, *args, **kwargs)
+        result["dipole"] = [0.25, -0.5, 0.75]
+        return result
+
+    monkeypatch.setattr(Potential, "evaluate", with_dipole)
+    atoms = water()
+    atoms.calc = calc
+    dipole = atoms.get_dipole_moment()
+    np.testing.assert_array_equal(dipole, [0.25, -0.5, 0.75])
+    assert dipole.shape == (3,)
+    assert dipole.dtype == np.float64
 
 
 def test_stress_of_a_cluster_raises_once(calc, calls):

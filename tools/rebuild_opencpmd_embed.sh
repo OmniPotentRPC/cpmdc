@@ -25,6 +25,11 @@ fi
 #   initrun_driver.mod.o   opencpmd_embed_geometry.patch
 #   rwfopt_utils.mod.o     opencpmd_embed_rwfopt.patch,
 #                          opencpmd_embed_extrapolate.patch
+#   ddipo_utils.mod.o      opencpmd_embed_dipole.patch (adds ddipo_embed;
+#                          ddipo keeps its argument list, so proppt_utils,
+#                          prcpmd_utils, mm_mdshop_cp_utils and the other
+#                          callers keep their objects)
+#   wfopts_utils.mod.o     opencpmd_embed_dipole.patch; reads ddipo_utils
 #   updwf_utils.mod.o      opencpmd_converged_state.patch
 #   rkpnt_utils.mod.o      opencpmd_kpoints_inputfile.patch
 #   timer.mod.o            opencpmd_tistopgm.patch
@@ -32,7 +37,7 @@ fi
 #   gsortho_utils.mod.o    opencpmd_atomwf_kpts_ortho.patch
 #   atomwf_utils.mod.o     opencpmd_atomwf_kpts_ortho.patch
 #                          atomwf uses gsortho, so gsortho is first
-#   broyden_utils.mod.o .. opencpmd_embed_teardown.patch, the 33 modules
+#   broyden_utils.mod.o .. opencpmd_embed_teardown.patch, the 34 modules
 #   vpsi_utils.mod.o       whose first-call state the teardown resets
 #   embed_teardown.mod.o   opencpmd_embed_teardown.patch (new module)
 # scex_utils.mod.o carries no patch. gfortran stores a copy of Scex_t in
@@ -41,7 +46,7 @@ fi
 # vtable components, and the next USE rwfopt_utils stops.
 # rwfopt_utils reads embed_have_orbitals from rinitwf_driver and
 # embed_write_files from embed_ctrl; initrun_driver reads both modules.
-# The teardown patch adds embed_teardowns to embed_ctrl, which its 33
+# The teardown patch adds embed_teardowns to embed_ctrl, which its 34
 # modules read, and embed_teardown reads rwfopt_utils, so it is last.
 objects=(
   error_handling.mod.o
@@ -51,6 +56,8 @@ objects=(
   rinitwf_driver.mod.o
   initrun_driver.mod.o
   rwfopt_utils.mod.o
+  ddipo_utils.mod.o
+  wfopts_utils.mod.o
   updwf_utils.mod.o
   rkpnt_utils.mod.o
   timer.mod.o
@@ -69,6 +76,7 @@ objects=(
   initclust_utils.mod.o
   k_odiis_utils.mod.o
   k_pcgrad_utils.mod.o
+  localize_utils.mod.o
   mixing_g_utils.mod.o
   mixing_r_utils.mod.o
   moverho_utils.mod.o
