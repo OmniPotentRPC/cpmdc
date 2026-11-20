@@ -60,6 +60,7 @@ def main() -> int:
             "initclust_utils.mod.o",
             "k_odiis_utils.mod.o",
             "k_pcgrad_utils.mod.o",
+            "localize_utils.mod.o",
             "mixing_g_utils.mod.o",
             "mixing_r_utils.mod.o",
             "moverho_utils.mod.o",

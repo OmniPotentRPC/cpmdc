@@ -86,11 +86,14 @@ It frees the saved orbitals, the communicators ~set_cp_grp~ built, and every
 ~ALLOCATABLE~ module variable and module-variable component that a ~USE~
 reaches, outside the timer, stop, and CUDA device modules.
 It then adds one to ~embed_teardowns~ in ~embed_ctrl~.
-38 routines in those 33 modules keep work on the setup and wavefunction
+39 routines in those 34 modules keep work on the setup and wavefunction
 optimisation path for their first call behind a ~SAVE~ flag: ~phfac~,
 ~setbasis~, ~hf_init~, ~addfftnset~, ~stress~, the density mixers, the symmetry
-setup, the Vanderbilt and core-charge splines, and others.
-Each one compares the count it last saw with ~embed_teardowns~, and on a change
+setup, the Vanderbilt and core-charge splines, ~localize2~, and others.
+The SCF of a ~DIPOLE DYNAMICS~ deck calls ~localize2~, which keeps its orbital
+maps and dipole matrices in ~SAVE~ arrays sized by the first basis.
+A second evaluation at another cutoff overran them in ~opeigr~.
+Each of these routines compares the count it last saw with ~embed_teardowns~, and on a change
 frees its own ~SAVE~ arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
 ~tistart~ keeps its state: it executes ~STOP~ on a second call, so the embed

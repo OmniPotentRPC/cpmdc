@@ -37,6 +37,7 @@ PATCHES = {
         "src/initclust_utils.mod.F90",
         "src/k_odiis_utils.mod.F90",
         "src/k_pcgrad_utils.mod.F90",
+        "src/localize_utils.mod.F90",
         "src/mixing_g_utils.mod.F90",
         "src/mixing_r_utils.mod.F90",
         "src/moverho_utils.mod.F90",
@@ -245,6 +246,25 @@ def assert_embed_teardown(patch: Path) -> None:
     )
     if guards < 30:
         raise AssertionError(f"{patch.name}: {guards} first-call guards, expected 30 or more")
+    # localize2 keeps SAVE maps sized by the first basis; a second basis
+    # overruns them in opeigr, so it resets like ddipo does.
+    block = text.split("diff --git a/src/localize_utils.mod.F90", 1)
+    if len(block) != 2:
+        raise AssertionError(f"{patch.name}: localize_utils.mod.F90 is not patched")
+    block = block[1].split("\ndiff --git ", 1)[0]
+    for needle in (
+        "+  USE embed_ctrl,                      ONLY: embed_teardowns",
+        "+       IF (ALLOCATED(mapcol)) DEALLOCATE(mapcol)",
+        "+       IF (ALLOCATED(mapful)) DEALLOCATE(mapful)",
+        "+       IF (ALLOCATED(rotlsd)) DEALLOCATE(rotlsd)",
+        "+       IF (ALLOCATED(rotmat)) DEALLOCATE(rotmat)",
+        "+       IF (ALLOCATED(xyzmat)) DEALLOCATE(xyzmat)",
+        "+       i_comp = 0",
+        "+       ifirst = 0",
+        "+       embed_seen = embed_teardowns",
+    ):
+        if needle not in block:
+            raise AssertionError(f"{patch.name}: localize2 reset missing {needle}")
     # tistart executes STOP on a second call; the teardown keeps its state.
     if "USE timer" in text.split("+MODULE embed_teardown", 1)[1].split("END MODULE", 1)[0]:
         raise AssertionError(f"{patch.name}: embed_teardown must not touch the timers")

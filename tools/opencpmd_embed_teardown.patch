@@ -1495,6 +1495,44 @@ index 661e9c7..11cd5f4 100644
      CALL tiset('  K_PCGRAD',isub)
      ! ==--------------------------------------------------------------==
      ! ==--------------------------------------------------------------==
+diff --git a/src/localize_utils.mod.F90 b/src/localize_utils.mod.F90
+index 3ed757a..b65db5e 100644
+--- a/src/localize_utils.mod.F90
++++ b/src/localize_utils.mod.F90
+@@ -5,6 +5,7 @@ MODULE localize_utils
+   USE ddipo_utils,                     ONLY: set_operator,&
+                                              setdip
+   USE dotp_utils,                      ONLY: dotp
++  USE embed_ctrl,                      ONLY: embed_teardowns
+   USE error_handling,                  ONLY: stopgm
+   USE forcedr_driver,                  ONLY: forcedr
+   USE forcep_utils,                    ONLY: rhoe_psi_size
+@@ -405,6 +406,7 @@ CONTAINS
+                                                 nxmax, w_opt_tmp
+     INTEGER, ALLOCATABLE, SAVE               :: mapcol(:), mapful(:)
+     INTEGER, SAVE                            :: i_comp = 0, ifirst = 0
++    INTEGER, SAVE                            :: embed_seen = 0
+     LOGICAL                                  :: wannier_recomput
+     REAL(real_8)                             :: fac, &
+                                                 foc(loadc_foc_array_size), &
+@@ -415,6 +417,17 @@ CONTAINS
+       DIMENSION(:, :)                        :: u, vt
+     REAL(real_8), ALLOCATABLE, SAVE          :: rotlsd(:), rotmat(:,:)
+ 
++    ! After embed_teardown_state, run as the first call in a process.
++    IF (embed_seen /= embed_teardowns) THEN
++       IF (ALLOCATED(mapcol)) DEALLOCATE(mapcol)
++       IF (ALLOCATED(mapful)) DEALLOCATE(mapful)
++       IF (ALLOCATED(rotlsd)) DEALLOCATE(rotlsd)
++       IF (ALLOCATED(rotmat)) DEALLOCATE(rotmat)
++       IF (ALLOCATED(xyzmat)) DEALLOCATE(xyzmat)
++       i_comp = 0
++       ifirst = 0
++       embed_seen = embed_teardowns
++    ENDIF
+     CALL tiset(procedureN,isub)
+     w_opt_tmp=wanni%w_opt
+     IF(MOD(i_comp,wan05%loc_relocalize_every)==0.AND.wan05%loc_relocalize) wanni%w_opt=2
 diff --git a/src/mixing_g_utils.mod.F90 b/src/mixing_g_utils.mod.F90
 index b6e0a2a..8937167 100644
 --- a/src/mixing_g_utils.mod.F90
