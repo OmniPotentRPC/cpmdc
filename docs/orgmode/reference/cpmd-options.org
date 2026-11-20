@@ -183,9 +183,15 @@ page.
 
 Missing core sections receive minimal defaults from the renderer so a sparse
 ~CPMDParams~ still produces a valid-looking deck for debugging.
-When structured ~dft~ or ~system~ sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
-effective embed configuration passed through the C ABI.
+When structured ~dft~ or ~system~ sections provide explicit non-default
+scalar method values (functional, cutoff, charge, multiplicity), those
+section values are also the effective embed configuration passed through the
+C ABI.
+Schema defaults on typed ~system~ (~cutOffRy~ 70 Ry, ~charge~ 0,
+~multiplicity~ 1) and ~dft~ (~functional~ ~BLYP~) sections are treated as
+unset, so they neither replace explicit root ~CPMDParams~ values nor block
+merged ~common~ overlay scalars in the rendered deck, cluster HFX solver
+selection, or embed configuration.
 For geometry deck rendering, ~atoms.pseudopotentials~ groups ~ForceInput~
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover
