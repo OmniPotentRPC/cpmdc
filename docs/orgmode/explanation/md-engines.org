@@ -293,6 +293,9 @@ box (~metal~, NVE) through each route and reports the median wall time per step
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
 the same SCF time to every route.
+The Python ~FixExternal~ route adapts ~cpmdc.Session~ to the rgpot potential
+protocol and uses rgpot's shared LAMMPS driver; cpmdc owns no second copy of
+the callback, MPI gather, atom-ordering, or halt machinery.
 
 #+begin_src bash
 python bench/lammps_routes.py --build build --steps 2000 --repeats 7

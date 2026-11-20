@@ -39,8 +39,15 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      - name: rgpot LAMMPS frontend
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite (stub + embed E2E)
-        run: pixi run test-stub
+        run: |
+          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build'
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmpich12
+          pixi run python -m pip install lammps
+          pixi run meson test -C build --print-errorlogs
       - name: C ABI inventory matches libcpmdc and the headers
         run: python3 scripts/abi_inventory.py --check build/libcpmdc.so
       - name: Default restart build does not link readcon

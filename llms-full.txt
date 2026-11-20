@@ -967,6 +967,9 @@ box (`metal`, NVE) through each route and reports the median wall time per step
 over fresh repeats, with the raw values.
 With the reference evaluator this is coupling overhead: an OpenCPMD step adds
 the same SCF time to every route.
+The Python `FixExternal` route adapts `cpmdc.Session` to the rgpot potential
+protocol and uses rgpot's shared LAMMPS driver; cpmdc owns no second copy of
+the callback, MPI gather, atom-ordering, or halt machinery.
 
 python bench/lammps_routes.py --build build --steps 2000 --repeats 7
 
@@ -3361,13 +3364,18 @@ once per force evaluation; both pass the same numbers to LAMMPS.
 
 | Route | LAMMPS side | Needs |
 |-------+-------------+-------|
-| `cpmdc.lammps.FixExternal` | `fix external pf/callback` from LAMMPS' Python module | the `lammps` Python module (`pip install lammps` works), `mpi4py` for more than one rank |
+| `cpmdc.lammps.FixExternal` | rgpot's shared `fix external pf/callback` driver | rgpot 3.7.0 at cpmdc's pinned revision, the `lammps` Python module, `mpi4py` for more than one rank |
 | `pair_style cpmdc` | a LAMMPS plugin, `cpmdcplugin.so`, loaded with `plugin load` | LAMMPS with the `PLUGIN` package and the headers it was built from; no Python |
 | i-PI sockets | `fix ipi`, a client of an i-PI server | i-PI and `cpmdc-ipi`; see the socket drivers (file:socket-drivers.org) |
 
 The plugin suits LAMMPS input scripts run by `lmp` and has the least overhead
 per step (see cpmdc inside MD engines (file:../explanation/md-engines.org)).
-`FixExternal` suits Python workflows and needs no compiler.
+`FixExternal` suits Python workflows. The cpmdc class presents a
+`cpmdc.Session` as an rgpot potential and delegates the LAMMPS callback, unit
+and cell conversion, atom ordering, MPI gather, virial, and halt path to
+`rgpot.lammps.FixExternal`. The pin and its minimal installation are in
+`scripts/ci/install_rgpot_lammps.sh` until a released rgpot wheel includes the
+frontend.
 The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.
 
@@ -9725,6 +9733,9 @@ reason.
 Both routes of Run LAMMPS on cpmdc forces (file:../howto/lammps.org),
 `cpmdc.lammps.FixExternal` and `pair_style cpmdc`, pass the same numbers to
 LAMMPS.
+The Python class adapts `cpmdc.Session` to rgpot's Python potential protocol
+and delegates the LAMMPS mechanics to `rgpot.lammps.FixExternal`. The compiled
+pair style remains cpmdc's LAMMPS-specific route.
 This page gives their units, the cell and positions they send, and the virial
 they return.
 
@@ -10180,8 +10191,9 @@ Importing `cpmdc` does not import ASE.
 Import `cpmdc.ase` for `CPMDCCalculator` and its `CalculationFailed`.
 `cpmdc.ipi` is the `cpmdc-ipi` socket driver; it needs ASE only for
 `--structure`.
-`cpmdc.lammps` couples a `lammps` object from LAMMPS' Python module; it imports
-neither LAMMPS nor `mpi4py` until a run needs them.
+`cpmdc.lammps` couples a `lammps` object from LAMMPS' Python module. It imports
+`rgpot.lammps`, whose shared `FixExternal` driver it subclasses; neither LAMMPS
+nor `mpi4py` is imported until a run needs it.
 `cpmdc.gromacs` writes the grompp `-qmi` input of `libcpmdc_gromacs` and holds
 GROMACS' unit factors; it imports nothing outside the standard library.
 

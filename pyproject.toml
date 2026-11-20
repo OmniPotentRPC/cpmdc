@@ -27,6 +27,9 @@ keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
 [project.optional-dependencies]
 ase = ["ase>=3.23"]
 test = ["ase>=3.23", "pytest>=7"]
+# rgpot.lammps is pinned and installed by scripts/ci/install_rgpot_lammps.sh
+# until that frontend is available from a released rgpot wheel.
+lammps = ["lammps"]
 
 [project.scripts]
 cpmdc-ipi = "cpmdc.ipi:main"
