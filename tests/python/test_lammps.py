@@ -446,6 +446,61 @@ def test_wrong_element_count_is_refused(route, periodic_params):
         lmp.close()
 
 
+PER_ATOM = [
+    "compute peratom all pe/atom",
+    "compute peratom all stress/atom NULL",
+    "compute peratom all pe/atom pair",
+    "compute peratom all centroid/stress/atom NULL",
+]
+
+
+@pytest.mark.parametrize("command", PER_ATOM)
+def test_plugin_refuses_per_atom_energy_and_virial_before_evaluating(
+    command, tmp_path, periodic_params
+):
+    """The energy and the virial are totals; a compute that wants a split is refused.
+
+    The params file is garbage, so a step that reached cpmdc would fail with a
+    session error instead of the refusal.
+    """
+    if PLUGIN is None:
+        pytest.skip("cpmdcplugin.so is not built")
+    garbage = tmp_path / "garbage.bin"
+    garbage.write_bytes(b"\x00" * 3)
+    lmp = build(spec("plugin", "metal", periodic_params))
+    try:
+        attach(lmp, spec("plugin", "metal", garbage))
+        lmp.command(command)
+        with pytest.raises(
+            Exception,
+            match=r"computes no per-atom energy or virial \(compute peratom\)",
+        ):
+            lmp.command("run 0")
+        lmp.command("uncompute peratom")
+        with pytest.raises(Exception, match="pair_style cpmdc: "):
+            lmp.command("run 0")
+    finally:
+        lmp.close()
+
+
+def test_plugin_runs_after_a_per_atom_compute_is_removed(periodic_params):
+    if PLUGIN is None:
+        pytest.skip("cpmdcplugin.so is not built")
+    case = spec("plugin", "metal", periodic_params)
+    lmp = build(case)
+    try:
+        attach(lmp, case)
+        lmp.command("compute peratom all pe/atom")
+        with pytest.raises(Exception, match="computes no per-atom energy or virial"):
+            lmp.command("run 0")
+        lmp.command("uncompute peratom")
+        lmp.commands_string("\n".join(THERMO))
+        lmp.command("run 0")
+        assert_matches(measure(lmp), ase_reference(periodic_params, WATERS, TRICLINIC), "metal")
+    finally:
+        lmp.close()
+
+
 def test_plugin_reports_a_bad_params_file(tmp_path, periodic_params):
     if PLUGIN is None:
         pytest.skip("cpmdcplugin.so is not built")

@@ -100,6 +100,9 @@ at startup.
 The pair style needs no cutoff and requests no neighbor list.
 A failed evaluation stops LAMMPS with ~pair_style cpmdc:~ and the library's
 message.
+A compute that asks for a per-atom energy or virial (~pe/atom~, ~stress/atom~,
+~centroid/stress/atom~) is refused when the run starts, because cpmdc returns
+totals, see [[file:../reference/lammps.org][the LAMMPS interface reference]].
 
 The plugin is a C++ shared object compiled against one LAMMPS: build it with the
 headers of the LAMMPS that loads it.
