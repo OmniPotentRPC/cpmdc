@@ -116,7 +116,11 @@ def _param_value(key: str, value: Any) -> Any:
         return bytes(value)
     if isinstance(value, bytes):
         return value
-    return os.fspath(value)
+    path = os.fspath(value)
+    # A relative path names the file under the directory of the process
+    # now, so todict() and a copy opened elsewhere must keep it absolute.
+    # An empty path is left for find_library or open to refuse by name.
+    return os.path.abspath(path) if path else path
 
 
 def _require_finite(evaluated: Any) -> None:
@@ -138,12 +142,15 @@ class CPMDCCalculator(Calculator):
     ----------
     params:
         Serialized ``CPMDParams`` bytes, or a path to that file. The bytes
-        are read once, when the parameter is set. The message holds the
-        method: functional, cutoff, charge, multiplicity, and the
-        boundary conditions of a cluster.
+        are read once, when the parameter is set. A relative path is
+        resolved against the working directory of the process at that
+        moment and stored absolute. The message holds the method:
+        functional, cutoff, charge, multiplicity, and the boundary
+        conditions of a cluster.
     library:
-        Path of ``libcpmdc``. The environment search in
-        :func:`cpmdc.find_library` is used when this is omitted.
+        Path of ``libcpmdc``, stored absolute like ``params``. The
+        environment search in :func:`cpmdc.find_library` is used when
+        this is omitted.
     constant_cutoff:
         ``E0`` in Rydberg, a mapping of the :class:`cpmdc.ConstantCutoff`
         fields, or a ``ConstantCutoff``. The session then evaluates the
@@ -264,7 +271,8 @@ class CPMDCCalculator(Calculator):
         """Parameters for a trajectory or a database row.
 
         A ``params`` buffer given as bytes is not JSON data and is left
-        out; a path is kept.
+        out. A path is kept absolute, so ``CPMDCCalculator(**todict())``
+        reads the same files from any working directory.
         """
         dct: dict[str, Any] = Calculator.todict(self, skip_default=skip_default)
         if isinstance(dct.get("params"), bytes):

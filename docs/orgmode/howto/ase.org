@@ -295,6 +295,9 @@ A library step writes no ~RESTART.1~, ~LATEST~, ~GEOMETRY~, or ~GEOMETRY.xyz~,
 and the orbitals for the next step stay in memory.
 ~params~ is read when it is set, relative to the directory of the process at
 that moment, not to ~directory~.
+~calc.parameters~ keeps that file, and a ~library~ path, as an absolute path,
+so a copy that opens its session in another directory and a calculator rebuilt
+from ~calc.todict()~ there use the same files.
 The ~restart~ argument is deprecated and ignored, and passing it warns with
 ~DeprecationWarning~.
 
@@ -328,15 +331,22 @@ A reordering of the same atoms stays on the session.
 After a successful step, a structure with another composition closes the
 session and opens a new one from the same ~params~.
 
-~calc.parameters~ holds ~params~ and ~library~.
+~calc.parameters~ holds ~params~, ~library~, and ~constant_cutoff~, with
+absolute paths.
 ~calc.todict()~ returns them for a trajectory or a database row, and leaves out
 a ~params~ buffer given as bytes, because bytes are not JSON data.
-~CPMDCCalculator(**calc.todict())~ builds an equal calculator, and
-~CPMDCCalculator(parameters="calc.ase")~ reads a file written by
+~CPMDCCalculator(**calc.todict())~ builds an equal calculator in any working
+directory, and ~CPMDCCalculator(parameters="calc.ase")~ reads a file written by
 ~calc.parameters.write("calc.ase")~.
+A calculator built from bytes has no ~params~ in ~todict()~, so rebuilding it
+from that dictionary raises ~TypeError~ that asks for ~params~.
 
-~copy.copy~, ~copy.deepcopy~, and ~pickle~ keep the parameters and the stored
-results, and the copy opens its own session on its first step.
+ASE rebuilds a calculator from ~calc.name~ and ~calc.todict()~, in a trajectory,
+an ~ase.db~ row, and ~PythonSubProcessCalculator~, and asks no pickling of a
+calculator.
+~copy.copy~, ~copy.deepcopy~, and ~pickle~, which ~copy.deepcopy(atoms)~ and
+~ase.visualize.view~ use, keep the parameters and the stored results, and the
+copy opens its own session on its first step.
 ~close()~ closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
 
@@ -353,11 +363,16 @@ The file checks these points:
 | ~implemented_properties~ lists only what a step returns, and the results have ASE's shapes | ~calc.results~, ~ase.io.write~ and ~read~ of extended XYZ |
 | a property outside the list raises, without evaluating a step | ~PropertyNotImplementedError~, ~get_charges()~, ~get_magnetic_moment()~ |
 | the stored step is reused and discarded as ASE expects | ~check_state~, ~system_changes~, ~calculation_required~, ~get_property(..., allow_calculation=False)~ |
+| a changed ~params~, ~library~, or ~constant_cutoff~ discards the stored step | ~set~, ~calculation_required~ |
+| later changes to the caller's ~Atoms~ leave the stored structure as it was | ~calc.atoms~, ~get_atoms~ |
+| the results survive a trajectory, extended XYZ through ~SinglePointCalculator~, and an ~ase.db~ row, which rebuilds the calculator in another directory | ~ase.io~, ~ase.db~, ~todict~ |
 | a run of steps keeps one session | a count of the ~Session~ objects opened |
 | a rejected step is ~ase.calculators.calculator.CalculationFailed~ with the library's message | a real library error, not a mock |
 | a relaxation runs with a constraint | ~BFGS~ with ~FixAtoms~ |
 | copies and pickles work, with or without the ~params~ file | ~copy~, ~pickle~ |
 | energies are in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 | ~ase.units~, ~calculate_numerical_forces~, ~calculate_numerical_stress~ |
+| each Voigt stress component has the sign and the size of a central difference of the energy over strain, taken in the test | ~Atoms.set_cell(..., scale_atoms=True)~ |
+| a few steps of a cell relaxation lower the energy and the largest stress component | ~BFGS~ with ~FrechetCellFilter~ |
 
 ~cpmdc.lammps.FixExternal~ follows the same conventions where it shares them: the
 same units, a failed step reported as ~CPMDCError~, a step with a NaN or infinite
