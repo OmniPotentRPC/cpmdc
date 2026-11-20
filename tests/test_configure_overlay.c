@@ -2966,6 +2966,194 @@ static void test_merge_accepts_explicit_singlet(void **state) {
   free(buf);
 }
 
+enum ArmOverlayField {
+  ARM_OV_XC,
+  ARM_OV_CUTOFF,
+  ARM_OV_CHARGE,
+  ARM_OV_MULT,
+  ARM_OV_SMEARING,
+  ARM_OV_VDW_S6,
+};
+
+enum ArmBadList {
+  ARM_BAD_INPUT_BLOCKS,
+  ARM_BAD_INPUT_SECTIONS,
+  ARM_BAD_DFT_DIRECTIVES,
+  ARM_BAD_SYSTEM_DIRECTIVES,
+  ARM_BAD_CPMD_DIRECTIVES,
+  ARM_BAD_VDW_DIRECTIVES,
+};
+
+struct ArmFailureCase {
+  enum ArmOverlayField field;
+  enum ArmBadList bad;
+  const char *want_field;
+  const char *want_list;
+};
+
+/* A list of the wrong kind where the arm checks expect inputBlocks text, an
+ * inputSections struct list, or a directives list, next to an overlay that
+ * sets one field. */
+static unsigned char *build_arm_failure_config(const struct ArmFailureCase *fc,
+                                               size_t *size) {
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+  CPMDDirective_list bad_dirs;
+  bad_dirs.p = capn_new_ptr_list(root.seg, 1);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  switch (fc->bad) {
+  case ARM_BAD_INPUT_BLOCKS:
+    arm.inputBlocks = capn_new_list32(root.seg, 1).p;
+    break;
+  case ARM_BAD_INPUT_SECTIONS:
+    arm.inputSections.p = capn_new_ptr_list(root.seg, 1);
+    break;
+  case ARM_BAD_DFT_DIRECTIVES: {
+    CPMDInputSection_list secs = new_sections(&arena, 1);
+    put_dft(&arena, secs, 0, NULL, bad_dirs, 1);
+    arm.inputSections = secs;
+    break;
+  }
+  case ARM_BAD_SYSTEM_DIRECTIVES: {
+    CPMDInputSection_list secs = new_sections(&arena, 1);
+    put_system(&arena, secs, 0, 0.0, 0, 0, bad_dirs, 1);
+    arm.inputSections = secs;
+    break;
+  }
+  case ARM_BAD_CPMD_DIRECTIVES: {
+    struct CPMDCpmdSection cpmd;
+    memset(&cpmd, 0, sizeof(cpmd));
+    cpmd.directives = bad_dirs;
+    CPMDCpmdSection_ptr cpmd_ptr = new_CPMDCpmdSection(root.seg);
+    write_CPMDCpmdSection(&cpmd, cpmd_ptr);
+    sec.which = CPMDInputSection_cpmd;
+    sec.cpmd = cpmd_ptr;
+    attach_section(&arena, &arm, &sec);
+    break;
+  }
+  case ARM_BAD_VDW_DIRECTIVES: {
+    struct CPMDVdwSection vdw;
+    memset(&vdw, 0, sizeof(vdw));
+    vdw.empiricalCorrection = 1;
+    vdw.grimme = capn_str("D3");
+    vdw.directives = bad_dirs;
+    CPMDVdwSection_ptr vdw_ptr = new_CPMDVdwSection(root.seg);
+    write_CPMDVdwSection(&vdw, vdw_ptr);
+    sec.which = CPMDInputSection_vdwParams;
+    sec.vdwParams = vdw_ptr;
+    attach_section(&arena, &arm, &sec);
+    break;
+  }
+  }
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  switch (fc->field) {
+  case ARM_OV_XC:
+    set_xc(&arena, &com, "PBE");
+    break;
+  case ARM_OV_CUTOFF:
+    com.planewaveCutoffEv = 80.0 * RY_EV;
+    break;
+  case ARM_OV_CHARGE:
+    com.charge = -1;
+    break;
+  case ARM_OV_MULT:
+    com.spinMultiplicity = 3;
+    break;
+  case ARM_OV_SMEARING: {
+    CommonMethodSpec_Smearing_ptr sm_ptr =
+        new_CommonMethodSpec_Smearing(root.seg);
+    struct CommonMethodSpec_Smearing sm;
+    memset(&sm, 0, sizeof(sm));
+    sm.kind = CommonMethodSpec_Smearing_Kind_fermi;
+    sm.widthEv = 0.025851999786;
+    write_CommonMethodSpec_Smearing(&sm, sm_ptr);
+    com.smearing = sm_ptr;
+    break;
+  }
+  case ARM_OV_VDW_S6:
+    com.vanDerWaalsS6 = 1.05;
+    break;
+  }
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), size);
+  capn_free(&arena);
+  return buf;
+}
+
+static void arm_failure_message(const struct ArmFailureCase *fc, char *dst,
+                                size_t dst_size) {
+  snprintf(dst, dst_size,
+           "%s cannot merge: the cpmd arm has an invalid %s list",
+           fc->want_field, fc->want_list);
+}
+
+/* Every arm check that rejects an overlay leaves a cpmdc_last_error() that
+ * names the overlay field and the list it could not read. */
+static void test_merge_arm_check_failures_name_cause(void **state) {
+  (void)state;
+  const struct ArmFailureCase cases[] = {
+      {ARM_OV_SMEARING, ARM_BAD_INPUT_BLOCKS, "smearing", "inputBlocks"},
+      {ARM_OV_SMEARING, ARM_BAD_INPUT_SECTIONS, "smearing", "inputSections"},
+      {ARM_OV_SMEARING, ARM_BAD_CPMD_DIRECTIVES,
+       "smearing", "&CPMD directives"},
+      {ARM_OV_VDW_S6, ARM_BAD_INPUT_BLOCKS, "vanDerWaalsS6", "inputBlocks"},
+      {ARM_OV_VDW_S6, ARM_BAD_INPUT_SECTIONS, "vanDerWaalsS6", "inputSections"},
+      {ARM_OV_VDW_S6, ARM_BAD_VDW_DIRECTIVES,
+       "vanDerWaalsS6", "&VDW directives"},
+      {ARM_OV_XC, ARM_BAD_INPUT_BLOCKS, "xcFunctionals", "inputBlocks"},
+      {ARM_OV_XC, ARM_BAD_INPUT_SECTIONS, "xcFunctionals", "inputSections"},
+      {ARM_OV_XC, ARM_BAD_DFT_DIRECTIVES, "xcFunctionals", "&DFT directives"},
+      {ARM_OV_CUTOFF, ARM_BAD_INPUT_BLOCKS, "planewaveCutoffEv", "inputBlocks"},
+      {ARM_OV_CUTOFF, ARM_BAD_INPUT_SECTIONS,
+       "planewaveCutoffEv", "inputSections"},
+      {ARM_OV_CUTOFF, ARM_BAD_SYSTEM_DIRECTIVES,
+       "planewaveCutoffEv", "&SYSTEM directives"},
+      {ARM_OV_CHARGE, ARM_BAD_INPUT_BLOCKS, "charge", "inputBlocks"},
+      {ARM_OV_CHARGE, ARM_BAD_INPUT_SECTIONS, "charge", "inputSections"},
+      {ARM_OV_CHARGE, ARM_BAD_SYSTEM_DIRECTIVES,
+       "charge", "&SYSTEM directives"},
+      {ARM_OV_MULT, ARM_BAD_INPUT_BLOCKS, "spinMultiplicity", "inputBlocks"},
+      {ARM_OV_MULT, ARM_BAD_INPUT_SECTIONS,
+       "spinMultiplicity", "inputSections"},
+      {ARM_OV_MULT, ARM_BAD_SYSTEM_DIRECTIVES,
+       "spinMultiplicity", "&SYSTEM directives"},
+  };
+  int failures = 0;
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    const struct ArmFailureCase *fc = &cases[i];
+    char want[256];
+    arm_failure_message(fc, want, sizeof(want));
+    size_t sz = 0;
+    unsigned char *buf = build_arm_failure_config(fc, &sz);
+    int rc = cpmdc_configure(buf, sz);
+    const char *err = cpmdc_last_error();
+    if (rc != -1 || !strstr(err, want)) {
+      fprintf(stderr,
+              "cpmdc_configure: want \"%s\", rc %d, last_error \"%s\"\n",
+              want, rc, err);
+      failures++;
+    }
+    CPMDCSession *session = cpmdc_session_create_from_config(buf, sz);
+    err = cpmdc_last_error();
+    if (session || !strstr(err, want)) {
+      fprintf(stderr,
+              "cpmdc_session_create_from_config: want \"%s\", session %p, "
+              "last_error \"%s\"\n",
+              want, (void *)session, err);
+      failures++;
+    }
+    if (session)
+      cpmdc_session_destroy(session);
+    free(buf);
+  }
+  assert_int_equal(failures, 0);
+}
+
 int main(int argc, char **argv) {
   if (argc != 6) {
     fprintf(stderr,
@@ -3022,6 +3210,7 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_precedence_overlay_cutoff_unit_conversion),
       cmocka_unit_test(test_merge_rejects_explicit_singlet_next_to_carriers),
       cmocka_unit_test(test_merge_accepts_explicit_singlet),
+      cmocka_unit_test(test_merge_arm_check_failures_name_cause),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
