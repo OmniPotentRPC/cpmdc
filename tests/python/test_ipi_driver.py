@@ -31,9 +31,9 @@ from ase.optimize import BFGS
 from conftest import INSTALLED, ROOT, WATER
 
 import cpmdc.ipi
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, Session, _elements
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, HARTREE_TO_EV, Session, _elements
 from cpmdc.ase import CPMDCCalculator
-from cpmdc.ipi import Driver, ProtocolError, species_numbers, unix_socket_path
+from cpmdc.ipi import Driver, ProtocolError, connect, species_numbers, unix_socket_path
 
 TRICLINIC = [[9.0, 0.0, 0.0], [1.2, 8.5, 0.0], [-0.7, 0.9, 9.4]]
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
@@ -657,3 +657,35 @@ def test_ipi_nve_run(params, clients, socket_dir, tmp_path):
     forces = np.array([[float(v) for v in line.split()[1:4]] for line in frame])
     np.testing.assert_allclose(forces, expected.forces_h_bohr, rtol=1e-5, atol=1e-9)
     assert np.all(np.diff(rows[:, 1]) != 0.0)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [b"batch_size:nope", b"batch_size:", b"batch_size:1.5", b"\xff"],
+    ids=["word", "empty", "fraction", "not-utf8"],
+)
+def test_unreadable_batch_size_is_an_error(text: bytes) -> None:
+    with pytest.raises(ProtocolError):
+        cpmdc.ipi._batch_size(text)
+
+
+@pytest.mark.parametrize("text", [b"batch_size:0", b"batch_size:-3"], ids=["zero", "negative"])
+def test_batch_size_other_than_one_is_refused(text: bytes) -> None:
+    with pytest.raises(ProtocolError, match=r"batch_size (0|-3)"):
+        cpmdc.ipi._batch_size(text)
+
+
+def test_batch_size_one_is_one() -> None:
+    assert cpmdc.ipi._batch_size(b"") == 1
+    assert cpmdc.ipi._batch_size(b"batch_size:1") == 1
+    assert cpmdc.ipi._batch_size(b"comment, batch_size: 1") == 1
+
+
+def test_negative_wait_is_rejected() -> None:
+    with pytest.raises(ValueError, match="wait"):
+        connect(unix="cpmdc-not-a-socket", wait=-1.0)
+
+
+def test_zero_wait_tries_once() -> None:
+    with pytest.raises(CPMDCError, match="cannot connect"):
+        connect(unix="cpmdc-not-a-socket", wait=0.0)
