@@ -16,6 +16,7 @@ that name. The other library does not collect the test and does not skip it.
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import re
@@ -27,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from ase import Atoms
-from conftest import ROOT
+from conftest import ROOT, park_orbitals
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, ConstantCutoff, CPMDCError
 from cpmdc.ase import CPMDCCalculator
 from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_factors
@@ -227,6 +228,22 @@ def test_types_map_to_elements_in_type_order(route, periodic_params):
     assert_matches(got, ase_reference(periodic_params, WATERS, TRICLINIC), "metal")
 
 
+def unwrapped_step(route: str, params: Path) -> tuple[dict, dict]:
+    """LAMMPS and ASE at the two waters moved out of the triclinic box."""
+    shift = np.array([-2.5, 9.0, 4.0])
+    got, handles = run_inline(
+        spec(route, "metal", params),
+        f"displace_atoms all move {shift[0]} {shift[1]} {shift[2]} units box",
+        "run 0",
+    )
+    lmp, _ = handles
+    wrapped = np.array(lmp.gather_atoms("x", 1, 3)).reshape(-1, 3)
+    finish(handles)
+    moved = np.asarray(WATERS) + shift
+    assert np.abs(wrapped - moved).max() > 1.0
+    return got, ase_reference(params, moved, TRICLINIC)
+
+
 @pytest.mark.cpmd_backend(
     "reference",
     reason=(
@@ -243,18 +260,37 @@ def test_positions_are_unwrapped(route, periodic_params, cpmd_backend):
     tolerances of the single steps.
     """
     assert cpmd_backend == "reference"
-    shift = np.array([-2.5, 9.0, 4.0])
-    got, handles = run_inline(
-        spec(route, "metal", periodic_params),
-        f"displace_atoms all move {shift[0]} {shift[1]} {shift[2]} units box",
-        "run 0",
-    )
-    lmp, _ = handles
-    wrapped = np.array(lmp.gather_atoms("x", 1, 3)).reshape(-1, 3)
-    finish(handles)
-    moved = np.asarray(WATERS) + shift
-    assert np.abs(wrapped - moved).max() > 1.0
-    assert_matches(got, ase_reference(periodic_params, moved, TRICLINIC), "metal")
+    got, ref = unwrapped_step(route, periodic_params)
+    assert_matches(got, ref, "metal")
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason=(
+        "the SCF answers the 1e-15 Angstrom of a wrap and unwrap with changes "
+        "near 1e-11 eV/Angstrom; the reference well runs the exact comparison"
+    ),
+)
+@pytest.mark.parametrize("route", ROUTES)
+def test_positions_are_unwrapped_on_plane_waves(
+    route, periodic_params, cpmd_backend, record_property
+):
+    """The unwrapped path on OpenCPMD, at the roundoff of its SCF.
+
+    LAMMPS wraps the atoms into the box and ``cpmdc`` unwraps them, which
+    restores the path to about 1e-15 Angstrom. OpenCPMD's converged forces
+    answer that with differences near 1e-11 eV/Angstrom, so the forces are
+    held to 1e-9 eV/Angstrom absolute.
+    """
+    assert cpmd_backend == "opencpmd"
+    got, ref = unwrapped_step(route, periodic_params)
+    for name in ("forces", "virial"):
+        miss = np.abs(np.subtract(got[name], ref[name])).max()
+        record_property(f"{name}_miss", float(miss))
+    record_property("pe_miss_ev", abs(got["pe"] - ref["pe"]))
+    assert got["pe"] == pytest.approx(ref["pe"], rel=1e-11, abs=1e-9)
+    np.testing.assert_allclose(got["forces"], ref["forces"], rtol=0.0, atol=1e-9)
+    np.testing.assert_allclose(got["virial"], ref["virial"], rtol=1e-8, atol=1e-8)
 
 
 @pytest.mark.parametrize("route", ROUTES)
@@ -272,24 +308,68 @@ def test_thermo_pressure_is_the_virial(route, periodic_params):
 
 # A, sigma, and E0 in Ry, the order of system.constantCutoff.
 CONSTANT_CUTOFF = (2000.0, 3.0, 30.0)
+# The deck stops at a largest orbital gradient of 1e-5, which leaves an
+# energy error that a strain of 1e-5 or a 1e-3 Angstrom step divides into
+# the difference. At 1e-7 that error is below the tolerances of the
+# finite differences here.
+TIGHT_ORBITALS = 1.0e-7
 
 
-@pytest.fixture(scope="module")
-def constant_cutoff_params(tmp_path_factory) -> Path:
-    """The periodic water message with system.constantCutoff."""
+def periodic_deck(tmp_path_factory, name: str, *, orbitals=None, system="") -> Path:
+    """The periodic water message, with a tighter SCF or more of ``system``."""
     if shutil.which("capnp") is None:
         pytest.skip("capnp is not on PATH")
     text = (ROOT / "tests" / "water_blyp_periodic_params.capnp.txt").read_text()
-    text, count = re.subn(
-        r"(cell = \[[^\]]*\])", r"\1, constantCutoff = [%r, %r, %r]" % CONSTANT_CUTOFF, text
-    )
-    assert count == 1
-    target = tmp_path_factory.mktemp("constant-cutoff") / "water_constant_cutoff.bin"
+    if orbitals is not None:
+        text, count = re.subn(
+            r"convergenceOrbitals = [^,]+,", f"convergenceOrbitals = {orbitals!r},", text
+        )
+        assert count == 1
+        # A cold setup needs more than the deck's 40 iterations to reach 1e-7.
+        text, count = re.subn(
+            r"maxStep = 40, maxIter = 40", "maxStep = 100, maxIter = 100", text
+        )
+        assert count == 1
+    if system:
+        text, count = re.subn(
+            r"(cell = \[[^\]]*\])", lambda m: f"{m.group(1)}, {system}", text
+        )
+        assert count == 1
+    target = tmp_path_factory.mktemp(name) / f"{name}.bin"
     target.write_bytes(subprocess.run(
         ["capnp", "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
         input=text.encode(), stdout=subprocess.PIPE, check=True,
     ).stdout)
     return target
+
+
+def constant_cutoff_system() -> str:
+    return "constantCutoff = [%r, %r, %r]" % CONSTANT_CUTOFF
+
+
+@pytest.fixture(scope="module")
+def constant_cutoff_params(tmp_path_factory) -> Path:
+    """The periodic water message with system.constantCutoff."""
+    return periodic_deck(
+        tmp_path_factory, "water_constant_cutoff", system=constant_cutoff_system()
+    )
+
+
+@pytest.fixture(scope="module")
+def tight_params(tmp_path_factory) -> Path:
+    """The periodic water message at an orbital threshold of 1e-7."""
+    return periodic_deck(tmp_path_factory, "water_tight", orbitals=TIGHT_ORBITALS)
+
+
+@pytest.fixture(scope="module")
+def tight_constant_cutoff_params(tmp_path_factory) -> Path:
+    """The constant-cutoff message at an orbital threshold of 1e-7."""
+    return periodic_deck(
+        tmp_path_factory,
+        "water_tight_constant_cutoff",
+        orbitals=TIGHT_ORBITALS,
+        system=constant_cutoff_system(),
+    )
 
 
 @pytest.mark.cpmd_backend(
@@ -317,6 +397,237 @@ def test_constant_cutoff_virial_matches_ase(
     assert_matches(got, corrected, "metal")
     fixed = ase_reference(periodic_params, WATERS, CUBE)
     assert np.mean(np.subtract(fixed["virial"], got["virial"])[:3]) < -5.0
+
+
+# --- finite differences ---------------------------------------------------
+
+VOIGT = {(0, 0): 0, (1, 1): 1, (2, 2): 2, (1, 0): 3, (2, 0): 4, (2, 1): 5}
+
+
+def step_virial(route: str, params: Path, cell) -> np.ndarray:
+    got, handles = run_inline(spec(route, "metal", params, cell=cell))
+    finish(handles)
+    return np.array(got["virial"])
+
+
+def strain_virial(route: str, params: Path, cell, step: float) -> np.ndarray:
+    """-dE/d(strain) by central differences in eV, xx yy zz xy xz yz.
+
+    Lower-triangular strains keep the cell in the restricted LAMMPS form.
+    Each strained cell is a new LAMMPS system and a new session.
+    """
+    cell = np.asarray(cell)
+    out = np.zeros(6)
+    for (row, col), slot in VOIGT.items():
+        energies = []
+        for sign in (1.0, -1.0):
+            strain = np.eye(3)
+            strain[row, col] += sign * step
+            case = spec(
+                route,
+                "metal",
+                params,
+                cell=cell @ strain,
+                positions=np.asarray(WATERS) @ strain,
+            )
+            strained, handles = run_inline(case)
+            finish(handles)
+            energies.append(strained["pe"])
+        out[slot] = -(energies[0] - energies[1]) / (2.0 * step)
+    return out
+
+
+def largest_miss(derivative: np.ndarray, virial: np.ndarray) -> float:
+    """Largest component of the difference, over the largest of the virial."""
+    return float(np.abs(derivative - virial).max() / np.abs(virial).max())
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="the reference forces are linear, so a difference is exact there",
+)
+def test_forces_are_the_energy_gradient(tight_params, cpmd_backend, record_property):
+    """Each force LAMMPS reports is minus the slope of the energy it reports.
+
+    A central difference with a 1e-3 Angstrom step on each coordinate of
+    the two waters, at an orbital threshold of 1e-7, met the forces to
+    2.6e-5 eV/Angstrom, and a 2e-3 Angstrom step to 1.1e-4, the h^2 of the
+    difference. At the deck's 1e-5 the 1e-3 step missed by 5.4e-4. The
+    route does not change the numbers; the single steps match ASE on both.
+    """
+    assert cpmd_backend == "opencpmd"
+    case = spec("fix", "metal", tight_params)
+    lmp = build(case)
+    driver = attach(lmp, case)
+    lmp.commands_string("\n".join(THERMO))
+    step = 1e-3
+    try:
+        driver.run(0)
+        forces = np.array(measure(lmp)["forces"])
+        start = np.array(lmp.gather_atoms("x", 1, 3)).reshape(-1, 3)
+
+        def energy(positions: np.ndarray) -> float:
+            flat = positions.ravel()
+            lmp.scatter_atoms("x", 1, 3, (ctypes.c_double * flat.size)(*flat))
+            driver.run(0)
+            return lmp.get_thermo("pe")
+
+        difference = np.zeros_like(start)
+        for atom, axis in np.ndindex(*start.shape):
+            ahead, behind = start.copy(), start.copy()
+            ahead[atom, axis] += step
+            behind[atom, axis] -= step
+            difference[atom, axis] = -(energy(ahead) - energy(behind)) / (2.0 * step)
+    finally:
+        driver.close()
+        lmp.close()
+    record_property("largest_force_ev_per_a", float(np.abs(forces).max()))
+    record_property("miss_ev_per_a", float(np.abs(difference - forces).max()))
+    assert np.abs(forces).max() > 1.0
+    np.testing.assert_allclose(difference, forces, rtol=0.0, atol=1e-4)
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="test_virial_is_the_strain_derivative runs on the reference well",
+)
+def test_virial_is_the_strain_derivative_of_one_basis(
+    tight_params, cpmd_backend, record_property
+):
+    """The plain-deck virial is -dE/d(strain) at a fixed set of plane waves.
+
+    Every strained cell is a new setup at the deck's 40 Ry, so the
+    difference holds the basis only while no plane wave crosses that
+    sphere. On this triclinic cell a strain of 1e-5 keeps all of them; at
+    3e-5 the difference already misses by 1.8 times the largest component.
+    At an orbital threshold of 1e-7 the 1e-5 difference met the virial to
+    2.5e-7 of the largest component. At the deck's 1e-5 it missed by
+    1.1e-3, the SCF error over the step.
+    """
+    assert cpmd_backend == "opencpmd"
+    virial = step_virial("fix", tight_params, TRICLINIC)
+    derivative = strain_virial("fix", tight_params, TRICLINIC, 1e-5)
+    record_property("miss", largest_miss(derivative, virial))
+    assert largest_miss(derivative, virial) < 1e-6
+
+
+def richardson(route: str, params: Path, cell, step: float) -> tuple[np.ndarray, ...]:
+    """Differences at step and 2 step, and the extrapolation of the two."""
+    fine = strain_virial(route, params, cell, step)
+    coarse = strain_virial(route, params, cell, 2.0 * step)
+    return fine, coarse, (4.0 * fine - coarse) / 3.0
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="the reference well has no plane waves",
+)
+def test_virial_is_the_strain_derivative_in_place(
+    params, tight_constant_cutoff_params, monkeypatch, cpmd_backend, record_property
+):
+    """Strains of 2.5e-3 and 5e-3 on one held basis meet the virial.
+
+    ``CPMDC_CELL_IN_PLACE`` lets a constant-cutoff deck keep the plane
+    waves of its setup cell through a strain, so every difference here
+    sees one basis. The misses were 3.2e-4 and 1.3e-3 of the largest
+    component, a ratio of 4.0, the h^2 of a central difference, and the
+    Richardson extrapolation of the two met the virial to 4.8e-6.
+    """
+    assert cpmd_backend == "opencpmd"
+    monkeypatch.setenv("CPMDC_CELL_IN_PLACE", "0.01")
+    park_orbitals(params)
+    virial = step_virial("fix", tight_constant_cutoff_params, TRICLINIC)
+    fine, coarse, extrapolated = richardson(
+        "fix", tight_constant_cutoff_params, TRICLINIC, 2.5e-3
+    )
+    ratio = largest_miss(coarse, virial) / largest_miss(fine, virial)
+    record_property("miss_5e-3", largest_miss(coarse, virial))
+    record_property("miss_2.5e-3", largest_miss(fine, virial))
+    record_property("miss_richardson", largest_miss(extrapolated, virial))
+    assert 3.0 < ratio < 5.0
+    assert largest_miss(extrapolated, virial) < 5e-5
+
+
+@pytest.fixture(scope="module")
+def reference_cell_params(tmp_path_factory) -> Path:
+    """The tight message with REFERENCE CELL and MESH at TRICLINIC.
+
+    72 72 80 is the mesh OpenCPMD picks for TRICLINIC at 40 Ry. Without
+    MESH, a strain of 5e-3 already moves it to 72 72 72.
+    """
+    rows = ", ".join(repr(float(value)) for value in np.ravel(TRICLINIC))
+    return periodic_deck(
+        tmp_path_factory,
+        "water_reference_cell",
+        orbitals=TIGHT_ORBITALS,
+        system=(
+            f"referenceCell = [{rows}], referenceCellVectors = true, "
+            "mesh = [72, 72, 80]"
+        ),
+    )
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="the reference well has no plane waves",
+)
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "with REFERENCE CELL a cold setup builds the G vectors from the "
+        "reference lattice, not the strained cell: the strain difference is "
+        "+3.28 eV where the virial is -32.42 eV (xx), at a step of 1e-5 and "
+        "of 5e-3 alike"
+    ),
+)
+def test_reference_cell_holds_the_basis(
+    reference_cell_params, cpmd_backend, record_property
+):
+    """REFERENCE CELL holds the plain deck's plane waves through a strain.
+
+    Every strained cell keeps the 10347 plane waves of TRICLINIC and its
+    mesh, so the Richardson extrapolation of strains of 2.5e-3 and 5e-3
+    should meet the fixed-basis virial as the in-place differences do.
+    """
+    assert cpmd_backend == "opencpmd"
+    virial = step_virial("fix", reference_cell_params, TRICLINIC)
+    fine, coarse, extrapolated = richardson(
+        "fix", reference_cell_params, TRICLINIC, 2.5e-3
+    )
+    record_property("virial_ev", virial.tolist())
+    record_property("difference_2.5e-3_ev", fine.tolist())
+    record_property("miss_5e-3", largest_miss(coarse, virial))
+    record_property("miss_2.5e-3", largest_miss(fine, virial))
+    record_property("miss_richardson", largest_miss(extrapolated, virial))
+    assert largest_miss(extrapolated, virial) < 5e-5
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="the reference well has no plane waves",
+)
+def test_constant_cutoff_virial_is_the_strain_derivative(
+    tight_constant_cutoff_params, monkeypatch, cpmd_backend, record_property
+):
+    """The constant-cutoff virial is -dE/d(strain) of new setups.
+
+    Each strained cube is a new setup with constant_cutoff on. At a strain
+    of 1e-4 no plane wave crosses the 40 Ry sphere, and the difference met
+    the virial to 6.9e-7 of the largest component, the SCF error of the
+    orbital threshold of 1e-7 over that step. At 5e-3 the sets
+    differ, and the components between E0 + 2 sigma (36 Ry) and the cutoff
+    that the functional leaves nearly empty moved the difference by 2.0e-2;
+    the plain deck at 1e-3 misses by 1.3 times the largest component.
+    """
+    assert cpmd_backend == "opencpmd"
+    monkeypatch.delenv("CPMDC_CELL_IN_PLACE", raising=False)
+    virial = step_virial("fix", tight_constant_cutoff_params, CUBE)
+    near = strain_virial("fix", tight_constant_cutoff_params, CUBE, 1e-4)
+    record_property("miss_1e-4", largest_miss(near, virial))
+    assert largest_miss(near, virial) < 1e-5
+    far = strain_virial("fix", tight_constant_cutoff_params, CUBE, 5e-3)
+    record_property("miss_5e-3", largest_miss(far, virial))
+    assert largest_miss(far, virial) < 4e-2
 
 
 # --- dynamics -----------------------------------------------------------
@@ -376,6 +687,73 @@ def test_nve_conserves_energy_across_the_boundary(route, periodic_params, cpmd_b
     assert drift(log, 3) < 2e-3
 
 
+def nve_etotal(params: Path, timestep_fs: float, steps: int, every: int) -> np.ndarray:
+    """Time in ps and etotal in eV of the two waters at 300 K in the cube."""
+    case = spec("fix", "metal", params, cell=CUBE)
+    lmp = build(case)
+    driver = attach(lmp, case)
+    try:
+        lmp.commands_string(
+            "\n".join(
+                [
+                    "velocity all create 300 4928 loop geom",
+                    "fix nve all nve",
+                    f"timestep {timestep_fs * 1e-3!r}",
+                    "thermo_style custom step pe ke etotal",
+                    "run 0",
+                ]
+            )
+        )
+        first = [lmp.get_thermo("step"), lmp.get_thermo("etotal")]
+        log = np.vstack([first, thermo_rows(lmp, steps, every, "step", "etotal")])
+    finally:
+        driver.close()
+        lmp.close()
+    return np.column_stack([log[:, 0] * timestep_fs * 1e-3, log[:, 1]])
+
+
+def drift_and_wobble(log: np.ndarray) -> tuple[float, float]:
+    """Change of the straight line through etotal, and the RMS about it."""
+    time, etotal = log[:, 0], log[:, 1]
+    line = np.polyfit(time, etotal, 1)
+    return float(line[0] * (time[-1] - time[0])), float(
+        np.std(etotal - np.polyval(line, time))
+    )
+
+
+@pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="test_nve_conserves_energy_across_the_boundary runs on the reference well",
+)
+def test_nve_energy_error_falls_with_the_timestep_squared(
+    tight_params, cpmd_backend, record_property
+):
+    """etotal holds, and its Verlet fluctuation is quartered by half the step.
+
+    Two runs cover the same 50 fs from the same velocities: 100 steps of
+    0.5 fs and 200 of 0.25 fs, read every 0.5 fs, at an orbital threshold
+    of 1e-7. The straight line through etotal moved 8.5e-5 eV over the
+    0.25 fs run. The RMS about it was 3.45e-3 eV at 0.5 fs and 8.6e-4 eV at
+    0.25 fs, a ratio of 4.0: velocity Verlet's error, not SCF noise, which
+    would not scale with the step.
+
+    At the deck's 1e-5 the line falls at 2.9e-2 eV/ps, 17 times the 1.7e-3
+    eV/ps at 1e-7, while the RMS stays at 8.6e-4 eV. The 800 steps of the
+    reference test, 200 fs, add that fall to the fluctuation.
+    """
+    assert cpmd_backend == "opencpmd"
+    coarse = nve_etotal(tight_params, 0.5, 100, 1)
+    fine = nve_etotal(tight_params, 0.25, 200, 2)
+    np.testing.assert_allclose(coarse[:, 0], fine[:, 0])
+    drift, fine_wobble = drift_and_wobble(fine)
+    _, coarse_wobble = drift_and_wobble(coarse)
+    record_property("drift_ev", drift)
+    record_property("rms_0.5fs_ev", coarse_wobble)
+    record_property("rms_0.25fs_ev", fine_wobble)
+    assert abs(drift) < 5e-4
+    assert 3.0 < coarse_wobble / fine_wobble < 5.0
+
+
 @pytest.mark.cpmd_backend(
     "reference",
     reason=(
@@ -416,6 +794,66 @@ def test_npt_conserves_the_extended_energy(route, periodic_params, cpmd_backend)
 
 
 @pytest.mark.cpmd_backend(
+    "opencpmd",
+    reason="test_npt_conserves_the_extended_energy runs on the reference well",
+)
+def test_npt_conserves_the_extended_energy_at_a_constant_cutoff(
+    params, tight_constant_cutoff_params, monkeypatch, cpmd_backend, record_property
+):
+    """An iso NPT run of the two waters on the constant-cutoff virial.
+
+    A plain deck sets up a new basis whenever the cell moves, which moves
+    its energy by the Pulay stress, so the run uses the constant-cutoff
+    deck at an orbital threshold of 1e-7 and ``CPMDC_CELL_IN_PLACE=0.05``,
+    which keeps the plane waves of the setup through these volumes.
+
+    The target is 0 bar: the pressure of the two waters averaged -135 bar
+    over the run. The pressure at the first step, +18 kbar, is the virial
+    of the stretched O-H bonds, which swings by about 15 kbar each
+    vibration; as the target, it compressed the cube from 729 to 202
+    Angstrom^3 in 50 fs.
+
+    Over 200 steps of 0.25 fs with a 0.25 ps piston the volume moved by
+    3.7%, and econserve left its start by at most 6.2e-3 of the 1.85 eV
+    swing of pe. NVE on the same deck and step leaves by 5.9e-3 of its
+    1.89 eV swing. The constant-cutoff forces at the start reach 9.1
+    eV/Angstrom, twice the 4.5 of the plain deck in this cube, so the
+    waters ring harder than in the NVE test.
+    """
+    assert cpmd_backend == "opencpmd"
+    monkeypatch.setenv("CPMDC_CELL_IN_PLACE", "0.05")
+    park_orbitals(params)
+    case = spec("fix", "metal", tight_constant_cutoff_params, cell=CUBE)
+    lmp = build(case)
+    driver = attach(lmp, case)
+    try:
+        lmp.commands_string(
+            "\n".join(
+                [
+                    "velocity all create 300 4928 loop geom",
+                    "fix npt all npt temp 300 300 0.025 iso 0 0 0.25",
+                    "timestep 0.00025",
+                    "thermo_style custom step pe vol econserve press",
+                    "run 0",
+                ]
+            )
+        )
+        columns = ("step", "pe", "vol", "econserve", "press")
+        first = [lmp.get_thermo(name) for name in columns]
+        log = np.vstack([first, thermo_rows(lmp, 200, 2, *columns)])
+    finally:
+        driver.close()
+        lmp.close()
+    moved = (log[:, 2].max() - log[:, 2].min()) / log[0, 2]
+    record_property("volume_range", float(moved))
+    record_property("econserve_departure", drift(log, 3))
+    record_property("pe_swing_ev", float(log[:, 1].max() - log[:, 1].min()))
+    record_property("mean_pressure_bar", float(log[:, 4].mean()))
+    assert moved > 1e-2
+    assert drift(log, 3) < 1e-2
+
+
+@pytest.mark.cpmd_backend(
     "reference",
     reason=(
         "the reference energy is quadratic, so the difference is exact; on "
@@ -430,35 +868,12 @@ def test_virial_is_the_strain_derivative(route, periodic_params, cpmd_backend):
     ``aniso`` and ``tri`` NPT runs on a tilted box do not isolate the shear
     terms (``aniso`` strains a tilted cell without accounting for it), so
     the six components are checked against central differences instead.
-    Lower-triangular strains keep the cell in the restricted LAMMPS form.
     The reference energy is quadratic, so the difference is exact.
     """
     assert cpmd_backend == "reference"
-    got, handles = run_inline(spec(route, "metal", periodic_params))
-    finish(handles)
-    virial = np.array(got["virial"])
-    cell = np.asarray(TRICLINIC)
-    step = 1e-5
-    voigt = {(0, 0): 0, (1, 1): 1, (2, 2): 2, (1, 0): 3, (2, 0): 4, (2, 1): 5}
-    for (row, col), slot in voigt.items():
-        energies = []
-        for sign in (1.0, -1.0):
-            strain = np.eye(3)
-            strain[row, col] += sign * step
-            case = spec(
-                route,
-                "metal",
-                periodic_params,
-                cell=cell @ strain,
-                positions=np.asarray(WATERS) @ strain,
-            )
-            strained, handles = run_inline(case)
-            finish(handles)
-            energies.append(strained["pe"])
-        derivative = (energies[0] - energies[1]) / (2.0 * step)
-        assert -derivative == pytest.approx(
-            virial[slot], abs=1e-6 * np.abs(virial).max()
-        )
+    virial = step_virial(route, periodic_params, TRICLINIC)
+    derivative = strain_virial(route, periodic_params, TRICLINIC, 1e-5)
+    assert largest_miss(derivative, virial) < 1e-6
 
 
 # --- errors -------------------------------------------------------------
