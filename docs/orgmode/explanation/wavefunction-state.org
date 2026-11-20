@@ -123,6 +123,8 @@ Unset, the table is unbounded.
 A value that is not a positive integer fails the call.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
+It does so before the key of the new call is selected, so a limit that the old
+basis filled does not refuse the first key of the new one.
 A session that never selects a key keeps one stored copy.
 
 * Distance limit
