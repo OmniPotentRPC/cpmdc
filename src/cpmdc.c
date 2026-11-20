@@ -1258,9 +1258,10 @@ static int cpmd_arm_check_vdw_s6(struct CPMDParams *arm_view) {
  * section and are not read back into the effective functional, cutoff,
  * charge, or multiplicity. A set directive or typed section directive for the
  * same keyword is appended after the generated line and is not read back
- * either. An overlay scalar that would fill a schema default is rejected in
- * those cases so the recorded settings cannot name a value the deck does not
- * render. */
+ * either. Every set overlay scalar is rejected in those cases, whether or
+ * not a typed field also sets it, so the deck cannot carry two values for
+ * one setting and the recorded settings cannot name a value the deck does
+ * not render. */
 static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section,
                                      const char *set_kw, const char *field) {
   char msg[512];
@@ -1360,13 +1361,13 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
  * multiplicity 1) is unset, apply Fermi smearing when &CPMD has none, copy
  * vanDerWaalsS6 into vdwParams when s6 is unset, and require basisSet to be
  * unset or "planewave". An unmapped xcFunctionals token is rejected for any
- * arm functional. A scalar the overlay would copy is rejected when
- * inputBlocks, a raw section, a generic section, a set directive, or a typed
- * section directive already supplies that setting. Any non-zero
- * spinMultiplicity, an explicit singlet included, is checked against those
- * carriers and copied when the arm does not set multiplicity.
- * Conflicting or unmergeable overlay fields are rejected through
- * cpmdc_last_error(). */
+ * arm functional. Every set overlay scalar is rejected when inputBlocks, a
+ * raw section, a generic section, a set directive, or a typed section
+ * directive already supplies that setting, even when a typed field wins over
+ * the overlay. Any non-zero spinMultiplicity, an explicit singlet included,
+ * is checked against those carriers and copied when the arm does not set
+ * multiplicity. Conflicting or unmergeable overlay fields are rejected
+ * through cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
                                       CommonMethodSpec_ptr common_root,
                                       unsigned char **out, size_t *out_size,
@@ -1430,36 +1431,42 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
       cpmdc_store_error("common overlay: unmapped xcFunctionals for CPMD");
       return -1;
     }
+    if (cpmd_reject_opaque_scalar(&arm_view, "DFT", "FUNCTIONAL",
+                                  "xcFunctionals") != 0)
+      return -1;
     if (!typed.functional) {
-      if (cpmd_reject_opaque_scalar(&arm_view, "DFT", "FUNCTIONAL",
-                                    "xcFunctionals") != 0)
-        return -1;
       ov->functional = ov_functional;
       *has_ov = 1;
     }
   }
-  if (c.planewaveCutoffEv > 0.0 && !typed.cutoff) {
+  if (c.planewaveCutoffEv > 0.0) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CUTOFF",
                                   "planewaveCutoffEv") != 0)
       return -1;
-    ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
-    *has_ov = 1;
+    if (!typed.cutoff) {
+      ov->cutoff_ry = c.planewaveCutoffEv / CPMDC_RYDBERG_EV;
+      *has_ov = 1;
+    }
   }
-  if (c.charge != 0 && !typed.charge) {
+  if (c.charge != 0) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CHARGE", "charge") !=
         0)
       return -1;
-    ov->has_charge = 1;
-    ov->charge = c.charge;
-    *has_ov = 1;
+    if (!typed.charge) {
+      ov->has_charge = 1;
+      ov->charge = c.charge;
+      *has_ov = 1;
+    }
   }
-  if (c.spinMultiplicity != 0 && !typed.multiplicity) {
+  if (c.spinMultiplicity != 0) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "MULTIPLICITY",
                                   "spinMultiplicity") != 0)
       return -1;
-    ov->has_multiplicity = 1;
-    ov->multiplicity = c.spinMultiplicity;
-    *has_ov = 1;
+    if (!typed.multiplicity) {
+      ov->has_multiplicity = 1;
+      ov->multiplicity = c.spinMultiplicity;
+      *has_ov = 1;
+    }
   }
   if (smear_temperature_k > 0.0) {
     if (cpmd_arm_check_smearing(&arm_view) != 0)

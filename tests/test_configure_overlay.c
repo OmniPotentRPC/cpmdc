@@ -2963,6 +2963,262 @@ static void test_merge_accepts_explicit_singlet(void **state) {
   free(buf);
 }
 
+enum OverlayScalar {
+  SCALAR_FUNCTIONAL,
+  SCALAR_CUTOFF,
+  SCALAR_CHARGE,
+  SCALAR_MULTIPLICITY,
+};
+
+enum OpaqueCarrier {
+  CARRIER_INPUT_BLOCK,
+  CARRIER_RAW_SECTION,
+  CARRIER_GENERIC_SECTION,
+  CARRIER_SET_DIRECTIVE,
+  CARRIER_TYPED_DIRECTIVE,
+};
+
+struct ScalarCarrier {
+  const char *section;
+  const char *keyword;
+  const char *value;
+  const char *raw;
+  const char *field;
+};
+
+static const struct ScalarCarrier k_scalar_carriers[] = {
+    [SCALAR_FUNCTIONAL] = {"DFT", "FUNCTIONAL", "PBE0",
+                           "&DFT\n FUNCTIONAL PBE0\n&END", "xcFunctionals"},
+    [SCALAR_CUTOFF] = {"SYSTEM", "CUTOFF", "90",
+                       "&SYSTEM\n CUTOFF\n  90\n&END", "planewaveCutoffEv"},
+    [SCALAR_CHARGE] = {"SYSTEM", "CHARGE", "3", "&SYSTEM\n CHARGE\n  3\n&END",
+                       "charge"},
+    [SCALAR_MULTIPLICITY] = {"SYSTEM", "MULTIPLICITY", "3",
+                             "&SYSTEM\n MULTIPLICITY\n  3\n&END",
+                             "spinMultiplicity"},
+};
+
+static const enum OpaqueCarrier k_all_carriers[] = {
+    CARRIER_INPUT_BLOCK,     CARRIER_RAW_SECTION,   CARRIER_GENERIC_SECTION,
+    CARRIER_SET_DIRECTIVE,   CARRIER_TYPED_DIRECTIVE,
+};
+
+/* A cpmd arm whose typed &DFT or &SYSTEM section sets the scalar to a value
+ * that beats the overlay (functional LDA, cutoff 50 Ry, charge 2,
+ * multiplicity 2) when typed is non-zero, an opaque carrier for the same
+ * setting, and an overlay that sets the scalar. */
+static unsigned char *build_typed_carrier_config(enum OverlayScalar scalar,
+                                                 enum OpaqueCarrier carrier,
+                                                 int typed, int overlay_mult,
+                                                 size_t *size) {
+  const struct ScalarCarrier *sc = &k_scalar_carriers[scalar];
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  struct CPMDParams arm;
+  init_default_arm(&arm);
+
+  CPMDDirective_list dirs;
+  memset(&dirs, 0, sizeof(dirs));
+  int has_dirs = carrier == CARRIER_TYPED_DIRECTIVE;
+  if (has_dirs) {
+    dirs = new_CPMDDirective_list(root.seg, 1);
+    struct CPMDDirective d;
+    memset(&d, 0, sizeof(d));
+    d.keyword = capn_str(sc->keyword);
+    capn_ptr args = capn_new_ptr_list(root.seg, 1);
+    capn_set_text(args, 0, capn_str(sc->value));
+    d.args = args;
+    set_CPMDDirective(&d, dirs, 0);
+  }
+  int extra = carrier == CARRIER_RAW_SECTION ||
+              carrier == CARRIER_GENERIC_SECTION ||
+              carrier == CARRIER_SET_DIRECTIVE;
+  CPMDInputSection_list secs = new_sections(&arena, 1 + extra);
+  if (scalar == SCALAR_FUNCTIONAL)
+    put_dft(&arena, secs, 0, typed ? "LDA" : NULL, dirs, has_dirs);
+  else
+    put_system(&arena, secs, 0,
+               typed && scalar == SCALAR_CUTOFF ? 50.0 : 0.0,
+               typed && scalar == SCALAR_CHARGE ? 2 : 0,
+               typed && scalar == SCALAR_MULTIPLICITY ? 2 : 0, dirs,
+               has_dirs);
+
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  switch (carrier) {
+  case CARRIER_INPUT_BLOCK: {
+    capn_ptr blocks = capn_new_ptr_list(root.seg, 1);
+    capn_set_text(blocks, 0, capn_str(sc->raw));
+    arm.inputBlocks = blocks;
+    break;
+  }
+  case CARRIER_RAW_SECTION:
+    sec.which = CPMDInputSection_raw;
+    sec.raw = capn_str(sc->raw);
+    set_CPMDInputSection(&sec, secs, 1);
+    break;
+  case CARRIER_GENERIC_SECTION: {
+    struct CPMDGenericSection gen;
+    memset(&gen, 0, sizeof(gen));
+    gen.name = capn_str(sc->section);
+    CPMDGenericSection_ptr gen_ptr = new_CPMDGenericSection(root.seg);
+    write_CPMDGenericSection(&gen, gen_ptr);
+    sec.which = CPMDInputSection_generic;
+    sec.generic = gen_ptr;
+    set_CPMDInputSection(&sec, secs, 1);
+    break;
+  }
+  case CARRIER_SET_DIRECTIVE: {
+    char key[64];
+    snprintf(key, sizeof(key), "%s.%s", sc->section, sc->keyword);
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str(key);
+    setd.value = capn_str(sc->value);
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    set_CPMDInputSection(&sec, secs, 1);
+    break;
+  }
+  case CARRIER_TYPED_DIRECTIVE:
+    break;
+  }
+  arm.inputSections = secs;
+
+  struct CommonMethodSpec com;
+  memset(&com, 0, sizeof(com));
+  switch (scalar) {
+  case SCALAR_FUNCTIONAL:
+    set_xc(&arena, &com, "PBE");
+    break;
+  case SCALAR_CUTOFF:
+    com.planewaveCutoffEv = 80.0 * RY_EV;
+    break;
+  case SCALAR_CHARGE:
+    com.charge = -1;
+    break;
+  case SCALAR_MULTIPLICITY:
+    com.spinMultiplicity = overlay_mult;
+    break;
+  }
+  unsigned char *buf = serialize_config(
+      &arena, make_cpmd_plus_common(&arena, &arm, &com, 1), size);
+  capn_free(&arena);
+  return buf;
+}
+
+/* Both entry points fail with a cpmdc_last_error() naming the field, and
+ * neither writes a deck to CPMDC_DECK_OUT. */
+static int expect_rejected_without_deck(const unsigned char *config,
+                                        size_t config_size, const char *want,
+                                        const char *label) {
+  int failures = 0;
+  char deck_path[] = "overlay_carrier_deck_XXXXXX";
+  int fd = mkstemp(deck_path);
+  assert_true(fd >= 0);
+  close(fd);
+  setenv("CPMDC_DECK_OUT", deck_path, 1);
+  int rc = cpmdc_configure(config, config_size);
+  const char *err = cpmdc_last_error();
+  if (rc != -1 || !strstr(err, want)) {
+    fprintf(stderr, "%s: cpmdc_configure rc %d, want \"%s\", got \"%s\"\n",
+            label, rc, want, err);
+    failures++;
+  }
+  CPMDCSession *session =
+      cpmdc_session_create_from_config(config, config_size);
+  err = cpmdc_last_error();
+  if (session || !strstr(err, want)) {
+    fprintf(stderr,
+            "%s: cpmdc_session_create_from_config %p, want \"%s\", got "
+            "\"%s\"\n",
+            label, (void *)session, want, err);
+    failures++;
+  }
+  if (session)
+    cpmdc_session_destroy(session);
+  unsetenv("CPMDC_DECK_OUT");
+  size_t deck_size = 0;
+  unsigned char *deck = read_file(deck_path, &deck_size);
+  remove(deck_path);
+  if (deck) {
+    fprintf(stderr, "%s: a deck of %zu bytes was written\n", label,
+            deck_size);
+    free(deck);
+    failures++;
+  }
+  return failures;
+}
+
+static const char *carrier_name(enum OpaqueCarrier carrier) {
+  switch (carrier) {
+  case CARRIER_INPUT_BLOCK:
+    return "inputBlocks";
+  case CARRIER_RAW_SECTION:
+    return "raw section";
+  case CARRIER_GENERIC_SECTION:
+    return "generic section";
+  case CARRIER_SET_DIRECTIVE:
+    return "set directive";
+  case CARRIER_TYPED_DIRECTIVE:
+    return "typed-section directive";
+  }
+  return "?";
+}
+
+/* A typed value that wins over the overlay does not exempt the overlay
+ * field from the carrier check, and neither does the absence of one. */
+static void check_overlay_scalar_carriers(enum OverlayScalar scalar,
+                                          int overlay_mult) {
+  int failures = 0;
+  for (int typed = 1; typed >= 0; --typed) {
+    for (size_t i = 0; i < sizeof(k_all_carriers) / sizeof(k_all_carriers[0]);
+         ++i) {
+      char label[128];
+      snprintf(label, sizeof(label), "%s, %s, %s",
+               k_scalar_carriers[scalar].field,
+               typed ? "typed value" : "no typed value",
+               carrier_name(k_all_carriers[i]));
+      size_t sz = 0;
+      unsigned char *buf = build_typed_carrier_config(
+          scalar, k_all_carriers[i], typed, overlay_mult, &sz);
+      failures += expect_rejected_without_deck(
+          buf, sz, k_scalar_carriers[scalar].field, label);
+      free(buf);
+    }
+  }
+  assert_int_equal(failures, 0);
+}
+
+static void test_merge_rejects_typed_functional_with_carrier(void **state) {
+  (void)state;
+  check_overlay_scalar_carriers(SCALAR_FUNCTIONAL, 0);
+}
+
+static void test_merge_rejects_typed_cutoff_with_carrier(void **state) {
+  (void)state;
+  check_overlay_scalar_carriers(SCALAR_CUTOFF, 0);
+}
+
+static void test_merge_rejects_typed_charge_with_carrier(void **state) {
+  (void)state;
+  check_overlay_scalar_carriers(SCALAR_CHARGE, 0);
+}
+
+static void test_merge_rejects_typed_multiplicity_with_carrier(void **state) {
+  (void)state;
+  check_overlay_scalar_carriers(SCALAR_MULTIPLICITY, 3);
+}
+
+static void test_merge_rejects_typed_multiplicity_singlet_with_carrier(
+    void **state) {
+  (void)state;
+  check_overlay_scalar_carriers(SCALAR_MULTIPLICITY, 1);
+}
+
 enum ArmOverlayField {
   ARM_OV_XC,
   ARM_OV_CUTOFF,
@@ -3207,6 +3463,12 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_raw_cpmd_and_session_configure),
       cmocka_unit_test(test_merge_rejects_explicit_singlet_next_to_carriers),
       cmocka_unit_test(test_merge_accepts_explicit_singlet),
+      cmocka_unit_test(test_merge_rejects_typed_functional_with_carrier),
+      cmocka_unit_test(test_merge_rejects_typed_cutoff_with_carrier),
+      cmocka_unit_test(test_merge_rejects_typed_charge_with_carrier),
+      cmocka_unit_test(test_merge_rejects_typed_multiplicity_with_carrier),
+      cmocka_unit_test(
+          test_merge_rejects_typed_multiplicity_singlet_with_carrier),
       cmocka_unit_test(test_merge_arm_check_failures_name_cause),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
