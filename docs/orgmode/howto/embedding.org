@@ -177,9 +177,9 @@ contract; these are the ones that shape a host loop:
   ~ok == 0~ with the needed size in ~potential_result_size~.
 - ~cpmdc_session_create()~ copies the ~CPMDParams~ bytes, so the caller may free
   them at once.
-- ~session_accept_topology~ fixes the topology as soon as an evaluation call
-  passes its argument checks, even when the evaluation then fails, and it is
-  never rolled back.
+- ~session_accept_topology~ fixes the topology only after an evaluation call
+  passes its argument checks and collective orbital preflight. A rejected
+  preflight leaves the topology configurable.
   Change the atom count, the elemental composition, or the method after that
   call, by creating a new ~CPMDCSession~;
   ~cpmdc_session_set_params()~ only works before it.

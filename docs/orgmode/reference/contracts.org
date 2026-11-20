@@ -299,9 +299,9 @@ A session is created by one of two functions and released by ~cpmdc_session_dest
 
 ** Session evaluation
 
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back; see the C ABI reference.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable; see the C ABI reference.
 
 *** ~cpmdc_session_energy_gradient~
 

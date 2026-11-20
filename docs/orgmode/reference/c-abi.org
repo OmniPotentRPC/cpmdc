@@ -135,9 +135,9 @@ An opaque handle.
 A session holds a copy of the ~CPMDParams~ bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 
 ** Result snapshots
 Each snapshot struct starts with ~int valid~, set by a successful evaluation.
@@ -343,9 +343,9 @@ previous setting.
 It survives a later ~cpmdc_session_set_params()~.
 The link stub returns -1.
 
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 ~topology change requires a new session~ before CPMD runs.
 A reordering of the same elements stays on the session.
