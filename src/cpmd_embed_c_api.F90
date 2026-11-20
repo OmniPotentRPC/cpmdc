@@ -87,6 +87,15 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
+  INTERFACE
+    FUNCTION cpmdc_orbital_all_ready(local_ready) RESULT(all_ready) &
+        BIND(C, NAME='cpmdc_orbital_all_ready')
+      IMPORT :: c_int
+      INTEGER(c_int), INTENT(IN), VALUE :: local_ready
+      INTEGER(c_int) :: all_ready
+    END FUNCTION cpmdc_orbital_all_ready
+  END INTERFACE
+
   LOGICAL, SAVE :: runtime_ready = .FALSE.
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
   ! Where the last SCF started; see note_warm_start for the values.
@@ -468,10 +477,11 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     TYPE(embed_knobs) :: knobs
 #endif
-    INTEGER(c_int) :: ok
+    INTEGER(c_int) :: ok, local_ok
     ok = 0_c_int
-    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    local_ok = MERGE(1_c_int, 0_c_int, &
+        runtime_ready .AND. .NOT. runtime_finalized .AND. C_ASSOCIATED(image_c))
+    IF (cpmdc_orbital_all_ready(local_ok) == 0_c_int) RETURN
     CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
     IF (embed_basis_latched .AND. n_atoms > 0) THEN

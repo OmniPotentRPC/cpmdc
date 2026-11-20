@@ -71,8 +71,10 @@ int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_drop_stale_orbitals(int n_atoms, const int *atomic_numbers,
                                     const double *cell_ang, int has_cell,
                                     CPMDCEmbedImage *image);
-int cpmdc_orbital_agree(int local_failed, const char **err);
-int cpmdc_orbital_prepare(long long key, const char **err);
+int cpmdc_orbital_agree(int local_failed, int has_key, const char **err);
+int cpmdc_orbital_all_ready(int local_ready);
+int cpmdc_orbital_prepare(int has_key, long long key, int embed_failed,
+                          int drop_failed, const char **err);
 int cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
@@ -1881,9 +1883,9 @@ static int atomic_numbers_in_range(int n_atoms, const int *atomic_numbers) {
  * failing on one rank does not leave the others in it. `local_err` is the
  * reason a check of this rank failed, or NULL. Returns the reason the call
  * fails, or NULL when it goes on. A reason of this rank comes first. */
-static const char *orbital_limit_gate(const char *local_err) {
+static const char *orbital_limit_gate(const char *local_err, int has_key) {
   const char *limit_err = NULL;
-  if (cpmdc_orbital_agree(local_err != NULL, &limit_err) == 0)
+  if (cpmdc_orbital_agree(local_err != NULL, has_key, &limit_err) == 0)
     return NULL;
   if (local_err)
     return local_err;
@@ -1898,7 +1900,7 @@ static CPMDCResult energy_gradient_cell(int n_atoms, const double *positions_ang
   const char *err = params_err;
   if (!err && !atomic_numbers_in_range(n_atoms, atomic_numbers))
     err = "atomic numbers must be in 1..118";
-  err = orbital_limit_gate(err);
+  err = orbital_limit_gate(err, 0);
   if (err)
     return fail_msg(err);
   return energy_gradient_cell_with_params(g_params_bytes, g_params_size,
@@ -2429,7 +2431,7 @@ static CPMDCResult session_energy_gradient_cell(
     if (!pending_topology)
       err = "out of memory";
   }
-  err = orbital_limit_gate(err);
+  err = orbital_limit_gate(err, session ? session->has_orbital_key : 0);
   if (err) {
     free(pending_topology);
     return fail_msg(err);
@@ -2449,20 +2451,28 @@ static CPMDCResult session_energy_gradient_cell(
     cpmdc_store_error("");
     return cached;
   }
-  if ((!session->embed_configured || g_active_session != session) &&
-      configure_embed_from_session(session) != 0) {
-    free(pending_topology);
-    return fail_msg("CPMD embed not available");
-  }
-  if (session->has_orbital_key) {
+  {
     const char *slot_err = NULL;
-    double cell[9] = {0};
-    if (has_cell && cell_ang)
-      memcpy(cell, cell_ang, sizeof(cell));
-    /* A new basis frees every key's orbitals before this key parks one. */
-    (void)cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
-                                          has_cell ? 1 : 0, &session->image);
-    if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0) {
+    int embed_failed = 0;
+    int drop_failed = 0;
+    if ((!session->embed_configured || g_active_session != session) &&
+        configure_embed_from_session(session) != 0)
+      embed_failed = 1;
+    if (session->has_orbital_key) {
+      if (!cpmdc_orbital_all_ready(!embed_failed))
+        embed_failed = 1;
+      if (!embed_failed) {
+        double cell[9] = {0};
+        if (has_cell && cell_ang)
+          memcpy(cell, cell_ang, sizeof(cell));
+        /* A new basis frees every key's orbitals before this key parks one. */
+        if (!cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell,
+                                             has_cell ? 1 : 0, &session->image))
+          drop_failed = 1;
+      }
+    }
+    if (cpmdc_orbital_prepare(session->has_orbital_key, session->orbital_key,
+                              embed_failed, drop_failed, &slot_err) != 0) {
       free(pending_topology);
       return fail_msg(slot_err);
     }
@@ -2512,7 +2522,7 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
     err = "null session";
   else if (!session->evaluated)
     err = "no stored orbitals; evaluate at least once before copy";
-  err = orbital_limit_gate(err);
+  err = orbital_limit_gate(err, 0);
   if (err) {
     cpmdc_store_error(err);
     return -1;

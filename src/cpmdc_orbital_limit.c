@@ -43,6 +43,11 @@ static const char k_orbital_limit_mpi[] =
 static const char k_orbital_limit_memory[] = "out of memory";
 static const char k_orbital_limit_peer[] =
     "another rank of the calculator rejected this call";
+static const char k_orbital_key_differs[] =
+    "orbital key selection differs across calculator ranks";
+static const char k_orbital_embed_unavailable[] = "CPMD embed not available";
+static const char k_orbital_drop_stale_failed[] =
+    "failed to drop stale orbitals before orbital key selection";
 
 /* Reference-evaluator ledger. Parked keys exclude the selected key.
  * g_selected_has_store is the live copy of the selected key. */
@@ -252,18 +257,19 @@ static int orbital_allreduce(int *values, int count) {
 }
 #endif
 
-/* Agrees CPMDC_ORBITAL_SLOT_LIMIT across the calculator ranks, with
- * `local_failed` set when a check of this call already failed here. Every
- * rank calls this exactly once per evaluation, after its own checks, and
- * runs the collective even when its own check failed, so a rank whose
- * check failed alone does not leave the others waiting. A failure on any
- * rank fails the call on all of them. Returns 0 when no rank failed and
- * the limit agrees. Otherwise returns -1 and sets `*err` to the reason, or
- * to NULL on a rank whose own check failed, which reports its own reason. */
-int cpmdc_orbital_agree(int local_failed, const char **err) {
+/* Agrees CPMDC_ORBITAL_SLOT_LIMIT and keyed state across the calculator
+ * ranks, with `local_failed` set when a check of this call already failed
+ * here. Every rank calls this exactly once per evaluation, after its own
+ * checks, and runs the collective even when its own check failed, so a rank
+ * whose check failed alone does not leave the others waiting. A failure on
+ * any rank fails the call on all of them. Returns 0 when no rank failed, the
+ * limit agrees, and every rank agrees on whether an orbital key is selected.
+ * Otherwise returns -1 and sets `*err` to the reason, or to NULL on a rank
+ * whose own check failed, which reports its own reason. */
+int cpmdc_orbital_agree(int local_failed, int has_key, const char **err) {
   int limit = CPMDC_ORBITAL_SLOT_UNLIMITED;
   int kind = CPMDC_ORBITAL_SLOT_KIND_UNSET;
-  int buf[6];
+  int buf[8];
   int min_limit;
   g_limit_ready = 0;
   *err = NULL;
@@ -274,7 +280,9 @@ int cpmdc_orbital_agree(int local_failed, const char **err) {
   buf[3] = kind == CPMDC_ORBITAL_SLOT_KIND_UNSET;
   buf[4] = kind == CPMDC_ORBITAL_SLOT_KIND_SET ? -limit : INT_MIN;
   buf[5] = local_failed != 0;
-  if (orbital_allreduce(buf, 6) != 0) {
+  buf[6] = has_key != 0;
+  buf[7] = has_key == 0;
+  if (orbital_allreduce(buf, 8) != 0) {
     if (!local_failed)
       *err = k_orbital_limit_mpi;
     return -1;
@@ -302,52 +310,117 @@ int cpmdc_orbital_agree(int local_failed, const char **err) {
   } else {
     g_agreed_limit = CPMDC_ORBITAL_SLOT_UNLIMITED;
   }
+  if (buf[6] && buf[7]) {
+    *err = k_orbital_key_differs;
+    return -1;
+  }
   cpmdc_embed_set_orbital_slot_limit(g_agreed_limit);
   g_limit_ready = 1;
   return 0;
 }
 
-int cpmdc_orbital_prepare(long long key, const char **err) {
+int cpmdc_orbital_all_ready(int local_ready) {
+  int failed = local_ready == 0;
+  if (orbital_allreduce(&failed, 1) != 0)
+    return 0;
+  return failed == 0 ? 1 : 0;
+}
+
+int cpmdc_orbital_prepare(int has_key, long long key, int embed_failed,
+                          int drop_failed, const char **err) {
 #if defined(CPMDC_HAS_CPMD)
-  int code;
-  const char *msg;
-  (void)key;
-  if (!g_limit_ready) {
-    *err = k_orbital_limit_invalid;
+  int pre[4];
+  int code = CPMDC_ORBITAL_SLOT_OK;
+  pre[0] = embed_failed != 0;
+  pre[1] = drop_failed != 0;
+  pre[2] = has_key != 0;
+  pre[3] = has_key == 0;
+  if (orbital_allreduce(pre, 4) != 0) {
+    *err = k_orbital_limit_mpi;
     return -1;
   }
-  cpmdc_embed_select_orbitals(key);
-  code = cpmdc_embed_slot_limit_code();
-  msg = cpmdc_orbital_limit_message(code);
-  if (msg) {
-    *err = msg;
+  if (pre[0]) {
+    *err = k_orbital_embed_unavailable;
+    return -1;
+  }
+  if (pre[1]) {
+    *err = k_orbital_drop_stale_failed;
+    return -1;
+  }
+  if (pre[2] && pre[3]) {
+    *err = k_orbital_key_differs;
+    return -1;
+  }
+  if (!pre[2]) {
+    *err = NULL;
+    return 0;
+  }
+  if (!g_limit_ready) {
+    code = CPMDC_ORBITAL_SLOT_INVALID;
+  } else {
+    cpmdc_embed_select_orbitals(key);
+    code = cpmdc_embed_slot_limit_code();
+  }
+  if (orbital_allreduce(&code, 1) != 0) {
+    *err = k_orbital_limit_mpi;
+    return -1;
+  }
+  if (code != CPMDC_ORBITAL_SLOT_OK) {
+    const char *msg = cpmdc_orbital_limit_message(code);
+    *err = msg ? msg : k_orbital_limit_invalid;
     return -1;
   }
   *err = NULL;
   return 0;
 #else
-  int fail;
+  int status[5];
   int leaving = 0;
-  if (!g_limit_ready) {
-    *err = k_orbital_limit_invalid;
-    return -1;
+  status[0] = embed_failed != 0;
+  status[1] = drop_failed != 0;
+  status[2] = has_key != 0;
+  status[3] = has_key == 0;
+  status[4] = CPMDC_ORBITAL_SLOT_OK;
+  if (has_key && !embed_failed && !drop_failed) {
+    if (!g_limit_ready) {
+      status[4] = CPMDC_ORBITAL_SLOT_INVALID;
+    } else {
+      /* The table grows before the collective, so a rank that cannot grow it
+       * fails every rank and no rank is left evaluating alone. */
+      status[4] = ledger_would_exceed(key) ? CPMDC_ORBITAL_SLOT_EXCEEDED
+                                           : CPMDC_ORBITAL_SLOT_OK;
+      (void)select_extra(key, &leaving, NULL);
+      if (status[4] == CPMDC_ORBITAL_SLOT_OK && leaving &&
+          parked_reserve() != 0)
+        status[4] = CPMDC_ORBITAL_SLOT_NO_MEMORY;
+    }
   }
-  /* The table grows before the collective, so a rank that cannot grow it
-   * fails every rank and no rank is left evaluating alone. */
-  fail = ledger_would_exceed(key) ? CPMDC_ORBITAL_SLOT_EXCEEDED : 0;
-  (void)select_extra(key, &leaving, NULL);
-  if (!fail && leaving && parked_reserve() != 0)
-    fail = CPMDC_ORBITAL_SLOT_NO_MEMORY;
-  if (orbital_allreduce(&fail, 1) != 0) {
+  if (orbital_allreduce(status, 5) != 0) {
     *err = k_orbital_limit_mpi;
     return -1;
   }
-  if (fail == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
+  if (status[0]) {
+    *err = k_orbital_embed_unavailable;
+    return -1;
+  }
+  if (status[1]) {
+    *err = k_orbital_drop_stale_failed;
+    return -1;
+  }
+  if (status[2] && status[3]) {
+    *err = k_orbital_key_differs;
+    return -1;
+  }
+  if (!status[2]) {
+    *err = NULL;
+    return 0;
+  }
+  if (status[4] == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
     *err = k_orbital_limit_memory;
     return -1;
   }
-  if (fail) {
-    *err = k_orbital_limit_exceeded;
+  if (status[4] != CPMDC_ORBITAL_SLOT_OK) {
+    const char *msg = cpmdc_orbital_limit_message(status[4]);
+    *err = msg ? msg : k_orbital_limit_invalid;
     return -1;
   }
   if (ledger_commit(key) != 0) {
