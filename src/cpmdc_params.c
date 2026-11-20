@@ -748,8 +748,10 @@ struct ResolvedScalars {
  * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). The deck
  * renderers and the recorded configuration both read this result. Raw,
  * generic, and set sections, inputBlocks, and section directives are not
- * read here; the overlay merge rejects a set overlay scalar next to one, and
- * render_dft_section() rejects a second FUNCTIONAL. The overlay cutoff is in
+ * read here; the overlay merge rejects a set overlay scalar next to one,
+ * render_dft_section() rejects a second FUNCTIONAL, and
+ * render_system_section() rejects a second CUTOFF, CHARGE, or MULTIPLICITY
+ * whether that value is the schema default or not. The overlay cutoff is in
  * Ry. */
 static int resolve_scalars(struct CPMDParams *view,
                            const CPMDCScalarOverrides *overrides,
@@ -842,11 +844,63 @@ static int deck_needs_cluster_hfx(const char *functional) {
          functional_needs_cluster_hfx(functional, strlen(functional));
 }
 
+/* The same prefix test render_dft_section() uses for FUNCTIONAL. A typed
+ * directive or a SYSTEM.<keyword> set directive is an error whether the
+ * resolved scalar is the schema default or not. */
+static int reject_system_scalar_directive(struct CPMDSystemSection *sys,
+                                          struct RenderSetList *sets,
+                                          const char *keyword,
+                                          const char *typed_reason,
+                                          const char *set_reason) {
+  int has = directives_have_prefix(sys->directives, keyword);
+  if (has < 0)
+    return -1;
+  if (has) {
+    g_render_reason = typed_reason;
+    return -1;
+  }
+  if (set_directives_have_prefix(sets, "SYSTEM", keyword)) {
+    g_render_reason = set_reason;
+    return -1;
+  }
+  return 0;
+}
+
 static int render_system_section_with_cell(
     char *dst, size_t dst_size, size_t *used, struct CPMDSystemSection *sys,
     double default_cutoff, int default_charge, const double *cell_override,
     int override_ncell, int cluster_hfx, struct RenderSetList *sets, int emit_symmetry,
     int force_vectors, struct ConstantCutoffRequest *cc) {
+  /* CUTOFF, CHARGE, and MULTIPLICITY below are the resolved scalars the
+   * configuration records. CUTOFF is written on every deck, including the
+   * default 70 Ry. CHARGE is written only when it is not 0, and MULTIPLICITY
+   * only when it is greater than 1. An omitted line is the schema default
+   * (charge 0, multiplicity 1). A directive for one of those keywords is
+   * rejected in either case. When the line is written, the directive would
+   * be a second value. When the line is omitted, the directive would put a
+   * value in the deck that the recorded configuration does not carry. There
+   * is no fallback that keeps one and drops the other. */
+  if (reject_system_scalar_directive(
+          sys, sets, "CUTOFF",
+          "a CUTOFF directive in the typed &SYSTEM section conflicts with "
+          "the cutoff cpmdc writes; set cutOffRy instead",
+          "a SYSTEM.CUTOFF set directive conflicts with the cutoff cpmdc "
+          "writes; set cutOffRy instead") != 0)
+    return -1;
+  if (reject_system_scalar_directive(
+          sys, sets, "CHARGE",
+          "a CHARGE directive in the typed &SYSTEM section conflicts with "
+          "the charge cpmdc writes; set charge instead",
+          "a SYSTEM.CHARGE set directive conflicts with the charge cpmdc "
+          "writes; set charge instead") != 0)
+    return -1;
+  if (reject_system_scalar_directive(
+          sys, sets, "MULTIPLICITY",
+          "a MULTIPLICITY directive in the typed &SYSTEM section conflicts "
+          "with the multiplicity cpmdc writes; set multiplicity instead",
+          "a SYSTEM.MULTIPLICITY set directive conflicts with the "
+          "multiplicity cpmdc writes; set multiplicity instead") != 0)
+    return -1;
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
