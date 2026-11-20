@@ -10,6 +10,12 @@
  * the energy and the virial -dE/d(strain) to its tallies; LAMMPS sums those
  * over the ranks. Atom IDs must be 1..N.
  *
+ * The energy and the virial are totals of the whole system. A density
+ * functional energy is not a sum of atom terms, and the virial is a cell
+ * derivative, not sum r f, so neither has a unique per-atom split. A compute
+ * that asks for either (pe/atom, stress/atom, centroid/stress/atom) is refused in init_style(),
+ * before the first evaluation; per-atom forces are available.
+ *
  * Units metal, real, and electron are converted; any other style is an
  * error. The cell is the restricted triclinic box with one lattice vector
  * per row: a = (lx, 0, 0), b = (xy, ly, 0), c = (xz, yz, lz). A fully
@@ -20,10 +26,12 @@
 
 #include "atom.h"
 #include "comm.h"
+#include "compute.h"
 #include "domain.h"
 #include "error.h"
 #include "force.h"
 #include "memory.h"
+#include "modify.h"
 #include "update.h"
 
 #include "cpmdc.h"
@@ -188,6 +196,12 @@ void PairCPMDC::init_style()
   if (periodic != 0 && periodic != 3)
     error->all(FLERR, "pair_style cpmdc takes a fully periodic box or one without periodic axes");
   if (atom->natoms > MAXSMALLINT / 3) error->all(FLERR, "pair_style cpmdc: too many atoms");
+  for (int i = 0; i < modify->ncompute; i++) {
+    const Compute *request = modify->compute[i];
+    if (request->peatomflag || request->pressatomflag)
+      error->all(FLERR, "pair_style cpmdc computes no per-atom energy or virial (compute {})",
+                 request->id);
+  }
   // No neighbor list: the whole system goes to cpmdc.
 }
 
