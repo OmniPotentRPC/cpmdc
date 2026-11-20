@@ -73,6 +73,9 @@ A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
 deck with ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
 The reference evaluator, isolated and k-point decks, and decks without either
 request do not return a dipole.
+A deck that combines ~DIPOLE DYNAMICS~ with ~KPOINTS~ is rejected when the
+calculator opens it, with an error that names both, because OpenCPMD stops in
+~localize2~ on that combination.
 The calculator reports those cases as unavailable instead of returning zero or
 state left by an earlier step.
 

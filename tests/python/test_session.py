@@ -82,6 +82,53 @@ def test_property_gradient_limit_fails_without_truncation(params):
             session.energy_forces(positions, [1] * 1366)
 
 
+def _encode_params(text: str) -> bytes:
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is not on PATH")
+    return subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=text.encode("utf-8"),
+        stdout=subprocess.PIPE,
+        check=True,
+    ).stdout
+
+
+def _periodic_source() -> str:
+    return (ROOT / "tests" / "water_blyp_periodic_params.capnp.txt").read_text(encoding="utf-8")
+
+
+GAMMA_KPOINT = "kpoints = [( coordinates = [0.0, 0.0, 0.0], weight = 1.0 )],"
+
+
+def test_dipole_dynamics_with_kpoints_is_rejected_up_front():
+    source = _periodic_source().replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")
+    source = source.replace("symmetry = 1,", f"symmetry = 1, {GAMMA_KPOINT}")
+    assert "dipoleDynamics" in source and "kpoints" in source
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS.*Gamma-point"):
+        Session(_encode_params(source))
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS"):
+        Potential(_encode_params(source))
+
+
+def test_dipole_dynamics_with_kpoints_in_a_raw_block_is_rejected():
+    raw = (
+        "&CPMD\\n OPTIMIZE WAVEFUNCTION\\n DIPOLE DYNAMICS\\n&END\\n"
+        "&SYSTEM\\n SYMMETRY\\n  1\\n KPOINTS\\n 1\\n 0.0 0.0 0.0 1.0\\n&END\\n"
+    )
+    source = f'(functional = "BLYP", cutOffRy = 40.0, task = "gradient", inputBlocks = ["{raw}"])'
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS"):
+        Session(_encode_params(source))
+
+
+def test_kpoints_and_dipole_dynamics_alone_are_accepted():
+    kpoints = _periodic_source().replace("symmetry = 1,", f"symmetry = 1, {GAMMA_KPOINT}")
+    dipole = _periodic_source().replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")
+    for source in (kpoints, dipole):
+        with Session(_encode_params(source)):
+            pass
+
+
 def test_topology_change_is_not_reported_as_the_gradient_limit(params):
     big = [[0.0, 0.0, 0.0]] * 1366
     with Session(params) as session:

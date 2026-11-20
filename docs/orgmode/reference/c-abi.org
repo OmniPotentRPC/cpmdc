@@ -491,6 +491,10 @@ The supported route is a periodic Gamma-point, non-broken-symmetry deck with
 ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~.
 An isolated deck, a k-point calculation, the reference evaluator, and a deck
 without either request leave the dipole invalid.
+A deck that sets ~DIPOLE DYNAMICS~ in ~&CPMD~ and ~KPOINTS~ in ~&SYSTEM~ is
+rejected before any evaluation, by ~cpmdc_session_create()~,
+~cpmdc_session_set_params()~, and the calls that take parameters, because
+OpenCPMD stops in ~localize2~ on it; ~cpmdc_last_error()~ names both keywords.
 OpenCPMD's ~ddip%pdipole~ is not this molecular dipole: ~ddipo~ adds the ionic
 term to make ~pdipolt~, then multiplies by the cell volume to set
 ~moment%dmom~. Reading ~pdipole~ after ~wfopts~ without calling ~ddipo~ would

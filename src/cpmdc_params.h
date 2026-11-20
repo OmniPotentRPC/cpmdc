@@ -109,6 +109,13 @@ int cpmdc_potential_result_write(double energy, const double *forces,
                                  size_t *potential_result_size_bytes);
 int cpmdc_params_reject_unsupported_inputs(const char *functional, const char *input_deck);
 
+/**
+ * Why a rendered deck cannot run, or NULL. Only the sections that name the
+ * setting are read: DIPOLE DYNAMICS in &CPMD together with KPOINTS in
+ * &SYSTEM, which OpenCPMD stops on in localize2. The text is static.
+ */
+const char *cpmdc_params_deck_conflict(const char *input_deck);
+
 /* permanentDir when set, otherwise scratchDir. Empty string when neither is. */
 int cpmdc_params_copy_output_dir(const void *params_capnp,
                                  size_t params_capnp_size_bytes, char *dst,

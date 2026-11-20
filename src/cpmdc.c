@@ -326,6 +326,16 @@ static int apply_params_buffer(const void *params_capnp, size_t params_size,
     cpmdc_store_error("CPMDParams input is not supported");
     return -1;
   }
+  const char *conflict = cpmdc_params_deck_conflict(deck);
+  if (conflict) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "CPMDParams input is not supported: %s",
+             conflict);
+    free(deck);
+    cpmdc_params_release(&arena);
+    cpmdc_store_error(msg);
+    return -1;
+  }
   cpmdc_params_release(&arena);
   *input_deck = deck;
   return 0;

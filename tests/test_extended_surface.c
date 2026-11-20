@@ -44,6 +44,34 @@ static void test_unsupported_rejected(void **state) {
   assert_int_equal(cpmdc_params_reject_unsupported_inputs("BLYP", "N_STREAMS\n"), -1);
 }
 
+static void test_dipole_dynamics_with_kpoints_rejected(void **state) {
+  (void)state;
+  const char *both =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION\n DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n KPOINTS MONKHORST-PACK\n 2 2 2\n CUTOFF\n 40.0\n&END\n";
+  const char *lower =
+      "&cpmd\n dipole dynamics sample wannier\n&end\n"
+      "&system\n  kpoints\n 1\n 0.0 0.0 0.0 1.0\n&end\n";
+  const char *gamma_only =
+      "&CPMD\n DIPOLE DYNAMICS\n&END\n&SYSTEM\n CUTOFF\n 40.0\n&END\n";
+  const char *kpoints_only =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION\n&END\n&SYSTEM\n KPOINTS\n 1\n"
+      " 0.0 0.0 0.0 1.0\n&END\n";
+  /* RESTART KPOINTS in &CPMD is a restart option, not a k-point mesh. */
+  const char *restart =
+      "&CPMD\n DIPOLE DYNAMICS\n RESTART WAVEFUNCTION KPOINTS\n&END\n"
+      "&SYSTEM\n CUTOFF\n 40.0\n&END\n";
+  const char *reason = cpmdc_params_deck_conflict(both);
+  assert_non_null(reason);
+  assert_non_null(strstr(reason, "DIPOLE DYNAMICS"));
+  assert_non_null(strstr(reason, "KPOINTS"));
+  assert_non_null(cpmdc_params_deck_conflict(lower));
+  assert_null(cpmdc_params_deck_conflict(gamma_only));
+  assert_null(cpmdc_params_deck_conflict(kpoints_only));
+  assert_null(cpmdc_params_deck_conflict(restart));
+  assert_null(cpmdc_params_deck_conflict(""));
+}
+
 static void test_all_results_through_c_and_wire(void **state) {
   (void)state;
   size_t ps = 0, ss = 0;
@@ -285,6 +313,7 @@ int main(int argc, char **argv) {
   g_step = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unsupported_rejected),
+      cmocka_unit_test(test_dipole_dynamics_with_kpoints_rejected),
       cmocka_unit_test(test_all_results_through_c_and_wire),
       cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
       cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
