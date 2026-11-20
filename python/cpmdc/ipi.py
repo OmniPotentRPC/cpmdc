@@ -40,14 +40,14 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import socket
 import struct
 import sys
 import time
 from typing import IO, Any, Sequence
 
-from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session, _elements
+from cpmdc._elements import species_numbers
 
 __all__ = [
     "DEFAULT_SOCKET_PREFIX",
@@ -66,48 +66,8 @@ HEADER_BYTES = 12
 # this to the socket name.
 DEFAULT_SOCKET_PREFIX = os.path.join(os.sep, "tmp", "ipi_")
 
-_SYMBOLS = (
-    "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co "
-    "Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb "
-    "Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re "
-    "Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es "
-    "Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og"
-).split()
-_NUMBER = {symbol: index + 1 for index, symbol in enumerate(_SYMBOLS)}
-_FORMULA_PART = re.compile(r"([A-Z][a-z]?)(\d*)")
-
-
 class ProtocolError(CPMDCError):
     """The server sent a message this driver cannot answer."""
-
-
-def species_numbers(text: str) -> list[int]:
-    """Atomic numbers from element symbols in server order.
-
-    Symbols may be separated by spaces or commas (``"O H H"``), run
-    together with counts (``"OH2"``), or given as atomic numbers
-    (``"8 1 1"``).
-    """
-    numbers: list[int] = []
-    for token in re.split(r"[\s,]+", text.strip()):
-        if not token:
-            continue
-        if token.isdigit():
-            number = int(token)
-            if not 1 <= number <= len(_SYMBOLS):
-                raise ValueError(f"atomic number {number} is outside 1..{len(_SYMBOLS)}")
-            numbers.append(number)
-            continue
-        parts = _FORMULA_PART.findall(token)
-        if "".join(symbol + count for symbol, count in parts) != token:
-            raise ValueError(f"cannot read species {token!r}")
-        for symbol, count in parts:
-            if symbol not in _NUMBER:
-                raise ValueError(f"unknown element {symbol!r}")
-            numbers.extend([_NUMBER[symbol]] * (int(count) if count else 1))
-    if not numbers:
-        raise ValueError("species must name at least one atom")
-    return numbers
 
 
 def unix_socket_path(name: str, prefix: str | None = None) -> str:
@@ -249,8 +209,10 @@ class Driver:
         if not self.atomic_numbers:
             raise ValueError("atomic_numbers must name at least one atom")
         for number in self.atomic_numbers:
-            if not 1 <= number <= len(_SYMBOLS):
-                raise ValueError(f"atomic number {number} is outside 1..{len(_SYMBOLS)}")
+            if not 1 <= number <= len(_elements._SYMBOLS):
+                raise ValueError(
+                    f"atomic number {number} is outside 1..{len(_elements._SYMBOLS)}"
+                )
         self.cluster = cluster
         self.steps = 0
         self._log = log

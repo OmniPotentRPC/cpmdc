@@ -57,7 +57,7 @@ Full plain text of every page: https://cpmdc.rgoswami.me/llms-full.txt (committe
 ## Explanation
 
 - [Architecture](https://cpmdc.rgoswami.me/explanation/architecture)
-- [The file route and the in-process route](https://cpmdc.rgoswami.me/explanation/routes)
+- [File, in-process, RPC, and protocol routes](https://cpmdc.rgoswami.me/explanation/routes)
 - [Wavefunction state between calls](https://cpmdc.rgoswami.me/explanation/wavefunction-state)
 - [The MPI model](https://cpmdc.rgoswami.me/explanation/mpi-model)
 - [Atoms in an isolated cell](https://cpmdc.rgoswami.me/explanation/isolated-cells)

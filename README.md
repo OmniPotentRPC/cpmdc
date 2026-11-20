@@ -88,7 +88,7 @@ result-buffer, unit-conversion, and reference evaluator tests.
 | `tools/cpmdc_restart.c` | `cpmdc-restart` command for coordinates, velocities, and cell |
 | `tools/cpmdc_fd_check.c` | `cpmdc-fd-check` finite-difference check of session forces and stress |
 | `tools/lammps/` | `cpmdcplugin.so`, the LAMMPS plugin with `pair_style cpmdc` |
-| `python/cpmdc/` | the Python package: `Session`, the ASE calculator, the i-PI driver, `cpmdc.lammps`, and `cpmdc.gromacs` |
+| `python/cpmdc/` | the Python package: `Session`, the ASE calculator, transitional i-PI driver, `cpmdc.lammps`, and `cpmdc.gromacs` |
 | `tools/gromacs/` | `libcpmdc_gromacs`, cpmdc behind the libcp2k API of GROMACS' QM/MM interface, and its `libcp2k.pc` |
 | `bench/lammps_routes.py` | per-step overhead of the LAMMPS and i-PI routes |
 | `bench/gromacs_routes.py` | per-step overhead of the GROMACS route beside the LAMMPS plugin |
@@ -110,6 +110,8 @@ The docs build writes generated RST under `docs/source/`. Those files are not co
 | Long-running driver with serialized input and output | `cpmdc_session_create`, then `cpmdc_session_calculate_result` |
 | Long-running native C force loop | `cpmdc_session_energy_forces` |
 | Native C, Fortran, or plugin loop with a periodic cell, in atomic units | `cpmdc_session_calculate_au` |
+| Remote potential call | rgpot's Cap'n Proto RPC over `CPMDPot` |
+| Optional i-PI protocol | an rgpot frontend over `CPMDPot`; the [i-PI status page](docs/orgmode/howto/socket-drivers.org) records the remaining command gaps |
 | LAMMPS integrating on cpmdc forces | `pair_style cpmdc` or `cpmdc.lammps.FixExternal`, both on `cpmdc_session_calculate_au` |
 | GROMACS integrating on cpmdc forces, QM group or whole system | `libcpmdc_gromacs` linked as libcp2k (`-DGMX_CP2K=ON`), on `cpmdc_session_calculate_au` |
 | Single serialized calculation | `cpmdc_calculate_result` |
