@@ -1373,8 +1373,9 @@ static int cpmd_reject_opaque_scalar(struct CPMDParams *arm, const char *section
  * unset or "planewave". An unmapped xcFunctionals token is rejected for any
  * arm functional. A scalar the overlay would copy is rejected when
  * inputBlocks, a raw section, a generic section, a set directive, or a typed
- * section directive already supplies that setting. An explicit singlet
- * (spinMultiplicity 1) is checked against those carriers and is not copied.
+ * section directive already supplies that setting. Any non-zero
+ * spinMultiplicity, an explicit singlet included, is checked against those
+ * carriers and copied when the arm does not set multiplicity.
  * Conflicting or unmergeable overlay fields are rejected through
  * cpmdc_last_error(). */
 static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
@@ -1453,15 +1454,13 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
     ov->charge = c.charge;
     *has_ov = 1;
   }
-  if (c.spinMultiplicity > 0 && !typed.multiplicity) {
+  if (c.spinMultiplicity != 0 && !typed.multiplicity) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "MULTIPLICITY",
                                   "spinMultiplicity") != 0)
       return -1;
-    if (c.spinMultiplicity > 1) {
-      ov->has_multiplicity = 1;
-      ov->multiplicity = c.spinMultiplicity;
-      *has_ov = 1;
-    }
+    ov->has_multiplicity = 1;
+    ov->multiplicity = c.spinMultiplicity;
+    *has_ov = 1;
   }
   if (smear_temperature_k > 0.0) {
     if (cpmd_arm_check_smearing(&arm_view) != 0)

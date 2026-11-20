@@ -153,7 +153,7 @@ static int check_case(const struct Case *c) {
     ov.has_charge = 1;
     ov.charge = c->ov_charge;
   }
-  if (c->ov_mult > 1) {
+  if (c->ov_mult != 0) {
     ov.has_multiplicity = 1;
     ov.multiplicity = c->ov_mult;
   }
