@@ -75,7 +75,7 @@ int cpmdc_orbital_agree(int local_failed, int has_key, const char **err);
 int cpmdc_orbital_all_ready(int local_ready);
 int cpmdc_orbital_prepare(int has_key, long long key, int embed_failed,
                           int drop_failed, const char **err);
-int cpmdc_orbital_note_stored(void);
+void cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
@@ -1855,8 +1855,7 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
               "MAXITER, or no energy";
     return fail_msg(detail);
   }
-  if (cpmdc_orbital_note_stored() != 0)
-    return fail_msg("out of memory");
+  cpmdc_orbital_note_stored();
   r.ok = 1;
   r.energy_h = energy;
   snprintf(r.message, sizeof(r.message), "ok");
