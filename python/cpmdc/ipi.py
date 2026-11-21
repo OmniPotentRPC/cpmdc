@@ -281,8 +281,12 @@ class Driver:
         n_atoms = len(positions) // 3
         self._check_count(n_atoms)
         rows = self._cell_rows(cell)
+        if not all(map(math.isfinite, positions)):
+            raise ValueError("positions must be finite")
+        if rows is not None and not all(map(math.isfinite, cell)):
+            raise ValueError("cell must be finite")
         volume = 0.0
-        if rows is not None and all(map(math.isfinite, cell)):
+        if rows is not None:
             # The rows cpmdc_session_calculate_au() takes, in Bohr, as cpmdc-ipi-c sends them.
             volume = _cell_volume([[cell[3 * i + k] for i in range(3)] for k in range(3)])
             if not math.isfinite(volume):

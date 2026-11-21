@@ -477,9 +477,12 @@ static int cell_rows(const struct driver *d, const double *h, double *rows,
       rows[3 * k + i] = h[3 * i + k];
     }
   }
+  /* A non-finite cell is refused after the positions, as cpmdc-ipi does. */
   int state = cpmdc_cell_rank3_state(rows);
-  if (state == CPMDC_CELL_NONFINITE)
-    return fail("the server sent a cell with a non-finite component");
+  if (state == CPMDC_CELL_NONFINITE) {
+    *periodic = 1;
+    return 0;
+  }
   if (state == CPMDC_CELL_VOLUME_UNDERFLOW)
     return fail("the server sent a cell whose volume is too small for binary64");
   if (state != CPMDC_CELL_FULL_RANK)
@@ -495,6 +498,12 @@ static int compute(struct driver *d, const double *h, const double *positions) {
   int periodic = 0;
   if (cell_rows(d, h, rows, &periodic) != 0)
     return -1;
+  for (int i = 0; i < 3 * d->natoms; ++i)
+    if (!isfinite(positions[i]))
+      return fail("positions must be finite");
+  for (int i = 0; periodic && i < 9; ++i)
+    if (!isfinite(rows[i]))
+      return fail("cell must be finite");
   if (cpmdc_session_calculate_au(d->session, d->natoms, positions, d->numbers,
                                  periodic ? rows : NULL, &d->energy, d->forces,
                                  d->virial) != 0) {

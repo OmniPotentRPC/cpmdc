@@ -447,6 +447,63 @@ def test_cell_volume_above_the_largest_float_stops_both_drivers(
     assert "cell volume is too large for binary64" in err
 
 
+def _non_finite_step(position: float = 0.0, cell_entry: float = 10.0) -> bytes:
+    positions = np.asarray(WATER) / BOHR_TO_ANGSTROM
+    positions[1, 2] += position
+    h = np.diag([20.0, 20.0, 20.0])
+    h[2, 2] = cell_entry
+    return bohr_posdata(h, positions) + MiniServer.header("GETFORCE") + MiniServer.header("EXIT")
+
+
+@pytest.mark.parametrize("kind", ["c", "python"])
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        (_non_finite_step(position=float("nan")), "positions must be finite"),
+        (_non_finite_step(position=float("inf")), "positions must be finite"),
+        (_non_finite_step(position=float("-inf")), "positions must be finite"),
+        (_non_finite_step(cell_entry=float("nan")), "cell must be finite"),
+        (_non_finite_step(cell_entry=float("inf")), "cell must be finite"),
+        (
+            _non_finite_step(position=float("nan"), cell_entry=float("nan")),
+            "positions must be finite",
+        ),
+    ],
+    ids=["nan-position", "inf-position", "minus-inf-position", "nan-cell", "inf-cell", "both"],
+)
+def test_non_finite_wire_values_stop_both_drivers_before_a_step(
+    kind, message, expected, mini, socket_dir, periodic_params, drivers
+):
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(message)
+    code, err = client.finish()
+    assert code == 1, err
+    assert f"error: {expected}" in err
+    assert mini.conn is not None
+    mini.conn.settimeout(5.0)
+    try:
+        reply = mini.conn.recv(12)
+    except ConnectionResetError:
+        reply = b""
+    assert reply == b""
+
+
+def test_cluster_flag_ignores_a_non_finite_cell(mini, socket_dir, params, drivers):
+    client = drivers("c", "--unix", str(socket_dir / "s"), "--params", str(params), "--species",
+                     "OHH", "--cluster")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(_non_finite_step(cell_entry=float("nan")))
+    assert mini.recv(12).decode("ascii").strip() == "FORCEREADY"
+    code, err = client.finish()
+    assert code == 0, err
+
+
 @pytest.mark.parametrize(
     "message, expected",
     [

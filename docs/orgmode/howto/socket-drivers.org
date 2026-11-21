@@ -293,6 +293,10 @@ the two agree to 1e-10, which the pytest suite checks.
   Bohr but whose Angstrom volume is below that value, such as a diagonal of
   3.1072325e-103 Bohr, stops either driver with the library's "cell volume
   is too small for binary64".
+- A wire position or, unless ~--cluster~ is given, a cell value that is NaN
+  or infinite stops either driver with "positions must be finite" or "cell
+  must be finite", before the step is evaluated and with no reply. The
+  positions are checked first; a non-finite cell skips the rank checks above.
 - A cell whose volume is above the largest float64 stops either driver with
   "cell volume is too large for binary64" before the step is evaluated, and
   a virial component that is not finite stops it with "virial is not
