@@ -884,6 +884,27 @@ if get_option('with_tests')
       timeout: 120,
       is_parallel: false,
     )
+    periodic_cell_mpi = executable(
+      'test_periodic_cell_mpi',
+      'tests/test_periodic_cell_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'periodic-cell-mpi',
+      python,
+      args: [
+        run_mpi_test,
+        '2',
+        periodic_cell_mpi.full_path(),
+        water_periodic_params_bin.full_path(),
+      ],
+      depends: [periodic_cell_mpi, water_periodic_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 60,
+      is_parallel: false,
+    )
     # The reference evaluator gives exact per-rank values to compare against.
     if not has_cpmd
       rank_consensus = executable(
