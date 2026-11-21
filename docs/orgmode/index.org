@@ -39,9 +39,9 @@ Long-running drivers create one ~CPMDCSession~ from ~CPMDParams~, then pass
 The result-carrier call, ~cpmdc_session_calculate_result()~, writes the same
 ~PotentialResult~ message used by ~rgpot~ RPC clients.
 
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.

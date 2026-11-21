@@ -33,7 +33,7 @@ index 80ca9e6..1ab8a43 100644
 +
  END MODULE embed_ctrl
 diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90
-index 985c887..c27c353 100644
+index a405f6a..dd694f1 100644
 --- a/src/rwfopt_utils.mod.F90
 +++ b/src/rwfopt_utils.mod.F90
 @@ -21,7 +21,8 @@ MODULE rwfopt_utils
@@ -56,7 +56,7 @@ index 985c887..c27c353 100644
    USE norm
    USE parac,                           ONLY: parai,&
                                               paral
-@@ -158,6 +160,10 @@ MODULE rwfopt_utils
+@@ -174,6 +176,10 @@ MODULE rwfopt_utils
    !     stored c0 lies beyond rmax, and -2 when nothing is stored; dist
    !     returns the smallest distance, HUGE when nothing is stored.
    PUBLIC :: embed_choose_warm_start_metric_v2
@@ -67,8 +67,8 @@ index 985c887..c27c353 100644
    INTEGER, PARAMETER :: embed_key_kind = SELECTED_INT_KIND(18)
    TYPE :: embed_orbital_slot
      INTEGER(embed_key_kind) :: key = 0
-@@ -178,6 +184,15 @@ MODULE rwfopt_utils
-   REAL(real_8), ALLOCATABLE, SAVE :: embed_store_geo(:), embed_call_geo(:)
+@@ -215,6 +221,15 @@ MODULE rwfopt_utils
+   LOGICAL, SAVE :: embed_pending_action = .FALSE.
    REAL(real_8), SAVE :: embed_history_cell(9) = 0.0_real_8
    LOGICAL, SAVE :: embed_history_set = .FALSE., embed_history_periodic = .FALSE.
 +  ! EXTRAPOLATE WFN for a host: the c0 that successive calls converged,
@@ -83,8 +83,7 @@ index 985c887..c27c353 100644
    !public :: lseprof
  
  CONTAINS
-@@ -217,7 +232,9 @@ CONTAINS
-     embed_have_orbitals = .FALSE.
+@@ -255,6 +270,8 @@ CONTAINS
      embed_have_partial = .FALSE.
      embed_store_converged = .FALSE.
      embed_history_set = .FALSE.
@@ -93,20 +92,23 @@ index 985c887..c27c353 100644
      IF (ALLOCATED(embed_c0_store)) THEN
        DEALLOCATE(embed_c0_store,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-@@ -300,3 +317,4 @@ CONTAINS
+@@ -507,6 +524,7 @@ CONTAINS
+     embed_store_s3 = s3
      embed_c0_store = c0
      ! copied c0 replaces the selected key
 +    CALL embed_break_history()
      embed_store_key = key
-@@ -410,6 +528,7 @@ CONTAINS
-     CHARACTER(*), PARAMETER :: procedureN = 'embed_select_orbital_slot'
-     INTEGER :: i, ierr
-     IF (embed_have_key .AND. key == embed_current_key) RETURN
+     embed_have_orbitals = .TRUE.
+     embed_have_partial = .FALSE.
+@@ -713,6 +731,7 @@ CONTAINS
+     ! ==--------------------------------------------------------------==
+     INTEGER :: i, n
+     IF (.NOT. embed_pending_action) RETURN
 +    CALL embed_break_history()
-     ! Park the c0 of the key being left and record whether it converged.
-     ! A partial copy is not a result and stays with the store.
-     IF (embed_have_key .AND. embed_have_orbitals .AND. &
-@@ -451,7 +469,8 @@ CONTAINS
+     IF (embed_pending_grow) THEN
+       n = 0
+       IF (ALLOCATED(embed_slots)) n = SIZE(embed_slots)
+@@ -882,6 +901,7 @@ CONTAINS
        RETURN
      ENDIF
      IF (dist > rmax) THEN
@@ -114,8 +116,7 @@ index 985c887..c27c353 100644
        embed_have_orbitals = .FALSE.
        embed_have_partial = .FALSE.
        embed_store_converged = .FALSE.
-       source = -1
-@@ -464,6 +483,7 @@ CONTAINS
+@@ -896,6 +916,7 @@ CONTAINS
             __LINE__,__FILE__)
      ENDIF
      embed_c0_store = embed_slots(best)%c0
@@ -123,7 +124,7 @@ index 985c887..c27c353 100644
      embed_store_key = embed_slots(best)%key
      embed_store_s1 = SIZE(embed_c0_store, 1)
      embed_store_s2 = SIZE(embed_c0_store, 2)
-@@ -474,6 +494,69 @@ CONTAINS
+@@ -907,6 +928,69 @@ CONTAINS
      source = 1
    END SUBROUTINE embed_choose_warm_start_metric_v2
  
@@ -193,7 +194,7 @@ index 985c887..c27c353 100644
  
    ! ==================================================================
    SUBROUTINE rwfopt(c0,c2,sc0,pme,gde,vpp,eigv)
-@@ -487,7 +570,7 @@ CONTAINS
+@@ -920,7 +1004,7 @@ CONTAINS
      CHARACTER(len=11), PARAMETER             :: filename = 'LOCPOT.cube'
  
      CHARACTER(len=30)                        :: filen, tag
@@ -202,7 +203,7 @@ index 985c887..c27c353 100644
                                                  rsave(:), rsave2(:),c2u(:,:)
  
  #if defined(_HAS_CUDA)
-@@ -682,10 +765,15 @@ CONTAINS
+@@ -1115,10 +1199,15 @@ CONTAINS
      IF (embed_warm_orbitals .AND. (embed_have_orbitals .OR. &
          (embed_have_partial .AND. cntl%pcgmin .AND. .NOT. cntl%diis))) &
          CALL embed_restore_orbitals(c0)
@@ -218,8 +219,7 @@ index 985c887..c27c353 100644
      IF (cntl%tksham)THEN
         CALL write_ksham(c0,c2,sc0,rhoe,psi,eigv)
         GOTO 150
-@@ -1303,14 +1391,17 @@ CONTAINS
-     IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN
+@@ -1737,13 +1826,16 @@ CONTAINS
        CALL embed_save_orbitals(c0)
        embed_have_partial = .FALSE.
        embed_store_converged = .TRUE.
