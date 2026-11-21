@@ -31,11 +31,13 @@ from ase.calculators.calculator import (
     all_changes,
     all_properties,
 )
+from ase.calculators.mixing import SumCalculator
 from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 from ase.filters import FrechetCellFilter
 from ase.io import read, write
+from ase.md.verlet import VelocityVerlet
 from ase.optimize import BFGS
 from ase.stress import voigt_6_to_full_3x3_stress
 from ase.units import create_units
@@ -1130,3 +1132,129 @@ def test_a_refused_read_keeps_the_calculator_usable(calc, steps):
         calc.read("old/run")
     assert atoms.get_potential_energy() == energy
     assert len(steps) == 1
+
+
+# --- state that is not a system change --------------------------------------
+
+
+def _tag(atoms: Atoms) -> None:
+    atoms.set_tags([1, 2, 3])
+
+
+def _momenta(atoms: Atoms) -> None:
+    atoms.set_momenta(np.ones((3, 3)))
+
+
+def _constraint(atoms: Atoms) -> None:
+    atoms.set_constraint(FixAtoms(indices=[0]))
+
+
+def _info(atoms: Atoms) -> None:
+    atoms.info["label"] = "kept"
+
+
+@pytest.mark.parametrize("touch", [_tag, _momenta, _constraint, _info])
+def test_state_outside_the_system_changes_keeps_the_step(calc, steps, touch):
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_forces()
+    touch(atoms)
+    assert calc.check_state(atoms) == []
+    atoms.get_potential_energy()
+    assert len(steps) == 1
+
+
+def test_an_equal_copy_of_the_atoms_reuses_the_step(periodic_calc, steps):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    stress = atoms.get_stress()
+    twin = atoms.copy()
+    assert periodic_calc.get_property("stress", twin) is not None
+    np.testing.assert_array_equal(periodic_calc.get_stress(twin), stress)
+    assert len(steps) == 1
+
+
+# --- parameters --------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "cutoff",
+    [None, 30.0, {"cutoff_ry": 30.0, "height_ry": 2.0, "width_ry": 5.0}],
+    ids=["none", "e0", "mapping"],
+)
+def test_parameters_round_trip_through_todict_and_a_parameters_file(
+    periodic_params, tmp_path, cutoff
+):
+    with CPMDCCalculator(periodic_params, constant_cutoff=cutoff) as calc:
+        saved = tmp_path / "calc.json"
+        calc.parameters.write(saved)
+        with CPMDCCalculator(**calc.todict()) as rebuilt:
+            assert rebuilt.parameters == calc.parameters
+            assert rebuilt.todict() == calc.todict()
+        with CPMDCCalculator(parameters=str(saved)) as loaded:
+            assert loaded.parameters == calc.parameters
+        json.dumps(calc.todict())
+
+
+# --- other ASE tools ----------------------------------------------------------
+
+
+def _summed(params_path: Path, atoms: Atoms) -> tuple[SumCalculator, CPMDCCalculator, CPMDCCalculator]:
+    first, second = CPMDCCalculator(params_path), CPMDCCalculator(params_path)
+    atoms.calc = SumCalculator([first, second])
+    return atoms.calc, first, second
+
+
+def test_sum_calculator_adds_two_calculators_and_calls_each_once(params, steps, tolerance):
+    atoms = water()
+    reference = water()
+    with CPMDCCalculator(params) as alone:
+        reference.calc = alone
+        energy, forces = reference.get_potential_energy(), reference.get_forces()
+    del steps[:]
+    summed, first, second = _summed(params, atoms)
+    try:
+        np.testing.assert_allclose(atoms.get_potential_energy(), 2.0 * energy, rtol=0, atol=tolerance)
+        np.testing.assert_allclose(atoms.get_forces(), 2.0 * forces, rtol=0, atol=tolerance)
+        assert len(steps) == 2
+        assert first.results.keys() == second.results.keys() == STEP
+    finally:
+        first.close()
+        second.close()
+
+
+def test_sum_calculator_adds_the_stress_of_a_periodic_cell(periodic_params, tolerance):
+    atoms = water(cell=CUBE, pbc=True)
+    reference = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(periodic_params) as alone:
+        reference.calc = alone
+        stress = reference.get_stress()
+    summed, first, second = _summed(periodic_params, atoms)
+    try:
+        np.testing.assert_allclose(atoms.get_stress(), 2.0 * stress, rtol=0, atol=tolerance)
+    finally:
+        first.close()
+        second.close()
+
+
+def test_sum_calculator_passes_on_the_refusal_of_stress_for_a_cluster(params):
+    atoms = water()
+    summed, first, second = _summed(params, atoms)
+    try:
+        with pytest.raises(PropertyNotImplementedError):
+            atoms.get_stress()
+    finally:
+        first.close()
+        second.close()
+
+
+def test_velocity_verlet_conserves_the_energy_with_one_step_per_move(calc, steps, opencpmd):
+    atoms = water()
+    atoms.calc = calc
+    atoms.set_momenta(np.array([[0.0, 0.0, 0.02], [0.0, 0.03, -0.01], [0.0, -0.03, -0.01]]))
+    with VelocityVerlet(atoms, 0.2 * units.fs, logfile=None) as dyn:
+        start = atoms.get_total_energy()
+        dyn.run(10)
+    drift = abs(atoms.get_total_energy() - start)
+    assert drift < (1e-3 if opencpmd else 1e-6)
+    assert len(steps) == 1 + 10
