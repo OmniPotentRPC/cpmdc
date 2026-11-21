@@ -134,3 +134,31 @@ int cpmdc_cell_rank3_state(const double cell[9]) {
     return CPMDC_CELL_VOLUME_UNDERFLOW;
   return CPMDC_CELL_FULL_RANK;
 }
+
+int cpmdc_cell_volume3(const double cell[9], double *volume) {
+  double scaled[9];
+  int any = 0;
+  *volume = 0.0;
+  for (int i = 0; i < 9; ++i) {
+    if (!isfinite(cell[i]))
+      return -1;
+    if (cell[i] != 0.0)
+      any = 1;
+  }
+  if (!any)
+    return 0;
+  int exponent = scale_exponent(cell);
+  for (int i = 0; i < 9; ++i)
+    scaled[i] = ldexp(cell[i], -exponent);
+  double determinant = abs_det_lu(scaled);
+  if (determinant == 0.0)
+    return 0;
+  int det_exponent = 0;
+  double mantissa = frexp(determinant, &det_exponent);
+  if (det_exponent + 3 * exponent > DBL_MAX_EXP) {
+    *volume = HUGE_VAL;
+    return -1;
+  }
+  *volume = ldexp(mantissa, det_exponent + 3 * exponent);
+  return isfinite(*volume) ? 0 : -1;
+}

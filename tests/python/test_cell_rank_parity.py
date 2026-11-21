@@ -1,5 +1,8 @@
 """The C and Python cell classifiers decide every cell the same way.
 
+They also compute the same volume, bit for bit, by LU with partial
+pivoting on the cell scaled by a power of two.
+
 ``cpmdc._rank`` and ``src/cpmdc_cell_rank.c`` run the same one-sided
 Jacobi iteration with the same binary64 operations, so they must agree on
 every bit pattern, including cells whose smallest singular value sits
@@ -12,6 +15,7 @@ neither exists.
 
 from __future__ import annotations
 
+import math
 import os
 import subprocess
 import sys
@@ -21,7 +25,7 @@ import numpy as np
 import pytest
 from conftest import ROOT
 
-from cpmdc._rank import _FULL_RANK, _cell_state
+from cpmdc._rank import _FULL_RANK, _cell_state, _cell_volume
 
 _EPS = sys.float_info.epsilon
 _TINY = sys.float_info.min
@@ -38,7 +42,8 @@ PROBE = _probe_path()
 pytestmark = pytest.mark.skipif(PROBE is None, reason="cell_rank_probe is not built")
 
 
-def _c_states(cells: list[np.ndarray]) -> list[int]:
+def _c_results(cells: list[np.ndarray]) -> list[tuple[int, int, float]]:
+    """``(state, volume return code, volume)`` from the C helpers."""
     assert PROBE is not None
     text = "".join(
         " ".join(float(value).hex() for value in np.asarray(cell, dtype=float).ravel()) + "\n"
@@ -47,7 +52,28 @@ def _c_states(cells: list[np.ndarray]) -> list[int]:
     done = subprocess.run(
         [str(PROBE)], input=text, capture_output=True, text=True, check=True, timeout=60
     )
-    return [int(line) for line in done.stdout.split()]
+    results = []
+    for line in done.stdout.splitlines():
+        state, rc, volume = line.split()
+        results.append((int(state), int(rc), float.fromhex(volume)))
+    return results
+
+
+def _c_states(cells: list[np.ndarray]) -> list[int]:
+    return [state for state, _, _ in _c_results(cells)]
+
+
+def _python_volume(cell: np.ndarray) -> tuple[int, float]:
+    try:
+        volume = _cell_volume(cell)
+    except ValueError:
+        return -1, 0.0
+    return (0, volume) if math.isfinite(volume) else (-1, volume)
+
+
+def _assert_volumes_match(cells: list[np.ndarray]) -> None:
+    for cell, (_, rc, volume) in zip(cells, _c_results(cells), strict=True):
+        assert (rc, volume) == _python_volume(cell)
 
 
 def _rotation(rng: np.random.Generator) -> np.ndarray:
@@ -97,6 +123,7 @@ def test_rotated_cells_near_the_cutoff_get_one_answer(seed: int, low: float, hig
     cells = [_rotated(rng, rng.uniform(low, high)) for _ in range(2000)]
     python = [_cell_state(cell) for cell in cells]
     assert _c_states(cells) == python
+    _assert_volumes_match(cells)
     # Both answers occur, so the band does straddle the cutoff as computed.
     assert {state == _FULL_RANK for state in python} == {True, False}
 
@@ -145,3 +172,25 @@ def test_named_cells_get_one_answer() -> None:
         0, 1, 1, -1, -1, 1, -2, -2, 1, 1, -3, -3, 1, -3, 1,
     ]
     assert abs(np.prod(np.diag(cells[12]))) / _TINY == pytest.approx(1.348, abs=1e-3)
+    _assert_volumes_match(cells)
+
+
+def test_volume_of_a_cancelling_cell_is_exact() -> None:
+    """The three-term determinant of this accepted cell cancels to zero."""
+    near = 1.0 + 28.0 * _EPS
+    cell = np.array([[1.0, 1.0, 1.0], [1.0, near, 1.0], [1.0, 1.0, near]])
+    assert _cell_state(cell) == _FULL_RANK
+    expected = (28.0 * _EPS) ** 2
+    assert expected == pytest.approx(3.865418435582966e-29, rel=1e-15)
+    assert float(np.linalg.det(cell)) == pytest.approx(expected, rel=1e-12)
+    assert _cell_volume(cell) == expected
+    assert _c_results([cell])[0][1:] == (0, expected)
+
+
+def test_volume_above_the_largest_float_is_refused() -> None:
+    cell = np.diag([_HUGE / 2.0] * 3)
+    assert _cell_state(cell) == _FULL_RANK
+    assert _cell_volume(cell) == math.inf
+    assert _c_results([cell])[0][1:] == (-1, math.inf)
+    assert _c_results([np.diag([2.0**341] * 3)])[0][1:] == (0, 2.0**1023)
+    assert _cell_volume(np.diag([2.0**341] * 3)) == 2.0**1023

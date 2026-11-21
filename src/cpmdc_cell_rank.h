@@ -19,6 +19,10 @@ enum {
  * numpy.linalg.matrix_rank cutoff. cpmdc._rank repeats the iteration. */
 int cpmdc_cell_rank3_state(const double cell[9]);
 
+/* |det cell| by LU with partial pivoting on the cell scaled by a power of
+ * two. Returns 0 with *volume set, or -1 for a non-finite entry or a
+ * volume above DBL_MAX. An all-zero or singular cell gives 0. */
+int cpmdc_cell_volume3(const double cell[9], double *volume);
 
 #ifdef __cplusplus
 }

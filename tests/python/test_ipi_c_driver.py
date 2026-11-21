@@ -431,6 +431,22 @@ def test_volume_underflow_is_judged_on_the_bohr_wire_cell(
         assert absent not in err
 
 
+@pytest.mark.parametrize("kind", ["c", "python"])
+def test_cell_volume_above_the_largest_float_stops_both_drivers(
+    kind, mini, socket_dir, periodic_params, drivers
+):
+    side = float(np.finfo(np.float64).max) / 2.0
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(bohr_posdata(np.diag([side] * 3), np.asarray(WATER) / BOHR_TO_ANGSTROM))
+    code, err = client.finish()
+    assert code == 1
+    assert "cell volume is too large for binary64" in err
+
+
 @pytest.mark.parametrize(
     "message, expected",
     [

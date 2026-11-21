@@ -48,7 +48,7 @@ import time
 from typing import IO, Any, Sequence
 
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session, _elements
-from cpmdc._rank import _FULL_RANK, _NONFINITE, _VOLUME_UNDERFLOW, _cell_state
+from cpmdc._rank import _FULL_RANK, _NONFINITE, _VOLUME_UNDERFLOW, _cell_state, _cell_volume
 from cpmdc._elements import species_numbers
 
 __all__ = [
@@ -126,14 +126,6 @@ def connect(
 
 def _header(name: str) -> bytes:
     return name.encode("ascii").ljust(HEADER_BYTES)
-
-
-def _det3(m: Sequence[float]) -> float:
-    return (
-        m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
-        + m[2] * (m[3] * m[7] - m[4] * m[6])
-    )
 
 
 def _batch_size(init: bytes) -> int:
@@ -289,6 +281,12 @@ class Driver:
         n_atoms = len(positions) // 3
         self._check_count(n_atoms)
         rows = self._cell_rows(cell)
+        volume = 0.0
+        if rows is not None and all(map(math.isfinite, cell)):
+            # The rows cpmdc_session_calculate_au() takes, in Bohr, as cpmdc-ipi-c sends them.
+            volume = _cell_volume([[cell[3 * i + k] for i in range(3)] for k in range(3)])
+            if not math.isfinite(volume):
+                raise CPMDCError("cell volume is too large for binary64")
         coords = [
             [positions[3 * i + k] * BOHR_TO_ANGSTROM for k in range(3)] for i in range(n_atoms)
         ]
@@ -296,8 +294,9 @@ class Driver:
         forces = [component for row in done.forces_h_bohr for component in row]
         virial = [0.0] * 9
         if rows is not None and done.stress_h_bohr3 is not None:
-            volume = abs(_det3(cell))
             virial = [volume * component for component in done.stress_h_bohr3]
+            if not all(map(math.isfinite, virial)):
+                raise CPMDCError("virial is not finite")
         elif rows is not None and not self._warned_virial:
             self._warned_virial = True
             print(

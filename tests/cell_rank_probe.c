@@ -1,6 +1,6 @@
-/* Reads cells, nine reals per line in strtod syntax, and prints
- * cpmdc_cell_rank3_state() for each, so a test can compare it with
- * cpmdc._rank on the same bits. */
+/* Reads cells, nine reals per line in strtod syntax, and prints for each
+ * "state rc volume": cpmdc_cell_rank3_state(), then cpmdc_cell_volume3()'s
+ * return code and volume in %a, so a test can compare the bits. */
 #include "cpmdc_cell_rank.h"
 
 #include <stdio.h>
@@ -20,7 +20,9 @@ int main(void) {
       }
       p = end;
     }
-    printf("%d\n", cpmdc_cell_rank3_state(cell));
+    double volume = 0.0;
+    int rc = cpmdc_cell_volume3(cell, &volume);
+    printf("%d %d %a\n", cpmdc_cell_rank3_state(cell), rc, volume);
   }
   return 0;
 }
