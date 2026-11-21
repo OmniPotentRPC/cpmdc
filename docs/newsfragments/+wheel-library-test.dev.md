@@ -1,0 +1,1 @@
+The installed-package test suite clears `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, `RGPOT_CPMD_ENGINE`, and `CPMDC_SCHEMA` before each test and checks that the Python package still finds its bundled shared library and schema after the working directory changes.

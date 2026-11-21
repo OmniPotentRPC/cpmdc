@@ -13,9 +13,27 @@ import cpmdc
 pytestmark = pytest.mark.skipif(not INSTALLED, reason="CPMDC_TEST_INSTALLED=1 is not set")
 
 
+@pytest.fixture(autouse=True)
+def clear_lookup_overrides(monkeypatch):
+    for name in (
+        "CPMDC_LIBRARY",
+        "RGPOT_CPMDC_ENGINE",
+        "RGPOT_CPMD_ENGINE",
+        "CPMDC_SCHEMA",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_package_comes_from_site_packages():
     package = Path(cpmdc.__file__).resolve().parent
     assert not package.is_relative_to(ROOT)
+    assert cpmdc.find_library().resolve().parent == package.parent / ".cpmdc.mesonpy.libs"
+    assert cpmdc.find_schema().resolve() == package / "schema" / "Potentials.capnp"
+
+
+def test_wheel_library_is_found_after_changing_directory(tmp_path, monkeypatch):
+    package = Path(cpmdc.__file__).resolve().parent
+    monkeypatch.chdir(tmp_path)
     assert cpmdc.find_library().resolve().parent == package.parent / ".cpmdc.mesonpy.libs"
     assert cpmdc.find_schema().resolve() == package / "schema" / "Potentials.capnp"
 
