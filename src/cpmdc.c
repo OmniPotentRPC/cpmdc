@@ -67,6 +67,7 @@ int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
 void cpmdc_embed_finalize(void);
 void cpmdc_embed_select_orbitals(long long key);
 int cpmdc_embed_copy_orbitals(long long from_key, long long to_key);
+void cpmdc_embed_apply_orbital_slot_limit(int limit);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
 #if defined(CPMDC_HAS_CPMD)
 int cpmdc_embed_store_comm(int fcomm);
@@ -1793,6 +1794,157 @@ static int rank_consensus(int *ok, int *stop, size_t n3, double *energy,
   return 0;
 }
 
+/* CPMDC_ORBITAL_SLOT_LIMIT:
+ *   unset => unlimited parked orbitals
+ *   set   => positive decimal integer */
+static void parse_orbital_slot_limit(int *limit, int *is_set, int *is_valid) {
+  const char *raw;
+  long long acc = 0;
+  *limit = 0;
+  *is_set = 0;
+  *is_valid = 1;
+  raw = getenv("CPMDC_ORBITAL_SLOT_LIMIT");
+  if (!raw)
+    return;
+  *is_set = 1;
+  *is_valid = 0;
+  while (*raw == ' ')
+    raw++;
+  if (*raw == '+')
+    raw++;
+  if (*raw < '0' || *raw > '9')
+    return;
+  while (*raw >= '0' && *raw <= '9') {
+    int digit = *raw - '0';
+    if (acc > ((long long)INT_MAX - digit) / 10)
+      return;
+    acc = acc * 10 + digit;
+    raw++;
+  }
+  while (*raw == ' ')
+    raw++;
+  if (*raw != '\0' || acc <= 0)
+    return;
+  *limit = (int)acc;
+  *is_valid = 1;
+}
+
+static int sync_orbital_slot_limit(void) {
+  int limit = 0;
+  int is_set = 0;
+  int is_valid = 1;
+  int agreed = 0;
+  parse_orbital_slot_limit(&limit, &is_set, &is_valid);
+  agreed = (is_valid && is_set) ? limit : 0;
+#if defined(CPMDC_HAVE_MPI)
+  {
+    static int cache_ready = 0;
+    static MPI_Comm cached_comm;
+    static int cached_all_unset = 0;
+    int inited = 0;
+    int finalized = 1;
+    if (MPI_Initialized(&inited) == MPI_SUCCESS && inited &&
+        MPI_Finalized(&finalized) == MPI_SUCCESS && !finalized) {
+      MPI_Comm comm;
+      int npe = 1;
+      int same_comm = 0;
+      if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
+        comm = MPI_COMM_WORLD;
+      if (cache_ready &&
+          MPI_Comm_compare(cached_comm, comm, &same_comm) != MPI_SUCCESS)
+        same_comm = 0;
+      if (!cache_ready || (same_comm != MPI_IDENT && same_comm != MPI_CONGRUENT)) {
+        cache_ready = 1;
+        cached_comm = comm;
+        cached_all_unset = 0;
+      }
+      if (MPI_Comm_size(comm, &npe) != MPI_SUCCESS) {
+        cpmdc_note_embed_failure(
+            "CPMDC_ORBITAL_SLOT_LIMIT: MPI communicator query failed");
+        return 0;
+      }
+      if (npe > 1) {
+        if (is_valid && !is_set && cached_all_unset) {
+          agreed = 0;
+        } else {
+          int rbuf[4];
+          rbuf[0] = is_valid ? 0 : 1;
+          rbuf[1] = (is_valid && is_set) ? limit : 0;
+          /* Combine two reductions in one collective:
+           * - positive limit, if any
+           * - matching negative check for mismatch detection */
+          rbuf[2] = (is_valid && is_set) ? -limit : INT_MIN;
+          rbuf[3] = is_set ? 1 : 0;
+          if (MPI_Allreduce(MPI_IN_PLACE, rbuf, 4, MPI_INT, MPI_MAX, comm) !=
+              MPI_SUCCESS) {
+            cpmdc_note_embed_failure(
+                "CPMDC_ORBITAL_SLOT_LIMIT: MPI collective failed");
+            return 0;
+          }
+          if (rbuf[0] != 0) {
+            cpmdc_note_embed_failure(
+                "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer");
+            return 0;
+          }
+          if (rbuf[1] > 0 && (-rbuf[2]) != rbuf[1]) {
+            cpmdc_note_embed_failure(
+                "CPMDC_ORBITAL_SLOT_LIMIT differs across calculator ranks");
+            return 0;
+          }
+          agreed = rbuf[1];
+          cached_all_unset = (rbuf[3] == 0);
+        }
+      } else if (!is_valid) {
+        cpmdc_note_embed_failure(
+            "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer");
+        return 0;
+      }
+    } else if (!is_valid) {
+      cpmdc_note_embed_failure(
+          "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer");
+      return 0;
+    }
+  }
+#else
+  if (!is_valid) {
+    cpmdc_note_embed_failure(
+        "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer");
+    return 0;
+  }
+#endif
+  cpmdc_embed_apply_orbital_slot_limit(agreed);
+  return 1;
+}
+
+static int sync_orbital_slot_limit_guarded(CPMDCEmbedImage *image) {
+  int stop = 0;
+  cpmdc_stop_arm();
+  if (!sync_orbital_slot_limit()) {
+    stop = cpmdc_stop_code();
+    cpmdc_stop_disarm();
+    if (stop != 0) {
+      (void)cpmdc_embed_reset_state(image);
+      cpmdc_note_embed_failure("CPMD stopgm during embed SCF");
+    }
+    return 0;
+  }
+  stop = cpmdc_stop_code();
+  cpmdc_stop_disarm();
+  if (stop != 0) {
+    (void)cpmdc_embed_reset_state(image);
+    cpmdc_note_embed_failure("CPMD stopgm during embed SCF");
+    return 0;
+  }
+  return 1;
+}
+
+static CPMDCResult orbital_slot_limit_rejected(void) {
+  const char *detail =
+      g_embed_detail[0] ? g_embed_detail
+                        : "CPMDC_ORBITAL_SLOT_LIMIT must be a positive integer";
+  return fail_msg(detail);
+}
+
 static CPMDCResult
 energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
                                  const CPMDCScalarOverrides *overrides,
@@ -1821,6 +1973,15 @@ energy_gradient_cell_with_params(const void *params_bytes, size_t params_size,
   (void)params_size;
   (void)overrides;
   cpmdc_stop_arm();
+  if (!sync_orbital_slot_limit()) {
+    int sync_stop = cpmdc_stop_code();
+    cpmdc_stop_disarm();
+    if (sync_stop != 0) {
+      (void)cpmdc_embed_reset_state(image);
+      return fail_msg("CPMD stopgm during embed SCF");
+    }
+    return orbital_slot_limit_rejected();
+  }
   int ok = cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, cell,
                                    has_cell ? 1 : 0, &energy, grad_h_bohr,
                                    image);
@@ -2381,6 +2542,10 @@ static CPMDCResult session_energy_gradient_cell(
     return fail_msg("atomic numbers must be in 1..118");
   if (session_accept_topology(session, (size_t)n_atoms, atomic_numbers) != 0)
     return fail_msg("topology change requires a new session");
+  /* Enforce before the cache and before select: an invalid value must not
+   * return cached forces and every rank installs the same cap before parking. */
+  if (!sync_orbital_slot_limit_guarded(&session->image))
+    return orbital_slot_limit_rejected();
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
