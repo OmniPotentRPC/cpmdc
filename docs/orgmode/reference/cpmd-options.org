@@ -183,15 +183,24 @@ page.
 
 Missing core sections receive minimal defaults from the renderer so a sparse
 ~CPMDParams~ still produces a valid-looking deck for debugging.
-When structured ~dft~ or ~system~ sections provide explicit non-default
-scalar method values (functional, cutoff, charge, multiplicity), those
-section values are also the effective embed configuration passed through the
-C ABI.
-Schema defaults on typed ~system~ (~cutOffRy~ 70 Ry, ~charge~ 0,
-~multiplicity~ 1) and ~dft~ (~functional~ ~BLYP~) sections are treated as
-unset, so they neither replace explicit root ~CPMDParams~ values nor block
-merged ~common~ overlay scalars in the rendered deck, cluster HFX solver
-selection, or embed configuration.
+When structured ~dft~ or ~system~ sections provide scalar method values
+(functional, cutoff, charge, multiplicity), those section values are also the
+effective embed configuration passed through the C ABI.
+The functional, cutoff, charge, and multiplicity lines the renderer writes
+and that configuration follow the same precedence.
+~raw~, ~generic~, and ~set~ sections, ~inputBlocks~, and section ~directives~
+are rendered as given and are not read back into that configuration, so the
+carrier check runs for every set overlay field of a ~common~ overlay,
+whether or not a typed field also sets it, and a carrier of the same setting
+rejects that field.
+A ~FUNCTIONAL~ directive in a typed ~dft~ section or a ~DFT.FUNCTIONAL~ set
+directive is rejected when the deck is rendered, because the rendered ~&DFT~
+section already carries the functional.
+A section value that differs from the schema default (functional ~BLYP~,
+cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field.
+A method field in a typed ~dft~ or ~system~ section that is omitted or holds
+its schema default is unset and does not replace the top-level arm or overlay
+value, so a typed ~system~ charge of 0 is also unset.
 For geometry deck rendering, ~atoms.pseudopotentials~ groups ~ForceInput~
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover

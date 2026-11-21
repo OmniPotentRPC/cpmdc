@@ -37,6 +37,26 @@ typedef struct CPMDCScalarOverrides {
 /** Why the last render on this thread rejected the message; "" if unknown. */
 const char *cpmdc_params_render_reason(void);
 
+/** Which scalars a message sets itself, in the top-level fields or a typed
+ *  &SYSTEM or &DFT section. A field set to its schema default (functional
+ *  BLYP, cutoff 70 Ry, charge 0, multiplicity 1) reads as unset. */
+typedef struct CPMDCTypedScalars {
+  int functional;
+  int cutoff;
+  int charge;
+  int multiplicity;
+} CPMDCTypedScalars;
+
+int cpmdc_params_typed_scalars(CPMDParams_ptr params,
+                               CPMDCTypedScalars *typed);
+
+/**
+ * The functional, cutoff, charge, and multiplicity of a message. Both deck
+ * renderers and the configuration the embed records read these values. A
+ * value a typed field sets beats `overrides`, `overrides` beats a schema
+ * default, and a typed section beats the top-level field. The override
+ * cutoff is in Ry.
+ */
 int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
                                   size_t functional_size, double *cutoff_ry,
                                   int *charge, int *multiplicity);
