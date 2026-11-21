@@ -364,9 +364,11 @@ def test_batched_init_is_refused(mini, socket_dir, params, drivers):
         (b"batch_size:0", "batch_size 0"),
         (b"batch_size:-1", "batch_size -1"),
         (b"batch_size:1,batch_size:1", "batch_size appears more than once"),
+        (b"batch_size:1,batch_size:4", "batch_size appears more than once"),
+        (b"batch_size:1,batch_size:nope", "batch_size appears more than once"),
         (b"\xff", "INIT is not UTF-8"),
     ],
-    ids=["word", "zero", "negative", "duplicate", "not-utf8"],
+    ids=["word", "zero", "negative", "duplicate", "later-four", "later-word", "not-utf8"],
 )
 def test_invalid_init_is_refused(mini, socket_dir, params, drivers, init, expected):
     client = drivers(
