@@ -31,6 +31,7 @@ _IPI = (
     "the server sent a cell without three independent vectors; send an "
     "all-zero cell or start cpmdc-ipi with --cluster for an isolated system"
 )
+_IPI_VOLUME = "the server sent a cell whose volume is too small for binary64"
 _EPS = float(np.finfo(np.float64).eps)
 # max(m, n) for the 3 by 3 cell, as numpy.linalg.matrix_rank applies it.
 _RANK_ORDER = 3
@@ -253,5 +254,23 @@ def test_subnormal_cell_is_refused_before_its_volume_underflows() -> None:
     assert _cell_is_rank_deficient(cell)
     with pytest.raises(ValueError, match=re.escape(_ASE)):
         _ase(cell)
-    with pytest.raises(ProtocolError, match=re.escape(_IPI)):
+    with pytest.raises(ProtocolError, match=re.escape(_IPI_VOLUME)):
         _ipi(cell)
+
+
+def test_ipi_judges_the_volume_on_the_bohr_wire_values() -> None:
+    """cpmdc-ipi-c sees Bohr; so does cpmdc-ipi, not the Angstrom it sends on."""
+    tiny = float(np.finfo(np.float64).tiny)
+    normal = 3.1072325e-103
+    assert normal**3 / tiny == pytest.approx(1.3482698433963591, rel=1e-12)
+    assert (normal * BOHR_TO_ANGSTROM) ** 3 < tiny
+    wire = [normal, 0.0, 0.0, 0.0, normal, 0.0, 0.0, 0.0, normal]
+    rows = Driver._cell_rows(SimpleNamespace(cluster=False), wire)
+    assert rows is not None
+    assert rows[0][0] == normal * BOHR_TO_ANGSTROM
+    below = 2.8e-103
+    assert below**3 < tiny
+    with pytest.raises(ProtocolError, match=re.escape(_IPI_VOLUME)):
+        Driver._cell_rows(
+            SimpleNamespace(cluster=False), [below, 0.0, 0.0, 0.0, below, 0.0, 0.0, 0.0, below]
+        )
