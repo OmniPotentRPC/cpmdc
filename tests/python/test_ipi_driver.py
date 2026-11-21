@@ -681,19 +681,37 @@ def test_batch_size_one_is_one() -> None:
     assert cpmdc.ipi._batch_size(b"comment, batch_size: 1") == 1
 
 
-def test_negative_wait_is_rejected() -> None:
-    with pytest.raises(ValueError, match="wait"):
-        connect(unix="cpmdc-not-a-socket", wait=-1.0)
+@pytest.mark.parametrize(
+    ("wait", "message"),
+    [
+        (-1.0, "wait must be zero or positive"),
+        (float("nan"), "wait must be finite"),
+        (float("inf"), "wait must be finite"),
+    ],
+    ids=["negative", "nan", "inf"],
+)
+def test_invalid_wait_is_rejected_before_a_socket_opens(
+    wait: float, message: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_socket(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("connect opened a socket before it checked wait")
+
+    monkeypatch.setattr(socket, "socket", no_socket)
+    monkeypatch.setattr(socket, "create_connection", no_socket)
+    with pytest.raises(ValueError, match=message):
+        connect(unix="cpmdc-not-a-socket", wait=wait)
+    with pytest.raises(ValueError, match=message):
+        connect(port=1, wait=wait)
 
 
-def test_non_finite_wait_is_rejected() -> None:
-    with pytest.raises(ValueError, match="wait must be finite"):
-        connect(unix="cpmdc-not-a-socket", wait=float("nan"))
-
-
-def test_duplicate_batch_size_is_rejected() -> None:
+@pytest.mark.parametrize(
+    "text",
+    [b"batch_size:1, batch_size:1", b"batch_size:1,batch_size:4", b"batch_size:1,batch_size:nope"],
+    ids=["repeated-one", "later-four", "later-word"],
+)
+def test_duplicate_batch_size_is_rejected(text: bytes) -> None:
     with pytest.raises(ProtocolError, match="batch_size appears more than once"):
-        cpmdc.ipi._batch_size(b"batch_size:1, batch_size:1")
+        cpmdc.ipi._batch_size(text)
 
 
 def test_zero_wait_tries_once() -> None:
