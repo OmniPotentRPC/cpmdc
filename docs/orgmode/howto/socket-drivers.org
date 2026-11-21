@@ -279,9 +279,13 @@ the two agree to 1e-10, which the pytest suite checks.
   periodic cell without a library stress warns once on standard error.
 - A cell that is neither all zero nor rank 3 stops the driver. Rank 3
   uses the numpy.linalg.matrix_rank cutoff: a singular value counts only
-  when it exceeds the largest times 3 times the float64 unit roundoff. A
-  full-rank cell whose volume is too small for a normal float64 is also
-  refused before its virial can underflow to zero.
+  when it exceeds the largest times 3 times the float64 unit roundoff.
+  Both drivers and the library compute the singular values with the same
+  one-sided Jacobi iteration on the cell scaled by a power of two, so they
+  agree on every cell, including those within rounding of the cutoff,
+  where two SVD routines can disagree. A full-rank cell whose volume is
+  too small for a normal float64 is also refused before its virial can
+  underflow to zero.
 - ~--wait~ must be finite and zero or positive.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.

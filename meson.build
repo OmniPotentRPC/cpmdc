@@ -1654,6 +1654,16 @@ test(
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
   }
   pytest_depends = [cpmdc_shared, water_params_bin, water_periodic_params_bin]
+  # The C cell classifier on its own, for the Python parity tests.
+  cell_rank_probe = executable(
+    'cell_rank_probe',
+    ['tests/cell_rank_probe.c', 'src/cpmdc_cell_rank.c'],
+    include_directories: include_directories('src'),
+    dependencies: [math_dep],
+    c_args: common_c_args,
+  )
+  pytest_env += {'CPMDC_CELL_RANK_PROBE': cell_rank_probe.full_path()}
+  pytest_depends += cell_rank_probe
   if not is_disabler(cpmdc_ipi_exe)
     pytest_env += {'CPMDC_IPI_C': cpmdc_ipi_exe.full_path()}
     pytest_depends += cpmdc_ipi_exe
