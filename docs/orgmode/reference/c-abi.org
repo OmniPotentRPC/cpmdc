@@ -283,9 +283,9 @@ These calls configure the process-wide state that the global array calls use.
 With the arm unset, a ~common~ overlay (~CommonMethodSpec~) lowers into
 synthesized ~CPMDParams~.
 The fields it lowers are the ones ~cpmdc_capabilities_result()~ lists:
-~xcFunctionals~, ~basisSet~, ~planewaveCutoffEv~, ~charge~, ~spinMultiplicity~,
-~scfEnergyToleranceEv~, ~scfMaxIterations~, ~kMesh~, ~smearing~,
-~vanDerWaalsMethod~, and ~vanDerWaalsS6~.
+~xcFunctionals~, ~basisSet~, ~planewaveCutoffEv~, ~charge~, ~hasCharge~,
+~spinMultiplicity~, ~scfEnergyToleranceEv~, ~scfMaxIterations~, ~kMesh~,
+~smearing~, ~vanDerWaalsMethod~, and ~vanDerWaalsS6~.
 ~scfEnergyToleranceEv~ fills both values of ~CONVERGENCE ORBITALS~: the orbital
 threshold and the total-energy change between steps, which ends a smeared
 (free-energy) SCF once the energy settles.
@@ -298,12 +298,14 @@ A value a typed field sets beats the overlay, and the overlay beats a schema
 default.
 A typed ~dft~ or ~system~ section beats the top-level field of the same name.
 A field that is omitted or holds its schema default (functional ~BLYP~, cutoff
-70 Ry, charge 0, multiplicity 1) is unset and does not replace the top-level
-arm or overlay value.
+70 Ry, charge 0 with ~hasCharge~ ~false~, multiplicity 1) is unset and does not
+replace the top-level arm or overlay value.
 So ~xcFunctionals~ fills a ~BLYP~ functional, ~planewaveCutoffEv~ fills a
-70 Ry cutoff, ~charge~ fills a charge of 0, and ~spinMultiplicity~ fills a
-multiplicity of 1.
-A typed ~system~ charge of 0 is unset; a non-zero system charge is explicit.
+70 Ry cutoff, ~charge~ fills a charge of 0 with ~hasCharge~ ~false~, and
+~spinMultiplicity~ fills a multiplicity of 1.
+A typed ~system~ charge of 0 with ~hasCharge~ ~false~ is unset; a non-zero
+system charge, and zero ~system.charge~ with ~system.hasCharge~ ~true~, is
+explicit.
 ~planewaveCutoffEv~ is in eV and the deck cutoff is in Ry, so the merge
 divides by the Rydberg energy in eV (13.605693 eV).
 ~spinMultiplicity~ 0 is unset, and any other value, an explicit singlet
@@ -313,7 +315,8 @@ token is rejected for every arm functional.
 An opaque carrier is rendered as given and is not read back into the
 recorded functional, cutoff, charge, or multiplicity.
 So the carrier check runs for every set overlay field, whether or not a
-typed field also sets it.
+typed field also sets it, including zero ~charge~ with ~hasCharge~ ~true~ and
+an explicit singlet ~spinMultiplicity~ of 1.
 The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
 section opens the owning section (~&DFT~ for ~xcFunctionals~, ~&SYSTEM~ for
 the cutoff, charge, and multiplicity), when a set directive names

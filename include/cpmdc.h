@@ -252,19 +252,21 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * multiplicity lines cpmdc writes. A value a typed field sets beats the overlay,
  * the overlay beats a schema default, and a typed `dft` or `system` section
  * beats the top-level field. A field that is omitted or holds its schema
- * default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1) is
- * unset, so it replaces neither the top-level arm value nor a merged
- * overlay value; a typed `system` charge of 0 is unset and a non-zero one is
- * explicit. `planewaveCutoffEv` is in eV and is converted to Ry.
- * `spinMultiplicity` 0 is unset, and any other value, an explicit singlet
- * included, is set. An `xcFunctionals` list is mapped before that
- * precedence, and an unmapped token is rejected for every arm functional.
+ * default (functional `BLYP`, cutoff 70 Ry, charge 0 with `hasCharge` false,
+ * multiplicity 1) is unset, so it replaces neither the top-level arm value nor
+ * a merged overlay value; a typed `system` charge of 0 with `hasCharge` false
+ * is unset, and a non-zero charge or zero `system.charge` with
+ * `system.hasCharge` true is explicit. `planewaveCutoffEv` is in eV and is
+ * converted to Ry. `spinMultiplicity` 0 is unset, and any other value, an
+ * explicit singlet included, is set. An `xcFunctionals` list is mapped before
+ * that precedence, and an unmapped token is rejected for every arm functional.
  * Those opaque carriers are rendered as given and are not read back into
  * the recorded settings, so the carrier check runs for every set overlay
- * field, whether or not a typed field also sets it: the overlay field is
- * rejected when `inputBlocks`, a raw section, or a generic section opens
- * the owning section (`&DFT` for `xcFunctionals`, `&SYSTEM` for the
- * cutoff, charge, and multiplicity), when a set directive names
+ * field, whether or not a typed field also sets it, including zero `charge`
+ * with `hasCharge` true and an explicit singlet `spinMultiplicity` of 1: the
+ * overlay field is rejected when `inputBlocks`, a raw section, or a generic
+ * section opens the owning section (`&DFT` for `xcFunctionals`, `&SYSTEM` for
+ * the cutoff, charge, and multiplicity), when a set directive names
  * `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or
  * `SYSTEM.MULTIPLICITY`, or when the `directives` list of the typed `dft`
  * section holds `FUNCTIONAL` or that of the typed `system` section holds
@@ -283,9 +285,10 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * `vanDerWaalsS6` without `vdwParams`, a non-plane-wave `basisSet`, and a
  * negative or non-finite overlay scalar. With the arm unset, the overlay
  * lowers to synthesized `CPMDParams`: functional, basis set, plane-wave
- * cutoff, charge, multiplicity, SCF energy tolerance, MAXITER, the
- * Monkhorst-Pack kMesh, smearing, and the van der Waals method and S6, the
- * fields `cpmdc_capabilities_result()` lists. That overlay-only lowering
+ * cutoff, charge and `hasCharge`, multiplicity, SCF energy tolerance,
+ * MAXITER, the Monkhorst-Pack kMesh, smearing, and the van der Waals method
+ * and S6, the fields `cpmdc_capabilities_result()` lists. That overlay-only
+ * lowering
  * also rejects `vanDerWaalsS6` without `vanDerWaalsMethod` and a non-zero
  * `smearing.widthEv` with `kind = none`. Overlay fields without a CPMD
  * lowering are rejected. Every rejection leaves a `cpmdc_last_error()` that

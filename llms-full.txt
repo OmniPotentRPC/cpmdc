@@ -5677,9 +5677,9 @@ These calls configure the process-wide state that the global array calls use.
 With the arm unset, a `common` overlay (`CommonMethodSpec`) lowers into
 synthesized `CPMDParams`.
 The fields it lowers are the ones `cpmdc_capabilities_result()` lists:
-`xcFunctionals`, `basisSet`, `planewaveCutoffEv`, `charge`, `spinMultiplicity`,
-`scfEnergyToleranceEv`, `scfMaxIterations`, `kMesh`, `smearing`,
-`vanDerWaalsMethod`, and `vanDerWaalsS6`.
+`xcFunctionals`, `basisSet`, `planewaveCutoffEv`, `charge`, `hasCharge`,
+`spinMultiplicity`, `scfEnergyToleranceEv`, `scfMaxIterations`, `kMesh`,
+`smearing`, `vanDerWaalsMethod`, and `vanDerWaalsS6`.
 `scfEnergyToleranceEv` fills both values of `CONVERGENCE ORBITALS`: the orbital
 threshold and the total-energy change between steps, which ends a smeared
 (free-energy) SCF once the energy settles.
@@ -5692,12 +5692,14 @@ A value a typed field sets beats the overlay, and the overlay beats a schema
 default.
 A typed `dft` or `system` section beats the top-level field of the same name.
 A field that is omitted or holds its schema default (functional `BLYP`, cutoff
-70 Ry, charge 0, multiplicity 1) is unset and does not replace the top-level
-arm or overlay value.
+70 Ry, charge 0 with `hasCharge` `false`, multiplicity 1) is unset and does not
+replace the top-level arm or overlay value.
 So `xcFunctionals` fills a `BLYP` functional, `planewaveCutoffEv` fills a
-70 Ry cutoff, `charge` fills a charge of 0, and `spinMultiplicity` fills a
-multiplicity of 1.
-A typed `system` charge of 0 is unset; a non-zero system charge is explicit.
+70 Ry cutoff, `charge` fills a charge of 0 with `hasCharge` `false`, and
+`spinMultiplicity` fills a multiplicity of 1.
+A typed `system` charge of 0 with `hasCharge` `false` is unset; a non-zero
+system charge, and zero `system.charge` with `system.hasCharge` `true`, is
+explicit.
 `planewaveCutoffEv` is in eV and the deck cutoff is in Ry, so the merge
 divides by the Rydberg energy in eV (13.605693 eV).
 `spinMultiplicity` 0 is unset, and any other value, an explicit singlet
@@ -5707,7 +5709,8 @@ token is rejected for every arm functional.
 An opaque carrier is rendered as given and is not read back into the
 recorded functional, cutoff, charge, or multiplicity.
 So the carrier check runs for every set overlay field, whether or not a
-typed field also sets it.
+typed field also sets it, including zero `charge` with `hasCharge` `true` and
+an explicit singlet `spinMultiplicity` of 1.
 The overlay field is rejected when `inputBlocks`, a raw section, or a generic
 section opens the owning section (`&DFT` for `xcFunctionals`, `&SYSTEM` for
 the cutoff, charge, and multiplicity), when a set directive names
@@ -6150,7 +6153,7 @@ differs, and warm when the basis matches.
 | Layout | `config_capnp` points at `config_capnp_size_bytes` bytes of one unpacked flat `PotentialConfig` message. |
 | Ownership | The caller owns `config_capnp` and may free it on return. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; the reference build does no MPI. |
-| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token for any arm functional, a set overlay scalar, an explicit `spinMultiplicity` of 1 included and whether or not a typed field also sets it, while `inputBlocks`, a raw section, or a generic section opens the owning `&DFT` or `&SYSTEM` section, a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or the typed `dft` section holds a `FUNCTIONAL` directive or the typed `system` section holds a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive, Fermi `smearing` next to `FREE-ENERGY` or `TEMPERATURE ELECTRON` controls (including split `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set directives), a `FUNCTIONAL` directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive next to the functional the deck renders, an arm `inputBlocks`, `inputSections`, or `directives` list the merge cannot read, or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()` and names the cause. A typed field that is omitted or holds its schema default is unset, including a typed `system` charge of 0. |
+| Returns and errors | Returns 0 on success and -1 on a NULL or empty buffer, a parse or lowering failure, a `cpmd` arm together with overlay `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, or `relativityMethod`, an unmapped `xcFunctionals` token for any arm functional, a set overlay scalar, an explicit `spinMultiplicity` of 1 and zero `charge` with `hasCharge` `true` included and whether or not a typed field also sets it, while `inputBlocks`, a raw section, or a generic section opens the owning `&DFT` or `&SYSTEM` section, a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or the typed `dft` section holds a `FUNCTIONAL` directive or the typed `system` section holds a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive, Fermi `smearing` next to `FREE-ENERGY` or `TEMPERATURE ELECTRON` controls (including split `TEMPERATURE` and `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set directives), a `FUNCTIONAL` directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive next to the functional the deck renders, an arm `inputBlocks`, `inputSections`, or `directives` list the merge cannot read, or an overlay field without a CPMD lowering when the arm is unset; the text is `cpmdc_last_error()` and names the cause. A typed field that is omitted or holds its schema default is unset, including a typed `system` charge of 0 with `hasCharge` `false`, while `hasCharge` `true` marks zero charge explicit. |
 | Python | not wrapped. |
 | Defaults | none |
 
@@ -8326,23 +8329,27 @@ page.
 Missing core sections receive minimal defaults from the renderer so a sparse
 `CPMDParams` still produces a valid-looking deck for debugging.
 When structured `dft` or `system` sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
+(functional, cutoff, charge, multiplicity, or zero `system.charge` with
+`system.hasCharge` `true`), those section values are also the
 effective embed configuration passed through the C ABI.
 The functional, cutoff, charge, and multiplicity lines the renderer writes
 and that configuration follow the same precedence.
 `raw`, `generic`, and `set` sections, `inputBlocks`, and section `directives`
 are rendered as given and are not read back into that configuration, so the
 carrier check runs for every set overlay field of a `common` overlay,
-whether or not a typed field also sets it, and a carrier of the same setting
+whether or not a typed field also sets it, including zero `charge` with
+`hasCharge` `true`, and a carrier of the same setting
 rejects that field.
 A `FUNCTIONAL` directive in a typed `dft` section or a `DFT.FUNCTIONAL` set
 directive is rejected when the deck is rendered, because the rendered `&DFT`
 section already carries the functional.
 A section value that differs from the schema default (functional `BLYP`,
-cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field.
+cutoff 70 Ry, charge 0 with `hasCharge` `false`, multiplicity 1) beats the
+top-level field.
 A method field in a typed `dft` or `system` section that is omitted or holds
 its schema default is unset and does not replace the top-level arm or overlay
-value, so a typed `system` charge of 0 is also unset.
+value, so a typed `system` charge of 0 with `hasCharge` `false` is also unset,
+while zero `system.charge` with `system.hasCharge` `true` is explicit.
 For geometry deck rendering, `atoms.pseudopotentials` groups `ForceInput`
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover
@@ -9308,6 +9315,7 @@ and deck spelling.
 | `functional` | `Text`, `"BLYP"` | functional when no `dft` section sets one |
 | `cutOffRy` | `Float64`, 70.0 | plane-wave cutoff in Rydberg when no `system` section sets one |
 | `charge` | `Int32`, 0 | system charge when the `system` section does not set one |
+| `hasCharge` | `Bool`, `false` | mark `charge` as explicit, including zero |
 | `multiplicity` | `Int32`, 1 | 2S+1; above 1 selects spin-polarized defaults |
 | `task` | `Text`, `"gradient"` | host hint: `energy`, `gradient`, `md`, `optimize` |
 | `title` | `Text` | comment header of the rendered deck |
@@ -9381,7 +9389,7 @@ the host owns them.
 | `cellAbsolute`, `cellDegree`, `cellVectors` | off | `CELL ABSOLUTE`, `DEGREE`, `VECTORS` |
 | `cutOffRy` | 70.0 | `CUTOFF` |
 | `poissonSolver`, `poissonParameter` | empty | `POISSON SOLVER`; `SYMMETRY 0` without one adds `HOCKNEY`, or `TUCKERMAN` for a hybrid functional |
-| `charge`, `multiplicity` | 0, 1 | `CHARGE`, `MULTIPLICITY` |
+| `charge`, `hasCharge`, `multiplicity` | 0, `false`, 1 | `CHARGE`, `MULTIPLICITY`; `hasCharge` marks zero `charge` explicit |
 | `kpointsMonkhorstPack` | empty | `KPOINTS MONKHORST-PACK` |
 
 # ~CPMDDftSection~
@@ -9434,11 +9442,12 @@ The overlay fills `xcFunctionals`, `planewaveCutoffEv`, `charge`,
 `spinMultiplicity`, Fermi `smearing` (when `&CPMD` sets none), and
 `vanDerWaalsS6` (into a `vdwParams` section with `s6` unset).
 An arm field sets a value when it differs from the schema default (functional
-`BLYP`, cutoff 70 Ry, charge 0, multiplicity 1), and a typed `dft` or `system`
-section beats the top-level field.
+`BLYP`, cutoff 70 Ry, charge 0 with `hasCharge` `false`, multiplicity 1), and
+a typed `dft` or `system` section beats the top-level field.
 A method field in a typed section that is omitted or holds its schema default
 is unset and does not replace the top-level arm or overlay value; a typed
-`system` charge of 0 is unset and a non-zero one is explicit.
+`system` charge of 0 with `hasCharge` `false` is unset, and a non-zero charge
+or zero `system.charge` with `system.hasCharge` `true` is explicit.
 `planewaveCutoffEv` is in eV and is converted to the Ry the deck carries.
 `spinMultiplicity` 0 is unset, so an explicit singlet of 1 is merged and
 checked like the other overlay scalars.
@@ -9448,7 +9457,8 @@ An unmapped `xcFunctionals` token is rejected for every arm functional,
 before that precedence.
 Opaque carriers are rendered as given and are not folded into the recorded
 settings, so the carrier check runs for every set overlay field, whether or
-not a typed field also sets it.
+not a typed field also sets it, including zero `charge` with `hasCharge`
+`true` and an explicit singlet `spinMultiplicity` of 1.
 The overlay field is rejected when `inputBlocks`, a raw section, or a generic
 section opens `&DFT` (`xcFunctionals`) or `&SYSTEM` (cutoff, charge,
 multiplicity), when a set directive names `DFT.FUNCTIONAL`,
