@@ -48,6 +48,7 @@ from cpmdc import (
 from cpmdc.ase import CPMDCCalculator
 
 CUBE = [[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]
+ORTHORHOMBIC = [[10.0, 0.0, 0.0], [0.0, 11.0, 0.0], [0.0, 0.0, 12.0]]
 TRICLINIC = [[9.0, 0.0, 0.0], [1.2, 8.5, 0.0], [-0.7, 0.9, 9.4]]
 
 
@@ -766,12 +767,12 @@ def test_stress_follows_the_energy_over_a_finite_strain(
         assert abs(pressure - slope) < 5.0e-4
 
 
-def strained_steps(calc, scales):
-    """Energy, forces, and stress of the water with the cube scaled by each factor, in turn."""
+def strained_steps(calc, scales, cell=CUBE):
+    """Energy, forces, and stress of the water with the cell scaled by each factor, in turn."""
     steps = []
     for scale in scales:
-        atoms = water(cell=CUBE, pbc=True)
-        atoms.set_cell(np.multiply(CUBE, scale), scale_atoms=True)
+        atoms = water(cell=cell, pbc=True)
+        atoms.set_cell(np.multiply(cell, scale), scale_atoms=True)
         atoms.calc = calc
         steps.append((atoms.get_volume(), atoms.get_potential_energy(), atoms.get_forces(), atoms.get_stress()))
     return steps
@@ -844,6 +845,28 @@ def test_a_constant_cutoff_cell_moves_in_place_within_the_strain_limit(
         assert moved[1] == pytest.approx(fresh[1], rel=0, abs=1.0e-2)
         np.testing.assert_allclose(moved[2], fresh[2], rtol=0, atol=5.0e-3)
         np.testing.assert_allclose(moved[3], fresh[3], rtol=0, atol=2.0e-5)
+
+
+def test_a_triclinic_cell_moves_in_place_after_an_orthorhombic_one(
+    periodic_params, opencpmd, monkeypatch, capfd
+):
+    """A CELL VECTORS setup folds through its own cell after a SYMMETRY 8 one.
+
+    setsc writes the minimum-image half lengths of a CELL deck and none for
+    CELL VECTORS, so the lengths of the orthorhombic box must not outlive
+    its setup. With them, pbc3 folds the triclinic cell as a monoclinic one
+    of the old lengths and the in-place check refuses the 1% stretch.
+    """
+    if not opencpmd:
+        pytest.skip("the reference well keeps no plane waves between calls")
+    monkeypatch.setenv("CPMDC_SCF_STEPS", "1")
+    monkeypatch.setenv("CPMDC_CELL_IN_PLACE", "0.02")
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms = water(cell=ORTHORHOMBIC, pbc=True)
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        strained_steps(calc, (1.0, 1.01), cell=TRICLINIC)
+    assert warm_starts(capfd.readouterr().err)[1:] == [-2, 0]
 
 
 def test_constant_cutoff_is_a_calculator_parameter(periodic_params, calls):
