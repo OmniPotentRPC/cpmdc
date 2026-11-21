@@ -8,9 +8,14 @@ energy of the step; the library does not separate an electronic entropy.
 
 A structure with every periodic flag false is a cluster: the cell is not
 sent, and the CPMDParams deck sets the boundary conditions. Every flag
-true sends ``atoms.cell`` as the periodic cell; a cell without three
-independent vectors raises ``ValueError``. A mixed periodic flag raises
-``ValueError`` and names the non-periodic axes.
+true sends ``atoms.cell`` as the periodic cell. The cell is rejected
+when those three vectors are linearly dependent. Dependence is rank
+below 3: a singular value counts only when it is strictly greater than
+``sigma_max * 3 * eps``, with ``eps`` the float64 unit roundoff, the
+cutoff ``numpy.linalg.matrix_rank`` uses for a 3 by 3 matrix. The
+singular values come from the one-sided Jacobi iteration that the C
+library also runs, so both make the same decision for the same cell. A mixed periodic flag raises ``ValueError`` and names
+the non-periodic axes.
 
 The CPMDParams message holds the method, including the charge and the
 multiplicity; ``initial_charges`` and ``initial_magmoms`` are not read.
@@ -46,6 +51,7 @@ from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import workdir
 
 from cpmdc import ConstantCutoff, CPMDCError, Potential, _warn_schema
+from cpmdc._rank import _cell_is_rank_deficient
 
 __all__ = ["CPMDCCalculator", "CalculationFailed"]
 
@@ -334,6 +340,13 @@ class CPMDCCalculator(Calculator):
 
     @staticmethod
     def _periodic_cell(atoms: Atoms) -> np.ndarray | None:
+        """Return the periodic cell, or ``None`` when every axis is open.
+
+        A fully periodic cell must have rank 3. :func:`cpmdc._rank._cell_is_rank_deficient`
+        applies the ``numpy.linalg.matrix_rank`` cutoff: singular values
+        count only above ``sigma_max * 3 * eps``, with ``eps`` the float64
+        unit roundoff.
+        """
         flags = _pbc_flags(atoms.pbc)
         if not any(flags):
             return None
@@ -343,13 +356,12 @@ class CPMDCCalculator(Calculator):
                 "cpmdc takes a fully periodic cell; non-periodic axes: "
                 + ", ".join(names)
             )
-        lengths = atoms.cell.lengths()
-        if np.any(lengths <= 0.0) or atoms.cell.volume <= 1.0e-8 * float(np.prod(lengths)):
+        cell_array: np.ndarray = atoms.cell.array
+        if _cell_is_rank_deficient(cell_array):
             raise ValueError(
                 "cpmdc takes a fully periodic cell; atoms.pbc is true but "
                 "atoms.cell does not have three independent vectors"
             )
-        cell_array: np.ndarray = atoms.cell.array
         return cell_array
 
     def _release(self) -> None:

@@ -39,6 +39,7 @@ sees the trajectory in order.
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import socket
 import struct
@@ -47,6 +48,7 @@ import time
 from typing import IO, Any, Sequence
 
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session, _elements
+from cpmdc._rank import _FULL_RANK, _NONFINITE, _VOLUME_UNDERFLOW, _cell_state, _cell_volume
 from cpmdc._elements import species_numbers
 
 __all__ = [
@@ -93,11 +95,16 @@ def connect(
 
     Give ``unix`` for a UNIX-domain socket, or ``port`` (and ``host``) for
     TCP. A server that is not listening yet is retried for ``wait`` seconds.
+    ``wait`` must be zero or positive.
     """
     if (unix is None) == (port is None):
         raise ValueError("give exactly one of unix and port")
+    if not math.isfinite(wait):
+        raise ValueError(f"wait must be finite, got {wait}")
+    if wait < 0.0:
+        raise ValueError(f"wait must be zero or positive, got {wait}")
     where = unix_socket_path(unix, prefix) if unix is not None else f"{host}:{port}"
-    deadline = time.monotonic() + max(wait, 0.0)
+    deadline = time.monotonic() + wait
     while True:
         try:
             if unix is not None:
@@ -121,24 +128,35 @@ def _header(name: str) -> bytes:
     return name.encode("ascii").ljust(HEADER_BYTES)
 
 
-def _det3(m: Sequence[float]) -> float:
-    return (
-        m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
-        + m[2] * (m[3] * m[7] - m[4] * m[6])
-    )
-
-
 def _batch_size(init: bytes) -> int:
-    text = init.decode("utf-8", "replace")
+    """Return 1, the only batch size this driver evaluates.
+
+    A missing ``batch_size`` is 1. A present value that is not the
+    integer 1 raises :class:`ProtocolError` instead of being read as 1.
+    """
+    try:
+        text = init.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ProtocolError("INIT is not UTF-8") from exc
+    found: int | None = None
     for token in text.split(","):
         key, sep, value = token.partition(":")
-        if sep and key.strip() == "batch_size":
-            try:
-                return int(value.strip())
-            except ValueError:
-                return 1
-    return 1
+        if not sep or key.strip() != "batch_size":
+            continue
+        if found is not None:
+            raise ProtocolError("INIT batch_size appears more than once")
+        raw = value.strip()
+        try:
+            batch = int(raw)
+        except ValueError as exc:
+            raise ProtocolError(f"INIT batch_size is not an integer: {raw!r}") from exc
+        if batch != 1:
+            raise ProtocolError(
+                f"the server asked for batch_size {batch}; cpmdc-ipi evaluates "
+                "one structure per request, so set batch_size to 1"
+            )
+        found = batch
+    return 1 if found is None else found
 
 
 class _Wire:
@@ -226,16 +244,17 @@ class Driver:
     def _cell_rows(self, h: Sequence[float]) -> list[list[float]] | None:
         if self.cluster or not any(h):
             return None
-        rows = [[h[3 * i + k] * BOHR_TO_ANGSTROM for i in range(3)] for k in range(3)]
-        lengths = [sum(c * c for c in row) ** 0.5 for row in rows]
-        if min(lengths) <= 0.0 or abs(_det3(h)) * BOHR_TO_ANGSTROM**3 <= 1.0e-8 * (
-            lengths[0] * lengths[1] * lengths[2]
-        ):
+        bohr = [[h[3 * i + k] for i in range(3)] for k in range(3)]
+        # cpmdc-ipi-c classifies these same Bohr values with the same routine.
+        state = _cell_state(bohr)
+        if state == _VOLUME_UNDERFLOW:
+            raise ProtocolError("the server sent a cell whose volume is too small for binary64")
+        if state not in (_FULL_RANK, _NONFINITE):
             raise ProtocolError(
                 "the server sent a cell without three independent vectors; send an "
                 "all-zero cell or start cpmdc-ipi with --cluster for an isolated system"
             )
-        return rows
+        return [[value * BOHR_TO_ANGSTROM for value in row] for row in bohr]
 
     def _check_count(self, n_atoms: int) -> None:
         if n_atoms != len(self.atomic_numbers):
@@ -262,6 +281,16 @@ class Driver:
         n_atoms = len(positions) // 3
         self._check_count(n_atoms)
         rows = self._cell_rows(cell)
+        if not all(map(math.isfinite, positions)):
+            raise ValueError("positions must be finite")
+        if rows is not None and not all(map(math.isfinite, cell)):
+            raise ValueError("cell must be finite")
+        volume = 0.0
+        if rows is not None:
+            # The rows cpmdc_session_calculate_au() takes, in Bohr, as cpmdc-ipi-c sends them.
+            volume = _cell_volume([[cell[3 * i + k] for i in range(3)] for k in range(3)])
+            if not math.isfinite(volume):
+                raise CPMDCError("cell volume is too large for binary64")
         coords = [
             [positions[3 * i + k] * BOHR_TO_ANGSTROM for k in range(3)] for i in range(n_atoms)
         ]
@@ -269,8 +298,9 @@ class Driver:
         forces = [component for row in done.forces_h_bohr for component in row]
         virial = [0.0] * 9
         if rows is not None and done.stress_h_bohr3 is not None:
-            volume = abs(_det3(cell))
             virial = [volume * component for component in done.stress_h_bohr3]
+            if not all(map(math.isfinite, virial)):
+                raise CPMDCError("virial is not finite")
         elif rows is not None and not self._warned_virial:
             self._warned_virial = True
             print(
@@ -288,8 +318,8 @@ class Driver:
         A server that closes the connection between messages ends the run
         like ``EXIT``: ASE's ``SocketIOCalculator.close`` does that. A
         connection closed in the middle of a message, a message out of
-        order, an unknown header, or a batched ``INIT`` raises
-        :class:`ProtocolError`.
+        order, an unknown header, or an ``INIT`` whose ``batch_size`` is
+        not the integer 1 raises :class:`ProtocolError`.
         """
         wire = _Wire(sock)
         initialised = False
@@ -317,12 +347,7 @@ class Driver:
                 if nbytes < 0:
                     raise ProtocolError(f"INIT announced {nbytes} bytes")
                 text = wire.raw(nbytes, "INIT")
-                batch = _batch_size(text)
-                if batch > 1:
-                    raise ProtocolError(
-                        f"the server asked for batch_size {batch}; cpmdc-ipi evaluates "
-                        "one structure per request, so set batch_size to 1"
-                    )
+                _batch_size(text)
                 self._say(f"bead {bead}, {nbytes} INIT bytes")
                 initialised = True
             elif head == "POSDATA":
