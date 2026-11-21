@@ -11,7 +11,7 @@
 | ~CPMDC_STRESS~ | ~src/cpmd_embed_c_api.F90~, each evaluation, OpenCPMD or the reference evaluator | ~0~ skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
-| ~CPMDC_CELL_IN_PLACE~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation whose cell differs from the stored one | largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |
+| ~CPMDC_CELL_IN_PLACE~ | ~src/cpmdc_orbital_limit.c~, before each OpenCPMD evaluation or orbital copy | calculator rank 0's largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |
 | ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ or ~0~ keeps the caller's coordinates; ~MASS~, ~GEOMETRY~ and ~OFF~ are accepted too; any other value fails the call |
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
@@ -88,7 +88,8 @@ starts from the stored orbitals and keeps the ~EXTRAPOLATE WFN~ history.
 [[file:../explanation/wavefunction-state.org][Wavefunction state between calls]]
 (section Cell changes at a constant cutoff) gives the conditions and what the
 move changes in the energy and the stress.
-Set it to the same value on every rank.
+Calculator rank 0 reads the value and broadcasts it; values on the other ranks
+are ignored.
 
 ~CPMDC_ORBITAL_SLOT_LIMIT~ is the most parked orbital copies a calculator keeps,
 excluding the key that is selected.

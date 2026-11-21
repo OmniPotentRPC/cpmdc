@@ -22,6 +22,7 @@ def main() -> int:
         b"potential-result-write",
         b"calculate-au-reserve",
         b"selector-allocation",
+        b"embed-available",
     )
     found = [marker.decode() for marker in markers if marker in data]
     if found:

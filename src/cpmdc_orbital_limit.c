@@ -243,9 +243,13 @@ static int orbital_allreduce(int *values, int count) {
   int finalized = 0;
   int size = 1;
   MPI_Comm comm;
-  if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+  if (MPI_Initialized(&inited) != MPI_SUCCESS)
+    return -1;
+  if (!inited)
     return 0;
-  if (MPI_Finalized(&finalized) != MPI_SUCCESS || finalized)
+  if (MPI_Finalized(&finalized) != MPI_SUCCESS)
+    return -1;
+  if (finalized)
     return 0;
   if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
     comm = MPI_COMM_WORLD;
