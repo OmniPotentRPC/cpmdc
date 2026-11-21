@@ -446,6 +446,61 @@ static void test_compose_uses_message_pseudopotentials(void **state) {
   free(msg);
 }
 
+static void
+test_set_params_system_has_charge_zero_overrides_top_level(void **state) {
+  (void)state;
+  assert_int_equal(cpmdc_available(), CPMDC_AVAILABLE_WHEN_LINKED);
+
+  struct capn arena;
+  capn_init_malloc(&arena);
+  capn_ptr root = capn_root(&arena);
+  assert_int_not_equal(root.type, CAPN_NULL);
+
+  CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+  struct CPMDSystemSection sys;
+  read_CPMDSystemSection(&sys, sys_ptr);
+  sys.symmetry = 0;
+  sys.angstrom = 1;
+  sys.charge = 0;
+  sys.hasCharge = 1;
+  write_CPMDSystemSection(&sys, sys_ptr);
+
+  CPMDInputSection_list secs = new_CPMDInputSection_list(root.seg, 1);
+  struct CPMDInputSection sec;
+  memset(&sec, 0, sizeof(sec));
+  sec.which = CPMDInputSection_system;
+  sec.system = sys_ptr;
+  set_CPMDInputSection(&sec, secs, 0);
+
+  CPMDParams_ptr params_ptr = new_CPMDParams(root.seg);
+  struct CPMDParams params;
+  memset(&params, 0, sizeof(params));
+  params.functional = (capn_text){3, "PBE", NULL};
+  params.cutOffRy = 70.0;
+  params.charge = 2;
+  params.multiplicity = 1;
+  params.task = (capn_text){8, "gradient", NULL};
+  params.inputSections = secs;
+  write_CPMDParams(&params, params_ptr);
+  assert_int_equal(capn_setp(root, 0, params_ptr.p), 0);
+
+  uint8_t buf[2048];
+  int written = capn_write_mem(&arena, buf, sizeof(buf), 0);
+  capn_free(&arena);
+  assert_true(written > 0);
+
+  assert_int_equal(cpmdc_set_params(buf, (size_t)written), 0);
+
+  char functional[64], deck[CPMDC_BLOCKS], root_dir[1024];
+  double cutoff = 0.0;
+  int charge = 99, mult = 0;
+  read_applied(functional, sizeof(functional), &cutoff, &charge, &mult, deck,
+               sizeof(deck), root_dir, sizeof(root_dir));
+  assert_string_equal(functional, "PBE");
+  assert_int_equal(charge, 0);
+  assert_null(strstr(deck, "CHARGE"));
+}
+
 int main(int argc, char **argv) {
   if (argc != 7) {
     fprintf(stderr,
@@ -467,6 +522,8 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_set_params_stores_typed_section_deck),
       cmocka_unit_test(test_set_params_method_only_keeps_dft_section),
       cmocka_unit_test(test_compose_uses_message_pseudopotentials),
+      cmocka_unit_test(
+          test_set_params_system_has_charge_zero_overrides_top_level),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

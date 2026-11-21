@@ -1042,6 +1042,7 @@ static const char *k_fixture_files[] = {
     "params_atoms_extras.bin",
     "params_system_multiplicity_section.bin",
     "params_system_multiplicity_top.bin",
+    "params_system_has_charge_zero.bin",
 };
 
 /* Paths live in main. A heap copy here is a LeakSanitizer failure at exit. */
@@ -1438,6 +1439,39 @@ int main(int argc, char **argv) {
                  (int)(sizeof(system_multiplicity_need) /
                        sizeof(system_multiplicity_need[0]))) != 0)
     return 1;
+  {
+    /* hasCharge = true with charge = 0 on &SYSTEM overrides non-zero root
+     * charge to neutral across both effective_config and deck rendering. */
+    char neutral_deck[CPMDC_BLOCKS];
+    if (render_deck_file(fixture[22], neutral_deck, sizeof(neutral_deck)) != 0)
+      return 1;
+    if (!strstr(neutral_deck, "&SYSTEM") || strstr(neutral_deck, "CHARGE")) {
+      fprintf(stderr, "unexpected CHARGE in explicit-zero deck:\n%s\n",
+              neutral_deck);
+      return 1;
+    }
+    size_t sz = 0;
+    unsigned char *msg = slurp(fixture[22], &sz);
+    if (!msg)
+      return 1;
+    struct capn arena;
+    CPMDParams_ptr root;
+    char eff_fn[64];
+    double eff_cut = 0.0;
+    int eff_charge = 99, eff_mult = 0;
+    int rc = cpmdc_params_root(msg, sz, &arena, &root);
+    if (rc == 0) {
+      rc = cpmdc_params_effective_config(root, eff_fn, sizeof(eff_fn), &eff_cut,
+                                         &eff_charge, &eff_mult);
+      cpmdc_params_release(&arena);
+    }
+    free(msg);
+    if (rc != 0 || eff_charge != 0) {
+      fprintf(stderr, "expected effective charge 0, got rc=%d charge=%d\n", rc,
+              eff_charge);
+      return 1;
+    }
+  }
   char *decks[17] = {0};
   for (int i = 0; i < 17; ++i) {
     decks[i] = malloc(CPMDC_BLOCKS);

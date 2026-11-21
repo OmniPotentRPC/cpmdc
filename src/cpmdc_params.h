@@ -39,7 +39,8 @@ const char *cpmdc_params_render_reason(void);
 
 /** Which scalars a message sets itself, in the top-level fields or a typed
  *  &SYSTEM or &DFT section. A field set to its schema default (functional
- *  BLYP, cutoff 70 Ry, charge 0, multiplicity 1) reads as unset. */
+ *  BLYP, cutoff 70 Ry, charge 0 with hasCharge false, multiplicity 1) reads
+ *  as unset. Zero charge with hasCharge true is explicit. */
 typedef struct CPMDCTypedScalars {
   int functional;
   int cutoff;
@@ -49,6 +50,8 @@ typedef struct CPMDCTypedScalars {
 
 int cpmdc_params_typed_scalars(CPMDParams_ptr params,
                                CPMDCTypedScalars *typed);
+
+int cpmdc_params_has_explicit_charge(CPMDParams_ptr params);
 
 /**
  * The functional, cutoff, charge, and multiplicity of a message. Both deck

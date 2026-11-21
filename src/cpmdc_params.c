@@ -718,6 +718,10 @@ struct ResolvedScalars {
   CPMDCTypedScalars typed;
 };
 
+static int system_charge_is_explicit(const struct CPMDSystemSection *sys) {
+  return sys->hasCharge || sys->charge != 0;
+}
+
 static int typed_functional(capn_text text) {
   if (!text.str || text.len <= 0)
     return 0;
@@ -733,7 +737,8 @@ static int typed_cutoff(double cutoff_ry) {
  * value that a typed field sets beats the overlay, the overlay beats a
  * schema default, and a typed &SYSTEM or &DFT section beats the top-level
  * field. A typed field sets a value when it differs from the schema default
- * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). The deck
+ * (functional BLYP, cutoff 70 Ry, charge 0 with hasCharge false,
+ * multiplicity 1). Zero charge with hasCharge true is explicit. The deck
  * renderers and the recorded configuration both read this result. Raw,
  * generic, and set sections, inputBlocks, and section directives are not
  * read here; the overlay merge rejects a set overlay scalar next to one, and
@@ -759,7 +764,7 @@ static int resolve_scalars(struct CPMDParams *view,
     cutoff_ry = view->cutOffRy;
     out->typed.cutoff = 1;
   }
-  if (view->charge != 0) {
+  if (view->hasCharge || view->charge != 0) {
     charge = view->charge;
     out->typed.charge = 1;
   }
@@ -777,7 +782,7 @@ static int resolve_scalars(struct CPMDParams *view,
         cutoff_ry = body.cutOffRy;
         out->typed.cutoff = 1;
       }
-      if (body.charge != 0) {
+      if (system_charge_is_explicit(&body)) {
         charge = body.charge;
         out->typed.charge = 1;
       }
@@ -838,7 +843,7 @@ static int render_system_section_with_cell(
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
-  int charge = sys->charge != 0 ? sys->charge : default_charge;
+  int charge = system_charge_is_explicit(sys) ? sys->charge : default_charge;
   double cutoff = sys->cutOffRy > 0.0 ? sys->cutOffRy : default_cutoff;
   if ((cell_override && override_ncell == 9) ? force_vectors : sys->cellVectors)
     emit_symmetry = 0;
@@ -4624,6 +4629,29 @@ const char *cpmdc_params_text_or(capn_text text, const char *fallback) {
   if (text.str && text.len > 0)
     return text.str;
   return fallback ? fallback : "";
+}
+
+int cpmdc_params_has_explicit_charge(CPMDParams_ptr params) {
+  if (params.p.type != CAPN_STRUCT)
+    return 0;
+  struct CPMDParams view;
+  read_CPMDParams(&view, params);
+  if (view.hasCharge || view.charge != 0)
+    return 1;
+  int nsec = struct_list_len(&view.inputSections.p);
+  if (nsec <= 0)
+    return 0;
+  for (int i = 0; i < nsec; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which == CPMDInputSection_system) {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      if (system_charge_is_explicit(&body))
+        return 1;
+    }
+  }
+  return 0;
 }
 
 int cpmdc_params_typed_scalars(CPMDParams_ptr params,

@@ -2214,6 +2214,12 @@ test(
     output: 'params_system_multiplicity_top.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  params_system_has_charge_zero_bin = custom_target(
+    'params_system_has_charge_zero_bin',
+    input: 'tests/params_system_has_charge_zero.capnp.txt',
+    output: 'params_system_has_charge_zero.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   params_atoms_extras_bin = custom_target(
     'params_atoms_extras_bin',
     input: 'tests/params_atoms_extras.capnp.txt',
@@ -2345,6 +2351,7 @@ test(
       params_atoms_extras_bin,
       params_system_multiplicity_section_bin,
       params_system_multiplicity_top_bin,
+      params_system_has_charge_zero_bin,
     ],
     suite: ['params', 'inventory'],
   )

@@ -728,6 +728,7 @@ static int cpmd_common_to_params(CommonMethodSpec_ptr common_root,
                       ? c.planewaveCutoffEv / CPMDC_RYDBERG_EV
                       : 70.0;
   view.charge = c.charge;
+  view.hasCharge = (c.hasCharge || c.charge != 0) ? 1 : 0;
   view.multiplicity = c.spinMultiplicity > 0 ? c.spinMultiplicity : 1;
   view.task.str = "gradient";
   view.task.len = 8;
@@ -1465,11 +1466,11 @@ static int cpmd_merge_common_into_arm(CPMDParams_ptr arm,
       *has_ov = 1;
     }
   }
-  if (c.charge != 0) {
+  if (c.hasCharge || c.charge != 0) {
     if (cpmd_reject_opaque_scalar(&arm_view, "SYSTEM", "CHARGE", "charge") !=
         0)
       return -1;
-    if (!typed.charge) {
+    if (!typed.charge && c.charge != 0) {
       ov->has_charge = 1;
       ov->charge = c.charge;
       *has_ov = 1;

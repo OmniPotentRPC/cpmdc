@@ -14,6 +14,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 | ~params.functional~ | ~functional~ | Default DFT functional (also used when no ~dft~ section is present) |
 | ~params.cutOffRy~ | ~cutOffRy~ | Plane-wave cutoff in Rydberg |
 | ~params.charge~ | ~charge~ | System charge |
+| ~params.hasCharge~ | ~hasCharge~ | Mark ~CPMDParams.charge~ as explicit, including zero |
 | ~params.multiplicity~ | ~multiplicity~ | 2S+1; values ~> 1~ imply LSD defaults |
 | ~params.task~ | ~task~ | Frontend hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
 | ~params.title~ | ~title~ | Optional comment header in rendered decks |
@@ -359,6 +360,7 @@ The vector qualifier also requires nine values and excludes ~ABSOLUTE~ and
 | ~params.inputSections.system.scaleZ~ | ~system.scaleZ~ | ~&SYSTEM SCALE SZ=<value>~ |
 | ~params.inputSections.system.scaleCartesian~ | ~system.scaleCartesian~ | Add ~CARTESIAN~ to ~&SYSTEM SCALE~ |
 | ~params.inputSections.system.charge~ | ~system.charge~ | ~&SYSTEM CHARGE~ |
+| ~params.inputSections.system.hasCharge~ | ~system.hasCharge~ | Mark ~system.charge~ as explicit, including zero |
 | ~params.inputSections.system.multiplicity~ | ~system.multiplicity~ | ~&SYSTEM MULTIPLICITY~ |
 | ~params.inputSections.system.nSup~ | ~system.nSup~ | ~&SYSTEM NSUP~ |
 | ~params.inputSections.system.states~ | ~system.states~ | ~&SYSTEM STATES~ |

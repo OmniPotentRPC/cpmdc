@@ -24,7 +24,7 @@ int cpmdc_capabilities_result(void *capabilities_capnp,
       "xcFunctionals",     "basisSet",         "planewaveCutoffEv",
       "charge",            "spinMultiplicity", "scfEnergyToleranceEv",
       "scfMaxIterations",  "kMesh",            "smearing",
-      "vanDerWaalsMethod", "vanDerWaalsS6",
+      "vanDerWaalsMethod", "vanDerWaalsS6",    "hasCharge",
   };
   static const uint16_t operations[] = {
       Capabilities_Operation_energy,

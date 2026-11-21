@@ -181,7 +181,9 @@ contains
           cutoff_l = cut
         end if
         n = int(c_p_m_d_system_section_charge_get(sys))
-        if (n /= 0) charge_l = n
+        if (c_p_m_d_system_section_has_charge_get(sys) .or. n /= 0) then
+          charge_l = n
+        end if
         n = int(c_p_m_d_system_section_multiplicity_get(sys))
         if (n > 1) mult_l = n
       else if (tag == C_P_M_D_INPUT_SECTION_DFT_TAG) then
