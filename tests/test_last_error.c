@@ -133,10 +133,10 @@ static void test_energy_failures(void **state) {
   expect_result_error(cpmdc_energy(0, NULL, NULL, NULL, 0), "invalid arguments");
   prime_config_error();
   expect_result_error(
-      cpmdc_energy_gradient(0, NULL, NULL, NULL, 0, NULL), "CPMDParams");
+      cpmdc_energy_gradient(0, NULL, NULL, NULL, 0, NULL), "invalid arguments");
   prime_config_error();
   expect_result_error(cpmdc_energy_forces(0, NULL, NULL, NULL, 0, NULL),
-                      "CPMDParams");
+                      "invalid arguments");
 }
 
 static void test_session_energy_failures(void **state) {

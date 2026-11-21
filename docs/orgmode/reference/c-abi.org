@@ -135,9 +135,9 @@ An opaque handle.
 A session holds a copy of the ~CPMDParams~ bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 
 ** Result snapshots
 Each snapshot struct starts with ~int valid~, set by a successful evaluation.
@@ -353,8 +353,8 @@ The output array holds ~3 * n_atoms~ doubles.
 | ~int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)~ | add ~CONSTANT CUTOFF~ to the rendered ~&SYSTEM~; ~cutoff_ry <= 0~ removes it; same topology rule |
 | ~int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)~ | replace the configuration from a ~PotentialConfig~; same rule, and a failed call keeps the previous parameters and overlay |
 | ~void cpmdc_session_destroy(CPMDCSession *s)~ | free the session; ~NULL~ is accepted |
-| ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | record ~key~; the next evaluations start from the orbitals stored under ~key~; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; -1 for a ~NULL~ session |
-| ~int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)~ | duplicate the converged orbitals of ~from_key~, and the geometry they converged at, into ~to_key~, replacing any previous copy; the selected key is unchanged; when ~to_key~ is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting ~to_key~ afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; every calculator rank names the same keys, the same rule ~cpmdc_session_select_orbitals()~ has; the reference build returns 0 because it has no orbital store; the link stub returns -1, including a same key copy; -1 for a ~NULL~ session, before any evaluation, when ~from_key~ has no converged orbitals, or on backend copy failure |
+| ~int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)~ | record ~key~; the next evaluations start from the orbitals stored under ~key~; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past ~CPMDC_ORBITAL_SLOT_LIMIT~ fails, ~cpmdc_last_error()~ and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a ~NULL~ session |
+| ~int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)~ | duplicate the converged orbitals of ~from_key~, and the geometry they converged at, into ~to_key~, replacing any previous copy; the selected key is unchanged; when ~to_key~ is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting ~to_key~ afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past ~CPMDC_ORBITAL_SLOT_LIMIT~ returns -1, ~cpmdc_last_error()~ names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule ~cpmdc_session_select_orbitals()~ has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a ~NULL~ session, before any evaluation, when ~from_key~ has no converged orbitals, or on backend copy failure |
 
 ~cpmdc_session_set_constant_cutoff()~ sets the constant-cutoff kinetic
 functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +
@@ -369,9 +369,9 @@ previous setting.
 It survives a later ~cpmdc_session_set_params()~.
 The link stub returns -1.
 
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+~session_accept_topology~ fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 ~topology change requires a new session~ before CPMD runs.
 A reordering of the same elements stays on the session.

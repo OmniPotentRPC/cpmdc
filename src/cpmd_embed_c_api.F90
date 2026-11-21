@@ -83,6 +83,8 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
+  PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_commit_orbitals
+  PUBLIC :: cpmdc_embed_drop_stale_orbitals
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
 
@@ -90,6 +92,7 @@ MODULE cpmd_embed_c_api
   LOGICAL, SAVE :: runtime_finalized = .FALSE.
   ! Where the last SCF started; see note_warm_start for the values.
   INTEGER, SAVE :: last_warm_source = -2
+  REAL(c_double), SAVE :: embed_cell_in_place_limit = 0.0_c_double
   ! OpenCPMD's tistart runs once per process: a second call prints
   ! CALLED ONCE and executes STOP, which exits the host with status 0.
   LOGICAL, SAVE :: timer_started = .FALSE.
@@ -384,9 +387,14 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
 #endif
+    INTERFACE
+      SUBROUTINE cpmdc_orbital_ledger_reset() BIND(C, NAME='cpmdc_orbital_ledger_reset')
+      END SUBROUTINE cpmdc_orbital_ledger_reset
+    END INTERFACE
     TYPE(c_ptr), INTENT(IN), VALUE :: image_c
     TYPE(cpmdc_embed_image), POINTER :: image
     INTEGER(c_int) :: ok
+    CALL cpmdc_orbital_ledger_reset()
     ok = 0_c_int
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
@@ -446,6 +454,42 @@ CONTAINS
     ok = 1_c_int
   END FUNCTION
 
+  ! Drops every key's stored orbitals when the next call is on a new
+  ! basis, the same test run_embed_scf applies. A keyed evaluation calls
+  ! this before it selects its key, so a saturated slot limit cannot
+  ! refuse a park on a basis whose old copies are about to be freed.
+  ! Returns 1, or 0 when the image is missing or the embed is not ready.
+  FUNCTION cpmdc_embed_drop_stale_orbitals(n_atoms, atomic_numbers, cell_ang, &
+      has_cell, image_c) RESULT(ok) BIND(C, NAME='cpmdc_embed_drop_stale_orbitals')
+    INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
+    INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
+    REAL(c_double), INTENT(IN) :: cell_ang(*)
+    INTEGER(c_int), INTENT(IN), VALUE :: has_cell
+    TYPE(c_ptr), INTENT(IN), VALUE :: image_c
+    TYPE(cpmdc_embed_image), POINTER :: image
+#if defined(CPMDC_HAS_CPMD)
+    TYPE(embed_knobs) :: knobs
+#endif
+    INTEGER(c_int) :: ok
+    ok = 0_c_int
+    IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
+#if defined(CPMDC_HAS_CPMD)
+    IF (embed_basis_latched .AND. n_atoms > 0) THEN
+      knobs = knobs_of(image)
+      IF (embed_basis_changed(image, INT(n_atoms), atomic_numbers, cell_ang, &
+          INT(has_cell), knobs)) THEN
+        IF (.NOT. embed_cell_moves_in_place(INT(n_atoms), atomic_numbers, &
+            cell_ang, INT(has_cell), knobs)) CALL drop_stale_basis(image)
+      END IF
+    END IF
+#else
+    IF (n_atoms < 0 .OR. has_cell < 0) CONTINUE
+#endif
+    ok = 1_c_int
+  END FUNCTION
+
   ! The stored c0 follows the key the caller names: the next SCF starts
   ! from the orbitals the last converged call under that key left. A key
   ! with none starts from the orbitals already stored. Every rank of the
@@ -460,6 +504,34 @@ CONTAINS
     CALL embed_select_orbital_slot(INT(key, KIND=SELECTED_INT_KIND(18)))
 #else
     IF (key == 0_c_long_long) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! Reserve a key selection without changing orbital state. C agrees the
+  ! result across ranks before calling the matching commit entry point.
+  FUNCTION cpmdc_embed_prepare_orbitals(key, fail_allocation) RESULT(rc) &
+      BIND(C, NAME='cpmdc_embed_prepare_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_prepare_orbital_slot
+#endif
+    INTEGER(c_long_long), INTENT(IN), VALUE :: key
+    INTEGER(c_int), INTENT(IN), VALUE :: fail_allocation
+    INTEGER(c_int) :: rc
+#if defined(CPMDC_HAS_CPMD)
+    rc = INT(embed_prepare_orbital_slot( &
+         INT(key, KIND=SELECTED_INT_KIND(18)), fail_allocation /= 0_c_int), &
+         c_int)
+#else
+    rc = 0_c_int
+    IF (key == 0_c_long_long .OR. fail_allocation == 0_c_int) CONTINUE
+#endif
+  END FUNCTION
+
+  SUBROUTINE cpmdc_embed_commit_orbitals() &
+      BIND(C, NAME='cpmdc_embed_commit_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_commit_orbital_slot
+    CALL embed_commit_orbital_slot()
 #endif
   END SUBROUTINE
 
@@ -481,6 +553,44 @@ CONTAINS
 #else
     rc = -1_c_int
     IF (from_key == to_key) rc = -1_c_int
+#endif
+  END FUNCTION
+
+  ! limit > 0 is the most parked copies. -1 leaves them unbounded.
+  ! -2 makes the next park read CPMDC_ORBITAL_SLOT_LIMIT.
+  SUBROUTINE cpmdc_embed_set_orbital_slot_limit(limit) &
+      BIND(C, NAME='cpmdc_embed_set_orbital_slot_limit')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_set_orbital_slot_limit
+#endif
+    INTEGER(c_int), INTENT(IN), VALUE :: limit
+#if defined(CPMDC_HAS_CPMD)
+    CALL embed_set_orbital_slot_limit(INT(limit))
+#else
+    IF (limit == 0_c_int) CONTINUE
+#endif
+  END SUBROUTINE
+
+  ! The C entry gate reads CPMDC_CELL_IN_PLACE on calculator rank zero and
+  ! broadcasts it before setting this identical value on every rank.
+  SUBROUTINE cpmdc_embed_set_cell_in_place(limit) &
+      BIND(C, NAME='cpmdc_embed_set_cell_in_place')
+    REAL(c_double), INTENT(IN), VALUE :: limit
+    embed_cell_in_place_limit = MAX(0.0_c_double, limit)
+  END SUBROUTINE
+
+  ! 0 the last park was allowed, 1 CPMDC_ORBITAL_SLOT_LIMIT is not a
+  ! positive integer, 2 the park would have passed that limit and the
+  ! stored copies were left unchanged.
+  FUNCTION cpmdc_embed_slot_limit_code() RESULT(code) &
+      BIND(C, NAME='cpmdc_embed_slot_limit_code')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_orbital_slot_limit_code
+#endif
+    INTEGER(c_int) :: code
+    code = 0_c_int
+#if defined(CPMDC_HAS_CPMD)
+    code = INT(embed_orbital_slot_limit_code(), KIND=c_int)
 #endif
   END FUNCTION
 
@@ -2800,6 +2910,14 @@ CONTAINS
     IF (ALLOCATED(embed_saved_deck)) DEALLOCATE(embed_saved_deck)
   END SUBROUTINE
 
+  SUBROUTINE drop_stale_basis(image)
+    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    CALL embed_reset_warm_orbitals()
+    CALL clear_embed_basis_latch()
+    image%cfg_warm_steps = 0
+  END SUBROUTINE
+
   SUBROUTINE latch_embed_basis(n_atoms, z, knobs)
     USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     INTEGER, INTENT(IN) :: n_atoms
@@ -2908,19 +3026,11 @@ CONTAINS
     IF (.NOT. same_element_counts(n_atoms, z)) embed_method_changed = .TRUE.
   END FUNCTION
 
-  ! CPMDC_CELL_IN_PLACE is the largest principal strain of a cell from
-  ! the setup cell, as a fraction of a length, that keeps the setup's plane
-  ! waves on a constant-cutoff deck. Unset, 0, negative, or a value that
-  ! does not parse sets CPMD up again for every new cell.
+  ! CPMDC_CELL_IN_PLACE is the largest principal strain of a cell from the
+  ! setup cell, as a fraction of a length, that keeps the setup's plane waves
+  ! on a constant-cutoff deck. The C entry gate has already read it on root.
   REAL(real64) FUNCTION embed_cell_strain_limit()
-    CHARACTER(LEN=32) :: v
-    INTEGER :: st, ios
-    REAL(real64) :: x
-    embed_cell_strain_limit = 0.0_real64
-    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_CELL_IN_PLACE', v, STATUS=st)
-    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
-    READ(v, *, IOSTAT=ios) x
-    IF (ios == 0 .AND. x > 0.0_real64) embed_cell_strain_limit = x
+    embed_cell_strain_limit = REAL(embed_cell_in_place_limit, KIND=real64)
   END FUNCTION
 
   ! The largest eigenvalue of a symmetric 3x3 matrix (Smith 1961).
@@ -3070,7 +3180,6 @@ CONTAINS
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &
         cpmdc_pseudopotential_directory, cpmdc_prepare_pp_cwd, &
         cpmdc_restore_host_cwd, cpmdc_note_embed_failure
-    USE rwfopt_utils, ONLY: embed_reset_warm_orbitals
     USE fileopen_utils, ONLY: init_fileopen
     USE timer, ONLY: tistart
     USE startpa_utils, ONLY: startpa
@@ -3166,11 +3275,7 @@ CONTAINS
       END IF
       RETURN
     END IF
-    IF (embed_basis_latched) THEN
-      CALL embed_reset_warm_orbitals()
-      CALL clear_embed_basis_latch()
-      image%cfg_warm_steps = 0
-    END IF
+    IF (embed_basis_latched) CALL drop_stale_basis(image)
     ! Cold: honor the rendered method deck.
     ! 1) &ATOMS that already has coordinates is kept.
     ! 2) Method sections keep their text. &ATOMS is rebuilt from the step.

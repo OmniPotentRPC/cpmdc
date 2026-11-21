@@ -50,9 +50,9 @@ Keeping them apart is what lets a warm step skip CPMD's setup.
    multiplicity with ~capnp-fortran~.
 2. ~cpmdc_session_calculate_result()~ decodes the ~ForceInput~, converts
    positions and the cell to Angstrom, and sizes the result buffer.
-   ~session_accept_topology~ fixes the topology as soon as that call passes
-   its argument checks, even when the evaluation then fails, and it is never
-   rolled back. All of that is before any CPMD work.
+   ~session_accept_topology~ fixes the topology after that call passes its
+   argument checks and collective orbital preflight. A rejected preflight
+   leaves it configurable. All of that is before any CPMD work.
 3. On a cold evaluation, the bridge composes the full deck from the method
    deck and the step geometry, writes it to an anonymous ~memfd~ exposed as
    ~/proc/self/fd/N~, and runs OpenCPMD's own setup on it (~control~,
@@ -84,10 +84,10 @@ The geometry never goes into ~CPMDParams~: the bridge writes ~&ATOMS~ from the
 step on a cold evaluation and moves atoms through ~tau0~ on a warm step.
 
 * Sessions, topology, and state
-~session_accept_topology~ fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back, because the species tables, the plane-wave setup, and the
-stored orbitals are sized for one composition.
+~session_accept_topology~ fixes the topology after an evaluation call passes
+its argument checks and collective orbital preflight, because the species
+tables, the plane-wave setup, and the stored orbitals are sized for one
+composition. A rejected preflight leaves it configurable.
 A reordering of those elements stays on the session.
 Coordinates may change freely. A changed cell runs setup again, except a
 constant-cutoff cell that stays within ~CPMDC_CELL_IN_PLACE~.

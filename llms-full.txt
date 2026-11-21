@@ -372,9 +372,9 @@ Keeping them apart is what lets a warm step skip CPMD's setup.
    multiplicity with `capnp-fortran`.
 2. `cpmdc_session_calculate_result()` decodes the `ForceInput`, converts
    positions and the cell to Angstrom, and sizes the result buffer.
-   `session_accept_topology` fixes the topology as soon as that call passes
-   its argument checks, even when the evaluation then fails, and it is never
-   rolled back. All of that is before any CPMD work.
+   `session_accept_topology` fixes the topology after that call passes its
+   argument checks and collective orbital preflight. A rejected preflight
+   leaves it configurable. All of that is before any CPMD work.
 3. On a cold evaluation, the bridge composes the full deck from the method
    deck and the step geometry, writes it to an anonymous `memfd` exposed as
    `/proc/self/fd/N`, and runs OpenCPMD's own setup on it (`control`,
@@ -406,10 +406,10 @@ The geometry never goes into `CPMDParams`: the bridge writes `&ATOMS` from the
 step on a cold evaluation and moves atoms through `tau0` on a warm step.
 
 # Sessions, topology, and state
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back, because the species tables, the plane-wave setup, and the
-stored orbitals are sized for one composition.
+`session_accept_topology` fixes the topology after an evaluation call passes
+its argument checks and collective orbital preflight, because the species
+tables, the plane-wave setup, and the stored orbitals are sized for one
+composition. A rejected preflight leaves it configurable.
 A reordering of those elements stays on the session.
 Coordinates may change freely. A changed cell runs setup again, except a
 constant-cutoff cell that stays within `CPMDC_CELL_IN_PLACE`.
@@ -1692,8 +1692,18 @@ the refusal.
 Every rank of a calculator names the same keys.
 Every rank of a calculator selects the same key, and each rank parks its own
 slice of `c0`.
+`CPMDC_ORBITAL_SLOT_LIMIT`, a positive integer, is the most of those parked
+copies.
+A park that would pass it fails the evaluation or the copy, the result names
+the variable through `cpmdc_last_error()`, and the copies already stored stay
+in the table.
+Lowering the limit does not drop a copy that is already parked.
+Unset, the table is unbounded.
+A value that is not a positive integer fails the call.
 A basis change frees the table with the store, since every copy in it has the
 shape of the old basis.
+It does so before the key of the new call is selected, so a limit that the old
+basis filled does not refuse the first key of the new one.
 A session that never selects a key keeps one stored copy.
 
 # Distance limit
@@ -2257,9 +2267,9 @@ reason.
 The calculator stays usable, and the next call evaluates the step again.
 
 # Sessions and copies
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A reordering of the same atoms stays on the session.
 After a successful step, a structure with another composition closes the
 session and opens a new one from the same `params`.
@@ -2799,9 +2809,9 @@ contract; these are the ones that shape a host loop:
   `ok == 0` with the needed size in `potential_result_size`.
 - `cpmdc_session_create()` copies the `CPMDParams` bytes, so the caller may free
   them at once.
-- `session_accept_topology` fixes the topology as soon as an evaluation call
-  passes its argument checks, even when the evaluation then fails, and it is
-  never rolled back.
+- `session_accept_topology` fixes the topology only after an evaluation call
+  passes its argument checks and collective orbital preflight. A rejected
+  preflight leaves the topology configurable.
   Change the atom count, the elemental composition, or the method after that
   call, by creating a new `CPMDCSession`;
   `cpmdc_session_set_params()` only works before it.
@@ -2846,6 +2856,8 @@ orbitals.
 `cpmdc_session_select_orbitals()` and `cpmdc_session_copy_orbitals()` name
 orbital stores by integer keys when a host runs several trajectories on one
 session; see extrapolate the orbitals (file:extrapolate-orbitals.org).
+`CPMDC_ORBITAL_SLOT_LIMIT` caps how many of those copies stay parked, and a
+new park past the cap fails without discarding the ones already stored.
 
 # rgpot CPMDPot
 rgpot (https://github.com/OmniPotentRPC/rgpot) loads `libcpmdc.so` in
@@ -4533,9 +4545,8 @@ With more than one MPI rank, `cpmdc` aborts the other ranks, which would
 otherwise stay blocked in the call `stopgm` returned from.
 
 ## ~topology change requires a new session~
-# Cause:* ~session_accept_topology~ fixes the topology as soon as an
-evaluation call passes its argument checks, even when the evaluation then
-fails, and it is never rolled back.
+# Cause:* ~session_accept_topology~ fixes the topology after an evaluation call
+passes its argument checks and collective orbital preflight.
 A later step with a different count or composition is refused before CPMD runs.
 A reordering of the same elements stays on the session.
 
@@ -4969,9 +4980,9 @@ Long-running drivers create one `CPMDCSession` from `CPMDParams`, then pass
 The result-carrier call, `cpmdc_session_calculate_result()`, writes the same
 `PotentialResult` message used by `rgpot` RPC clients.
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A reordering of those elements stays on the session.
 Later steps may change coordinates, units, and the 3 by 3 cell; a different
 composition requires a new session.
@@ -5387,9 +5398,9 @@ An opaque handle.
 A session holds a copy of the `CPMDParams` bytes, the rendered deck, the
 topology, scratch arrays for step geometry, and the results of its last
 evaluation.
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 
 ## Result snapshots
 Each snapshot struct starts with `int valid`, set by a successful evaluation.
@@ -5605,8 +5616,8 @@ The output array holds `3 * n_atoms` doubles.
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
-| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; -1 for a `NULL` session |
-| `int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)` | duplicate the converged orbitals of `from_key`, and the geometry they converged at, into `to_key`, replacing any previous copy; the selected key is unchanged; when `to_key` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting `to_key` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; every calculator rank names the same keys, the same rule `cpmdc_session_select_orbitals()` has; the reference build returns 0 because it has no orbital store; the link stub returns -1, including a same key copy; -1 for a `NULL` session, before any evaluation, when `from_key` has no converged orbitals, or on backend copy failure |
+| `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past `CPMDC_ORBITAL_SLOT_LIMIT` fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
+| `int cpmdc_session_copy_orbitals(CPMDCSession *s, long long from_key, long long to_key)` | duplicate the converged orbitals of `from_key`, and the geometry they converged at, into `to_key`, replacing any previous copy; the selected key is unchanged; when `to_key` is selected its live store is replaced immediately, otherwise the live store is unchanged; selecting `to_key` afterwards starts from that copy; a donor whose last pass did not converge is refused, including a parked copy and a copy onto the same key; a copy that would park a new key past `CPMDC_ORBITAL_SLOT_LIMIT` returns -1, `cpmdc_last_error()` names that variable, and the copies already stored stay; every calculator rank names the same keys, the same rule `cpmdc_session_select_orbitals()` has; the reference build returns 0 because it has no orbital store, unless the limit is set to a value that is not a positive integer, which fails the call; the link stub returns -1, including a same key copy; -1 for a `NULL` session, before any evaluation, when `from_key` has no converged orbitals, or on backend copy failure |
 
 `cpmdc_session_set_constant_cutoff()` sets the constant-cutoff kinetic
 functional of Bernasconi et al. (1995), which CPMD applies as G^2 + A [1 +
@@ -5621,9 +5632,9 @@ previous setting.
 It survives a later `cpmdc_session_set_params()`.
 The link stub returns -1.
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable.
 A later step with a different count or composition fails with
 `topology change requires a new session` before CPMD runs.
 A reordering of the same elements stays on the session.
@@ -6133,9 +6144,9 @@ A session is created by one of two functions and released by `cpmdc_session_dest
 
 ## Session evaluation
 
-`session_accept_topology` fixes the topology as soon as an evaluation call
-passes its argument checks, even when the evaluation then fails, and it is
-never rolled back; see the C ABI reference.
+`session_accept_topology` fixes the topology only after an evaluation call
+passes its argument checks and collective orbital preflight. A rejected
+preflight leaves the topology configurable; see the C ABI reference.
 
 ### ~cpmdc_session_energy_gradient~
 
@@ -9290,6 +9301,7 @@ C ABI reference (file:c-abi.org) for the lowering rules.
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | `CPMDC_RANK_CONSENSUS` | `src/cpmdc.c`, each evaluation under a running MPI | `1` gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
+| `CPMDC_ORBITAL_SLOT_LIMIT` | `src/cpmdc.c` on each evaluation and orbital copy, and `tools/opencpmd_embed_rwfopt.patch` when the host has not already agreed a value | unset leaves parked orbital copies unbounded; a positive integer is the most parked copies, excluding the selected key; empty, zero, negative, and non-integer values fail the call |
 
 A cold OpenCPMD evaluation fails when neither `CPMDC_PSEUDO_DIR` nor
 `CPMD_PP_LIBRARY_PATH` names an existing directory.
@@ -9363,6 +9375,28 @@ Wavefunction state between calls (file:../explanation/wavefunction-state.org)
 (section Cell changes at a constant cutoff) gives the conditions and what the
 move changes in the energy and the stress.
 Set it to the same value on every rank.
+
+`CPMDC_ORBITAL_SLOT_LIMIT` is the most parked orbital copies a calculator keeps,
+excluding the key that is selected.
+Unset, the table grows with each new key.
+A positive integer refuses a park that would pass that count: the evaluation
+or the copy fails, `cpmdc_last_error()` names the variable, and the copies
+already stored stay where they are.
+Lowering the value does not discard copies already parked; the next new park
+fails until the count is within the new limit.
+An empty value, zero, a negative value, or any value that is not a positive
+integer fails the call and does not leave the table unbounded.
+Every calculator rank must use the same value.
+A rank that disagrees, or an MPI collective that fails, fails the call on
+every rank.
+Each evaluation and each copy checks its own arguments and session first and
+agrees the value only after that, so a call that is itself bad reports that
+reason even when the value is unusable.
+A rank that rejects its own call still joins the agreement, and every other
+rank then fails the call too, with a message that another rank rejected it,
+instead of waiting for it.
+`cpmd.x` and a warm-start call that does not go through the library read the
+variable themselves.
 
 `CPMDC_RANK_CONSENSUS=1` adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or `MPI_COMM_WORLD` when
@@ -9647,9 +9681,9 @@ focused test command.
 - `tau0` :: OpenCPMD's array of ionic positions in Bohr, `coor%tau0`, written by
   `cpmdc` from each step's positions.
 - Topology :: The atom count and elemental composition of a session.
-  `session_accept_topology` fixes the topology as soon as an evaluation call
-  passes its argument checks, even when the evaluation then fails, and it is
-  never rolled back.
+  `session_accept_topology` fixes the topology only after an evaluation call
+  passes its argument checks and collective orbital preflight. A rejected
+  preflight leaves the topology configurable.
   A reordering of those elements stays on the session.
 
 # W
