@@ -1662,12 +1662,15 @@ CONTAINS
       ! An internal write to one CHARACTER variable has one record; a '/'
       ! edit descriptor would end the write. The rows are joined by
       ! NEW_LINE instead.
-      WRITE(text, '(2A,3ES24.16E3,A,3ES24.16E3,A,3ES24.16E3,A)') ' CELL VECTORS', &
+      WRITE(text, '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
+           'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
+           'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') ' CELL VECTORS', &
            NEW_LINE('A'), cell(1), cell(2), cell(3), NEW_LINE('A'), &
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,3ES24.16E3,A)') ' CELL'//NEW_LINE('A')//'  ', &
+      WRITE(text, '(A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') &
+           ' CELL'//NEW_LINE('A')//'  ', &
            cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)
@@ -1986,12 +1989,15 @@ CONTAINS
       END IF
       symmetry_indent = ''
       IF (osym == 0) symmetry_indent = '  '
-      WRITE(text, '(A,A,A,I0,A,A,A,3ES24.16E3,A,A)') ' SYMMETRY', NEW_LINE('A'), &
+      WRITE(text, '(A,A,A,I0,A,A,A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,A)') &
+           ' SYMMETRY', NEW_LINE('A'), &
            symmetry_indent, k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), &
            c(1), c(5) / c(1), &
            c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
     ELSE
-      WRITE(text, '(2A,3ES24.16E3,A,3ES24.16E3,A,3ES24.16E3,A)') ' CELL VECTORS', &
+      WRITE(text, '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
+           'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
+           'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') ' CELL VECTORS', &
            NEW_LINE('A'), c(1), c(2), c(3), NEW_LINE('A'), &
            c(4), c(5), c(6), NEW_LINE('A'), c(7), c(8), c(9), NEW_LINE('A')
     END IF

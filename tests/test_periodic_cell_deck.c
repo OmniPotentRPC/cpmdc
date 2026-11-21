@@ -5,6 +5,7 @@
 #include "cpmdc.h"
 #include "cpmdc_params.h"
 
+#include <ctype.h>
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,14 +70,23 @@ static void require_vectors_preserved(const char *deck, const double *cell,
                                       const char *what) {
   const char *vectors = strstr(deck, "CELL VECTORS\n");
   double parsed[9];
-  if (!vectors ||
-      sscanf(vectors + strlen("CELL VECTORS\n"),
-             "%lf%lf%lf%lf%lf%lf%lf%lf%lf", &parsed[0], &parsed[1],
-             &parsed[2], &parsed[3], &parsed[4], &parsed[5], &parsed[6],
-             &parsed[7], &parsed[8]) != 9) {
+  const char *cursor;
+  if (!vectors) {
     fprintf(stderr, "%s: could not read CELL VECTORS\n%s\n", what, deck);
     g_failed = 1;
     return;
+  }
+  cursor = vectors + strlen("CELL VECTORS\n");
+  for (int i = 0; i < 9; ++i) {
+    char *end = NULL;
+    parsed[i] = strtod(cursor, &end);
+    if (end == cursor || !isspace((unsigned char)*end)) {
+      fprintf(stderr, "%s: cell[%d] has no delimited number\n%s\n", what, i,
+              deck);
+      g_failed = 1;
+      return;
+    }
+    cursor = end;
   }
   for (int i = 0; i < 9; ++i) {
     if (parsed[i] != cell[i]) {
@@ -126,8 +136,9 @@ int main(int argc, char **argv) {
   double small_tilt[9] = {1.0, 0.0, 0.0, 0.3, 2.58e-12, 0.0,
                           0.2, 0.1, 0.8};
   double zero[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  /* Tilted cells whose last vector is short, down to twice the rank cutoff. */
+  /* A strained cell and cells whose last vector approaches the rank cutoff. */
   const double accepted[][9] = {
+      {10.0, -5.0e-5, 0.0, -5.0e-5, 10.0, 0.0, 0.0, 0.0, 10.0},
       {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 2.58e-12},
       {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 1.0e-13},
       {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 6.0 * DBL_EPSILON},
