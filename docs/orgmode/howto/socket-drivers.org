@@ -283,9 +283,15 @@ the two agree to 1e-10, which the pytest suite checks.
   Both drivers and the library compute the singular values with the same
   one-sided Jacobi iteration on the cell scaled by a power of two, so they
   agree on every cell, including those within rounding of the cutoff,
-  where two SVD routines can disagree. A full-rank cell whose volume is
-  too small for a normal float64 is also refused before its virial can
-  underflow to zero.
+  where two SVD routines can disagree.
+- Both drivers judge the cell on the wire values, in Bohr, before any
+  conversion. A full-rank cell whose volume in Bohr^3 is below the least
+  normal float64 stops the driver with "the server sent a cell whose volume
+  is too small for binary64", so the virial volume cannot underflow. The
+  library then checks the Angstrom cell it is given; a cell that passes in
+  Bohr but whose Angstrom volume is below that value, such as a diagonal of
+  3.1072325e-103 Bohr, stops either driver with the library's "cell volume
+  is too small for binary64".
 - ~--wait~ must be finite and zero or positive.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.

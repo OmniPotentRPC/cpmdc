@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import uuid
@@ -387,6 +388,47 @@ def test_invalid_init_is_refused(mini, socket_dir, params, drivers, init, expect
     code, err = client.finish()
     assert code == 1
     assert expected in err
+
+
+def bohr_posdata(h_bohr, positions_bohr) -> bytes:
+    """POSDATA from wire values in Bohr, with no unit conversion on the way."""
+    h = np.asarray(h_bohr, dtype=float)
+    pos = np.asarray(positions_bohr, dtype=float)
+    return (
+        MiniServer.header("POSDATA")
+        + h.tobytes()
+        + np.zeros((3, 3)).tobytes()
+        + struct.pack("=i", len(pos))
+        + pos.tobytes()
+    )
+
+
+# 3.1072325e-103 Bohr: the Bohr^3 volume is 1.348 times the least normal
+# float64, so both drivers pass it on, and the library refuses the Angstrom
+# cell it receives. 2.8e-103 Bohr: both drivers refuse the wire cell.
+@pytest.mark.parametrize("kind", ["c", "python"])
+@pytest.mark.parametrize(
+    ("side", "expected", "absent"),
+    [
+        (3.1072325e-103, "cell volume is too small for binary64", "the server sent a cell"),
+        (2.8e-103, "the server sent a cell whose volume is too small for binary64", None),
+    ],
+    ids=["normal-in-bohr", "subnormal-in-bohr"],
+)
+def test_volume_underflow_is_judged_on_the_bohr_wire_cell(
+    kind, side, expected, absent, mini, socket_dir, periodic_params, drivers
+):
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(bohr_posdata(np.diag([side] * 3), np.asarray(WATER) / BOHR_TO_ANGSTROM))
+    code, err = client.finish()
+    assert code == 1
+    assert expected in err
+    if absent is not None:
+        assert absent not in err
 
 
 @pytest.mark.parametrize(

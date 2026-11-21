@@ -1889,7 +1889,7 @@ The i-PI protocol driver.
 | Units | ~positions~ and ~cell~ in Bohr; returns the energy in Hartree, forces in Hartree/Bohr and the virial ~-dE/d(strain)~ in Hartree. |
 | Shape and dtype | ~positions~ 3N floats; ~cell~ nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns ~(float, list[float], list[float])~ of 1, 3N and 9 values. |
 | Ownership and threads | Returns new lists; counts the step in ~steps~. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | ~ProtocolError~ for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range; ~CPMDCError~ and ~ValueError~ from the session. |
+| Raises | ~ProtocolError~ for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range, both judged on the Bohr values of ~cell~; ~CPMDCError~ and ~ValueError~ from the session. |
 | Defaults | none: both arguments are required. |
 
 *** ~cpmdc.ipi.Driver.serve~

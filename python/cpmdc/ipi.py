@@ -48,7 +48,7 @@ import time
 from typing import IO, Any, Sequence
 
 from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Session, _elements
-from cpmdc._rank import _cell_is_rank_deficient
+from cpmdc._rank import _FULL_RANK, _NONFINITE, _VOLUME_UNDERFLOW, _cell_state
 from cpmdc._elements import species_numbers
 
 __all__ = [
@@ -252,14 +252,17 @@ class Driver:
     def _cell_rows(self, h: Sequence[float]) -> list[list[float]] | None:
         if self.cluster or not any(h):
             return None
-        rows = [[h[3 * i + k] * BOHR_TO_ANGSTROM for i in range(3)] for k in range(3)]
-        # Same rank test as CPMDCCalculator: numpy.linalg.matrix_rank's cutoff.
-        if _cell_is_rank_deficient(rows):
+        bohr = [[h[3 * i + k] for i in range(3)] for k in range(3)]
+        # cpmdc-ipi-c classifies these same Bohr values with the same routine.
+        state = _cell_state(bohr)
+        if state == _VOLUME_UNDERFLOW:
+            raise ProtocolError("the server sent a cell whose volume is too small for binary64")
+        if state not in (_FULL_RANK, _NONFINITE):
             raise ProtocolError(
                 "the server sent a cell without three independent vectors; send an "
                 "all-zero cell or start cpmdc-ipi with --cluster for an isolated system"
             )
-        return rows
+        return [[value * BOHR_TO_ANGSTROM for value in row] for row in bohr]
 
     def _check_count(self, n_atoms: int) -> None:
         if n_atoms != len(self.atomic_numbers):
