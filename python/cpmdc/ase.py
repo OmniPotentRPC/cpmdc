@@ -10,10 +10,11 @@ A structure with every periodic flag false is a cluster: the cell is not
 sent, and the CPMDParams deck sets the boundary conditions. Every flag
 true sends ``atoms.cell`` as the periodic cell. The cell is rejected
 when those three vectors are linearly dependent. Dependence is rank
-below 3: a singular value from ``numpy.linalg.svd`` counts only when it
-is strictly greater than ``sigma_max * 3 * eps``, with ``eps`` the
-float64 unit roundoff, the cutoff ``numpy.linalg.matrix_rank`` uses for
-a 3 by 3 matrix. A mixed periodic flag raises ``ValueError`` and names
+below 3: a singular value counts only when it is strictly greater than
+``sigma_max * 3 * eps``, with ``eps`` the float64 unit roundoff, the
+cutoff ``numpy.linalg.matrix_rank`` uses for a 3 by 3 matrix. The
+singular values come from the one-sided Jacobi iteration that the C
+library also runs, so both make the same decision for the same cell. A mixed periodic flag raises ``ValueError`` and names
 the non-periodic axes.
 
 The CPMDParams message holds the method, including the charge and the
