@@ -17,6 +17,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import sys
 import warnings
 from pathlib import Path
 
@@ -704,19 +705,18 @@ def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
     intermolecular stress, so on OpenCPMD the cell converges within 10% of
     its start while the energy falls. The first steps lower it every time.
     """
+    if opencpmd:
+        runner = ROOT / "tests" / "python" / "run_bfgs_cell_filter.py"
+        subprocess.run([sys.executable, str(runner)], check=True, env=os.environ)
+        return
     atoms = water(cell=CUBE, pbc=True)
     atoms.rattle(0.05, seed=17)
     with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
         atoms.calc = calc
-        converged, energies = relax_cell(atoms, steps=80 if opencpmd else 4)
+        converged, energies = relax_cell(atoms, steps=4)
     assert energies[-1] < energies[0]
     assert np.all(np.diff(energies[:5]) < 0.0)
-    if opencpmd:
-        assert converged
-        assert 0.9 < atoms.get_volume() / np.linalg.det(CUBE) < 1.1
-        assert np.abs(atoms.get_stress()[:3]).max() < 1.0e-3
-    else:
-        assert not np.allclose(atoms.cell.array, CUBE)
+    assert not np.allclose(atoms.cell.array, CUBE)
 
 
 def test_a_fixed_basis_cell_filter_collapses_the_cell(periodic_calc, opencpmd):
