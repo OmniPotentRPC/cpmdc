@@ -11,7 +11,8 @@ Importing ~cpmdc~ does not import ASE.
 Import ~cpmdc.ase~ for ~CPMDCCalculator~ and its ~CalculationFailed~.
 ~cpmdc.ipi~ is the ~cpmdc-ipi~ socket driver; it needs ASE only for
 ~--structure~.
-~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module; it imports
+~cpmdc.lammps~ couples a ~lammps~ object from LAMMPS' Python module. Loading it
+imports ~rgpot.lammps~, the frontend ~FixExternal~ subclasses. It imports
 neither LAMMPS nor ~mpi4py~ until a run needs them.
 ~cpmdc.gromacs~ writes the grompp ~-qmi~ input of ~libcpmdc_gromacs~ and holds
 GROMACS' unit factors; it imports nothing outside the standard library.

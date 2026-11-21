@@ -4,6 +4,9 @@
 Both routes of [[file:../howto/lammps.org][Run LAMMPS on cpmdc forces]],
 ~cpmdc.lammps.FixExternal~ and ~pair_style cpmdc~, pass the same numbers to
 LAMMPS.
+The Python class adapts ~cpmdc.Session~ to the standard rgpot Python potential
+protocol and delegates its LAMMPS mechanics to ~rgpot.lammps.FixExternal~.
+The plugin remains cpmdc's compiled, LAMMPS-specific route.
 This page gives their units, the cell and positions they send, and the virial
 they return.
 

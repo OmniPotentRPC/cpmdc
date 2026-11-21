@@ -39,8 +39,20 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # rgpot.lammps is not in a released wheel. Build it before configure.
+      # The lammps module is installed after configure so the auto plugin
+      # probe does not start building cpmdcplugin.so in this job. The main
+      # cpmdc build still probes and links the environment's Open MPI.
+      - name: rgpot.lammps
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite (stub + embed E2E)
-        run: pixi run test-stub
+        run: |
+          pixi run bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build'
+          # The lammps wheel is linked to MPICH's libmpi.so.12.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmpich12
+          pixi run python -m pip install lammps
+          pixi run meson test -C build --print-errorlogs
       - name: C ABI inventory matches libcpmdc and the headers
         run: python3 scripts/abi_inventory.py --check build/libcpmdc.so
       - name: Default restart build does not link readcon
@@ -164,7 +176,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential gfortran pkg-config python3 python3-venv \
-            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
+            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev libmpich12 cmake \
             ninja-build file
       # meson finds python3 on PATH, which is this venv, so the test packages go here too.
       - name: Meson, ASE and i-PI
@@ -172,14 +184,19 @@ jobs:
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
           "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      - name: rgpot.lammps
+        run: PYTHON="${RUNNER_TEMP}/meson-venv/bin/python" bash scripts/ci/install_rgpot_lammps.sh
       - name: Full meson suite
         run: |
+          # The plugin probe stays off because lammps is installed after setup;
+          # the cpmdc library itself still probes and links distro Open MPI.
           . scripts/with_baseline_flags.sh
           # Ubuntu 24.04 cmocka.h uses jmp_buf and va_list and does not include their headers.
           # The prefix defines _GNU_SOURCE before those headers so memfd flags stay visible.
           export CFLAGS="${CFLAGS:+$CFLAGS }-include ${GITHUB_WORKSPACE}/tests/distro_cmocka_prefix.h"
           meson setup build -Dwith_tests=true
           meson compile -C build
+          python3 -m pip install lammps
           meson test -C build --print-errorlogs
           if nm -A build/cpmdc-restart build/test_cpmd_restart | grep -E 'rkr_|readcon_core'; then
             echo "arm64 restart build references readcon"
@@ -205,6 +222,11 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # The LAMMPS convention tests drive cpmdc.lammps.FixExternal, whose
+      # evaluation step lives in rgpot.lammps, and the skip check below
+      # fails the job when they skip.
+      - name: rgpot.lammps
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Patched OpenCPMD archive
         run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd" "${RUNNER_TEMP}/opencpmd-build"
       - name: Pseudopotentials
