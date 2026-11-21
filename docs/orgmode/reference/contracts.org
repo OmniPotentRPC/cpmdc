@@ -1922,7 +1922,7 @@ The i-PI protocol driver.
 | Units | ~wait~ in seconds. |
 | Shape and dtype | Returns a connected ~socket.socket~; give exactly one of ~unix~ (a name or a path) and ~port~. |
 | Ownership and threads | The caller owns the returned socket and must close it. Thread-safe: it uses no shared state. |
-| Raises | ~ValueError~ unless exactly one of ~unix~ and ~port~ is given, or when ~wait~ is negative or non-finite; ~CPMDCError~ when the server is not listening after ~wait~ seconds; ~OSError~ for any other socket failure. |
+| Raises | ~ValueError~ unless exactly one of ~unix~ and ~port~ is given, or, before a socket is opened, when ~wait~ is negative, NaN or infinite; ~CPMDCError~ when the server is not listening after ~wait~ seconds; ~OSError~ for any other socket failure. |
 | Defaults | ~host~ is ~'localhost'~, ~prefix~ is ~None~ (~DEFAULT_SOCKET_PREFIX~), ~wait~ is 0.0: one attempt. |
 
 *** ~cpmdc.ipi.main~

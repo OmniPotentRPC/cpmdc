@@ -7921,7 +7921,7 @@ The i-PI protocol driver.
 | Units | `wait` in seconds. |
 | Shape and dtype | Returns a connected `socket.socket`; give exactly one of `unix` (a name or a path) and `port`. |
 | Ownership and threads | The caller owns the returned socket and must close it. Thread-safe: it uses no shared state. |
-| Raises | `ValueError` unless exactly one of `unix` and `port` is given, or when `wait` is negative or non-finite; `CPMDCError` when the server is not listening after `wait` seconds; `OSError` for any other socket failure. |
+| Raises | `ValueError` unless exactly one of `unix` and `port` is given, or, before a socket is opened, when `wait` is negative, NaN or infinite; `CPMDCError` when the server is not listening after `wait` seconds; `OSError` for any other socket failure. |
 | Defaults | `host` is `'localhost'`, `prefix` is `None` (`DEFAULT_SOCKET_PREFIX`), `wait` is 0.0: one attempt. |
 
 ### ~cpmdc.ipi.main~
@@ -10653,7 +10653,7 @@ covers `cpmdc.lammps`.
 | a keyword to `CPMDCCalculator` or `CPMDCCalculator.set` other than `params`, `library`, `constant_cutoff`, and ASE's own, such as `charge` or `multiplicity`; no `params`, or `params=None` | `TypeError` |
 | `schema=` on any class, `restart=` on `CPMDCCalculator` | `DeprecationWarning` |
 | a changed atom count, an `INIT` that is not UTF-8 or whose `batch_size` is duplicated or is not the integer 1, a message out of order, a connection closed mid-message, or an unusable periodic cell on the socket | `cpmdc.ipi.ProtocolError` |
-| a negative or non-finite `cpmdc.ipi.connect(wait=...)` | `ValueError` |
+| a negative, NaN or infinite `cpmdc.ipi.connect(wait=...)` | `ValueError`, before a socket is opened |
 | `Session.calculate_au` with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size, or non-writable or non-contiguous `forces` or `virial` buffers | `CPMDCError`; `ValueError` for the sizes, buffers, non-finite values, and atomic numbers outside 1..118; `TypeError` for non-numeric coordinates or non-integer atomic numbers |
 | `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, or with the wrong number of elements | `ValueError` |
 | `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, or a failed step in `FixExternal.run` | `CPMDCError` |
