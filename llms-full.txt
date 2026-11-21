@@ -3495,6 +3495,116 @@ The plugin uses LAMMPS' own `world` communicator.
 Running one cpmdc evaluation on several ranks under the same LAMMPS is not part
 of either route.
 
+# The harness on the reference well and on OpenCPMD
+`tests/python/test_lammps.py` is the harness for both routes.
+It compares each LAMMPS step with `CPMDCCalculator` and runs short NVE and NPT
+trajectories, plus an `mpiexec -n 1` launch and an `mpiexec -n 2` launch of the
+same step.
+Which tests it collects depends on the library `CPMDC_LIBRARY` names.
+The `opencpmd` fixture reads `cpmdc_available()`, which is 1 only when that
+library is linked to OpenCPMD.
+A test that holds for one library is marked `cpmd_backend` with the reason.
+Collection keeps that test only when the bit matches, and the `cpmd_backend`
+fixture then supplies the name, so the other library does not collect it and a
+run reports no skips from it.
+
+Both libraries collect every comparison of one message between LAMMPS and ASE
+and the two-rank check on the two waters.
+
+The reference well is a quadratic energy anchored at the origin.
+It collects four tests that use that shape:
+
+- An unwrapped path held to the tolerances of the single steps (forces to
+  rtol 1e-10), since the well's forces are linear in the coordinates.
+- An NVE run of 800 steps of 0.25 fs through the box corner, with etotal
+  within 2e-3 of the swing of pe, the fall into the well.
+- An NPT run toward -20000 bar, near the well's own stress, with econserve
+  within 5e-3 of that swing.
+- A central difference of the energy over strains of 1e-5 on the triclinic
+  cell, within 1e-6 of the largest virial component.
+
+OpenCPMD collects the constant-cutoff step and a plane-wave counterpart of each.
+The finite differences and trajectories run the periodic water deck at an
+orbital threshold of 1e-7 instead of its 1e-5, on the `FixExternal` route only;
+the single steps show that both routes pass the same numbers.
+
+| Test | What it measures | Measured | Bound |
+|------+------------------+----------+-------|
+| `test_positions_are_unwrapped_on_plane_waves` | forces after the wrap and unwrap against ASE | 1.3e-11 eV/Angstrom | 1e-9 eV/Angstrom |
+| `test_forces_are_the_energy_gradient` | central difference of the energy, 1e-3 Angstrom steps, against the forces | 2.6e-5 eV/Angstrom | 1e-4 eV/Angstrom |
+| `test_virial_is_the_strain_derivative_of_one_basis` | strains of 1e-5 of the plain deck against its virial, over the largest component | 2.5e-7 | 1e-6 |
+| `test_virial_is_the_strain_derivative_in_place` | Richardson extrapolation of strains of 2.5e-3 and 5e-3 on one held basis | 4.8e-6 | 5e-5 |
+| `test_constant_cutoff_virial_is_the_strain_derivative` | new constant-cutoff setups at strains of 1e-4, and of 5e-3 | 6.9e-7, 2.0e-2 | 1e-5, 4e-2 |
+| `test_nve_energy_error_falls_with_the_timestep_squared` | etotal drift over 50 fs; RMS at 0.5 fs over RMS at 0.25 fs | 8.5e-5 eV; 4.0 | 5e-4 eV; 3 to 5 |
+| `test_npt_conserves_the_extended_energy_at_a_constant_cutoff` | iso NPT toward 0 bar over 50 fs: range of the volume; departure of econserve over the swing of pe | 3.7%; 6.2e-3 | above 1%; 1e-2 |
+
+The plain-deck virial is the derivative of the energy at a fixed set of plane
+waves.
+Each strained cell is a new setup at the deck's 40 Ry, so a central difference
+holds the basis only while no plane wave crosses that sphere: on the triclinic
+cell a strain of 1e-5 keeps all of them, and at 3e-5 the difference misses by
+1.8 times the largest component.
+At the deck's own orbital threshold the 1e-5 difference misses by 1.1e-3, the
+SCF error over the step; at 1e-7 it meets the virial to 2.5e-7.
+With `CPMDC_CELL_IN_PLACE=0.01` a constant-cutoff deck keeps the plane waves of
+its setup cell through the strain, and the misses at 5e-3 and 2.5e-3, 1.3e-3
+and 3.2e-4, fall as the square of the step.
+
+At 0.25 fs the Verlet fluctuation of etotal on the two waters is 8.6e-4 eV RMS,
+above the 8e-4 eV that 2e-3 of their 0.4 eV swing of pe allows, so the
+reference NVE bound belongs to the well.
+At the deck's threshold of 1e-5, etotal also falls at 2.9e-2 eV/ps, 17 times
+the 1.7e-3 eV/ps at 1e-7; over 800 steps, 200 fs, that adds 5.7e-3 eV.
+
+The NPT run uses the constant-cutoff deck with `CPMDC_CELL_IN_PLACE=0.05`,
+since a plain deck sets up a new basis whenever the cell moves.
+Its target, 0 bar, lies near the -135 bar the two waters average over the run.
+The pressure at the first step, +18 kbar, is the virial of the stretched O-H
+bonds, which swings by about 15 kbar each vibration; as the target it
+compressed the cube from 729 to 202 Angstrom^3 in 50 fs.
+NVE on the same deck leaves its start by 5.9e-3 of the swing of pe, so the
+barostat adds no visible error to econserve.
+
+`test_reference_cell_holds_the_basis` is the plain deck with `REFERENCE CELL`
+and `MESH` at the triclinic cell, which keeps its 10347 plane waves and its
+72 72 80 mesh through the strain.
+It is marked `xfail(strict=True)`: the strain difference is +3.28 eV where the
+virial is -32.42 eV (xx), at strains of 1e-5 and 5e-3 alike.
+A cold setup with `REFERENCE CELL` builds the G vectors from the reference
+lattice rather than the strained cell, which looks like a library bug.
+
+Build LAMMPS `stable_22Jul2025` as a shared library with MPI, exceptions,
+`PKG_PYTHON`, and `PKG_PLUGIN`, against the same Open MPI that cpmdc uses.
+The installed include directory is missing headers the plugin includes
+(`json_fwd.h`, `version.h`, `lammpsplugin.h`), so point `-Dlammps_include` at
+that LAMMPS source `src` directory.
+Build the OpenCPMD archive with `scripts/ci/build_opencpmd.sh`, which applies
+the patches the harness needs, including the optional constant-cutoff and PCG
+patches.
+`tools/rebuild_opencpmd_embed.sh`, `tools/rebuild_opencpmd_omp_info.sh`,
+`tools/rebuild_opencpmd_pcg_step.sh`, and
+`tools/rebuild_opencpmd_constant_cutoff.sh` rebuild those members when the
+tree was already compiled.
+Then point meson at that archive and at the LAMMPS headers, and run the
+harness with the pseudopotentials the deck names:
+
+# OpenCPMD library, plugin, and the LAMMPS harness.
+meson setup build-cpmd -Dwith_cpmd=true -Dcpmd_root="$CPMD_ROOT" \
+  -Dwith_lammps_plugin=enabled -Dlammps_include="$LAMMPS_SRC/src"
+meson compile -C build-cpmd
+CPMDC_LIBRARY=build-cpmd/libcpmdc.so \
+  CPMDC_LAMMPS_PLUGIN=build-cpmd/cpmdcplugin.so \
+  CPMDC_PSEUDO_DIR="$CPMDC_PSEUDO_DIR" \
+  python3 -m pytest tests/python/test_lammps.py
+
+The `lammps` Python module has to be the one built from that same LAMMPS, on
+`PYTHONPATH`.
+Unset `CPMDC_LIBRARY` (the tests then load `build/libcpmdc.so`) to run the
+reference well instead.
+With the plugin present, the pseudopotentials present for OpenCPMD, and
+`mpiexec` able to start two ranks, each run collects only its own tests and
+reports zero skips.
+
 
 ## File: docs/orgmode/howto/mpi.org
 

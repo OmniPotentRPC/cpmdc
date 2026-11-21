@@ -412,6 +412,7 @@ CONTAINS
 #if defined(CPMDC_HAS_CPMD)
     USE embed_teardown, ONLY: embed_teardown_state
     USE rmas, ONLY: rmass, rmass_t
+    USE system, ONLY: parm
 #endif
     INTEGER(c_int) :: ok
     ok = 1_c_int
@@ -422,6 +423,11 @@ CONTAINS
     ! so the next deck's species would keep this deck's masses, and the
     ! centre of mass of embed_recentre_cluster would be wrong.
     rmass = rmass_t()
+    ! setsc writes the minimum-image half lengths for a CELL deck only.
+    ! A CELL VECTORS deck after a SYMMETRY 8 one would keep them, and pbc3
+    ! would fold its triclinic cell as a monoclinic one of the old lengths
+    ! instead of through htm1.
+    parm%apbc = 0.0_real64
     CALL clear_embed_basis_latch()
     embed_setup_ht_set = .FALSE.
     cpmd_set_up = .FALSE.
