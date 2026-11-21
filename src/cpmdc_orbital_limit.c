@@ -45,8 +45,10 @@ static const char k_orbital_limit_mpi[] =
 static const char k_orbital_limit_memory[] = "out of memory";
 static const char k_orbital_limit_peer[] =
     "another rank of the calculator rejected this call";
+#if defined(CPMDC_HAVE_MPI)
 static const char k_orbital_key_differs[] =
     "orbital key selection differs across calculator ranks";
+#endif
 
 /* Reference-evaluator ledger. Parked keys exclude the selected key.
  * g_selected_has_store is the live copy of the selected key. */

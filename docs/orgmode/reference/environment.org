@@ -106,9 +106,6 @@ every rank.
 Each evaluation and each copy checks its own arguments and session first and
 agrees the value only after that, so a call that is itself bad reports that
 reason even when the value is unusable.
-A rank that rejects its own call still joins the agreement, and every other
-rank then fails the call too, with a message that another rank rejected it,
-instead of waiting for it.
 ~cpmd.x~ and a warm-start call that does not go through the library read the
 variable themselves.
 
