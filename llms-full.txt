@@ -292,6 +292,12 @@ Set `CPMDC_ORG_EXPORT=pandoc` to export with pandoc instead.
 That path applies `docs/org-links.lua` and makes the same `:doc:` rewrite.
 Generated `docs/source/**/*.rst` is not committed.
 
+When a page moves, leave a short page at the old path that starts with an
+`:orphan:` export block and links to the new page, as
+`docs/orgmode/tutorials/quickstart.org` does.
+The old address then keeps working, and `readme-navigation` does not ask the
+README to link that page.
+
 Regenerate RST after editing Org sources:
 
 pixi run -e docs mkrst
@@ -4151,6 +4157,117 @@ periodic cell, and in relaxations, and lists its properties, units, caching
 rules, working directory, and errors.
 
 
+## File: docs/orgmode/howto/quickstart.org
+
+# Goal
+Build the default library from a checkout, run its tests, and pick the smallest
+test for a change.
+No OpenCPMD checkout is needed.
+
+# Build and run the default suite
+The default build compiles the parser, the generated Cap'n Proto readers, the
+shared `libcpmdc`, the feature table, the session runtime, and the deterministic
+reference evaluator.
+
+Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
+pkg-config with your system package manager, or use the checked-in Pixi
+environment:
+
+pixi run test-stub
+
+The equivalent explicit commands are:
+
+meson setup build -Dwith_tests=true
+meson compile -C build
+meson test -C build --print-errorlogs
+
+The run passes when every configured test passes: parser, ABI, feature
+inventory, session lifecycle, result sizing, unit conversion, and the
+reference-evaluator E2E tests.
+The tests that need OpenCPMD report `SKIP`.
+
+# Work Loop
+Build once, then iterate with focused tests.
+Pick the smallest command that exercises the layer you changed, then run the
+default suite when the focused command passes.
+
+| Change | Command |
+|--------+---------|
+| Build definitions or dependencies | `meson setup --reconfigure build` |
+| One named contract, such as an inventory, ABI, or docs test | `meson test -C build <test-name> --print-errorlogs` |
+| Deck rendering or Cap'n Proto fixtures | `meson test -C build --suite cmocka --print-errorlogs` |
+| Session lifecycle, topology, or units | `meson test -C build --suite e2e --print-errorlogs` or `pixi run test-e2e` |
+| Public prose, Org sources, or API headers | `pixi run -e docs sphinxbld` |
+| The link to an OpenCPMD archive | `CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs` |
+| Anything, before publishing | `meson test -C build --print-errorlogs` |
+
+Reconfigure only when build definitions change, dependencies change, or the
+build directory does not exist.
+`meson test` rebuilds stale targets before it runs, so a source edit needs no
+separate `meson compile`.
+Run the full suite before publishing a change.
+`--print-errorlogs` keeps cmocka assertion output and OpenCPMD diagnostics
+attached to the failed test.
+The contributing guide (file:../contributing/index.org) lists the test behind
+each contract.
+
+Build options, artifacts, and Pixi tasks (file:../reference/build-options.org)
+lists the Meson test suites and the tests in each.
+
+# Run the host example
+`examples/host_step.c` is a minimal C host for the public ABI.
+It reads one serialized `CPMDParams` file and one serialized `ForceInput` file,
+creates a `CPMDCSession`, sizes the `PotentialResult` output, evaluates one
+step, and prints the result summary.
+
+meson test -C build example-host-step --print-errorlogs
+
+The example output has this shape:
+
+energy_h=...
+potential_result_size_bytes=...
+message=...
+
+The Meson test feeds the example from the fixture binaries of the E2E suites,
+encoded from
+`tests/cpmd_params_parser.capnp.txt`, or `tests/water_blyp_params.capnp.txt` in
+a build that links OpenCPMD, and `tests/force_input_step_a.capnp.txt`.
+
+# Encode Cap'n Proto fixtures
+Encode a `CPMDParams` or `ForceInput` text message the same way the tests do:
+
+mkdir -p tutorial-work
+capnp encode schema/Potentials.capnp CPMDParams \
+  < tests/cpmd_params_parser.capnp.txt > tutorial-work/cpmd_params.bin
+capnp encode schema/Potentials.capnp ForceInput \
+  < tests/force_input_step_a.capnp.txt > tutorial-work/force_input.bin
+
+Pass those buffers to `cpmdc_session_create()` and
+`cpmdc_session_calculate_result()` from C or `rgpot`.
+The Python package takes the `CPMDParams` file and builds each `ForceInput`
+itself; see Call cpmdc from Python (file:python.org).
+
+# Build against OpenCPMD
+The same C ABI links against a patched OpenCPMD archive instead of the reference
+evaluator.
+Build the archive as the archive how-to (file:opencpmd-archive.org)
+describes, then follow the install how-to (file:install.org) to
+configure `build-cpmd` with `-Dwith_cpmd=true`.
+With `with_cpmd=true` the water Cap'n Proto parity tests are added and the long
+E2E tests run the linked archive.
+When a build or a call fails, see
+troubleshooting (file:troubleshooting.org).
+
+# Read next
+
+| Need | Page |
+|------+------|
+| Compute an energy and forces from your own C program | First energy and forces (file:../tutorials/first-energy.org) |
+| Call the C ABI from a host process | Embedding cpmdc (file:embedding.org) and the C ABI reference (file:../reference/c-abi.org) |
+| Choose structured `CPMDParams` fields | Write a CPMDParams message (file:write-cpmdparams.org) and the CPMD option mapping (file:../reference/cpmd-options.org) |
+| Understand sessions, units, and topology | Architecture (file:../explanation/architecture.org) |
+
+
 ## File: docs/orgmode/howto/socket-drivers.org
 
 # Migration status
@@ -5001,7 +5118,7 @@ composition requires a new session.
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
    * - Build and test the project
      - Run the default Meson suite and learn what it covers
-     - :doc:`Build and test cpmdc <tutorials/quickstart>` and :doc:`Install and build <howto/install>`
+     - :doc:`Build and test cpmdc <howto/quickstart>` and :doc:`Install and build <howto/install>`
    * - Link a real OpenCPMD archive
      - Apply the patches in ``tools/`` and build with ``-fPIC``
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
@@ -5082,7 +5199,7 @@ An OpenCPMD archive build links the same C ABI against `libcpmd.a`.
    :caption: How-To Guides
 
    howto/install
-   tutorials/quickstart
+   howto/quickstart
    howto/opencpmd-archive
    howto/write-cpmdparams
    howto/embedding
@@ -5221,6 +5338,34 @@ match only symbols that are present.
 
 `MAJOR` is the soversion, the first field of `version.txt`.
 The stub archive `libcpmdc_stub.a` is built for the tests and not installed.
+
+# Meson test suites
+`meson test -C build --suite NAME` runs one suite.
+These suites group the tests of the default build by layer.
+`meson test -C build --list` lists every test.
+
+| Suite | Tests |
+|-------+-------|
+| `stub` | `tests/test_stub_abi.c` |
+| `abi` | exported header and feature-discovery surface |
+| `cmocka`, `capnp` | structured `CPMDParams` deck rendering |
+| `params`, `inventory` | schema field coverage and CPMD catalog feature IDs |
+| `socket` | `ForceInput` sizing and session `PotentialResult` buffer contract |
+| `e2e` | one-shot and session calls through the deterministic reference evaluator |
+| `docs` | the documentation examples and the reference contract |
+
+In the `e2e` suite, `e2e-single-point` runs `cpmdc_calculate_result` and
+`cpmdc_energy_forces` on one `ForceInput`.
+`e2e-optimizer-session` runs three geometry steps on one `CPMDCSession`, the
+topology rejection, and a second session for a change of species.
+
+cmocka is resolved through pkg-config.
+The parser tests use Cap'n Proto text fixtures encoded by the `capnp` CLI
+(`tests/encode_capnp.py`).
+The stub archive only provides linkable symbols.
+The default shared `libcpmdc` evaluates sessions on the reference evaluator.
+Both return `cpmdc_available() == 0`, because that call means OpenCPMD is
+linked.
 
 # Pixi tasks
 
@@ -8062,6 +8207,9 @@ Examples:
 | `INTERFACE GMX ESP PCGFIRST` | `interfaceOptions` | `catalog.cpmd.INTERFACE_GMX`, `catalog.cpmd.INTERFACE_ESP`, `catalog.cpmd.INTERFACE_PCGFIRST` |
 | `CENTER MOLECULE ON` | `centerMoleculeOn` | `catalog.cpmd.CENTER_MOLECULE_ON` |
 | `BOX WALLS` in `&SYSTEM` | `system.boxWalls` | `params.inputSections.system.boxWalls` |
+| `OPTIMIZE GEOMETRY CLASSICAL XYZ SAMPLE` | `optimizeGeometryOptions` plus `optimizeGeometrySample` | `catalog.cpmd.OPTIMIZE_GEOMETRY_CLASSICAL`, `catalog.cpmd.OPTIMIZE_GEOMETRY_XYZ`, `catalog.cpmd.OPTIMIZE_GEOMETRY_SAMPLE_OPTION` |
+| `NOSE IONS ULTRA MASSIVE T0` | `noseIonsOptions` | `catalog.cpmd.NOSE_IONS_ULTRA`, `catalog.cpmd.NOSE_IONS_MASSIVE`, `catalog.cpmd.NOSE_IONS_T0` |
+| `&VDW` with nested `EMPIRICAL CORRECTION` | `vdw.directives` and `vdw.subsections` | `catalog.section.VDW` |
 
 # Inventory guardrails
 The inventory files are part of the public compatibility contract, not only
@@ -8089,7 +8237,7 @@ meson test -C build \
   --print-errorlogs
 
 `feature-inventory` cross-checks the JSON inventory against the schema, public C
-feature table, README, and this reference page.
+feature table, the C ABI reference, and this reference page.
 When `CPMD_ROOT` points at an OpenCPMD tree, it also compares parser
 `inscan('&SECTION')` calls with the checked-in section inventory.
 `cpmd-base-keyword-inventory` proves the base keyword list cannot drop a
@@ -8199,6 +8347,7 @@ The usual path is:
 | Requirement | Carrier | Reason |
 |-------------+---------+--------|
 | Supported OpenCPMD `inscan('&SECTION')` block | typed section field | Schema readers, tests, and feature discovery can name the field directly |
+| Catalog section without typed fields, such as `&PIMD`, `&VDW`, `&LINRES`, or `&TDDFT` | the matching section arm with `directives` and `subsections` | The section kind stays typed while its keywords stay lines |
 | One extra keyword inside a generated section | `set` | The renderer merges it into the matching section without duplicating defaults |
 | Non-catalog section alias with ordinary keyword/argument lines | `generic` | The section remains structured even when it is not an inventory ID |
 | Existing deck text that must survive byte-for-byte apart from surrounding output | `raw` or `inputBlocks` | The renderer does not reinterpret the fragment |
@@ -10566,7 +10715,7 @@ The default build's reference well supplies the number.
 No OpenCPMD checkout is required.
 
 Configure and compile the default tree with `-Dwith_tests=true`, as the
-quickstart (file:quickstart.org) does.
+build-and-test how-to (file:../howto/quickstart.org) does.
 The build writes the shared library and the encoded water message
 `build/water_blyp_params.bin`.
 Point the example at both from the root of the checkout:
@@ -11133,130 +11282,13 @@ over several ranks.
 
 ## File: docs/orgmode/tutorials/quickstart.org
 
-# Goal
-Build the default library from a checkout, run its tests, and pick the smallest
-test for a change.
-No OpenCPMD checkout is needed.
+:orphan:
 
-# Build and run the default suite
-The default build compiles the parser, the generated Cap'n Proto readers, the
-shared `libcpmdc`, the feature table, the session runtime, and the deterministic
-reference evaluator.
+.. raw:: html
 
-Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:
+   <meta http-equiv="refresh" content="0; url=../howto/quickstart.html">
 
-pixi run test-stub
 
-The equivalent explicit commands are:
-
-meson setup build -Dwith_tests=true
-meson compile -C build
-meson test -C build --print-errorlogs
-
-The run passes when every configured test passes: parser, ABI, feature
-inventory, session lifecycle, result sizing, unit conversion, and the
-reference-evaluator E2E tests.
-The tests that need OpenCPMD report `SKIP`.
-
-# Work Loop
-Build once, then iterate with focused tests.
-Pick the smallest command that exercises the layer you changed, then run the
-default suite when the focused command passes.
-
-| Change | Command |
-|--------+---------|
-| Build definitions or dependencies | `meson setup --reconfigure build` |
-| One named contract, such as an inventory, ABI, or docs test | `meson test -C build <test-name> --print-errorlogs` |
-| Deck rendering or Cap'n Proto fixtures | `meson test -C build --suite cmocka --print-errorlogs` |
-| Session lifecycle, topology, or units | `meson test -C build --suite e2e --print-errorlogs` or `pixi run test-e2e` |
-| Public prose, Org sources, or API headers | `pixi run -e docs sphinxbld` |
-| The link to an OpenCPMD archive | `CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs` |
-| Anything, before publishing | `meson test -C build --print-errorlogs` |
-
-Reconfigure only when build definitions change, dependencies change, or the
-build directory does not exist.
-`meson test` rebuilds stale targets before it runs, so a source edit needs no
-separate `meson compile`.
-Run the full suite before publishing a change.
-`--print-errorlogs` keeps cmocka assertion output and OpenCPMD diagnostics
-attached to the failed test.
-The contributing guide (file:../contributing/index.org) lists the test behind
-each contract.
-
-The suites group the tests by layer:
-
-- `stub` :: `tests/test_stub_abi.c`
-- `abi` :: exported header and feature-discovery surface
-- `cmocka` / `capnp` :: structured `CPMDParams` deck rendering
-- `params` / `inventory` :: schema field coverage and CPMD catalog feature IDs
-- `socket` :: `ForceInput` sizing and session `PotentialResult` buffer contract
-- `e2e` :: one-shot and session calls through the deterministic reference
-  evaluator; `e2e-single-point` runs `cpmdc_calculate_result` and
-  `cpmdc_energy_forces` on one `ForceInput`, and `e2e-optimizer-session` runs
-  three geometry steps on one `CPMDCSession`, the topology rejection, and a
-  second session for a change of species
-- `docs` :: the documentation examples and the reference contract
-
-cmocka is resolved through pkg-config.
-The parser tests use Cap'n Proto text fixtures encoded by the `capnp` CLI
-(`tests/encode_capnp.py`).
-
-The stub archive `libcpmdc_stub.a` only provides linkable symbols.
-The default shared `libcpmdc` evaluates sessions on the reference evaluator.
-Both return `cpmdc_available() == 0`, because that call means OpenCPMD is
-linked.
-
-# Run the host example
-`examples/host_step.c` is a minimal C host for the public ABI.
-It reads one serialized `CPMDParams` file and one serialized `ForceInput` file,
-creates a `CPMDCSession`, sizes the `PotentialResult` output, evaluates one
-step, and prints the result summary.
-
-meson test -C build example-host-step --print-errorlogs
-
-The example output has this shape:
-
-energy_h=...
-potential_result_size_bytes=...
-message=...
-
-The Meson test feeds the example from the fixture binaries of the E2E suites,
-encoded from
-`tests/cpmd_params_parser.capnp.txt`, or `tests/water_blyp_params.capnp.txt` in
-a build that links OpenCPMD, and `tests/force_input_step_a.capnp.txt`.
-
-# Encode Cap'n Proto fixtures
-Encode a `CPMDParams` or `ForceInput` text message the same way the tests do:
-
-mkdir -p tutorial-work
-capnp encode schema/Potentials.capnp CPMDParams \
-  < tests/cpmd_params_parser.capnp.txt > tutorial-work/cpmd_params.bin
-capnp encode schema/Potentials.capnp ForceInput \
-  < tests/force_input_step_a.capnp.txt > tutorial-work/force_input.bin
-
-Pass those buffers to `cpmdc_session_create()` and
-`cpmdc_session_calculate_result()` from C or `rgpot`.
-The Python package takes the `CPMDParams` file and builds each `ForceInput`
-itself; see Call cpmdc from Python (file:../howto/python.org).
-
-# Build against OpenCPMD
-The same C ABI links against a patched OpenCPMD archive instead of the reference
-evaluator.
-Build the archive as the archive how-to (file:../howto/opencpmd-archive.org)
-describes, then follow the install how-to (file:../howto/install.org) to
-configure `build-cpmd` with `-Dwith_cpmd=true`.
-With `with_cpmd=true` the water Cap'n Proto parity tests are added and the long
-E2E tests run the linked archive.
-When a build or a call fails, see
-troubleshooting (file:../howto/troubleshooting.org).
-
-# Read next
-
-| Need | Page |
-|------+------|
-| Compute an energy and forces from your own C program | First energy and forces (file:first-energy.org) |
-| Call the C ABI from a host process | Embedding cpmdc (file:../howto/embedding.org) and the C ABI reference (file:../reference/c-abi.org) |
-| Choose structured `CPMDParams` fields | Write a CPMDParams message (file:../howto/write-cpmdparams.org) and the CPMD option mapping (file:../reference/cpmd-options.org) |
-| Understand sessions, units, and topology | Architecture (file:../explanation/architecture.org) |
+# Build and test cpmdc
+This page moved to Build and test cpmdc (file:../howto/quickstart.org) under
+the how-to guides.

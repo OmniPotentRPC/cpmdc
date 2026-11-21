@@ -43,7 +43,7 @@ def main() -> int:
     )
     failures.extend(
         require_text(
-            root / "docs/orgmode/tutorials/quickstart.org",
+            root / "docs/orgmode/howto/quickstart.org",
             ["examples/host_step.c", "example-host-step", "potential_result_size_bytes="],
         )
     )
