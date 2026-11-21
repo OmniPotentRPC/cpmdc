@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from types import SimpleNamespace
 
 import numpy as np
@@ -81,6 +82,27 @@ def _short_edge() -> np.ndarray:
     return np.diag([1.0, 1.0, short])
 
 
+def _near_collinear(relative: float) -> np.ndarray:
+    """Two unit vectors rotated off the axes, the third ``relative`` long."""
+    root_half = math.sqrt(0.5)
+    rotation = np.array(
+        [
+            [root_half, 0.0, root_half],
+            [0.0, 1.0, 0.0],
+            [-root_half, 0.0, root_half],
+        ]
+    )
+    return rotation @ np.diag([1.0, 1.0, relative])
+
+
+def _near_coplanar(relative: float) -> np.ndarray:
+    """Three vectors close to one plane, rotated off the axes."""
+    rotation, _ = np.linalg.qr(
+        np.array([[1.0, 2.0, 3.0], [2.0, -1.0, 1.0], [1.0, 1.0, -1.0]])
+    )
+    return rotation @ np.diag([1.0, 0.75, relative])
+
+
 def _retired_volume_rejects(cell: np.ndarray) -> bool:
     lengths = np.linalg.norm(cell, axis=1)
     volume = abs(float(np.linalg.det(cell)))
@@ -110,6 +132,7 @@ def _ipi(cell: np.ndarray) -> list[list[float]] | None:
 def test_full_rank_cells_are_accepted(cell: np.ndarray) -> None:
     assert np.linalg.matrix_rank(cell) == 3
     assert not _retired_volume_rejects(cell)
+    assert not _cell_is_rank_deficient(cell)
     assert _ase(cell) is not None
     assert _ipi(cell) is not None
 
@@ -146,19 +169,67 @@ def test_short_edge_below_the_rank_cutoff_is_refused() -> None:
         _ipi(cell)
 
 
+def test_all_zero_cell_is_refused_as_a_periodic_cell() -> None:
+    cell = np.zeros((3, 3))
+    assert _cell_is_rank_deficient(cell)
+    with pytest.raises(ValueError, match=re.escape(_ASE)):
+        _ase(cell)
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [_near_collinear, _near_coplanar],
+    ids=["near-collinear", "near-coplanar"],
+)
+@pytest.mark.parametrize(
+    ("factor", "deficient"),
+    [(0.5, True), (2.0, False)],
+    ids=["below-cutoff", "above-cutoff"],
+)
+def test_rotated_near_singular_cells_on_each_side_of_the_cutoff(
+    factory: Callable[[float], np.ndarray], factor: float, deficient: bool
+) -> None:
+    cell = factory(factor * _RANK_ORDER * _EPS)
+    assert _cell_is_rank_deficient(cell) is deficient
+    if deficient:
+        with pytest.raises(ValueError, match=re.escape(_ASE)):
+            _ase(cell)
+        with pytest.raises(ProtocolError, match=re.escape(_IPI)):
+            _ipi(cell)
+    else:
+        assert _ase(cell) is not None
+        assert _ipi(cell) is not None
+
+
+def test_singular_value_equal_to_the_cutoff_is_refused() -> None:
+    """The cutoff is strict: a value equal to it does not count."""
+    assert _cell_is_rank_deficient(np.diag([1.0, 1.0, _RANK_ORDER * _EPS]))
+
+
+# 1e-90 rather than 1e-100: the full-rank cell scaled by 1e-100 has a volume
+# below the normal float64 range, which is refused for another reason.
+@pytest.mark.parametrize("scale", [1.0e-90, 1.0, 1.0e100])
+@pytest.mark.parametrize("factor", [0.5, 2.0], ids=["deficient", "full-rank"])
+def test_rank_decision_does_not_depend_on_the_length_unit(scale: float, factor: float) -> None:
+    cell = _near_coplanar(factor * _RANK_ORDER * _EPS)
+    assert _cell_is_rank_deficient(cell * scale) is (factor < 1.0)
+
+
 def test_all_zero_wire_cell_stays_a_cluster() -> None:
     assert Driver._cell_rows(SimpleNamespace(cluster=False), [0.0] * 9) is None
 
 
-def test_non_finite_cell_is_not_reported_as_rank_deficient() -> None:
+@pytest.mark.parametrize("non_finite", [math.nan, math.inf, -math.inf])
+def test_non_finite_cell_is_not_reported_as_rank_deficient(non_finite: float) -> None:
     cell = np.diag([2.0, 3.0, 4.0]).astype(float)
-    cell[1, 1] = np.nan
+    cell[1, 1] = non_finite
+    assert not _cell_is_rank_deficient(cell)
     try:
         _ase(cell)
     except ValueError as exc:
         assert "independent vectors" not in str(exc)
     wire = _wire(np.diag([2.0, 3.0, 4.0]))
-    wire[4] = float("nan")
+    wire[4] = non_finite
     try:
         Driver._cell_rows(SimpleNamespace(cluster=False), wire)
     except ProtocolError as exc:
