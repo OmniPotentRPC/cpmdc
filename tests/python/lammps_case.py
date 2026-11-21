@@ -23,10 +23,24 @@ import numpy as np
 CMDARGS = ["-log", "none", "-screen", "none", "-nocite"]
 
 
+def finalize(lmp: Any) -> None:
+    """Close ``lmp`` and shut the MPI and Kokkos environments down.
+
+    Call it once per process, after every LAMMPS instance is closed.
+    ``lammps.lammps.finalize()`` is not used: it also calls
+    ``lammps_python_finalize()``, which runs ``Py_Finalize()`` on the
+    interpreter that hosts the module and crashes it.
+    """
+    lib = lmp.lib
+    lmp.close()
+    lib.lammps_kokkos_finalize()
+    lib.lammps_mpi_finalize()
+
+
 def build(spec: dict[str, Any]) -> Any:
     from lammps import lammps
 
-    lmp = lammps(cmdargs=CMDARGS)
+    lmp = lammps(cmdargs=list(CMDARGS))
     lines = [f"units {spec['units']}", "atom_modify map array sort 0 0"]
     lines += spec.get("setup", [])
     cell = spec.get("cell")
@@ -115,7 +129,7 @@ def main(path: str) -> int:
         driver.close()
     if lmp.extract_setting("world_rank") == 0:
         print(json.dumps(out))
-    lmp.close()
+    finalize(lmp)
     return 0
 
 

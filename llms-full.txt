@@ -3457,6 +3457,9 @@ at startup.
 The pair style needs no cutoff and requests no neighbor list.
 A failed evaluation stops LAMMPS with `pair_style cpmdc:` and the library's
 message.
+A compute that asks for a per-atom energy or virial (`pe/atom`, `stress/atom`,
+`centroid/stress/atom`) is refused when the run starts, because cpmdc returns
+totals, see the LAMMPS interface reference (file:../reference/lammps.org).
 
 The plugin is a C++ shared object compiled against one LAMMPS: build it with the
 headers of the LAMMPS that loads it.
@@ -9892,6 +9895,28 @@ units; a compressed cell has a positive diagonal of `W` and a positive pressure.
 `fix npt` and `fix nph` use it as they use any pair virial.
 `compute pressure NULL virial` reports the virial part alone, `W / V` in
 pressure units.
+
+# Per-atom quantities
+Forces are per atom, and both routes return them for every atom.
+The energy and the virial are totals of the whole system, and `pair_style cpmdc`
+splits neither:
+
+- A density functional energy is a functional of the electron density, not a sum
+  of terms that belong to atoms, so any per-atom share of it would be a choice of
+  partition, not a result of cpmdc.
+- The virial `-dE/d(strain)` is a derivative with respect to the cell. It holds
+  kinetic, Hartree, exchange-correlation, and basis-set (Pulay) parts that are not
+  `sum r f` over atoms, so it has no per-atom form that adds up to the pressure.
+
+`pair_style cpmdc` therefore refuses a run in which a compute asks for a split:
+`compute pe/atom`, `compute stress/atom`, or `compute centroid/stress/atom`, with
+any keywords, even one that is never printed.
+The error `pair_style cpmdc computes no per-atom energy or virial (compute ID)`
+names the compute and comes from `init_style`, before the first evaluation.
+`uncompute ID` removes the request.
+`FixExternal` hands LAMMPS one energy and one virial and sets no per-atom values,
+so `compute pe/atom` and `compute stress/atom` take nothing from it.
+Per-atom forces work with every compute, for example `compute property/atom fx fy fz`.
 
 
 ## File: docs/orgmode/reference/pwscale.org
