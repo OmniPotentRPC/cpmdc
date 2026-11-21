@@ -23,13 +23,41 @@ import numpy as np
 import pytest
 from ase import Atoms
 from conftest import ROOT
-from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV, ConstantCutoff, CPMDCError
+from cpmdc import (
+    BOHR_TO_ANGSTROM,
+    HARTREE_TO_EV,
+    HARTREE_TO_KCAL_PER_MOL,
+    ConstantCutoff,
+    CPMDCError,
+)
 from cpmdc.ase import CPMDCCalculator
-from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_factors
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from lammps_case import CMDARGS, THERMO, attach, build, measure
+from lammps_import import import_rgpot_lammps
+
+RGPOT_LAMMPS = import_rgpot_lammps()
+needs_rgpot_lammps = pytest.mark.skipif(
+    RGPOT_LAMMPS is None, reason="rgpot.lammps is not installed"
+)
+if RGPOT_LAMMPS is not None:
+    from cpmdc.lammps import (
+        UNIT_STYLES,
+        FixExternal,
+        box_rows,
+        type_numbers,
+        unit_factors,
+    )
+else:
+    UNIT_STYLES = {
+        "metal": (BOHR_TO_ANGSTROM, HARTREE_TO_EV),
+        "real": (BOHR_TO_ANGSTROM, HARTREE_TO_KCAL_PER_MOL),
+        "electron": (1.0, 1.0),
+    }
+
+    def unit_factors(style: str) -> tuple[float, float]:
+        return UNIT_STYLES[style]
 
 
 def lammps_problem() -> str:
@@ -57,7 +85,7 @@ def plugin_path() -> Path | None:
 
 PLUGIN = plugin_path()
 ROUTES = [
-    "fix",
+    pytest.param("fix", marks=needs_rgpot_lammps),
     pytest.param(
         "plugin",
         marks=pytest.mark.skipif(PLUGIN is None, reason="cpmdcplugin.so is not built"),
@@ -162,6 +190,7 @@ def assert_matches(got: dict, ref: dict, units: str) -> None:
 # --- conversions --------------------------------------------------------
 
 
+@needs_rgpot_lammps
 def test_unit_table():
     assert set(UNIT_STYLES) == {"metal", "real", "electron"}
     assert unit_factors("electron") == (1.0, 1.0)
@@ -172,11 +201,13 @@ def test_unit_table():
             unit_factors(style)
 
 
+@needs_rgpot_lammps
 def test_box_rows_is_the_lammps_h_matrix_transposed():
     rows = box_rows([1.0, 2.0, 3.0], [10.0, 10.5, 12.4], 1.2, 0.9, -0.7)
     np.testing.assert_array_equal(rows, TRICLINIC)
 
 
+@needs_rgpot_lammps
 def test_type_numbers():
     np.testing.assert_array_equal(type_numbers("O H", 2), [8, 1])
     np.testing.assert_array_equal(type_numbers(["H", 8, "8"], 3), [1, 8, 8])
@@ -519,6 +550,7 @@ def test_plugin_reports_a_bad_params_file(tmp_path, periodic_params):
         lmp.close()
 
 
+@needs_rgpot_lammps
 def test_failed_step_stops_the_run(periodic_params):
     case = spec("fix", "metal", periodic_params)
     lmp = build(case)
@@ -541,6 +573,7 @@ def test_failed_step_stops_the_run(periodic_params):
         lmp.close()
 
 
+@needs_rgpot_lammps
 def test_bad_params_raise_before_the_run(tmp_path, periodic_params):
     lmp = build(spec("fix", "metal", periodic_params))
     try:

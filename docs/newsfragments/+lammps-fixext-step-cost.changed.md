@@ -1,0 +1,1 @@
+The Python LAMMPS fix-external route spends less time per step in its cpmdc session adapter: it screens forces and virial with one finiteness check, reuses its unit factors, and takes the cell volume without a linear algebra call. With LAMMPS metal units the energy and forces are bit-identical to the previous route, and the virial changes only in its last bits.
