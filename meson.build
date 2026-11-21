@@ -28,17 +28,23 @@ if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
     'ASAN_OPTIONS': 'halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0',
   }
 endif
-# Default for every test under AddressSanitizer. tests/lsan.supp names the
-# third party frame. A test that sets its own environment still wins.
+# One BLAS/OpenMP thread per Meson worker so parallel tests do not oversubscribe
+# OpenBLAS. Meson replaces OPENBLAS_NUM_THREADS, OMP_NUM_THREADS, and
+# MKL_NUM_THREADS on child processes (see build-options.org). tests/lsan.supp
+# names the third-party frame under AddressSanitizer. A per-test env keyword
+# still wins on conflicts.
+blas_thread_env = environment({
+  'OPENBLAS_NUM_THREADS': '1',
+  'OMP_NUM_THREADS': '1',
+  'MKL_NUM_THREADS': '1',
+})
 if 'address' in get_option('b_sanitize').split(',')
-  add_test_setup(
-    'lsan',
-    env: environment({
-      'LSAN_OPTIONS': 'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
-    }),
-    is_default: true,
+  blas_thread_env.set(
+    'LSAN_OPTIONS',
+    'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
   )
 endif
+add_test_setup('blasthreads', env: blas_thread_env, is_default: true)
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
 run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
@@ -1161,7 +1167,7 @@ if get_option('with_tests')
     args: [runtime_params_bin.full_path(), force_input_step_a_bin.full_path()],
     depends: [runtime_params_bin, force_input_step_a_bin],
     suite: ['abi', 'params', 'cmocka'],
-    timeout: has_sanitize ? 300 : 30,
+    timeout: has_cpmd or has_sanitize ? 300 : 30,
   )
 
   test(
@@ -1239,6 +1245,7 @@ if get_option('with_tests')
     args: [water_params_bin.full_path()],
     depends: [water_params_bin],
     suite: ['e2e', 'cmocka'],
+    timeout: has_cpmd ? 300 : 30,
   )
   test(
     'stress-isolated',
@@ -1552,6 +1559,9 @@ test(
     timeout: has_cpmd ? 900 : 120,
   )
   pytest_env = asan_preload_env + {
+    'OPENBLAS_NUM_THREADS': '1',
+    'OMP_NUM_THREADS': '1',
+    'MKL_NUM_THREADS': '1',
     'CPMDC_LIBRARY': cpmdc_shared.full_path(),
     'CPMDC_TEST_PARAMS': water_params_bin.full_path(),
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
@@ -2274,7 +2284,7 @@ test(
       potential_config_overlay_arm_bin,
     ],
     suite: ['params', 'capnp'],
-    timeout: has_sanitize ? 300 : 30,
+    timeout: has_cpmd or has_sanitize ? 300 : 30,
   )
 
   meson_prog = find_program('meson', required: false)
