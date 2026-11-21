@@ -105,7 +105,9 @@ def _is_separator_row(cells: list[str]) -> bool:
     if not cells:
         return False
     stripped = [cell.replace(":", "").strip() for cell in cells if cell.strip()]
-    return bool(stripped) and all(re.fullmatch(r"-+", cell) for cell in stripped)
+    return bool(stripped) and all(
+        re.fullmatch(r"-+(?:\+-+)*", cell) for cell in stripped
+    )
 
 
 def _is_field_table_header(cells: list[str]) -> bool:
@@ -138,6 +140,18 @@ def _intro_struct(lines: list[str], structs: set[str]) -> str | None:
             if found is not None:
                 return found
     return None
+
+
+_ROW_STRUCT_REF = re.compile(r"(?:see|refers\s+to)\s+~(\w+)~", re.I)
+
+
+def _row_struct_references(cells: list[str], structs: set[str]) -> set[str]:
+    owners: set[str] = set()
+    for cell in cells:
+        match = _ROW_STRUCT_REF.fullmatch(cell.strip())
+        if match and match.group(1) in structs:
+            owners.add(match.group(1))
+    return owners
 
 
 def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str]]:
@@ -197,7 +211,7 @@ def documented_struct_fields(text: str, structs: set[str]) -> set[tuple[str, str
             if struct_col is not None and struct_col < len(row_cells):
                 owners = _structs_in_text(row_cells[struct_col], structs)
             elif struct_col is None:
-                owners = _structs_in_text("|".join(row_cells[1:]), structs)
+                owners = _row_struct_references(row_cells[1:], structs)
             if not owners and default_owner is not None:
                 owners = {default_owner}
             pairs |= {(owner, field) for owner in owners for field in fields}
@@ -366,6 +380,22 @@ def check_python(root: Path, failures: list[str]) -> None:
                     )
 
 
+def test_org_separator_rows() -> None:
+    for row in ("|---|", "|---+---|", "|-----+-----+----|"):
+        assert _is_separator_row(_table_cells(row))
+    assert not _is_separator_row(_table_cells("| Field | Type | Meaning |"))
+    assert not _is_separator_row(_table_cells("| ~alpha~ | ~int~ | first member |"))
+    text = (
+        "Fields of ~DemoStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|---|\n"
+        "|---+---|\n"
+        "|-----+-----+----|\n"
+        "| ~alpha~ | ~int~ | first member |\n"
+    )
+    assert documented_struct_fields(text, {"DemoStruct"}) == {("DemoStruct", "alpha")}
+
+
 def test_field_table_with_nonstandard_intro() -> None:
     text = (
         "Column overview for ~DemoStruct~ without the usual opening line:\n\n"
@@ -414,7 +444,7 @@ def test_bogus_field_in_nonstandard_intro_table() -> None:
         ]
 
 
-def test_meaning_cell_cross_reference_keeps_intro_owner() -> None:
+def test_meaning_cell_cross_reference_overrides_default_owner() -> None:
     text = (
         "* ~HeadingStruct~\n\n"
         "Fields of ~IntroStruct~:\n\n"
@@ -466,6 +496,21 @@ def test_row_type_or_meaning_struct_reference_without_struct_column() -> None:
         ("B", "beta"),
         ("B", "gamma"),
     }
+
+
+def test_prose_struct_mention_keeps_intro_owner() -> None:
+    text = (
+        "Fields of ~IntroStruct~:\n\n"
+        "| Field | Type | Meaning |\n"
+        "|-------+------+---------|\n"
+        "| ~alpha~ | pointer to ~OtherStruct~ | first member |\n"
+        "| ~beta~ | ~int~ | copied from ~OtherStruct~ on reset |\n"
+    )
+    documented = documented_struct_fields(
+        text,
+        {"IntroStruct", "OtherStruct"},
+    )
+    assert documented == {("IntroStruct", "alpha"), ("IntroStruct", "beta")}
 
 
 def run_self_tests() -> None:
