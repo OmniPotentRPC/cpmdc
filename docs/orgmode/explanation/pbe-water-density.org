@@ -1,0 +1,528 @@
+#+TITLE: The PBE density of water against Miceli et al.
+#+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
+
+[[file:constant-cutoff-npt.org][Density of water at a constant cutoff]] gives 826.1 +- 5.7 kg/m^3 for 32 PBE waters at 350 K and 1 bar from the 0.65 ps that ~cc100~ averages, and its standard error still grew with the block length.
+Miceli, de Gironcoli, and Pasquarello found about 870 kg/m^3 at 349 K (reference 1).
+This page makes a step cheaper, runs the 32 waters for longer, and measures what the statistics, the basis, and the pseudopotentials contribute to the 44 kg/m^3 between the two.
+It does not measure the thermostat or the barostat. The water count and the 349 K of Miceli et al. are the two settings a longer pair of runs changes, one at a time.
+Every number comes from a record in ~bench/results~ that the text names, from the paper, or from arithmetic on those.
+
+* What Miceli et al. ran
+Miceli et al. ran Born-Oppenheimer dynamics of 64 waters in Quantum ESPRESSO with PBE, orbitals expanded to 85 Ry, and norm-conserving pseudopotentials for which they cite Troullier and Martins (reference 2); the paper does not name the files.
+The nuclei are classical and move by the Beeman algorithm in 0.48 fs steps, and a Parrinello-Rahman barostat holds a cubic cell at zero pressure.
+Each run starts from a configuration of classical NVT dynamics at 1 g/cm^3 and 300 K and equilibrates for about 5 ps at 350 K under a velocity rescaling that acts only when the cumulative mean temperature leaves 350 +- 20 K.
+During the production runs, of 25 to 35 ps, the rescaling never acts, so they sample NpH.
+The basis keeps a constant number of plane waves: the cutoff converges the stress within 1 kbar in a cell at 1 g/cm^3, and a run whose density fell during the equilibration started again from a larger cell "to restore the originally set higher cut-off".
+
+Sec. V A gives the density: "the PBE functional gives an average density for liquid water of ∼0.87 g/cm^3 underestimating the experimental value by about 13%".
+Fig. 4 plots it beside the densities of rVV10, and Sec. V C reads that figure as densities from 1.10 to 0.87 g/cm^3, the lower end for PBE.
+No table of the paper lists the value, and the paper gives no error bar.
+The caption of Fig. 5 gives the mean temperature of the PBE run, 349 K, and that of Fig. 4 puts every run within 345 +- 4 K.
+
+~long32~ below differs from those runs in its length, its integrators (Langevin atoms and the MTK barostat at 350 K and 1 bar), its pseudopotentials (~O_MT_PBE~ and ~H_MT_PBE~ of the CPMD library), its basis (the constant cutoff E0 = 85 Ry on a 100 Ry deck), and its 32 waters.
+The deuterium masses and the 1 fs steps do not enter, since the configurational averages of classical nuclei do not depend on the masses.
+
+* The cost of a step
+~constant_cutoff_npt.py cost~ compares runs of 30 steps from ~box32.xyz~ with the basis of ~long32~ and P_tau 500 fs, on the 8 ranks of one node, from step 5 on; ~bench/results/pbe_water_cost.org~ gives:
+
+| Run | REAL SPACE WFN KEEP | Steps | Wall per step, s | SCF iterations per step | Largest energy difference from base30, eV |
+|-----+---------------------+-------+------------------+-------------------------+-------------------------------------------|
+| base30 | no | 26 | 7.662 | 8.85 |  |
+| keep30 | yes | 26 | 6.646 | 8.85 | 0.0e+00 |
+| off | yes | 26 | 5.680 | 8.81 | 2.5e-04 |
+| off2 | yes | 26 | 5.826 | 8.81 | 2.5e-04 |
+| on | yes | 26 | 5.741 | 8.81 | 2.5e-04 |
+| on2 | yes | 26 | 5.552 | 8.81 | 2.5e-04 |
+
+~base30~ and ~keep30~ ran on the ~libcpmdc~ that this series starts from, with OpenCPMD on its shipped FFT, without and with ~--rs-wfn-keep~, which sets REAL SPACE WFN KEEP.
+Keeping the orbitals in real space between the SCF iterations takes a step from 7.66 to 6.65 s, and the energies of the 30 steps stay the same to the 1e-6 eV of the records.
+The other four ran with ~--rs-wfn-keep~ on OpenCPMD built on FFTW 3 ([[file:../howto/opencpmd-archive.org][Build the OpenCPMD archive for embedding]]) and took 5.55 to 5.83 s a step, 12% to 16% below ~keep30~.
+FFTW takes a 126^3 mesh where the shipped FFT takes 128^3 for the same plane waves, which moves the energies by up to 2.5e-4 eV over the 30 steps.
+That build also carried a change to OpenCPMD that this series leaves out, which computes the forces in the SCF iteration that converges; ~off~ and ~off2~ ran with it switched off, and it changed neither the time per step nor any energy, volume, or pressure of the 30 steps.
+Every run takes 8.81 to 8.85 SCF iterations a step.
+
+With ~CPMDC_TIPRI_EVERY=10~ CPMD prints its timing table after every 10th evaluation, and ~bench/cpmd_timing.py~ takes the cost of each routine per evaluation between the tables after the 10th and the 20th evaluation of runs of 20 steps with the same settings.
+~base~ and ~keep~ ran on the commit of this series that adds ~CPMDC_TIPRI_EVERY~, on the shipped FFT, without and with ~--rs-wfn-keep~, and ~fftw~ on this series with OpenCPMD on FFTW 3, with it; ~bench/results/pbe_water_profile.org~ gives the calls of each routine and its seconds, with those of the routines that it calls:
+
+| Routine | base calls | base, s | keep calls | keep, s | fftw calls | fftw, s |
+|---------+------------+---------+------------+---------+------------+---------|
+| embed_scf | 1.0 | 7.585 | 1.0 | 6.501 | 1.0 | 5.796 |
+| wfopts | 1.0 | 7.581 | 1.0 | 6.496 | 1.0 | 5.792 |
+| rwfopt | 1.0 | 7.558 | 1.0 | 6.477 | 1.0 | 5.773 |
+| updwf | 9.9 | 7.459 | 9.9 | 6.379 | 9.8 | 5.675 |
+| forcedr | 9.9 | 6.972 | 9.9 | 5.891 | 9.8 | 5.192 |
+| forces | 9.9 | 6.972 | 9.9 | 5.891 | 9.8 | 5.193 |
+| forces_a | 9.9 | 3.272 | 9.9 | 3.500 | 9.8 | 3.154 |
+| invfftn | 1306.8 | 3.124 | 673.2 | 1.662 | 666.4 | 1.385 |
+| vpsi | 9.9 | 2.958 | 9.9 | 1.638 | 9.8 | 1.295 |
+| rscpot | 9.9 | 2.906 | 9.9 | 3.135 | 9.8 | 2.792 |
+| rhoofr | 9.9 | 1.794 | 9.9 | 2.032 | 9.8 | 1.764 |
+| fwfftn | 683.1 | 1.364 | 683.1 | 1.332 | 676.2 | 0.946 |
+| vofrho | 9.9 | 0.900 | 9.9 | 0.894 | 9.8 | 0.817 |
+
+The SCF of an evaluation (~embed_scf~) takes 7.585, 6.501, and 5.796 s, and the forces on the orbitals (~forcedr~) take 6.972, 5.891, and 5.192 s of it.
+Keeping the orbitals in real space halves the inverse FFTs, from 1306.8 to 673.2 an evaluation: applying the local potential (~vpsi~) reuses the orbitals in real space instead of transforming them again, which takes it from 2.958 to 1.638 s, while building the density (~rhoofr~) takes 0.238 s longer.
+FFTW takes the inverse FFTs from 1.662 to 1.385 s and the forward ones from 1.332 to 0.946 s an evaluation, with about as many calls.
+
+64 waters, from ~box64.xyz~ on the FFTW build with that change, take 26.1 s a step, 4.5 to 4.7 times as long as 32:
+
+| Run | Steps | Wall per step, s | SCF iterations per step | Largest energy difference from the run above, eV |
+|-----+-------+------------------+-------------------------+--------------------------------------------------|
+| w64 | 8 | 26.130 | 8.50 |  |
+
+At that rate the 25 to 35 ps of one run of Miceli et al. would take 7.6 to 10.6 days of this node, so the long run keeps 32 waters.
+
+* The long run
+~long32~ runs the 32 waters from ~box32.xyz~ with the settings of ~cc100~, the constant cutoff E0 = 85 Ry on the 100 Ry deck, the Langevin thermostat, and the MTK barostat with P_tau 100 fs, and with ~--rs-wfn-keep~, on 8 ranks of the FFTW build with the change above.
+~constant_cutoff_npt.py table~ wrote ~bench/results/pbe_water_npt.org~ from its first 11.0 ps with the first 0.5 ps discarded (~--discard-ps 0.5~), the least that ~table~ discards of a run from a box, once with the error of the coarsest blocking level (reference 3) that has at least 8 blocks and once with at least 4:
+
+| Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
+|-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
+| long32 | 11 | 0.5 | 10501 | 1.1299 +- 0.01340 | 849.3 +- 10.06 | -68 +- 8.5 | 345 +- 3.2 | 85664 |
+
+| Run | Observable | Detected start, ps | Std | Blocks | Block, ps | Error | Its uncertainty | Error at half the block |
+|-----+------------+--------------------+-----+--------+-----------+-------+-----------------+-------------------------|
+| long32 | Volume, nm^3 | 5.08 | 0.05587 | 10 | 1.024 | 0.01340 | 0.00316 | 0.01000 |
+| long32 | Density, kg/m^3 | 5.08 | 41.82 | 10 | 1.024 | 10.06 | 2.37 | 7.45 |
+| long32 | Pressure, bar | 0 | 4740.8 | 10 | 1.024 | 8.5 | 2.0 | 28.0 |
+
+The density is 849.3 +- 10.06 kg/m^3 over the frames after 0.5 ps.
+The error comes from the 10 blocks of 1.024 ps and carries an uncertainty of 2.37 kg/m^3 of its own.
+The standard error still grows with the block length, here at every level with at least 4 blocks:
+
+| Run | Observable | 0.001 ps | 0.002 ps | 0.004 ps | 0.008 ps | 0.016 ps | 0.032 ps | 0.064 ps | 0.128 ps | 0.256 ps | 0.512 ps | 1.024 ps | 2.048 ps | 4.096 ps | 8.192 ps | 16.384 ps | 32.768 ps |
+|-----+------------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+-----------+-----------|
+| long32 | Volume, nm^3 | 0.00055 | 0.00077 | 0.00109 | 0.00154 | 0.00216 | 0.00299 | 0.00403 | 0.00547 | 0.00735 | 0.01000 | 0.01340 | 0.01676 |  |  |  |  |
+| long32 | Density, kg/m^3 | 0.41 | 0.58 | 0.82 | 1.15 | 1.62 | 2.24 | 3.02 | 4.11 | 5.51 | 7.45 | 10.06 | 12.40 |  |  |  |  |
+| long32 | Pressure, bar | 46.3 | 63.8 | 81.6 | 78.1 | 71.0 | 80.8 | 65.8 | 56.3 | 42.4 | 28.0 | 8.5 | 8.2 |  |  |  |  |
+
+It grows by 35% at each of the doublings to 0.512 and 1.024 ps, and by 23% to 2.048 ps, where 5 blocks remain.
+Blocks of B frames, of n, outlast the correlation when ~B^3 > 2 n (SE_B / SE_1)^4~ (reference 5); no level of the density meets that, with at least 8 blocks or with at least 4:
+
+| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
+|-----+------------+-----------+--------+-------+-----------------|
+| long32 | Volume, nm^3 | none up to 1.024 |  |  |  |
+| long32 | Density, kg/m^3 | none up to 1.024 |  |  |  |
+| long32 | Pressure, bar | 0.064 | 164 | 65.8 | 3.6 |
+
+| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
+|-----+------------+-----------+--------+-------+-----------------|
+| long32 | Volume, nm^3 | none up to 2.048 |  |  |  |
+| long32 | Density, kg/m^3 | none up to 2.048 |  |  |  |
+| long32 | Pressure, bar | 0.064 | 164 | 65.8 | 3.6 |
+
+The blocking curve of the density has not levelled off in 11.0 ps, and 10.06 kg/m^3 is a lower bound for its error.
+Lee et al. also ask for B < n/50, at least 50 blocks, which gives the error to 10%; with 10 blocks it is known to 24%.
+The pressure meets the criterion at 0.064 ps: the barostat pulls it back to 1 bar, and its error falls at longer blocks.
+
+The mean density over consecutive picoseconds wanders between 787.8 and 896.3 kg/m^3:
+
+| After the start, ps | long32, kg/m^3 |
+|--+--|
+| 0-1 | 835.4 |
+| 1-2 | 787.8 |
+| 2-3 | 825.4 |
+| 3-4 | 819.9 |
+| 4-5 | 846.8 |
+| 5-6 | 879.0 |
+| 6-7 | 896.3 |
+| 7-8 | 861.7 |
+| 8-9 | 863.8 |
+| 9-10 | 873.7 |
+| 10-11 | 846.9 |
+
+The equilibration that ~table~ detects (reference 4) moves with the length of the run: in the first 5.71 ps it started at 0 ps, in the first 9.0 ps at 3.876 ps, and in the first 11.0 ps it starts at 5.08 ps for the density.
+With that start discarded, ~table~ gives:
+
+| Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
+|-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
+| long32 | 11 | 5.08 | 5921 | 1.1010 +- 0.00802 | 870.8 +- 6.42 | -62 +- 43.1 | 340 +- 3.8 | 85664 |
+
+The window means before 5 ps lie between 787.8 and 846.8 kg/m^3, and those after it between 846.9 and 896.3: 11.0 ps cannot tell a slow wandering of the density from an equilibration that ends near 5 ps.
+The 870.8 +- 6.42 kg/m^3 of the frames after the detected start lie 21.5 kg/m^3 above the 849.3 kg/m^3 of the frames after 0.5 ps; the page keeps the latter, since the detected start has moved with the length of the run, and the difference between the two is a measure of what 11.0 ps leave open.
+
+The volume fluctuations give the isothermal compressibility:
+
+| Run | kappa_T, 1e-5/bar | Error |
+|-----+-------------------+-------|
+| long32 | 5.72 | 1.12 |
+
+By linear response a pressure change dP moves the density by ~-rho kappa_T dP~, and 849.3 kg/m^3 times 5.72e-5/bar is 48.6 +- 9.5 kg/m^3 per kbar; the sections below turn differences of pressure into densities with it.
+In the first 5.71 and 9.0 ps the compressibility was 4.70 +- 0.86 and 6.23 +- 1.33e-5/bar; like the error of the density, it has not settled.
+The 870 kg/m^3 of Miceli et al. lie 20.7 kg/m^3 above the density of ~long32~, 2.1 times its blocking error, which is a lower bound.
+
+* Pseudopotentials
+~O_MT_PBE~ and ~H_MT_PBE~ are Troullier-Martins pseudopotentials with core radii of 1.12 bohr for the s, p, and d channels of oxygen and 0.50 bohr for the s channel of hydrogen.
+The decks of ~constant_cutoff_npt.py~ take the p channel of oxygen as local, with the s channel nonlocal, and the s channel of hydrogen as local.
+~O.pbe-mt_fhi.UPF~ and ~H.pbe-mt_fhi.UPF~ of the Quantum ESPRESSO pseudopotential table are the FHI98PP Troullier-Martins pseudopotentials of the Abinit tables (reference 6), converted to UPF in 2012.
+They take the d channel as local with projectors for s, p, and f, which vanish beyond 1.43 bohr for oxygen and 1.28 bohr for hydrogen.
+CPMD reads both UPF files as they define their channels.
+
+~constant_cutoff_npt.py pressure~ evaluated ~box32.xyz~, 1000 kg/m^3, with each pair at fixed and constant cutoffs, orbital convergence 1e-6, and wrote ~bench/results/pbe_water_pressure.org~.
+With the CPMD files:
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 85 |  |  |  | -15003.3266 | -53.91 | -76.68 | 16.5 |
+| 100 |  |  |  | -15010.7135 | 5.93 | -12.64 | 20.0 |
+| 120 |  |  |  | -15012.4429 | 24.60 | 6.77 | 27.0 |
+| 140 |  |  |  | -15012.9188 | 24.22 | 6.97 | 31.3 |
+| 160 |  |  |  | -15013.3995 | 23.51 | 6.46 | 42.5 |
+| 200 |  |  |  | -15014.5474 | 18.52 | 1.41 | 60.1 |
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 100 | 85 | 5000 | 4.25 | -14994.1475 | 37.07 | 10.72 | 20.8 |
+| 120 | 102 | 6000 | 5.1 | -15008.6589 | 30.48 | 10.72 | 29.6 |
+| 160 | 136 | 8000 | 6.8 | -15012.5662 | 28.35 | 10.65 | 38.4 |
+| 200 | 170 | 10000 | 8.5 | -15013.3111 | 27.67 | 10.61 | 68.7 |
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 240 | 204 | 12000 | 10.2 | -15014.1129 | 27.66 | 10.57 | 104.9 |
+| 240 |  |  |  | -15016.6965 | 13.38 | -3.72 | 111.1 |
+| 280 |  |  |  | -15017.9088 | 26.13 | 9.08 | 99.5 |
+
+With the FHI files:
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 70 |  |  |  | -14969.8668 | 4.64 | -2.62 | 12.7 |
+| 85 |  |  |  | -14970.5727 | 15.80 | 8.85 | 16.4 |
+| 100 |  |  |  | -14970.8803 | 14.02 | 7.53 | 18.9 |
+| 120 |  |  |  | -14971.2436 | 14.80 | 8.71 | 30.8 |
+| 160 |  |  |  | -14971.3953 | 16.07 | 10.05 | 47.9 |
+| 200 |  |  |  | -14971.4113 | 16.04 | 10.07 | 69.0 |
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 100 | 85 | 5000 | 4.25 | -14970.4492 | 17.19 | 10.15 | 23.3 |
+| 160 | 136 | 8000 | 6.8 | -14971.2855 | 16.26 | 10.18 | 53.1 |
+| 200 | 170 | 10000 | 8.5 | -14971.3895 | 16.17 | 10.15 | 73.2 |
+
+One file of each pair at a time, ~O.pbe-mt_fhi.UPF~ with ~H_MT_PBE~ and then ~O_MT_PBE~ with ~H.pbe-mt_fhi.UPF~:
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 160 |  |  |  | -14970.7353 | 22.28 | 8.56 | 40.6 |
+| 200 |  |  |  | -14970.9535 | 23.02 | 9.49 | 57.2 |
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 160 |  |  |  | -15014.2796 | 16.62 | 7.85 | 48.7 |
+| 200 |  |  |  | -15015.2306 | 10.73 | 2.02 | 75.9 |
+
+Miceli et al. converge the stress of their fixed basis within 1 kbar at 85 Ry.
+The FHI files meet that: at a fixed 85 Ry their atomic pressure lies 0.24 kbar from that at 200 Ry and 0.37 kbar from that at the constant cutoff E0 = 170 Ry.
+The CPMD files miss it by 72 kbar, and their fixed-cutoff pressure has not settled at 280 Ry, where the energy still falls by 1.21 eV from 240 Ry.
+One file at a time puts the slow convergence in the oxygen file: from 160 to 200 Ry the molecular pressure falls by 5.83 kbar with ~O_MT_PBE~ and the FHI hydrogen and rises by 0.93 kbar with the FHI oxygen and ~H_MT_PBE~, against 0.02 kbar for the FHI pair.
+At a constant cutoff the molecular pressure converges with both pairs, within 0.15 kbar from E0 = 85 to 204 Ry with the CPMD files and within 0.03 kbar from 85 to 170 Ry with the FHI files, and the two pairs differ by 0.47 kbar at E0 = 136 Ry.
+
+The same molecules scaled rigidly to 870 kg/m^3 (~--density 870~), where a fixed 77.46 Ry holds the plane waves of 85 Ry at 1000 kg/m^3:
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 77.46 |  |  |  | -14993.9187 | -110.55 | -132.02 | 14.8 |
+| 85 |  |  |  | -15003.7045 | -59.03 | -77.06 | 16.3 |
+| 100 | 85 | 5000 | 4.25 | -14994.5297 | 20.59 | -0.59 | 22.4 |
+| 160 | 136 | 8000 | 6.8 | -15012.9126 | 12.31 | -1.32 | 45.5 |
+
+| Cutoff, Ry | E0, Ry | A, Ry | sigma, Ry | Energy, eV | Atomic pressure, kbar | Molecular pressure, kbar | Wall, s |
+|------------+--------+-------+-----------+------------+-----------------------+--------------------------+---------|
+| 77.46 |  |  |  | -14970.7552 | 0.55 | -3.77 | 17.3 |
+| 85 |  |  |  | -14970.8842 | 1.47 | -2.77 | 18.6 |
+| 100 | 85 | 5000 | 4.25 | -14970.7598 | 2.70 | -1.61 | 27.6 |
+| 160 | 136 | 8000 | 6.8 | -14971.5956 | 1.87 | -1.62 | 51.3 |
+| 200 | 170 | 10000 | 8.5 | -14971.6976 | 1.81 | -1.63 | 94.4 |
+
+Here the molecular pressure of the FHI files is -1.62 +- 0.01 kbar at the three constant cutoffs, and that of the CPMD files lies 1.02 kbar above it at E0 = 85 Ry and 0.30 kbar above it at E0 = 136 Ry: at this density E0 = 85 Ry has not converged the CPMD files.
+
+~constant_cutoff_npt.py pressures~ gathers the same comparison on the states of ~long32~ at 2, 3, 4, 5, 6, 7, 8, 9, 10, and 11 ps in ~bench/results/pbe_water_states.org~, with the differences taken state by state from the FHI files at E0 = 136 Ry:
+
+| Configuration | Density, kg/m^3 | O_MT_PBE.psp, H_MT_PBE.psp, 100/85/4.25, kbar | O_MT_PBE.psp, H_MT_PBE.psp, 160/136/6.8, kbar | O_MT_PBE.psp, H_MT_PBE.psp, 200/170/8.5, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 85, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 100/85/4.25, kbar | O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 160/136/6.8, kbar |
+|---------------+-----------------+-----------------------------------------------+-----------------------------------------------+-----------------------------------------------+----------------------------------------------+-------------------------------------------------------+-------------------------------------------------------|
+| long32.2000.state.npz | 764.0 | -3.08 | -3.66 | -3.70 | -5.03 | -4.09 | -4.10 |
+| long32.3000.state.npz | 822.2 | 0.81 | 1.04 | 1.01 | -0.47 | 0.54 | 0.55 |
+| long32.4000.state.npz | 883.3 | 0.56 | -0.87 | -0.90 | -2.53 | -1.43 | -1.43 |
+| long32.5000.state.npz | 822.1 | -0.01 | 0.35 | 0.32 | -1.18 | -0.18 | -0.17 |
+| long32.6000.state.npz | 930.6 | 0.06 | 0.96 | 0.93 | -0.81 | 0.29 | 0.31 |
+| long32.7000.state.npz | 837.3 | -3.71 | -3.43 | -3.46 | -4.89 | -3.88 | -3.87 |
+| long32.8000.state.npz | 836.7 | -0.99 | -0.78 | -0.82 | -2.32 | -1.30 | -1.29 |
+| long32.9000.state.npz | 861.5 | -0.59 | -1.09 | -1.13 | -2.68 | -1.61 | -1.61 |
+| long32.10000.state.npz | 824.3 | -5.78 | -5.51 | -5.54 | -6.94 | -5.93 | -5.92 |
+| long32.11000.state.npz | 861.3 | -1.36 | -1.80 | -1.84 | -3.40 | -2.33 | -2.33 |
+
+| Files and basis | Mean, kbar | Standard error, kbar | Difference, kbar | Standard error of the difference, kbar |
+|-----------------+------------+----------------------+------------------+----------------------------------------|
+| O_MT_PBE.psp, H_MT_PBE.psp, 100/85/4.25 | -1.409 | 0.675 | 0.577 | 0.209 |
+| O_MT_PBE.psp, H_MT_PBE.psp, 160/136/6.8 | -1.479 | 0.680 | 0.507 | 0.022 |
+| O_MT_PBE.psp, H_MT_PBE.psp, 200/170/8.5 | -1.513 | 0.680 | 0.473 | 0.022 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 85 | -3.025 | 0.655 | -1.039 | 0.017 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 100/85/4.25 | -1.992 | 0.662 | -0.006 | 0.003 |
+| O.pbe-mt_fhi.UPF, H.pbe-mt_fhi.UPF, 160/136/6.8 | -1.986 | 0.663 |  |  |
+
+The FHI files converge on every state: E0 = 85 Ry lies 0.006 +- 0.003 kbar from E0 = 136 Ry.
+So do the CPMD files from E0 = 136 Ry on, and at E0 = 170 Ry they lie 0.473 +- 0.022 kbar above the FHI files.
+At the E0 = 85 Ry of ~long32~ they lie 0.577 +- 0.209 kbar above them, from -0.25 to 1.99 kbar on the ten states: there the basis error of the CPMD files changes from state to state.
+
+* The basis of Miceli et al.
+With a height A of 1e-6 Ry the penalty of the constant cutoff vanishes, and with ~CPMDC_CELL_IN_PLACE~ above every strain of a run, each cell keeps the plane waves of the first setup: a basis of a constant number of plane waves, as in the runs of Miceli et al., whose effective cutoff falls as the cell grows.
+~bench/results/fixed_basis_check.org~ checks that on one water in a 10 Angstrom cube at 40 Ry: at the setup cell the energy and pressure equal those of a plain 40 Ry setup within 2e-6 eV and 1e-4 kbar, and in the cell stretched by 5% in place the 14336 plane waves of the setup give the energy and pressure of a new setup at 40/1.05^2 = 36.28 Ry, which holds the same 14336, within 3e-6 eV and 2e-4 kbar.
+No run here uses that basis.
+
+Miceli et al. set their basis at 1 g/cm^3 and restarted a run whose density fell from a larger cell, so their production runs kept about the plane waves of 85 Ry at the density they sampled.
+At 870 kg/m^3, a fixed 85 Ry setup of the FHI files gives a molecular pressure 1.15 kbar below the converged -1.62 kbar, and the plane waves of 85 Ry at 1000 kg/m^3 (77.46 Ry) give 2.15 kbar below it.
+On the states of ~long32~, the fixed 85 Ry setup of the FHI files gives a molecular pressure 1.039 +- 0.017 kbar below that of E0 = 136 Ry, from 0.93 to 1.12 kbar below on the ten states.
+
+* Where the gap goes
+A setup whose molecular pressure lies dP above that of another on the same configurations holds the liquid less dense at 1 bar, by dP times the 48.6 +- 9.5 kg/m^3 per kbar of ~long32~.
+On the states of ~long32~, taking the converged FHI files as the middle ground:
+
+| Change, toward the runs of Miceli et al. | Molecular pressure, kbar | Density, kg/m^3 |
+|------------------------------------------+--------------------------+-----------------|
+| CPMD files at E0 = 85 Ry to FHI files at E0 = 136 Ry | -0.577 +- 0.209 | +28.0 +- 10.2 |
+| of which CPMD files at E0 = 170 Ry to FHI files at E0 = 136 Ry | -0.473 +- 0.022 | +23.0 +- 1.1 |
+| FHI files at E0 = 136 Ry to a fixed 85 Ry | -1.039 +- 0.017 | +50.5 +- 0.8 |
+| Both | -1.616 | +78.5 |
+
+The errors in the last column are those of the pressures; the 20% of the compressibility scales the column as a whole.
+The measured changes of setup move the density by +78.5 kg/m^3, more than the 20.7 kg/m^3 between ~long32~ and Miceli et al.: 20.7 - 78.5 = -57.8 kg/m^3 is left, against a blocking error of at least 10.06 kg/m^3, 10.2 kg/m^3 from the scatter of the basis error of the CPMD files at E0 = 85 Ry, and 15.4 kg/m^3 from the compressibility, or 21.0 kg/m^3 together.
+The largest change is the fixed basis, whose Pulay stress makes the liquid of Miceli et al. denser than a converged basis would, if their pseudopotentials are the FHI files; the paper does not name them.
+
+Not measured here:
+- the thermostat and the barostat, Langevin and MTK against Parrinello-Rahman in NpH;
+- 32 waters against 64;
+- 345 K against 349 K;
+- the statistical error of Miceli et al., which the paper does not give;
+- whether the linear response holds over the 1.6 kbar of the last row.
+
+The two changes of setup that this page measures move the density by 28.0 and 50.5 kg/m^3, each more than the gap, and together they overshoot it by 57.8 kg/m^3, 2.8 times the 21.0 kg/m^3 of the combined uncertainty.
+The linear response over the 1.6 kbar of the last row, a change of 9% in density at the compressibility of ~long32~, is the largest assumption of the column, and it is not measured here.
+These numbers do not resolve a physical difference between the two PBE densities: the gap itself is 2.1 times a blocking error that is still a lower bound, since the blocking curve of ~long32~ has not levelled off.
+
+* Protocol for the longer runs
+The 11.0 ps of ~long32~ leave the blocking curve of the density still rising, and the detected start still moving with the length of the run.
+The longer runs do not choose a new discard, a new block length, or a new basis after their trajectories are known.
+
+The equilibration start is the one ~bench/npt_block_average.py~ already computes (reference 4).
+For each of the volume, the density and the pressure, it is the frame in the first half that maximises the number of uncorrelated frames after it.
+The statistical inefficiency is summed until the autocorrelation first drops to zero or below, and the search takes at most 2000 candidates.
+The discarded time is the later of 0.5 ps, the floor ~table~ uses for a run that starts from a box, and the latest of those three frames.
+No ~--discard-ps~ override replaces it.
+The same rule on the prefix that ends at half the run, and on the prefix that ends at three quarters of it, has to land within 1 ps of that time.
+If either misses, the start has not settled, and the mean is not an equilibrium density.
+
+The error is the Flyvbjerg-Petersen standard error (reference 3) of the frames after that start.
+It is taken at the first blocking level, among those with at least 8 blocks, whose blocks outlast the correlation by the criterion of Lee et al. (reference 5).
+If no level meets the criterion, the error is that of the coarsest level with at least 8 blocks, and it is a lower bound.
+The statistical inefficiency of the production density is reported with the mean.
+
+~long32~ keeps every setting of the 11.0 ps run and continues from its last state when that file is at hand.
+Without the state, the same settings start again from a box written by ~start~, which is a new trajectory and is not spliced onto the 11.0 ps.
+The second run is 64 waters at 349 K and otherwise those settings, including the Langevin thermostat, the MTK barostat at 1 bar, the constant cutoff and the pseudopotentials.
+Both aim at 40 ps after the start above, and continue past that while the blocking curve of the density has not levelled off.
+
+These runs keep the differences from Miceli et al. listed under *What Miceli et al. ran*.
+The Langevin thermostat and the MTK barostat at 1 bar stand against Parrinello-Rahman at zero pressure in NpH, the 1 fs steps and the deuterium masses against 0.48 fs and classical protons, the constant cutoff E0 = 85 Ry on the 100 Ry deck against a fixed number of plane waves near 85 Ry, and ~O_MT_PBE~ and ~H_MT_PBE~ against the Troullier-Martins files the paper cites and does not name.
+The 64-water run matches their water count and their 349 K.
+The masses and the timestep do not change the classical configurational distribution, and 1 bar against 0 bar is about 0.05 kg/m^3 at the compressibility of the 11.0 ps.
+The basis and the pseudopotentials are the differences *Where the gap goes* already estimates, and this protocol does not refit that estimate.
+
+* The fresh trajectory at 1.86 ps
+The state file of the 11.0 ps is not in the repository, so the settings of ~long32~ were started again from a box written by ~start~.
+The frames are a new trajectory.
+~constant_cutoff_npt.py table~ wrote the section ~Fresh 32-water trajectory~ of ~bench/results/pbe_water_npt.org~ from the first 1.86 ps, with the 0.5 ps floor, no ~--discard-ps~ override, at least 8 blocks, and windows of 1 ps:
+
+| Run | Length, ps | Discarded, ps | Frames used | Volume, nm^3 | Density, kg/m^3 | Pressure, bar | Temperature, K | Wall, s |
+|-----+------------+---------------+-------------+--------------+-----------------+---------------+----------------+---------|
+| long32 | 1.86 | 0.5 | 1361 | 1.0988 +- 0.01745 | 873.5 +- 13.41 | -112 +- 111.1 | 352 +- 3.0 | 13356 |
+
+| Run | Ranks | Wall per step, s | SCF iterations per step | New setups | Wall, h |
+|-----+-------+------------------+-------------------------+------------+---------|
+| long32 | 8 | 7.2 | 8.9 | 34 | 3.71 |
+
+The detected starts of the volume, the density and the pressure are 0, 0 and 0.001 ps, so the discarded time is the 0.5 ps floor.
+Production is 1.36 ps, 1361 frames, and the density of those frames is 873.5 kg/m^3.
+The standard error at the coarsest level with at least 8 blocks is 13.41 kg/m^3, from 10 blocks of 0.128 ps (reference 3).
+The blocking curve of the density is
+
+| Run | Observable | 0.001 ps | 0.002 ps | 0.004 ps | 0.008 ps | 0.016 ps | 0.032 ps | 0.064 ps | 0.128 ps | 0.256 ps | 0.512 ps | 1.024 ps | 2.048 ps | 4.096 ps | 8.192 ps | 16.384 ps | 32.768 ps |
+|-----+------------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+----------+-----------+-----------|
+| long32 | Density, kg/m^3 | 1.19 | 1.68 | 2.37 | 3.36 | 4.75 | 6.72 | 9.43 | 13.41 |  |  |  |  |  |  |  |  |
+
+and the plateau test (reference 5) is
+
+| Run | Observable | Block, ps | Blocks | Error | Its uncertainty |
+|-----+------------+-----------+--------+-------+-----------------|
+| long32 | Density, kg/m^3 | none up to 0.128 |  |  |  |
+
+so 13.41 kg/m^3 is a lower bound.
+The statistical inefficiency of the 1361 frames is 309.3 frames, about 4.4 effective samples, and ~43.73 / sqrt(1361 / 309.3)~ is 20.8 kg/m^3, the scale the blocking curve is still climbing toward.
+The same discard rule on the prefix that ends at half the run gives 0.500 ps, and on the prefix that ends at three quarters gives 0.698 ps, both within 1 ps of 0.500 ps.
+That is the stability check fixed before the run.
+It leaves the production at 1.36 ps, short of the 40 ps the protocol asks for after the start, and it leaves the blocking curve still rising.
+The mean is an average over a trajectory that has not levelled off.
+The 3.5 kg/m^3 between 873.5 and 870 sits inside a lower bound of 13.41 kg/m^3, which is too wide, and still growing, to decide the comparison.
+The windows of the whole 1.86 ps are 871.9 kg/m^3 over 0-1 ps and 867.8 kg/m^3 over the partial window 1-2 ps.
+A step took 7.2 s, so 40 ps of steps is 80 h on these 8 ranks.
+The numbers above are the checkpoint at 1.86 ps.
+
+The 11.0 ps record is the one in the sections above.
+With the 0.5 ps override its density is 849.3 +- 10.06 kg/m^3, the curve still rising, and 20.7 kg/m^3 separates 849.3 from 870.
+The ratio of that error to the error at 0.001 ps is 10.06/0.41, so the statistical inefficiency of that series is at least (10.06/0.41)^2 = 602 frames, and the curve is still rising, so the true inefficiency is larger.
+The detected start moved from 0 ps in the first 5.71 ps to 3.876 ps in the first 9.0 ps to 5.08 ps at 11.0 ps.
+That movement is larger than 1 ps, so the start had not settled, and the frames of that series are not in the tree for the prefix test to be repeated.
+The frames after 5.08 ps average 870.8 +- 6.42 kg/m^3.
+No blocking level up to 0.512 ps meets the criterion of Lee et al. on those frames, so 6.42 kg/m^3 is a lower bound too, and (6.42/0.45)^2 = 203.5 frames is a lower bound on their inefficiency.
+The locked rule leaves 870.8 aside: the start moved as the run grew, and the blocking curve had not levelled off.
+
+64 waters at 349 K have a classical box and no production frames.
+The eight ranks were on the 32-water trajectory.
+The recorded cost of 64 waters on this stack is 26.1 s a step, and 40 ps at that cost is 12.1 days.
+The fresh 32-water step, 7.2 s against 7.8 s on the 11.0 ps, puts a 64-water run on this build in the same range.
+
+The gap to 870 kg/m^3 is open.
+The fresh trajectory has 1.36 ps of production and a density error that is still a lower bound.
+The 11.0 ps trajectory has an unsettled start and a density error that is still a lower bound, and 849.3 kg/m^3 lies 20.7 kg/m^3 below 870, 2.1 times that lower bound.
+The setup differences from Miceli et al. stay as *What Miceli et al. ran* and *Protocol for the longer runs* list them.
+The code is cpmdc on OpenCPMD with ASE's LangevinBAOAB, against Quantum ESPRESSO.
+The functional is PBE on both sides.
+The fresh run has 32 waters at a 350 K target (the averaged frames sit at 352 +- 3.0 K); the 11.0 ps averaged 345 +- 3.2 K; Miceli et al. report a mean of 349 K, an equilibration aimed at 350 K, and runs inside 345 +- 4 K.
+The barostat target is 1 bar, against their Parrinello-Rahman cell at zero pressure.
+The fresh frames average -112 +- 111 bar, and the 11.0 ps average -68 +- 8.5 bar.
+At the 48.6 kg/m^3 per kbar of the 11.0 ps, 1 bar against 0 is about 0.05 kg/m^3, and -68 bar is about 3.3 kg/m^3.
+Production here is NPT with Langevin atoms and a Langevin-MTK piston, time constants 100 fs, against their NpH, where velocity rescaling acts only if the cumulative mean temperature leaves 350 +- 20 K and does not fire in production.
+The step is 1 fs, against their Beeman step of 0.48 fs.
+The hydrogen mass is 2.014 u, against classical protons.
+The masses and the timestep leave the classical configurational distribution unchanged.
+The basis is a constant cutoff E0 = 85 Ry on a 100 Ry deck, penalty 5000 Ry, width 4.25 Ry, with the cell updated in place below a strain of 1%, against a fixed number of plane waves near 85 Ry, a run that expanded being restarted from a larger cell.
+The pseudopotentials are the CPMD-library Troullier-Martins files ~O_MT_PBE~ and ~H_MT_PBE~, oxygen core radius 1.12 bohr on s, p and d with p local, hydrogen core radius 0.50 bohr on s with s local, against the Troullier-Martins files the paper cites and does not name.
+The liquid starts from 10 ps of classical flexible TIP3P-like dynamics at 1 g/cm^3 and the target temperature, against their classical NVT at 1 g/cm^3 and 300 K and then about 5 ps of QM equilibration.
+Their production is 25 to 35 ps.
+*Where the gap goes* estimates the change from these pseudopotentials at E0 = 85 Ry to the FHI Troullier-Martins files at a converged constant cutoff, and from that to a fixed 85 Ry basis, at 28.0 and 50.5 kg/m^3, about +78 kg/m^3 together.
+That estimate is not refit on the fresh trajectory.
+A setup difference of that size can carry the 20.7 kg/m^3 between the 11.0 ps and 870, and the fresh 1.86 ps does not measure it.
+
+* Tests
+- ~test_plateau_of_ar1_lies_past_its_correlation_time~ and the other ~plateau~ tests in ~tests/python/test_npt_block_average.py~ check the level that the criterion of Lee et al. finds on series whose correlation is known: an AR(1) process, white noise, and a drift.
+- ~test_the_plateau_table_gives_the_level_or_the_coarsest_level_tried~, ~test_cost_compares_each_run_with_the_run_above_it~, and ~test_pressures_takes_the_differences_configuration_by_configuration~ in ~tests/python/test_constant_cutoff_npt_table.py~ check the tables of ~table~, ~cost~, and ~pressures~.
+- ~test_the_pbe_water_page_carries_the_generated_tables~ in the same file requires this page to carry the tables of ~bench/results/pbe_water_npt.org~, ~pbe_water_cost.org~, ~pbe_water_profile.org~, ~pbe_water_pressure.org~, and ~pbe_water_states.org~ that it quotes.
+
+* Run it
+The CPMD files come from the OpenCPMD regression tests and the FHI files from the Quantum ESPRESSO table; the runs used the files with these SHA-256 sums:
+
+#+begin_src bash
+scripts/ci/fetch_pseudopotentials.sh pp
+for f in O.pbe-mt_fhi.UPF H.pbe-mt_fhi.UPF; do
+  curl -fsSL -o pp/$f https://pseudopotentials.quantum-espresso.org/upf_files/$f
+done
+sha256sum pp/O_MT_PBE.psp pp/H_MT_PBE.psp pp/O.pbe-mt_fhi.UPF pp/H.pbe-mt_fhi.UPF
+#+end_src
+
+#+begin_example
+d26bb0bfa19ddaabe95d21169f50fa25915631e84df0d157e93bb32a7a9298ad  pp/O_MT_PBE.psp
+8ff874f26491f2b6e482540342ae0ad85c9c7023936f3b050baa4ddced459988  pp/H_MT_PBE.psp
+747670be5d6f008d921dc74551dc0705f2c4b34132e79590c482b532171f8cd1  pp/O.pbe-mt_fhi.UPF
+b6ed642482602f477eb8c167dce4a2c6d254b89522685b5b9ad8f1e904c50db4  pp/H.pbe-mt_fhi.UPF
+#+end_example
+
+OpenCPMD on FFTW 3, with FFTW on ~LIBRARY_PATH~ and on the loader path, and ~libcpmdc~ linked against it:
+
+#+begin_src bash
+CPMDC_OPENCPMD_FFT=fftw3 scripts/ci/build_opencpmd.sh opencpmd opencpmd-fftw
+meson setup build-fftw -Dwith_cpmd=true -Dcpmd_root="$PWD/opencpmd-fftw"
+meson compile -C build-fftw
+#+end_src
+
+The runs, with ~capnp~ on ~PATH~, on the 8 ranks of one node; ~build-base~ is the ~libcpmdc~ of the commit this series starts from, on the shipped FFT of OpenCPMD, and ~build-timer~ that of the commit that adds ~CPMDC_TIPRI_EVERY~, on the same FFT:
+
+#+begin_src bash
+export CPMDC_PSEUDO_DIR=$PWD/pp CPMDC_CELL_IN_PLACE=0.01 CPMDC_RANK_CONSENSUS=1 CPMDC_TIPRI_EVERY=0
+npt() {
+  lib=$1
+  shift
+  mpirun -np 8 -x CPMDC_RANK_CONSENSUS -x CPMDC_PSEUDO_DIR -x CPMDC_CELL_IN_PLACE -x CPMDC_TIPRI_EVERY \
+    -x LD_LIBRARY_PATH python bench/constant_cutoff_npt.py "$@" --library $lib/libcpmdc.so
+}
+python bench/constant_cutoff_npt.py start --out box32.xyz
+python bench/constant_cutoff_npt.py start --waters 64 --out box64.xyz
+cc="--cutoff 100 --e0 85 --width 4.25 --conv 1e-5"
+npt build-base run --start box32.xyz $cc --p-tau 500 --steps 30 --out runs/base30.json
+npt build-base run --start box32.xyz $cc --p-tau 500 --steps 30 --rs-wfn-keep --out runs/keep30.json
+for name in off on off2 on2; do
+  npt build-fftw run --start box32.xyz $cc --p-tau 500 --steps 30 --rs-wfn-keep --out runs/$name.json
+done
+npt build-fftw run --start box64.xyz $cc --p-tau 500 --steps 12 --rs-wfn-keep --out runs/w64.json
+prof="run --start box32.xyz $cc --p-tau 500 --steps 20"
+CPMDC_TIPRI_EVERY=10 npt build-timer $prof --out runs/prof-base.json > runs/prof-base.out
+CPMDC_TIPRI_EVERY=10 npt build-timer $prof --rs-wfn-keep --out runs/prof-keep.json > runs/prof-keep.out
+CPMDC_TIPRI_EVERY=10 npt build-fftw $prof --rs-wfn-keep --out runs/prof-fftw.json > runs/prof-fftw.out
+npt build-fftw run --start box32.xyz $cc --p-tau 100 --rs-wfn-keep --keep-every 500 \
+  --steps 11000 --out runs/long32.json
+#+end_src
+
+The FFTW runs other than ~prof-fftw~, and the single points below, used builds that carried the change to OpenCPMD described above, ~off~ and ~off2~ with it switched off and the others with it on; ~build-fftw~ from this series stands for them, since the change moved no energy, volume, or pressure of ~on~ and ~on2~ from those of ~off~ and ~off2~.
+Every run checkpoints every 10 steps and continues with ~run --resume~.
+The single points:
+
+#+begin_src bash
+fhi="--oxygen O.pbe-mt_fhi.UPF --hydrogen H.pbe-mt_fhi.UPF"
+p() {
+  npt build-fftw pressure "$@"
+}
+p --start box32.xyz --output runs/mt-fixed.org 85 100 120 140 160 200
+p --start box32.xyz --output runs/mt-cc.org 100/85/4.25 120/102/5.1 160/136/6.8 200/170/8.5
+p --start box32.xyz --output runs/mt-high.org 240/204/10.2 240 280
+p --start box32.xyz $fhi --output runs/fhi-fixed.org 70 85 100 120 160 200
+p --start box32.xyz $fhi --output runs/fhi-cc.org 100/85/4.25 160/136/6.8 200/170/8.5
+p --start box32.xyz --oxygen O.pbe-mt_fhi.UPF --output runs/o-fhi-h-mt.org 160 200
+p --start box32.xyz --hydrogen H.pbe-mt_fhi.UPF --output runs/o-mt-h-fhi.org 160 200
+p --start box32.xyz --density 870 --output runs/mt-870.org 77.46 85 100/85/4.25 160/136/6.8
+p --start box32.xyz --density 870 $fhi --output runs/fhi-870.org 77.46 85 100/85/4.25 160/136/6.8 200/170/8.5
+for k in 2000 3000 4000 5000 6000 7000 8000 9000 10000 11000; do
+  p --start runs/long32.$k.state.npz --output runs/long32.$k-mt.org 100/85/4.25 160/136/6.8 200/170/8.5
+  p --start runs/long32.$k.state.npz $fhi --output runs/long32.$k-fhi.org 85 100/85/4.25 160/136/6.8
+done
+#+end_src
+
+The records and state files stay out of the repository; the tables come from them:
+
+#+begin_src bash
+python bench/constant_cutoff_npt.py cost runs/base30.json runs/keep30.json runs/off.json runs/off2.json \
+  runs/on.json runs/on2.json --from-step 5 --against first
+python bench/constant_cutoff_npt.py cost runs/w64.json --from-step 5
+python bench/cpmd_timing.py base=runs/prof-base.out keep=runs/prof-keep.out fftw=runs/prof-fftw.out
+for b in 8 4; do
+  python bench/constant_cutoff_npt.py table runs/long32.json --curve-step 1 --min-blocks $b --window-ps 1.0 \
+    --discard-ps 0.5
+done
+python bench/constant_cutoff_npt.py table runs/long32.json --curve-step 1 --window-ps 1.0
+mt=() fhi=()
+for k in 2000 3000 4000 5000 6000 7000 8000 9000 10000 11000; do
+  mt+=("runs/long32.$k-mt.org") fhi+=("runs/long32.$k-fhi.org")
+done
+python bench/constant_cutoff_npt.py pressures "${mt[@]}" "${fhi[@]}" --against 6
+#+end_src
+
+* References
+1. G. Miceli, S. de Gironcoli, A. Pasquarello, "Isobaric first-principles
+   molecular dynamics of liquid water with nonlocal van der Waals
+   interactions", /J. Chem. Phys./ *142*, 034501 (2015),
+   [[https://doi.org/10.1063/1.4905333][doi:10.1063/1.4905333]].
+2. N. Troullier, J. L. Martins, "Efficient pseudopotentials for plane-wave
+   calculations", /Phys. Rev. B/ *43*, 1993-2006 (1991),
+   [[https://doi.org/10.1103/PhysRevB.43.1993][doi:10.1103/PhysRevB.43.1993]].
+3. H. Flyvbjerg, H. G. Petersen, "Error estimates on averages of correlated
+   data", /J. Chem. Phys./ *91*, 461-466 (1989),
+   [[https://doi.org/10.1063/1.457480][doi:10.1063/1.457480]].
+4. J. D. Chodera, "A Simple Method for Automated Equilibration Detection in
+   Molecular Simulations", /J. Chem. Theory Comput./ *12*, 1799-1805 (2016),
+   [[https://doi.org/10.1021/acs.jctc.5b00784][doi:10.1021/acs.jctc.5b00784]].
+5. R. M. Lee, G. J. Conduit, N. Nemec, P. López Ríos, N. D. Drummond,
+   "Strategies for improving the efficiency of quantum Monte Carlo
+   calculations", /Phys. Rev. E/ *83*, 066706 (2011),
+   [[https://doi.org/10.1103/PhysRevE.83.066706][doi:10.1103/PhysRevE.83.066706]].
+6. M. Fuchs, M. Scheffler, "Ab initio pseudopotentials for electronic
+   structure calculations of poly-atomic systems using density-functional
+   theory", /Comput. Phys. Commun./ *119*, 67-98 (1999),
+   [[https://doi.org/10.1016/S0010-4655(98)00201-X][doi:10.1016/S0010-4655(98)00201-X]].

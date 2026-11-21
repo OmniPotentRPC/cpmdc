@@ -635,7 +635,7 @@ CONTAINS
     IF (.NOT. C_ASSOCIATED(image_c)) RETURN
     CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
-    CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
+    CALL run_timed_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
 #else
     IF (has_cell < 0) RETURN
@@ -976,14 +976,17 @@ CONTAINS
     END DO
   END SUBROUTINE
 
-  SUBROUTINE embed_parse_star(work, path, kb)
+  ! CPMD reads RAGGIO, NLCC, UPF and the projector form from the *file line
+  ! only, so the options there after the path stay on the rebuilt line.
+  SUBROUTINE embed_parse_star(work, path, kb, opts)
     CHARACTER(LEN=*), INTENT(IN) :: work
-    CHARACTER(LEN=*), INTENT(OUT) :: path
+    CHARACTER(LEN=*), INTENT(OUT) :: path, opts
     LOGICAL, INTENT(OUT) :: kb
     INTEGER :: tpos
     CHARACTER(LEN=512) :: tok
     CHARACTER(LEN=512) :: up
     path = ' '
+    opts = ' '
     kb = .FALSE.
     tpos = 2
     CALL embed_next_tok(work, tpos, path)
@@ -991,7 +994,13 @@ CONTAINS
       CALL embed_next_tok(work, tpos, tok)
       IF (LEN_TRIM(tok) == 0) EXIT
       CALL embed_upper_copy(tok, up)
-      IF (TRIM(up) == 'KLEINMAN-BYLANDER') kb = .TRUE.
+      IF (TRIM(up) == 'KLEINMAN-BYLANDER') THEN
+        kb = .TRUE.
+      ELSE IF (LEN_TRIM(opts) == 0) THEN
+        opts = TRIM(tok)
+      ELSE
+        opts = TRIM(opts) // ' ' // TRIM(tok)
+      END IF
     END DO
   END SUBROUTINE
 
@@ -1021,21 +1030,23 @@ CONTAINS
     END DO
   END SUBROUTINE
 
-  SUBROUTINE embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+  SUBROUTINE embed_collect_message_pp(src, have, kbflag, paths, stars, lmaxs, locs, extras)
     CHARACTER(LEN=*), INTENT(IN) :: src
     LOGICAL, INTENT(OUT) :: have(0:120), kbflag(0:120)
     CHARACTER(LEN=512), INTENT(OUT) :: paths(0:120)
+    CHARACTER(LEN=192), INTENT(OUT) :: stars(0:120)
     CHARACTER(LEN=8), INTENT(OUT) :: lmaxs(0:120), locs(0:120)
     CHARACTER(LEN=192), INTENT(OUT) :: extras(0:120)
     INTEGER :: nsrc, pos, rel, ia, iend, zend, pending, tpos
     CHARACTER(LEN=512) :: line, work, up, path
     CHARACTER(LEN=64) :: sym
     CHARACTER(LEN=8) :: lmaxc, locc
-    CHARACTER(LEN=192) :: extra
+    CHARACTER(LEN=192) :: extra, staropt
     LOGICAL :: kb
     have = .FALSE.
     kbflag = .FALSE.
     paths = ' '
+    stars = ' '
     lmaxs = ' '
     locs = ' '
     extras = ' '
@@ -1062,7 +1073,7 @@ CONTAINS
           CALL embed_next_tok(work, tpos, sym)
           pending = embed_z_of_symbol(sym)
         ELSE IF (work(1:1) == '*') THEN
-          CALL embed_parse_star(work, path, kb)
+          CALL embed_parse_star(work, path, kb, staropt)
           lmaxc = 'S'
           locc = ' '
           extra = ' '
@@ -1071,6 +1082,7 @@ CONTAINS
             have(pending) = .TRUE.
             kbflag(pending) = kb
             paths(pending) = path
+            stars(pending) = staropt
             lmaxs(pending) = lmaxc
             locs(pending) = locc
             extras(pending) = extra
@@ -1124,7 +1136,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE :: have(:), kbflag(:)
     CHARACTER(LEN=512), ALLOCATABLE :: paths(:)
     CHARACTER(LEN=8), ALLOCATABLE :: lmaxs(:), locs(:)
-    CHARACTER(LEN=192), ALLOCATABLE :: extras(:)
+    CHARACTER(LEN=192), ALLOCATABLE :: extras(:), stars(:)
     CHARACTER(LEN=64) :: tpath
     CHARACTER(LEN=1) :: lc
     INTEGER :: astat, lmax_val, pok
@@ -1136,17 +1148,18 @@ CONTAINS
       FLUSH(error_unit)
       RETURN
     END IF
-    ALLOCATE(have(0:120), kbflag(0:120), paths(0:120), lmaxs(0:120), locs(0:120), &
+    ALLOCATE(have(0:120), kbflag(0:120), paths(0:120), stars(0:120), lmaxs(0:120), locs(0:120), &
          extras(0:120), STAT=astat)
     IF (astat /= 0) THEN
       WRITE(error_unit, '(A)') 'cpmdc: failed to allocate pseudopotential table'
       FLUSH(error_unit)
       RETURN
     END IF
-    CALL embed_collect_message_pp(src, have, kbflag, paths, lmaxs, locs, extras)
+    CALL embed_collect_message_pp(src, have, kbflag, paths, stars, lmaxs, locs, extras)
     IF (have(zz)) THEN
       star = '*' // TRIM(paths(zz))
       IF (kbflag(zz)) star = TRIM(star) // ' KLEINMAN-BYLANDER'
+      IF (LEN_TRIM(stars(zz)) > 0) star = TRIM(star) // ' ' // TRIM(stars(zz))
       opt = ' LMAX=' // TRIM(lmaxs(zz))
       IF (LEN_TRIM(locs(zz)) > 0) opt = TRIM(opt) // ' LOC=' // TRIM(locs(zz))
       IF (LEN_TRIM(extras(zz)) > 0) opt = TRIM(opt) // ' ' // TRIM(extras(zz))
@@ -3065,6 +3078,42 @@ CONTAINS
     END SELECT
     CALL newcell
   END SUBROUTINE
+
+  ! After every CPMDC_TIPRI_EVERY-th evaluation CPMD prints its timer table,
+  ! in which embed_scf times the evaluations after the first.
+  SUBROUTINE run_timed_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    USE timer, ONLY: tiset, tihalt, tipri
+    TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
+    INTEGER, INTENT(IN) :: n_atoms, has_cell
+    REAL(c_double), INTENT(IN) :: pos(*), cell(*)
+    INTEGER(c_int), INTENT(IN) :: z(*)
+    REAL(c_double), INTENT(OUT) :: energy_h
+    REAL(c_double), INTENT(OUT) :: grad(*)
+    INTEGER(c_int), INTENT(OUT) :: ok
+    INTEGER, SAVE :: evaluations = 0
+    INTEGER :: isub, every
+    LOGICAL :: timed
+    timed = timer_started
+    IF (timed) CALL tiset('embed_scf', isub)
+    CALL run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    IF (timed) CALL tihalt('embed_scf', isub)
+    evaluations = evaluations + 1
+    every = embed_tipri_every()
+    IF (every > 0 .AND. timer_started) THEN
+      IF (MOD(evaluations, every) == 0) CALL tipri
+    END IF
+  END SUBROUTINE
+
+  ! Unset, 0, a negative value, or a value that does not parse prints none.
+  INTEGER FUNCTION embed_tipri_every()
+    CHARACTER(LEN=16) :: v
+    INTEGER :: st, ios, n
+    embed_tipri_every = 0
+    CALL GET_ENVIRONMENT_VARIABLE('CPMDC_TIPRI_EVERY', v, STATUS=st)
+    IF (st /= 0 .OR. LEN_TRIM(v) == 0) RETURN
+    READ(v, *, IOSTAT=ios) n
+    IF (ios == 0 .AND. n > 0) embed_tipri_every = n
+  END FUNCTION
 
   SUBROUTINE run_embed_scf(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
     USE cpmdc_embed_host_iface, ONLY: cpmdc_memfd_write, &

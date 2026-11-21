@@ -1,0 +1,1 @@
+`CPMDC_TIPRI_EVERY=N` prints CPMD's timing table after every N-th OpenCPMD evaluation, with the evaluations after the first under `embed_scf`, and `bench/cpmd_timing.py` turns the last two tables of each output into the calls and seconds of each routine per evaluation; `tests/test_embed_tipri_every.py` guards where the timer and the print sit.

@@ -48,6 +48,24 @@ def test_block_error_keeps_growing_for_a_drift():
     assert error["sem"] == pytest.approx(np.sqrt(2.0) * error["sem_half"], rel=0.05)
 
 
+def test_plateau_of_ar1_lies_past_its_correlation_time():
+    n = 2**16
+    levels = nba.blocking(ar1(n, 0.9, 4))
+    k = nba.plateau(levels, min_blocks=16)
+    assert k is not None and 8 <= k <= 10
+    exact = np.sqrt((1.0 / (1.0 - 0.81)) * 19.0 / n)
+    assert levels[k][1] == pytest.approx(exact, rel=0.2)
+
+
+def test_plateau_of_white_noise_takes_blocks_past_the_cube_root_of_2n():
+    assert nba.plateau(nba.blocking(ar1(2**15, 0.0, 5)), min_blocks=16) == 6
+
+
+def test_plateau_is_none_while_the_blocks_stay_shorter_than_the_correlation():
+    assert nba.plateau(nba.blocking(np.linspace(0.0, 1.0, 4096)), min_blocks=8) is None
+    assert nba.plateau(nba.blocking(ar1(4096, 0.999, 6)), min_blocks=8) is None
+
+
 def test_equilibration_start_follows_the_transient():
     x = ar1(20000, 0.9, 3) + 40.0 * np.exp(-np.arange(20000) / 500.0)
     t0, _ = nba.equilibration_start(x, stride=50)

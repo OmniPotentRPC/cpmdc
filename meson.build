@@ -1315,6 +1315,14 @@ if get_option('with_tests')
     ],
     suite: ['embed', 'inventory'],
   )
+  test(
+    'embed-tipri-every',
+    python,
+    args: [
+      meson.current_source_dir() / 'tests/test_embed_tipri_every.py',
+    ],
+    suite: ['embed', 'inventory'],
+  )
 
   test(
     'opencpmd-patch-integrity',

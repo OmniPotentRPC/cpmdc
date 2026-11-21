@@ -20,7 +20,9 @@ are averaged in pairs level by level, and the error is that of the coarsest
 level with at least --min-blocks blocks. The tables give that error's own
 uncertainty, the error at half the block length, and the blocking curve:
 while the error still grows with the block length, the blocks are not yet
-longer than the correlation time and the error is a lower bound.
+longer than the correlation time and the error is a lower bound. plateau()
+finds the first level whose blocks outlast the correlation by the criterion
+of Lee et al. (Phys. Rev. E 83, 066706 (2011)).
 
 The window tables give the means over consecutive windows, which show
 whether the volume and density have levelled off.
@@ -87,12 +89,34 @@ def blocking(x: np.ndarray) -> list[tuple[int, float, float]]:
     return levels
 
 
+def plateau(levels: list[tuple[int, float, float]], min_blocks: int) -> int | None:
+    """The first blocking level, of those with at least min_blocks blocks, whose blocks outlast the correlation.
+
+    Blocks of B frames, of n, outlast it when B^3 > 2 n (SE_B / SE_1)^4, where
+    (SE_B / SE_1)^2 is the correlation length that they show (Lee et al.,
+    Phys. Rev. E 83, 066706 (2011), Eq. 14 and the text after it). Lee et al.
+    scan down from the longest block, take the last B that meets it, and ask
+    for B < n/50, which gives the error to 10%. Scanning up gives the same
+    level while every longer block meets it too, and a coarse level of few
+    blocks, whose error is uncertain, cannot hide it. None means that no level
+    with enough blocks meets it: the run is too short for the blocking curve
+    to level off.
+    """
+    n, first = levels[0][0], levels[0][1]
+    for k, (blocks, sem, _) in enumerate(levels):
+        if blocks < min_blocks:
+            break
+        if first == 0.0 or 2.0 ** (3 * k) > 2.0 * n * (sem / first) ** 4:
+            return k
+    return None
+
+
 def block_error(x: np.ndarray, min_blocks: int) -> dict:
-    """The coarsest blocking level with at least min_blocks blocks, and the level before it."""
+    """The coarsest blocking level with at least min_blocks blocks, the level before it, and the plateau level."""
     levels = blocking(x)
     k = max(i for i, lv in enumerate(levels) if lv[0] >= min_blocks)
     return {"blocks": levels[k][0], "block_frames": 2**k, "sem": levels[k][1], "sem_err": levels[k][2],
-            "sem_half": levels[k - 1][1] if k else None, "curve": levels}
+            "sem_half": levels[k - 1][1] if k else None, "curve": levels, "plateau": plateau(levels, min_blocks)}
 
 
 def analyse(run: dict, discard_ps: float | None, min_discard_ps: float, window_ps: float,
@@ -147,16 +171,16 @@ def detail_rows(results: list[tuple[str, dict]]) -> list[str]:
     return lines
 
 
-def curve_rows(results: list[tuple[str, dict]], min_blocks: int) -> list[str]:
+def curve_rows(results: list[tuple[str, dict]], min_blocks: int, levels=CURVE_LEVELS) -> list[str]:
     dt = results[0][1]["frame_ps"]
-    head = " | ".join(f"{2**k * dt:g} ps" for k in CURVE_LEVELS)
+    head = " | ".join(f"{2**k * dt:g} ps" for k in levels)
     lines = [f"| Run | Observable | {head} |",
-             "|-----+------------+" + "+".join("-" * (len(f"{2**k * dt:g} ps") + 2) for k in CURVE_LEVELS) + "|"]
+             "|-----+------------+" + "+".join("-" * (len(f"{2**k * dt:g} ps") + 2) for k in levels) + "|"]
     for label, r in results:
         for name, unit, d in TERMS:
             curve = r["terms"][name]["curve"]
             cells = [f"{curve[k][1]:.{d + 1}f}" if k < len(curve) and curve[k][0] >= min_blocks else ""
-                     for k in CURVE_LEVELS]
+                     for k in levels]
             lines.append(f"| {label} | {name}, {unit} | " + " | ".join(cells) + " |")
     return lines
 

@@ -12,6 +12,7 @@
 | ~CPMDC_SCF_STEPS~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | ~1~ writes ~cpmdc_warm_start~, ~cpmdc_wfn_extrapolated K~, and ~cpmdc_scf_steps N~ to the error stream |
 | ~CPMDC_WARM_RMSD~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
 | ~CPMDC_CELL_IN_PLACE~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation whose cell differs from the stored one | largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |
+| ~CPMDC_TIPRI_EVERY~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation | a positive ~N~ prints CPMD's timing table to its output after every ~N~-th evaluation, with the evaluations after the first under ~embed_scf~; unset, 0, a negative value, or a value that does not parse prints none |
 | ~CPMDC_RECENTER~ | ~src/cpmd_embed_c_api.F90~, each OpenCPMD evaluation on an isolated deck | ~mass~ (default) or ~geometry~ moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; ~off~ or ~0~ keeps the caller's coordinates; ~MASS~, ~GEOMETRY~ and ~OFF~ are accepted too; any other value fails the call |
 | ~CPMDC_RECENTER_MARGIN~ | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
 | ~CPMDC_RANK_CONSENSUS~ | ~src/cpmdc.c~, each evaluation under a running MPI | ~1~ gives every rank of the calculator rank 0's energy, gradient, and result snapshots, and records the rank spread; any other value, or unset, leaves each rank's own result |
@@ -88,6 +89,14 @@ starts from the stored orbitals and keeps the ~EXTRAPOLATE WFN~ history.
 (section Cell changes at a constant cutoff) gives the conditions and what the
 move changes in the energy and the stress.
 Set it to the same value on every rank.
+
+~CPMDC_TIPRI_EVERY~ prints the table that ~cpmd.x~ prints when it stops.
+Its times run from the first evaluation of the process and carry on across new
+setups, so the difference of two tables is the cost of the evaluations between
+them.
+The first evaluation starts CPMD's timer and is not under ~embed_scf~.
+The table is gathered over the ranks of the calculator, so set the variable to
+the same value on every rank.
 
 ~CPMDC_RANK_CONSENSUS=1~ adds three collectives to each evaluation on the
 calculator communicator: the one bound or adopted, or ~MPI_COMM_WORLD~ when
