@@ -27,6 +27,7 @@ from ase.calculators.calculator import (
     CalculationFailed,
     CalculatorError,
     PropertyNotImplementedError,
+    ReadError,
     all_changes,
     all_properties,
 )
@@ -1096,3 +1097,36 @@ def test_a_cell_filter_relaxation_lowers_the_energy_and_the_stress(periodic_para
     assert converged or end_stress < start_stress
     assert not np.allclose(atoms.cell.array, CUBE)
     assert len(steps) == opt.nsteps + 1
+
+
+# --- read and restart ------------------------------------------------------
+
+
+def test_read_refuses_to_restore_what_the_calculator_never_stored(calc):
+    """ASE's default ``read`` sets the label and returns, as if it had restored."""
+    with pytest.raises(ReadError, match="keeps no calculator file"):
+        calc.read("old/run")
+    assert calc.label is None
+    assert calc.directory == "."
+    assert calc.results == {}
+    assert calc.atoms is None
+
+
+def test_a_read_failure_is_an_ase_calculator_error(calc):
+    with pytest.raises(CalculatorError):
+        calc.read("old/run")
+
+
+def test_read_names_the_label_it_refused(calc):
+    with pytest.raises(ReadError, match="'old/run'"):
+        calc.read("old/run")
+
+
+def test_a_refused_read_keeps_the_calculator_usable(calc, steps):
+    atoms = water()
+    atoms.calc = calc
+    energy = atoms.get_potential_energy()
+    with pytest.raises(ReadError):
+        calc.read("old/run")
+    assert atoms.get_potential_energy() == energy
+    assert len(steps) == 1

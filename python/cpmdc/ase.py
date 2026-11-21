@@ -39,6 +39,7 @@ from ase.calculators.calculator import (
     Calculator,
     Parameters,
     PropertyNotImplementedError,
+    ReadError,
     all_changes,
     equal,
 )
@@ -58,6 +59,10 @@ _RESTART_IGNORED = (
     "restart is ignored and will be removed: a cpmdc step writes no restart "
     "file; a CPMDParams deck with RESTART WAVEFUNCTION reads RESTART.1 on a "
     "cold start"
+)
+_NO_READ = (
+    "cpmdc keeps no calculator file to read: a step writes none and restores "
+    "no results; use parameters= for a file written by Parameters.write"
 )
 _NO_ATOMS = "the calculator has no atoms: set atoms.calc = calc, or pass atoms"
 _NO_STRESS_CLUSTER = (
@@ -283,6 +288,15 @@ class CPMDCCalculator(Calculator):
         """Clear the stored results; the session stays open."""
         Calculator.reset(self)
         self._no_stress = ""
+
+    def read(self, label: str) -> None:
+        """Refuse to read ``label``: the calculator stores no results in files.
+
+        ASE's default only sets the label, which would tell a caller that
+        results were restored when none were. ``parameters`` reads a file
+        that ``Parameters.write`` made.
+        """
+        raise ReadError(f"{_NO_READ}: {label!r}")
 
     def calculate(
         self,
