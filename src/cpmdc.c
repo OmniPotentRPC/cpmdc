@@ -2864,6 +2864,9 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
                                double *forces_h_bohr, double *virial_h) {
   size_t n3 = 0;
   const char *err = NULL;
+  double cell_ang[9] = {0};
+  int has_cell = cell_bohr != NULL;
+  double volume = 0.0;
   if (!session)
     err = "null session";
   else if (grad_len_from_atoms(n_atoms, &n3) != 0 || !atomic_numbers ||
@@ -2872,6 +2875,16 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
   else if (test_fault("calculate-au-reserve") ||
            session_reserve_step_atoms(session, (size_t)n_atoms) != 0)
     err = "out of memory";
+  if (!err && has_cell) {
+    int cell_finite = 1;
+    for (int i = 0; i < 9; ++i) {
+      cell_ang[i] = cell_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
+      cell_finite = cell_finite && isfinite(cell_bohr[i]);
+    }
+    /* A non-finite cell is refused below with its own message. */
+    if (virial_h && cell_finite && cpmdc_cell_volume3(cell_bohr, &volume) != 0)
+      err = "cell volume is too large for binary64";
+  }
   err = collective_call_gate(err);
   if (err) {
     (void)fail_msg(err);
@@ -2881,37 +2894,38 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
     session->step_positions_ang[i] = positions_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
   memcpy(session->step_atomic_numbers, atomic_numbers,
          (size_t)n_atoms * sizeof(int));
-  double cell_ang[9] = {0};
-  int has_cell = cell_bohr != NULL;
-  int cell_finite = has_cell;
-  if (has_cell)
-    for (int i = 0; i < 9; ++i) {
-      cell_ang[i] = cell_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
-      cell_finite = cell_finite && isfinite(cell_bohr[i]);
-    }
-  /* A non-finite cell is refused below with its own message. */
-  double volume = 0.0;
-  if (virial_h && cell_finite && cpmdc_cell_volume3(cell_bohr, &volume) != 0) {
-    (void)fail_msg("cell volume is too large for binary64");
-    return -1;
-  }
   CPMDCResult r = session_energy_gradient_cell(
       session, n_atoms, session->step_positions_ang,
       session->step_atomic_numbers, cell_ang, has_cell, forces_h_bohr);
-  if (!r.ok)
-    return -1;
-  for (size_t i = 0; i < n3; ++i)
-    forces_h_bohr[i] = -forces_h_bohr[i];
-  *energy_h = r.energy_h;
-  if (virial_h) {
-    int have = has_cell && session->image.stress.valid;
-    for (int i = 0; i < 9; ++i) {
-      virial_h[i] = have ? volume * session->image.stress.values[i] : 0.0;
-      if (!isfinite(virial_h[i])) {
-        (void)fail_msg("virial is not finite");
-        return -1;
+  if (r.ok && test_fault("embed-energy-gradient"))
+    r = fail_msg("embedded energy gradient failed");
+  {
+    /* A rank whose evaluation failed still joins the gate, so the ranks
+     * that passed learn of it instead of waiting on the virial agreement. */
+    const char *virial_err = r.ok ? NULL : r.message;
+    double virial[9] = {0};
+    if (r.ok && virial_h) {
+      int have = has_cell && session->image.stress.valid;
+      for (int i = 0; i < 9; ++i) {
+        virial[i] = have ? volume * session->image.stress.values[i] : 0.0;
+        if (!virial_err && !isfinite(virial[i]))
+          virial_err = "virial is not finite";
       }
+      if (!virial_err && test_fault("calculate-au-virial"))
+        virial_err = "virial is not finite";
     }
+    virial_err = collective_call_gate(virial_err);
+    if (!r.ok)
+      return -1;
+    if (virial_err) {
+      (void)fail_msg(virial_err);
+      return -1;
+    }
+    for (size_t i = 0; i < n3; ++i)
+      forces_h_bohr[i] = -forces_h_bohr[i];
+    *energy_h = r.energy_h;
+    if (virial_h)
+      memcpy(virial_h, virial, sizeof(virial));
   }
   return 0;
 }
