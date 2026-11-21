@@ -1,0 +1,1 @@
+`tests/python/test_ase_conformance.py` also checks `CPMDCCalculator` against `SumCalculator` and `VelocityVerlet`, the parameters round trip through `todict` and a `Parameters` file with a `constant_cutoff` mapping, and that a change of tags, momenta, info, or a constraint, or an equal copy of the `Atoms`, reuses the stored step.
