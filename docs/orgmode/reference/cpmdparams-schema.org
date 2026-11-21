@@ -133,25 +133,48 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~PotentialConfig~
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
-~cpmdc~ accepts the ~cpmd~ arm, the overlay alone, or both together. When
-both are set, the arm wins where it differs from schema defaults and the
-overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
+~cpmdc~ accepts the ~cpmd~ arm, the overlay alone, or both together.
+When both are set, a value the arm sets beats the overlay, and the overlay
+beats a schema default.
+The overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
 ~spinMultiplicity~, Fermi ~smearing~ (when ~&CPMD~ sets none), and
 ~vanDerWaalsS6~ (into a ~vdwParams~ section with ~s6~ unset).
-Schema defaults on typed ~system~ (~cutOffRy~ 70 Ry, ~charge~ 0,
-~multiplicity~ 1) and ~dft~ (~functional~ ~BLYP~) sections are treated as
-unset, so they neither replace explicit root ~CPMDParams~ values nor block
-merged overlay scalars from reaching the rendered deck, cluster HFX solver
-selection, or embed configuration; explicit non-default section values win.
+An arm field sets a value when it differs from the schema default (functional
+~BLYP~, cutoff 70 Ry, charge 0, multiplicity 1), and a typed ~dft~ or ~system~
+section beats the top-level field.
+A method field in a typed section that is omitted or holds its schema default
+is unset and does not replace the top-level arm or overlay value, and does not
+block merged overlay scalars from reaching the rendered deck, cluster HFX
+solver selection, or embed configuration; a typed ~system~ charge of 0 is
+unset and a non-zero one is explicit.
+~planewaveCutoffEv~ is in eV and is converted to the Ry the deck carries.
+~spinMultiplicity~ 0 is unset, so an explicit singlet of 1 is merged and
+checked like the other overlay scalars.
+The functional, cutoff, charge, and multiplicity lines the deck renderers
+write and the recorded settings follow this precedence.
 An unmapped ~xcFunctionals~ token is rejected for every arm functional,
 before that precedence.
-An explicit overlay scalar (including singlet ~spinMultiplicity~ 1) that
-would fill a schema default is rejected when ~inputBlocks~, a raw section,
-or a generic section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~ (cutoff,
-charge, multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
-~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when typed
-~dft.directives~ or ~system.directives~ carries that keyword.
-Those carriers are not folded into the recorded settings.
+Opaque carriers are rendered as given and are not folded into the recorded
+settings, so the carrier check runs for every set overlay field, whether or
+not a typed field also sets it.
+The overlay field is rejected when ~inputBlocks~, a raw section, or a generic
+section opens ~&DFT~ (~xcFunctionals~) or ~&SYSTEM~ (cutoff, charge,
+multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the
+~directives~ list of the typed ~dft~ section holds ~FUNCTIONAL~ or that of
+the typed ~system~ section holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
+Without an overlay, the deck render rejects a ~CUTOFF~, ~CHARGE~, or
+~MULTIPLICITY~ directive in the typed ~system~ section, and a
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~ set directive.
+~CUTOFF~ is written on every deck, including the default 70 Ry.
+~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments
 in ~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
 The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects

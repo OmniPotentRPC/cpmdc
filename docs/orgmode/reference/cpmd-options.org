@@ -183,13 +183,37 @@ page.
 
 Missing core sections receive minimal defaults from the renderer so a sparse
 ~CPMDParams~ still produces a valid-looking deck for debugging.
-When structured ~dft~ or ~system~ sections provide explicit non-default
-scalar method values (functional, cutoff, charge, multiplicity), those
-section values are also the effective embed configuration passed through the
-C ABI.
-Schema defaults on typed ~system~ (~cutOffRy~ 70 Ry, ~charge~ 0,
-~multiplicity~ 1) and ~dft~ (~functional~ ~BLYP~) sections are treated as
-unset, so they neither replace explicit root ~CPMDParams~ values nor block
+When structured ~dft~ or ~system~ sections provide scalar method values
+(functional, cutoff, charge, multiplicity), those section values are also the
+effective embed configuration passed through the C ABI.
+The functional, cutoff, charge, and multiplicity lines the renderer writes
+and that configuration follow the same precedence.
+~raw~, ~generic~, and ~set~ sections, ~inputBlocks~, and section ~directives~
+are rendered as given and are not read back into that configuration, so the
+carrier check runs for every set overlay field of a ~common~ overlay,
+whether or not a typed field also sets it, and a carrier of the same setting
+rejects that field.
+A ~FUNCTIONAL~ directive in a typed ~dft~ section or a ~DFT.FUNCTIONAL~ set
+directive is rejected when the deck is rendered, because the rendered ~&DFT~
+section already carries the functional.
+The same render rejects a ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~ directive in
+the typed ~system~ section, and a ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or
+~SYSTEM.MULTIPLICITY~ set directive.
+~CUTOFF~ is written on every deck, including the default 70 Ry.
+~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
+A section value that differs from the schema default (functional ~BLYP~,
+cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field and beats
+the overlay.
+A method field in a typed ~dft~ or ~system~ section that is omitted or holds
+its schema default is unset and does not replace the top-level arm or overlay
+value, so a typed ~system~ charge of 0 is also unset, and does not block
 merged ~common~ overlay scalars in the rendered deck, cluster HFX solver
 selection, or embed configuration.
 For geometry deck rendering, ~atoms.pseudopotentials~ groups ~ForceInput~

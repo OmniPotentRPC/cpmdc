@@ -727,43 +727,143 @@ static int dft_functional_is_explicit(capn_text functional) {
   return 1;
 }
 
-/* The deck's functional is the &DFT section's when one names a non-default
- * functional, else the top-level / overlay functional. */
-static int deck_needs_cluster_hfx(CPMDInputSection_list sections, int nsec,
-                                  const char *functional) {
-  const char *eff = functional;
-  size_t eff_len = functional ? strlen(functional) : 0u;
+/* Schema defaults of the scalars a deck and the recorded configuration both
+ * carry. CPMDParams and its &SYSTEM and &DFT sections store a default as an
+ * absent field, so a value equal to its default reads as unset. */
+#define CPMDC_DEFAULT_FUNCTIONAL "BLYP"
+#define CPMDC_DEFAULT_CUTOFF_RY 70.0
+
+struct ResolvedScalars {
+  const char *functional;
+  double cutoff_ry;
+  int charge;
+  int multiplicity;
+  CPMDCTypedScalars typed;
+};
+
+/* The functional, cutoff, charge, and multiplicity lines cpmdc writes. A
+ * value that a typed field sets beats the overlay, the overlay beats a
+ * schema default, and a typed &SYSTEM or &DFT section beats the top-level
+ * field. A typed field sets a value when it differs from the schema default
+ * (functional BLYP, cutoff 70 Ry, charge 0, multiplicity 1). The deck
+ * renderers and the recorded configuration both read this result. Raw,
+ * generic, and set sections, inputBlocks, and section directives are not
+ * read here; the overlay merge rejects a set overlay scalar next to one,
+ * render_dft_section() rejects a second FUNCTIONAL, and
+ * render_system_section() rejects a second CUTOFF, CHARGE, or MULTIPLICITY
+ * whether that value is the schema default or not. The overlay cutoff is in
+ * Ry. */
+static int resolve_scalars(struct CPMDParams *view,
+                           const CPMDCScalarOverrides *overrides,
+                           struct ResolvedScalars *out) {
+  memset(out, 0, sizeof(*out));
+  int nsec = struct_list_len(&view->inputSections.p);
+  if (nsec < 0)
+    return -1;
+
+  capn_text functional = {0, NULL, NULL};
+  double cutoff_ry = 0.0;
+  int charge = 0;
+  int multiplicity = 0;
+  if (dft_functional_is_explicit(view->functional)) {
+    functional = view->functional;
+    out->typed.functional = 1;
+  }
+  if (system_cutoff_is_explicit(view->cutOffRy)) {
+    cutoff_ry = view->cutOffRy;
+    out->typed.cutoff = 1;
+  }
+  if (system_charge_is_explicit(view->charge)) {
+    charge = view->charge;
+    out->typed.charge = 1;
+  }
+  if (system_multiplicity_is_explicit(view->multiplicity)) {
+    multiplicity = view->multiplicity;
+    out->typed.multiplicity = 1;
+  }
   for (int i = 0; i < nsec; ++i) {
     struct CPMDInputSection sec;
-    get_CPMDInputSection(&sec, sections, i);
-    if (sec.which != CPMDInputSection_dft)
-      continue;
-    struct CPMDDftSection body;
-    read_CPMDDftSection(&body, sec.dft);
-    if (dft_functional_is_explicit(body.functional)) {
-      eff = body.functional.str;
-      eff_len = (size_t)body.functional.len;
+    get_CPMDInputSection(&sec, view->inputSections, i);
+    if (sec.which == CPMDInputSection_system) {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      if (system_cutoff_is_explicit(body.cutOffRy)) {
+        cutoff_ry = body.cutOffRy;
+        out->typed.cutoff = 1;
+      }
+      if (system_charge_is_explicit(body.charge)) {
+        charge = body.charge;
+        out->typed.charge = 1;
+      }
+      if (system_multiplicity_is_explicit(body.multiplicity)) {
+        multiplicity = body.multiplicity;
+        out->typed.multiplicity = 1;
+      }
+    } else if (sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      if (dft_functional_is_explicit(body.functional)) {
+        functional = body.functional;
+        out->typed.functional = 1;
+      }
     }
   }
-  return eff && functional_needs_cluster_hfx(eff, eff_len);
+
+  if (out->typed.functional)
+    out->functional = functional.str;
+  else if (overrides && overrides->functional && overrides->functional[0])
+    out->functional = overrides->functional;
+  else
+    out->functional = CPMDC_DEFAULT_FUNCTIONAL;
+
+  if (out->typed.cutoff)
+    out->cutoff_ry = cutoff_ry;
+  else if (overrides && overrides->cutoff_ry > 0.0)
+    out->cutoff_ry = overrides->cutoff_ry;
+  else
+    out->cutoff_ry = CPMDC_DEFAULT_CUTOFF_RY;
+
+  if (out->typed.charge)
+    out->charge = charge;
+  else if (overrides && overrides->has_charge)
+    out->charge = overrides->charge;
+  else
+    out->charge = 0;
+
+  if (out->typed.multiplicity)
+    out->multiplicity = multiplicity;
+  else if (overrides && overrides->has_multiplicity)
+    out->multiplicity = overrides->multiplicity;
+  else
+    out->multiplicity = 1;
+  return 0;
 }
 
-/* The deck's multiplicity is the &SYSTEM section's when it names one above
- * a singlet, else the top-level / overlay one. */
-static int deck_multiplicity(CPMDInputSection_list sections, int nsec,
-                             int multiplicity) {
-  int eff = multiplicity;
-  for (int i = 0; i < nsec; ++i) {
-    struct CPMDInputSection sec;
-    get_CPMDInputSection(&sec, sections, i);
-    if (sec.which != CPMDInputSection_system)
-      continue;
-    struct CPMDSystemSection body;
-    read_CPMDSystemSection(&body, sec.system);
-    if (system_multiplicity_is_explicit(body.multiplicity))
-      eff = body.multiplicity;
+static int deck_needs_cluster_hfx(const char *functional) {
+  return functional &&
+         functional_needs_cluster_hfx(functional, strlen(functional));
+}
+
+/* The same prefix test render_dft_section() uses for FUNCTIONAL. A typed
+ * directive or a SYSTEM.<keyword> set directive is an error whether the
+ * resolved scalar is the schema default or not. */
+static int reject_system_scalar_directive(struct CPMDSystemSection *sys,
+                                          struct RenderSetList *sets,
+                                          const char *keyword,
+                                          const char *typed_reason,
+                                          const char *set_reason) {
+  int has = directives_have_prefix(sys->directives, keyword);
+  if (has < 0)
+    return -1;
+  if (has) {
+    g_render_reason = typed_reason;
+    return -1;
   }
-  return eff;
+  if (set_directives_have_prefix(sets, "SYSTEM", keyword)) {
+    g_render_reason = set_reason;
+    return -1;
+  }
+  return 0;
 }
 
 static int render_system_section_with_cell(
@@ -771,6 +871,36 @@ static int render_system_section_with_cell(
     double default_cutoff, int default_charge, const double *cell_override,
     int override_ncell, int cluster_hfx, struct RenderSetList *sets, int emit_symmetry,
     int force_vectors, struct ConstantCutoffRequest *cc) {
+  /* CUTOFF, CHARGE, and MULTIPLICITY below are the resolved scalars the
+   * configuration records. CUTOFF is written on every deck, including the
+   * default 70 Ry. CHARGE is written only when it is not 0, and MULTIPLICITY
+   * only when it is greater than 1. An omitted line is the schema default
+   * (charge 0, multiplicity 1). A directive for one of those keywords is
+   * rejected in either case. When the line is written, the directive would
+   * be a second value. When the line is omitted, the directive would put a
+   * value in the deck that the recorded configuration does not carry. There
+   * is no fallback that keeps one and drops the other. */
+  if (reject_system_scalar_directive(
+          sys, sets, "CUTOFF",
+          "a CUTOFF directive in the typed &SYSTEM section conflicts with "
+          "the cutoff cpmdc writes; set cutOffRy instead",
+          "a SYSTEM.CUTOFF set directive conflicts with the cutoff cpmdc "
+          "writes; set cutOffRy instead") != 0)
+    return -1;
+  if (reject_system_scalar_directive(
+          sys, sets, "CHARGE",
+          "a CHARGE directive in the typed &SYSTEM section conflicts with "
+          "the charge cpmdc writes; set charge instead",
+          "a SYSTEM.CHARGE set directive conflicts with the charge cpmdc "
+          "writes; set charge instead") != 0)
+    return -1;
+  if (reject_system_scalar_directive(
+          sys, sets, "MULTIPLICITY",
+          "a MULTIPLICITY directive in the typed &SYSTEM section conflicts "
+          "with the multiplicity cpmdc writes; set multiplicity instead",
+          "a SYSTEM.MULTIPLICITY set directive conflicts with the "
+          "multiplicity cpmdc writes; set multiplicity instead") != 0)
+    return -1;
   if (append_text(dst, dst_size, used, "&SYSTEM\n") != 0)
     return -1;
   int symmetry = sys->symmetry;
@@ -3704,22 +3834,29 @@ static int render_cpmd_section(char *dst, size_t dst_size, size_t *used,
 
 static int render_dft_section(char *dst, size_t dst_size, size_t *used,
                               const struct CPMDDftSection *dft,
-                              const char *default_functional,
+                              const char *functional,
                               struct RenderSetList *sets) {
+  /* The FUNCTIONAL line below is the resolved functional the configuration
+   * records. A second FUNCTIONAL from the directives or a set directive
+   * would follow it in the same section. */
+  int has_functional = directives_have_prefix(dft->directives, "FUNCTIONAL");
+  if (has_functional < 0)
+    return -1;
+  if (has_functional) {
+    g_render_reason = "a FUNCTIONAL directive in the typed &DFT section "
+                      "conflicts with the functional cpmdc writes; set "
+                      "functional instead";
+    return -1;
+  }
+  if (set_directives_have_prefix(sets, "DFT", "FUNCTIONAL")) {
+    g_render_reason = "a DFT.FUNCTIONAL set directive conflicts with the "
+                      "functional cpmdc writes; set functional instead";
+    return -1;
+  }
   if (append_text(dst, dst_size, used, "&DFT\n") != 0)
     return -1;
-  if (dft_functional_is_explicit(dft->functional)) {
-    if (append_text(dst, dst_size, used, " FUNCTIONAL ") != 0)
-      return -1;
-    if (append_capn_text(dst, dst_size, used, dft->functional) != 0)
-      return -1;
-    if (append_text(dst, dst_size, used, "\n") != 0)
-      return -1;
-  } else {
-    if (append_fmt(dst, dst_size, used, " FUNCTIONAL %s\n",
-                   default_functional ? default_functional : "BLYP") != 0)
-      return -1;
-  }
+  if (append_fmt(dst, dst_size, used, " FUNCTIONAL %s\n", functional) != 0)
+    return -1;
   if (dft->gcCutoff > 0.0) {
     if (append_fmt(dst, dst_size, used, " GC-CUTOFF\n  %.10g\n",
                    dft->gcCutoff) != 0)
@@ -4557,59 +4694,16 @@ const char *cpmdc_params_text_or(capn_text text, const char *fallback) {
   return fallback ? fallback : "";
 }
 
-static void copy_capn_text_or(capn_text text, const char *fallback, char *dst,
-                              size_t dst_size) {
-  if (!dst || dst_size == 0)
-    return;
-  dst[0] = '\0';
-  if (text.str && text.len > 0) {
-    size_t n = (size_t)text.len;
-    if (n >= dst_size)
-      n = dst_size - 1u;
-    memcpy(dst, text.str, n);
-    dst[n] = '\0';
-    return;
-  }
-  snprintf(dst, dst_size, "%s", fallback ? fallback : "");
-}
-
-int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
-                                  size_t functional_size, double *cutoff_ry,
-                                  int *charge, int *multiplicity) {
-  if (params.p.type == CAPN_NULL || !functional || functional_size == 0 ||
-      !cutoff_ry || !charge || !multiplicity)
+int cpmdc_params_typed_scalars(CPMDParams_ptr params,
+                               CPMDCTypedScalars *typed) {
+  if (params.p.type == CAPN_NULL || !typed)
     return -1;
-
   struct CPMDParams view;
   read_CPMDParams(&view, params);
-  copy_capn_text_or(view.functional, "BLYP", functional, functional_size);
-  *cutoff_ry = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
-  *charge = view.charge;
-  *multiplicity = view.multiplicity > 0 ? view.multiplicity : 1;
-
-  int nsec = struct_list_len(&view.inputSections.p);
-  if (nsec < 0)
+  struct ResolvedScalars resolved;
+  if (resolve_scalars(&view, NULL, &resolved) != 0)
     return -1;
-  for (int i = 0; i < nsec; ++i) {
-    struct CPMDInputSection sec;
-    get_CPMDInputSection(&sec, view.inputSections, i);
-    if (sec.which == CPMDInputSection_system) {
-      struct CPMDSystemSection body;
-      read_CPMDSystemSection(&body, sec.system);
-      if (system_cutoff_is_explicit(body.cutOffRy))
-        *cutoff_ry = body.cutOffRy;
-      if (system_charge_is_explicit(body.charge))
-        *charge = body.charge;
-      if (system_multiplicity_is_explicit(body.multiplicity))
-        *multiplicity = body.multiplicity;
-    } else if (sec.which == CPMDInputSection_dft) {
-      struct CPMDDftSection body;
-      read_CPMDDftSection(&body, sec.dft);
-      if (dft_functional_is_explicit(body.functional))
-        copy_capn_text_or(body.functional, "BLYP", functional,
-                          functional_size);
-    }
-  }
+  *typed = resolved.typed;
   return 0;
 }
 
@@ -4618,20 +4712,27 @@ int cpmdc_params_effective_config_ov(CPMDParams_ptr params,
                                      char *functional, size_t functional_size,
                                      double *cutoff_ry, int *charge,
                                      int *multiplicity) {
-  if (cpmdc_params_effective_config(params, functional, functional_size,
-                                    cutoff_ry, charge, multiplicity) != 0)
+  if (params.p.type == CAPN_NULL || !functional || functional_size == 0 ||
+      !cutoff_ry || !charge || !multiplicity)
     return -1;
-  if (!overrides)
-    return 0;
-  if (overrides->functional && overrides->functional[0] != '\0')
-    snprintf(functional, functional_size, "%s", overrides->functional);
-  if (overrides->cutoff_ry > 0.0)
-    *cutoff_ry = overrides->cutoff_ry;
-  if (overrides->has_charge)
-    *charge = overrides->charge;
-  if (overrides->has_multiplicity)
-    *multiplicity = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
+  struct CPMDParams view;
+  read_CPMDParams(&view, params);
+  struct ResolvedScalars resolved;
+  if (resolve_scalars(&view, overrides, &resolved) != 0)
+    return -1;
+  snprintf(functional, functional_size, "%s", resolved.functional);
+  *cutoff_ry = resolved.cutoff_ry;
+  *charge = resolved.charge;
+  *multiplicity = resolved.multiplicity;
   return 0;
+}
+
+int cpmdc_params_effective_config(CPMDParams_ptr params, char *functional,
+                                  size_t functional_size, double *cutoff_ry,
+                                  int *charge, int *multiplicity) {
+  return cpmdc_params_effective_config_ov(params, NULL, functional,
+                                          functional_size, cutoff_ry, charge,
+                                          multiplicity);
 }
 
 int cpmdc_params_render_input_deck(CPMDParams_ptr params, char *dst,
@@ -4761,21 +4862,14 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   }
 
   const char *task = cpmdc_params_text_or(view.task, "gradient");
-  const char *functional = cpmdc_params_text_or(view.functional, "BLYP");
   capn_text file_path = selected_file_path(&view);
-  double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
-  int charge = view.charge;
-  int mult = view.multiplicity > 0 ? view.multiplicity : 1;
-  if (overrides) {
-    if (overrides->functional && overrides->functional[0] != '\0')
-      functional = overrides->functional;
-    if (overrides->cutoff_ry > 0.0)
-      cutoff = overrides->cutoff_ry;
-    if (overrides->has_charge)
-      charge = overrides->charge;
-    if (overrides->has_multiplicity)
-      mult = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
-  }
+  struct ResolvedScalars scalars;
+  if (resolve_scalars(&view, overrides, &scalars) != 0)
+    return -1;
+  const char *functional = scalars.functional;
+  double cutoff = scalars.cutoff_ry;
+  int charge = scalars.charge;
+  int mult = scalars.multiplicity;
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
   for (int i = 0; i < nblocks; ++i) {
@@ -4785,7 +4879,6 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
-  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -4797,7 +4890,7 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
     }
   }
   int cluster_hfx =
-      deck_needs_cluster_hfx(view.inputSections, nsec, functional);
+      deck_needs_cluster_hfx(functional);
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -4817,8 +4910,9 @@ int cpmdc_params_render_input_deck_ov(CPMDParams_ptr params,
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (!system_multiplicity_is_explicit(body.multiplicity))
-        body.multiplicity = mult;
+      body.cutOffRy = cutoff;
+      body.charge = charge;
+      body.multiplicity = mult;
       if (render_system_section(dst, dst_size, &used, &body, cutoff, charge,
                                 cluster_hfx, &sets, &cc) != 0)
         return -1;
@@ -5200,21 +5294,14 @@ int cpmdc_params_render_deck_with_geometry_ov(
   }
 
   const char *task = cpmdc_params_text_or(view.task, "gradient");
-  const char *functional = cpmdc_params_text_or(view.functional, "BLYP");
   capn_text file_path = selected_file_path(&view);
-  double cutoff = view.cutOffRy > 0.0 ? view.cutOffRy : 70.0;
-  int charge = view.charge;
-  int mult = view.multiplicity > 0 ? view.multiplicity : 1;
-  if (overrides) {
-    if (overrides->functional && overrides->functional[0] != '\0')
-      functional = overrides->functional;
-    if (overrides->cutoff_ry > 0.0)
-      cutoff = overrides->cutoff_ry;
-    if (overrides->has_charge)
-      charge = overrides->charge;
-    if (overrides->has_multiplicity)
-      mult = overrides->multiplicity > 0 ? overrides->multiplicity : 1;
-  }
+  struct ResolvedScalars scalars;
+  if (resolve_scalars(&view, overrides, &scalars) != 0)
+    return -1;
+  const char *functional = scalars.functional;
+  double cutoff = scalars.cutoff_ry;
+  int charge = scalars.charge;
+  int mult = scalars.multiplicity;
 
   int has_system = 0, has_cpmd = 0, has_dft = 0, has_atoms = 0;
   for (int i = 0; i < nblocks; ++i) {
@@ -5224,7 +5311,6 @@ int cpmdc_params_render_deck_with_geometry_ov(
   int nsec = struct_list_len(&view.inputSections.p);
   if (nsec < 0)
     return -1;
-  mult = deck_multiplicity(view.inputSections, nsec, mult);
   int spin_polarized = mult > 1;
   for (int i = 0; i < nsec && !spin_polarized; ++i) {
     struct CPMDInputSection sec;
@@ -5236,7 +5322,7 @@ int cpmdc_params_render_deck_with_geometry_ov(
     }
   }
   int cluster_hfx =
-      deck_needs_cluster_hfx(view.inputSections, nsec, functional);
+      deck_needs_cluster_hfx(functional);
   struct RenderSetList sets;
   if (collect_set_directives(view.inputSections, &sets) != 0)
     return -1;
@@ -5259,8 +5345,9 @@ int cpmdc_params_render_deck_with_geometry_ov(
       struct CPMDSystemSection body;
       read_CPMDSystemSection(&body, sec.system);
       has_system = 1;
-      if (!system_multiplicity_is_explicit(body.multiplicity))
-        body.multiplicity = mult;
+      body.cutOffRy = cutoff;
+      body.charge = charge;
+      body.multiplicity = mult;
       if (render_system_section_with_cell(
               dst, dst_size, &used, &body, cutoff, charge,
               has_cell ? cell_ang : NULL, has_cell ? 9 : 0, cluster_hfx, &sets, 1,

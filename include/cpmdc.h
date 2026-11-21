@@ -247,26 +247,45 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  *
  * The `cpmd` union arm carries `CPMDParams`. With `common` unset, the arm is
  * applied as given. A set `common` overlay (`CommonMethodSpec`) is merged
- * over that arm: the arm bytes stay, and an overlay scalar fills a field
- * only while the arm still has the schema default (functional `BLYP`,
- * cutoff 70 Ry, charge 0, multiplicity 1). Schema defaults on typed `system`
- * (`cutOffRy` 70 Ry, `charge` 0, `multiplicity` 1) and `dft` (`functional`
- * `BLYP`) sections are unset, so they do not replace explicit root
- * `CPMDParams` values and do not block overlay scalars from reaching the
- * rendered deck, cluster HFX solver selection, or recorded embed state;
- * explicit non-default section values win. An `xcFunctionals` list is mapped
- * before that precedence, and an unmapped token is rejected for every arm
- * functional. An explicit overlay scalar (including singlet
- * `spinMultiplicity` 1) that would fill a schema default is rejected when
- * `inputBlocks`, a raw section, or a generic section opens the owning
- * section (`&DFT` for `xcFunctionals`, `&SYSTEM` for the cutoff, charge, and
- * multiplicity), when a set directive names `DFT.FUNCTIONAL`,
- * `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`, or when typed
- * `dft.directives` or `system.directives` carries that keyword. Those
- * carriers are not read back into the recorded settings. Fermi `smearing` is
- * copied as `FREE-ENERGY` and `TEMPERATURE ELECTRON` when `&CPMD` sets no
- * free-energy or electron-temperature control (including split `TEMPERATURE`
- * + `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set
+ * over that arm. The arm bytes stay, and the deck renderers and the recorded
+ * settings apply the same precedence to the functional, cutoff, charge, and
+ * multiplicity lines cpmdc writes. A value a typed field sets beats the overlay,
+ * the overlay beats a schema default, and a typed `dft` or `system` section
+ * beats the top-level field. A field that is omitted or holds its schema
+ * default (functional `BLYP`, cutoff 70 Ry, charge 0, multiplicity 1) is
+ * unset, so it replaces neither the top-level arm value nor a merged
+ * overlay value and does not block overlay scalars from reaching the
+ * rendered deck, cluster HFX solver selection, or recorded embed state; a
+ * typed `system` charge of 0 is unset and a non-zero one is explicit.
+ * `planewaveCutoffEv` is in eV and is converted to Ry. `spinMultiplicity` 0
+ * is unset, and any other value, an explicit singlet included, is set. An
+ * `xcFunctionals` list is mapped before that precedence, and an unmapped
+ * token is rejected for every arm functional. Those opaque carriers are
+ * rendered as given and are not read back into the recorded settings, so
+ * the carrier check runs for every set overlay field, whether or not a typed
+ * field also sets it: the overlay field is rejected when `inputBlocks`, a
+ * raw section, or a generic section opens the owning section (`&DFT` for
+ * `xcFunctionals`, `&SYSTEM` for the cutoff, charge, and multiplicity), when
+ * a set directive names `DFT.FUNCTIONAL`, `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`,
+ * or `SYSTEM.MULTIPLICITY`, or when the `directives` list of the typed `dft`
+ * section holds `FUNCTIONAL` or that of the typed `system` section holds
+ * `CUTOFF`, `CHARGE`, or `MULTIPLICITY`. Without an overlay, a `FUNCTIONAL`
+ * directive in the typed `dft` section or a `DFT.FUNCTIONAL` set directive
+ * is rejected when the deck is rendered, because the rendered `&DFT`
+ * section already carries the functional. The same render rejects a
+ * `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in the typed `system`
+ * section, and a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY`
+ * set directive. `CUTOFF` is written on every deck, including the default
+ * 70 Ry. `CHARGE` is written only when it is not 0 and `MULTIPLICITY` only
+ * when it is greater than 1; an omitted line is the schema default the
+ * recorded configuration carries. Those directives are rejected for a
+ * default value and for any other value alike. A default leaves the
+ * directive as a value the recorded configuration does not carry, and any
+ * other value leaves two lines. The render does not keep one and drop the
+ * other. Fermi `smearing` is copied as
+ * `FREE-ENERGY` and `TEMPERATURE ELECTRON` when `&CPMD` sets no free-energy
+ * or electron-temperature control (including split `TEMPERATURE` +
+ * `ELECTRON` arguments in `cpmd.directives` or `CPMD.TEMPERATURE` set
  * directives) and the arm has no raw or generic `&CPMD` block.
  * `vanDerWaalsS6` is copied into a `vdwParams` section whose `s6` is unset.
  * `basisSet` must be unset or `"planewave"`. Next to the arm, `kMesh`,
@@ -280,7 +299,11 @@ CPMDC_API int cpmdc_set_params(const void *params_capnp, size_t params_capnp_siz
  * fields `cpmdc_capabilities_result()` lists. That overlay-only lowering
  * also rejects `vanDerWaalsS6` without `vanDerWaalsMethod` and a non-zero
  * `smearing.widthEv` with `kind = none`. Overlay fields without a CPMD
- * lowering are rejected and reported through `cpmdc_last_error()`.
+ * lowering are rejected. Every rejection leaves a `cpmdc_last_error()` that
+ * names its cause. An arm `inputBlocks`, `inputSections`, or `directives`
+ * list the merge cannot read is reported with the overlay field that
+ * needed it and the list, as in
+ * `charge cannot merge: the cpmd arm has an invalid inputBlocks list`.
  *
  * @return 0 on success, -1 on parse, lowering, or apply failure.
  */
