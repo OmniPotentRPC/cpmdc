@@ -471,6 +471,31 @@ static void case_wrapper_preflights(void) {
   free(result_buf);
 
   result_buf = (unsigned char *)malloc(result_size);
+  check(result_buf != NULL, "allocate PotentialResult for embed failure");
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session || !result_buf) {
+    cpmdc_session_destroy(session);
+    free(result_buf);
+    return;
+  }
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "embed-energy-gradient", 1);
+  else
+    unsetenv("CPMDC_TEST_FAULT");
+  {
+    size_t written = 0;
+    result = cpmdc_session_calculate_result(
+        session, g_force_input, g_force_input_size, result_buf, result_size,
+        &written);
+  }
+  check_collective_failure(
+      result, "embedded energy failure is agreed across ranks");
+  unsetenv("CPMDC_TEST_FAULT");
+  cpmdc_session_destroy(session);
+  free(result_buf);
+
+  result_buf = (unsigned char *)malloc(result_size);
   check(result_buf != NULL, "allocate PotentialResult for write failure");
   session = cpmdc_session_create(g_params, g_params_size);
   check(session != NULL, "session_create");

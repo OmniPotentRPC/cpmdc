@@ -2745,6 +2745,7 @@ CPMDCResult cpmdc_session_calculate_result(
   double stress_factor = 1.0;
   double cell_ang[9] = {0};
   double *forces = NULL;
+  const char *write_err;
   if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
       !potential_result_capnp_size_bytes)
     err = "invalid arguments";
@@ -2806,8 +2807,10 @@ CPMDCResult cpmdc_session_calculate_result(
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
                                    has_cell, forces);
+  if (r.ok && test_fault("embed-energy-gradient"))
+    r = fail_msg("embedded energy gradient failed");
+  write_err = r.ok ? NULL : r.message;
   if (r.ok) {
-    const char *write_err = NULL;
     for (size_t i = 0; i < force_count; ++i)
       forces[i] = -forces[i] * force_factor;
     if (test_fault("potential-result-write") ||
@@ -2817,12 +2820,12 @@ CPMDCResult cpmdc_session_calculate_result(
             potential_result_capnp_capacity_bytes,
             potential_result_capnp_size_bytes) != 0)
       write_err = "PotentialResult write failed";
-    write_err = collective_call_gate(write_err);
-    if (write_err) {
-      r.ok = 0;
-      snprintf(r.message, sizeof(r.message), "%s", write_err);
-      cpmdc_store_error(r.message);
-    }
+  }
+  write_err = collective_call_gate(write_err);
+  if (r.ok && write_err) {
+    r.ok = 0;
+    snprintf(r.message, sizeof(r.message), "%s", write_err);
+    cpmdc_store_error(r.message);
   }
   free(forces);
   return r;
