@@ -194,7 +194,120 @@ PROGRAM test_warm_selector
   IF (source /= 1 .OR. donor /= 41_embed_key_kind) ERROR STOP 32
   IF (embed_copy_orbital_slot(41_embed_key_kind, 47_embed_key_kind)) &
        ERROR STOP 33
+  ! CPMDC_ORBITAL_SLOT_LIMIT caps parked copies. A further park leaves the
+  ! copies already stored in place. An unusable value refuses the park too.
+  CALL embed_reset_warm_orbitals()
+  CALL slot_limit('2')
+  CALL embed_select_orbital_slot(61_embed_key_kind)
+  orbitals = CMPLX(61D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(62_embed_key_kind)
+  orbitals = CMPLX(62D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  CALL embed_select_orbital_slot(63_embed_key_kind)
+  orbitals = CMPLX(63D0, 0D0, real_8)
+  CALL embed_save_orbitals(orbitals)
+  IF (embed_orbital_slot_count() /= 2) ERROR STOP 40
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= 2) ERROR STOP 41
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(63D0, 0D0, real_8)) ERROR STOP 42
+  CALL embed_select_orbital_slot(61_embed_key_kind)
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(61D0, 0D0, real_8)) ERROR STOP 43
+  IF (embed_orbital_slot_count() /= 2) ERROR STOP 44
+  nslots = embed_orbital_slot_count()
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 80_embed_key_kind)) &
+       ERROR STOP 45
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 46
+  IF (.NOT. embed_copy_orbital_slot(61_embed_key_kind, 62_embed_key_kind)) &
+       ERROR STOP 47
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 48
+  CALL embed_select_orbital_slot(62_embed_key_kind)
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(61D0, 0D0, real_8)) ERROR STOP 49
+  CALL embed_select_orbital_slot(63_embed_key_kind)
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(63D0, 0D0, real_8)) ERROR STOP 50
+  CALL slot_limit('abc')
+  nslots = embed_orbital_slot_count()
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 51
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(63D0, 0D0, real_8)) ERROR STOP 52
+  ! An unusable value refuses a copy as well, a replace of a parked copy
+  ! included, and the copies already stored keep their orbitals.
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 82_embed_key_kind)) &
+       ERROR STOP 59
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 60
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 62_embed_key_kind)) &
+       ERROR STOP 61
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 62
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 63
+  CALL slot_limit('0')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 53
+  CALL slot_limit('-3')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 54
+  CALL slot_limit('999999999999999999999')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 55
+  CALL slot_limit(' ')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 56
+  ! A variable that is set to nothing is not an unset variable.
+  CALL slot_limit('')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots) ERROR STOP 64
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 65
+  IF (embed_copy_orbital_slot(61_embed_key_kind, 82_embed_key_kind)) &
+       ERROR STOP 66
+  IF (embed_orbital_slot_limit_code() /= 1) ERROR STOP 67
+  CALL slot_limit('3')
+  CALL embed_select_orbital_slot(64_embed_key_kind)
+  IF (embed_orbital_slot_count() /= nslots + 1) ERROR STOP 57
+  CALL embed_select_orbital_slot(62_embed_key_kind)
+  orbitals = CMPLX(0D0, 0D0, real_8)
+  CALL embed_restore_orbitals(orbitals)
+  IF (orbitals(1,1,1) /= CMPLX(61D0, 0D0, real_8)) ERROR STOP 58
+  CALL slot_limit_unset()
 CONTAINS
+  SUBROUTINE slot_limit(text)
+    USE, INTRINSIC :: iso_c_binding, ONLY: c_char, c_int, c_null_char
+    CHARACTER(LEN=*), INTENT(IN) :: text
+    INTERFACE
+      FUNCTION c_setenv(name, value, overwrite) BIND(C, NAME='setenv') &
+          RESULT(rc)
+        IMPORT c_char, c_int
+        CHARACTER(KIND=c_char), INTENT(IN) :: name(*), value(*)
+        INTEGER(c_int), VALUE :: overwrite
+        INTEGER(c_int) :: rc
+      END FUNCTION
+    END INTERFACE
+    INTEGER(c_int) :: rc
+    rc = c_setenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char, &
+         text//c_null_char, 1_c_int)
+    IF (rc /= 0_c_int) ERROR STOP 39
+  END SUBROUTINE
+  SUBROUTINE slot_limit_unset()
+    USE, INTRINSIC :: iso_c_binding, ONLY: c_char, c_int, c_null_char
+    INTERFACE
+      FUNCTION c_unsetenv(name) BIND(C, NAME='unsetenv') RESULT(rc)
+        IMPORT c_char, c_int
+        CHARACTER(KIND=c_char), INTENT(IN) :: name(*)
+        INTEGER(c_int) :: rc
+      END FUNCTION
+    END INTERFACE
+    INTEGER(c_int) :: rc
+    rc = c_unsetenv('CPMDC_ORBITAL_SLOT_LIMIT'//c_null_char)
+    IF (rc /= 0_c_int) ERROR STOP 38
+  END SUBROUTINE
   SUBROUTINE choose(periodic, limit)
     LOGICAL, INTENT(IN) :: periodic
     REAL(real_8), INTENT(IN) :: limit

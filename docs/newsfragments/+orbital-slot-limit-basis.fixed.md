@@ -1,0 +1,1 @@
+An OpenCPMD evaluation under a session key frees the parked orbitals of an old basis before it selects its key, so a `CPMDC_ORBITAL_SLOT_LIMIT` that the old basis filled no longer fails the first evaluation on a new basis.
