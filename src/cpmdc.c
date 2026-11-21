@@ -74,6 +74,7 @@ int cpmdc_orbital_agree(int local_failed, const char **err);
 int cpmdc_orbital_allreduce(int *values, int count);
 int cpmdc_orbital_key_agree(int *has_key, long long key, const char **err);
 int cpmdc_orbital_prepare(long long key, const char **err);
+void cpmdc_orbital_ledger_finalize(void);
 void cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
@@ -3190,5 +3191,6 @@ void cpmdc_finalize(void) {
   free(g_image.input_deck);
   g_image.input_deck = NULL;
   g_image.input_deck_len = 0;
+  cpmdc_orbital_ledger_finalize();
   cpmdc_embed_finalize();
 }

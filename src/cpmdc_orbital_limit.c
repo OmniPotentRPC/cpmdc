@@ -83,6 +83,19 @@ void cpmdc_orbital_ledger_reset(void) {
   g_live_store = 0;
 }
 
+void cpmdc_orbital_ledger_finalize(void) {
+  free(g_parked);
+  g_parked = NULL;
+  g_parked_n = 0;
+  g_parked_cap = 0;
+  g_have_selected = 0;
+  g_selected_key = 0;
+  g_selected_has_store = 0;
+  g_live_store = 0;
+  g_limit_ready = 0;
+  g_agreed_limit = CPMDC_ORBITAL_SLOT_READ_ENV;
+}
+
 static int parked_index(long long key) {
   for (size_t i = 0; i < g_parked_n; ++i) {
     if (g_parked[i] == key)
