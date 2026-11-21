@@ -65,6 +65,28 @@ if not dl_dep.found()
   dl_dep = cc.find_library('dl', required: false)
 endif
 cmocka_dep = dependency('cmocka', required: get_option('with_tests'))
+if get_option('with_tests')
+  cmocka_header_library_probe = '''
+    #include <stdarg.h>
+    #include <stddef.h>
+    #include <setjmp.h>
+    #include <cmocka.h>
+
+    int main(void) {
+      int lhs = 0;
+      int rhs = 1;
+      assert_ptr_not_equal(&lhs, &rhs);
+      return 0;
+    }
+  '''
+  if not cc.links(
+      cmocka_header_library_probe,
+      name: 'cmocka-header-library-match',
+      dependencies: [cmocka_dep],
+    )
+    error('cmocka header/library mismatch: Meson resolved libcmocka via dependency("cmocka"), but the active include path resolves a different cmocka.h. Point pkg-config/CMake and CFLAGS includes at one cmocka install (for pixi, set PKG_CONFIG to ${CONDA_PREFIX}/bin/pkg-config and PKG_CONFIG_PATH to ${CONDA_PREFIX}/lib/pkgconfig), or use a pure system cmocka toolchain.')
+  endif
+endif
 
 inc = include_directories('include', 'src')
 cpmd_root = get_option('cpmd_root')
