@@ -1,4 +1,4 @@
-"""Rank of a periodic cell.
+"""Rank and volume of a periodic cell.
 
 Three lattice vectors are usable when the 3 by 3 matrix they form has
 rank 3. The cutoff is the one ``numpy.linalg.matrix_rank`` uses for a
@@ -43,6 +43,7 @@ _FULL_RANK = 1
 
 _EPS = sys.float_info.epsilon
 _MIN_EXP = sys.float_info.min_exp
+_MAX_EXP = sys.float_info.max_exp
 _SWEEPS = 64
 
 
@@ -146,6 +147,27 @@ def _cell_state(cell: ArrayLike) -> int:
     if math.frexp(determinant)[1] + 3 * exponent < _MIN_EXP:
         return _VOLUME_UNDERFLOW
     return _FULL_RANK
+
+
+def _cell_volume(cell: ArrayLike) -> float:
+    """``|det cell|``, as ``cpmdc_cell_volume3`` computes it.
+
+    ``math.inf`` when the volume is above the largest float64, zero for an
+    all-zero or singular cell. A non-finite entry raises ``ValueError``.
+    """
+    entries = _entries(cell)
+    if not all(math.isfinite(value) for value in entries):
+        raise ValueError("cell contains a non-finite component")
+    if not any(entries):
+        return 0.0
+    exponent = _scale_exponent(entries)
+    determinant = _abs_det_lu([math.ldexp(value, -exponent) for value in entries])
+    if determinant == 0.0:
+        return 0.0
+    mantissa, det_exponent = math.frexp(determinant)
+    if det_exponent + 3 * exponent > _MAX_EXP:
+        return math.inf
+    return math.ldexp(mantissa, det_exponent + 3 * exponent)
 
 
 def _cell_is_rank_deficient(cell: ArrayLike) -> bool:

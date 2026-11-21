@@ -239,8 +239,9 @@ The wire messages, units, and limits below are shared with ~cpmdc-ipi~.
 For ~cpmdc-ipi-c~, status 0 follows ~EXIT~ or a close between messages,
 status 1 reports a protocol or calculation error, and status 2 reports a
 command-line usage error.
-Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and the virial
-agrees to rounding in the cell volume: the pytest suite checks both drivers
+Energies and forces equal those of ~cpmdc-ipi~ bit for bit, and both drivers
+take the virial volume from the same routine, LU with partial pivoting on the
+cell scaled by a power of two: the pytest suite checks both drivers
 to 1e-10 through ASE's ~SocketIOCalculator~ over UNIX and TCP sockets,
 through a minimal server, and through a short i-PI NVE run.
 
@@ -292,6 +293,10 @@ the two agree to 1e-10, which the pytest suite checks.
   Bohr but whose Angstrom volume is below that value, such as a diagonal of
   3.1072325e-103 Bohr, stops either driver with the library's "cell volume
   is too small for binary64".
+- A cell whose volume is above the largest float64 stops either driver with
+  "cell volume is too large for binary64" before the step is evaluated, and
+  a virial component that is not finite stops it with "virial is not
+  finite". Neither driver sends a non-finite virial.
 - ~--wait~ must be finite and zero or positive.
 - The driver is one process with one session. It does not run under
   ~mpirun~; start several drivers for several beads.

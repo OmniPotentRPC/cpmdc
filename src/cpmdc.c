@@ -2855,12 +2855,6 @@ CPMDCResult cpmdc_session_calculate_result(
   return r;
 }
 
-static double det3_rows(const double *m) {
-  return m[0] * (m[4] * m[8] - m[5] * m[7]) -
-         m[1] * (m[3] * m[8] - m[5] * m[6]) +
-         m[2] * (m[3] * m[7] - m[4] * m[6]);
-}
-
 /* Positions and the cell go to Angstrom with the factor a ForceInput in
  * "bohr" gets, so this step and that message hand the embed the same bits. */
 int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
@@ -2889,9 +2883,18 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
          (size_t)n_atoms * sizeof(int));
   double cell_ang[9] = {0};
   int has_cell = cell_bohr != NULL;
+  int cell_finite = has_cell;
   if (has_cell)
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < 9; ++i) {
       cell_ang[i] = cell_bohr[i] * CPMDC_BOHR_TO_ANGSTROM;
+      cell_finite = cell_finite && isfinite(cell_bohr[i]);
+    }
+  /* A non-finite cell is refused below with its own message. */
+  double volume = 0.0;
+  if (virial_h && cell_finite && cpmdc_cell_volume3(cell_bohr, &volume) != 0) {
+    (void)fail_msg("cell volume is too large for binary64");
+    return -1;
+  }
   CPMDCResult r = session_energy_gradient_cell(
       session, n_atoms, session->step_positions_ang,
       session->step_atomic_numbers, cell_ang, has_cell, forces_h_bohr);
@@ -2901,10 +2904,14 @@ int cpmdc_session_calculate_au(CPMDCSession *session, int n_atoms,
     forces_h_bohr[i] = -forces_h_bohr[i];
   *energy_h = r.energy_h;
   if (virial_h) {
-    double volume = has_cell ? fabs(det3_rows(cell_bohr)) : 0.0;
     int have = has_cell && session->image.stress.valid;
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < 9; ++i) {
       virial_h[i] = have ? volume * session->image.stress.values[i] : 0.0;
+      if (!isfinite(virial_h[i])) {
+        (void)fail_msg("virial is not finite");
+        return -1;
+      }
+    }
   }
   return 0;
 }
