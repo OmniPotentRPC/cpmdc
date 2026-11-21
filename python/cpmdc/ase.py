@@ -1,5 +1,10 @@
 """ASE calculator for one cpmdc session.
 
+Importing this module registers :class:`CPMDCCalculator` under the name
+``"cpmdc"`` with :func:`ase.calculators.calculator.register_calculator_class`,
+so :func:`ase.calculators.calculator.get_calculator_class` returns it for
+``"cpmdc"``.
+
 Units are ASE units: energy in eV, forces in eV/Angstrom, stress in
 eV/Angstrom^3. Stress is Voigt order ``(xx, yy, zz, yz, xz, xy)`` and is
 ``(1/V) dE/d(strain)``, the ASE sign of the library tensor.
@@ -41,6 +46,8 @@ from ase.calculators.calculator import (
     PropertyNotImplementedError,
     all_changes,
     equal,
+    external_calculators,
+    register_calculator_class,
 )
 from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import workdir
@@ -380,3 +387,34 @@ class CPMDCCalculator(Calculator):
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
         self.get_spin_polarized = self._deprecated_get_spin_polarized
+
+
+def _register_calculator() -> None:
+    """Register :class:`CPMDCCalculator` with ASE under ``"cpmdc"`` once."""
+    if external_calculators.get("cpmdc") is CPMDCCalculator:
+        return
+    if "cpmdc" not in external_calculators:
+        register_calculator_class("cpmdc", CPMDCCalculator)
+    else:
+        external_calculators["cpmdc"] = CPMDCCalculator
+
+
+def _make_ase_plugins() -> set[Any]:
+    """Return the guarded ``ase.plugins`` set for ASE v4 plugin discovery."""
+    try:
+        from ase._4.plugins.plugin import CalculatorPlugin
+    except ImportError:
+        return set()
+    return {
+        CalculatorPlugin(
+            name="cpmdc",
+            citation="https://github.com/OmniPotentRPC/cpmdc",
+            implementation="cpmdc.ase.CPMDCCalculator",
+        ),
+    }
+
+
+_register_calculator()
+__ase_plugins__: set[Any] = _make_ase_plugins()
+
+
