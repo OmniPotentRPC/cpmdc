@@ -83,7 +83,8 @@ MODULE cpmd_embed_c_api
   PUBLIC :: cpmdc_embed_set_config, cpmdc_embed_set_deck, cpmdc_embed_energy_grad
   PUBLIC :: cpmdc_embed_compose_cold_deck
   PUBLIC :: cpmdc_embed_select_orbitals, cpmdc_embed_orbital_slots
-  PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_commit_orbitals
+  PUBLIC :: cpmdc_embed_prepare_orbitals, cpmdc_embed_abort_orbitals
+  PUBLIC :: cpmdc_embed_commit_orbitals
   PUBLIC :: cpmdc_embed_drop_stale_orbitals
   PUBLIC :: cpmdc_embed_copy_orbitals
   PUBLIC :: cpmdc_embed_last_warm_source
@@ -532,6 +533,14 @@ CONTAINS
     IF (key == 0_c_long_long .OR. fail_allocation == 0_c_int) CONTINUE
 #endif
   END FUNCTION
+
+  SUBROUTINE cpmdc_embed_abort_orbitals() &
+      BIND(C, NAME='cpmdc_embed_abort_orbitals')
+#if defined(CPMDC_HAS_CPMD)
+    USE rwfopt_utils, ONLY: embed_abort_orbital_slot
+    CALL embed_abort_orbital_slot()
+#endif
+  END SUBROUTINE
 
   SUBROUTINE cpmdc_embed_commit_orbitals() &
       BIND(C, NAME='cpmdc_embed_commit_orbitals')

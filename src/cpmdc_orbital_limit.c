@@ -64,6 +64,7 @@ void cpmdc_embed_set_orbital_slot_limit(int limit);
 void cpmdc_embed_set_cell_in_place(double limit);
 int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_prepare_orbitals(long long key, int fail_allocation);
+void cpmdc_embed_abort_orbitals(void);
 void cpmdc_embed_commit_orbitals(void);
 
 const char *cpmdc_orbital_limit_message(int code) {
@@ -424,9 +425,12 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
       code = cpmdc_embed_prepare_orbitals(key, fail_allocation);
   }
   if (orbital_allreduce(&code, 1) != 0) {
+    cpmdc_embed_abort_orbitals();
     *err = k_orbital_limit_mpi;
     return -1;
   }
+  if (code != CPMDC_ORBITAL_SLOT_OK)
+    cpmdc_embed_abort_orbitals();
   if (code == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
     *err = k_orbital_limit_memory;
     return -1;

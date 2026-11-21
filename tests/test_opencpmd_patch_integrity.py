@@ -119,6 +119,7 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "PUBLIC :: embed_set_need_forces",
         "PUBLIC :: embed_reset_warm_orbitals",
         "PUBLIC :: embed_set_write_files",
+        "PUBLIC :: embed_abort_orbital_slot",
         "CALL embed_reset_warm_orbitals",
         "IF (embed_warm_orbitals .AND. ropt_mod%convwf) THEN",
         "embed_have_partial = .TRUE.",
@@ -137,6 +138,19 @@ def assert_embed_rwfopt(patch: Path) -> None:
     ):
         if needle not in text:
             raise AssertionError(f"{patch.name}: missing {needle}")
+    abort_begin = text.index("+  SUBROUTINE embed_abort_orbital_slot()")
+    abort_end = text.index("+  END SUBROUTINE embed_abort_orbital_slot")
+    abort = text[abort_begin:abort_end]
+    for needle in (
+        "DEALLOCATE(embed_pending_slots)",
+        "DEALLOCATE(embed_pending_c0)",
+        "DEALLOCATE(embed_pending_geo)",
+        "embed_pending_action = .FALSE.",
+        "embed_pending_index = 0",
+        "embed_pending_grow = .FALSE.",
+    ):
+        if needle not in abort:
+            raise AssertionError(f"{patch.name}: orbital abort missing {needle}")
     if "LOGICAL, SAVE :: embed_have_orbitals" in text:
         raise AssertionError(
             f"{patch.name}: embed_have_orbitals must live in rinitwf_driver"
