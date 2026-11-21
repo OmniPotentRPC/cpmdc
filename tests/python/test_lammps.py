@@ -128,9 +128,9 @@ def finish(handles) -> None:
     lmp.close()
 
 
-def ase_reference(params: Path, positions, cell, **calculator) -> dict:
+def ase_reference(params: Path, positions, cell, *, symbols=SYMBOLS, **calculator) -> dict:
     """eV, eV/Angstrom, and the virial -dE/d(strain) in eV, xx yy zz xy xz yz."""
-    atoms = Atoms(SYMBOLS, positions=positions)
+    atoms = Atoms(symbols, positions=positions)
     if cell is not None:
         atoms.cell = cell
         atoms.pbc = True
@@ -210,6 +210,102 @@ def test_cluster_step_matches_ase(route, params):
     finish(handles)
     ref = ase_reference(params, WATERS, None)
     assert_matches(got, ref, "metal")
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_accepts_sparse_atom_ids(route, periodic_params):
+    removed = {1, 4}
+    kept = [position for index, position in enumerate(WATERS) if index not in removed]
+    symbols = "".join(symbol for index, symbol in enumerate(SYMBOLS) if index not in removed)
+    case = spec(route, "metal", periodic_params)
+    case["after_create"] = [
+        "group cpmdc_removed id 2 5",
+        "delete_atoms group cpmdc_removed compress no",
+    ]
+    lmp = build(case)
+    driver = attach(lmp, case)
+    try:
+        lmp.commands_string("\n".join(THERMO))
+        if driver is None:
+            lmp.command("run 0")
+        else:
+            driver.run(0)
+        assert lmp.get_thermo("pe") == pytest.approx(
+            ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["pe"],
+            rel=1e-11,
+            abs=1e-12,
+        )
+        nlocal = int(lmp.extract_setting("nlocal"))
+        tags = np.asarray(lmp.numpy.extract_atom("id")[:nlocal], dtype=np.int64)
+        assert set(tags) == {1, 3, 4, 6}
+        forces = np.asarray(lmp.numpy.extract_atom("f")[:nlocal], dtype=float)
+        expected = ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["forces"]
+        np.testing.assert_allclose(forces[np.argsort(tags)], expected, rtol=1e-10, atol=1e-12)
+    finally:
+        if driver is not None:
+            driver.close()
+        lmp.close()
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_mid_run_deletion_reopens_with_sparse_atom_ids(route, periodic_params):
+    removed = {1, 4}
+    kept = [position for index, position in enumerate(WATERS) if index not in removed]
+    symbols = "".join(symbol for index, symbol in enumerate(SYMBOLS) if index not in removed)
+    case = spec(route, "metal", periodic_params)
+    lmp = build(case)
+    driver = attach(lmp, case)
+    try:
+        lmp.command("thermo_style custom step pe")
+        if driver is None:
+            lmp.command("run 0")
+        else:
+            driver.run(0)
+        old_session = driver._session if driver is not None else None
+        lmp.commands_string(
+            "group cpmdc_removed id 2 5\n"
+            "delete_atoms group cpmdc_removed compress no"
+        )
+        if driver is None:
+            lmp.command("run 0")
+        else:
+            driver.run(0)
+            assert driver._session is not old_session
+        assert lmp.get_thermo("pe") == pytest.approx(
+            ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["pe"],
+            rel=1e-11,
+            abs=1e-12,
+        )
+        nlocal = int(lmp.extract_setting("nlocal"))
+        tags = np.asarray(lmp.numpy.extract_atom("id")[:nlocal], dtype=np.int64)
+        assert set(tags) == {1, 3, 4, 6}
+        forces = np.asarray(lmp.numpy.extract_atom("f")[:nlocal], dtype=float)
+        expected = ase_reference(periodic_params, kept, TRICLINIC, symbols=symbols)["forces"]
+        np.testing.assert_allclose(forces[np.argsort(tags)], expected, rtol=1e-10, atol=1e-12)
+    finally:
+        if driver is not None:
+            driver.close()
+        lmp.close()
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_duplicate_atom_ids_are_refused(route, periodic_params):
+    case = spec(route, "metal", periodic_params)
+    lmp = build(case)
+    tags = lmp.numpy.extract_atom("id")
+    tags[1] = tags[0]
+    driver = attach(lmp, case)
+    try:
+        lmp.command("thermo_style custom step pe")
+        with pytest.raises(Exception, match="unique atom IDs"):
+            if driver is None:
+                lmp.command("run 0")
+            else:
+                driver.run(0)
+    finally:
+        if driver is not None:
+            driver.close()
+        lmp.close()
 
 
 @pytest.mark.parametrize("route", ROUTES)
@@ -577,6 +673,26 @@ def run_case(case: dict, tmp_path: Path, ranks: int | None) -> dict:
     return json.loads(lines[0])
 
 
+def run_case_failure(case: dict, tmp_path: Path, ranks: int) -> subprocess.CompletedProcess:
+    path = tmp_path / f"case-failure-{case['route']}-{ranks}.json"
+    path.write_text(json.dumps(case), encoding="utf-8")
+    launcher = shutil.which("mpiexec") or shutil.which("mpirun")
+    if launcher is None:
+        pytest.skip("no mpiexec or mpirun on PATH")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        filter(None, [str(ROOT / "python"), env.get("PYTHONPATH", "")])
+    )
+    return subprocess.run(
+        [launcher, "-n", str(ranks), sys.executable, str(HERE / "lammps_case.py"), str(path)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=env,
+        check=False,
+    )
+
+
 @pytest.mark.parametrize("route", ROUTES)
 def test_two_ranks_match_one(route, periodic_params, tmp_path):
     if route == "fix":
@@ -611,3 +727,20 @@ def test_two_ranks_match_one(route, periodic_params, tmp_path):
     assert two["pe"] == pytest.approx(one["pe"], rel=1e-12)
     np.testing.assert_allclose(two["forces"], one["forces"], rtol=1e-10, atol=1e-12)
     np.testing.assert_allclose(two["virial"], one["virial"], rtol=1e-10, atol=1e-10)
+
+
+@pytest.mark.parametrize("route", ROUTES)
+def test_two_rank_duplicate_id_error_does_not_deadlock(route, periodic_params, tmp_path):
+    if route == "fix":
+        pytest.importorskip("mpi4py")
+    case = spec(
+        route,
+        "metal",
+        periodic_params,
+        setup=["processors * 1 1"],
+        duplicate_nonroot_id=True,
+        thermo=False,
+    )
+    done = run_case_failure(case, tmp_path, 2)
+    assert done.returncode != 0
+    assert "unique atom IDs" in done.stderr + done.stdout
