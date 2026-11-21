@@ -135,7 +135,7 @@ With ~gmx_mpi_d~ from ~CPMDC_GMX_MPI~, a double-precision GROMACS built with
   pairs;
 - ~-npme 1~ stops ~mdrun~ with GROMACS' refusal of separate PME ranks.
 
-~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~.
+~tests/test_installed_pkgconfig_consumer.py~ builds a libcp2k client from an installed ~libcp2k.pc~ alone and runs it without ~LD_LIBRARY_PATH~. After the prefix is moved it rejects an installed ~.so~ or ~.dylib~ whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.
 
 The CI job ~gromacs-qmmm~ builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:

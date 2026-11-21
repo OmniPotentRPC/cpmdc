@@ -1,3 +1,10 @@
+lib_depth = get_option('libdir').split('/').length()
+cp2k_up = ['${pcfiledir}']
+foreach _ : range(lib_depth + 3)
+  cp2k_up += ['..']
+endforeach
+cp2k_prefix = '/'.join(cp2k_up)
+
 foreach where : [
   [
     'libcp2k.pc',
@@ -6,8 +13,8 @@ foreach where : [
   ],
   [
     'libcp2k-installed.pc',
-    get_option('prefix') / get_option('libdir'),
-    get_option('prefix') / get_option('includedir') / 'cpmdc' / 'gromacs',
+    '${pcfiledir}/../../..',
+    cp2k_prefix / get_option('includedir') / 'cpmdc' / 'gromacs',
   ],
 ]
   pc_conf = configuration_data()
