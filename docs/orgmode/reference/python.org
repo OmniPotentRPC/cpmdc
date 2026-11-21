@@ -48,13 +48,13 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~forces_to_ev_per_angstrom~ | ~forces_to_ev_per_angstrom(forces_h_bohr)~: convert N by 3 forces ~forces_h_bohr~ from Hartree/Bohr to eV/Angstrom |
 | ~stress_to_ev_per_angstrom3~ | ~stress_to_ev_per_angstrom3(stress_h_bohr3)~: convert a nine-component row-major tensor ~stress_h_bohr3~ from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises ~ValueError~ unless there are nine components |
 | ~CPMDCCalculator~ | ASE calculator: ~CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)~ for ~energy~ (eV), ~free_energy~ (eV), ~forces~ (eV/Angstrom), and ~stress~ (eV/Angstrom^3, Voigt); takes ~params~, ~library~, and ~constant_cutoff~ (Rydberg), and ASE's ~directory~, ~label~, ~atoms~, and ~parameters~ |
-| ~CPMDCCalculator.default_parameters~ | ~params~, ~library~, and ~constant_cutoff~, all ~None~; a ~constant_cutoff~ is stored as E0 in Ry, or as the mapping of ~ConstantCutoff.todict~ when it sets a height or a width |
+| ~CPMDCCalculator.default_parameters~ | ~params~, ~library~, and ~constant_cutoff~, all ~None~; a ~params~ or ~library~ path is stored absolute, resolved against the working directory of the process when it is set; a ~constant_cutoff~ is stored as E0 in Ry, or as the mapping of ~ConstantCutoff.todict~ when it sets a height or a width |
 | ~CPMDCCalculator.implemented_properties~ | ~energy~, ~free_energy~, ~forces~, and ~stress~ |
 | ~CPMDCCalculator.ignored_changes~ | ~initial_charges~ and ~initial_magmoms~: a change of either keeps the stored results, because ~params~ sets the charge and the multiplicity |
 | ~CPMDCCalculator.discard_results_on_any_change~ | ~True~: a parameter that ~set~ changes clears the stored results |
 | ~CPMDCCalculator.calculate~ | ~calculate(atoms=None, properties=None, system_changes=all_changes)~: one step with ~directory~ as the working directory; fills ~energy~, ~free_energy~, ~forces~, and ~stress~ for a periodic cell |
 | ~CPMDCCalculator.set~ | ~set(**kwargs)~: change ~params~, ~library~, or ~constant_cutoff~, open a new session, clear results, return a dictionary of the changed parameters; ~parameters~ reads a saved file, and any other key raises ~TypeError~ |
-| ~CPMDCCalculator.todict~ | ~todict(skip_default=True)~: the parameters as JSON data; a ~params~ buffer of bytes is left out |
+| ~CPMDCCalculator.todict~ | ~todict(skip_default=True)~: the parameters as JSON data; a ~params~ buffer of bytes is left out, and a ~params~ or ~library~ path is absolute, so ~CPMDCCalculator(**calc.todict())~ reads the same files from any directory |
 | ~CPMDCCalculator.reset~ | ~reset()~: clear the stored results; the session stays open |
 | ~CPMDCCalculator.potential~ | the ~Potential~ the calculator owns, opened on first use |
 | ~CPMDCCalculator.close~ | ~close()~: close that potential; the next step opens a new one |

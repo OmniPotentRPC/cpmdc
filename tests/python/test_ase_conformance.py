@@ -12,12 +12,14 @@ linked the comparisons take the SCF tolerance.
 from __future__ import annotations
 
 import copy
+import json
 import os
 import pickle
 import re
 from pathlib import Path
 from typing import Any
 
+import ase.db
 import numpy as np
 import pytest
 from ase import Atoms, units
@@ -29,7 +31,9 @@ from ase.calculators.calculator import (
     all_properties,
 )
 from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
+from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
+from ase.filters import FrechetCellFilter
 from ase.io import read, write
 from ase.optimize import BFGS
 from ase.stress import voigt_6_to_full_3x3_stress
@@ -761,3 +765,334 @@ def test_the_directory_is_created_like_ase_does_it(params, tmp_path, monkeypatch
 def test_a_missing_atoms_object_is_not_a_cache_hit(calc, steps):
     assert calc.get_property("energy", allow_calculation=False) is None
     assert steps == []
+
+
+# --- adapted from ASE's own calculator tests ----------------------------------
+#
+# ASE has no single conformance suite. These cases follow what its tests ask
+# of every calculator: ase/test/calculator/test_traj.py (results survive a
+# trajectory, calculation_required after a step), test_calculator.py
+# (get_spin_polarized), test_singlepointcalc.py and fio/test_extxyz.py
+# (results through SinglePointCalculator and extended XYZ), and
+# calculator/vasp/test_vasp_check_state.py (a changed parameter discards the
+# step, get_atoms keeps the results).
+#
+# ASE rebuilds a calculator from its name and its constructor keywords: a
+# trajectory and an ase.db row store calc.name and calc.todict(), and
+# PythonSubProcessCalculator sends the keywords, not the calculator, because
+# it assumes a calculator may not pickle. ASE asks no pickling of Calculator.
+# copy.deepcopy(atoms) and the pickle that ase.visualize.view sends to its
+# viewer process copy a live calculator; the copies-and-pickles section
+# above covers those. What ASE needs is that todict() is JSON data and that
+# CPMDCCalculator(**calc.todict()) evaluates the same method wherever it is
+# called.
+
+VOIGT_PAIRS = [(0, 0), (1, 1), (2, 2), (1, 2), (0, 2), (0, 1)]
+# ase.io.extxyz writes float columns with "%16.8f".
+EXTXYZ_COLUMN_DECIMALS = 8
+
+
+def test_unchanged_atoms_make_no_second_library_call(periodic_calc, steps):
+    atoms = water(cell=TRICLINIC, pbc=True)
+    atoms.calc = periodic_calc
+    energy = atoms.get_potential_energy()
+    assert atoms.get_potential_energy() == energy
+    atoms.get_forces()
+    atoms.get_stress()
+    atoms.get_potential_energy(force_consistent=True)
+    for name in periodic_calc.implemented_properties:
+        assert periodic_calc.get_property(name, atoms) is not None
+    assert not periodic_calc.calculation_required(atoms, periodic_calc.implemented_properties)
+    assert len(steps) == 1
+
+
+def changed_parameter(what: str, periodic_params: Path, tmp_path: Path) -> dict[str, Any]:
+    """A new value of one parameter that evaluates the same deck, or the constant cutoff."""
+    if what == "params":
+        other = tmp_path / "copy.periodic.bin"
+        other.write_bytes(Path(periodic_params).read_bytes())
+        return {"params": str(other)}
+    if what == "library":
+        # The dynamic linker maps a link to the loaded library onto the same image.
+        link = tmp_path / "libcpmdc-link.so"
+        link.symlink_to(cpmdc.find_library().resolve())
+        return {"library": str(link)}
+    if what == "constant_cutoff":
+        return {"constant_cutoff": 30.0}
+    raise AssertionError(what)
+
+
+@pytest.mark.parametrize("what", ["params", "library", "constant_cutoff"])
+def test_a_changed_parameter_discards_the_stored_step(
+    periodic_calc, periodic_params, tmp_path, steps, tolerance, what
+):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    energy = atoms.get_potential_energy()
+    change = changed_parameter(what, periodic_params, tmp_path)
+    assert periodic_calc.set(**change) == change
+    assert periodic_calc.results == {}
+    assert periodic_calc.get_property("energy", atoms, allow_calculation=False) is None
+    assert periodic_calc.calculation_required(atoms, ["energy"])
+    assert len(steps) == 1
+    again = atoms.get_potential_energy()
+    assert len(steps) == 2
+    assert periodic_calc.set(**change) == {}
+    assert atoms.get_potential_energy() == again
+    assert len(steps) == 2
+    if what != "constant_cutoff":
+        assert again == pytest.approx(energy, rel=0, abs=tolerance)
+
+
+def test_get_atoms_keeps_the_stored_step(periodic_calc, steps):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    atoms.get_stress()
+    before = dict(periodic_calc.results)
+    copied = periodic_calc.get_atoms()
+    assert copied.calc is periodic_calc
+    assert periodic_calc.results == before
+    assert copied.get_potential_energy() == before["energy"]
+    assert len(steps) == 1
+
+
+@pytest.mark.parametrize("with_atoms", [True, False], ids=["atoms", "calculator-atoms"])
+def test_get_property_without_calculation_returns_none_until_a_step(calc, steps, with_atoms):
+    atoms = water()
+    atoms.calc = calc
+    target = atoms if with_atoms else None
+    for name in calc.implemented_properties:
+        assert calc.get_property(name, target, allow_calculation=False) is None
+    atoms.get_potential_energy()
+    for name in STEP:
+        assert calc.get_property(name, target, allow_calculation=False) is not None
+    # A cluster step stores no stress, so the stored step has none to give.
+    assert calc.get_property("stress", target, allow_calculation=False) is None
+    calc.reset()
+    assert calc.get_property("energy", atoms, allow_calculation=False) is None
+    assert len(steps) == 1
+
+
+@pytest.mark.parametrize("name", ["energies", "stresses", "charges", "magmom", "magmoms", "dipole"])
+def test_an_unimplemented_property_raises_even_without_calculation(calc, steps, name):
+    atoms = water()
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    with pytest.raises(PropertyNotImplementedError):
+        calc.get_property(name, atoms, allow_calculation=False)
+    assert len(steps) == 1
+
+
+def test_the_spin_question_has_the_ase_default_answer(calc):
+    for candidate in (calc, pickle.loads(pickle.dumps(calc)), copy.deepcopy(calc)):
+        with pytest.warns(FutureWarning):
+            assert candidate.get_spin_polarized() is False
+
+
+def snapshot(atoms: Atoms) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    return (
+        atoms.positions.copy(),
+        atoms.numbers.copy(),
+        atoms.cell.array.copy(),
+        atoms.pbc.copy(),
+    )
+
+
+@pytest.mark.parametrize("route", ["property", "calculate", "constructor"])
+def test_mutating_the_callers_atoms_leaves_the_calculator_copy(periodic_params, steps, route):
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(
+        periodic_params, atoms=atoms if route == "constructor" else None
+    ) as calc:
+        if route == "calculate":
+            calc.calculate(atoms, ["energy"], all_changes)
+        else:
+            atoms.calc = calc
+            atoms.get_forces()
+        assert calc.atoms is not atoms
+        kept = snapshot(calc.atoms)
+        atoms.positions[0, 2] += 0.1
+        atoms.numbers[1] = 3
+        atoms.cell.array[0, 0] *= 1.1
+        atoms.pbc[2] = False
+        for stored, now in zip(snapshot(calc.atoms), kept):
+            np.testing.assert_array_equal(stored, now)
+        assert set(calc.check_state(atoms)) == {"positions", "numbers", "cell", "pbc"}
+        returned = calc.get_atoms()
+        returned.positions[:] = 0.0
+        returned.cell.array[:] = 0.0
+        np.testing.assert_array_equal(calc.atoms.positions, kept[0])
+        np.testing.assert_array_equal(calc.atoms.cell.array, kept[2])
+        assert calc.get_property("energy", allow_calculation=False) is not None
+        assert len(steps) == 1
+
+
+def test_the_ase_trajectory_contract(periodic_calc, tmp_path):
+    """ase/test/calculator/test_traj.py, with the periodic water for H2."""
+    atoms = water(cell=TRICLINIC, pbc=True)
+    atoms.calc = periodic_calc
+    energy = atoms.get_potential_energy()
+    assert not periodic_calc.calculation_required(atoms, ["energy"])
+    forces = atoms.get_forces()
+    assert not periodic_calc.calculation_required(atoms, ["energy", "forces"])
+    stress = atoms.get_stress()
+    write(tmp_path / "water.traj", atoms)
+    back = read(tmp_path / "water.traj")
+    assert abs(energy - back.get_potential_energy()) < 1e-12
+    assert abs(forces - back.get_forces()).max() < 1e-12
+    assert abs(stress - back.get_stress()).max() < 1e-12
+    assert back.calc.name == periodic_calc.name
+    assert back.calc.parameters == periodic_calc.todict()
+
+
+def test_extxyz_round_trips_a_single_point_step(periodic_calc, tmp_path):
+    atoms = water(cell=TRICLINIC, pbc=True)
+    atoms.rattle(0.05, seed=3)
+    atoms.calc = periodic_calc
+    energy, forces, stress = atoms.get_potential_energy(), atoms.get_forces(), atoms.get_stress()
+    frozen = atoms.copy()
+    frozen.calc = SinglePointCalculator(frozen, energy=energy, forces=forces, stress=stress)
+    write(tmp_path / "step.extxyz", frozen)
+    back = read(tmp_path / "step.extxyz")
+    assert isinstance(back.calc, SinglePointCalculator)
+    assert set(back.calc.results) == {"energy", "forces", "stress"}
+    # Info values keep their repr; float columns keep the printed decimals.
+    assert back.get_potential_energy() == energy
+    np.testing.assert_array_equal(back.get_stress(), stress)
+    np.testing.assert_allclose(
+        back.get_forces(), forces, rtol=0, atol=0.5 * 10.0**-EXTXYZ_COLUMN_DECIMALS
+    )
+    np.testing.assert_array_equal(back.cell.array, atoms.cell.array)
+    assert back.pbc.all()
+
+
+def test_an_ase_database_row_rebuilds_the_calculator(periodic_params, tmp_path, tolerance):
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms.calc = calc
+        stress = atoms.get_stress()
+        with ase.db.connect(tmp_path / "rows.json") as db:
+            db.write(atoms)
+        row = ase.db.connect(tmp_path / "rows.json").get(id=1)
+        assert row.calculator == calc.name
+        assert row.calculator_parameters == calc.todict()
+        stored = row.toatoms()
+        np.testing.assert_array_equal(stored.get_stress(), stress)
+        assert stored.get_potential_energy() == atoms.get_potential_energy()
+        with CPMDCCalculator(**row.calculator_parameters) as rebuilt:
+            assert rebuilt.parameters == calc.parameters
+            fresh = water(cell=CUBE, pbc=True)
+            fresh.calc = rebuilt
+            np.testing.assert_allclose(fresh.get_stress(), stress, rtol=0, atol=tolerance)
+
+
+@pytest.mark.parametrize("what", ["params", "library"])
+def test_todict_rebuilds_the_calculator_from_another_directory(
+    params, periodic_params, tmp_path, monkeypatch, tolerance, what
+):
+    """A relative path is read where it is set, and todict() names that file.
+
+    The other directory holds a different ``deck.bin``, the cluster message,
+    so a stored relative path would rebuild another method without an error.
+    """
+    first, other = tmp_path / "first", tmp_path / "other"
+    for where in (first, other):
+        (where / "lib").mkdir(parents=True)
+    (first / "deck.bin").write_bytes(Path(periodic_params).read_bytes())
+    (other / "deck.bin").write_bytes(Path(params).read_bytes())
+    (first / "lib" / "libcpmdc.so").symlink_to(cpmdc.find_library().resolve())
+    keywords = {"params": "deck.bin"}
+    if what == "library":
+        keywords = {"params": str(first / "deck.bin"), "library": "lib/libcpmdc.so"}
+    monkeypatch.chdir(first)
+    atoms = water(cell=CUBE, pbc=True)
+    with CPMDCCalculator(**keywords) as calc:
+        atoms.calc = calc
+        stress = atoms.get_stress()
+        saved = json.loads(json.dumps(calc.todict()))
+        assert Path(saved[what]).is_absolute()
+        assert Path(saved[what]).samefile(first / keywords[what])
+    monkeypatch.chdir(other)
+    with CPMDCCalculator(**saved) as rebuilt:
+        assert rebuilt.todict() == saved
+        moved = water(cell=CUBE, pbc=True)
+        moved.calc = rebuilt
+        np.testing.assert_allclose(moved.get_stress(), stress, rtol=0, atol=tolerance)
+        clone = pickle.loads(pickle.dumps(rebuilt))
+        clone.close()
+        clone.reset()
+        assert clone.get_stress(moved) == pytest.approx(stress, rel=0, abs=tolerance)
+        clone.close()
+
+
+def test_a_bytes_message_is_left_out_of_todict_and_named_on_rebuild(params):
+    with CPMDCCalculator(Path(params).read_bytes()) as calc:
+        saved = json.loads(json.dumps(calc.todict()))
+    assert "params" not in saved
+    with pytest.raises(TypeError, match="params is required"):
+        CPMDCCalculator(**saved)
+
+
+def strain_energy(atoms: Atoms, calc: CPMDCCalculator, pair: tuple[int, int], delta: float) -> float:
+    """Energy of ``atoms`` under the symmetric strain with ``eps_ij + eps_ji = 2 delta``."""
+    i, j = pair
+    deformation = np.eye(3)
+    deformation[i, j] += delta
+    if i != j:
+        deformation[j, i] += delta
+    strained = atoms.copy()
+    strained.set_cell(atoms.cell.array @ deformation, scale_atoms=True)
+    strained.calc = calc
+    return float(strained.get_potential_energy())
+
+
+def test_stress_is_the_central_difference_of_the_energy_over_strain(periodic_calc, opencpmd):
+    """Each Voigt component against a central difference of the energy.
+
+    The difference is taken here, in eV and Angstrom^3, so the comparison
+    checks the sign, the units, the Voigt order, and the factor of the shear
+    components at once. ``eps_ii = d`` changes the energy by
+    ``d V sigma_ii``; ``eps_ij = eps_ji = d`` changes it by
+    ``2 d V sigma_ij``. On OpenCPMD the margin is that of
+    ``calculate_numerical_stress`` above.
+    """
+    atoms = water(cell=TRICLINIC, pbc=True)
+    atoms.rattle(0.05, seed=1)
+    atoms.calc = periodic_calc
+    stress = atoms.get_stress()
+    volume = atoms.get_volume()
+    delta = 1e-5
+    numerical = np.array(
+        [
+            (strain_energy(atoms, periodic_calc, pair, delta) - strain_energy(atoms, periodic_calc, pair, -delta))
+            / ((2.0 if pair[0] == pair[1] else 4.0) * delta * volume)
+            for pair in VOIGT_PAIRS
+        ]
+    )
+    margin = 1e-4 if opencpmd else 1e-9
+    np.testing.assert_allclose(stress, numerical, rtol=0, atol=margin)
+    signed = np.abs(numerical) > 10.0 * margin
+    assert signed.any()
+    np.testing.assert_array_equal(np.sign(stress[signed]), np.sign(numerical[signed]))
+
+
+def test_a_cell_filter_relaxation_lowers_the_energy_and_the_stress(periodic_params, steps):
+    """A few BFGS steps of FrechetCellFilter on the smallest periodic deck.
+
+    The constant cutoff gives OpenCPMD a stress that follows the energy, as
+    ``docs/orgmode/howto/ase.org`` explains; on the reference well it changes
+    nothing that this test reads.
+    """
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms.calc = calc
+        start_energy = atoms.get_potential_energy()
+        start_stress = np.abs(atoms.get_stress()).max()
+        with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+            converged = opt.run(fmax=0.01, steps=8)
+        end_stress = np.abs(atoms.get_stress()).max()
+        assert atoms.get_potential_energy() < start_energy
+    assert converged or end_stress < start_stress
+    assert not np.allclose(atoms.cell.array, CUBE)
+    assert len(steps) == opt.nsteps + 1

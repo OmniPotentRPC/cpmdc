@@ -1714,7 +1714,7 @@ The ASE calculator. Importing it imports ASE.
 |--------+--------|
 | Signature | ~set(**kwargs)~ |
 | Units | ~constant_cutoff~ in Rydberg. |
-| Shape and dtype | Keyword arguments ~params~, ~library~, ~constant_cutoff~ and ~parameters~ (a file written by ~Parameters.write~); returns the ~dict~ of changed parameters. |
+| Shape and dtype | Keyword arguments ~params~, ~library~, ~constant_cutoff~ and ~parameters~ (a file written by ~Parameters.write~); returns the ~dict~ of changed parameters. A relative ~params~ or ~library~ path is resolved against the working directory of the process and stored absolute. |
 | Ownership and threads | A change opens a new session before it closes the old one, so a failed change keeps the old session. Not thread-safe. |
 | Raises | ~TypeError~ for an unknown key or a ~params~ of ~None~; ~CPMDCError~, ~OSError~ or ~ValueError~ when the new session cannot be opened. |
 | Defaults | No keyword is required; ~schema~ is deprecated and ignored. |
@@ -1726,7 +1726,7 @@ The ASE calculator. Importing it imports ASE.
 | Signature | ~todict(skip_default=True)~ |
 | Units | ~constant_cutoff~ in Rydberg. |
 | Shape and dtype | Returns a new ~dict~ of the parameters. |
-| Ownership and threads | Returns a new dict; a ~params~ buffer given as ~bytes~ is left out, a path is kept. Not thread-safe against ~set~. |
+| Ownership and threads | Returns a new dict; a ~params~ buffer given as ~bytes~ is left out, and a ~params~ or ~library~ path is kept absolute. Not thread-safe against ~set~. |
 | Raises | none |
 | Defaults | ~skip_default~ is ~True~: parameters equal to their default are left out. |
 

@@ -2228,6 +2228,9 @@ A library step writes no `RESTART.1`, `LATEST`, `GEOMETRY`, or `GEOMETRY.xyz`,
 and the orbitals for the next step stay in memory.
 `params` is read when it is set, relative to the directory of the process at
 that moment, not to `directory`.
+`calc.parameters` keeps that file, and a `library` path, as an absolute path,
+so a copy that opens its session in another directory and a calculator rebuilt
+from `calc.todict()` there use the same files.
 The `restart` argument is deprecated and ignored, and passing it warns with
 `DeprecationWarning`.
 
@@ -2261,15 +2264,22 @@ A reordering of the same atoms stays on the session.
 After a successful step, a structure with another composition closes the
 session and opens a new one from the same `params`.
 
-`calc.parameters` holds `params` and `library`.
+`calc.parameters` holds `params`, `library`, and `constant_cutoff`, with
+absolute paths.
 `calc.todict()` returns them for a trajectory or a database row, and leaves out
 a `params` buffer given as bytes, because bytes are not JSON data.
-`CPMDCCalculator(**calc.todict())` builds an equal calculator, and
-`CPMDCCalculator(parameters="calc.ase")` reads a file written by
+`CPMDCCalculator(**calc.todict())` builds an equal calculator in any working
+directory, and `CPMDCCalculator(parameters="calc.ase")` reads a file written by
 `calc.parameters.write("calc.ase")`.
+A calculator built from bytes has no `params` in `todict()`, so rebuilding it
+from that dictionary raises `TypeError` that asks for `params`.
 
-`copy.copy`, `copy.deepcopy`, and `pickle` keep the parameters and the stored
-results, and the copy opens its own session on its first step.
+ASE rebuilds a calculator from `calc.name` and `calc.todict()`, in a trajectory,
+an `ase.db` row, and `PythonSubProcessCalculator`, and asks no pickling of a
+calculator.
+`copy.copy`, `copy.deepcopy`, and `pickle`, which `copy.deepcopy(atoms)` and
+`ase.visualize.view` use, keep the parameters and the stored results, and the
+copy opens its own session on its first step.
 `close()` closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
 
@@ -2286,11 +2296,16 @@ The file checks these points:
 | `implemented_properties` lists only what a step returns, and the results have ASE's shapes | `calc.results`, `ase.io.write` and `read` of extended XYZ |
 | a property outside the list raises, without evaluating a step | `PropertyNotImplementedError`, `get_charges()`, `get_magnetic_moment()` |
 | the stored step is reused and discarded as ASE expects | `check_state`, `system_changes`, `calculation_required`, `get_property(..., allow_calculation=False)` |
+| a changed `params`, `library`, or `constant_cutoff` discards the stored step | `set`, `calculation_required` |
+| later changes to the caller's `Atoms` leave the stored structure as it was | `calc.atoms`, `get_atoms` |
+| the results survive a trajectory, extended XYZ through `SinglePointCalculator`, and an `ase.db` row, which rebuilds the calculator in another directory | `ase.io`, `ase.db`, `todict` |
 | a run of steps keeps one session | a count of the `Session` objects opened |
 | a rejected step is `ase.calculators.calculator.CalculationFailed` with the library's message | a real library error, not a mock |
 | a relaxation runs with a constraint | `BFGS` with `FixAtoms` |
 | copies and pickles work, with or without the `params` file | `copy`, `pickle` |
 | energies are in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 | `ase.units`, `calculate_numerical_forces`, `calculate_numerical_stress` |
+| each Voigt stress component has the sign and the size of a central difference of the energy over strain, taken in the test | `Atoms.set_cell(..., scale_atoms=True)` |
+| a few steps of a cell relaxation lower the energy and the largest stress component | `BFGS` with `FrechetCellFilter` |
 
 `cpmdc.lammps.FixExternal` follows the same conventions where it shares them: the
 same units, a failed step reported as `CPMDCError`, a step with a NaN or infinite
@@ -7533,7 +7548,7 @@ The ASE calculator. Importing it imports ASE.
 |--------+--------|
 | Signature | `set(**kwargs)` |
 | Units | `constant_cutoff` in Rydberg. |
-| Shape and dtype | Keyword arguments `params`, `library`, `constant_cutoff` and `parameters` (a file written by `Parameters.write`); returns the `dict` of changed parameters. |
+| Shape and dtype | Keyword arguments `params`, `library`, `constant_cutoff` and `parameters` (a file written by `Parameters.write`); returns the `dict` of changed parameters. A relative `params` or `library` path is resolved against the working directory of the process and stored absolute. |
 | Ownership and threads | A change opens a new session before it closes the old one, so a failed change keeps the old session. Not thread-safe. |
 | Raises | `TypeError` for an unknown key or a `params` of `None`; `CPMDCError`, `OSError` or `ValueError` when the new session cannot be opened. |
 | Defaults | No keyword is required; `schema` is deprecated and ignored. |
@@ -7545,7 +7560,7 @@ The ASE calculator. Importing it imports ASE.
 | Signature | `todict(skip_default=True)` |
 | Units | `constant_cutoff` in Rydberg. |
 | Shape and dtype | Returns a new `dict` of the parameters. |
-| Ownership and threads | Returns a new dict; a `params` buffer given as `bytes` is left out, a path is kept. Not thread-safe against `set`. |
+| Ownership and threads | Returns a new dict; a `params` buffer given as `bytes` is left out, and a `params` or `library` path is kept absolute. Not thread-safe against `set`. |
 | Raises | none |
 | Defaults | `skip_default` is `True`: parameters equal to their default are left out. |
 
@@ -10360,13 +10375,13 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |
 | `CPMDCCalculator` | ASE calculator: `CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)` for `energy` (eV), `free_energy` (eV), `forces` (eV/Angstrom), and `stress` (eV/Angstrom^3, Voigt); takes `params`, `library`, and `constant_cutoff` (Rydberg), and ASE's `directory`, `label`, `atoms`, and `parameters` |
-| `CPMDCCalculator.default_parameters` | `params`, `library`, and `constant_cutoff`, all `None`; a `constant_cutoff` is stored as E0 in Ry, or as the mapping of `ConstantCutoff.todict` when it sets a height or a width |
+| `CPMDCCalculator.default_parameters` | `params`, `library`, and `constant_cutoff`, all `None`; a `params` or `library` path is stored absolute, resolved against the working directory of the process when it is set; a `constant_cutoff` is stored as E0 in Ry, or as the mapping of `ConstantCutoff.todict` when it sets a height or a width |
 | `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, and `stress` |
 | `CPMDCCalculator.ignored_changes` | `initial_charges` and `initial_magmoms`: a change of either keeps the stored results, because `params` sets the charge and the multiplicity |
 | `CPMDCCalculator.discard_results_on_any_change` | `True`: a parameter that `set` changes clears the stored results |
 | `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and `stress` for a periodic cell |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
-| `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is left out |
+| `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is left out, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
