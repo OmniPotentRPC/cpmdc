@@ -224,6 +224,8 @@ orbitals.
 ~cpmdc_session_select_orbitals()~ and ~cpmdc_session_copy_orbitals()~ name
 orbital stores by integer keys when a host runs several trajectories on one
 session; see [[file:extrapolate-orbitals.org][extrapolate the orbitals]].
+~CPMDC_ORBITAL_SLOT_LIMIT~ caps how many of those copies stay parked, and a
+new park past the cap fails without discarding the ones already stored.
 
 * rgpot CPMDPot
 [[https://github.com/OmniPotentRPC/rgpot][rgpot]] loads ~libcpmdc.so~ in
