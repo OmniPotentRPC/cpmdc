@@ -107,7 +107,22 @@ A non-zero ~ForceInput.box~ replaces every ~CELL~ line of ~&SYSTEM~ and its
 box gets ~SYMMETRY 8~ and ~CELL a b/a c/a~, and a box with off-diagonal
 components gets ~CELL VECTORS~ without ~SYMMETRY~, which CPMD refuses beside it.
 An isolated deck (~SYMMETRY 0~, the default deck) keeps ~SYMMETRY 0~ and takes
-only an orthorhombic box; another box fails the call.
+only an orthorhombic box with positive diagonal entries; a box with
+off-diagonal entries fails with ~an isolated deck (SYMMETRY 0) needs an
+orthorhombic box~, and one with a non-positive diagonal fails with
+~the ForceInput box has a non-positive diagonal~.
+Before fixing the session topology, a non-zero box converted to Angstrom
+is checked by one-sided Jacobi singular values and scaled LU with partial
+pivoting on a power-of-two scaled copy: a non-finite component fails with
+~cell contains a non-finite component~, a cell whose singular values do not
+all exceed the largest singular value times 3 times ~DBL_EPSILON~ (or whose
+scaled LU determinant is zero) fails with ~cell does not have three
+independent vectors~, and a full-rank cell whose Angstrom volume falls
+below the normal binary64 range fails with ~cell volume is too small for
+binary64~.
+Deck rendering also rejects a non-zero cell without a representable rank-3
+volume (~the periodic cell does not have a representable rank-3 volume~ or
+~the cell does not have a representable rank-3 volume~).
 Without ~ANGSTROM~ the box goes in as Bohr.
 An all-zero box is a system without a cell: the deck's ~CELL~ stays, or a 12
 Angstrom cube when the deck has none.
@@ -435,6 +450,15 @@ the deck has none.
 | ~CPMDCResult cpmdc_session_calculate_forces(CPMDCSession *s, const void *force_input, size_t size, double *forces_h_bohr, size_t forces_len)~ | energy in Hartree and forces in Hartree/Bohr; ~forces_len >= 3 * n_atoms~ |
 | ~CPMDCResult cpmdc_session_calculate_result(CPMDCSession *s, const void *force_input, size_t size, void *out, size_t capacity, size_t *out_size)~ | a serialized ~PotentialResult~ in ~out~, its byte count in ~*out_size~ |
 
+~cpmdc_session_calculate_forces()~ and ~cpmdc_session_calculate_result()~
+enforce the ~ForceInput.box~ rules above before fixing the session topology:
+a ~box~ length other than 0 or 9 fails with ~invalid ForceInput geometry~,
+and a non-zero box fails with ~cell contains a non-finite component~,
+~cell does not have three independent vectors~, or ~cell volume is too small
+for binary64~ on the Angstrom cell, or fails in the reference evaluator
+when a non-zero periodic cell cannot represent a finite positive stress
+volume (~cell volume is too large for binary64~ or ~cell volume is not
+representable for stress~).
 ~cpmdc_session_calculate_result()~ writes the required byte count to ~*out_size~
 before it checks ~capacity~.
 When ~capacity~ is too small it returns ~ok == 0~ with
@@ -485,6 +509,16 @@ The topology and repeat-step rules of the session apply.
 It returns -1 and sets ~cpmdc_last_error()~ for a ~NULL~ session
 (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a ~NULL~ required
 pointer (~invalid arguments~), a topology change, and a failed evaluation.
+For a non-zero ~cell_bohr~, it fails before fixing the session topology with
+~cell contains a non-finite component~, ~cell does not have three independent
+vectors~, or ~cell volume is too small for binary64~ judged on the converted
+Angstrom cell; when ~virial_h~ is not ~NULL~ and ~cell_bohr~ is finite, a
+Bohr volume above ~DBL_MAX~ fails before evaluation with ~cell volume is too
+large for binary64~, and any non-finite component of ~volume * stress~ after
+evaluation fails with ~virial is not finite~.
+When ~virial_h~ is ~NULL~, the reference evaluator still fails a non-zero
+periodic cell whose Bohr volume cannot be represented for stress (~cell volume
+is too large for binary64~ or ~cell volume is not representable for stress~).
 On failure the output arrays are left unspecified.
 The stub archive ~libcpmdc_stub.a~ returns -1 with the stub message.
 ~tools/cpmdc_ipi.c~ is an i-PI client on this call (see [[file:../howto/socket-drivers.org][the
@@ -528,7 +562,10 @@ session has run.
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran ~totstr~ (~cntl%tpres~, which requires a periodic cell and
 ~CPMDC_STRESS~ other than ~0~), or the reference evaluator filled the toy tensor
-for a periodic deck with a positive cell volume.
+for a periodic deck using scaled LU with partial pivoting on the cell in Bohr.
+Accepted near-singular periodic cells receive a valid stress tensor, while a
+non-zero periodic cell whose stress volume overflows or is not positive fails
+the evaluation instead of leaving ~valid~ unset.
 An isolated cell (symmetry 0, ~CLUSTER~, or an isolated-molecule keyword,
 including Hockney) leaves ~valid~ unset even when the box volume is positive.
 ~CPMDC_STRESS=0~ leaves it unset on a periodic cell as well.
