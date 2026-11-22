@@ -1,0 +1,1 @@
+The pixi environment now sets `PKG_CONFIG` to its own `pkgconf`, so a host `pkg-config` and a host libcmocka can no longer pair with the conda `cmocka.h` and trip the configure-time cmocka probe in the readcon restart job.

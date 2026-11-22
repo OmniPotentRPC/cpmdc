@@ -31,6 +31,16 @@ pytest = ">=7"
 python = ">=3.10,<4"
 rust = ">=1.70,<2"
 
+# The pixi environment ships pkgconf but no `pkg-config` name, so Meson
+# would find the host /usr/bin/pkg-config first. That one resolves the host
+# libcmocka while the conda compilers read the conda cmocka.h through
+# CFLAGS, and the cmocka-header-library-match probe in meson.build fails.
+# Pointing PKG_CONFIG at the environment keeps header and library together.
+# pkgconf searches the environment prefix by default, and a caller's own
+# PKG_CONFIG_PATH stays untouched.
+[activation.env]
+PKG_CONFIG = "$CONDA_PREFIX/bin/pkgconf"
+
 [feature.docs]
 platforms = ["linux-64"]
 
