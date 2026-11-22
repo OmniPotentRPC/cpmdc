@@ -5,6 +5,8 @@
 #include "cpmdc.h"
 #include "cpmdc_params.h"
 
+#include <ctype.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +65,40 @@ static void require_absent(const char *deck, const char *needle,
   g_failed = 1;
 }
 
+/* CELL VECTORS must read back as the very cell that was accepted. */
+static void require_vectors_preserved(const char *deck, const double *cell,
+                                      const char *what) {
+  const char *vectors = strstr(deck, "CELL VECTORS\n");
+  double parsed[9];
+  const char *cursor;
+  if (!vectors) {
+    fprintf(stderr, "%s: could not read CELL VECTORS\n%s\n", what, deck);
+    g_failed = 1;
+    return;
+  }
+  cursor = vectors + strlen("CELL VECTORS\n");
+  for (int i = 0; i < 9; ++i) {
+    char *end = NULL;
+    parsed[i] = strtod(cursor, &end);
+    if (end == cursor || !isspace((unsigned char)*end)) {
+      fprintf(stderr, "%s: cell[%d] has no delimited number\n%s\n", what, i,
+              deck);
+      g_failed = 1;
+      return;
+    }
+    cursor = end;
+  }
+  for (int i = 0; i < 9; ++i) {
+    if (parsed[i] != cell[i]) {
+      fprintf(stderr, "%s: cell[%d] changed from %.17g to %.17g\n%s\n", what,
+              i, cell[i], parsed[i], deck);
+      g_failed = 1;
+    }
+  }
+  require_absent(deck, "SYMMETRY", what);
+  require_absent(deck, "HOCKNEY", what);
+}
+
 static int render_case(CPMDParams_ptr root, const double *cell, int has_cell,
                        char *deck, size_t cap) {
   double pos[6] = {0.0, 0.0, 0.0, 0.74, 0.0, 0.0};
@@ -97,7 +133,17 @@ int main(int argc, char **argv) {
   double orth[9] = {10.0, 0.0, 0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 15.0};
   double cube[9] = {10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0};
   double tilt[9] = {10.0, 0.5, 0.0, 0.0, 12.0, 0.0, 0.0, 0.0, 14.0};
+  double small_tilt[9] = {1.0, 0.0, 0.0, 0.3, 2.58e-12, 0.0,
+                          0.2, 0.1, 0.8};
   double zero[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  /* A strained cell and cells whose last vector approaches the rank cutoff. */
+  const double accepted[][9] = {
+      {10.0, -5.0e-5, 0.0, -5.0e-5, 10.0, 0.0, 0.0, 0.0, 10.0},
+      {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 2.58e-12},
+      {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 1.0e-13},
+      {1.0, 0.0, 0.0, 0.25, 1.0, 0.0, 0.125, 0.25, 6.0 * DBL_EPSILON},
+  };
+  const size_t n_accepted = sizeof(accepted) / sizeof(accepted[0]);
 
   if (argc < 2) {
     fprintf(stderr, "usage: %s params_scalar_blyp.bin\n", argv[0]);
@@ -158,6 +204,26 @@ int main(int argc, char **argv) {
   }
 
   memset(deck, 0, sizeof(deck));
+  if (render_case(root, small_tilt, 1, deck, sizeof(deck)) != 0) {
+    fprintf(stderr, "small tilted render failed\n");
+    g_failed = 1;
+  } else {
+    require_has(deck, "CELL VECTORS", "small tilted render");
+    require_absent(deck, "SYMMETRY", "small tilted render");
+    require_absent(deck, "HOCKNEY", "small tilted render");
+  }
+
+  for (size_t i = 0; i < n_accepted; ++i) {
+    memset(deck, 0, sizeof(deck));
+    if (render_case(root, accepted[i], 1, deck, sizeof(deck)) != 0) {
+      fprintf(stderr, "accepted-cell render %zu failed\n", i);
+      g_failed = 1;
+    } else {
+      require_vectors_preserved(deck, accepted[i], "accepted-cell render");
+    }
+  }
+
+  memset(deck, 0, sizeof(deck));
   if (render_case(root, zero, 1, deck, sizeof(deck)) != 0) {
     fprintf(stderr, "zero-cell render failed\n");
     g_failed = 1;
@@ -184,16 +250,29 @@ int main(int argc, char **argv) {
   }
 
   memset(deck, 0, sizeof(deck));
+  if (compose_case(small_tilt, 1, deck, (int)sizeof(deck)) == 0) {
+    require_has(deck, "CELL VECTORS", "small tilted compose");
+    require_absent(deck, "SYMMETRY", "small tilted compose");
+    require_absent(deck, "HOCKNEY", "small tilted compose");
+  }
+
+  for (size_t i = 0; i < n_accepted; ++i) {
+    memset(deck, 0, sizeof(deck));
+    if (compose_case(accepted[i], 1, deck, (int)sizeof(deck)) == 0)
+      require_vectors_preserved(deck, accepted[i], "accepted-cell compose");
+  }
+
+  memset(deck, 0, sizeof(deck));
   if (compose_case(zero, 0, deck, (int)sizeof(deck)) == 0) {
     require_has(deck, " SYMMETRY\n  0\n", "missing-box compose");
     require_has(deck, "POISSON SOLVER HOCKNEY", "missing-box compose");
-    require_has(deck, "12.000000", "missing-box compose");
+    require_has(deck, "1.2000000000000000E+001", "missing-box compose");
   }
 
   memset(deck, 0, sizeof(deck));
   if (compose_case(tilt, 1, deck, (int)sizeof(deck)) == 0) {
     require_has(deck, "CELL VECTORS", "tilted compose");
-    require_has(deck, "0.5", "tilted compose");
+    require_has(deck, "5.0000000000000000E-001", "tilted compose");
     require_absent(deck, "SYMMETRY", "tilted compose");
     require_absent(deck, "HOCKNEY", "tilted compose");
   }

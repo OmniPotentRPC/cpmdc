@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import uuid
@@ -205,6 +206,55 @@ def test_cell_change_matches_python_driver(mini, socket_dir, periodic_params, dr
     assert client.finish()[0] == 0
 
 
+def test_small_full_rank_cell_matches_python_driver(
+    mini, socket_dir, periodic_params, drivers
+):
+    cell = np.array([[1.0, 0.0, 0.0], [0.3, 2.58e-12, 0.0], [0.2, 0.1, 0.8]])
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(periodic_params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init()
+    energy, forces, virial, _ = mini.step(cell, WATER)
+    expected = python_step(periodic_params, cell, WATER)
+    assert energy == expected[0]
+    np.testing.assert_array_equal(forces, expected[1])
+    np.testing.assert_allclose(virial, expected[2], rtol=1e-10, atol=1e-16)
+    assert np.abs(virial).max() > 0.0
+    mini.send(mini.header("EXIT"))
+    assert client.finish()[0] == 0
+
+
+def test_rank_cutoff_rejects_a_short_cell_vector(
+    mini, socket_dir, periodic_params, drivers
+):
+    short = 0.25 * 3.0 * np.finfo(np.float64).eps
+    cell = np.diag([1.0, 1.0, short])
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(periodic_params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(mini.posdata(cell, WATER))
+    code, err = client.finish()
+    assert code == 1
+    assert "without three independent vectors" in err
+
+
 def test_pipelined_posdata_and_getforce(mini, socket_dir, params, drivers):
     drivers("c", "--unix", str(socket_dir / "s"), "--params", str(params), "--species", "OHH")
     mini.accept()
@@ -309,6 +359,152 @@ def test_batched_init_is_refused(mini, socket_dir, params, drivers):
 
 
 @pytest.mark.parametrize(
+    ("init", "expected"),
+    [
+        (b"batch_size:nope", "batch_size is not an integer"),
+        (b"batch_size:0", "batch_size 0"),
+        (b"batch_size:-1", "batch_size -1"),
+        (b"batch_size:1,batch_size:1", "batch_size appears more than once"),
+        (b"batch_size:1,batch_size:4", "batch_size appears more than once"),
+        (b"batch_size:1,batch_size:nope", "batch_size appears more than once"),
+        (b"\xff", "INIT is not UTF-8"),
+    ],
+    ids=["word", "zero", "negative", "duplicate", "later-four", "later-word", "not-utf8"],
+)
+def test_invalid_init_is_refused(mini, socket_dir, params, drivers, init, expected):
+    client = drivers(
+        "c",
+        "--unix",
+        str(socket_dir / "s"),
+        "--params",
+        str(params),
+        "--species",
+        "OHH",
+    )
+    mini.accept()
+    mini.status()
+    mini.init(init)
+    mini.conn.close()
+    code, err = client.finish()
+    assert code == 1
+    assert expected in err
+
+
+def bohr_posdata(h_bohr, positions_bohr) -> bytes:
+    """POSDATA from wire values in Bohr, with no unit conversion on the way."""
+    h = np.asarray(h_bohr, dtype=float)
+    pos = np.asarray(positions_bohr, dtype=float)
+    return (
+        MiniServer.header("POSDATA")
+        + h.tobytes()
+        + np.zeros((3, 3)).tobytes()
+        + struct.pack("=i", len(pos))
+        + pos.tobytes()
+    )
+
+
+# 3.1072325e-103 Bohr: the Bohr^3 volume is 1.348 times the least normal
+# float64, so both drivers pass it on, and the library refuses the Angstrom
+# cell it receives. 2.8e-103 Bohr: both drivers refuse the wire cell.
+@pytest.mark.parametrize("kind", ["c", "python"])
+@pytest.mark.parametrize(
+    ("side", "expected", "absent"),
+    [
+        (3.1072325e-103, "cell volume is too small for binary64", "the server sent a cell"),
+        (2.8e-103, "the server sent a cell whose volume is too small for binary64", None),
+    ],
+    ids=["normal-in-bohr", "subnormal-in-bohr"],
+)
+def test_volume_underflow_is_judged_on_the_bohr_wire_cell(
+    kind, side, expected, absent, mini, socket_dir, periodic_params, drivers
+):
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(bohr_posdata(np.diag([side] * 3), np.asarray(WATER) / BOHR_TO_ANGSTROM))
+    code, err = client.finish()
+    assert code == 1
+    assert expected in err
+    if absent is not None:
+        assert absent not in err
+
+
+@pytest.mark.parametrize("kind", ["c", "python"])
+def test_cell_volume_above_the_largest_float_stops_both_drivers(
+    kind, mini, socket_dir, periodic_params, drivers
+):
+    side = float(np.finfo(np.float64).max) / 2.0
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(bohr_posdata(np.diag([side] * 3), np.asarray(WATER) / BOHR_TO_ANGSTROM))
+    code, err = client.finish()
+    assert code == 1
+    assert "cell volume is too large for binary64" in err
+
+
+def _non_finite_step(position: float = 0.0, cell_entry: float = 10.0) -> bytes:
+    positions = np.asarray(WATER) / BOHR_TO_ANGSTROM
+    positions[1, 2] += position
+    h = np.diag([20.0, 20.0, 20.0])
+    h[2, 2] = cell_entry
+    return bohr_posdata(h, positions) + MiniServer.header("GETFORCE") + MiniServer.header("EXIT")
+
+
+@pytest.mark.parametrize("kind", ["c", "python"])
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        (_non_finite_step(position=float("nan")), "positions must be finite"),
+        (_non_finite_step(position=float("inf")), "positions must be finite"),
+        (_non_finite_step(position=float("-inf")), "positions must be finite"),
+        (_non_finite_step(cell_entry=float("nan")), "cell must be finite"),
+        (_non_finite_step(cell_entry=float("inf")), "cell must be finite"),
+        (
+            _non_finite_step(position=float("nan"), cell_entry=float("nan")),
+            "positions must be finite",
+        ),
+    ],
+    ids=["nan-position", "inf-position", "minus-inf-position", "nan-cell", "inf-cell", "both"],
+)
+def test_non_finite_wire_values_stop_both_drivers_before_a_step(
+    kind, message, expected, mini, socket_dir, periodic_params, drivers
+):
+    client = drivers(kind, "--unix", str(socket_dir / "s"), "--params", str(periodic_params),
+                     "--species", "OHH")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(message)
+    code, err = client.finish()
+    assert code == 1, err
+    assert f"error: {expected}" in err
+    assert mini.conn is not None
+    mini.conn.settimeout(5.0)
+    try:
+        reply = mini.conn.recv(12)
+    except ConnectionResetError:
+        reply = b""
+    assert reply == b""
+
+
+def test_cluster_flag_ignores_a_non_finite_cell(mini, socket_dir, params, drivers):
+    client = drivers("c", "--unix", str(socket_dir / "s"), "--params", str(params), "--species",
+                     "OHH", "--cluster")
+    mini.accept()
+    mini.status()
+    mini.init()
+    mini.send(_non_finite_step(cell_entry=float("nan")))
+    assert mini.recv(12).decode("ascii").strip() == "FORCEREADY"
+    code, err = client.finish()
+    assert code == 0, err
+
+
+@pytest.mark.parametrize(
     "message, expected",
     [
         (MiniServer.header("GETFORCE"), "GETFORCE arrived before POSDATA"),
@@ -375,6 +571,19 @@ def test_cli_errors_before_connecting(params, drivers, socket_dir):
     assert code == 1 and "cannot read" in err
     code, err = drivers("c", "--params", str(params), "--species", "OHH").finish()
     assert code == 2 and "exactly one of --unix and --port" in err
+    for wait in ("-1", "nan", "inf"):
+        code, err = drivers(
+            "c",
+            "--unix",
+            "x",
+            "--params",
+            str(params),
+            "--species",
+            "OHH",
+            "--wait",
+            wait,
+        ).finish()
+        assert code == 2 and "--wait" in err and "finite and zero or positive" in err
 
 
 # i-PI itself, both drivers

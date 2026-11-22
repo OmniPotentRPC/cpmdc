@@ -371,7 +371,7 @@ preflight leaves the topology configurable; see the C ABI reference.
 | Layout | ~positions_bohr~ is ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~), C order; ~atomic_numbers~ is ~n_atoms~ ints in 1..118; ~cell_bohr~ is NULL or 9 doubles, row-major, one lattice vector per row; ~energy_h~ is one double; ~forces_h_bohr~ is ~3 * n_atoms~ doubles laid out as the positions; ~virial_h~ is NULL or 9 doubles, row-major. |
 | Ownership | ~session~ stays owned by the caller; the caller owns every array, none is kept after the call, and the outputs are written only on success. |
 | Threads and MPI | Not thread-safe: the active calculator, its stored orbitals and the OpenCPMD state are process globals, so one thread at a time. MPI: collective on the calculator communicator when OpenCPMD is linked, so every rank passes the same arguments in the same order; a reference build compiled with MPI calls ~MPI_Allreduce~ from ~rank_consensus_all~ on the session cache path when ~CPMDC_RANK_CONSENSUS~ is ~1~ and MPI is initialized. |
-| Returns and errors | Returns 0 on success and -1 for a NULL session (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a NULL required pointer (~invalid arguments~), an atomic number outside 1..118 (~atomic numbers must be in 1..118~), a topology change, or a failed evaluation; the text is ~cpmdc_last_error()~ and the output arrays are unspecified. |
+| Returns and errors | Returns 0 on success and -1 for a NULL session (~null session~), ~n_atoms~ outside 1 to ~INT_MAX / 3~ or a NULL required pointer (~invalid arguments~), an atomic number outside 1..118 (~atomic numbers must be in 1..118~), a topology change, a failed evaluation, a finite cell whose volume is above ~DBL_MAX~ when ~virial_h~ is not NULL (~cell volume is too large for binary64~, before the evaluation), or a virial component that is not finite (~virial is not finite~); the text is ~cpmdc_last_error()~ and the output arrays are unspecified. The volume is ~abs(det cell_bohr)~ by LU with partial pivoting on the cell scaled by a power of two, so it neither cancels to zero for an accepted near-singular cell nor overflows before the final scaling. |
 | Python | ~cpmdc.Session.calculate_au~ raises ~cpmdc.CPMDCError~; wrong sizes, non-finite values and atomic numbers outside 1..118 raise ~ValueError~ before the call, and a wrong type raises ~TypeError~. |
 | Defaults | ~cell_bohr~ NULL is a system without a cell; ~virial_h~ NULL skips the virial |
 
@@ -1628,7 +1628,7 @@ The ASE calculator. Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | ~atoms~ an ~ase.Atoms~; fills ~results~ with ~energy~ and ~free_energy~ floats, ~forces~ an N by 3 ~float64~ array, and ~stress~ a six-component ~float64~ array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; ~atoms~ is copied by ASE. Not thread-safe. The step runs with ~directory~ as the working directory, which is a process-wide change. |
-| Raises | ~ValueError~ for no atoms, a partly periodic cell, a degenerate cell, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value. |
+| Raises | ~ValueError~ for no atoms, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value. |
 | Defaults | ~atoms~ is ~None~: the atoms already attached; ~properties~ is ~None~: ~['energy']~, but all four properties are always filled; ~system_changes~ is ASE's ~all_changes~. |
 
 *** ~cpmdc.ase.CPMDCCalculator.close~
@@ -1787,7 +1787,7 @@ Input files and unit constants for GROMACS.
 | Shape and dtype | ~params~ a path; ~qm_charges~ a sequence of floats, one per QM atom; the others are scalars or strings. Returns the ~qmi~ file as one ~str~ that ends in a newline. |
 | Ownership and threads | Builds a new string and touches no file; stateless, so thread-safe. |
 | Raises | ~ValueError~ for an unknown ~cell~ or ~embedding~ keyword, ~qm_ranks~ other than ~ALL~ or ~1~, ~qm_charges~ without ~MECHANICAL~ embedding or ~MECHANICAL~ embedding without ~qm_charges~, a non-finite value, a non-positive ~ewald_rcut~ or ~ewald_precision~, a ~multiplicity~ below 1, or a ~charge~ or ~multiplicity~ that is not a whole number; ~TypeError~ for a value that is not a real number or not an integer. |
-| Defaults | ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~, ~ewald_precision~ and ~qm_ranks~ are ~None~ and not written, so the library defaults apply (~PERIODIC~ when every atom is QM and ~NONE~ otherwise; no embedding; the smaller of 1 nm and half the shortest box height; 1e-8; ~ALL~); ~charge~ is 0 and ~multiplicity~ is 1. |
+| Defaults | ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~, ~ewald_precision~ and ~qm_ranks~ are ~None~ and not written, so the library defaults apply (~PERIODIC~ when every atom is QM and ~NONE~ otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; ~ALL~); ~charge~ is 0 and ~multiplicity~ is 1. |
 
 *** ~cpmdc.gromacs.write_qmi~
 
@@ -1889,7 +1889,7 @@ The i-PI protocol driver.
 | Units | ~positions~ and ~cell~ in Bohr; returns the energy in Hartree, forces in Hartree/Bohr and the virial ~-dE/d(strain)~ in Hartree. |
 | Shape and dtype | ~positions~ 3N floats; ~cell~ nine floats, the lattice vectors as columns in row-major order (the i-PI wire layout), all zero for a cluster. Returns ~(float, list[float], list[float])~ of 1, 3N and 9 values. |
 | Ownership and threads | Returns new lists; counts the step in ~steps~. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | ~ProtocolError~ for a position count that is not a multiple of three, an atom count that differs from the driver's, or a cell without three independent vectors; ~CPMDCError~ and ~ValueError~ from the session. |
+| Raises | ~ProtocolError~ for a position count that is not a multiple of three, an atom count that differs from the driver's, a cell of rank below 3 (the numpy.linalg.matrix_rank cutoff, sigma_max times 3 times the float64 unit roundoff), or a cell volume below the normal float64 range, both judged on the Bohr values of ~cell~; ~CPMDCError~ for a cell volume above the largest float64, before the session is called, or a virial component that is not finite; ~ValueError~ for a position that is not finite (~positions must be finite~) or, when the cell is used, a cell value that is not finite (~cell must be finite~), checked after the rank and before the volume; ~CPMDCError~ and ~ValueError~ from the session. |
 | Defaults | none: both arguments are required. |
 
 *** ~cpmdc.ipi.Driver.serve~
@@ -1900,7 +1900,7 @@ The i-PI protocol driver.
 | Units | Atomic units on the wire, as for ~compute~. |
 | Shape and dtype | ~sock~ a connected stream socket; returns the number of steps served as an ~int~. |
 | Ownership and threads | The caller owns the socket and closes it. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
-| Raises | ~ProtocolError~ for a connection closed in the middle of a message, a message out of order, an unknown header, a batched ~INIT~ or a negative announced size; ~OSError~ for a socket failure; ~CPMDCError~ from the session. A close between messages ends the run like ~EXIT~. |
+| Raises | ~ProtocolError~ for a connection closed in the middle of a message, a message out of order, an unknown header, an ~INIT~ that is not UTF-8 or whose ~batch_size~ appears more than once or is not the integer 1, or a negative announced size; ~OSError~ for a socket failure; ~CPMDCError~ from the session. A close between messages ends the run like ~EXIT~. |
 | Defaults | none |
 
 *** ~cpmdc.ipi.Driver.steps~
@@ -1922,7 +1922,7 @@ The i-PI protocol driver.
 | Units | ~wait~ in seconds. |
 | Shape and dtype | Returns a connected ~socket.socket~; give exactly one of ~unix~ (a name or a path) and ~port~. |
 | Ownership and threads | The caller owns the returned socket and must close it. Thread-safe: it uses no shared state. |
-| Raises | ~ValueError~ unless exactly one of ~unix~ and ~port~ is given; ~CPMDCError~ when the server is not listening after ~wait~ seconds; ~OSError~ for any other socket failure. |
+| Raises | ~ValueError~ unless exactly one of ~unix~ and ~port~ is given, or, before a socket is opened, when ~wait~ is negative, NaN or infinite; ~CPMDCError~ when the server is not listening after ~wait~ seconds; ~OSError~ for any other socket failure. |
 | Defaults | ~host~ is ~'localhost'~, ~prefix~ is ~None~ (~DEFAULT_SOCKET_PREFIX~), ~wait~ is 0.0: one attempt. |
 
 *** ~cpmdc.ipi.main~

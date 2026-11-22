@@ -324,7 +324,7 @@ says.
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
 | a keyword other than ~params~, ~library~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress where the step has none; ~energies~, ~magmoms~, ~charges~, or ~dipole~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
-| mixed ~pbc~ flags, or a periodic cell without three independent vectors | ~ValueError~ |
+| mixed ~pbc~ flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | ~ValueError~ |
 | a step on a calculator without atoms | ~ValueError~ |
 | a ~params~ file that does not exist | ~FileNotFoundError~ |
 

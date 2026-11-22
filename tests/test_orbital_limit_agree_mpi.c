@@ -19,6 +19,8 @@
 #define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
 
+#include <float.h>
+#include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -558,6 +560,129 @@ static void case_wrapper_preflights(void) {
   report("cpmdc_session_calculate_au agrees a one-rank error");
 }
 
+static void geometry_bohr(double *pos) {
+  static const double kWaterBohr[kCoords] = {
+      0.0, 0.0, 0.2216669, 0.0, 1.4308949, -0.8866678, 0.0, -1.4308949,
+      -0.8866678};
+  memcpy(pos, kWaterBohr, sizeof(kWaterBohr));
+  g_step++;
+  pos[0] += 0.01 * (double)g_step;
+}
+
+static void check_cell_beats_bad_limit(CPMDCSession *session,
+                                       const double *pos_bohr,
+                                       const double *cell_bohr,
+                                       double *virial_out,
+                                       const char *expected,
+                                       const char *label) {
+  struct outcome mine;
+  struct outcome all[kRanks];
+  double energy = 0.0;
+  double forces[kCoords];
+  int rc = cpmdc_session_calculate_au(session, kAtoms, pos_bohr, kZ, cell_bohr,
+                                      &energy, forces, virial_out);
+  record(&mine, rc == 0, cpmdc_last_error());
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok, label);
+  check(mentions(&all[0], expected) && mentions(&all[1], expected), label);
+  check(!mentions(&all[0], kLimitName) && !mentions(&all[1], kLimitName),
+        "cell or volume preflight is reported instead of the bad limit");
+}
+
+static void case_cell_and_virial_under_slot_limit(void) {
+  static const int kChangedZ[kAtoms] = {8, 8, 1};
+  const double flat_cell[9] = {5.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 5.0};
+  const double underflow_cell[9] = {DBL_MIN, 0.0, 0.0, 0.0, DBL_MIN,
+                                    0.0,     0.0, 0.0, DBL_MIN};
+  const double huge_side = DBL_MAX / 2.0;
+  const double huge_cell[9] = {huge_side, 0.0, 0.0, 0.0, huge_side,
+                               0.0,       0.0, 0.0, huge_side};
+  double nonfinite_cell[9] = {0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 5.0};
+  const char *bad_limits[kRanks] = {"abc", "abc"};
+  const char *good_limits[kRanks] = {"8", "8"};
+  struct outcome mine;
+  struct outcome all[kRanks];
+  double pos[kCoords];
+  double energy = 0.0;
+  double forces[kCoords];
+  double virial[9];
+  int rc;
+  int rcs[kRanks];
+  CPMDCSession *session;
+
+  nonfinite_cell[0] = HUGE_VAL;
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session)
+    return;
+
+  set_limit(bad_limits);
+  geometry_bohr(pos);
+  check_cell_beats_bad_limit(
+      session, pos, g_rank == 1 ? flat_cell : NULL, virial,
+      "three independent vectors",
+      "a rank-deficient cell beats a bad orbital slot limit");
+  check_cell_beats_bad_limit(session, pos, g_rank == 1 ? nonfinite_cell : NULL,
+                             virial, "non-finite",
+                             "a non-finite cell beats a bad orbital slot limit");
+  check_cell_beats_bad_limit(
+      session, pos, g_rank == 1 ? underflow_cell : NULL, virial,
+      "too small for binary64",
+      "an underflowing cell beats a bad orbital slot limit");
+  check_cell_beats_bad_limit(
+      session, pos, huge_cell, g_rank == 1 ? virial : NULL,
+      "too large for binary64",
+      "an overflowing virial volume beats a bad orbital slot limit");
+
+  set_limit(good_limits);
+  cpmdc_session_select_orbitals(session, 90);
+  geometry_bohr(pos);
+  rc = cpmdc_session_calculate_au(session, kAtoms, pos, kZ, NULL, &energy,
+                                  forces, NULL);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == 0 && rcs[1] == 0,
+        "valid step latches topology after bad-limit cell preflights");
+
+  geometry_bohr(pos);
+  rc = cpmdc_session_calculate_au(
+      session, kAtoms, pos, g_rank == 1 ? kChangedZ : kZ,
+      g_rank == 1 ? flat_cell : NULL, &energy, forces, NULL);
+  record(&mine, rc == 0, cpmdc_last_error());
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok,
+        "bad cell with changed species on one rank fails both ranks");
+  check(mentions(&all[0], "three independent vectors") &&
+            mentions(&all[1], "three independent vectors"),
+        "cell preflight runs before the latched topology check");
+
+  cpmdc_session_select_orbitals(session, 91);
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "calculate-au-virial", 1);
+  else
+    unsetenv("CPMDC_TEST_FAULT");
+  geometry_bohr(pos);
+  rc = cpmdc_session_calculate_au(session, kAtoms, pos, kZ, NULL, &energy,
+                                  forces, g_rank == 1 ? virial : NULL);
+  unsetenv("CPMDC_TEST_FAULT");
+  record(&mine, rc == 0, cpmdc_last_error());
+  share(&mine, all);
+  check(!all[0].ok && !all[1].ok,
+        "virial fault under an orbital slot limit fails both ranks");
+  check(mentions(&all[0], "virial is not finite") &&
+            mentions(&all[1], "virial is not finite"),
+        "both ranks report virial is not finite under an orbital slot limit");
+
+  geometry_bohr(pos);
+  rc = cpmdc_session_calculate_au(session, kAtoms, pos, kZ, NULL, &energy,
+                                  forces, virial);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == 0 && rcs[1] == 0,
+        "orbital slot limit stays in step after a post-eval virial failure");
+
+  cpmdc_session_destroy(session);
+  report("cell and virial failures agree beside CPMDC_ORBITAL_SLOT_LIMIT");
+}
+
 #if !defined(CPMDC_HAS_CPMD)
 /* The reference evaluator holds the parked keys in the library, so the
  * third key refuses on both ranks and the first two stay usable. */
@@ -648,6 +773,7 @@ int main(int argc, char **argv) {
 #endif
   case_orbital_key_mismatch();
   case_wrapper_preflights();
+  case_cell_and_virial_under_slot_limit();
 
   free(g_params);
   free(g_force_input);

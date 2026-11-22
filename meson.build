@@ -180,7 +180,11 @@ if need_capnp_c
   potentials_schema_canonical = potentials_schema_proj.get_variable('potentials_capnp_file')
   subdir('schema')
   potentials_capnp_c_dep = declare_dependency(sources: potentials_capnp_c)
-  cpmdc_params_sources = ['src/cpmdc_params.c', potentials_capnp_c_src]
+  cpmdc_params_sources = [
+    'src/cpmdc_params.c',
+    'src/cpmdc_cell_rank.c',
+    potentials_capnp_c_src,
+  ]
   cpmdc_params_deps = [capnp_c_dep, potentials_capnp_c_dep]
   cpmdc_params_includes = [include_directories('schema')]
 
@@ -437,6 +441,7 @@ cpmdc_shared = shared_library(
 if get_option('with_python')
   py.install_sources(
     'python/cpmdc/__init__.py',
+    'python/cpmdc/_rank.py',
     'python/cpmdc/_elements.py',
     'python/cpmdc/ase.py',
     'python/cpmdc/gromacs.py',
@@ -515,15 +520,16 @@ cpmdc_restart_exe = executable(
   c_args: common_c_args,
   install: true,
 )
-# The i-PI client is a consumer of libcpmdc through the public header only.
-# The wheel ships the Python cpmdc-ipi instead.
+# The i-PI client consumes libcpmdc through the public API and compiles the
+# private cell-rank helper for parity with the library. The wheel ships the
+# Python cpmdc-ipi instead.
 cpmdc_ipi_exe = disabler()
 if cc.has_header('sys/un.h')
   cpmdc_ipi_exe = executable(
     'cpmdc-ipi-c',
-    'tools/cpmdc_ipi.c',
+    ['tools/cpmdc_ipi.c', 'src/cpmdc_cell_rank.c'],
     link_with: cpmdc_shared,
-    include_directories: include_directories('include'),
+    include_directories: include_directories('include', 'src'),
     dependencies: [math_dep],
     c_args: common_c_args,
     install: not get_option('with_python'),
@@ -900,6 +906,27 @@ if get_option('with_tests')
       depends: [orbital_limit_agree, runtime_params_bin, force_input_step_a_bin],
       suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
       timeout: 120,
+      is_parallel: false,
+    )
+    periodic_cell_mpi = executable(
+      'test_periodic_cell_mpi',
+      'tests/test_periodic_cell_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep, math_dep],
+      include_directories: [inc] + cpmdc_params_includes,
+      c_args: common_c_args + capnp_generated_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'periodic-cell-mpi',
+      python,
+      args: [
+        run_mpi_test,
+        '2',
+        periodic_cell_mpi.full_path(),
+        water_periodic_params_bin.full_path(),
+      ],
+      depends: [periodic_cell_mpi, water_periodic_params_bin],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 60,
       is_parallel: false,
     )
     # The reference evaluator gives exact per-rank values to compare against.
@@ -1709,6 +1736,16 @@ test(
     'CPMDC_TEST_PERIODIC_PARAMS': water_periodic_params_bin.full_path(),
   }
   pytest_depends = [cpmdc_shared, water_params_bin, water_periodic_params_bin]
+  # The C cell classifier on its own, for the Python parity tests.
+  cell_rank_probe = executable(
+    'cell_rank_probe',
+    ['tests/cell_rank_probe.c', 'src/cpmdc_cell_rank.c'],
+    include_directories: include_directories('src'),
+    dependencies: [math_dep],
+    c_args: common_c_args,
+  )
+  pytest_env += {'CPMDC_CELL_RANK_PROBE': cell_rank_probe.full_path()}
+  pytest_depends += cell_rank_probe
   if not is_disabler(cpmdc_ipi_exe)
     pytest_env += {'CPMDC_IPI_C': cpmdc_ipi_exe.full_path()}
     pytest_depends += cpmdc_ipi_exe
