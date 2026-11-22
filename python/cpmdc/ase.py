@@ -149,8 +149,8 @@ def _param_value(key: str, value: Any) -> Any:
 
 
 def _require_finite(evaluated: Any) -> None:
-    """Refuse a step whose energy, forces, or stress is NaN or infinite."""
-    for name in ("energy", "forces", "stress"):
+    """Refuse a step whose energy, forces, stress, or dipole is NaN or infinite."""
+    for name in ("energy", "forces", "stress", "dipole"):
         if name in evaluated and not np.all(np.isfinite(np.asarray(evaluated[name], dtype=float))):
             raise CPMDCError(f"the library returned a non-finite {name}")
 

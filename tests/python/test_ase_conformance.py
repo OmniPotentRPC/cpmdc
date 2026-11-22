@@ -512,13 +512,18 @@ def test_a_non_finite_result_is_a_calculation_failure(calc, scale, opencpmd, col
     assert calc.results == {}
 
 
-@pytest.mark.parametrize("name", ["energy", "forces", "stress"])
+@pytest.mark.parametrize("name", ["energy", "forces", "stress", "dipole"])
 def test_a_non_finite_value_from_the_library_is_a_calculation_failure(
     periodic_params, monkeypatch, name
 ):
     def poisoned(self, *args, **kwargs):
         done = {"energy": 0.0, "forces": [0.0] * 9, "stress": [0.0] * 9}
-        done[name] = float("nan") if name == "energy" else [float("inf")] * 9
+        if name == "energy":
+            done[name] = float("nan")
+        elif name == "dipole":
+            done[name] = [0.1, float("nan"), -0.2]
+        else:
+            done[name] = [float("inf")] * 9
         return done
 
     monkeypatch.setattr(Potential, "evaluate", poisoned)
