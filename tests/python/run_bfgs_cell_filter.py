@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """OpenCPMD branch of test_bfgs_moves_the_cell_through_a_cell_filter.
 
-Meson runs the whole ``tests/python`` tree in one interpreter. OpenCPMD keeps
-wavefunctions between calculator sessions in that process, which can stall cell
-BFGS before ASE reports convergence even after ``park_orbitals``. A fresh
-interpreter matches the isolated physics check.
+Meson runs the whole ``tests/python`` tree in one interpreter. This process
+parks retained OpenCPMD orbitals and relaxes the cell from that start, so the
+volume and stress checks do not depend on an earlier calculator. Convergence
+of the same relaxation inside the pytest process is
+``test_opencpmd_in_process_bfgs_converges_after_parking``.
 """
 from __future__ import annotations
 
