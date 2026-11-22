@@ -1,2 +1,0 @@
-# rdma-core's libibverbs registers a driver while libfabric is loaded.
-leak:libibverbs.so

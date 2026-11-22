@@ -3,17 +3,9 @@
 #include "cpmdc.h"
 
 #include <dlfcn.h>
-#ifdef __linux__
-#include <fcntl.h>
-#include <limits.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __linux__
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
 
 typedef int (*cpmdc_available_fn)(void);
 typedef const char *(*cpmdc_version_fn)(void);
@@ -39,43 +31,6 @@ static void *required_symbol(void *handle, const char *name) {
   }
   return sym;
 }
-
-#ifdef __linux__
-/* dlclose unmaps libibverbs before LSan symbolizes its allocation stack.
- * Preserve just enough of the file mapping for the library-only suppression
- * to match without suppressing other allocations made by this test. */
-static int preserve_lsan_symbol_map(const char *dso, void **base, size_t *size,
-                                    char path[PATH_MAX]) {
-  void *handle = dlopen(dso, RTLD_NOW | RTLD_LOCAL | RTLD_NOLOAD);
-  void *symbol = handle ? dlsym(handle, "verbs_register_driver_59") : NULL;
-  Dl_info info;
-  long page_size = sysconf(_SC_PAGESIZE);
-  if (symbol == NULL || dladdr(symbol, &info) == 0 || info.dli_fname == NULL ||
-      strlen(info.dli_fname) >= PATH_MAX || page_size <= 0) {
-    if (handle != NULL) {
-      dlclose(handle);
-    }
-    return -1;
-  }
-  *base = info.dli_fbase;
-  size_t symbol_end = (size_t)((char *)symbol - (char *)info.dli_fbase) + 1;
-  *size = (symbol_end + (size_t)page_size - 1) & ~((size_t)page_size - 1);
-  strcpy(path, info.dli_fname);
-  dlclose(handle);
-  return 0;
-}
-
-static int restore_lsan_symbol_map(void *base, size_t size, const char *path) {
-  int fd = open(path, O_RDONLY);
-  if (fd < 0) {
-    return -1;
-  }
-  void *mapping = mmap(base, size, PROT_READ | PROT_EXEC,
-                       MAP_PRIVATE | MAP_FIXED_NOREPLACE, fd, 0);
-  close(fd);
-  return mapping == base ? 0 : -1;
-}
-#endif
 
 #define LOAD_REQUIRED_FUNCTION(handle, name, type)                             \
   ((type)required_symbol((handle), (name)))
@@ -223,22 +178,9 @@ int main(int argc, char **argv) {
   }
 
 #ifdef __linux__
-  const char *symbolize_dso = getenv("CPMDC_LSAN_SYMBOLIZE_DSO");
-  void *symbolize_base = NULL;
-  size_t symbolize_size = 0;
-  char symbolize_path[PATH_MAX];
-  int have_symbol_map =
-      symbolize_dso != NULL && symbolize_dso[0] != '\0' &&
-      preserve_lsan_symbol_map(symbolize_dso, &symbolize_base, &symbolize_size,
-                               symbolize_path) == 0;
+  /* Keep libibverbs mapped if another dependency already loaded it. */
+  (void)dlopen("libibverbs.so.1", RTLD_NOW | RTLD_NOLOAD | RTLD_NODELETE);
   dlclose(handle);
-  if (have_symbol_map) {
-    if (restore_lsan_symbol_map(symbolize_base, symbolize_size,
-                                symbolize_path) != 0) {
-      fprintf(stderr, "could not restore symbols for %s\n", symbolize_dso);
-      return 1;
-    }
-  }
 #else
   dlclose(handle);
 #endif
