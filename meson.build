@@ -84,7 +84,7 @@ if get_option('with_tests')
       name: 'cmocka-header-library-match',
       dependencies: [cmocka_dep],
     )
-    error('cmocka header/library mismatch: Meson resolved libcmocka via dependency("cmocka"), but the active include path resolves a different cmocka.h. Point pkg-config/CMake and CFLAGS includes at one cmocka install (for pixi, set PKG_CONFIG to ${CONDA_PREFIX}/bin/pkg-config and PKG_CONFIG_PATH to ${CONDA_PREFIX}/lib/pkgconfig), or use a pure system cmocka toolchain.')
+    error('cmocka header/library mismatch: Meson resolved libcmocka via dependency("cmocka"), but the active include path resolves a different cmocka.h. Point pkg-config/CMake and CFLAGS includes at one cmocka install (for pixi, set PKG_CONFIG to ${CONDA_PREFIX}/bin/pkgconf, which the pixi activation does, so the host pkg-config is not used), or use a pure system cmocka toolchain.')
   endif
 endif
 
