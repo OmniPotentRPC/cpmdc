@@ -223,9 +223,12 @@ static int words(char *line, char **out, int max) {
       break;
     }
   char *save = NULL;
-  for (char *tok = strtok_r(line, " \t\r", &save); tok && n < max;
-       tok = strtok_r(NULL, " \t\r", &save))
+  for (char *tok = strtok_r(line, " \t\r", &save); tok;
+       tok = strtok_r(NULL, " \t\r", &save)) {
+    if (n >= max)
+      return -1;
     out[n++] = tok;
+  }
   return n;
 }
 
@@ -245,9 +248,52 @@ static int integer(Env *env, const char *text, const char *key) {
   return (int)value;
 }
 
+static void copy_token_checked(Env *env, char *dst, size_t cap,
+                               const char *src, const char *field) {
+  size_t n = strlen(src);
+  if (n >= cap)
+    die(env, "%s token is too long (%zu bytes, max %zu)", field, n, cap - 1);
+  memcpy(dst, src, n + 1);
+}
+
+static int is_section(const char *word, const char *name) {
+  return word[0] == '&' && strcasecmp(word + 1, name) == 0;
+}
+
+static int in_section(char sections[][32], int depth, const char *name) {
+  for (int i = 0; i < depth; ++i)
+    if (strcasecmp(sections[i], name) == 0)
+      return 1;
+  return 0;
+}
+
+static void push_section(Env *env, char sections[][32], int *depth, const char *word) {
+  size_t n = strlen(word + 1);
+  if (n == 0)
+    die(env, "empty section name %s", word);
+  if (n >= sizeof(sections[0]))
+    die(env, "section name %s is too long", word);
+  if (*depth >= 32)
+    die(env, "too many nested sections in generated input");
+  memcpy(sections[*depth], word + 1, n + 1);
+  *depth += 1;
+}
+
+static void pop_section(Env *env, char sections[][32], int *depth, char **w, int n) {
+  if (*depth == 0)
+    die(env, "unexpected &END without an open section");
+  if (n > 2)
+    die(env, "&END takes at most one section name");
+  if (n == 2 && strcasecmp(sections[*depth - 1], w[1]) != 0)
+    die(env, "&END %s closes %s", w[1], sections[*depth - 1]);
+  *depth -= 1;
+}
+
 static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_cap) {
   char *text = read_file(env, path, NULL, "the QM/MM input");
   int in_cpmdc = 0, saw_cpmdc = 0, nq = 0, capq = 64;
+  char sections[32][32] = {{0}};
+  int depth = 0;
   int saw_charge = 0, saw_multiplicity = 0, saw_functional = 0;
   int generated_charge = 0, generated_multiplicity = 0;
   char generated_charge_text[64] = {0};
@@ -265,39 +311,68 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
     char *w[256];
     int n = words(line, w, 256);
+    if (n < 0)
+      die(env, "%s has a line with too many tokens", path);
     if (n == 0)
       continue;
     if (strcasecmp(w[0], "&LINK") == 0)
       die(env, "%s has a &LINK section: cpmdc-gromacs supports QM regions of whole "
                "molecules only, without QM-MM covalent bonds",
           path);
-    if (strcasecmp(w[0], "COORD_FILE_NAME") == 0 && n >= 2) {
-      snprintf(pdb_path, pdb_cap, "%s", w[1]);
+    if (strcasecmp(w[0], "COORD_FILE_NAME") == 0) {
+      if (n != 2)
+        die(env, "COORD_FILE_NAME takes one value");
+      copy_token_checked(env, pdb_path, pdb_cap, w[1], "COORD_FILE_NAME");
       continue;
     }
-    if (!in_cpmdc && strcasecmp(w[0], "CHARGE") == 0 && n >= 2) {
-      snprintf(generated_charge_text, sizeof(generated_charge_text), "%s",
-               w[1]);
+    if (!in_cpmdc && strcasecmp(w[0], "&END") == 0) {
+      pop_section(env, sections, &depth, w, n);
+      continue;
+    }
+    if (!in_cpmdc && w[0][0] == '&') {
+      if (is_section(w[0], "CPMDC")) {
+        if (n != 1)
+          die(env, "&CPMDC takes no value");
+        in_cpmdc = 1;
+        saw_cpmdc = 1;
+        continue;
+      }
+      if (n > 2)
+        die(env, "%s takes at most one value", w[0]);
+      if (is_section(w[0], "XC_FUNCTIONAL")) {
+        if (!in_section(sections, depth, "DFT"))
+          continue;
+        if (n != 2)
+          die(env, "&XC_FUNCTIONAL in &DFT takes one value");
+        copy_token_checked(env, generated_functional, sizeof(generated_functional),
+                           w[1], "&XC_FUNCTIONAL");
+        saw_functional = 1;
+      }
+      push_section(env, sections, &depth, w[0]);
+      continue;
+    }
+    if (!in_cpmdc && strcasecmp(w[0], "CHARGE") == 0) {
+      if (!in_section(sections, depth, "DFT"))
+        continue;
+      if (n != 2)
+        die(env, "CHARGE in &DFT takes one value");
+      copy_token_checked(env, generated_charge_text, sizeof(generated_charge_text),
+                         w[1], "CHARGE");
       saw_charge = 1;
       continue;
     }
-    if (!in_cpmdc && strcasecmp(w[0], "MULTIPLICITY") == 0 && n >= 2) {
-      snprintf(generated_multiplicity_text,
-               sizeof(generated_multiplicity_text), "%s", w[1]);
+    if (!in_cpmdc && strcasecmp(w[0], "MULTIPLICITY") == 0) {
+      if (!in_section(sections, depth, "DFT"))
+        continue;
+      if (n != 2)
+        die(env, "MULTIPLICITY in &DFT takes one value");
+      copy_token_checked(env, generated_multiplicity_text,
+                         sizeof(generated_multiplicity_text), w[1],
+                         "MULTIPLICITY");
       saw_multiplicity = 1;
       continue;
     }
-    if (!in_cpmdc && strcasecmp(w[0], "&XC_FUNCTIONAL") == 0 && n >= 2) {
-      snprintf(generated_functional, sizeof(generated_functional), "%s",
-               w[1]);
-      saw_functional = 1;
-      continue;
-    }
     if (!in_cpmdc) {
-      if (strcasecmp(w[0], "&CPMDC") == 0) {
-        in_cpmdc = 1;
-        saw_cpmdc = 1;
-      }
       continue;
     }
     if (strcasecmp(w[0], "&END") == 0) {
@@ -360,6 +435,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       die(env, "unknown &CPMDC keyword %s", w[0]);
     }
   }
+  if (!in_cpmdc && depth != 0)
+    die(env, "%s ended with an open section &%s", path, sections[depth - 1]);
   free(text);
   if (!saw_cpmdc) {
     const char *fallback = getenv("CPMDC_GROMACS_PARAMS");
@@ -431,6 +508,8 @@ static void parse_pdb(Env *env, const char *path) {
       continue;
     char *w[32];
     int nw = words(line, w, 32);
+    if (nw < 0)
+      die(env, "%s: atom line %d has too many tokens", path, n + 1);
     if (nw < 6)
       die(env, "%s: cannot read the atom line %d", path, n + 1);
     if (n == cap) {

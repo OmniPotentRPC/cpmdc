@@ -656,6 +656,29 @@ def test_generated_input_cannot_invent_qm_charges(params, tmp_path):
 
 
 @needs_lib
+def test_generated_input_scopes_charge_to_dft(params, tmp_path):
+    qmi = generated_input().replace("CHARGE 0\n", "").replace(
+        "&QMMM\n", "&QMMM\n      CHARGE 0\n"
+    )
+    stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
+    assert "has no CHARGE value" in stderr
+
+
+@needs_lib
+def test_generated_input_rejects_extra_tokens(params, tmp_path):
+    qmi = generated_input().replace("CHARGE 0", "CHARGE 0 1")
+    stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
+    assert "CHARGE in &DFT takes one value" in stderr
+
+
+@needs_lib
+def test_generated_input_rejects_truncated_functional_token(params, tmp_path):
+    qmi = generated_input(functional="X" * 80)
+    stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
+    assert "&XC_FUNCTIONAL token is too long" in stderr
+
+
+@needs_lib
 @pytest.mark.parametrize(
     "case, message",
     [
