@@ -37,7 +37,7 @@ from ase.filters import FrechetCellFilter
 from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
-from conftest import INSTALLED, ROOT, WATER
+from conftest import INSTALLED, ROOT, WATER, park_orbitals
 
 import cpmdc
 from cpmdc import (
@@ -720,6 +720,24 @@ def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
     assert energies[-1] < energies[0]
     assert np.all(np.diff(energies[:5]) < 0.0)
     assert not np.allclose(atoms.cell.array, CUBE)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="OpenCPMD in-process BFGS stalls at vol_ratio 0.889 after park_orbitals",
+)
+def test_opencpmd_in_process_bfgs_stalls_after_parking(
+    params, periodic_params, opencpmd
+):
+    if not opencpmd:
+        pytest.skip("the reference well has no retained OpenCPMD orbitals")
+    park_orbitals(params)
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms.calc = calc
+        converged, _ = relax_cell(atoms, steps=80)
+    assert converged
 
 
 def test_a_fixed_basis_cell_filter_collapses_the_cell(periodic_calc, opencpmd):
