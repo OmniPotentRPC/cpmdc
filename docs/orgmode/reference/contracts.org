@@ -147,7 +147,7 @@ differs, and warm when the basis matches.
 | Threads and MPI | Thread-safe except for the thread-local error text. MPI: local, no communication and no OpenCPMD initialization. |
 | Returns and errors | Returns 0 after filling ~out~; -1 for a NULL output, a NULL or empty message, a parse failure, or unreadable effective settings. Failure text is ~cpmdc_last_error()~. |
 | Python | ~cpmdc.params_method~ returns the corresponding frozen ~cpmdc.MethodInfo~. |
-| Defaults | Top-level functional ~BLYP~, charge 0 and multiplicity 1; a non-default structured DFT or SYSTEM value takes precedence. |
+| Defaults | Top-level functional ~BLYP~, charge 0 and multiplicity 1; a structured DFT or SYSTEM typed field takes precedence when it is explicit, and a typed SYSTEM charge of 0 is explicit only with ~hasCharge~ ~true~. |
 
 *** ~cpmdc_set_params~
 
