@@ -116,3 +116,13 @@ disallow_untyped_calls = false
 # MPI is optional and mpi4py has no stubs in the CI environment.
 module = ["mpi4py", "mpi4py.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# rgpot.lammps is not in a released rgpot wheel. Where it is absent the base
+# class of cpmdc.lammps.FixExternal is untyped.
+module = ["rgpot", "rgpot.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["cpmdc.lammps"]
+disallow_subclassing_any = false
