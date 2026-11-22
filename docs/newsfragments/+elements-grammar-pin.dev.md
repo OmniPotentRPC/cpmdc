@@ -1,1 +1,0 @@
-A new pytest module holds the species grammar of `cpmdc._elements.species_numbers` fixed for the i-PI driver and the LAMMPS front end: the symbol table is checked against ASE's element table, and the documented forms, the `Co` against `CO` rule, zero counts, and every refusal path are covered.

@@ -1,1 +1,0 @@
-The POSIX build of `src/cpmdc_restart.c` no longer defines the unused `publish_open` and `publish_unlink` macros, and the `restart-unused-macros` meson test compiles the file with `-Werror=unused-macros` so an unexpanded platform macro fails the suite.
