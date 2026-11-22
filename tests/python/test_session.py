@@ -437,3 +437,19 @@ def test_available_matches_the_build(params):
             "dipole": bool(library.cpmdc_available()),
             "energies": False,
         }
+
+
+def test_load_rejects_library_without_available_symbol(monkeypatch):
+    class NoAvailableProxy:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            if name == "cpmdc_available":
+                raise AttributeError(name)
+            return getattr(self._inner, name)
+
+    original = ctypes.CDLL(str(cpmdc.find_library()))
+    monkeypatch.setattr(cpmdc.ctypes, "CDLL", lambda _path: NoAvailableProxy(original))
+    with pytest.raises(CPMDCError, match="has no cpmdc_available symbol"):
+        cpmdc._load(cpmdc.find_library())

@@ -566,6 +566,10 @@ def _load(path: Path) -> ctypes.CDLL:
     lib.cpmdc_version.restype = ctypes.c_char_p
     lib.cpmdc_abi_version.argtypes = []
     lib.cpmdc_abi_version.restype = ctypes.c_int
+    if not hasattr(lib, "cpmdc_available"):
+        raise CPMDCError(
+            f"{path} has no cpmdc_available symbol; use a newer libcpmdc"
+        )
     lib.cpmdc_available.argtypes = []
     lib.cpmdc_available.restype = ctypes.c_int
     return lib
