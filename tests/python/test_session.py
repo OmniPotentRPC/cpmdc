@@ -129,6 +129,13 @@ def test_session_rejects_bad_inputs(params, tmp_path, monkeypatch):
     monkeypatch.delenv("RGPOT_CPMDC_ENGINE")
     monkeypatch.delenv("RGPOT_CPMD_ENGINE", raising=False)
     monkeypatch.chdir(tmp_path)
+    # The assertion below is the empty search. A wheel still ships
+    # libcpmdc under _WHEEL_LIBS, and ctypes.util.find_library can return
+    # that soname. Neither location is part of this check.
+    empty_libs = tmp_path / "wheel-libs"
+    empty_libs.mkdir()
+    monkeypatch.setattr(cpmdc, "_WHEEL_LIBS", empty_libs)
+    monkeypatch.setattr(ctypes.util, "find_library", lambda _name: None)
     with pytest.raises(CPMDCError, match="library not found"):
         cpmdc.find_library()
     monkeypatch.undo()
