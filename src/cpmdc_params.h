@@ -140,7 +140,9 @@ int cpmdc_params_reject_unsupported_inputs(const char *functional, const char *i
 /**
  * Why a rendered deck cannot run, or NULL. Only the sections that name the
  * setting are read: DIPOLE DYNAMICS in &CPMD together with KPOINTS in
- * &SYSTEM, which OpenCPMD stops on in localize2. The text is static.
+ * &SYSTEM, which OpenCPMD stops on in localize2. An exclamation mark starts
+ * a comment that runs to the end of the line, so a commented keyword is not
+ * a setting. The text is static.
  */
 const char *cpmdc_params_deck_conflict(const char *input_deck);
 

@@ -4650,7 +4650,19 @@ const char *cpmdc_params_deck_conflict(const char *input_deck) {
       start++;
       len--;
     }
-    if (len > 0 && *start == '&') {
+    /* CPMD comments run from '!' through the end of the line. */
+    for (size_t i = 0; i < len; ++i) {
+      if (start[i] == '!') {
+        len = i;
+        break;
+      }
+    }
+    while (len > 0 && (start[len - 1] == ' ' || start[len - 1] == '\t' ||
+                       start[len - 1] == '\r'))
+      len--;
+    if (len == 0)
+      continue;
+    if (*start == '&') {
       size_t name = 1;
       while (name < len && start[name] != ' ' && start[name] != '\t' &&
              start[name] != '\r')

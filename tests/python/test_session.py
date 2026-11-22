@@ -185,6 +185,30 @@ def test_dipole_dynamics_with_kpoints_in_a_raw_block_is_rejected():
         Session(_encode_params(source))
 
 
+def _raw_params(block: str) -> bytes:
+    source = (
+        f'(functional = "BLYP", cutOffRy = 40.0, task = "gradient", '
+        f'inputBlocks = ["{block}"])'
+    )
+    return _encode_params(source)
+
+
+def test_a_commented_dipole_dynamics_line_is_not_a_kpoint_conflict():
+    commented = (
+        "&CPMD\\n OPTIMIZE WAVEFUNCTION\\n ! DIPOLE DYNAMICS\\n&END\\n"
+        "&SYSTEM\\n SYMMETRY\\n  1\\n KPOINTS\\n 1\\n 0.0 0.0 0.0 1.0\\n&END\\n"
+    )
+    trailing = (
+        "&CPMD\\n DIPOLE DYNAMICS ! berry\\n&END\\n"
+        "&SYSTEM\\n SYMMETRY\\n  1\\n KPOINTS ! mesh\\n 1\\n"
+        " 0.0 0.0 0.0 1.0\\n&END\\n"
+    )
+    with Session(_raw_params(commented)):
+        pass
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS"):
+        Session(_raw_params(trailing))
+
+
 def test_kpoints_and_dipole_dynamics_alone_are_accepted():
     kpoints = _periodic_source().replace("symmetry = 1,", f"symmetry = 1, {GAMMA_KPOINT}")
     dipole = _periodic_source().replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")

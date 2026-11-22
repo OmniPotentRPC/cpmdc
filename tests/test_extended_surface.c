@@ -72,6 +72,35 @@ static void test_dipole_dynamics_with_kpoints_rejected(void **state) {
   assert_null(cpmdc_params_deck_conflict(""));
 }
 
+static void test_commented_dipole_dynamics_is_not_a_conflict(void **state) {
+  (void)state;
+  const char *commented_dipole =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION\n ! DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n KPOINTS MONKHORST-PACK\n 2 2 2\n&END\n";
+  const char *bang_tight =
+      "&CPMD\n!DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n KPOINTS\n 1\n 0.0 0.0 0.0 1.0\n&END\n";
+  const char *inline_on_another_keyword =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION ! DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n KPOINTS\n 1\n&END\n";
+  const char *commented_kpoints =
+      "&CPMD\n DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n ! KPOINTS MONKHORST-PACK\n 2 2 2\n CUTOFF\n 40.0\n&END\n";
+  const char *trailing_comments_still_conflict =
+      "&CPMD\n DIPOLE DYNAMICS ! berry\n&END\n"
+      "&SYSTEM\n KPOINTS ! monkhorst\n 2 2 2\n&END\n";
+  const char *comment_does_not_open_a_section =
+      "!&CPMD\n DIPOLE DYNAMICS\n"
+      "&SYSTEM\n KPOINTS\n 1\n&END\n";
+
+  assert_null(cpmdc_params_deck_conflict(commented_dipole));
+  assert_null(cpmdc_params_deck_conflict(bang_tight));
+  assert_null(cpmdc_params_deck_conflict(inline_on_another_keyword));
+  assert_null(cpmdc_params_deck_conflict(commented_kpoints));
+  assert_null(cpmdc_params_deck_conflict(comment_does_not_open_a_section));
+  assert_non_null(cpmdc_params_deck_conflict(trailing_comments_still_conflict));
+}
+
 static void test_all_results_through_c_and_wire(void **state) {
   (void)state;
   size_t ps = 0, ss = 0;
@@ -314,6 +343,7 @@ int main(int argc, char **argv) {
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unsupported_rejected),
       cmocka_unit_test(test_dipole_dynamics_with_kpoints_rejected),
+      cmocka_unit_test(test_commented_dipole_dynamics_is_not_a_conflict),
       cmocka_unit_test(test_all_results_through_c_and_wire),
       cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
       cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
