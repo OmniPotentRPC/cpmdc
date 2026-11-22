@@ -16,6 +16,7 @@ from __future__ import annotations
 import ctypes
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -139,6 +140,54 @@ def setup_env(tmp: Path, qmi: str, symbols: str, qm: list[bool], charges, x_nm) 
     inp = tmp / "sys.inp"
     inp.write_text(qmi.replace("gromacs.pdb", str(tmp / "sys.pdb")))
     return inp
+
+
+def generated_input(functional="BLYP", charge=0, multiplicity=1) -> str:
+    """Relevant parts of GROMACS' generated CP2K QM/MM input."""
+    return textwrap.dedent(
+        f"""\
+        &GLOBAL
+          RUN_TYPE ENERGY_FORCE
+        &END GLOBAL
+        &FORCE_EVAL
+          METHOD QMMM
+          &DFT
+            CHARGE {charge}
+            MULTIPLICITY {multiplicity}
+            &XC
+              &XC_FUNCTIONAL {functional}
+              &END XC_FUNCTIONAL
+            &END XC
+          &END DFT
+          &QMMM
+          &END QMMM
+          &SUBSYS
+            &TOPOLOGY
+              COORD_FILE_NAME gromacs.pdb
+              COORD_FILE_FORMAT PDB
+              CHARGE_EXTENDED TRUE
+            &END TOPOLOGY
+          &END SUBSYS
+        &END FORCE_EVAL
+        """
+    )
+
+
+@pytest.fixture(scope="session")
+def pbe_params(tmp_path_factory) -> Path:
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is needed to encode the PBE parser fixture")
+    source = (ROOT / "tests" / "water_blyp_params.capnp.txt").read_text()
+    done = subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=source.replace("BLYP", "PBE").encode(),
+        stdout=subprocess.PIPE,
+        check=True,
+    )
+    path = tmp_path_factory.mktemp("gromacs-pbe") / "water_pbe_params.bin"
+    path.write_bytes(done.stdout)
+    return path
 
 
 class Shim:
@@ -503,13 +552,26 @@ SCRIPT = textwrap.dedent(
 )
 
 
-def shim_fails(tmp_path, qmi, symbols="OHH", qm=(True,) * 3, charges=(0.0,) * 3, n_el=None):
+def shim_fails(
+    tmp_path,
+    qmi,
+    symbols="OHH",
+    qm=(True,) * 3,
+    charges=(0.0,) * 3,
+    n_el=None,
+    gromacs_params=...,
+):
     x = np.arange(3 * len(symbols), dtype=float).reshape(-1, 3) * 0.05
     inp = setup_env(tmp_path, qmi, symbols, list(qm), list(charges), x)
+    env = dict(os.environ)
+    if gromacs_params is None:
+        env.pop("CPMDC_GROMACS_PARAMS", None)
+    elif gromacs_params is not ...:
+        env["CPMDC_GROMACS_PARAMS"] = str(gromacs_params)
     done = subprocess.run(
         [sys.executable, "-c", SCRIPT, str(LIB), str(inp), str(tmp_path / "sys.out"),
          str(n_el if n_el is not None else 3 * len(symbols))],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=120, env=env,
     )
     assert done.returncode == 1, done.stderr
     assert "cpmdc-gromacs: " in done.stderr
@@ -517,10 +579,87 @@ def shim_fails(tmp_path, qmi, symbols="OHH", qm=(True,) * 3, charges=(0.0,) * 3,
 
 
 @needs_lib
+@pytest.mark.parametrize("functional", ["PBE", "BLYP"])
+def test_generated_input_matches_params(functional, pbe_params, params, tmp_path, monkeypatch):
+    deck = pbe_params if functional == "PBE" else params
+    monkeypatch.setenv("CPMDC_GROMACS_PARAMS", str(deck))
+    inp = setup_env(
+        tmp_path,
+        generated_input(functional),
+        "OHH",
+        [True] * 3,
+        [0.0] * 3,
+        np.zeros((3, 3)),
+    )
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
+def test_explicit_cpmdc_section_wins_over_params_variable(params, tmp_path, monkeypatch):
+    monkeypatch.setenv("CPMDC_GROMACS_PARAMS", str(tmp_path / "absent.bin"))
+    inp = setup_env(
+        tmp_path,
+        qmi_input(params),
+        "OHH",
+        [True] * 3,
+        [0.0] * 3,
+        np.zeros((3, 3)),
+    )
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
+@pytest.mark.parametrize(
+    "qmi,message",
+    [
+        (
+            generated_input("PBE"),
+            "generated input functional PBE disagrees with "
+            "CPMDC_GROMACS_PARAMS functional BLYP",
+        ),
+        (
+            generated_input(charge=1),
+            "generated input CHARGE 1 disagrees with CPMDC_GROMACS_PARAMS charge 0",
+        ),
+        (
+            generated_input(multiplicity=2),
+            "generated input MULTIPLICITY 2 disagrees with "
+            "CPMDC_GROMACS_PARAMS multiplicity 1",
+        ),
+    ],
+    ids=["functional", "charge", "multiplicity"],
+)
+def test_generated_input_mismatch_is_refused(qmi, message, params, tmp_path):
+    stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
+    assert message in stderr
+
+
+@needs_lib
+def test_generated_input_without_params_variable_is_refused(tmp_path):
+    stderr = shim_fails(tmp_path, generated_input(), gromacs_params=None)
+    assert "CPMDC_GROMACS_PARAMS is not set" in stderr
+
+
+@needs_lib
+def test_generated_input_cannot_invent_qm_charges(params, tmp_path):
+    stderr = shim_fails(
+        tmp_path,
+        generated_input(),
+        symbols="OHHOHH",
+        qm=(True,) * 3 + (False,) * 3,
+        charges=(0.0,) * 3 + (-0.834, 0.417, 0.417),
+        gromacs_params=params,
+    )
+    assert "charged MM atoms but no QM_CHARGES" in stderr
+
+
+@needs_lib
 @pytest.mark.parametrize(
     "case, message",
     [
-        ("generated", "has no &CPMDC section. Set qmmm-cp2k-qmmethod = INPUT"),
+        ("generated", "CPMDC_GROMACS_PARAMS is not set"),
         ("no params", "&CPMDC needs PARAMS"),
         ("missing params", "cannot open the CPMDParams message"),
         ("link", "has a &LINK section"),
@@ -537,9 +676,7 @@ def test_refused_inputs_stop_with_a_message(case, message, params, tmp_path):
     good = qmi_input(params)
     kwargs: dict = {}
     if case == "generated":
-        qmi = "&GLOBAL\n RUN_TYPE ENERGY_FORCE\n&END GLOBAL\n&FORCE_EVAL\n METHOD QMMM\n" \
-              " &SUBSYS\n  &TOPOLOGY\n   COORD_FILE_NAME gromacs.pdb\n" \
-              "  &END TOPOLOGY\n &END SUBSYS\n&END FORCE_EVAL\n"
+        qmi = generated_input()
     elif case == "no params":
         qmi = good.replace(f"PARAMS {params}", "CELL NONE")
     elif case == "missing params":
@@ -567,7 +704,9 @@ def test_refused_inputs_stop_with_a_message(case, message, params, tmp_path):
     else:
         qmi = good
         kwargs = {"qm": (False,) * 3}
-    stderr = shim_fails(tmp_path, qmi, **kwargs)
+    stderr = shim_fails(
+        tmp_path, qmi, gromacs_params=None if case == "generated" else ..., **kwargs
+    )
     assert message in stderr
     assert message in (tmp_path / "sys.out").read_text()
 
@@ -581,6 +720,40 @@ def whole_system(tmp_path, params, box, **mdp):
         qmi=qmi_input(params), mdp={"coulombtype": "Cut-off", "rcoulomb": 0.5, "rvdw": 0.5, **mdp},
     )
     gc.run(GMX, tmp_path)
+
+
+@needs_gmx
+def test_gromacs_generated_input_uses_params_variable(periodic_params, tmp_path):
+    """GROMACS' generated route translates the QM atoms into its QM box."""
+    gc.write_system(
+        tmp_path,
+        positions=gc.WATERS_NM,
+        box=CUBE_NM,
+        qm_molecules=[0, 1],
+        qmi="",
+        mdp={
+            "coulombtype": "Cut-off",
+            "rcoulomb": 0.5,
+            "rvdw": 0.5,
+            "qmmm-cp2k-qmmethod": "BLYP",
+            "qmmm-cp2k-qmcharge": 0,
+            "qmmm-cp2k-qmmultiplicity": 1,
+        },
+    )
+    done = gc.run(
+        GMX,
+        tmp_path,
+        with_qmi=False,
+        env_extra={"CPMDC_GROMACS_PARAMS": str(periodic_params)},
+    )
+    assert done.returncode == 0, done.stderr
+    frame = gc.read_trr(tmp_path / "md.trr")[0]
+    table = gc.energies(GMX, tmp_path, "Quantum-En.")
+    assert np.isfinite(table[0, 1])
+    assert np.isfinite(frame["f"]).all()
+    log = (tmp_path / "md_cp2k.out").read_text()
+    assert "atoms 6 qm 6 mm 0 cell PERIODIC embedding NONE" in log
+    assert "first step: backend reference" in log
 
 
 @needs_gmx
@@ -613,12 +786,20 @@ def test_gromacs_nve_conserves_energy(periodic_params, tmp_path):
     assert np.abs(table[:, 2] - table[0, 2]).max() / swing < 2e-3
 
 
-def qmmm_system(tmp_path, params, qmi, with_qmi=True, qm_lj=False, **mdp):
+def qmmm_system(
+    tmp_path, params, qmi, with_qmi=True, qm_lj=False, env_extra=None, **mdp
+):
     gc.write_system(
         tmp_path, positions=QMMM_NM, box=QMMM_BOX_NM, qm_molecules=[0], qmi=qmi,
         mdp={"rcoulomb": 0.7, "rvdw": 0.7, **mdp}, qm_lj=qm_lj,
     )
-    return gc.run(GMX, tmp_path, check=False, with_qmi=with_qmi)
+    return gc.run(
+        GMX,
+        tmp_path,
+        check=False,
+        with_qmi=with_qmi,
+        env_extra=env_extra,
+    )
 
 
 @needs_gmx
@@ -746,7 +927,7 @@ def test_gromacs_qmmm_virial_is_the_strain_derivative_of_the_energy(box, params,
 @pytest.mark.parametrize(
     "case, message",
     [
-        ("generated", "has no &CPMDC section. Set qmmm-cp2k-qmmethod = INPUT"),
+        ("generated", "CPMDC_GROMACS_PARAMS is not set"),
         ("electrostatic", "EMBEDDING ELECTROSTATIC is not implemented"),
         ("unset embedding", "the MM atoms carry charges: set &CPMDC EMBEDDING"),
     ],
@@ -754,6 +935,7 @@ def test_gromacs_qmmm_virial_is_the_strain_derivative_of_the_energy(box, params,
 def test_gromacs_unsupported_configs_stop_mdrun(case, message, params, tmp_path):
     if case == "generated":
         done = qmmm_system(tmp_path, params, "", with_qmi=False,
+                           env_extra={"CPMDC_GROMACS_PARAMS": ""},
                            **{"qmmm-cp2k-qmmethod": "PBE"})
     elif case == "electrostatic":
         done = qmmm_system(tmp_path, params, qmi_input(params).replace(
