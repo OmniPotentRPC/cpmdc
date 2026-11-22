@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
 
@@ -110,19 +111,53 @@ def openmpi_mca_args(launcher: str, asan: bool) -> list[str]:
     return flags
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) < 3:
+def run_with_optional_timeout(
+    command: list[str], env: dict[str, str], timeout_s: float | None
+) -> int:
+    if timeout_s is None:
+        completed = subprocess.run(command, check=False, env=env)
+        return completed.returncode
+    proc = subprocess.Popen(command, env=env, start_new_session=True)
+    try:
+        return proc.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait()
         print(
-            "usage: run_mpi_test.py N|--direct executable [args...]",
+            f"FAIL: timed out after {timeout_s:g}s: {' '.join(command)}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 124
+
+
+def main(argv: list[str]) -> int:
+    args = argv[1:]
+    timeout_s: float | None = None
+    if len(args) >= 2 and args[0] == "--timeout":
+        try:
+            timeout_s = float(args[1])
+        except ValueError:
+            print("invalid --timeout value", file=sys.stderr)
+            return 2
+        if timeout_s <= 0:
+            print("--timeout must be positive", file=sys.stderr)
+            return 2
+        args = args[2:]
+    if len(args) < 2:
+        print(
+            "usage: run_mpi_test.py [--timeout SECONDS] N|--direct executable [args...]",
             file=sys.stderr,
         )
         return 2
-    nprocs = argv[1]
-    executable = argv[2]
-    rest = argv[3:]
+    nprocs = args[0]
+    executable = args[1]
+    rest = args[2:]
     if nprocs == "--direct":
-        completed = subprocess.run([executable, *rest], check=False, env=launch_env())
-        return completed.returncode
+        return run_with_optional_timeout([executable, *rest], launch_env(), timeout_s)
     launcher = shutil.which("mpirun") or shutil.which("mpiexec")
     if not launcher:
         print("skipped: no MPI launcher (mpirun or mpiexec) on PATH")
@@ -135,8 +170,7 @@ def main(argv: list[str]) -> int:
     command.append(executable)
     command.extend(rest)
     print("running:", " ".join(command), flush=True)
-    completed = subprocess.run(command, check=False, env=launch_env())
-    return completed.returncode
+    return run_with_optional_timeout(command, launch_env(), timeout_s)
 
 
 if __name__ == "__main__":
