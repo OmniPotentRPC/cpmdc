@@ -137,6 +137,18 @@ These calls use the process-wide state.
 An evaluation is cold when the process has no stored basis or the basis
 differs, and warm when the basis matches.
 
+*** ~cpmdc_params_method~
+
+| Item | Description |
+|--------+--------|
+| Units | ~functional~ is a method token, ~charge~ is an integer elementary-charge count, and ~multiplicity~ is dimensionless. |
+| Layout | ~params_capnp~ points at ~params_capnp_size_bytes~ bytes of one unpacked flat ~CPMDParams~ message; ~out~ points at one ~CPMDCMethodInfo~. |
+| Ownership | The caller owns ~params_capnp~ and ~out~ and may free them on return; the library keeps nothing. |
+| Threads and MPI | Thread-safe except for the thread-local error text. MPI: local, no communication and no OpenCPMD initialization. |
+| Returns and errors | Returns 0 after filling ~out~; -1 for a NULL output, a NULL or empty message, a parse failure, or unreadable effective settings. Failure text is ~cpmdc_last_error()~. |
+| Python | ~cpmdc.params_method~ returns the corresponding frozen ~cpmdc.MethodInfo~. |
+| Defaults | Top-level functional ~BLYP~, charge 0 and multiplicity 1; a non-default structured DFT or SYSTEM value takes precedence. |
+
 *** ~cpmdc_set_params~
 
 | Item | Description |
@@ -1216,6 +1228,15 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Ownership | Filled by ~cpmdc_last_rank_spread()~ into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
+** ~CPMDCMethodInfo~
+
+| Item | Description |
+|--------+--------|
+| Layout | ~char functional[64]~, then ~int charge~ and ~int multiplicity~. The functional is NUL-terminated. |
+| Units | none: one method token and two integer quantum numbers. |
+| Ownership | Filled by ~cpmdc_params_method()~ into a caller-owned struct; no pointers. |
+| Python | Wrapped as the frozen ~cpmdc.MethodInfo~ dataclass. |
+
 ** ~CPMDCSession~
 
 | Item | Description |
@@ -1479,6 +1500,50 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | ~None~. |
 
+*** ~cpmdc.MethodInfo~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~MethodInfo(functional, charge, multiplicity)~ |
+| Units | none |
+| Shape and dtype | A frozen dataclass with one ~str~ and two ~int~ fields. |
+| Ownership and threads | Immutable value owned by the caller; thread-safe. |
+| Raises | none |
+| Defaults | none: all three fields are required. |
+
+*** ~cpmdc.MethodInfo.functional~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~functional (attribute)~ |
+| Units | none |
+| Shape and dtype | ~str~, the effective DFT functional token. |
+| Ownership and threads | Immutable attribute of ~MethodInfo~. |
+| Raises | none |
+| Defaults | No default. |
+
+*** ~cpmdc.MethodInfo.charge~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~charge (attribute)~ |
+| Units | none: an integer elementary-charge count. |
+| Shape and dtype | scalar ~int~, the effective total system charge. |
+| Ownership and threads | Immutable attribute of ~MethodInfo~. |
+| Raises | none |
+| Defaults | No default. |
+
+*** ~cpmdc.MethodInfo.multiplicity~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~multiplicity (attribute)~ |
+| Units | none |
+| Shape and dtype | scalar ~int~, the effective spin multiplicity ~2S + 1~. |
+| Ownership and threads | Immutable attribute of ~MethodInfo~. |
+| Raises | none |
+| Defaults | No default. |
+
 *** ~cpmdc.Potential~
 
 | Item | Description |
@@ -1654,6 +1719,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Returns a new ~Path~; stateless apart from reading the environment, so thread-safe. |
 | Raises | ~CPMDCError~ when no schema file is found. |
 | Defaults | ~path~ is ~None~: ~CPMDC_SCHEMA~, then the copy a wheel installs inside the package, then ~schema/Potentials.capnp~ in the working directory. |
+
+*** ~cpmdc.params_method~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~params_method(params, *, library=None)~ |
+| Units | none |
+| Shape and dtype | ~params~ is serialized ~CPMDParams~ bytes or a path; returns a frozen ~MethodInfo~. |
+| Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
+| Raises | ~FileNotFoundError~ for an unreadable path; ~CPMDCError~ for an empty or invalid message, a missing library, or a library failure. |
+| Defaults | ~library~ is ~None~, using ~find_library~. |
 
 *** ~cpmdc.forces_to_ev_per_angstrom~
 

@@ -234,8 +234,36 @@ typedef struct CPMDCRankSpread {
   double gradient_h_bohr;
 } CPMDCRankSpread;
 
+/**
+ * @brief Effective scalar method settings decoded from `CPMDParams`.
+ *
+ * Structured section values take precedence over top-level values, as they
+ * do when rendering the CPMD input deck.
+ */
+typedef struct CPMDCMethodInfo {
+  /** Effective DFT functional, null-terminated. */
+  char functional[64];
+  /** Effective total system charge. */
+  int charge;
+  /** Effective spin multiplicity, `2S + 1`. */
+  int multiplicity;
+} CPMDCMethodInfo;
+
 /** Opaque handle for repeated evaluations with one Cap'n Proto parameter set. */
 typedef struct CPMDCSession CPMDCSession;
+
+/**
+ * @brief Decode the effective functional, charge, and multiplicity.
+ *
+ * This validates and reads the message without applying it or initializing
+ * OpenCPMD.
+ *
+ * @return 0 on success, -1 on a null output or an invalid message.
+ *         Failure text is `cpmdc_last_error()`.
+ */
+CPMDC_API int cpmdc_params_method(const void *params_capnp,
+                                  size_t params_capnp_size_bytes,
+                                  CPMDCMethodInfo *out);
 
 /**
  * @brief Apply CPMD method parameters from a Cap'n Proto message.
@@ -704,7 +732,8 @@ CPMDC_API const char *cpmdc_version(void);
  * @brief Diagnostic for the most recent public call on this thread that
  *        reports failure through this string.
  *
- * Written by `cpmdc_set_params()`, `cpmdc_configure()`,
+ * Written by `cpmdc_params_method()`, `cpmdc_set_params()`,
+ * `cpmdc_configure()`,
  * `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
  * `cpmdc_session_create()`,
  * `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,

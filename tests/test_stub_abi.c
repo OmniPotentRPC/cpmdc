@@ -9,6 +9,7 @@
 #include <cmocka.h>
 
 static const char *const required_abi_features[] = {
+    "abi.cpmdc_params_method",
     "abi.cpmdc_set_params",
     "abi.cpmdc_energy_gradient",
     "abi.cpmdc_energy",
@@ -74,6 +75,7 @@ static void test_stub_reports_unavailable(void **state) {
   assert_non_null(strstr(cpmdc_last_error(), "stub"));
   assert_null(cpmdc_session_create_from_config(NULL, 0));
   assert_int_not_equal(cpmdc_session_configure(NULL, NULL, 0), 0);
+  assert_int_not_equal(cpmdc_params_method(NULL, 0, NULL), 0);
   assert_int_not_equal(cpmdc_set_params(NULL, 0), 0);
   CPMDCResult energy_result = cpmdc_energy(0, NULL, NULL, NULL, 0);
   assert_int_equal(energy_result.ok, 0);
@@ -147,6 +149,8 @@ static void expect_stub_entry(const char *entry) {
 
 static void test_stub_failing_calls_set_last_error(void **state) {
   (void)state;
+  assert_int_equal(cpmdc_params_method(NULL, 0, NULL), -1);
+  expect_stub_entry("cpmdc_params_method");
   assert_int_equal(cpmdc_set_params(NULL, 0), -1);
   expect_stub_entry("cpmdc_set_params");
   assert_int_equal(cpmdc_configure(NULL, 0), -1);
