@@ -39,6 +39,7 @@ private:
 
   std::vector<double> positions, forces;
   std::vector<int> numbers, owner;
+  std::vector<long long> tags;
 
   void allocate();
   void close_session();

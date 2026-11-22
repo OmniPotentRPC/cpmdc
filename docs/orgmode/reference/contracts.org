@@ -1979,7 +1979,7 @@ The ~fix external~ driver for LAMMPS.
 |--------+--------|
 | Signature | ~FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)~ |
 | Units | The LAMMPS unit style of the run: ~metal~ (Angstrom, eV), ~real~ (Angstrom, kcal/mol) or ~electron~ (Bohr, Hartree). |
-| Shape and dtype | ~lmp~ a ~lammps.lammps~ object with box, atoms and masses; ~elements~ one symbol or atomic number per atom type; atom IDs must be 1..N. |
+| Shape and dtype | ~lmp~ a ~lammps.lammps~ object with box, atoms and masses; ~elements~ one symbol or atomic number per atom type; atom IDs must be positive and unique but may have gaps. |
 | Ownership and threads | Owns the session on world rank 0 and the fixes it creates, removed by ~close()~ or by leaving a ~with~ block (it is a context manager). ~lmp~ and ~comm~ are borrowed. Not thread-safe: LAMMPS calls back from one thread. MPI: with more than one rank every rank constructs the object and calls ~run~; rank 0 adopts ~MPI_COMM_SELF~ and evaluates, and ~mpi4py~ is needed. |
 | Raises | ~ValueError~ for an unsupported unit style, a wrong number of elements, an unknown element, or a partly periodic box; ~CPMDCError~ when the session cannot be opened, ~mpi4py~ is missing on several ranks, or ~comm~ has the wrong size. |
 | Defaults | ~fix_id~ is ~'cpmdc'~, ~create~ is ~True~, ~library~ is ~None~, ~comm~ is ~None~ (~MPI.COMM_WORLD~). |
