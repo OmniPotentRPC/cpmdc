@@ -3,8 +3,10 @@
 
 Checks the installed prefix in place and after moving it to a relocated
 directory, under plain `pkg-config` and `pkg-config --define-prefix`.
-After the move, an installed `.so` or `.dylib` fails the run when its
-`RUNPATH` or `RPATH` points at the build tree or the original prefix.
+After the move, an installed shared library, plugin, or executable fails
+the run when its `RUNPATH` or `RPATH` points at the build tree or the
+original prefix. `cpmdc-ipi-c` runs with the toolchain library path only,
+not the prefix on `LD_LIBRARY_PATH`.
 
 Legs:
 - pkg-config: cc + `pkg-config --cflags --libs cpmdc` and `cpmdc-restart`
@@ -108,6 +110,22 @@ def installed_shared_objects(prefix: Path):
             continue
         name = path.name
         if ".so" in name or ".dylib" in name:
+            found.append(path)
+    return found
+
+
+def installed_executables(prefix: Path):
+    """Installed ELF or Mach-O executables, not libraries or scripts."""
+    found = []
+    for path in prefix.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        name = path.name
+        if ".so" in name or ".dylib" in name or name.endswith(".a"):
+            continue
+        if not os.access(path, os.X_OK):
+            continue
+        if _macho_or_elf(path):
             found.append(path)
     return found
 
@@ -217,10 +235,10 @@ def _assert_origin_resolution() -> None:
 
 
 def reject_fixed_runpaths(tree: Path, forbidden: list[Path]) -> None:
-    libraries = installed_shared_objects(tree)
-    if not libraries:
+    installed = installed_shared_objects(tree) + installed_executables(tree)
+    if not installed:
         raise SystemExit(f"no installed shared libraries under {tree}")
-    for library in libraries:
+    for library in installed:
         for entry in runtime_path_entries(library):
             for root in forbidden:
                 if entry_hits_root(entry, root, library):
@@ -327,8 +345,12 @@ def check_prefix(
     ipi_client = prefix / "bin" / "cpmdc-ipi-c"
     if os.name == "posix" and not ipi_client.is_file():
         raise SystemExit(f"cpmdc-ipi-c not installed under {prefix}")
+    # Same bare environment as the libcp2k consumer: the executable must
+    # open libcpmdc through its install run path, not LD_LIBRARY_PATH.
+    bare_env = dict(os.environ)
+    bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
     if ipi_client.is_file():
-        run([ipi_client, "--help"], env=run_env)
+        run([ipi_client, "--help"], env=bare_env)
 
     cp2k_pcs = sorted(prefix.rglob("cpmdc/gromacs/pkgconfig/libcp2k.pc"))
     if not cp2k_pcs:
@@ -358,8 +380,6 @@ def check_prefix(
         + cp2k_flags
         + extra_link
     )
-    bare_env = dict(os.environ)
-    bare_env["LD_LIBRARY_PATH"] = os.pathsep.join(extra_run_dirs)
     run([cp2k_bin], env=bare_env)
 
     cmake = shutil.which("cmake")
