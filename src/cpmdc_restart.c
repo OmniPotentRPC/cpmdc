@@ -758,6 +758,10 @@ static void set_errf(char *err, size_t cap, const char *what, const char *why) {
 }
 
 #ifdef _WIN32
+/* Windows creates the temporary with _O_NOINHERIT, so a spawned child does
+ * not inherit its descriptor. POSIX sets O_CLOEXEC on the temporary-file
+ * openat in publish_bytes (O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC), so
+ * exec closes that descriptor. */
 #define publish_open(p)                                                                            \
   _open((p), _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY | _O_NOINHERIT, _S_IREAD | _S_IWRITE)
 #define publish_fdopen _fdopen
