@@ -312,6 +312,189 @@ static void test_top_level_value_with_default_sections(void **state) {
   assert_int_equal(failures, 0);
 }
 
+/* A CUTOFF, CHARGE, or MULTIPLICITY directive in the typed &SYSTEM section,
+ * or a SYSTEM.<keyword> set directive, would follow the line the renderer
+ * writes for that scalar. CUTOFF is written on every deck, including the
+ * default 70 Ry. CHARGE is written only when it is not 0 and MULTIPLICITY
+ * only when it is greater than 1, so a default leaves the directive as the
+ * only line. Both are rejected: the directive is a second value when the
+ * line is written, and a value the recorded configuration does not carry
+ * when the line is omitted. No overlay is set. */
+struct SystemDirectiveCase {
+  const char *name;
+  int has_sys;
+  double cutoff_ry;
+  int charge;
+  int mult;
+  const char *directive;
+  const char *set_key;
+  const char *set_value;
+  const char *keyword;
+  const char *reason;
+};
+
+static void build_system_directive(struct capn *arena,
+                                   const struct SystemDirectiveCase *c,
+                                   CPMDParams_ptr *out) {
+  capn_init_malloc(arena);
+  capn_ptr root = capn_root(arena);
+  CPMDParams_ptr ptr = new_CPMDParams(root.seg);
+  struct CPMDParams view;
+  memset(&view, 0, sizeof(view));
+  view.task = text_of("gradient");
+  int nsec = (c->has_sys ? 1 : 0) + (c->set_key ? 1 : 0);
+  CPMDInputSection_list secs = new_CPMDInputSection_list(root.seg, nsec);
+  int idx = 0;
+  if (c->has_sys) {
+    struct CPMDSystemSection sys;
+    memset(&sys, 0, sizeof(sys));
+    sys.angstrom = 1;
+    sys.cutOffRy = c->cutoff_ry;
+    sys.charge = c->charge;
+    sys.multiplicity = c->mult > 0 ? c->mult : 1;
+    if (c->directive) {
+      CPMDDirective_list dirs = new_CPMDDirective_list(root.seg, 1);
+      struct CPMDDirective d;
+      memset(&d, 0, sizeof(d));
+      d.keyword = text_of(c->directive);
+      set_CPMDDirective(&d, dirs, 0);
+      sys.directives = dirs;
+    }
+    CPMDSystemSection_ptr sp = new_CPMDSystemSection(root.seg);
+    write_CPMDSystemSection(&sys, sp);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sp;
+    set_CPMDInputSection(&sec, secs, idx++);
+  }
+  if (c->set_key) {
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = text_of(c->set_key);
+    if (c->set_value)
+      setd.value = text_of(c->set_value);
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    set_CPMDInputSection(&sec, secs, idx++);
+  }
+  view.inputSections = secs;
+  write_CPMDParams(&view, ptr);
+  *out = ptr;
+}
+
+static int expect_system_directive_rejected(const struct SystemDirectiveCase *c) {
+  struct capn arena;
+  CPMDParams_ptr params;
+  build_system_directive(&arena, c, &params);
+  char input_deck[CPMDC_BLOCKS];
+  char geometry_deck[CPMDC_BLOCKS];
+  const double positions[6] = {0.0, 0.0, 0.0, 0.757, 0.586, 0.0};
+  const int atomic_numbers[2] = {8, 1};
+  int rc_input = cpmdc_params_render_input_deck_ov(params, NULL, input_deck,
+                                                   sizeof(input_deck));
+  char reason_input[256];
+  snprintf(reason_input, sizeof(reason_input), "%s",
+           cpmdc_params_render_reason());
+  int rc_geometry = cpmdc_params_render_deck_with_geometry_ov(
+      params, NULL, 2, positions, atomic_numbers, NULL, 0, geometry_deck,
+      sizeof(geometry_deck));
+  char reason_geometry[256];
+  snprintf(reason_geometry, sizeof(reason_geometry), "%s",
+           cpmdc_params_render_reason());
+  int input_ok = rc_input != 0 && strstr(reason_input, c->reason) != NULL;
+  int geometry_ok =
+      rc_geometry != 0 && strstr(reason_geometry, c->reason) != NULL;
+  int failures = 0;
+  if (!input_ok || !geometry_ok) {
+    fprintf(stderr,
+            "%s: input rc %d reason \"%s\" (keyword x%d); geometry rc %d "
+            "reason \"%s\" (keyword x%d); want \"%s\"\n",
+            c->name, rc_input, reason_input,
+            rc_input == 0 ? count_text(input_deck, c->keyword) : -1,
+            rc_geometry, reason_geometry,
+            rc_geometry == 0 ? count_text(geometry_deck, c->keyword) : -1,
+            c->reason);
+    failures = 1;
+  }
+  capn_free(&arena);
+  return failures;
+}
+
+static void test_render_rejects_system_scalar_directive(void **state) {
+  (void)state;
+  const struct SystemDirectiveCase cases[] = {
+      {.name = "typed CUTOFF, cutoff 50",
+       .has_sys = 1, .cutoff_ry = 50.0, .mult = 1,
+       .directive = "CUTOFF 90", .keyword = "CUTOFF",
+       .reason = "a CUTOFF directive in the typed &SYSTEM section"},
+      {.name = "typed CUTOFF, cutoff 70",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 1,
+       .directive = "CUTOFF 90", .keyword = "CUTOFF",
+       .reason = "a CUTOFF directive in the typed &SYSTEM section"},
+      {.name = "SYSTEM.CUTOFF, cutoff 50",
+       .has_sys = 1, .cutoff_ry = 50.0, .mult = 1,
+       .set_key = "SYSTEM.CUTOFF", .set_value = "90", .keyword = "CUTOFF",
+       .reason = "a SYSTEM.CUTOFF set directive"},
+      {.name = "SYSTEM.CUTOFF, cutoff 70",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 1,
+       .set_key = "SYSTEM.CUTOFF", .set_value = "90", .keyword = "CUTOFF",
+       .reason = "a SYSTEM.CUTOFF set directive"},
+      {.name = "SYSTEM.CUTOFF, no typed section",
+       .set_key = "SYSTEM.CUTOFF", .set_value = "90", .keyword = "CUTOFF",
+       .reason = "a SYSTEM.CUTOFF set directive"},
+      {.name = "typed CHARGE, charge 2",
+       .has_sys = 1, .cutoff_ry = 70.0, .charge = 2, .mult = 1,
+       .directive = "CHARGE 4", .keyword = "CHARGE",
+       .reason = "a CHARGE directive in the typed &SYSTEM section"},
+      {.name = "typed CHARGE, charge 0",
+       .has_sys = 1, .cutoff_ry = 70.0, .charge = 0, .mult = 1,
+       .directive = "CHARGE 4", .keyword = "CHARGE",
+       .reason = "a CHARGE directive in the typed &SYSTEM section"},
+      {.name = "SYSTEM.CHARGE, charge 2",
+       .has_sys = 1, .cutoff_ry = 70.0, .charge = 2, .mult = 1,
+       .set_key = "SYSTEM.CHARGE", .set_value = "4", .keyword = "CHARGE",
+       .reason = "a SYSTEM.CHARGE set directive"},
+      {.name = "SYSTEM.CHARGE, charge 0",
+       .has_sys = 1, .cutoff_ry = 70.0, .charge = 0, .mult = 1,
+       .set_key = "SYSTEM.CHARGE", .set_value = "4", .keyword = "CHARGE",
+       .reason = "a SYSTEM.CHARGE set directive"},
+      {.name = "SYSTEM.CHARGE, no typed section",
+       .set_key = "SYSTEM.CHARGE", .set_value = "4", .keyword = "CHARGE",
+       .reason = "a SYSTEM.CHARGE set directive"},
+      {.name = "typed MULTIPLICITY, multiplicity 3",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 3,
+       .directive = "MULTIPLICITY 5", .keyword = "MULTIPLICITY",
+       .reason = "a MULTIPLICITY directive in the typed &SYSTEM section"},
+      {.name = "typed MULTIPLICITY, multiplicity 1",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 1,
+       .directive = "MULTIPLICITY 5", .keyword = "MULTIPLICITY",
+       .reason = "a MULTIPLICITY directive in the typed &SYSTEM section"},
+      {.name = "SYSTEM.MULTIPLICITY, multiplicity 3",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 3,
+       .set_key = "SYSTEM.MULTIPLICITY", .set_value = "5",
+       .keyword = "MULTIPLICITY",
+       .reason = "a SYSTEM.MULTIPLICITY set directive"},
+      {.name = "SYSTEM.MULTIPLICITY, multiplicity 1",
+       .has_sys = 1, .cutoff_ry = 70.0, .mult = 1,
+       .set_key = "SYSTEM.MULTIPLICITY", .set_value = "5",
+       .keyword = "MULTIPLICITY",
+       .reason = "a SYSTEM.MULTIPLICITY set directive"},
+      {.name = "SYSTEM.MULTIPLICITY, no typed section",
+       .set_key = "SYSTEM.MULTIPLICITY", .set_value = "5",
+       .keyword = "MULTIPLICITY",
+       .reason = "a SYSTEM.MULTIPLICITY set directive"},
+  };
+  int failures = 0;
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i)
+    failures += expect_system_directive_rejected(&cases[i]);
+  assert_int_equal(failures, 0);
+}
+
 static void test_typed_scalars_report(void **state) {
   (void)state;
   struct capn arena;
@@ -349,6 +532,7 @@ int main(void) {
       cmocka_unit_test(test_overrides_fill_typed_defaults),
       cmocka_unit_test(test_typed_value_beats_override),
       cmocka_unit_test(test_top_level_value_with_default_sections),
+      cmocka_unit_test(test_render_rejects_system_scalar_directive),
       cmocka_unit_test(test_typed_scalars_report),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);

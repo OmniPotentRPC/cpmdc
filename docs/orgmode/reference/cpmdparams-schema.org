@@ -164,6 +164,18 @@ multiplicity), when a set directive names ~DFT.FUNCTIONAL~,
 ~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~, or when the
 ~directives~ list of the typed ~dft~ section holds ~FUNCTIONAL~ or that of
 the typed ~system~ section holds ~CUTOFF~, ~CHARGE~, or ~MULTIPLICITY~.
+Without an overlay, the deck render rejects a ~CUTOFF~, ~CHARGE~, or
+~MULTIPLICITY~ directive in the typed ~system~ section, and a
+~SYSTEM.CUTOFF~, ~SYSTEM.CHARGE~, or ~SYSTEM.MULTIPLICITY~ set directive.
+~CUTOFF~ is written on every deck, including the default 70 Ry.
+~CHARGE~ is written only when it is not 0 and ~MULTIPLICITY~ only when it is
+greater than 1; an omitted line is the schema default the recorded
+configuration carries.
+Those directives are rejected for a default value and for any other value
+alike.
+A default leaves the directive as a value the recorded configuration does not
+carry, and any other value leaves two lines.
+The render does not keep one and drop the other.
 Fermi ~smearing~ also rejects split ~TEMPERATURE~ and ~ELECTRON~ arguments
 in ~cpmd.directives~ and ~CPMD.TEMPERATURE~ set directives.
 The merge requires ~basisSet~ to be unset or ~"planewave"~, and rejects
