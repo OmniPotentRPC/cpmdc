@@ -1675,9 +1675,9 @@ CONTAINS
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') &
+      WRITE(text, '(A,ES23.16E3,1X,ES23.16E3,1X,ES23.16E3,A)') &
            ' CELL'//NEW_LINE('A')//'  ', &
-           cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
+           cell_a, b_over_a, c_over_a, ' 0 0 0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)
   END SUBROUTINE
@@ -1995,11 +1995,11 @@ CONTAINS
       END IF
       symmetry_indent = ''
       IF (osym == 0) symmetry_indent = '  '
-      WRITE(text, '(A,A,A,I0,A,A,A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,A)') &
+      WRITE(text, '(A,A,A,I0,A,A,A,ES23.16E3,1X,ES23.16E3,1X,ES23.16E3,A,A)') &
            ' SYMMETRY', NEW_LINE('A'), &
            symmetry_indent, k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), &
            c(1), c(5) / c(1), &
-           c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
+           c(9) / c(1), ' 0 0 0', NEW_LINE('A')
     ELSE
       WRITE(text, '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
            'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &

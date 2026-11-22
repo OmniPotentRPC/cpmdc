@@ -84,13 +84,15 @@ static void assert_cell_vectors_equal(const char *deck,
 
 static void assert_cell_equal(const char *deck, const double expected[3]) {
   const char *cell = strstr(deck, " CELL\n");
-  double parsed[3];
+  double parsed[6];
   assert_non_null(cell);
   cell += strlen(" CELL\n");
-  assert_int_equal(sscanf(cell, "%lf %lf %lf", &parsed[0], &parsed[1],
-                          &parsed[2]),
-                   3);
-  assert_memory_equal(parsed, expected, sizeof(parsed));
+  assert_int_equal(sscanf(cell, "%lf %lf %lf %lf %lf %lf", &parsed[0],
+                          &parsed[1], &parsed[2], &parsed[3], &parsed[4],
+                          &parsed[5]),
+                   6);
+  assert_memory_equal(parsed, expected, 3 * sizeof(double));
+  assert_true(parsed[3] == 0.0 && parsed[4] == 0.0 && parsed[5] == 0.0);
 }
 
 static int setup(void **state) {
@@ -111,6 +113,7 @@ static void test_minimal_deck_orthorhombic_box(void **state) {
   const double expected[3] = {cell[0], cell[4] / cell[0],
                               cell[8] / cell[0]};
   assert_cell_equal(deck, expected);
+  lines_within_80(deck);
 }
 
 static void test_minimal_deck_refuses_a_skewed_box(void **state) {
@@ -135,6 +138,7 @@ static void test_box_replaces_the_deck_cell(void **state) {
   assert_non_null(strstr(deck, " SYMMETRY\n1\n CELL\n"));
   const double expected_cubic[3] = {cubic[0], 1.0, 1.0};
   assert_cell_equal(deck, expected_cubic);
+  lines_within_80(deck);
   assert_null(strstr(deck, "14.0 1.0 1.0"));
   /* CHECK SYMMETRY is not SYMMETRY, and the rest of the deck stays. */
   assert_non_null(strstr(deck, " CHECK SYMMETRY OFF\n"));
@@ -149,6 +153,7 @@ static void test_box_replaces_the_deck_cell(void **state) {
   const double expected_ortho[3] = {ortho[0], ortho[4] / ortho[0],
                                     ortho[8] / ortho[0]};
   assert_cell_equal(deck, expected_ortho);
+  lines_within_80(deck);
 
   const double skew[9] = {10.0, 0.0, 0.0, 0.123456789012, 11.0, 0.0,
                           0.0,  0.0, 12.0};
@@ -186,6 +191,7 @@ static void test_box_in_bohr_without_angstrom(void **state) {
   assert_int_equal(compose_with_deck(bohr_deck, cubic, deck, (int)sizeof(deck)),
                    1);
   assert_non_null(strstr(deck, "2.740102880935"));
+  lines_within_80(deck);
 }
 
 static void test_zero_box_keeps_the_deck_cell(void **state) {

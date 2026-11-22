@@ -65,6 +65,40 @@ static void require_absent(const char *deck, const char *needle,
   g_failed = 1;
 }
 
+static void require_lines_within_80(const char *deck, const char *what) {
+  if (!deck)
+    return;
+  for (const char *line = deck; *line;) {
+    const char *end = strchr(line, '\n');
+    size_t n = end ? (size_t)(end - line) : strlen(line);
+    if (n > 80) {
+      fprintf(stderr, "%s: line length %zu exceeds 80: %.*s\n", what, n,
+              (int)n, line);
+      g_failed = 1;
+    }
+    line += n + (end ? 1 : 0);
+  }
+}
+
+static void require_diagonal_cell_fields(const char *deck, const char *what) {
+  const char *cell = deck ? strstr(deck, " CELL\n") : NULL;
+  double parsed[6] = {0};
+  if (!cell) {
+    fprintf(stderr, "%s: missing CELL section\n%s\n", what,
+            deck ? deck : "");
+    g_failed = 1;
+    return;
+  }
+  cell += strlen(" CELL\n");
+  if (sscanf(cell, "%lf %lf %lf %lf %lf %lf", &parsed[0], &parsed[1],
+             &parsed[2], &parsed[3], &parsed[4], &parsed[5]) != 6 ||
+      parsed[0] <= 0.0 || parsed[1] <= 0.0 || parsed[2] <= 0.0 ||
+      parsed[3] != 0.0 || parsed[4] != 0.0 || parsed[5] != 0.0) {
+    fprintf(stderr, "%s: unexpected CELL fields\n%s\n", what, deck);
+    g_failed = 1;
+  }
+}
+
 /* CELL VECTORS must read back as the very cell that was accepted. */
 static void require_vectors_preserved(const char *deck, const double *cell,
                                       const char *what) {
@@ -247,6 +281,8 @@ int main(int argc, char **argv) {
     require_absent(deck, "HOCKNEY", "orthorhombic compose");
     require_absent(deck, " SYMMETRY\n  0\n", "orthorhombic compose");
     require_absent(deck, " SYMMETRY\n  1\n", "orthorhombic compose");
+    require_lines_within_80(deck, "orthorhombic compose");
+    require_diagonal_cell_fields(deck, "orthorhombic compose");
   }
 
   memset(deck, 0, sizeof(deck));
@@ -254,12 +290,15 @@ int main(int argc, char **argv) {
     require_has(deck, "CELL VECTORS", "small tilted compose");
     require_absent(deck, "SYMMETRY", "small tilted compose");
     require_absent(deck, "HOCKNEY", "small tilted compose");
+    require_lines_within_80(deck, "small tilted compose");
   }
 
   for (size_t i = 0; i < n_accepted; ++i) {
     memset(deck, 0, sizeof(deck));
-    if (compose_case(accepted[i], 1, deck, (int)sizeof(deck)) == 0)
+    if (compose_case(accepted[i], 1, deck, (int)sizeof(deck)) == 0) {
       require_vectors_preserved(deck, accepted[i], "accepted-cell compose");
+      require_lines_within_80(deck, "accepted-cell compose");
+    }
   }
 
   memset(deck, 0, sizeof(deck));
@@ -267,6 +306,8 @@ int main(int argc, char **argv) {
     require_has(deck, " SYMMETRY\n  0\n", "missing-box compose");
     require_has(deck, "POISSON SOLVER HOCKNEY", "missing-box compose");
     require_has(deck, "1.2000000000000000E+001", "missing-box compose");
+    require_lines_within_80(deck, "missing-box compose");
+    require_diagonal_cell_fields(deck, "missing-box compose");
   }
 
   memset(deck, 0, sizeof(deck));
@@ -275,6 +316,7 @@ int main(int argc, char **argv) {
     require_has(deck, "5.0000000000000000E-001", "tilted compose");
     require_absent(deck, "SYMMETRY", "tilted compose");
     require_absent(deck, "HOCKNEY", "tilted compose");
+    require_lines_within_80(deck, "tilted compose");
   }
 
   memset(deck, 0, sizeof(deck));
@@ -283,6 +325,8 @@ int main(int argc, char **argv) {
     require_absent(deck, "HOCKNEY", "cubic compose");
     require_absent(deck, " SYMMETRY\n  0\n", "cubic compose");
     require_absent(deck, " SYMMETRY\n  8\n", "cubic compose");
+    require_lines_within_80(deck, "cubic compose");
+    require_diagonal_cell_fields(deck, "cubic compose");
   }
 
   return g_failed ? 1 : 0;
