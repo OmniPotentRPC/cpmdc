@@ -2177,6 +2177,10 @@ again, and `calc.calculation_required(atoms, properties)` returns true for such
 a structure until it is evaluated.
 A change of `initial_charges` or `initial_magmoms` reuses the step, because the
 calculator does not read them.
+A change of `tags`, `momenta`, `info`, or a constraint reuses the step as well,
+because none of them is a system change: ASE applies a constraint to the forces
+after the calculator returns them.
+An equal copy of the `Atoms` gets the stored step from `get_property`.
 `calc.reset()` clears the stored step and keeps the session open.
 Calling `calc.calculate(atoms)` yourself evaluates the structure whatever is
 stored, and replaces every stored result: a step that gives no stress does not
@@ -2293,6 +2297,18 @@ copy opens its own session on its first step.
 `close()` closes the session, and the next step opens a new one.
 The calculator is a context manager that closes on exit.
 
+`calc.read(label)` always raises ASE's `ReadError`, because a step stores no file
+that holds results, and ASE's default would only set the label and let the
+caller think that results were restored.
+The `restart` keyword stays deprecated and ignored, as the reference page says.
+`parameters=` is the supported way to load a saved calculator.
+
+`ase.calculators.mixing.SumCalculator` takes several `CPMDCCalculator` objects,
+or one beside another ASE calculator, and evaluates each one once per
+structure.
+Its stress for a cluster raises `PropertyNotImplementedError`, as the
+calculator's own does.
+
 # Check the calculator with ASE
 `tests/python/test_ase_conformance.py` asks of `CPMDCCalculator` what any ASE
 user asks of a calculator, and answers with ASE's own tools.
@@ -2312,6 +2328,11 @@ The file checks these points:
 | a run of steps keeps one session | a count of the `Session` objects opened |
 | a rejected step is `ase.calculators.calculator.CalculationFailed` with the library's message | a real library error, not a mock |
 | a relaxation runs with a constraint | `BFGS` with `FixAtoms` |
+| `read` refuses, and a refused `read` leaves the calculator as it was | `ReadError`, `CalculatorError` |
+| state outside the system changes, and an equal copy of the structure, keep the stored step | `check_state`, `Atoms.copy` |
+| the parameters round trip through `todict` and a `Parameters` file, including a `constant_cutoff` mapping | `Parameters.write`, `parameters=` |
+| two calculators add up and each runs once per structure | `SumCalculator` |
+| a molecular dynamics run conserves the energy and evaluates once per move | `VelocityVerlet` |
 | copies and pickles work, with or without the `params` file | `copy`, `pickle` |
 | energies are in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 | `ase.units`, `calculate_numerical_forces`, `calculate_numerical_stress` |
 | each Voigt stress component has the sign and the size of a central difference of the energy over strain, taken in the test | `Atoms.set_cell(..., scale_atoms=True)` |
@@ -7680,6 +7701,17 @@ The ASE calculator. Importing it imports ASE.
 | Raises | none |
 | Defaults | none |
 
+### ~cpmdc.ase.CPMDCCalculator.read~
+
+| Item | Description |
+|--------+--------|
+| Signature | `read(label)` |
+| Units | none |
+| Shape and dtype | Returns nothing; it never returns normally. |
+| Ownership and threads | Changes no state: the label, the directory, the atoms and the results stay as they were. Not thread-safe. |
+| Raises | `ase.calculators.calculator.ReadError`, with the refused `label` in the message, because a step writes no file that holds results. |
+| Defaults | none |
+
 ### ~cpmdc.ase.CPMDCCalculator.set~
 
 | Item | Description |
@@ -10562,6 +10594,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is left out, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
+| `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
 | `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
@@ -10609,6 +10642,7 @@ covers `cpmdc.lammps`.
 | missing `params` file | `FileNotFoundError` |
 | empty or non-3D positions, mismatched `atomic_numbers` or `numbers` length, a cell or box that is not 3x3 or 9 numbers, a `stress_h_bohr3` without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite `ConstantCutoff` field, a whole-number argument that is a fraction such as `14.9`, an orbital key outside the signed 64-bit range | `ValueError` |
 | an atomic number, orbital key, `ConstantCutoff` field, or `charge` that is a string, `None`, or `bool`; a coordinate or cell value that is not a real number | `TypeError` |
+| `CPMDCCalculator.read` with any label | `ase.calculators.calculator.ReadError`, an ASE `CalculatorError` |
 | `atoms.pbc` mixes periodic and open axes, or is periodic without three independent cell vectors | `ValueError` |
 | a `CPMDCCalculator` step without atoms | `ValueError` |
 | stress on free boundaries or an isolated deck; a property outside `implemented_properties` | `ase.calculators.calculator.PropertyNotImplementedError` |

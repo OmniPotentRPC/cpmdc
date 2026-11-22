@@ -1708,6 +1708,17 @@ The ASE calculator. Importing it imports ASE.
 | Raises | none |
 | Defaults | none |
 
+*** ~cpmdc.ase.CPMDCCalculator.read~
+
+| Item | Description |
+|--------+--------|
+| Signature | ~read(label)~ |
+| Units | none |
+| Shape and dtype | Returns nothing; it never returns normally. |
+| Ownership and threads | Changes no state: the label, the directory, the atoms and the results stay as they were. Not thread-safe. |
+| Raises | ~ase.calculators.calculator.ReadError~, with the refused ~label~ in the message, because a step writes no file that holds results. |
+| Defaults | none |
+
 *** ~cpmdc.ase.CPMDCCalculator.set~
 
 | Item | Description |
