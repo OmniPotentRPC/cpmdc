@@ -820,9 +820,14 @@ def test_unchanged_atoms_make_no_second_library_call(periodic_calc, steps):
     atoms.get_forces()
     atoms.get_stress()
     atoms.get_potential_energy(force_consistent=True)
-    for name in periodic_calc.implemented_properties:
+    # Dipole is implemented, and this deck does not produce one. Asking for
+    # it reports that without evaluating the step again.
+    stored = [name for name in periodic_calc.implemented_properties if name != "dipole"]
+    for name in stored:
         assert periodic_calc.get_property(name, atoms) is not None
-    assert not periodic_calc.calculation_required(atoms, periodic_calc.implemented_properties)
+    assert not periodic_calc.calculation_required(atoms, stored)
+    with pytest.raises(PropertyNotImplementedError):
+        periodic_calc.get_property("dipole", atoms)
     assert len(steps) == 1
 
 
@@ -893,7 +898,7 @@ def test_get_property_without_calculation_returns_none_until_a_step(calc, steps,
     assert len(steps) == 1
 
 
-@pytest.mark.parametrize("name", ["energies", "stresses", "charges", "magmom", "magmoms", "dipole"])
+@pytest.mark.parametrize("name", ["energies", "stresses", "charges", "magmom", "magmoms"])
 def test_an_unimplemented_property_raises_even_without_calculation(calc, steps, name):
     atoms = water()
     atoms.calc = calc

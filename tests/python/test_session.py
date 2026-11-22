@@ -12,7 +12,7 @@ import pytest
 from conftest import ROOT, WATER
 
 import cpmdc
-from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Potential, Session
+from cpmdc import BOHR_TO_ANGSTROM, CPMDCError, Potential, Session, dipole_to_e_angstrom
 from cpmdc._rank import _cell_volume
 
 
@@ -121,6 +121,88 @@ def test_virial_that_overflows_is_refused(periodic_params, opencpmd):
             )
 
 
+def test_reference_step_has_no_fabricated_dipole(params):
+    with Session(params) as session:
+        done = session.energy_forces(WATER, [8, 1, 1])
+    assert done.dipole_e_bohr is None
+    with Potential(params) as pot:
+        result = pot.evaluate(WATER, [8, 1, 1])
+    assert "dipole" not in result
+    assert pot.caps() == {"stress": True, "dipole": False, "energies": False}
+
+
+def test_dipole_unit_conversion():
+    assert dipole_to_e_angstrom([1.0, -2.0, 0.5]) == pytest.approx(
+        [BOHR_TO_ANGSTROM, -2.0 * BOHR_TO_ANGSTROM, 0.5 * BOHR_TO_ANGSTROM]
+    )
+    with pytest.raises(ValueError, match="3 components"):
+        dipole_to_e_angstrom([1.0, 2.0])
+
+
+def test_property_gradient_limit_fails_without_truncation(params):
+    positions = [[0.0, 0.0, 0.0]] * 1366
+    with Session(params) as session:
+        with pytest.raises(CPMDCError, match="at most 1365 atoms"):
+            session.energy_forces(positions, [1] * 1366)
+
+
+def _encode_params(text: str) -> bytes:
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is not on PATH")
+    return subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=text.encode("utf-8"),
+        stdout=subprocess.PIPE,
+        check=True,
+    ).stdout
+
+
+def _periodic_source() -> str:
+    return (ROOT / "tests" / "water_blyp_periodic_params.capnp.txt").read_text(encoding="utf-8")
+
+
+GAMMA_KPOINT = "kpoints = [( coordinates = [0.0, 0.0, 0.0], weight = 1.0 )],"
+
+
+def test_dipole_dynamics_with_kpoints_is_rejected_up_front():
+    source = _periodic_source().replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")
+    source = source.replace("symmetry = 1,", f"symmetry = 1, {GAMMA_KPOINT}")
+    assert "dipoleDynamics" in source and "kpoints" in source
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS.*Gamma-point"):
+        Session(_encode_params(source))
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS"):
+        Potential(_encode_params(source))
+
+
+def test_dipole_dynamics_with_kpoints_in_a_raw_block_is_rejected():
+    raw = (
+        "&CPMD\\n OPTIMIZE WAVEFUNCTION\\n DIPOLE DYNAMICS\\n&END\\n"
+        "&SYSTEM\\n SYMMETRY\\n  1\\n KPOINTS\\n 1\\n 0.0 0.0 0.0 1.0\\n&END\\n"
+    )
+    source = f'(functional = "BLYP", cutOffRy = 40.0, task = "gradient", inputBlocks = ["{raw}"])'
+    with pytest.raises(CPMDCError, match=r"DIPOLE DYNAMICS.*KPOINTS"):
+        Session(_encode_params(source))
+
+
+def test_kpoints_and_dipole_dynamics_alone_are_accepted():
+    kpoints = _periodic_source().replace("symmetry = 1,", f"symmetry = 1, {GAMMA_KPOINT}")
+    dipole = _periodic_source().replace("maxIter = 40,", "maxIter = 40, dipoleDynamics = true,")
+    for source in (kpoints, dipole):
+        with Session(_encode_params(source)):
+            pass
+
+
+def test_topology_change_is_not_reported_as_the_gradient_limit(params):
+    big = [[0.0, 0.0, 0.0]] * 1366
+    with Session(params) as session:
+        session.energy_forces(WATER, [8, 1, 1])
+        with pytest.raises(CPMDCError, match="topology change"):
+            session.energy_forces(big, [1] * 1366)
+        again = session.energy_forces(WATER, [8, 1, 1])
+    assert again.forces_h_bohr is not None
+
+
 def test_closed_session_raises(params):
     session = Session(params)
     session.close()
@@ -162,7 +244,8 @@ def test_evaluation_has_a_readable_repr_and_keeps_identity_semantics():
     first = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
     second = cpmdc.Evaluation(1.5, [[0.0, 0.0, 0.0]], None)
     assert repr(first) == (
-        "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], stress_h_bohr3=None)"
+        "Evaluation(energy_h=1.5, forces_h_bohr=[[0.0, 0.0, 0.0]], "
+        "stress_h_bohr3=None, dipole_e_bohr=None)"
     )
     assert first != second
     assert len({first, second}) == 2
@@ -257,4 +340,8 @@ def test_available_matches_the_build(params):
     with Session(params) as session:
         assert session.available() is bool(library.cpmdc_available())
     with Potential(params) as pot:
-        assert pot.caps() == {"stress": True, "energies": False}
+        assert pot.caps() == {
+            "stress": True,
+            "dipole": bool(library.cpmdc_available()),
+            "energies": False,
+        }
