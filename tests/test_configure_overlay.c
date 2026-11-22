@@ -2331,6 +2331,323 @@ static void test_merge_rejects_explicit_singlet_against_opaque_system(
   }
 }
 
+/* Explicit zero charge via hasCharge=1 on root CPMDParams or typed
+ * CPMDSystemSection wins over non-zero common.charge and overrides non-zero
+ * root charge. */
+static void test_merge_explicit_zero_charge_arm_wins(void **state) {
+  (void)state;
+  {
+    /* Root arm.charge=0, arm.hasCharge=1 beats common.charge=-1. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    arm.charge = 0;
+    arm.hasCharge = 1;
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = -1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session(buf, sz, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+  {
+    /* Typed system charge=0, hasCharge=1 beats common.charge=-1. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    sys.charge = 0;
+    sys.hasCharge = 1;
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = -1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session(buf, sz, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+  {
+    /* Root arm.charge=2 overridden to neutral by typed system charge=0,
+     * hasCharge=1, and still wins over common.charge=-1. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    arm.charge = 2;
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    sys.charge = 0;
+    sys.hasCharge = 1;
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = -1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session(buf, sz, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+  {
+    /* Same with common omitted: typed system charge=0, hasCharge=1 overrides
+     * root arm.charge=2 to neutral. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    arm.charge = 2;
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    sys.charge = 0;
+    sys.hasCharge = 1;
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_only(&arena, &arm), &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session(buf, sz, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+}
+
+/* Explicit zero charge on CommonMethodSpec (charge=0, hasCharge=1) conflicts
+ * with opaque &SYSTEM carriers (inputBlocks, raw, generic, set,
+ * system.directives) and succeeds when no competing carrier exists or on
+ * overlay-only synthesis. */
+static void test_merge_rejects_explicit_zero_charge_against_opaque_system(
+    void **state) {
+  (void)state;
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    capn_ptr blocks = capn_new_ptr_list(root.seg, 1);
+    assert_int_equal(
+        capn_set_text(blocks, 0,
+                      capn_str("&SYSTEM\n SYMMETRY\n  0\n CHARGE\n  2\n&END")),
+        0);
+    arm.inputBlocks = blocks;
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_raw;
+    sec.raw = capn_str("&SYSTEM\n SYMMETRY\n  0\n CHARGE\n  2\n&END");
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDGenericSection gen;
+    memset(&gen, 0, sizeof(gen));
+    gen.name = capn_str("SYSTEM");
+    CPMDGenericSection_ptr gen_ptr = new_CPMDGenericSection(root.seg);
+    write_CPMDGenericSection(&gen, gen_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_generic;
+    sec.generic = gen_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDSetDirective setd;
+    memset(&setd, 0, sizeof(setd));
+    setd.key = capn_str("SYSTEM.CHARGE");
+    setd.value = capn_str("2");
+    CPMDSetDirective_ptr set_ptr = new_CPMDSetDirective(root.seg);
+    write_CPMDSetDirective(&setd, set_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_set;
+    sec.set = set_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    struct capn arena;
+    capn_init_malloc(&arena);
+    capn_ptr root = capn_root(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    CPMDSystemSection_ptr sys_ptr = new_CPMDSystemSection(root.seg);
+    struct CPMDSystemSection sys;
+    read_CPMDSystemSection(&sys, sys_ptr);
+    const char *args[] = {"2"};
+    sys.directives = make_single_directive(&arena, "CHARGE", args, 1);
+    write_CPMDSystemSection(&sys, sys_ptr);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = sys_ptr;
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    expect_config_rejected(buf, sz, "charge");
+    free(buf);
+  }
+  {
+    /* Clean typed system without CHARGE directive accepts explicit neutral. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CPMDParams arm;
+    init_default_arm(&arm);
+    struct CPMDInputSection sec;
+    memset(&sec, 0, sizeof(sec));
+    sec.which = CPMDInputSection_system;
+    sec.system = make_wire_default_system(&arena);
+    attach_section(&arena, &arm, &sec);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, &arm, &com, 1),
+                         &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session_all(buf, sz, NULL, NULL, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+  {
+    /* Overlay-only synthesis with explicit zero charge succeeds. */
+    struct capn arena;
+    capn_init_malloc(&arena);
+    struct CommonMethodSpec com;
+    memset(&com, 0, sizeof(com));
+    com.charge = 0;
+    com.hasCharge = 1;
+    size_t sz = 0;
+    unsigned char *buf =
+        serialize_config(&arena, make_cpmd_plus_common(&arena, NULL, &com, 0),
+                         &sz);
+    capn_free(&arena);
+    int charge = 99;
+    char *deck = deck_keeping_session_all(buf, sz, NULL, NULL, &charge, NULL);
+    assert_int_equal(charge, 0);
+    assert_null(strstr(deck, "CHARGE\n"));
+    free(deck);
+    free(buf);
+  }
+}
+
 /* Split-argument TEMPERATURE + ELECTRON in cpmd.directives and CPMD.TEMPERATURE
  * set directives conflict with common Fermi smearing; ionic TEMPERATURE still
  * accepts Fermi smearing. */
@@ -3521,6 +3838,9 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_merge_rejects_dft_directive_functional_overlay),
       cmocka_unit_test(test_merge_rejects_system_directive_scalar_overlays),
       cmocka_unit_test(test_merge_rejects_explicit_singlet_against_opaque_system),
+      cmocka_unit_test(test_merge_explicit_zero_charge_arm_wins),
+      cmocka_unit_test(
+          test_merge_rejects_explicit_zero_charge_against_opaque_system),
       cmocka_unit_test(test_merge_rejects_split_temperature_electron_smearing),
       cmocka_unit_test(test_merge_basis_set),
       cmocka_unit_test(test_merge_cutoff_charge_multiplicity),

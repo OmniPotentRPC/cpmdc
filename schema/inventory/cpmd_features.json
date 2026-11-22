@@ -279,6 +279,10 @@
   {
    "name": "inputSections",
    "feature_id": "params.inputSections"
+  },
+  {
+   "name": "hasCharge",
+   "feature_id": "params.hasCharge"
   }
  ],
  "abi_symbols": [
@@ -6708,6 +6712,13 @@
    "embed_applicable": true
   },
   {
+   "feature_id": "params.hasCharge",
+   "kind": "params_field",
+   "name": "hasCharge",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
    "feature_id": "params.inputSections.generic.name",
    "kind": "structured_params_field",
    "name": "name",
@@ -6927,6 +6938,14 @@
    "feature_id": "params.inputSections.system.charge",
    "kind": "structured_params_field",
    "name": "charge",
+   "section": "system",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "params.inputSections.system.hasCharge",
+   "kind": "structured_params_field",
+   "name": "hasCharge",
    "section": "system",
    "stub_applicable": true,
    "embed_applicable": true

@@ -69,11 +69,13 @@ static void test_capabilities_round_trip(void **state) {
                    Capabilities_Operation_stress);
 
   capn_resolve(&view.loweredCommonFields);
-  assert_int_equal(view.loweredCommonFields.len, 11);
+  assert_int_equal(view.loweredCommonFields.len, 12);
   assert_true(text_equals(capn_get_text(view.loweredCommonFields, 0, no_text),
                           "xcFunctionals"));
   assert_true(text_equals(capn_get_text(view.loweredCommonFields, 10, no_text),
                           "vanDerWaalsS6"));
+  assert_true(text_equals(capn_get_text(view.loweredCommonFields, 11, no_text),
+                          "hasCharge"));
   /* relativityMethod stays out: the overlay rejects it with last_error. */
   for (int i = 0; i < view.loweredCommonFields.len; ++i)
     assert_false(text_equals(

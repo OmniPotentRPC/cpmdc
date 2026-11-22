@@ -490,6 +490,7 @@ static void test_abi(void **state) {
 
   assert_null(cpmdc_feature_find("abi.cpmdc_missing"));
   assert_non_null(cpmdc_feature_find("params.inputBlocks"));
+  assert_non_null(cpmdc_feature_find("params.hasCharge"));
 }
 
 static void test_param_applicability(void **state) {
@@ -541,6 +542,7 @@ static void test_structured_param_features(void **state) {
       "params.inputSections.system.scaleZ",
       "params.inputSections.system.scaleCartesian",
       "params.inputSections.system.charge",
+      "params.inputSections.system.hasCharge",
       "params.inputSections.system.multiplicity",
       "params.inputSections.system.nSup",
       "params.inputSections.system.states",

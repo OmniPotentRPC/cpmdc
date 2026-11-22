@@ -14,6 +14,7 @@ Geometry is never part of ~CPMDParams~; it is always a ~ForceInput~ step message
 | ~params.functional~ | ~functional~ | Default DFT functional (also used when no ~dft~ section is present) |
 | ~params.cutOffRy~ | ~cutOffRy~ | Plane-wave cutoff in Rydberg |
 | ~params.charge~ | ~charge~ | System charge |
+| ~params.hasCharge~ | ~hasCharge~ | Mark ~CPMDParams.charge~ as explicit, including zero |
 | ~params.multiplicity~ | ~multiplicity~ | 2S+1; values ~> 1~ imply LSD defaults |
 | ~params.task~ | ~task~ | Frontend hint: ~energy~, ~gradient~, ~md~, ~optimize~ |
 | ~params.title~ | ~title~ | Optional comment header in rendered decks |
@@ -184,23 +185,27 @@ page.
 Missing core sections receive minimal defaults from the renderer so a sparse
 ~CPMDParams~ still produces a valid-looking deck for debugging.
 When structured ~dft~ or ~system~ sections provide scalar method values
-(functional, cutoff, charge, multiplicity), those section values are also the
+(functional, cutoff, charge, multiplicity, or zero ~system.charge~ with
+~system.hasCharge~ ~true~), those section values are also the
 effective embed configuration passed through the C ABI.
 The functional, cutoff, charge, and multiplicity lines the renderer writes
 and that configuration follow the same precedence.
 ~raw~, ~generic~, and ~set~ sections, ~inputBlocks~, and section ~directives~
 are rendered as given and are not read back into that configuration, so the
 carrier check runs for every set overlay field of a ~common~ overlay,
-whether or not a typed field also sets it, and a carrier of the same setting
+whether or not a typed field also sets it, including zero ~charge~ with
+~hasCharge~ ~true~, and a carrier of the same setting
 rejects that field.
 A ~FUNCTIONAL~ directive in a typed ~dft~ section or a ~DFT.FUNCTIONAL~ set
 directive is rejected when the deck is rendered, because the rendered ~&DFT~
 section already carries the functional.
 A section value that differs from the schema default (functional ~BLYP~,
-cutoff 70 Ry, charge 0, multiplicity 1) beats the top-level field.
+cutoff 70 Ry, charge 0 with ~hasCharge~ ~false~, multiplicity 1) beats the
+top-level field.
 A method field in a typed ~dft~ or ~system~ section that is omitted or holds
 its schema default is unset and does not replace the top-level arm or overlay
-value, so a typed ~system~ charge of 0 is also unset.
+value, so a typed ~system~ charge of 0 with ~hasCharge~ ~false~ is also unset,
+while zero ~system.charge~ with ~system.hasCharge~ ~true~ is explicit.
 For geometry deck rendering, ~atoms.pseudopotentials~ groups ~ForceInput~
 coordinates by element symbol.
 Explicit pseudopotential entries accept standard element symbols and must cover
@@ -359,6 +364,7 @@ The vector qualifier also requires nine values and excludes ~ABSOLUTE~ and
 | ~params.inputSections.system.scaleZ~ | ~system.scaleZ~ | ~&SYSTEM SCALE SZ=<value>~ |
 | ~params.inputSections.system.scaleCartesian~ | ~system.scaleCartesian~ | Add ~CARTESIAN~ to ~&SYSTEM SCALE~ |
 | ~params.inputSections.system.charge~ | ~system.charge~ | ~&SYSTEM CHARGE~ |
+| ~params.inputSections.system.hasCharge~ | ~system.hasCharge~ | Mark ~system.charge~ as explicit, including zero |
 | ~params.inputSections.system.multiplicity~ | ~system.multiplicity~ | ~&SYSTEM MULTIPLICITY~ |
 | ~params.inputSections.system.nSup~ | ~system.nSup~ | ~&SYSTEM NSUP~ |
 | ~params.inputSections.system.states~ | ~system.states~ | ~&SYSTEM STATES~ |

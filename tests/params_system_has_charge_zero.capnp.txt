@@ -1,0 +1,21 @@
+(
+  functional = "PBE",
+  cutOffRy = 70.0,
+  charge = 2,
+  task = "gradient",
+  title = "Explicit neutral charge in the system section",
+  inputSections = [
+    ( cpmd = ( optimizeWavefunction = true ) ),
+    ( system = (
+        symmetry = 0,
+        angstrom = true,
+        cell = [10.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        charge = 0,
+        hasCharge = true
+      ) ),
+    ( dft = ( functional = "PBE" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_PBE.psp", lmax = 1 )
+      ] ) )
+  ]
+)
