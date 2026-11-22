@@ -286,8 +286,8 @@
   }
  ],
  "abi_symbols": [
-  "cpmdc_params_method",
   "cpmdc_set_params",
+  "cpmdc_params_method",
   "cpmdc_energy_gradient",
   "cpmdc_energy",
   "cpmdc_energy_forces",
