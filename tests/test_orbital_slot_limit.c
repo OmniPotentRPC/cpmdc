@@ -466,6 +466,7 @@ struct order_result {
   char topology[k_msg];
   char after_rejected_gate[k_msg];
   char valid_args[k_msg];
+  int fresh_reconfig_rc;
   int copy_null_rc;
   char copy_null_last[k_msg];
   int copy_unevaluated_rc;
@@ -514,7 +515,9 @@ static void order_checks(void *ctx_void, void *out_void) {
   copy_text(out->copy_unevaluated_last, k_msg, cpmdc_last_error());
   r = cpmdc_session_energy_forces(fresh, 3, pos, k_z, forces);
   copy_text(out->valid_args, k_msg, r.message);
-  r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
+  out->fresh_reconfig_rc =
+      cpmdc_session_set_params(fresh, ctx->params, ctx->params_n);
+  r = cpmdc_session_energy_forces(session, 3, pos, k_other_z, forces);
   copy_text(out->topology, k_msg, r.message);
   unsetenv(k_limit_name);
   r = cpmdc_session_energy_forces(fresh, 3, pos, k_other_z, forces);
@@ -523,6 +526,7 @@ static void order_checks(void *ctx_void, void *out_void) {
   setenv(k_limit_name, ctx->limit, 1);
   out->copy_evaluated_rc = cpmdc_session_copy_orbitals(session, 1, 2);
   copy_text(out->copy_evaluated_last, k_msg, cpmdc_last_error());
+
   cpmdc_session_destroy(fresh);
   cpmdc_session_destroy(session);
 }
@@ -552,16 +556,20 @@ static void check_error_order(const char *limit) {
   assert_int_equal(out.copy_unevaluated_rc, -1);
   assert_non_null(strstr(out.copy_unevaluated_last, "no stored orbitals"));
   assert_null(strstr(out.copy_unevaluated_last, k_limit_name));
-  /* A well formed call names the limit. */
+  /* A well formed call names the limit and leaves the topology open. */
   assert_int_equal(out.select_rc, 0);
   assert_string_equal(out.first_valid, "ok");
   assert_non_null(strstr(out.valid_args, k_limit_name));
+  assert_int_equal(out.fresh_reconfig_rc, 0);
   assert_int_equal(out.copy_evaluated_rc, -1);
   assert_non_null(strstr(out.copy_evaluated_last, k_limit_name));
   assert_null(strstr(out.copy_evaluated_last, k_exceeded));
-  /* A gate rejection does not latch the first topology. */
-  assert_non_null(strstr(out.topology, k_limit_name));
+  /* A gate rejection does not latch the fresh session's topology. */
   assert_string_equal(out.after_rejected_gate, "ok");
+  /* The first evaluation on `session` fixed its topology, so a change of it
+   * is the reason for the failure while the limit stays unusable. */
+  assert_non_null(strstr(out.topology, "topology change"));
+  assert_null(strstr(out.topology, k_limit_name));
   free(params);
 }
 

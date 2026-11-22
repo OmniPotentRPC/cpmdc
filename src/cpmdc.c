@@ -2487,37 +2487,37 @@ static CPMDCResult session_energy_gradient_cell(
   err = orbital_limit_gate(err);
   if (err)
     return fail_msg(err);
-  {
-    int *topology = NULL;
-    if (!session->topology_fixed) {
-      topology = test_fault("topology-allocation")
-                     ? NULL
-                     : (int *)malloc((size_t)n_atoms * sizeof(*topology));
-      if (!topology)
-        err = "out of memory";
-      else
-        memcpy(topology, atomic_numbers,
-               (size_t)n_atoms * sizeof(*topology));
-    }
-    err = collective_call_gate(err);
-    if (err) {
-      free(topology);
-      return fail_msg(err);
-    }
-    if (topology) {
-      session->fixed_atomic_numbers = topology;
-      session->fixed_n_atoms = (size_t)n_atoms;
-      session->topology_fixed = 1;
-    } else {
-      memcpy(session->fixed_atomic_numbers, atomic_numbers,
-             (size_t)n_atoms * sizeof(*atomic_numbers));
-    }
+  /* The copy is committed only after every preflight collective succeeds, so
+   * a key, stale-reset, or prepare failure leaves the topology open. */
+  int *pending_topology = NULL;
+  if (!session->topology_fixed) {
+    pending_topology = test_fault("topology-allocation")
+                           ? NULL
+                           : (int *)malloc((size_t)n_atoms * sizeof(*pending_topology));
+    if (!pending_topology)
+      err = "out of memory";
+    else
+      memcpy(pending_topology, atomic_numbers,
+             (size_t)n_atoms * sizeof(*pending_topology));
+  }
+  err = collective_call_gate(err);
+  if (err) {
+    free(pending_topology);
+    return fail_msg(err);
   }
   if (rank_consensus_all(
           grad_h_bohr &&
           session_copy_cached_gradient(session, (size_t)n_atoms, positions_ang,
                                        atomic_numbers, cell_ang, has_cell,
                                        grad_h_bohr))) {
+    if (pending_topology) {
+      session->fixed_atomic_numbers = pending_topology;
+      session->fixed_n_atoms = (size_t)n_atoms;
+      session->topology_fixed = 1;
+    } else {
+      memcpy(session->fixed_atomic_numbers, atomic_numbers,
+             (size_t)n_atoms * sizeof(*atomic_numbers));
+    }
     CPMDCResult cached;
     cached.ok = 1;
     cached.energy_h = session->cached_energy_h;
@@ -2529,14 +2529,18 @@ static CPMDCResult session_energy_gradient_cell(
       configure_embed_from_session(session) != 0)
     err = "CPMD embed not available";
   err = collective_call_gate(err);
-  if (err)
+  if (err) {
+    free(pending_topology);
     return fail_msg(err);
+  }
   {
     int has_orbital_key = session->has_orbital_key;
     const char *slot_err = NULL;
     if (cpmdc_orbital_key_agree(&has_orbital_key, session->orbital_key,
-                                &slot_err) != 0)
+                                &slot_err) != 0) {
+      free(pending_topology);
       return fail_msg(slot_err);
+    }
     if (has_orbital_key) {
       int stale_failed;
       double cell[9] = {0};
@@ -2548,13 +2552,27 @@ static CPMDCResult session_energy_gradient_cell(
                                             has_cell ? 1 : 0, &session->image);
       if (test_fault("drop-stale"))
         stale_failed = 1;
-      if (cpmdc_orbital_allreduce(&stale_failed, 1) != 0)
+      if (cpmdc_orbital_allreduce(&stale_failed, 1) != 0) {
+        free(pending_topology);
         return fail_msg("MPI collective failed");
-      if (stale_failed)
+      }
+      if (stale_failed) {
+        free(pending_topology);
         return fail_msg("failed to discard stale orbitals");
-      if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0)
+      }
+      if (cpmdc_orbital_prepare(session->orbital_key, &slot_err) != 0) {
+        free(pending_topology);
         return fail_msg(slot_err);
+      }
     }
+  }
+  if (pending_topology) {
+    session->fixed_atomic_numbers = pending_topology;
+    session->fixed_n_atoms = (size_t)n_atoms;
+    session->topology_fixed = 1;
+  } else {
+    memcpy(session->fixed_atomic_numbers, atomic_numbers,
+           (size_t)n_atoms * sizeof(*atomic_numbers));
   }
   if (!session->evaluated) {
     session->evaluated = 1;
