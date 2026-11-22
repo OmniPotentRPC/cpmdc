@@ -429,6 +429,7 @@ def main() -> int:
             "--prefix",
             prefix,
             "-Dwith_tests=false",
+            "-Dwith_lammps_plugin=disabled",
         ],
         env=setup_env,
     )
