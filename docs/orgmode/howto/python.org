@@ -86,9 +86,10 @@ It returns ~dipole~ as three e*Angstrom components only when OpenCPMD recomputed
 the molecular moment for that step.
 ~Potential.caps~ returns ~stress=True~ and ~energies=False~.
 It returns ~dipole=True~ only when the evaluator can produce a dipole: never for
-the reference evaluator, and for OpenCPMD until an evaluation comes back
-without one, because a deck without ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT
-BERRY~ produces none.
+the reference evaluator, never for a library without ~cpmdc_session_last_dipole~,
+and for OpenCPMD until an evaluation comes back without one, because a deck
+without ~DIPOLE DYNAMICS~ or ~PROP / DIPOLE MOMENT BERRY~ produces none.
+The call reads the session, so the dict is not a constant.
 The Berry-phase dipole exists only for a neutral periodic cell and only modulo
 the lattice quantum, so it can jump by a lattice vector between geometries.
 An rgpot ~RgpotCalculator~ accepts any object with those two methods, so this

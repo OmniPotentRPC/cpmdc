@@ -1496,10 +1496,10 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 |--------+--------|
 | Signature | ~caps()~ |
 | Units | none |
-| Shape and dtype | Returns a new ~dict[str, bool]~ with the keys ~stress~ and ~energies~. |
-| Ownership and threads | Returns a new dict; thread-safe because it reads no state. |
+| Shape and dtype | Returns a new ~dict[str, bool]~ with the keys ~stress~, ~dipole~, and ~energies~. |
+| Ownership and threads | Returns a new dict. Reads the owned session, including whether its library exports ~cpmdc_session_last_dipole~ and whether the last evaluation produced a dipole, so it is not thread-safe against evaluation or close on that session. MPI: local. |
 | Raises | none |
-| Defaults | Always ~{'stress': True, 'energies': False}~: stress may be present, per-atom energies never are. |
+| Defaults | ~stress~ is true and ~energies~ is false. ~dipole~ is ~Session.dipole_possible()~. A dipole result on ~Potential.evaluate~ is three e*Angstrom components, present only when that evaluation recomputed one. |
 
 *** ~cpmdc.Potential.close~
 
@@ -1518,7 +1518,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 |--------+--------|
 | Signature | ~evaluate(positions, numbers, box=None)~ |
 | Units | ~positions~ and ~box~ in Angstrom; the result has ~energy~ in eV, ~forces~ in eV/Angstrom and ~stress~ in eV/Angstrom^3 with the ASE sign ~(1/V) dE/d(strain)~. |
-| Shape and dtype | ~positions~ N by 3 floats; ~numbers~ N integers in 1..118; ~box~ a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new ~dict~: ~energy~ a float, ~forces~ an N by 3 list, and ~stress~ nine floats only when the library computed one. |
+| Shape and dtype | ~positions~ N by 3 floats; ~numbers~ N integers in 1..118; ~box~ a 3 by 3 matrix or nine floats in row-major order, one lattice vector per row. Returns a new ~dict~: ~energy~ a float, ~forces~ an N by 3 list, ~stress~ nine floats only when the library computed one, and ~dipole~ three e*Angstrom components only when the evaluation recomputed one. |
 | Ownership and threads | The caller keeps every argument; nothing is retained. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time and two sessions are not evaluated at the same time. MPI: the package never calls MPI; an OpenCPMD build runs the collectives of the C call on the calculator communicator, so every rank makes the same call. |
 | Raises | ~ValueError~ for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, a malformed box, and ~TypeError~ for a non-integer atomic number; ~CPMDCError~ for a closed session, a failed step or a change of composition. |
 | Defaults | ~box~ is ~None~: an isolated system, which the deck's boundary conditions then define. |
@@ -1562,9 +1562,9 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 |--------+--------|
 | Signature | ~dipole_possible()~ |
 | Units | none |
-| Shape and dtype | Returns a ~bool~: before the first step it reports whether OpenCPMD is linked; afterward it reports whether the last evaluation produced a dipole. |
+| Shape and dtype | Returns a ~bool~. False when the library has no ~cpmdc_session_last_dipole~, when the session is closed, or for the reference evaluator. Before the first step a linked library that has the symbol answers true. After a step the answer is whether that step produced a dipole. |
 | Ownership and threads | Reads the session handle and its last dipole state. Not thread-safe against evaluation or close on the same session. MPI: local. |
-| Raises | none: a closed session and the reference evaluator return ~False~. |
+| Raises | none: a closed session, the reference evaluator, and a library without ~cpmdc_session_last_dipole~ return ~False~. |
 | Defaults | none |
 
 *** ~cpmdc.Session.calculate_au~
@@ -2220,7 +2220,7 @@ The properties ~CPMDCCalculator~ implements, in ASE units.
 | free_energy | eV | scalar ~float~ | Equal to ~energy~. | As for ~energy~. |
 | forces | eV/Angstrom | (N, 3) ~float64~ array | The negative nuclear gradient ~-dE/dR~. | As for ~energy~. |
 | stress | eV/Angstrom^3 | (6,) ~float64~ array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, ~(1/V) dE/d(strain)~, the opposite of the OpenCPMD sign; shear parts are averaged. | ~PropertyNotImplementedError~ for a cluster (every ~pbc~ flag false) or for a step the library gave no stress for; ~ValueError~ for a partly periodic cell. |
-| dipole | e*Angstrom | (3,) ~float64~ Cartesian array | Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum. | ~PropertyNotImplementedError~ when the reference, isolated, k-point or unrequested evaluation produced no dipole. |
+| dipole | e*Angstrom | (3,) ~float64~ Cartesian array | Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum. | ~PropertyNotImplementedError~ when the library has no ~cpmdc_session_last_dipole~, or when the reference, isolated, k-point or unrequested evaluation produced no dipole. ~CalculationFailed~ when the dipole is not finite. |
 
 * ASE parameters
 
