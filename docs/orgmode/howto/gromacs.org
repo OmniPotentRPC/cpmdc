@@ -64,6 +64,10 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
 The installed ~libcp2k.pc~ gives ~-L~, ~-Wl,-rpath~ and the two libraries in
 ~Libs~, and ~-I~ for ~include/cpmdc/gromacs~ in ~Cflags~, so any pkg-config
 consumer compiles, links and runs against it with no further flags.
+~libcpmdc_gromacs~ records ~$ORIGIN~ on Linux and ~@loader_path~ on macOS, so
+it opens ~libcpmdc~ from its own directory after the prefix is moved. The
+installed library does not keep the build tree or the original prefix in
+~RPATH~ or ~RUNPATH~.
 GROMACS takes only the library names, directories, and include directories from
 it, not the ~-Wl,-rpath~; it finds the library at run time because it records
 the directories it linked from as its run path

@@ -133,6 +133,23 @@ Hosts that load the library at run time, such as ~rgpot~, look for it through
 ~CPMDC_LIBRARY~; see the
 [[file:../reference/environment.org][environment reference]].
 
+Installed shared libraries and plugins that need another library from the
+prefix record a run path relative to their own file: ~$ORIGIN~ on Linux and
+~@loader_path~ on macOS. ~libcpmdc~ sets an empty install run path, because
+it does not load another library from the prefix; toolchain directories
+Meson already recorded, such as the one for ~libgfortran~, stay.
+~libcpmdc_gromacs~ records ~$ORIGIN~ (its own directory). The LAMMPS plugin
+is installed one directory deeper, in ~lib/cpmdc~, and records ~$ORIGIN/..~.
+~cpmdc-ipi-c~ records the normalised relative path from the resolved
+~bindir~ to the resolved ~libdir~. ~-Dbindir=.~, absolute ~bindir~ and
+~libdir~ under the prefix, a nested ~libdir~, and a path that contains
+~..~ or a trailing slash still open ~libcpmdc~. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
+Meson keeps a build-tree run path only on uninstalled binaries. After
+~meson install~, an installed ~.so~ or ~.dylib~ does not point at the build
+tree or at the prefix path used for that install, so the tree can be moved
+and ~libcpmdc_gromacs~ still opens ~libcpmdc~.
+
 * Install the Python package
 Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28) and
 macOS arm64 (macOS 15 or newer).

@@ -2,6 +2,7 @@ project(
   'cpmdc',
   ['c', 'fortran'],
   version: files('version.txt'),
+  meson_version: '>=1.5.2',
   default_options: ['warning_level=2', 'c_std=c11'],
 )
 
@@ -96,7 +97,6 @@ add_project_arguments(
 # Every in-tree target but libcpmdc compiles the cpmdc sources or links a
 # static archive. libcpmdc adds CPMDC_BUILDING_LIBRARY, which takes precedence.
 add_project_arguments('-DCPMDC_STATIC', language: 'c')
-pkgconfig = import('pkgconfig')
 math_dep = cc.find_library('m', required: false)
 dl_dep = dependency('dl', required: false)
 if not dl_dep.found()
@@ -436,6 +436,40 @@ elif fc.get_linker_id().startswith('ld64')
   cpmdc_shared_link_depends += [cpmdc_export_list]
 endif
 
+# install_rpath is what `meson install` writes. build_rpath stays unset so
+# uninstalled binaries keep Meson's build-tree run path. $ORIGIN
+# (@loader_path on macOS) is relative to the installed file. An empty
+# install_rpath means that file does not need another library from the prefix.
+if host_machine.system() == 'darwin'
+  install_origin = '@loader_path'
+else
+  install_origin = '$ORIGIN'
+endif
+install_sibling_rpath = install_origin
+install_plugin_rpath = install_origin + '/..'
+# Executables are installed in bindir and load libraries from libdir.
+# Counting bindir components is wrong for '.', absolute directories,
+# '..', and trailing slashes. Meson keeps an absolute directory option
+# when it lies outside prefix, and older Meson also keeps one that lies
+# inside prefix. Resolve both against prefix, then take the normalised
+# relative path. fs.relative_to returns the absolute path unchanged when
+# the two locations cannot be related, which is not a usable run path.
+fs = import('fs')
+install_prefix = get_option('prefix')
+bindir_opt = get_option('bindir')
+libdir_opt = get_option('libdir')
+resolved_bindir = fs.is_absolute(bindir_opt) ? bindir_opt : install_prefix / bindir_opt
+resolved_libdir = fs.is_absolute(libdir_opt) ? libdir_opt : install_prefix / libdir_opt
+install_lib_from_bin = fs.relative_to(resolved_libdir, resolved_bindir).replace('\\', '/')
+if install_lib_from_bin == '' or fs.is_absolute(install_lib_from_bin) or install_lib_from_bin.contains(':') or install_lib_from_bin.contains('$')
+  error('cannot express an install run path from ' + resolved_bindir + ' to ' + resolved_libdir + ' (' + install_lib_from_bin + ')')
+endif
+if install_lib_from_bin == '.'
+  install_exe_rpath = install_origin
+else
+  install_exe_rpath = install_origin + '/' + install_lib_from_bin
+endif
+
 cpmdc_shared = shared_library(
   'cpmdc',
   cpmd_embed_sources,
@@ -448,6 +482,7 @@ cpmdc_shared = shared_library(
   link_args: cpmdc_shared_link_args,
   link_depends: cpmdc_shared_link_depends,
   install: true,
+  install_rpath: '',
   kwargs: cpmdc_shared_install,
 )
 
@@ -546,7 +581,7 @@ if cc.has_header('sys/un.h')
     dependencies: [math_dep],
     c_args: common_c_args,
     install: not get_option('with_python'),
-    install_rpath: get_option('prefix') / get_option('libdir'),
+    install_rpath: install_exe_rpath,
   )
 endif
 # pair_style cpmdc, a LAMMPS plugin and another consumer of the public header
@@ -591,7 +626,7 @@ if not lammps_plugin_opt.disabled() and not get_option('with_python')
       override_options: ['cpp_std=c++17'],
       install: true,
       install_dir: get_option('libdir') / 'cpmdc',
-      install_rpath: get_option('prefix') / get_option('libdir'),
+      install_rpath: install_plugin_rpath,
     )
   elif lammps_plugin_opt.enabled()
     error('with_lammps_plugin needs the LAMMPS headers: set -Dlammps_include, or install the lammps Python package')
@@ -617,29 +652,47 @@ if not get_option('with_gromacs_shim').disabled() and not get_option('with_pytho
     c_args: gromacs_c_args,
     override_options: ['c_std=c11'],
     install: true,
-    install_rpath: get_option('prefix') / get_option('libdir'),
+    install_rpath: install_sibling_rpath,
   )
   install_headers('tools/gromacs/libcp2k.h', subdir: 'cpmdc' / 'gromacs')
   # GROMACS reads ${CP2K_DIR}/pkgconfig/libcp2k.pc: CP2K_DIR is
   # build/tools/gromacs here and <libdir>/cpmdc/gromacs once installed.
   subdir('tools/gromacs/pkgconfig')
 endif
-pkgconfig.generate(
-  name: 'cpmdc-restart',
-  filebase: 'cpmdc-restart',
-  libraries: cpmdc_restart_lib,
-  subdirs: 'cpmdc',
-  version: meson.project_version(),
-  description: 'C reader and writer for CPMD RESTART files',
-)
-pkgconfig.generate(
-  name: 'cpmdc',
-  filebase: 'cpmdc',
-  libraries: cpmdc_shared,
-  subdirs: 'cpmdc',
-  version: meson.project_version(),
-  description: 'Stable C ABI for embedding CPMD',
-)
+pc_up = ['${pcfiledir}']
+foreach _ : range(get_option('libdir').split('/').length() + 1)
+  pc_up += ['..']
+endforeach
+pc_prefix = '/'.join(pc_up)
+foreach pc_spec : [
+  [
+    'cpmdc-restart',
+    'cpmdc_restart',
+    'C reader and writer for CPMD RESTART files',
+  ],
+  [
+    'cpmdc',
+    'cpmdc',
+    'Stable C ABI for embedding CPMD',
+  ],
+]
+  pc_conf = configuration_data()
+  pc_conf.set('PREFIX', pc_prefix)
+  pc_conf.set('INCLUDEDIR', pc_prefix / get_option('includedir'))
+  pc_conf.set('LIBDIR', '${pcfiledir}/..')
+  pc_conf.set('NAME', pc_spec[0])
+  pc_conf.set('LIB', pc_spec[1])
+  pc_conf.set('DESCRIPTION', pc_spec[2])
+  pc_conf.set('VERSION', meson.project_version())
+  configure_file(
+    input: 'cmake/cpmdc.pc.in',
+    output: pc_spec[0] + '.pc',
+    configuration: pc_conf,
+    install: true,
+    install_dir: get_option('libdir') / 'pkgconfig',
+    install_tag: 'devel',
+  )
+endforeach
 cmake = import('cmake')
 cmake.configure_package_config_file(
   name: 'cpmdc',
@@ -2501,6 +2554,28 @@ test(
 
   meson_prog = find_program('meson', required: false)
   pkg_config_prog = find_program('pkgconf', 'pkg-config', required: false)
+  if meson_prog.found()
+    test(
+      'cpmdc-installed-runpath',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_installed_runpath.py',
+        '--source-dir',
+        meson.current_source_dir(),
+        '--build-root',
+        meson.current_build_dir() / 'installed-runpath',
+        '--meson',
+        meson_prog.full_path(),
+        '--cc',
+        cc.cmd_array().length() > 1 ? cc.cmd_array()[1] : cc.cmd_array()[0],
+        '--fc',
+        fc.cmd_array().length() > 1 ? fc.cmd_array()[1] : fc.cmd_array()[0],
+      ],
+      is_parallel: false,
+      timeout: 1200,
+      suite: 'packaging',
+    )
+  endif
   if meson_prog.found() and pkg_config_prog.found()
     test(
       'cpmdc-installed-package-consumer',
