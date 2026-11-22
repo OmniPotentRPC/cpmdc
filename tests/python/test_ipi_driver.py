@@ -769,3 +769,45 @@ def test_duplicate_batch_size_is_rejected(text: bytes) -> None:
 def test_zero_wait_tries_once() -> None:
     with pytest.raises(CPMDCError, match="cannot connect"):
         connect(unix="cpmdc-not-a-socket", wait=0.0)
+
+
+def test_entry_point_runs_with_numpy_blocked(mini, socket_dir, periodic_params) -> None:
+    script = (
+        "import sys; sys.modules['numpy'] = None; "
+        "import cpmdc.ipi; "
+        "assert sys.modules['numpy'] is None; "
+        "raise SystemExit(cpmdc.ipi.main(sys.argv[1:]))"
+    )
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            script,
+            "--unix",
+            str(socket_dir / "s"),
+            "--params",
+            str(periodic_params),
+            "--species",
+            "OHH",
+        ],
+        env=driver_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        mini.accept()
+        assert mini.status() == "NEEDINIT"
+        mini.init()
+        energy, forces, virial, _ = mini.step(TRICLINIC, WATER)
+        expected = native(periodic_params, WATER, TRICLINIC)
+        assert energy == pytest.approx(expected.energy_h, rel=1e-13)
+        np.testing.assert_allclose(forces, expected.forces_h_bohr, rtol=1e-12, atol=1e-15)
+        assert virial.any()
+        mini.send(mini.header("EXIT"))
+        _, err = proc.communicate(timeout=TIMEOUT)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.communicate()
+    assert proc.returncode == 0, err

@@ -28,9 +28,9 @@ from __future__ import annotations
 
 import math
 import sys
-
-import numpy as np
-from numpy.typing import ArrayLike
+from collections.abc import Iterable
+from numbers import Real
+from typing import TypeGuard
 
 __all__ = []
 
@@ -47,11 +47,51 @@ _MAX_EXP = sys.float_info.max_exp
 _SWEEPS = 64
 
 
-def _entries(cell: ArrayLike) -> list[float]:
-    matrix = np.asarray(cell, dtype=np.float64)
-    if matrix.shape != (3, 3):
-        raise ValueError(f"cell must have shape (3, 3), got {matrix.shape}")
-    return [float(value) for value in matrix.ravel(order="C")]
+def _is_row(value: object) -> TypeGuard[Iterable[object]]:
+    return isinstance(value, Iterable) and not isinstance(
+        value, (str, bytes, bytearray)
+    )
+
+
+def _entries(cell: object) -> list[float]:
+    if not _is_row(cell):
+        if not isinstance(cell, bool) and isinstance(cell, Real):
+            raise ValueError("cell must have shape (3, 3), got ()")
+        raise TypeError(
+            f"cell must be a 3 by 3 sequence of real numbers, got {type(cell).__name__}"
+        )
+    try:
+        raw_rows = list(cell)
+    except TypeError:
+        raise ValueError("cell must have shape (3, 3), got ()") from None
+    if not raw_rows or not all(_is_row(row) for row in raw_rows):
+        if any(_is_row(row) for row in raw_rows):
+            raise ValueError("cell must be a rectangular 3 by 3 sequence")
+        raise ValueError(f"cell must have shape (3, 3), got ({len(raw_rows)},)")
+    rows: list[list[object]] = []
+    for row in raw_rows:
+        assert _is_row(row)
+        try:
+            rows.append(list(row))
+        except TypeError:
+            raise ValueError(f"cell must have shape (3, 3), got ({len(raw_rows)},)") from None
+    widths = {len(row) for row in rows}
+    if len(widths) != 1:
+        raise ValueError("cell must be a rectangular 3 by 3 sequence")
+    shape = (len(rows), len(rows[0]))
+    if shape != (3, 3):
+        raise ValueError(f"cell must have shape (3, 3), got {shape}")
+    entries: list[float] = []
+    for row in rows:
+        for value in row:
+            if _is_row(value):
+                raise ValueError("cell must have shape (3, 3), got more than 2 dimensions")
+            if isinstance(value, bool) or not isinstance(value, Real):
+                raise TypeError(
+                    f"cell must contain real numbers, got {type(value).__name__}"
+                )
+            entries.append(float(value))
+    return entries
 
 
 def _scale_exponent(a: list[float]) -> int:
@@ -112,7 +152,7 @@ def _abs_det_lu(scaled: list[float]) -> float:
     return abs(m[0] * m[4] * m[8])
 
 
-def _cell_state(cell: ArrayLike) -> int:
+def _cell_state(cell: object) -> int:
     """The ``cpmdc_cell_rank3_state`` code of a row-major 3 by 3 cell."""
     entries = _entries(cell)
     if not all(math.isfinite(value) for value in entries):
@@ -149,7 +189,7 @@ def _cell_state(cell: ArrayLike) -> int:
     return _FULL_RANK
 
 
-def _cell_volume(cell: ArrayLike) -> float:
+def _cell_volume(cell: object) -> float:
     """``|det cell|``, as ``cpmdc_cell_volume3`` computes it.
 
     ``math.inf`` when the volume is above the largest float64, zero for an
@@ -170,7 +210,7 @@ def _cell_volume(cell: ArrayLike) -> float:
     return math.ldexp(mantissa, det_exponent + 3 * exponent)
 
 
-def _cell_is_rank_deficient(cell: ArrayLike) -> bool:
+def _cell_is_rank_deficient(cell: object) -> bool:
     """True when a finite 3 by 3 cell is unusable as a periodic cell.
 
     A non-finite entry is not a rank question; the coordinate check

@@ -238,8 +238,25 @@ def test_non_finite_cell_is_not_reported_as_rank_deficient(non_finite: float) ->
 
 
 def test_rank_check_requires_a_three_by_three_cell() -> None:
+    assert not _cell_is_rank_deficient(((3, 0, 0), (0, 4, 0), (0, 0, 5)))
     with pytest.raises(ValueError, match=r"shape \(3, 3\).+got \(2, 2\)"):
         _cell_is_rank_deficient(np.eye(2))
+    with pytest.raises(ValueError, match=r"shape \(3, 3\).+got \(9,\)"):
+        _cell_is_rank_deficient([1.0] * 9)
+    with pytest.raises(ValueError, match=r"shape \(3, 3\).+got \(\)"):
+        _cell_is_rank_deficient(1.0)
+    with pytest.raises(ValueError, match=r"shape \(3, 3\).+got \(\)"):
+        _cell_is_rank_deficient(np.array(1.0))
+    with pytest.raises(ValueError, match="rectangular"):
+        _cell_is_rank_deficient([[1.0, 0.0, 0.0], [0.0, 1.0], [0.0, 0.0, 1.0]])
+    with pytest.raises(ValueError, match=r"shape \(3, 3\)"):
+        _cell_is_rank_deficient([[[1.0], [0.0], [0.0]]] * 3)
+    with pytest.raises(TypeError):
+        _cell_is_rank_deficient("123456789")
+    with pytest.raises(TypeError):
+        _cell_is_rank_deficient([[True, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    with pytest.raises(TypeError):
+        _cell_is_rank_deficient([["1", 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
 
 
 def test_rank_cutoff_does_not_overflow_for_a_large_cell() -> None:
