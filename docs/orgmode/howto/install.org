@@ -135,7 +135,11 @@ it does not load another library from the prefix; toolchain directories
 Meson already recorded, such as the one for ~libgfortran~, stay.
 ~libcpmdc_gromacs~ records ~$ORIGIN~ (its own directory). The LAMMPS plugin
 is installed one directory deeper, in ~lib/cpmdc~, and records ~$ORIGIN/..~.
-~cpmdc-ipi-c~ records the relative path from ~bin~ to the library directory.
+~cpmdc-ipi-c~ records the normalised relative path from the resolved
+~bindir~ to the resolved ~libdir~. ~-Dbindir=.~, absolute ~bindir~ and
+~libdir~ under the prefix, a nested ~libdir~, and a path that contains
+~..~ or a trailing slash still open ~libcpmdc~. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
 Meson keeps a build-tree run path only on uninstalled binaries. After
 ~meson install~, an installed ~.so~ or ~.dylib~ does not point at the build
 tree or at the prefix path used for that install, so the tree can be moved

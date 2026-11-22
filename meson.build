@@ -2,6 +2,7 @@ project(
   'cpmdc',
   ['c', 'fortran'],
   version: files('version.txt'),
+  meson_version: '>=1.5.2',
   default_options: ['warning_level=2', 'c_std=c11'],
 )
 
@@ -378,11 +379,28 @@ else
 endif
 install_sibling_rpath = install_origin
 install_plugin_rpath = install_origin + '/..'
-install_bindir_ups = []
-foreach _ : get_option('bindir').split('/')
-  install_bindir_ups += '..'
-endforeach
-install_exe_rpath = install_origin + '/' + '/'.join(install_bindir_ups) + '/' + get_option('libdir')
+# Executables are installed in bindir and load libraries from libdir.
+# Counting bindir components is wrong for '.', absolute directories,
+# '..', and trailing slashes. Meson keeps an absolute directory option
+# when it lies outside prefix, and older Meson also keeps one that lies
+# inside prefix. Resolve both against prefix, then take the normalised
+# relative path. fs.relative_to returns the absolute path unchanged when
+# the two locations cannot be related, which is not a usable run path.
+fs = import('fs')
+install_prefix = get_option('prefix')
+bindir_opt = get_option('bindir')
+libdir_opt = get_option('libdir')
+resolved_bindir = fs.is_absolute(bindir_opt) ? bindir_opt : install_prefix / bindir_opt
+resolved_libdir = fs.is_absolute(libdir_opt) ? libdir_opt : install_prefix / libdir_opt
+install_lib_from_bin = fs.relative_to(resolved_libdir, resolved_bindir).replace('\\', '/')
+if install_lib_from_bin == '' or fs.is_absolute(install_lib_from_bin) or install_lib_from_bin.contains(':') or install_lib_from_bin.contains('$')
+  error('cannot express an install run path from ' + resolved_bindir + ' to ' + resolved_libdir + ' (' + install_lib_from_bin + ')')
+endif
+if install_lib_from_bin == '.'
+  install_exe_rpath = install_origin
+else
+  install_exe_rpath = install_origin + '/' + install_lib_from_bin
+endif
 
 cpmdc_shared = shared_library(
   'cpmdc',
@@ -2253,6 +2271,28 @@ test(
 
   meson_prog = find_program('meson', required: false)
   pkg_config_prog = find_program('pkgconf', 'pkg-config', required: false)
+  if meson_prog.found()
+    test(
+      'cpmdc-installed-runpath',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_installed_runpath.py',
+        '--source-dir',
+        meson.current_source_dir(),
+        '--build-root',
+        meson.current_build_dir() / 'installed-runpath',
+        '--meson',
+        meson_prog.full_path(),
+        '--cc',
+        cc.cmd_array().length() > 1 ? cc.cmd_array()[1] : cc.cmd_array()[0],
+        '--fc',
+        fc.cmd_array().length() > 1 ? fc.cmd_array()[1] : fc.cmd_array()[0],
+      ],
+      is_parallel: false,
+      timeout: 1200,
+      suite: 'packaging',
+    )
+  endif
   if meson_prog.found() and pkg_config_prog.found()
     test(
       'cpmdc-installed-package-consumer',
