@@ -700,7 +700,7 @@ def relax_cell(atoms: Atoms, steps: int) -> tuple[bool, list[float]]:
     return converged, energies
 
 
-def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
+def test_bfgs_moves_the_cell_through_a_cell_filter(params, periodic_params, opencpmd):
     """At a constant cutoff the cell relaxes to a sensible volume.
 
     The 40 Ry deck keeps its basis and evaluates the 30 Ry constant-cutoff
@@ -710,7 +710,10 @@ def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
     """
     if opencpmd:
         runner = ROOT / "tests" / "python" / "run_bfgs_cell_filter.py"
-        subprocess.run([sys.executable, str(runner)], check=True, env=os.environ)
+        env = os.environ.copy()
+        env["CPMDC_TEST_PARAMS"] = str(params)
+        env["CPMDC_TEST_PERIODIC_PARAMS"] = str(periodic_params)
+        subprocess.run([sys.executable, str(runner)], check=True, env=env)
         return
     atoms = water(cell=CUBE, pbc=True)
     atoms.rattle(0.05, seed=17)
