@@ -19,6 +19,9 @@
 static const char *g_top = NULL;
 static const char *g_sections = NULL;
 static const char *g_step = NULL;
+static const char *g_raw = NULL;
+static const char *g_generic = NULL;
+static const char *g_set = NULL;
 
 static unsigned char *read_file(const char *path, size_t *size) {
   FILE *fp = fopen(path, "rb");
@@ -129,16 +132,46 @@ static void test_sections_override_top_level_scalars(void **state) {
   cpmdc_finalize();
 }
 
+static void test_params_method_rejects_opaque_scalars(void **state) {
+  (void)state;
+  size_t raw_size = 0, generic_size = 0, set_size = 0;
+  unsigned char *raw = read_file(g_raw, &raw_size);
+  unsigned char *generic = read_file(g_generic, &generic_size);
+  unsigned char *set = read_file(g_set, &set_size);
+  assert_non_null(raw);
+  assert_non_null(generic);
+  assert_non_null(set);
+
+  CPMDCMethodInfo method;
+  assert_int_equal(cpmdc_params_method(raw, raw_size, &method), -1);
+  assert_non_null(strstr(cpmdc_last_error(), "&DFT"));
+  assert_int_equal(cpmdc_params_method(generic, generic_size, &method), -1);
+  assert_non_null(strstr(cpmdc_last_error(), "&SYSTEM"));
+  assert_int_equal(cpmdc_params_method(set, set_size, &method), -1);
+  assert_non_null(strstr(cpmdc_last_error(), "SYSTEM scalar set directive"));
+
+  free(raw);
+  free(generic);
+  free(set);
+}
+
 int main(int argc, char **argv) {
-  if (argc < 4) {
-    fprintf(stderr, "usage: %s top.bin sections.bin force_input.bin\n", argv[0]);
+  if (argc < 7) {
+    fprintf(stderr,
+            "usage: %s top.bin sections.bin force_input.bin raw.bin generic.bin "
+            "set.bin\n",
+            argv[0]);
     return 2;
   }
   g_top = argv[1];
   g_sections = argv[2];
   g_step = argv[3];
+  g_raw = argv[4];
+  g_generic = argv[5];
+  g_set = argv[6];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_sections_override_top_level_scalars),
+      cmocka_unit_test(test_params_method_rejects_opaque_scalars),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

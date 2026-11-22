@@ -1,0 +1,12 @@
+(
+  functional = "BLYP",
+  charge = 0,
+  multiplicity = 1,
+  inputSections = [
+    ( set = ( key = "SYSTEM.CHARGE", value = "2" ) ),
+    ( atoms = ( pseudopotentials = [
+        ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
+        ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
+      ] ) )
+  ]
+)

@@ -889,6 +889,24 @@ if get_option('with_tests')
     output: 'params_effective_config_xc_sections.bin',
     command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
   )
+  method_raw_dft_params_bin = custom_target(
+    'method_raw_dft_params_bin',
+    input: 'tests/params_method_raw_dft.capnp.txt',
+    output: 'params_method_raw_dft.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  method_generic_system_params_bin = custom_target(
+    'method_generic_system_params_bin',
+    input: 'tests/params_method_generic_system.capnp.txt',
+    output: 'params_method_generic_system.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
+  method_set_charge_params_bin = custom_target(
+    'method_set_charge_params_bin',
+    input: 'tests/params_method_set_charge.capnp.txt',
+    output: 'params_method_set_charge.bin',
+    command: encode + ['CPMDParams', '@INPUT@', '@OUTPUT@'],
+  )
   atoms_silicon_params_bin = custom_target(
     'atoms_silicon_params_bin',
     input: 'tests/params_atoms_silicon.capnp.txt',
@@ -1137,11 +1155,17 @@ if get_option('with_tests')
       effective_xc_top_params_bin.full_path(),
       effective_xc_section_params_bin.full_path(),
       force_input_step_a_bin.full_path(),
+      method_raw_dft_params_bin.full_path(),
+      method_generic_system_params_bin.full_path(),
+      method_set_charge_params_bin.full_path(),
     ],
     depends: [
       effective_xc_top_params_bin,
       effective_xc_section_params_bin,
       force_input_step_a_bin,
+      method_raw_dft_params_bin,
+      method_generic_system_params_bin,
+      method_set_charge_params_bin,
     ],
     suite: ['e2e', 'cmocka', 'params'],
     timeout: has_cpmd ? 300 : 30,

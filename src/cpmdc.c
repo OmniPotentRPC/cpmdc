@@ -273,6 +273,14 @@ static int ensure_embed_init(void) {
   return ok;
 }
 
+static int cpmd_text_equals_ci(capn_text text, const char *lit);
+static int cpmd_raw_has_section(capn_text block, const char *name);
+static int cpmd_directives_have_kw(CPMDDirective_list directives,
+                                   const char *keyword);
+static int cpmd_set_matches_kw(capn_text key, const char *section,
+                               const char *keyword);
+static int cpmd_params_method_check_opaque_scalars(CPMDParams_ptr params);
+
 static CPMDCResult fail_msg(const char *msg) {
   CPMDCResult r;
   r.ok = 0;
@@ -312,6 +320,10 @@ int cpmdc_params_method(const void *params_capnp, size_t params_size,
   }
   if (cpmdc_params_root(params_capnp, params_size, &arena, &root) != 0) {
     cpmdc_store_error("CPMDParams parse failed");
+    return -1;
+  }
+  if (cpmd_params_method_check_opaque_scalars(root) != 0) {
+    cpmdc_params_release(&arena);
     return -1;
   }
   if (cpmdc_params_effective_config(root, out->functional,
@@ -1117,6 +1129,128 @@ static int cpmd_set_matches_kw(capn_text key, const char *section,
   const char *k = dot + 1;
   size_t klen = (size_t)key.len - sec_len - 1u;
   return cpmd_text_has_keyword_ci(k, klen, kw);
+}
+
+static int cpmd_params_method_check_opaque_scalars(CPMDParams_ptr params) {
+  struct CPMDParams view;
+  read_CPMDParams(&view, params);
+
+  int nblocks = common_text_list_len(view.inputBlocks);
+  if (nblocks < 0) {
+    cpmdc_store_error("CPMDParams method metadata: inputBlocks is invalid");
+    return -1;
+  }
+  for (int i = 0; i < nblocks; ++i) {
+    capn_text block = capn_get_text(view.inputBlocks, i, k_empty_text);
+    if (cpmd_raw_has_section(block, "DFT")) {
+      cpmdc_store_error(
+          "CPMDParams method metadata is ambiguous: inputBlocks opens &DFT");
+      return -1;
+    }
+    if (cpmd_raw_has_section(block, "SYSTEM")) {
+      cpmdc_store_error(
+          "CPMDParams method metadata is ambiguous: inputBlocks opens &SYSTEM");
+      return -1;
+    }
+  }
+
+  capn_resolve(&view.inputSections.p);
+  if (view.inputSections.p.type == CAPN_NULL)
+    return 0;
+  if (view.inputSections.p.type != CAPN_LIST) {
+    cpmdc_store_error("CPMDParams method metadata: inputSections is invalid");
+    return -1;
+  }
+  for (int i = 0; i < view.inputSections.p.len; ++i) {
+    struct CPMDInputSection sec;
+    get_CPMDInputSection(&sec, view.inputSections, i);
+    if (sec.which == CPMDInputSection_raw) {
+      if (cpmd_raw_has_section(sec.raw, "DFT")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: a raw section opens "
+            "&DFT");
+        return -1;
+      }
+      if (cpmd_raw_has_section(sec.raw, "SYSTEM")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: a raw section opens "
+            "&SYSTEM");
+        return -1;
+      }
+      continue;
+    }
+    if (sec.which == CPMDInputSection_generic) {
+      struct CPMDGenericSection gen;
+      read_CPMDGenericSection(&gen, sec.generic);
+      if (cpmd_text_equals_ci(gen.name, "DFT")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: a generic section opens "
+            "&DFT");
+        return -1;
+      }
+      if (cpmd_text_equals_ci(gen.name, "SYSTEM")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: a generic section opens "
+            "&SYSTEM");
+        return -1;
+      }
+      continue;
+    }
+    if (sec.which == CPMDInputSection_set) {
+      struct CPMDSetDirective set_dir;
+      read_CPMDSetDirective(&set_dir, sec.set);
+      if (cpmd_set_matches_kw(set_dir.key, "DFT", "FUNCTIONAL")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: DFT.FUNCTIONAL set "
+            "directive is present");
+        return -1;
+      }
+      if (cpmd_set_matches_kw(set_dir.key, "SYSTEM", "CUTOFF") ||
+          cpmd_set_matches_kw(set_dir.key, "SYSTEM", "CHARGE") ||
+          cpmd_set_matches_kw(set_dir.key, "SYSTEM", "MULTIPLICITY")) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: SYSTEM scalar set "
+            "directive is present");
+        return -1;
+      }
+      continue;
+    }
+    if (sec.which == CPMDInputSection_dft) {
+      struct CPMDDftSection body;
+      read_CPMDDftSection(&body, sec.dft);
+      int has_functional = cpmd_directives_have_kw(body.directives, "FUNCTIONAL");
+      if (has_functional < 0) {
+        cpmdc_store_error("CPMDParams method metadata: dft directives are invalid");
+        return -1;
+      }
+      if (has_functional) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: typed dft section "
+            "contains FUNCTIONAL");
+        return -1;
+      }
+      continue;
+    }
+    if (sec.which == CPMDInputSection_system) {
+      struct CPMDSystemSection body;
+      read_CPMDSystemSection(&body, sec.system);
+      int has_cutoff = cpmd_directives_have_kw(body.directives, "CUTOFF");
+      int has_charge = cpmd_directives_have_kw(body.directives, "CHARGE");
+      int has_mult = cpmd_directives_have_kw(body.directives, "MULTIPLICITY");
+      if (has_cutoff < 0 || has_charge < 0 || has_mult < 0) {
+        cpmdc_store_error(
+            "CPMDParams method metadata: system directives are invalid");
+        return -1;
+      }
+      if (has_cutoff || has_charge || has_mult) {
+        cpmdc_store_error(
+            "CPMDParams method metadata is ambiguous: typed system section "
+            "contains CUTOFF, CHARGE, or MULTIPLICITY");
+        return -1;
+      }
+    }
+  }
+  return 0;
 }
 
 static int
