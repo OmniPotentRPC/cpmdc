@@ -23,6 +23,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 CONSUMER_C = r"""
@@ -159,18 +160,60 @@ def runtime_path_entries(path: Path) -> list[str]:
     return entries
 
 
-def entry_hits_root(entry: str, root: Path) -> bool:
+def _origin_relative(entry: str, library: Path) -> Path | None:
+    """Resolve `$ORIGIN` and `@loader_path` against `library`'s directory.
+
+    `@executable_path` is the main executable, which this check does not
+    know, so it is left unresolved.
+    """
+    origin = library.parent
+    for token in ("$ORIGIN", "${ORIGIN}", "@loader_path"):
+        if entry == token:
+            return origin.resolve()
+        for sep in ("/", "\\"):
+            prefix = token + sep
+            if entry.startswith(prefix):
+                return (origin / entry[len(prefix) :]).resolve()
+    return None
+
+
+def entry_hits_root(entry: str, root: Path, library: Path) -> bool:
+    root_resolved = root.resolve()
+    expanded = _origin_relative(entry, library)
+    if expanded is not None:
+        return expanded == root_resolved or root_resolved in expanded.parents
     root_s = str(root)
     if root_s and root_s in entry:
         return True
-    if entry.startswith(("$ORIGIN", "@loader_path", "@executable_path")):
-        return False
     candidate = Path(entry)
     if not candidate.is_absolute():
         return False
     resolved = candidate.resolve()
-    root_resolved = root.resolve()
     return resolved == root_resolved or root_resolved in resolved.parents
+
+
+def _assert_origin_resolution() -> None:
+    """`$ORIGIN` and `@loader_path` are judged from the library directory."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        libdir = root / "reloc" / "lib"
+        libdir.mkdir(parents=True)
+        library = libdir / "libcpmdc.so"
+        library.write_bytes(b"")
+        build = root / "build"
+        build.mkdir()
+        if entry_hits_root("$ORIGIN", build, library):
+            raise SystemExit("library $ORIGIN was treated as the build tree")
+        if entry_hits_root("@loader_path", build, library):
+            raise SystemExit("library @loader_path was treated as the build tree")
+        if not entry_hits_root("$ORIGIN/../../build", build, library):
+            raise SystemExit("$ORIGIN into the build tree was ignored")
+        if not entry_hits_root("@loader_path/../../build", build, library):
+            raise SystemExit("@loader_path into the build tree was ignored")
+        if not entry_hits_root(str(build / "lib"), build, library):
+            raise SystemExit("absolute build tree entry was ignored")
+        if entry_hits_root("@executable_path/../../build", build, library):
+            raise SystemExit("@executable_path was resolved against the library")
 
 
 def reject_fixed_runpaths(tree: Path, forbidden: list[Path]) -> None:
@@ -180,7 +223,7 @@ def reject_fixed_runpaths(tree: Path, forbidden: list[Path]) -> None:
     for library in libraries:
         for entry in runtime_path_entries(library):
             for root in forbidden:
-                if entry_hits_root(entry, root):
+                if entry_hits_root(entry, root, library):
                     raise SystemExit(
                         f"{library}: run path {entry!r} points into {root} "
                         "(build tree or original prefix)"
@@ -360,6 +403,7 @@ def main() -> int:
     parser.add_argument("--fc", default=os.environ.get("FC", "gfortran"))
     parser.add_argument("--pkg-config", default="pkg-config")
     args = parser.parse_args()
+    _assert_origin_resolution()
 
     source = Path(args.source_dir).resolve()
     build_root = Path(args.build_root).resolve()
