@@ -88,8 +88,12 @@ eV/Angstrom, and stress in eV/Angstrom^3.
 The calculator converts from the library's Hartree and Bohr with ~HARTREE_TO_EV~
 and ~BOHR_TO_ANGSTROM~, which are the CODATA 2018 values.
 ASE's default ~ase.units~ are CODATA 2014, so a number converted back with
-~ase.units.Hartree~ differs by about 1e-8 relative;
-~ase.units.create_units("2018")~ agrees to 1e-10.
+~ase.units.Hartree~ differs by about 1e-8 relative.
+From ASE 3.24, ~ase.units.create_units("2018")~ agrees to 1e-10.
+ASE 3.23 stores ~mu0 = 4*pi*1e-7~ in that table, the permeability from before
+the 2019 SI revision, so the Bohr and Hartree it derives differ from these
+constants by about 1e-9.
+The calculator uses ~HARTREE_TO_EV~ and ~BOHR_TO_ANGSTROM~ on every ASE version.
 Stress has ASE's sign: the derivative of the energy with respect to strain,
 divided by the volume.
 It is positive when the energy rises as the cell expands.

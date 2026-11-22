@@ -28,6 +28,7 @@ import pytest
 from ase import Atoms
 from ase.calculators.socketio import SocketIOCalculator, actualunixsocketname
 from ase.optimize import BFGS
+from ase_codata import derived_matches_recommended
 from conftest import INSTALLED, ROOT, WATER
 
 import cpmdc.ipi
@@ -96,10 +97,19 @@ def clients():
 
 @pytest.fixture
 def codata2018(monkeypatch: pytest.MonkeyPatch) -> None:
-    # ASE derives its 2018 Bohr from other constants; it agrees to 1e-11.
+    # ASE derives its 2018 Bohr from mu0. From ASE 3.24 that mu0 is the
+    # CODATA 2018 value and the derived Bohr and Hartree agree to 1e-11.
+    # ASE 3.23 still stores mu0 = 4*pi*1e-7, so the derived values miss the
+    # recommended constants by about 1e-9. The steps below use cpmdc's
+    # constants either way. The defining 2018 constants confirm the table.
     units = ase.units.create_units("2018")
-    assert units["Bohr"] == pytest.approx(BOHR_TO_ANGSTROM, rel=1e-11)
-    assert units["Hartree"] == pytest.approx(HARTREE_TO_EV, rel=1e-11)
+    assert units["_e"] == 1.602176634e-19
+    assert units["_hplanck"] == 6.62607015e-34
+    assert units["_k"] == 1.380649e-23
+    assert units["_Nav"] == 6.02214076e23
+    if derived_matches_recommended(units):
+        assert units["Bohr"] == pytest.approx(BOHR_TO_ANGSTROM, rel=1e-11)
+        assert units["Hartree"] == pytest.approx(HARTREE_TO_EV, rel=1e-11)
     monkeypatch.setattr(ase.units, "Bohr", BOHR_TO_ANGSTROM)
     monkeypatch.setattr(ase.units, "Ha", HARTREE_TO_EV)
 

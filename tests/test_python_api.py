@@ -145,10 +145,9 @@ def main() -> int:
     import numpy as np
     from ase import Atoms
     from ase.calculators.calculator import Calculator
-    from ase.calculators.fd import (
-        calculate_numerical_forces,
-        calculate_numerical_stress,
-    )
+
+    sys.path.insert(0, str(Path(root) / "tests" / "python"))
+    from ase_fd import calculate_numerical_forces, calculate_numerical_stress
 
     from cpmdc.ase import CPMDCCalculator
 

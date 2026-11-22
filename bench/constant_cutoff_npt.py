@@ -94,6 +94,7 @@ import sys
 import time
 from itertools import product
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -109,13 +110,44 @@ from ase.calculators.tip3p import TIP3P, angleHOH, rOH  # noqa: E402
 from ase.data import atomic_masses  # noqa: E402
 from ase.io import read, write  # noqa: E402
 from ase.md.langevin import Langevin  # noqa: E402
-from ase.md.langevinbaoab import LangevinBAOAB  # noqa: E402
-from ase.md.velocitydistribution import Stationary, thermalize_momenta  # noqa: E402
+from ase.md.velocitydistribution import Stationary  # noqa: E402
+
+if TYPE_CHECKING:
+    from ase.md.langevinbaoab import LangevinBAOAB
 
 from constant_cutoff_scan import cpu_model  # noqa: E402
 from cpmdc import find_schema  # noqa: E402
 from cpmdc.ase import CPMDCCalculator  # noqa: E402
 from npt_block_average import TERMS, analyse, block_error, curve_rows, detail_rows  # noqa: E402
+
+
+def thermalize_momenta(atoms: Atoms, temperature_K: float, rng) -> None:
+    """Maxwell-Boltzmann momenta.
+
+    ASE 3.29 names this ``thermalize_momenta``. Earlier releases expose the
+    same draw as ``MaxwellBoltzmannDistribution``.
+    """
+
+    try:
+        from ase.md.velocitydistribution import thermalize_momenta as draw
+    except ImportError:
+        from ase.md.velocitydistribution import MaxwellBoltzmannDistribution as draw
+
+    draw(atoms, temperature_K=temperature_K, rng=rng)
+
+
+def langevin_baoab():
+    """ASE's hydrostatic Langevin NPT integrator, added in ASE 3.27."""
+
+    try:
+        from ase.md.langevinbaoab import LangevinBAOAB
+    except ImportError as exc:
+        raise ImportError(
+            "constant_cutoff_npt.py run needs ASE 3.27 or newer "
+            "(ase.md.langevinbaoab.LangevinBAOAB)"
+        ) from exc
+    return LangevinBAOAB
+
 
 WATER_MASS = float(atomic_masses[8] + 2.0 * atomic_masses[1])
 BOND_K = 1059.162 * units.kcal / units.mol
@@ -342,7 +374,7 @@ def run(args: argparse.Namespace) -> int:
                            constant_cutoff=cc)
     atoms.calc = calc
     clock = [time.perf_counter()]
-    dyn = LangevinBAOAB(atoms, setup.dt * units.fs, temperature_K=setup.temperature,
+    dyn = langevin_baoab()(atoms, setup.dt * units.fs, temperature_K=setup.temperature,
                         externalstress=-setup.pressure * units.bar, hydrostatic=True,
                         T_tau=setup.t_tau * units.fs, P_tau=setup.p_tau * units.fs,
                         rng=np.random.default_rng(setup.seed + 1))

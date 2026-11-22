@@ -28,8 +28,7 @@ from ase.calculators.calculator import (
     Calculator,
     PropertyNotImplementedError,
 )
-from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
-from ase.calculators.test import gradient_test
+from ase_fd import calculate_numerical_forces, calculate_numerical_stress
 from ase.filters import FrechetCellFilter
 from ase.io import read
 from ase.io.trajectory import Trajectory
@@ -189,14 +188,25 @@ def test_forces_match_finite_differences(params, periodic_params, opencpmd, peri
 
 
 def test_ase_gradient_test(calc, opencpmd):
-    """ase.calculators.test.gradient_test, down to a 1e-8 Angstrom step."""
+    """ASE numerical forces, down to the smallest step the session can tell apart.
+
+    ``gradient_test`` always returns its last sample, a 1e-8 Angstrom step.
+    The session reports one result for geometries that agree to 1e-8
+    Angstrom, so that sample is not a new geometry. ASE 3.23 updates the
+    displaced coordinate in place and lands on that identity. Later ASE
+    releases rebuild the coordinate from the original and can slip past it.
+    The check uses ASE's own finite-difference helper from 0.1 Angstrom
+    down to 1e-7 Angstrom.
+    """
     if opencpmd:
         pytest.skip("steps below 1e-4 Angstrom are inside the SCF tolerance")
     atoms = water()
     atoms.rattle(0.05, seed=7)
     atoms.calc = calc
-    analytic, numeric = gradient_test(atoms)
-    np.testing.assert_allclose(analytic, numeric, rtol=0, atol=1.0e-6)
+    analytic = atoms.get_forces()
+    for eps in np.logspace(-1, -7, 7):
+        numeric = calculate_numerical_forces(atoms, eps=float(eps))
+        np.testing.assert_allclose(analytic, numeric, rtol=0, atol=1.0e-6)
 
 
 @pytest.mark.parametrize("cell", [CUBE, TRICLINIC], ids=["cubic", "triclinic"])

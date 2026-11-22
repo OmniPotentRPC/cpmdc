@@ -49,6 +49,11 @@ Without Pixi, install the same set from your package manager:
 | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | ~-Dwith_cpmd=true~ |
 | FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
 
+CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
+~bench/constant_cutoff_npt.py run~ needs ASE 3.27 for ~LangevinBAOAB~.
+Its ~start~ command draws Maxwell-Boltzmann momenta with ~thermalize_momenta~
+on ASE 3.29 and with ~MaxwellBoltzmannDistribution~ on earlier releases.
+
 The C Cap'n Proto runtime (~c-capnproto~) is vendored in ~subprojects/~.
 Meson fetches three subprojects on the first ~meson setup~: the shared schema
 (~potentials-schema~, pinned in ~subprojects/potentials-schema.wrap~),
