@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
-from ase.calculators.fd import calculate_numerical_stress
+from ase_fd import calculate_numerical_stress
 from conftest import ROOT
 import cpmdc.gromacs as cpmdc_gromacs
 from cpmdc import BOHR_TO_ANGSTROM, HARTREE_TO_EV
@@ -196,7 +196,7 @@ def ase_stress(shim_stress):
 class ShimCalculator(Calculator):
     """libcpmdc_gromacs as an ASE calculator, for ASE's numerical stress."""
 
-    implemented_properties = ["energy"]
+    implemented_properties = ["energy", "free_energy"]
 
     def __init__(self, shim: "Shim"):
         super().__init__()
@@ -207,11 +207,19 @@ class ShimCalculator(Calculator):
         # A sheared cell is not lower triangular, which only CP2K's layout can carry.
         energy, _ = self.shim.step(self.atoms.positions / BOHR_TO_ANGSTROM,
                                    np.asarray(self.atoms.cell) / BOHR_TO_ANGSTROM, rows_layout=True)
-        self.results = {"energy": energy * HARTREE_TO_EV}
+        # No electronic entropy: free_energy is energy. ASE 3.23 through 3.25
+        # always differentiate free_energy and reject force_consistent.
+        electronvolts = energy * HARTREE_TO_EV
+        self.results = {"energy": electronvolts, "free_energy": electronvolts}
 
 
 def numerical_stress(atoms, eps=1e-6):
-    """ASE's central-difference strain derivative, (1/V) dE/d(strain), eV/Angstrom^3."""
+    """ASE's central-difference strain derivative, (1/V) dE/d(strain), eV/Angstrom^3.
+
+    ``force_consistent=False`` asks for the energy. ASE 3.26 and newer honor
+    it. ASE 3.23 through 3.25 always read ``free_energy``; the calculators
+    here set that equal to the energy, and the shear formula matches.
+    """
     return calculate_numerical_stress(atoms, eps=eps, voigt=False, force_consistent=False)
 
 

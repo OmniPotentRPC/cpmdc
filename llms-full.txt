@@ -462,6 +462,8 @@ The energy belongs to the constant cutoff E0, which stays below the cutoff of th
 
 # The runs
 `bench/constant_cutoff_npt.py` integrates hydrostatic NPT with ASE's `LangevinBAOAB`, whose cell follows the Langevin-Hoover equations of Quigley and Probert (reference 2): the Martyna-Tobias-Klein barostat with a Langevin piston, and Langevin dynamics of the atoms.
+ASE added that integrator in 3.27, so `run` needs ASE 3.27 or newer.
+`start` thermalizes momenta with `thermalize_momenta` on ASE 3.29 and with `MaxwellBoltzmannDistribution` on earlier releases, and the module imports on ASE 3.23.
 Each step evaluates the energy, the forces, and the stress through `CPMDCCalculator` once.
 Every run shares these settings:
 
@@ -2054,8 +2056,12 @@ eV/Angstrom, and stress in eV/Angstrom^3.
 The calculator converts from the library's Hartree and Bohr with `HARTREE_TO_EV`
 and `BOHR_TO_ANGSTROM`, which are the CODATA 2018 values.
 ASE's default `ase.units` are CODATA 2014, so a number converted back with
-`ase.units.Hartree` differs by about 1e-8 relative;
-`ase.units.create_units("2018")` agrees to 1e-10.
+`ase.units.Hartree` differs by about 1e-8 relative.
+From ASE 3.24, `ase.units.create_units("2018")` agrees to 1e-10.
+ASE 3.23 stores `mu0 = 4*pi*1e-7` in that table, the permeability from before
+the 2019 SI revision, so the Bohr and Hartree it derives differ from these
+constants by about 1e-9.
+The calculator uses `HARTREE_TO_EV` and `BOHR_TO_ANGSTROM` on every ASE version.
 Stress has ASE's sign: the derivative of the energy with respect to strain,
 divided by the volume.
 It is positive when the energy rises as the cell expands.
@@ -3318,6 +3324,11 @@ Without Pixi, install the same set from your package manager:
 | cmocka | 1.1.7 or newer | `-Dwith_tests=true` |
 | MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | `-Dwith_cpmd=true` |
 | FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
+
+CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
+`bench/constant_cutoff_npt.py run` needs ASE 3.27 for `LangevinBAOAB`.
+Its `start` command draws Maxwell-Boltzmann momenta with `thermalize_momenta`
+on ASE 3.29 and with `MaxwellBoltzmannDistribution` on earlier releases.
 
 The C Cap'n Proto runtime (`c-capnproto`) is vendored in `subprojects/`.
 Meson fetches three subprojects on the first `meson setup`: the shared schema

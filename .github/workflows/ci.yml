@@ -343,6 +343,48 @@ jobs:
           rustc --version
           pixi run test-readcon
 
+  # ase>=3.23 is the declared floor. Pixi resolves the newest 3.x release.
+  # This job runs pytest on the floor and on that newest release.
+  pytest-ase:
+    name: pytest (ASE ${{ matrix.ase_name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ase_name: "3.23.0"
+            ase_spec: "ase==3.23.0"
+          - ase_name: latest
+            ase_spec: "ase>=3.23"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gfortran pkg-config python3 python3-venv \
+            capnproto libcapnp-dev libcmocka-dev libopenmpi-dev cmake \
+            ninja-build file
+      - name: Meson, pytest, i-PI, and ASE ${{ matrix.ase_name }}
+        run: |
+          python3 -m venv "${RUNNER_TEMP}/meson-venv"
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install \
+            'meson>=1.5.2,<2' "${{ matrix.ase_spec }}" 'pytest>=7' 'ipi>=3.3'
+          echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
+      - name: Rust for minimage
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.99.0 --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: python-pytest and python-api
+        run: |
+          . scripts/with_baseline_flags.sh
+          # Ubuntu cmocka.h uses jmp_buf and va_list and does not include their headers.
+          # The prefix defines _GNU_SOURCE before those headers so memfd flags stay visible.
+          export CFLAGS="${CFLAGS:+$CFLAGS }-include ${GITHUB_WORKSPACE}/tests/distro_cmocka_prefix.h"
+          meson setup build -Dwith_tests=true
+          meson compile -C build
+          meson test -C build --print-errorlogs python-pytest python-api
+
   isa-audit-x86_64:
     name: isa audit (x86_64)
     needs: stub-and-e2e

@@ -16,6 +16,8 @@ The energy belongs to the constant cutoff E0, which stays below the cutoff of th
 
 * The runs
 ~bench/constant_cutoff_npt.py~ integrates hydrostatic NPT with ASE's ~LangevinBAOAB~, whose cell follows the Langevin-Hoover equations of Quigley and Probert (reference 2): the Martyna-Tobias-Klein barostat with a Langevin piston, and Langevin dynamics of the atoms.
+ASE added that integrator in 3.27, so ~run~ needs ASE 3.27 or newer.
+~start~ thermalizes momenta with ~thermalize_momenta~ on ASE 3.29 and with ~MaxwellBoltzmannDistribution~ on earlier releases, and the module imports on ASE 3.23.
 Each step evaluates the energy, the forces, and the stress through ~CPMDCCalculator~ once.
 Every run shares these settings:
 

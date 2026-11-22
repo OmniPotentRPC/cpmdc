@@ -32,7 +32,8 @@ from ase.calculators.calculator import (
     all_properties,
 )
 from ase.calculators.mixing import SumCalculator
-from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
+from ase_codata import derived_matches_recommended
+from ase_fd import calculate_numerical_forces, calculate_numerical_stress
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 from ase.filters import FrechetCellFilter
@@ -678,35 +679,51 @@ def test_a_pickle_holds_no_live_handle(calc):
 
 def test_the_conversion_constants_are_codata_2018():
     exact = create_units("2018")
-    assert HARTREE_TO_EV == pytest.approx(exact.Hartree, rel=1e-10)
-    assert BOHR_TO_ANGSTROM == pytest.approx(exact.Bohr, rel=1e-10)
+    # The calculator multiplies by cpmdc's constants, the CODATA 2018
+    # recommended values. ASE's derived Bohr and Hartree match them when
+    # the 2018 table stores the CODATA 2018 mu0, which it does from ASE 3.24.
+    # ASE 3.23 still stores mu0 = 4*pi*1e-7, so the derived values miss by
+    # about 1e-9. The charge, Planck constant, Boltzmann constant, and
+    # Avogadro number identify the 2018 table on every version.
+    assert exact["_e"] == 1.602176634e-19
+    assert exact["_hplanck"] == 6.62607015e-34
+    assert exact["_k"] == 1.380649e-23
+    assert exact["_Nav"] == 6.02214076e23
+    if derived_matches_recommended(exact):
+        assert HARTREE_TO_EV == pytest.approx(exact.Hartree, rel=1e-10)
+        assert BOHR_TO_ANGSTROM == pytest.approx(exact.Bohr, rel=1e-10)
+        assert cpmdc.forces_to_ev_per_angstrom([[1.0, 0.0, 0.0]])[0][0] == pytest.approx(
+            exact.Hartree / exact.Bohr, rel=1e-10
+        )
+        assert cpmdc.stress_to_ev_per_angstrom3([1.0] * 9)[0] == pytest.approx(
+            exact.Hartree / exact.Bohr**3, rel=1e-10
+        )
+    else:
+        assert cpmdc.forces_to_ev_per_angstrom([[1.0, 0.0, 0.0]])[0][0] == pytest.approx(
+            HARTREE_TO_EV / BOHR_TO_ANGSTROM
+        )
+        assert cpmdc.stress_to_ev_per_angstrom3([1.0] * 9)[0] == pytest.approx(
+            HARTREE_TO_EV / BOHR_TO_ANGSTROM**3
+        )
     assert HARTREE_TO_EV == pytest.approx(units.Hartree, rel=1e-7)
     assert BOHR_TO_ANGSTROM == pytest.approx(units.Bohr, rel=1e-7)
-    assert cpmdc.forces_to_ev_per_angstrom([[1.0, 0.0, 0.0]])[0][0] == pytest.approx(
-        exact.Hartree / exact.Bohr, rel=1e-10
-    )
-    assert cpmdc.stress_to_ev_per_angstrom3([1.0] * 9)[0] == pytest.approx(
-        exact.Hartree / exact.Bohr**3, rel=1e-10
-    )
 
 
 def test_energy_and_forces_cross_the_boundary_in_ev_and_ev_per_angstrom(params):
-    exact = create_units("2018")
     atoms = water()
     with Session(params) as session:
         native = session.energy_forces(WATER, [8, 1, 1])
     with CPMDCCalculator(params) as calc:
         atoms.calc = calc
         energy, forces = atoms.get_potential_energy(), atoms.get_forces()
-    assert energy == pytest.approx(native.energy_h * exact.Hartree, rel=1e-10)
+    assert energy == pytest.approx(native.energy_h * HARTREE_TO_EV, rel=1e-10)
     assert energy == pytest.approx(native.energy_h * units.Hartree, rel=1e-7)
-    expected = np.array(native.forces_h_bohr) * (exact.Hartree / exact.Bohr)
+    expected = np.array(native.forces_h_bohr) * (HARTREE_TO_EV / BOHR_TO_ANGSTROM)
     np.testing.assert_allclose(forces, expected, rtol=1e-10)
     np.testing.assert_allclose(forces, np.array(native.forces_h_bohr) * units.Hartree / units.Bohr, rtol=1e-7)
 
 
 def test_stress_crosses_the_boundary_in_ev_per_angstrom_cubed(periodic_params):
-    exact = create_units("2018")
     atoms = water(cell=np.array(TRICLINIC) * 0.7, pbc=True)
     with Session(periodic_params) as session:
         native = session.energy_forces(atoms.positions, [8, 1, 1], atoms.cell.array)
@@ -716,7 +733,7 @@ def test_stress_crosses_the_boundary_in_ev_per_angstrom_cubed(periodic_params):
         atoms.calc = calc
         stress = atoms.get_stress()
         full = atoms.get_stress(voigt=False)
-    expected = -0.5 * (tensor + tensor.T) * (exact.Hartree / exact.Bohr**3)
+    expected = -0.5 * (tensor + tensor.T) * (HARTREE_TO_EV / BOHR_TO_ANGSTROM**3)
     assert np.abs(expected).max() > 0.0
     np.testing.assert_allclose(full, expected, rtol=1e-9, atol=1e-18)
     np.testing.assert_allclose(voigt_6_to_full_3x3_stress(stress), full, rtol=0, atol=1e-18)
