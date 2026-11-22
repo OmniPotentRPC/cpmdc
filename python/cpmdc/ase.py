@@ -381,7 +381,8 @@ class CPMDCCalculator(Calculator):
         if "dipole" in evaluated:
             self.results["dipole"] = np.asarray(evaluated["dipole"], dtype=float)
         else:
-            self._no_dipole = _NO_DIPOLE
+            missing = potential._session._missing_dipole_symbol()
+            self._no_dipole = missing if missing is not None else _NO_DIPOLE
             if "dipole" in properties:
                 raise PropertyNotImplementedError(self._no_dipole)
 
