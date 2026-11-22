@@ -37,7 +37,7 @@ from ase.filters import FrechetCellFilter
 from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
-from conftest import INSTALLED, ROOT, WATER
+from conftest import INSTALLED, ROOT, WATER, park_orbitals
 
 import cpmdc
 from cpmdc import (
@@ -700,7 +700,7 @@ def relax_cell(atoms: Atoms, steps: int) -> tuple[bool, list[float]]:
     return converged, energies
 
 
-def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
+def test_bfgs_moves_the_cell_through_a_cell_filter(params, periodic_params, opencpmd):
     """At a constant cutoff the cell relaxes to a sensible volume.
 
     The 40 Ry deck keeps its basis and evaluates the 30 Ry constant-cutoff
@@ -708,19 +708,59 @@ def test_bfgs_moves_the_cell_through_a_cell_filter(periodic_params, opencpmd):
     intermolecular stress, so on OpenCPMD the cell converges within 10% of
     its start while the energy falls. The first steps lower it every time.
     """
+    if opencpmd:
+        runner = ROOT / "tests" / "python" / "run_bfgs_cell_filter.py"
+        env = os.environ.copy()
+        env["CPMDC_TEST_PARAMS"] = str(params)
+        env["CPMDC_TEST_PERIODIC_PARAMS"] = str(periodic_params)
+        subprocess.run([sys.executable, str(runner)], check=True, env=env)
+        return
     atoms = water(cell=CUBE, pbc=True)
     atoms.rattle(0.05, seed=17)
     with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
         atoms.calc = calc
-        converged, energies = relax_cell(atoms, steps=80 if opencpmd else 4)
+        converged, energies = relax_cell(atoms, steps=4)
     assert energies[-1] < energies[0]
     assert np.all(np.diff(energies[:5]) < 0.0)
-    if opencpmd:
-        assert converged
-        assert 0.9 < atoms.get_volume() / np.linalg.det(CUBE) < 1.1
-        assert np.abs(atoms.get_stress()[:3]).max() < 1.0e-3
-    else:
-        assert not np.allclose(atoms.cell.array, CUBE)
+    assert not np.allclose(atoms.cell.array, CUBE)
+
+
+def test_opencpmd_in_process_bfgs_converges_after_parking(
+    params, periodic_params, opencpmd
+):
+    """Cell BFGS after parking reaches the force threshold.
+
+    Parking replaces the orbitals OpenCPMD keeps for the process. The
+    rattled water at a constant 30 Ry cutoff then converges. Live runs
+    took 51 optimizer steps to ``fmax`` 0.01, and every energy and force
+    on that trajectory was finite, so the step cap is 51.
+    """
+    if not opencpmd:
+        pytest.skip("the reference well has no retained OpenCPMD orbitals")
+    park_orbitals(params)
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.rattle(0.05, seed=17)
+    energies: list[float] = []
+    forces: list[np.ndarray] = []
+
+    def record() -> None:
+        energies.append(float(atoms.get_potential_energy()))
+        forces.append(np.array(atoms.get_forces(), dtype=float, copy=True))
+
+    # Two identical live OpenCPMD runs, one BLAS thread, seed 17.
+    step_cap = 51
+    with CPMDCCalculator(periodic_params, constant_cutoff=30.0) as calc:
+        atoms.calc = calc
+        with BFGS(FrechetCellFilter(atoms), logfile=None) as opt:
+            opt.attach(record)
+            converged = opt.run(fmax=0.01, steps=step_cap)
+            nsteps = opt.nsteps
+    assert energies and forces
+    flat_forces = np.concatenate([sample.ravel() for sample in forces])
+    assert converged, f"nsteps={nsteps}"
+    assert nsteps <= step_cap
+    assert np.all(np.isfinite(energies))
+    assert np.all(np.isfinite(flat_forces))
 
 
 def test_a_fixed_basis_cell_filter_collapses_the_cell(periodic_calc, opencpmd):

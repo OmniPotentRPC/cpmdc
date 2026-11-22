@@ -109,3 +109,11 @@ SIGILL, while ~--mca memory ^patcher~ prevented it.  Selecting a non-UCX
 transport also prevented that reproduction.  The sanitize job disables the
 observed libfabric path, and ~tests/run_mpi_test.py~ passes the Open MPI memory
 and transport exclusions in both the environment and launcher arguments.
+
+* Meson test parallelism and BLAS threads
+The default test setup (~blasthreads~) sets ~OPENBLAS_NUM_THREADS~,
+~OMP_NUM_THREADS~, and ~MKL_NUM_THREADS~ to ~1~ so eight parallel ~meson test~
+workers do not each spawn a full OpenBLAS pool. Meson applies those values to
+every test child; exports of the same names in the shell that runs ~meson test~
+are not passed through. To force different caps, set them on the ~env:~ keyword
+of the individual test or run the executable outside Meson.
