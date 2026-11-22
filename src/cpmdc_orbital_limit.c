@@ -96,12 +96,18 @@ void cpmdc_orbital_ledger_finalize(void) {
   g_agreed_limit = CPMDC_ORBITAL_SLOT_READ_ENV;
 }
 
-static int parked_index(long long key) {
+/* Slots allocated for parked keys. For tests that bound the table. */
+size_t cpmdc_orbital_ledger_capacity(void) { return g_parked_cap; }
+
+#if !defined(CPMDC_HAS_CPMD)
+static const size_t k_parked_not_found = SIZE_MAX;
+
+static size_t parked_index(long long key) {
   for (size_t i = 0; i < g_parked_n; ++i) {
     if (g_parked[i] == key)
-      return (int)i;
+      return i;
   }
-  return -1;
+  return k_parked_not_found;
 }
 
 /* Makes room for one more parked key. Grows the table only when it is
@@ -126,14 +132,9 @@ static int parked_reserve(void) {
   return 0;
 }
 
-/* Slots allocated for parked keys. For tests that bound the table. */
-size_t cpmdc_orbital_ledger_capacity(void) { return g_parked_cap; }
-
-static void parked_remove_at(int index) {
-  size_t at;
-  if (index < 0 || (size_t)index >= g_parked_n)
+static void parked_remove_at(size_t at) {
+  if (at >= g_parked_n)
     return;
-  at = (size_t)index;
   if (at + 1u < g_parked_n) {
     memmove(&g_parked[at], &g_parked[at + 1u],
             (g_parked_n - at - 1u) * sizeof(*g_parked));
@@ -143,17 +144,18 @@ static void parked_remove_at(int index) {
 
 /* How many parked keys a select of `key` would add. Zero when the
  * operation only replaces or restores. */
-static int select_extra(long long key, int *leaving_needs_park, int *dest_parked) {
+static int select_extra(long long key, int *leaving_needs_park,
+                        size_t *dest_parked) {
   int leaving = 0;
-  int dest = parked_index(key);
+  size_t dest = parked_index(key);
   if (g_have_selected && key != g_selected_key && g_selected_has_store &&
-      parked_index(g_selected_key) < 0)
+      parked_index(g_selected_key) == k_parked_not_found)
     leaving = 1;
   if (leaving_needs_park)
     *leaving_needs_park = leaving;
   if (dest_parked)
     *dest_parked = dest;
-  if (leaving && dest < 0)
+  if (leaving && dest == k_parked_not_found)
     return 1;
   return 0;
 }
@@ -178,7 +180,7 @@ static int ledger_would_exceed(long long key) {
  * commit contains no allocation and cannot fail on only one rank. */
 static void ledger_commit(long long key) {
   int leaving = 0;
-  int dest = -1;
+  size_t dest = k_parked_not_found;
   if (!g_have_selected) {
     g_have_selected = 1;
     g_selected_key = key;
@@ -188,9 +190,10 @@ static void ledger_commit(long long key) {
   if (key == g_selected_key)
     return;
   (void)select_extra(key, &leaving, &dest);
+  /* prepare reserved the slot, so this commit does not allocate. */
   if (leaving)
     g_parked[g_parked_n++] = g_selected_key;
-  if (dest >= 0) {
+  if (dest != k_parked_not_found) {
     parked_remove_at(dest);
     g_selected_has_store = 1;
   } else {
@@ -198,6 +201,7 @@ static void ledger_commit(long long key) {
   }
   g_selected_key = key;
 }
+#endif
 
 static void parse_orbital_slot_limit(int *limit_out, int *kind_out) {
   const char *raw = getenv("CPMDC_ORBITAL_SLOT_LIMIT");
