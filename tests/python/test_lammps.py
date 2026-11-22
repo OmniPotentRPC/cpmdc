@@ -1139,6 +1139,24 @@ def test_bad_params_raise_before_the_run(tmp_path, periodic_params):
 # --- MPI ----------------------------------------------------------------
 
 
+def case_env() -> dict[str, str]:
+    """Environment for ``lammps_case.py``, in process or under a launcher.
+
+    Every case runs on one host. On GitHub runners with the Azure MANA NIC,
+    UCX finds ``mana_0`` but cannot open it, and Open MPI ranks of the lammps
+    environment then hang until the test times out. ``ob1`` over ``self``
+    and ``sm`` needs no network device. MPICH ignores these variables, and
+    values already in the environment win.
+    """
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        filter(None, [str(ROOT / "python"), env.get("PYTHONPATH", "")])
+    )
+    env.setdefault("OMPI_MCA_pml", "ob1")
+    env.setdefault("OMPI_MCA_btl", "self,sm")
+    return env
+
+
 def run_case(case: dict, tmp_path: Path, ranks: int | None) -> dict:
     path = tmp_path / f"case-{case['route']}-{ranks}.json"
     path.write_text(json.dumps(case), encoding="utf-8")
@@ -1148,12 +1166,8 @@ def run_case(case: dict, tmp_path: Path, ranks: int | None) -> dict:
         if launcher is None:
             pytest.skip("no mpiexec or mpirun on PATH")
         command = [launcher, "-n", str(ranks), *command]
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        filter(None, [str(ROOT / "python"), env.get("PYTHONPATH", "")])
-    )
     done = subprocess.run(
-        command, capture_output=True, text=True, timeout=300, env=env, check=False
+        command, capture_output=True, text=True, timeout=300, env=case_env(), check=False
     )
     assert done.returncode == 0, done.stderr + done.stdout
     lines = [line for line in done.stdout.splitlines() if line.startswith("{")]
@@ -1167,16 +1181,12 @@ def run_case_failure(case: dict, tmp_path: Path, ranks: int) -> subprocess.Compl
     launcher = shutil.which("mpiexec") or shutil.which("mpirun")
     if launcher is None:
         pytest.skip("no mpiexec or mpirun on PATH")
-    env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(
-        filter(None, [str(ROOT / "python"), env.get("PYTHONPATH", "")])
-    )
     return subprocess.run(
         [launcher, "-n", str(ranks), sys.executable, str(HERE / "lammps_case.py"), str(path)],
         capture_output=True,
         text=True,
         timeout=30,
-        env=env,
+        env=case_env(),
         check=False,
     )
 
