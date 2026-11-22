@@ -209,7 +209,6 @@ static void test_all_results_through_c_and_wire(void **state) {
   cpmdc_session_destroy(session);
   free(params);
   free(step);
-  cpmdc_finalize();
 }
 
 static void test_gradient_limit_fails_before_evaluation(void **state) {
@@ -271,16 +270,17 @@ static void test_topology_change_is_reported_before_the_gradient_limit(
   water_step(water_positions, water_numbers);
 
   /* A first call that is too large is refused for its size and leaves the
-   * session without a topology. Water is then accepted as the topology; the
-   * reference build has no array evaluator and says so after that. */
+   * session without a topology. Water is then accepted as the topology and
+   * evaluates cleanly on both the reference and OpenCPMD builds. */
   CPMDCResult big = cpmdc_session_energy_gradient(session, atoms, positions,
                                                   numbers, gradient);
   assert_int_equal(big.ok, 0);
   assert_non_null(strstr(big.message, "at most 1365 atoms"));
   CPMDCResult first = cpmdc_session_energy_gradient(
       session, 3, water_positions, water_numbers, gradient);
-  assert_null(strstr(first.message, "topology change"));
-  assert_null(strstr(first.message, "at most 1365 atoms"));
+  assert_int_equal(first.ok, 1);
+  assert_string_equal(first.message, "ok");
+  assert_string_equal(cpmdc_last_error(), "");
 
   /* The session now holds water. Another system, even one that is too
    * large, is a topology change. */
@@ -294,13 +294,83 @@ static void test_topology_change_is_reported_before_the_gradient_limit(
   /* The refused call did not disturb the stored topology. */
   CPMDCResult again = cpmdc_session_energy_gradient(
       session, 3, water_positions, water_numbers, gradient);
+  assert_int_equal(again.ok, 1);
+  assert_string_equal(cpmdc_last_error(), "");
   assert_null(strstr(again.message, "topology change"));
-  assert_int_equal(again.ok, first.ok);
 
   free(numbers);
   free(gradient);
   free(positions);
   cpmdc_session_destroy(session);
+  free(params);
+}
+
+static void test_finalize_leaves_open_topology_uncommitted_and_preserves_fixed_topology(
+    void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *fixed_session = cpmdc_session_create(params, ps);
+  assert_non_null(fixed_session);
+  double *positions = calloc(components, sizeof(*positions));
+  double *gradient = calloc(components, sizeof(*gradient));
+  int *numbers = malloc(atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+
+  double water_positions[9];
+  int water_numbers[3];
+  water_step(water_positions, water_numbers);
+
+  CPMDCResult seeded = cpmdc_session_energy_gradient(
+      fixed_session, 3, water_positions, water_numbers, gradient);
+  assert_int_equal(seeded.ok, 1);
+
+  cpmdc_finalize();
+
+  /* After shutdown, a fresh session fails embed configuration before
+   * committing any topology, leaving it configurable and without a topology. */
+  CPMDCSession *open_session = cpmdc_session_create(params, ps);
+  assert_non_null(open_session);
+  CPMDCResult unavailable = cpmdc_session_energy_gradient(
+      open_session, 3, water_positions, water_numbers, gradient);
+  assert_int_equal(unavailable.ok, 0);
+  assert_non_null(strstr(unavailable.message, "CPMD embed not available"));
+  assert_string_equal(cpmdc_last_error(), unavailable.message);
+  assert_int_equal(
+      cpmdc_session_set_constant_cutoff(open_session, 30.0, 0.0, 0.0), 0);
+
+  CPMDCResult still_open = cpmdc_session_energy_gradient(
+      open_session, atoms, positions, numbers, gradient);
+  assert_int_equal(still_open.ok, 0);
+  assert_non_null(strstr(still_open.message, "at most 1365 atoms"));
+  assert_null(strstr(still_open.message, "topology change"));
+
+  /* A session that already fixed a topology before shutdown still reports a
+   * topology change ahead of both the atom limit and embed availability. */
+  CPMDCResult fixed_changed = cpmdc_session_energy_gradient(
+      fixed_session, atoms, positions, numbers, gradient);
+  assert_int_equal(fixed_changed.ok, 0);
+  assert_non_null(strstr(fixed_changed.message, "topology change"));
+  assert_null(strstr(fixed_changed.message, "at most 1365 atoms"));
+  assert_null(strstr(fixed_changed.message, "CPMD embed not available"));
+
+  water_positions[0] += 0.05;
+  CPMDCResult fixed_same = cpmdc_session_energy_gradient(
+      fixed_session, 3, water_positions, water_numbers, gradient);
+  assert_int_equal(fixed_same.ok, 0);
+  assert_non_null(strstr(fixed_same.message, "CPMD embed not available"));
+
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(open_session);
+  cpmdc_session_destroy(fixed_session);
   free(params);
 }
 
@@ -317,6 +387,8 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_all_results_through_c_and_wire),
       cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
       cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
+      cmocka_unit_test(
+          test_finalize_leaves_open_topology_uncommitted_and_preserves_fixed_topology),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
