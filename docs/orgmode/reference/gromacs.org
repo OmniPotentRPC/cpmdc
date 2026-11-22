@@ -13,7 +13,25 @@ GROMACS stores it in the ~.tpr~, writes it out at ~mdrun~ as ~md_cp2k.inp~ with
 the name of the PDB file it generates, and passes both to the library.
 The PDB file gives each atom's element, whether it is QM or MM, and each MM
 atom's charge.
-The cpmdc settings are a ~&CPMDC~ section inside ~&FORCE_EVAL~:
+
+With ~qmmm-cp2k-qmmethod = PBE~ or ~BLYP~, GROMACS 2024.6, 2025.5,
+and 2026.4 generate this structure:
+
+- ~&DFT~ contains ~CHARGE~, ~MULTIPLICITY~, and
+  ~&XC_FUNCTIONAL PBE~ or ~BLYP~;
+- ~&QMMM~ contains a periodic QM cell, QM atom indices, ~ECOUPL GAUSS~,
+  and any ~&LINK~ sections;
+- ~&SUBSYS &CELL~ contains the full GROMACS box;
+- the generated PDB contains every atom, each MM topology charge, and zero
+  instead of every QM topology charge.
+
+When the input has no ~&CPMDC~ section,
+~CPMDC_GROMACS_PARAMS~ names the ~CPMDParams~ message.
+The library compares its effective functional, charge, and multiplicity with
+the generated values and refuses any disagreement.
+The cell and embedding defaults are the same as below.
+
+An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 
 | Key | Meaning |
 |-----+---------|
@@ -28,10 +46,9 @@ The cpmdc settings are a ~&CPMDC~ section inside ~&FORCE_EVAL~:
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
-Everything outside ~&CPMDC~ is checked and otherwise ignored: the method is the
-~CPMDParams~ deck, not CP2K's ~&DFT~.
-GROMACS' generated input (~qmmethod = PBE~ or ~BLYP~) has no ~&CPMDC~ section
-and is refused.
+On the explicit path, everything outside ~&CPMDC~ is checked and otherwise
+ignored: the method is the ~CPMDParams~ deck, not CP2K's ~&DFT~.
+With neither ~&CPMDC~ nor ~CPMDC_GROMACS_PARAMS~, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (~md_cp2k.out~):
 the cpmdc version, the atom counts, the cell and embedding modes, the number of
@@ -104,6 +121,15 @@ sides:
 The returned energy is the QM energy plus that Coulomb energy; both appear in
 ~Quantum En.~.
 An MD step adds ~O(N_k (N_QM + N_MM))~ work for the reciprocal sum.
+
+GROMACS saves each QM charge as zero before it writes the generated PDB.
+No general rule can recover the original QM topology charges from
+~md_cp2k.inp~ or ~md_cp2k.pdb~.
+A generated input with charged MM atoms is therefore refused with a message
+naming the missing ~QM_CHARGES~ key.
+Use an explicit ~&CPMDC~ section to select ~EMBEDDING MECHANICAL~ and provide
+~QM_CHARGES~, or explicitly select ~EMBEDDING NONE~ after deciding that
+omitting the QM-MM Coulomb interaction is appropriate.
 
 Not implemented:
 
