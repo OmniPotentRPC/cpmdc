@@ -174,7 +174,7 @@ With `gmx_mpi_d` from `CPMDC_GMX_MPI`, a double-precision GROMACS built with
   pairs;
 - `-npme 1` stops `mdrun` with GROMACS' refusal of separate PME ranks.
 
-`tests/test_installed_pkgconfig_consumer.py` builds a libcp2k client from an installed `libcp2k.pc` alone and runs it without `LD_LIBRARY_PATH`.
+`tests/test_installed_pkgconfig_consumer.py` builds a libcp2k client from an installed `libcp2k.pc` alone and runs it without `LD_LIBRARY_PATH`. After the prefix is moved it rejects an installed `.so` or `.dylib` whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.
 
 The CI job `gromacs-qmmm` builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:
@@ -302,10 +302,17 @@ Regenerate RST after editing Org sources:
 
 pixi run -e docs mkrst
 
-Regenerate the LLM index files after editing `docs/orgmode/` or the feature
-inventory:
+Regenerate the LLM index files (`llms.txt` and `llms-full.txt`) after editing
+`docs/orgmode/` or `schema/inventory/cpmd_features.json`:
 
 python3 scripts/generate_llms_txt.py
+
+The generator writes deterministic output without timestamps or host paths.
+Verify that committed index files match the sources with
+`python3 scripts/generate_llms_txt.py --check` or
+`meson test -C build llms-txt --print-errorlogs`; when a file is stale or
+missing, the check names the file, prints the regeneration command above, and
+shows a short unified diff head.
 
 Check the links in the README, the Org sources, and the newsfragments:
 
@@ -3165,6 +3172,10 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
 The installed `libcp2k.pc` gives `-L`, `-Wl,-rpath` and the two libraries in
 `Libs`, and `-I` for `include/cpmdc/gromacs` in `Cflags`, so any pkg-config
 consumer compiles, links and runs against it with no further flags.
+`libcpmdc_gromacs` records `$ORIGIN` on Linux and `@loader_path` on macOS, so
+it opens `libcpmdc` from its own directory after the prefix is moved. The
+installed library does not keep the build tree or the original prefix in
+`RPATH` or `RUNPATH`.
 GROMACS takes only the library names, directories, and include directories from
 it, not the `-Wl,-rpath`; it finds the library at run time because it records
 the directories it linked from as its run path
@@ -3396,6 +3407,23 @@ The last command prints the project version, which Meson reads from
 Hosts that load the library at run time, such as `rgpot`, look for it through
 `CPMDC_LIBRARY`; see the
 environment reference (file:../reference/environment.org).
+
+Installed shared libraries and plugins that need another library from the
+prefix record a run path relative to their own file: `$ORIGIN` on Linux and
+`@loader_path` on macOS. `libcpmdc` sets an empty install run path, because
+it does not load another library from the prefix; toolchain directories
+Meson already recorded, such as the one for `libgfortran`, stay.
+`libcpmdc_gromacs` records `$ORIGIN` (its own directory). The LAMMPS plugin
+is installed one directory deeper, in `lib/cpmdc`, and records `$ORIGIN/..`.
+`cpmdc-ipi-c` records the normalised relative path from the resolved
+`bindir` to the resolved `libdir`. `-Dbindir=.`, absolute `bindir` and
+`libdir` under the prefix, a nested `libdir`, and a path that contains
+`..` or a trailing slash still open `libcpmdc`. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
+Meson keeps a build-tree run path only on uninstalled binaries. After
+`meson install`, an installed `.so` or `.dylib` does not point at the build
+tree or at the prefix path used for that install, so the tree can be moved
+and `libcpmdc_gromacs` still opens `libcpmdc`.
 
 # Install the Python package
 Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28) and

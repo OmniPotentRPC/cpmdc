@@ -1,0 +1,1 @@
+`scripts/generate_llms_txt.py` now sorts Org inputs by repository-relative path, rejects a missing feature inventory explicitly, omits absolute paths from diagnostics, and reports stale `llms.txt` or `llms-full.txt` files with the exact regeneration command and a unified diff head; `tests/test_llms_txt.py` verifies repeatability across runs and checks the failure output.
