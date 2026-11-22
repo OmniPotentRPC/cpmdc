@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import re
 import socket
 import struct
 import sys
@@ -128,6 +129,10 @@ def _header(name: str) -> bytes:
     return name.encode("ascii").ljust(HEADER_BYTES)
 
 
+_INIT_WHITESPACE = " \t\n\r"
+_ASCII_INT_RE = re.compile(r"-?[0-9]+", re.ASCII)
+
+
 def _batch_size(init: bytes) -> int:
     """Return 1, the only batch size this driver evaluates.
 
@@ -141,15 +146,14 @@ def _batch_size(init: bytes) -> int:
     found: int | None = None
     for token in text.split(","):
         key, sep, value = token.partition(":")
-        if not sep or key.strip() != "batch_size":
+        if not sep or key.strip(_INIT_WHITESPACE) != "batch_size":
             continue
         if found is not None:
             raise ProtocolError("INIT batch_size appears more than once")
-        raw = value.strip()
-        try:
-            batch = int(raw)
-        except ValueError as exc:
-            raise ProtocolError(f"INIT batch_size is not an integer: {raw!r}") from exc
+        raw = value.strip(_INIT_WHITESPACE)
+        if not _ASCII_INT_RE.fullmatch(raw):
+            raise ProtocolError(f"INIT batch_size is not an integer: {raw!r}")
+        batch = int(raw, 10)
         if batch != 1:
             raise ProtocolError(
                 f"the server asked for batch_size {batch}; cpmdc-ipi evaluates "
