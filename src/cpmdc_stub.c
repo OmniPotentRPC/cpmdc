@@ -379,6 +379,31 @@ int cpmdc_session_last_property_snapshot(const CPMDCSession *session, CPMDCPrope
   return -1;
 }
 
+int cpmdc_last_gradient(double *out, size_t capacity, size_t *count) {
+  (void)out;
+  (void)capacity;
+  if (count)
+    *count = 0;
+  return -1;
+}
+
+int cpmdc_session_last_gradient(const CPMDCSession *session, double *out,
+                                size_t capacity, size_t *count) {
+  (void)session;
+  return cpmdc_last_gradient(out, capacity, count);
+}
+
+int cpmdc_last_dipole(CPMDCDipole *out) {
+  if (out)
+    memset(out, 0, sizeof(*out));
+  return -1;
+}
+
+int cpmdc_session_last_dipole(const CPMDCSession *session, CPMDCDipole *out) {
+  (void)session;
+  return cpmdc_last_dipole(out);
+}
+
 int cpmdc_session_last_stress(const CPMDCSession *session, CPMDCStressTensor *out) {
   (void)session;
   if (out)

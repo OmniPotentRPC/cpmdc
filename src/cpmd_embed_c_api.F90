@@ -294,7 +294,7 @@ CONTAINS
     image%multi%values(1) = energy_h
     image%multi%valid = 1_c_int
     image%prop%valid = 1_c_int
-    image%prop%dipole_count = 3_c_size_t
+    image%prop%dipole_count = 0_c_size_t
     image%prop%dipole = 0.0_c_double
     image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
@@ -746,6 +746,7 @@ CONTAINS
   FUNCTION cpmdc_embed_energy_grad(n_atoms, positions_ang, atomic_numbers, &
       cell_ang, has_cell, energy_h, grad_h_bohr, image_c) RESULT(ok) &
       BIND(C, NAME='cpmdc_embed_energy_grad')
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
     INTEGER(c_int), INTENT(IN), VALUE :: n_atoms
     REAL(c_double), INTENT(IN) :: positions_ang(*)
     INTEGER(c_int), INTENT(IN) :: atomic_numbers(*)
@@ -760,13 +761,18 @@ CONTAINS
     ok = 0_c_int
     energy_h = 0.0_c_double
     IF (n_atoms <= 0 .OR. n_atoms > HUGE(n3) / 3) RETURN
+    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
+    CALL C_F_POINTER(image_c, image)
     n3 = INT(n_atoms) * 3
+    IF (n3 > SIZE(image%prop%hessian)) THEN
+      CALL cpmdc_note_embed_failure( &
+           'property gradient snapshot supports at most 1365 atoms'//c_null_char)
+      RETURN
+    END IF
     DO i = 1, n3
       grad_h_bohr(i) = 0.0_c_double
     END DO
     IF (.NOT. runtime_ready .OR. runtime_finalized) RETURN
-    IF (.NOT. C_ASSOCIATED(image_c)) RETURN
-    CALL C_F_POINTER(image_c, image)
 #if defined(CPMDC_HAS_CPMD)
     CALL run_embed_scf(image, INT(n_atoms), positions_ang, atomic_numbers, cell_ang, &
          INT(has_cell), energy_h, grad_h_bohr, ok)
@@ -2131,10 +2137,9 @@ CONTAINS
     ! Reference PEF: full POD surface with etot-only ener_com + ENERGY row + PROP.
     CALL snapshot_total_only(image, energy_h)
     DO i = 1, n_atoms * 3
-      IF (i > 4096) EXIT
       image%prop%hessian(i) = grad(i)
     END DO
-    image%prop%hessian_count = INT(MIN(n_atoms * 3, 4096), KIND=c_size_t)
+    image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
     image%prop%valid = 1_c_int
     ! Strain derivative of this reference energy, Hartree/Bohr^3, with the
     ! OpenCPMD sign: volume * stress = -dE/d(eps). An isolated deck has a
@@ -2260,27 +2265,31 @@ CONTAINS
 
 #if defined(CPMDC_HAS_CPMD)
   SUBROUTINE snapshot_prop_from_modules(image, n_atoms, grad)
-    USE ddip, ONLY: pdipole
+    USE wfopts_utils, ONLY: embed_get_dipole
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms
     REAL(c_double), INTENT(IN) :: grad(*)
-    INTEGER :: i, ncopy
+    INTEGER :: i
+    LOGICAL :: dipole_valid
+    REAL(real64) :: dipole(3)
     image%prop%valid = 1_c_int
-    image%prop%dipole_count = 3_c_size_t
-    DO i = 1, 3
-      image%prop%dipole(i) = REAL(pdipole(i), KIND=c_double)
-    END DO
+    image%prop%dipole_count = 0_c_size_t
+    image%prop%dipole = 0.0_c_double
+    CALL embed_get_dipole(dipole, dipole_valid)
+    IF (dipole_valid) THEN
+      image%prop%dipole_count = 3_c_size_t
+      DO i = 1, 3
+        image%prop%dipole(i) = REAL(dipole(i), KIND=c_double)
+      END DO
+    END IF
     image%prop%polarizability_count = 9_c_size_t
     DO i = 1, 9
       image%prop%polarizability(i) = 0.0_c_double
     END DO
-    ncopy = n_atoms * 3
-    IF (ncopy > 4096) ncopy = 4096
-    IF (ncopy < 0) ncopy = 0
-    DO i = 1, ncopy
+    DO i = 1, n_atoms * 3
       image%prop%hessian(i) = grad(i)
     END DO
-    image%prop%hessian_count = INT(ncopy, KIND=c_size_t)
+    image%prop%hessian_count = INT(n_atoms * 3, KIND=c_size_t)
   END SUBROUTINE
 
   SUBROUTINE embed_set_tau0_from_pos(n_atoms, pos, z, origin, recentre, ierr)
@@ -2519,7 +2528,7 @@ CONTAINS
     USE cpmdc_embed_host_iface, ONLY: cpmdc_scatter_species_gradient, &
         cpmdc_note_embed_failure, cpmdc_note_scf_unconverged
     USE norm, ONLY: scf_gemax => gemax
-    USE wfopts_utils, ONLY: wfopts
+    USE wfopts_utils, ONLY: wfopts, embed_set_dipole_snapshot
     USE rwfopt_utils, ONLY: embed_set_warm_orbitals, embed_set_need_forces, &
         embed_set_write_files, embed_choose_warm_start_metric_v2
     USE phfac_utils, ONLY: phfac
@@ -2647,6 +2656,7 @@ CONTAINS
       IF (warm_source /= -1) cnti%inwfun = 3
       ibench(1) = 1
     END IF
+    CALL embed_set_dipole_snapshot(.TRUE.)
     CALL embed_set_warm_orbitals(.TRUE.)
     CALL wfopts
     CALL note_scf_steps(iteropt%nfi)

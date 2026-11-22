@@ -4617,6 +4617,69 @@ static int render_typed_directive_section(char *dst, size_t dst_size,
 #undef CPMDC_RENDER_DIRECTIVE_CASE
 }
 
+static int ascii_ieq_n(const char *a, const char *b, size_t n) {
+  for (size_t i = 0; i < n; ++i) {
+    if (toupper((unsigned char)a[i]) != toupper((unsigned char)b[i]))
+      return 0;
+  }
+  return 1;
+}
+
+static int line_has_word(const char *line, size_t len, const char *word) {
+  size_t n = strlen(word);
+  for (size_t i = 0; i + n <= len; ++i) {
+    if (ascii_ieq_n(line + i, word, n))
+      return 1;
+  }
+  return 0;
+}
+
+const char *cpmdc_params_deck_conflict(const char *input_deck) {
+  enum { SECTION_OTHER, SECTION_CPMD, SECTION_SYSTEM } section = SECTION_OTHER;
+  int dipole_dynamics = 0;
+  int kpoints = 0;
+  const char *line = input_deck;
+  while (line && *line) {
+    const char *start = line;
+    while (*line && *line != '\n')
+      line++;
+    size_t len = (size_t)(line - start);
+    if (*line == '\n')
+      line++;
+    while (len > 0 && (*start == ' ' || *start == '\t')) {
+      start++;
+      len--;
+    }
+    if (len > 0 && *start == '&') {
+      size_t name = 1;
+      while (name < len && start[name] != ' ' && start[name] != '\t' &&
+             start[name] != '\r')
+        name++;
+      name--;
+      if (name == 3 && ascii_ieq_n(start + 1, "END", 3))
+        section = SECTION_OTHER;
+      else if (name == 4 && ascii_ieq_n(start + 1, "CPMD", 4))
+        section = SECTION_CPMD;
+      else if (name == 6 && ascii_ieq_n(start + 1, "SYSTEM", 6))
+        section = SECTION_SYSTEM;
+      else
+        section = SECTION_OTHER;
+      continue;
+    }
+    if (section == SECTION_CPMD && line_has_word(start, len, "DIPOLE") &&
+        line_has_word(start, len, "DYNAMICS"))
+      dipole_dynamics = 1;
+    else if (section == SECTION_SYSTEM && len >= 6 &&
+             ascii_ieq_n(start, "KPOINT", 6))
+      kpoints = 1;
+  }
+  if (dipole_dynamics && kpoints)
+    return "DIPOLE DYNAMICS cannot be combined with KPOINTS, because OpenCPMD "
+           "stops in localize2 on a k-point calculation; use a Gamma-point "
+           "deck";
+  return NULL;
+}
+
 int cpmdc_params_reject_unsupported_inputs(const char *functional,
                                            const char *input_deck) {
   if (functional && (strcmp(functional, "PBEoriginal") == 0 ||
@@ -5850,7 +5913,6 @@ int cpmdc_potential_result_write(double energy, const double *forces,
   }
   if (cvalid && !prop_valid) {
     prop_valid = 1;
-    dip_count = 3;
     pol_count = 9;
   }
   /* Nuclear gradient: prefer PROP snapshot; else negate forces (API forces = -grad). */
@@ -5859,8 +5921,6 @@ int cpmdc_potential_result_write(double energy, const double *forces,
       hess[i] = -forces[i];
     hess_count = (int)force_count;
   }
-  if (prop_valid && dip_count <= 0)
-    dip_count = 3;
   if (prop_valid && pol_count <= 0)
     pol_count = 9;
 
