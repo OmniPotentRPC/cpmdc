@@ -33,6 +33,7 @@
 /* Slots the reference ledger holds for parked keys. Zero on a CPMD build,
  * whose store lives in Fortran. Exported by the embed layer for tests. */
 size_t cpmdc_orbital_ledger_capacity(void);
+int cpmdc_embed_init(void);
 
 static const char *g_params = NULL;
 
@@ -403,6 +404,50 @@ static void test_alternating_keys_keep_bounded_storage(void **state) {
   free(params);
 }
 
+#if !defined(CPMDC_HAS_CPMD)
+static void test_finalize_frees_and_reinitializes_the_ledger(void **state) {
+  size_t n = 0;
+  unsigned char *params = read_file(g_params, &n);
+  CPMDCSession *session;
+  double forces[9];
+  double pos[9];
+  CPMDCResult result;
+  int step;
+  (void)state;
+  assert_non_null(params);
+  setenv(k_limit_name, "2", 1);
+  assert_int_equal(cpmdc_embed_init(), 1);
+  session = cpmdc_session_create(params, n);
+  assert_non_null(session);
+  for (step = 0; step < 2; ++step) {
+    positions_for(step, pos);
+    assert_int_equal(cpmdc_session_select_orbitals(session, 61 + step), 0);
+    result = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+    assert_int_equal(result.ok, 1);
+  }
+  assert_true(cpmdc_orbital_ledger_capacity() > 0);
+  cpmdc_session_destroy(session);
+
+  cpmdc_finalize();
+  assert_int_equal(cpmdc_orbital_ledger_capacity(), 0);
+
+  assert_int_equal(cpmdc_embed_init(), 1);
+  assert_int_equal(cpmdc_orbital_ledger_capacity(), 0);
+  session = cpmdc_session_create(params, n);
+  assert_non_null(session);
+  positions_for(2, pos);
+  assert_int_equal(cpmdc_session_select_orbitals(session, 63), 0);
+  result = cpmdc_session_energy_forces(session, 3, pos, k_z, forces);
+  assert_int_equal(result.ok, 1);
+  assert_int_equal(cpmdc_orbital_ledger_capacity(), 0);
+  cpmdc_session_destroy(session);
+  cpmdc_finalize();
+  assert_int_equal(cpmdc_orbital_ledger_capacity(), 0);
+  unsetenv(k_limit_name);
+  free(params);
+}
+#endif
+
 /* An invalid limit does not leak into the call a bad argument fails, and a
  * limit that cannot be used fails the copy that would have parked. */
 struct order_ctx {
@@ -668,6 +713,8 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_preflight_errors_do_not_latch_topology),
 #if defined(CPMDC_HAS_CPMD)
       cmocka_unit_test(test_new_basis_clears_a_saturated_limit),
+#else
+      cmocka_unit_test(test_finalize_frees_and_reinitializes_the_ledger),
 #endif
   };
   if (argc < 2)

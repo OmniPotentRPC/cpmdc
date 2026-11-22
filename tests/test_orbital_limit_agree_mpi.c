@@ -471,6 +471,31 @@ static void case_wrapper_preflights(void) {
   free(result_buf);
 
   result_buf = (unsigned char *)malloc(result_size);
+  check(result_buf != NULL, "allocate PotentialResult for embed failure");
+  session = cpmdc_session_create(g_params, g_params_size);
+  check(session != NULL, "session_create");
+  if (!session || !result_buf) {
+    cpmdc_session_destroy(session);
+    free(result_buf);
+    return;
+  }
+  if (g_rank == 1)
+    setenv("CPMDC_TEST_FAULT", "embed-energy-gradient", 1);
+  else
+    unsetenv("CPMDC_TEST_FAULT");
+  {
+    size_t written = 0;
+    result = cpmdc_session_calculate_result(
+        session, g_force_input, g_force_input_size, result_buf, result_size,
+        &written);
+  }
+  check_collective_failure(
+      result, "embedded energy failure is agreed across ranks");
+  unsetenv("CPMDC_TEST_FAULT");
+  cpmdc_session_destroy(session);
+  free(result_buf);
+
+  result_buf = (unsigned char *)malloc(result_size);
   check(result_buf != NULL, "allocate PotentialResult for write failure");
   session = cpmdc_session_create(g_params, g_params_size);
   check(session != NULL, "session_create");
@@ -513,6 +538,22 @@ static void case_wrapper_preflights(void) {
   check(rcs[0] == -1 && rcs[1] == -1,
         "calculate_au agrees a one-rank reserve failure");
   unsetenv("CPMDC_TEST_FAULT");
+  rc = cpmdc_session_calculate_au(session, kAtoms, pos, kZ, NULL, &energy,
+                                  forces, virial);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == 0 && rcs[1] == 0,
+        "calculate_au recovers after a reserve failure");
+#if !defined(CPMDC_HAS_CPMD)
+  if (g_rank == 0)
+    setenv("CPMDC_TEST_FAULT", "embed-available", 1);
+  rc = cpmdc_session_copy_orbitals(session, 1, 2);
+  MPI_Allgather(&rc, 1, MPI_INT, rcs, 1, MPI_INT, MPI_COMM_WORLD);
+  check(rcs[0] == -1 && rcs[1] == -1,
+        "orbital copy agrees differing embed availability");
+  check(strstr(cpmdc_last_error(), "availability differs") != NULL,
+        "orbital copy reports differing embed availability");
+  unsetenv("CPMDC_TEST_FAULT");
+#endif
   cpmdc_session_destroy(session);
   report("cpmdc_session_calculate_au agrees a one-rank error");
 }

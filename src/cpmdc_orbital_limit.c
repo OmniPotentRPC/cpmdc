@@ -45,8 +45,10 @@ static const char k_orbital_limit_mpi[] =
 static const char k_orbital_limit_memory[] = "out of memory";
 static const char k_orbital_limit_peer[] =
     "another rank of the calculator rejected this call";
+#if defined(CPMDC_HAVE_MPI)
 static const char k_orbital_key_differs[] =
     "orbital key selection differs across calculator ranks";
+#endif
 
 /* Reference-evaluator ledger. Parked keys exclude the selected key.
  * g_selected_has_store is the live copy of the selected key. */
@@ -64,6 +66,7 @@ void cpmdc_embed_set_orbital_slot_limit(int limit);
 void cpmdc_embed_set_cell_in_place(double limit);
 int cpmdc_embed_slot_limit_code(void);
 int cpmdc_embed_prepare_orbitals(long long key, int fail_allocation);
+void cpmdc_embed_abort_orbitals(void);
 void cpmdc_embed_commit_orbitals(void);
 
 const char *cpmdc_orbital_limit_message(int code) {
@@ -78,6 +81,19 @@ void cpmdc_orbital_ledger_reset(void) {
   g_parked_n = 0;
   g_selected_has_store = 0;
   g_live_store = 0;
+}
+
+void cpmdc_orbital_ledger_finalize(void) {
+  free(g_parked);
+  g_parked = NULL;
+  g_parked_n = 0;
+  g_parked_cap = 0;
+  g_have_selected = 0;
+  g_selected_key = 0;
+  g_selected_has_store = 0;
+  g_live_store = 0;
+  g_limit_ready = 0;
+  g_agreed_limit = CPMDC_ORBITAL_SLOT_READ_ENV;
 }
 
 static int parked_index(long long key) {
@@ -227,9 +243,13 @@ static int orbital_allreduce(int *values, int count) {
   int finalized = 0;
   int size = 1;
   MPI_Comm comm;
-  if (MPI_Initialized(&inited) != MPI_SUCCESS || !inited)
+  if (MPI_Initialized(&inited) != MPI_SUCCESS)
+    return -1;
+  if (!inited)
     return 0;
-  if (MPI_Finalized(&finalized) != MPI_SUCCESS || finalized)
+  if (MPI_Finalized(&finalized) != MPI_SUCCESS)
+    return -1;
+  if (finalized)
     return 0;
   if (cpmdc_adopted_comm(&comm, sizeof(comm)) != 0)
     comm = MPI_COMM_WORLD;
@@ -424,9 +444,12 @@ int cpmdc_orbital_prepare(long long key, const char **err) {
       code = cpmdc_embed_prepare_orbitals(key, fail_allocation);
   }
   if (orbital_allreduce(&code, 1) != 0) {
+    cpmdc_embed_abort_orbitals();
     *err = k_orbital_limit_mpi;
     return -1;
   }
+  if (code != CPMDC_ORBITAL_SLOT_OK)
+    cpmdc_embed_abort_orbitals();
   if (code == CPMDC_ORBITAL_SLOT_NO_MEMORY) {
     *err = k_orbital_limit_memory;
     return -1;

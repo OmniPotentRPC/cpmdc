@@ -302,14 +302,15 @@ cpmd_embed_sources = ['src/cpmdc.c', 'src/cpmdc_adopt.c', 'src/cpmdc_orbital_lim
                       'src/cpmdc_features.c',
                       'src/cpmdc_capabilities.c'] + cpmdc_params_sources
 cpmd_embed_c_args = common_c_args + capnp_generated_c_args
-if get_option('with_tests')
-  cpmd_embed_c_args += ['-DCPMDC_ENABLE_TEST_FAULTS=1']
-endif
 if has_cpmd
   cpmd_embed_c_args += ['-DCPMDC_HAS_CPMD=1', '-DCPMDC_HAVE_MPI=1']
 elif mpi_c_dep.found()
   cpmd_embed_c_args += ['-DCPMDC_HAVE_MPI=1']
   cpmd_mpi_dep += [mpi_c_dep]
+endif
+cpmd_embed_shell_c_args = cpmd_embed_c_args
+if get_option('with_tests')
+  cpmd_embed_shell_c_args += ['-DCPMDC_ENABLE_TEST_FAULTS=1']
 endif
 cpmd_link_multi = has_cpmd ? ['-Wl,--allow-multiple-definition'] : []
 cpmdc_shared_link_args = []
@@ -336,7 +337,7 @@ cpmdc_embed_shell = static_library(
   cpmd_embed_sources,
   include_directories: cpmd_embed_inc + cpmdc_params_includes,
   dependencies: cpmdc_params_deps + [math_dep, minimage_dep, cpmdc_apply_f_dep] + cpmd_mpi_dep,
-  c_args: cpmd_embed_c_args,
+  c_args: cpmd_embed_shell_c_args,
   fortran_args: cpmd_embed_f_args,
   link_args: has_cpmd ? [] : [],
   install: false,
@@ -619,6 +620,13 @@ cpmdc_embed_shell_dep = declare_dependency(
 )
 
 if get_option('with_tests')
+  test(
+    'shared-library-no-test-fault-hooks',
+    python,
+    args: [files('tests/test_no_fault_hooks.py'), cpmdc_shared.full_path()],
+    depends: cpmdc_shared,
+    suite: ['abi', 'inventory'],
+  )
   geometry_test = executable(
     'test_geometry_rmsd',
     ['tests/test_geometry_rmsd.c', 'src/cpmdc_geometry.c'],

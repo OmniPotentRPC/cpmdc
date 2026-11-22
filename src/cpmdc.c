@@ -74,6 +74,7 @@ int cpmdc_orbital_agree(int local_failed, const char **err);
 int cpmdc_orbital_allreduce(int *values, int count);
 int cpmdc_orbital_key_agree(int *has_key, long long key, const char **err);
 int cpmdc_orbital_prepare(long long key, const char **err);
+void cpmdc_orbital_ledger_finalize(void);
 void cpmdc_orbital_note_stored(void);
 const char *cpmdc_orbital_limit_message(int code);
 int cpmdc_embed_bind_calculator(int ranks_per_calc);
@@ -172,15 +173,14 @@ static CPMDCEmbedImage *active_image(void) {
   return g_active_session ? &g_active_session->image : &g_image;
 }
 
-static int test_fault(const char *name) {
 #if defined(CPMDC_ENABLE_TEST_FAULTS)
+static int test_fault(const char *name) {
   const char *fault = getenv("CPMDC_TEST_FAULT");
   return fault && strcmp(fault, name) == 0;
-#else
-  (void)name;
-  return 0;
-#endif
 }
+#else
+#define test_fault(name) 0
+#endif
 
 static void copy_knob_text(char *dst, int cap, const char *src, size_t src_cap) {
   int i;
@@ -2584,6 +2584,8 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
   const char *err = NULL;
   int has_from_key = 1;
   int has_to_key = 1;
+  int available;
+  int availability[2];
   if (!session)
     err = "null session";
   else if (!session->evaluated)
@@ -2598,9 +2600,20 @@ int cpmdc_session_copy_orbitals(CPMDCSession *session, long long from_key,
     cpmdc_store_error(err);
     return -1;
   }
+  available = cpmdc_available() != 0 || test_fault("embed-available");
+  availability[0] = available;
+  availability[1] = !available;
+  if (cpmdc_orbital_allreduce(availability, 2) != 0) {
+    cpmdc_store_error("MPI collective failed");
+    return -1;
+  }
+  if (availability[0] && availability[1]) {
+    cpmdc_store_error("CPMD embed availability differs across calculator ranks");
+    return -1;
+  }
   /* The reference evaluator has no orbital store. An OpenCPMD build
    * duplicates the converged copy and refuses a key that never converged. */
-  if (cpmdc_available()) {
+  if (availability[0]) {
     if ((!session->embed_configured || g_active_session != session) &&
         configure_embed_from_session(session) != 0)
       err = "CPMD embed not available";
@@ -2745,6 +2758,7 @@ CPMDCResult cpmdc_session_calculate_result(
   double stress_factor = 1.0;
   double cell_ang[9] = {0};
   double *forces = NULL;
+  const char *write_err;
   if (!session || !force_input_capnp || force_input_capnp_size_bytes == 0 ||
       !potential_result_capnp_size_bytes)
     err = "invalid arguments";
@@ -2806,8 +2820,10 @@ CPMDCResult cpmdc_session_calculate_result(
                                    session->step_positions_ang,
                                    session->step_atomic_numbers, cell_ang,
                                    has_cell, forces);
+  if (r.ok && test_fault("embed-energy-gradient"))
+    r = fail_msg("embedded energy gradient failed");
+  write_err = r.ok ? NULL : r.message;
   if (r.ok) {
-    const char *write_err = NULL;
     for (size_t i = 0; i < force_count; ++i)
       forces[i] = -forces[i] * force_factor;
     if (test_fault("potential-result-write") ||
@@ -2817,12 +2833,12 @@ CPMDCResult cpmdc_session_calculate_result(
             potential_result_capnp_capacity_bytes,
             potential_result_capnp_size_bytes) != 0)
       write_err = "PotentialResult write failed";
-    write_err = collective_call_gate(write_err);
-    if (write_err) {
-      r.ok = 0;
-      snprintf(r.message, sizeof(r.message), "%s", write_err);
-      cpmdc_store_error(r.message);
-    }
+  }
+  write_err = collective_call_gate(write_err);
+  if (r.ok && write_err) {
+    r.ok = 0;
+    snprintf(r.message, sizeof(r.message), "%s", write_err);
+    cpmdc_store_error(r.message);
   }
   free(forces);
   return r;
@@ -3187,5 +3203,6 @@ void cpmdc_finalize(void) {
   free(g_image.input_deck);
   g_image.input_deck = NULL;
   g_image.input_deck_len = 0;
+  cpmdc_orbital_ledger_finalize();
   cpmdc_embed_finalize();
 }
