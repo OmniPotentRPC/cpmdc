@@ -109,6 +109,18 @@ def test_virial_volume_above_the_largest_float_is_refused(periodic_params):
             )
 
 
+def test_virial_that_overflows_is_refused(periodic_params, opencpmd):
+    if opencpmd:
+        pytest.skip("uses the reference evaluator's stress formula")
+    positions = list(_water_bohr())
+    positions[0] = 2.0**520
+    with Session(periodic_params) as session:
+        with pytest.raises(CPMDCError, match="virial is not finite"):
+            session.calculate_au(
+                positions, [8, 1, 1], [10.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0]
+            )
+
+
 def test_closed_session_raises(params):
     session = Session(params)
     session.close()
