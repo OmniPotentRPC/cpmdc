@@ -86,11 +86,14 @@ It frees the saved orbitals, the communicators ~set_cp_grp~ built, and every
 ~ALLOCATABLE~ module variable and module-variable component that a ~USE~
 reaches, outside the timer, stop, and CUDA device modules.
 It then adds one to ~embed_teardowns~ in ~embed_ctrl~.
-38 routines in those 33 modules keep work on the setup and wavefunction
+39 routines in those 34 modules keep work on the setup and wavefunction
 optimisation path for their first call behind a ~SAVE~ flag: ~phfac~,
 ~setbasis~, ~hf_init~, ~addfftnset~, ~stress~, the density mixers, the symmetry
-setup, the Vanderbilt and core-charge splines, and others.
-Each one compares the count it last saw with ~embed_teardowns~, and on a change
+setup, the Vanderbilt and core-charge splines, ~localize2~, and others.
+The SCF of a ~DIPOLE DYNAMICS~ deck calls ~localize2~, which keeps its orbital
+maps and dipole matrices in ~SAVE~ arrays sized by the first basis.
+A second evaluation at another cutoff overran them in ~opeigr~.
+Each of these routines compares the count it last saw with ~embed_teardowns~, and on a change
 frees its own ~SAVE~ arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
 ~tistart~ keeps its state: it executes ~STOP~ on a second call, so the embed
@@ -118,6 +121,47 @@ converges in 16 steps, a stress call takes 7.1 s instead of 42.5 s, and the
 energy and the mean stress agree with the PCG result to 1e-6 eV and 2e-7
 eV/Angstrom^3.
 A deck without ~CONSTANT CUTOFF~ has A = 0 and keeps the stock diagonal.
+
+* Dipoles from repeated SCF calls
+OpenCPMD does not update ~ddip%pdipole~ in ~wfopts~.
+The ~ddipo~ routine updates that electronic polarization, adds the ionic term,
+and stores the cell-volume-scaled molecular moment in ~dipomod%moment%dmom~.
+The molecular-dynamics and property drivers call ~ddipo~ only on their own
+paths, which cpmdc's direct ~wfopts~ calls do not enter.
+Reading either module after an ordinary in-process evaluation would therefore
+return stale state.
+
+The dipole patch adds an embed-only request to ~wfopts_utils~.
+After a converged periodic Gamma-point, non-broken-symmetry evaluation,
+~wfopts~ calls ~ddipo_embed~ when the deck requests ~DIPOLE DYNAMICS~ or
+~PROP / DIPOLE MOMENT BERRY~.
+~ddipo_embed~ is a new entry point of ~ddipo_utils~ that sets a module flag and
+calls ~ddipo~ with its original argument list.
+The flag forces the dipole matrices to be recomputed even when a Wannier
+sampling interval would reuse them.
+~ddipo~ itself keeps the argument list that its eleven callers (~mdclas~,
+~mdmain~, ~mdshop_cp~, ~mm_mdmain~, ~mm_mdshop_cp~, ~pi_md~, ~pi_npt_cpmd~,
+~prbomd~, ~prcpmd~, ~proppt~, and ~secder_driver~, which calls it at two sites
+for the minimum structure and for the displaced ones) were compiled with, so an
+already built tree needs only ~ddipo_utils~ and ~wfopts_utils~ recompiled, which
+~tools/rebuild_opencpmd_embed.sh~ does.
+~secder_driver~ needs no patch: it passes the same seven arguments, runs only in
+a frequency calculation, which an embedded evaluation never enters, and
+~embed_force_recompute~ stays false there.
+An optional argument on ~ddipo~ would be read by those callers from a
+register they never set.
+It snapshots ~moment%dmom~ and marks that evaluation valid.
+All other evaluations clear validity.
+After an embed teardown, ~ddipo~ frees its saved maps and starts from the new
+basis.
+~cpmd.x~ leaves the embed request false and retains its original call paths.
+
+The electronic part is a Berry-phase quantity.
+The dipole is defined only for a neutral cell, and only modulo the lattice
+quantum: moving one electron through a lattice vector changes it by that
+vector.
+The patch publishes what ~ddipo~ computes and does not unwrap that jump or
+check the net charge.
 
 The k-point orthogonalization patch fixes two heap buffer overflows when ~atomwf~
 initializes a k-point calculation with more electronic states than atomic

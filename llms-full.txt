@@ -174,7 +174,7 @@ With `gmx_mpi_d` from `CPMDC_GMX_MPI`, a double-precision GROMACS built with
   pairs;
 - `-npme 1` stops `mdrun` with GROMACS' refusal of separate PME ranks.
 
-`tests/test_installed_pkgconfig_consumer.py` builds a libcp2k client from an installed `libcp2k.pc` alone and runs it without `LD_LIBRARY_PATH`.
+`tests/test_installed_pkgconfig_consumer.py` builds a libcp2k client from an installed `libcp2k.pc` alone and runs it without `LD_LIBRARY_PATH`. After the prefix is moved it rejects an installed `.so` or `.dylib` whose run path points at the build tree or the original prefix, then runs the pkg-config, libcp2k, and CMake consumers from that tree.
 
 The CI job `gromacs-qmmm` builds GROMACS 2025.5 three ways and fails if any of
 its tests skips:
@@ -1285,11 +1285,14 @@ It frees the saved orbitals, the communicators `set_cp_grp` built, and every
 `ALLOCATABLE` module variable and module-variable component that a `USE`
 reaches, outside the timer, stop, and CUDA device modules.
 It then adds one to `embed_teardowns` in `embed_ctrl`.
-38 routines in those 33 modules keep work on the setup and wavefunction
+39 routines in those 34 modules keep work on the setup and wavefunction
 optimisation path for their first call behind a `SAVE` flag: `phfac`,
 `setbasis`, `hf_init`, `addfftnset`, `stress`, the density mixers, the symmetry
-setup, the Vanderbilt and core-charge splines, and others.
-Each one compares the count it last saw with `embed_teardowns`, and on a change
+setup, the Vanderbilt and core-charge splines, `localize2`, and others.
+The SCF of a `DIPOLE DYNAMICS` deck calls `localize2`, which keeps its orbital
+maps and dipole matrices in `SAVE` arrays sized by the first basis.
+A second evaluation at another cutoff overran them in `opeigr`.
+Each of these routines compares the count it last saw with `embed_teardowns`, and on a change
 frees its own `SAVE` arrays and runs as the first call again.
 The next setup then gives the energies of a fresh process.
 `tistart` keeps its state: it executes `STOP` on a second call, so the embed
@@ -1317,6 +1320,47 @@ converges in 16 steps, a stress call takes 7.1 s instead of 42.5 s, and the
 energy and the mean stress agree with the PCG result to 1e-6 eV and 2e-7
 eV/Angstrom^3.
 A deck without `CONSTANT CUTOFF` has A = 0 and keeps the stock diagonal.
+
+# Dipoles from repeated SCF calls
+OpenCPMD does not update `ddip%pdipole` in `wfopts`.
+The `ddipo` routine updates that electronic polarization, adds the ionic term,
+and stores the cell-volume-scaled molecular moment in `dipomod%moment%dmom`.
+The molecular-dynamics and property drivers call `ddipo` only on their own
+paths, which cpmdc's direct `wfopts` calls do not enter.
+Reading either module after an ordinary in-process evaluation would therefore
+return stale state.
+
+The dipole patch adds an embed-only request to `wfopts_utils`.
+After a converged periodic Gamma-point, non-broken-symmetry evaluation,
+`wfopts` calls `ddipo_embed` when the deck requests `DIPOLE DYNAMICS` or
+`PROP / DIPOLE MOMENT BERRY`.
+`ddipo_embed` is a new entry point of `ddipo_utils` that sets a module flag and
+calls `ddipo` with its original argument list.
+The flag forces the dipole matrices to be recomputed even when a Wannier
+sampling interval would reuse them.
+`ddipo` itself keeps the argument list that its eleven callers (`mdclas`,
+`mdmain`, `mdshop_cp`, `mm_mdmain`, `mm_mdshop_cp`, `pi_md`, `pi_npt_cpmd`,
+`prbomd`, `prcpmd`, `proppt`, and `secder_driver`, which calls it at two sites
+for the minimum structure and for the displaced ones) were compiled with, so an
+already built tree needs only `ddipo_utils` and `wfopts_utils` recompiled, which
+`tools/rebuild_opencpmd_embed.sh` does.
+`secder_driver` needs no patch: it passes the same seven arguments, runs only in
+a frequency calculation, which an embedded evaluation never enters, and
+`embed_force_recompute` stays false there.
+An optional argument on `ddipo` would be read by those callers from a
+register they never set.
+It snapshots `moment%dmom` and marks that evaluation valid.
+All other evaluations clear validity.
+After an embed teardown, `ddipo` frees its saved maps and starts from the new
+basis.
+`cpmd.x` leaves the embed request false and retains its original call paths.
+
+The electronic part is a Berry-phase quantity.
+The dipole is defined only for a neutral cell, and only modulo the lattice
+quantum: moving one electron through a lattice vector changes it by that
+vector.
+The patch publishes what `ddipo` computes and does not unwrap that jump or
+check the net charge.
 
 The k-point orthogonalization patch fixes two heap buffer overflows when `atomwf`
 initializes a k-point calculation with more electronic states than atomic
@@ -2030,12 +2074,24 @@ so `get_forces` after `get_potential_energy` does not evaluate again:
 | `free_energy` | `get_potential_energy(force_consistent=True)` | eV | equals `energy` | equals `energy` |
 | `forces` | `get_forces()` | eV/Angstrom, shape  | yes | yes |
 | `stress` | `get_stress()` | eV/Angstrom^3, Voigt  | raises `PropertyNotImplementedError` | yes, unless the deck is isolated or `CPMDC_STRESS=0` |
-| `energies`, `magmom`, `magmoms`, `charges`, `dipole` | `get_property(name)` | | raises `PropertyNotImplementedError` | raises `PropertyNotImplementedError` |
+| `dipole` | `get_dipole_moment()` | e*Angstrom, shape  | raises `PropertyNotImplementedError` | yes for a supported deck that requests Berry dipole evaluation |
+| `energies`, `magmom`, `magmoms`, `charges` | `get_property(name)` | | raises `PropertyNotImplementedError` | raises `PropertyNotImplementedError` |
 
 `free_energy` is the potential energy of the step, because the library does not
 separate an electronic entropy.
-The library returns no atomic energies, charges, magnetic moments, or dipole, so
-`implemented_properties` lists only the first four rows.
+The library returns no atomic energies, charges, or magnetic moments.
+`implemented_properties` lists `dipole` because linked OpenCPMD can deliver it.
+It raises `PropertyNotImplementedError` when the current step cannot.
+
+A valid dipole requires a periodic Gamma-point, non-broken-symmetry OpenCPMD
+deck with `DIPOLE DYNAMICS` or `PROP / DIPOLE MOMENT BERRY`.
+The reference evaluator, isolated and k-point decks, and decks without either
+request do not return a dipole.
+A deck that combines `DIPOLE DYNAMICS` with `KPOINTS` is rejected when the
+calculator opens it, with an error that names both, because OpenCPMD stops in
+`localize2` on that combination.
+The calculator reports those cases as unavailable instead of returning zero or
+state left by an earlier step.
 
 # Compute stress in a periodic cell
 All three `pbc` flags true send `atoms.cell` to the library as the periodic
@@ -2052,7 +2108,7 @@ with CPMDCCalculator("water.periodic.bin") as calc:
     print(atoms.get_stress(voigt=False))
 
 Units are ASE's: positions and cells in Angstrom, energies in eV, forces in
-eV/Angstrom, and stress in eV/Angstrom^3.
+eV/Angstrom, stress in eV/Angstrom^3, and dipole in e*Angstrom.
 The calculator converts from the library's Hartree and Bohr with `HARTREE_TO_EV`
 and `BOHR_TO_ANGSTROM`, which are the CODATA 2018 values.
 ASE's default `ase.units` are CODATA 2014, so a number converted back with
@@ -2278,7 +2334,7 @@ says.
 |-----------+--------|
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | `cpmdc.ase.CalculationFailed` |
 | a keyword other than `params`, `library`, and ASE's own; no `params` | `TypeError` |
-| stress where the step has none; `energies`, `magmoms`, `charges`, or `dipole` | `ase.calculators.calculator.PropertyNotImplementedError` |
+| stress or dipole where the step has none; `energies`, `magmoms`, or `charges` | `ase.calculators.calculator.PropertyNotImplementedError` |
 | mixed `pbc` flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | `ValueError` |
 | a step on a calculator without atoms | `ValueError` |
 | a `params` file that does not exist | `FileNotFoundError` |
@@ -2338,7 +2394,7 @@ The file checks these points:
 
 | Question | ASE tool |
 |----------+----------|
-| `implemented_properties` lists only what a step returns, and the results have ASE's shapes | `calc.results`, `ase.io.write` and `read` of extended XYZ |
+| `implemented_properties` lists energy, free energy, forces, stress, and dipole, and a stored step has ASE's shapes | `calc.results`, `ase.io.write` and `read` of extended XYZ |
 | a property outside the list raises, without evaluating a step | `PropertyNotImplementedError`, `get_charges()`, `get_magnetic_moment()` |
 | the stored step is reused and discarded as ASE expects | `check_state`, `system_changes`, `calculation_required`, `get_property(..., allow_calculation=False)` |
 | a changed `params`, `library`, or `constant_cutoff` discards the stored step | `set`, `calculation_required` |
@@ -3165,6 +3221,10 @@ cmake -S gromacs-2025.5 -B build-gmx -G Ninja -DGMX_DOUBLE=ON -DGMX_MPI=OFF \
 The installed `libcp2k.pc` gives `-L`, `-Wl,-rpath` and the two libraries in
 `Libs`, and `-I` for `include/cpmdc/gromacs` in `Cflags`, so any pkg-config
 consumer compiles, links and runs against it with no further flags.
+`libcpmdc_gromacs` records `$ORIGIN` on Linux and `@loader_path` on macOS, so
+it opens `libcpmdc` from its own directory after the prefix is moved. The
+installed library does not keep the build tree or the original prefix in
+`RPATH` or `RUNPATH`.
 GROMACS takes only the library names, directories, and include directories from
 it, not the `-Wl,-rpath`; it finds the library at run time because it records
 the directories it linked from as its run path
@@ -3396,6 +3456,23 @@ The last command prints the project version, which Meson reads from
 Hosts that load the library at run time, such as `rgpot`, look for it through
 `CPMDC_LIBRARY`; see the
 environment reference (file:../reference/environment.org).
+
+Installed shared libraries and plugins that need another library from the
+prefix record a run path relative to their own file: `$ORIGIN` on Linux and
+`@loader_path` on macOS. `libcpmdc` sets an empty install run path, because
+it does not load another library from the prefix; toolchain directories
+Meson already recorded, such as the one for `libgfortran`, stay.
+`libcpmdc_gromacs` records `$ORIGIN` (its own directory). The LAMMPS plugin
+is installed one directory deeper, in `lib/cpmdc`, and records `$ORIGIN/..`.
+`cpmdc-ipi-c` records the normalised relative path from the resolved
+`bindir` to the resolved `libdir`. `-Dbindir=.`, absolute `bindir` and
+`libdir` under the prefix, a nested `libdir`, and a path that contains
+`..` or a trailing slash still open `libcpmdc`. A layout whose relative
+path cannot be stored as one run path entry fails at configure time.
+Meson keeps a build-tree run path only on uninstalled binaries. After
+`meson install`, an installed `.so` or `.dylib` does not point at the build
+tree or at the prefix path used for that install, so the tree can be moved
+and `libcpmdc_gromacs` still opens `libcpmdc`.
 
 # Install the Python package
 Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28) and
@@ -3900,8 +3977,9 @@ GCC 14 rejects the stock return of a pointer from that function.
 | `opencpmd_stopgm_return.patch` | `src/error_handling.mod.F90` | a CPMD stop inside an evaluation takes the `my_stopall` path, which OpenCPMD writes to end the run |
 | `opencpmd_tistopgm.patch` | `src/timer.mod.F90` | `tistopgm` indexes `trace_depth` before `tistart`, while the depth is still `HUGE(0)`, and the process faults before `LocalError` |
 | `opencpmd_c_mem_addrs.patch` | `src/c_mem_utils.c` | `cGetMemAddrs` returns a `size_t` pointer, and GCC 14 stops on that conversion |
-| `opencpmd_embed_teardown.patch` | `src/embed_teardown.mod.F90`, `src/embed_ctrl.mod.F90`, `src/SOURCES`, and 33 modules with first-call state | a second setup in one process, after a basis change or a `stopgm`, stops in `ratom` with `allocation problem` or faults, because the arrays of the first setup are still allocated |
+| `opencpmd_embed_teardown.patch` | `src/embed_teardown.mod.F90`, `src/embed_ctrl.mod.F90`, `src/SOURCES`, and 34 modules with first-call state | a second setup in one process, after a basis change or a `stopgm`, stops in `ratom` with `allocation problem` or faults, because the arrays of the first setup are still allocated |
 | `opencpmd_embed_extrapolate.patch` | `src/embed_ctrl.mod.F90`, `src/control_test_utils.mod.F90`, `src/rwfopt_utils.mod.F90` | `EXTRAPOLATE WFN` in the deck is dropped with a warning, and `libcpmdc` does not link, because it reads `embed_extrapolation_used` |
+| `opencpmd_embed_dipole.patch` | `src/wfopts_utils.mod.F90`, `src/ddipo_utils.mod.F90` | the in-process wavefunction optimisation never calls `ddipo`, so `ddip%pdipole` is stale and no dipole belongs to the current geometry; `ddipo_embed` is the new entry point, and `ddipo` keeps its argument list |
 | `opencpmd_omp_info.patch` | `src/rggen_utils.mod.F90` | a calculator that spans nodes with unequal numbers of ranks calls `MPI_Allreduce` with different counts in the report and can stop before the first electronic iteration |
 | `opencpmd_pcg_step.patch` (optional) | `src/pcgrad_driver.mod.F90` | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see the optimiser how-to (file:wavefunction-optimiser.org) |
 | `opencpmd_constant_cutoff_precon.patch` (optional) | `src/hesele_utils.mod.F90` | with `CONSTANT CUTOFF` the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and `cpmdc` falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see relaxing a cell at a constant cutoff (file:constant-cutoff.org) |
@@ -3932,6 +4010,7 @@ Apply `opencpmd_embed_teardown.patch` after those: it adds to the
 the rwfopt patch.
 Apply `opencpmd_embed_extrapolate.patch` after the teardown patch, whose lines
 in `embed_ctrl` it follows.
+Apply `opencpmd_embed_dipole.patch` after it.
 
 # Build a patched tree
 Start from an OpenCPMD source checkout and apply the patches before the first
@@ -3942,7 +4021,7 @@ cd opencpmd
 git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown embed_extrapolate omp_info \
+         embed_teardown embed_extrapolate embed_dipole omp_info \
          atomwf_kpts_ortho; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
@@ -3981,7 +4060,7 @@ rebuild only the affected members:
 cd /path/to/opencpmd-source
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
-         embed_teardown embed_extrapolate omp_info \
+         embed_teardown embed_extrapolate embed_dipole omp_info \
          atomwf_kpts_ortho; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
@@ -3991,10 +4070,11 @@ done
 `rebuild_opencpmd_embed.sh` recompiles the object of the embedding patch,
 `error_handling.mod.o`, `embed_ctrl.mod.o`, `control_test_utils.mod.o`,
 `rinitwf_driver.mod.o`, `initrun_driver.mod.o`,
-`rwfopt_utils.mod.o`, `updwf_utils.mod.o`,
+`rwfopt_utils.mod.o`, `ddipo_utils.mod.o`, `wfopts_utils.mod.o`,
+`updwf_utils.mod.o`,
 `rkpnt_utils.mod.o`, `timer.mod.o`, `c_mem_utils.o`,
 `gsortho_utils.mod.o`, `atomwf_utils.mod.o`,
-the 33 modules of the teardown patch, and `embed_teardown.mod.o`
+the 34 modules of the teardown patch, and `embed_teardown.mod.o`
 after them, and `scex_utils.mod.o` for the module order, with one Make job, then
 replaces those members with `ar r` and runs `ranlib`.
 `tests/test_opencpmd_embed_objects.py` fails when a source file in
@@ -4288,10 +4368,11 @@ A call on a closed `Session` raises `CPMDCError`.
 `find_library` and `find_schema` resolve the two paths.
 `HARTREE_TO_EV` and `BOHR_TO_ANGSTROM` are the conversion constants from the C
 sources.
-`forces_to_ev_per_angstrom` and `stress_to_ev_per_angstrom3` apply them.
+`forces_to_ev_per_angstrom`, `stress_to_ev_per_angstrom3`, and
+`dipole_to_e_angstrom` apply them.
 `Evaluation` is the native result:
-`energy_h`, `forces_h_bohr`, and `stress_h_bohr3` when a periodic cell was
-computed, otherwise `None`.
+`energy_h`, `forces_h_bohr`, optional `stress_h_bohr3`, and optional
+`dipole_e_bohr`.
 A session is not shared across threads, because the C library keeps the active
 calculator in process globals.
 The `schema` argument of `Session`, `Potential`, and `CPMDCCalculator` is
@@ -4301,7 +4382,15 @@ deprecated and ignored, and passing it warns with `DeprecationWarning`.
 `Potential.evaluate(positions, numbers, box)` returns `energy` in eV, `forces`
 in eV/Angstrom, and `stress` as nine row-major eV/Angstrom^3 components when the
 library computed a tensor.
+It returns `dipole` as three e*Angstrom components only when OpenCPMD recomputed
+the molecular moment for that step.
 `Potential.caps` returns `stress=True` and `energies=False`.
+It returns `dipole=True` only when the evaluator can produce a dipole: never for
+the reference evaluator, and for OpenCPMD until an evaluation comes back
+without one, because a deck without `DIPOLE DYNAMICS` or ~PROP / DIPOLE MOMENT
+BERRY~ produces none.
+The Berry-phase dipole exists only for a neutral periodic cell and only modulo
+the lattice quantum, so it can jump by a lattice vector between geometries.
 An rgpot `RgpotCalculator` accepts any object with those two methods, so this
 provider can sit behind it.
 
@@ -5599,7 +5688,7 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
-`libcpmdc` exports those 47 functions and no other symbol; the exported symbols
+`libcpmdc` exports those 51 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 `schema/inventory/surface_map_abi.txt` records them; it is generated from the
 built library, and the `c-abi-inventory` test fails when the headers, the
@@ -5739,7 +5828,8 @@ Each snapshot struct starts with `int valid`, set by a successful evaluation.
 | `CPMDCChargeIntegrals` | `csumg`, `csumr`, `csums`, `csumsabs` from `chrg` | electrons |
 | `CPMDCMultiStateEnergies` | `count` doubles in `values[64]` from `ener_c` and `ener_d` | Hartree |
 | `CPMDCMDTrajectoryRow` | `count` doubles in `values[32]`: `etot ekin epseu enl eht exc ehep ehee ehii esr eself EKINC` | Hartree |
-| `CPMDCPropertySnapshot` | nuclear gradient in `hessian[4096]`, dipole in `dipole[3]`, polarizability in `polarizability[9]`, each with a count | atomic units (Hartree/Bohr for the gradient) |
+| `CPMDCPropertySnapshot` | deprecated nuclear-gradient name `hessian[4096]`, optional molecular dipole in `dipole[3]`, polarizability in `polarizability[9]`, each with a count | atomic units (Hartree/Bohr for the gradient) |
+| `CPMDCDipole` | `valid` and the molecular dipole in `values[3]` | electron Bohr |
 | `CPMDCStressTensor` | row-major `values[9]`, `paiu/omega` | Hartree/Bohr^3 |
 | `CPMDCRankSpread` | `ranks`, `energy_h`, `gradient_h_bohr` (see Results of the last evaluation (*Results of the last evaluation)) | Hartree, Hartree/Bohr |
 
@@ -5748,6 +5838,16 @@ With OpenCPMD linked, `CPMDCEnergyComponents` fills `etot`, `ekin`, `epseu`,
 The reference evaluator fills `etot` only.
 `EKINC`, the fictitious electronic kinetic energy, is zero for a wavefunction
 optimisation.
+`CPMDCPropertySnapshot.hessian` and `hessian_count` are deprecated because the
+values are the nuclear gradient, not a Hessian.
+Use `cpmdc_last_gradient()` or `cpmdc_session_last_gradient()`.
+The legacy array fixes the current maximum at 4096 gradient components, or
+1365 atoms. An evaluation with more atoms fails before it runs, with
+`property gradient snapshot supports at most 1365 atoms`; it is not truncated.
+On a session the check is part of the evaluation preflight, after the topology
+check and before the topology is fixed. A first call that is too large leaves
+the session without a topology. A session that already holds another system
+reports `topology change requires a new session` instead of the atom limit.
 
 Fields of `CPMDCEnergyComponents`; `valid` is an `int`, non-zero when the
 snapshot was written by a successful evaluation, and every other field is a
@@ -5787,7 +5887,7 @@ entries a call filled.
 
 | Field | Struct | Meaning |
 |-------+--------+---------|
-| `valid` | `CPMDCChargeIntegrals`, `CPMDCMultiStateEnergies`, `CPMDCMDTrajectoryRow`, `CPMDCPropertySnapshot`, `CPMDCStressTensor`, `CPMDCRankSpread` | `int`, non-zero when the snapshot was written |
+| `valid` | `CPMDCChargeIntegrals`, `CPMDCMultiStateEnergies`, `CPMDCMDTrajectoryRow`, `CPMDCPropertySnapshot`, `CPMDCDipole`, `CPMDCStressTensor`, `CPMDCRankSpread` | `int`, non-zero when the snapshot was written |
 | `csumg` | `CPMDCChargeIntegrals` | `csumg` of OpenCPMD `chrg`, electrons |
 | `csumr` | `CPMDCChargeIntegrals` | `csumr` of OpenCPMD `chrg`, electrons |
 | `csums` | `CPMDCChargeIntegrals` | `csums` of OpenCPMD `chrg`, electrons |
@@ -5796,11 +5896,12 @@ entries a call filled.
 | `values[64]` | `CPMDCMultiStateEnergies` | `ener_c` and `ener_d` values, Hartree |
 | `values[32]` | `CPMDCMDTrajectoryRow` | trajectory terms in the order of the table above, Hartree |
 | `hessian_count` | `CPMDCPropertySnapshot` | `size_t`, the number of doubles copied into `hessian` |
-| `hessian[4096]` | `CPMDCPropertySnapshot` | nuclear gradient dE/dR in Hartree/Bohr packed as `n_atoms * 3`. It is a gradient, not a Hessian. Only the first 4096 values are kept, and `hessian_count` says how many, so a system of more than 1365 atoms is cut short |
+| `hessian[4096]` | `CPMDCPropertySnapshot` | deprecated nuclear gradient dE/dR in Hartree/Bohr packed as `n_atoms * 3`; use the gradient accessors. Evaluations above its 4096-component capacity fail instead of truncating |
 | `dipole_count` | `CPMDCPropertySnapshot` | `size_t`, the number of doubles copied into `dipole` |
-| `dipole[3]` | `CPMDCPropertySnapshot` | OpenCPMD `ddip%pdipole` in atomic units, zeros for the reference evaluator |
+| `dipole[3]` | `CPMDCPropertySnapshot` | molecular dipole in electron Bohr when OpenCPMD recomputed it for the current geometry; unavailable otherwise |
 | `polarizability_count` | `CPMDCPropertySnapshot` | `size_t`, the number of doubles copied into `polarizability` |
 | `polarizability[9]` | `CPMDCPropertySnapshot` | always zeros, in atomic units (Bohr^3), with `polarizability_count` 9: no build computes it |
+| `values[3]` | `CPMDCDipole` | Cartesian molecular dipole, electron Bohr; see the periodic-cell caveat on the struct in `cpmdc.h` |
 | `values[9]` | `CPMDCStressTensor` | row-major `[xx, xy, xz, yx, yy, yz, zx, zy, zz]`, Hartree/Bohr^3 |
 | `ranks` | `CPMDCRankSpread` | `int`, ranks in the calculator communicator |
 | `energy_h` | `CPMDCRankSpread` | largest absolute energy difference from rank 0 over the ranks, Hartree |
@@ -6114,7 +6215,33 @@ session has run.
 | `int cpmdc_last_multi_state_energies(CPMDCMultiStateEnergies *out)` | `int cpmdc_session_last_multi_state_energies(const CPMDCSession *s, CPMDCMultiStateEnergies *out)` |
 | `int cpmdc_last_md_trajectory_row(CPMDCMDTrajectoryRow *out)` | `int cpmdc_session_last_md_trajectory_row(const CPMDCSession *s, CPMDCMDTrajectoryRow *out)` |
 | `int cpmdc_last_property_snapshot(CPMDCPropertySnapshot *out)` | `int cpmdc_session_last_property_snapshot(const CPMDCSession *s, CPMDCPropertySnapshot *out)` |
+| `int cpmdc_last_dipole(CPMDCDipole *out)` | `int cpmdc_session_last_dipole(const CPMDCSession *s, CPMDCDipole *out)` |
 | `int cpmdc_last_stress(CPMDCStressTensor *out)` | `int cpmdc_session_last_stress(const CPMDCSession *s, CPMDCStressTensor *out)` |
+
+The gradient accessors take a caller buffer:
+
+| Plain | Per session |
+|-------+-------------|
+| `int cpmdc_last_gradient(double *out, size_t capacity, size_t *count)` | `int cpmdc_session_last_gradient(const CPMDCSession *s, double *out, size_t capacity, size_t *count)` |
+
+`count` receives the required number of doubles.
+The call returns -1 when there is no gradient, an argument is null, or
+`capacity` is too small.
+
+The dipole getter returns 0 only when the linked OpenCPMD recomputed
+`dipomod%moment%dmom` from the converged wavefunction of this evaluation.
+The supported route is a periodic Gamma-point, non-broken-symmetry deck with
+`DIPOLE DYNAMICS` or `PROP / DIPOLE MOMENT BERRY`.
+An isolated deck, a k-point calculation, the reference evaluator, and a deck
+without either request leave the dipole invalid.
+A deck that sets `DIPOLE DYNAMICS` in `&CPMD` and `KPOINTS` in `&SYSTEM` is
+rejected before any evaluation, by `cpmdc_session_create()`,
+`cpmdc_session_set_params()`, and the calls that take parameters, because
+OpenCPMD stops in `localize2` on it; `cpmdc_last_error()` names both keywords.
+OpenCPMD's `ddip%pdipole` is not this molecular dipole: `ddipo` adds the ionic
+term to make `pdipolt`, then multiplies by the cell volume to set
+`moment%dmom`. Reading `pdipole` after `wfopts` without calling `ddipo` would
+return stale module state.
 
 The stress snapshot is valid only when the tensor was computed for a periodic
 cell: OpenCPMD ran `totstr` (`cntl%tpres`, which requires a periodic cell and
@@ -6507,6 +6634,10 @@ A session is created by one of two functions and released by `cpmdc_session_dest
 `session_accept_topology` fixes the topology only after an evaluation call
 passes its argument checks and collective orbital preflight. A rejected
 preflight leaves the topology configurable; see the C ABI reference.
+More than 1365 atoms fails that preflight with
+`property gradient snapshot supports at most 1365 atoms`, before the topology
+is fixed. A session that already holds another system reports the topology
+change instead of the atom limit.
 
 ### ~cpmdc_session_energy_gradient~
 
@@ -6794,6 +6925,54 @@ Each getter copies one snapshot struct and returns 0 when it is valid.
 | Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication; a rank holds its own snapshot. |
 | Returns and errors | Returns 0 when `out->valid` is set; -1 for a NULL session, a NULL `out`, or an absent snapshot. Does not write `cpmdc_last_error()`. It reads that session's own last result, also after another session has run. |
 | Python | not wrapped. |
+| Defaults | none |
+
+### ~cpmdc_last_gradient~
+
+| Item | Description |
+|--------+--------|
+| Units | `out` receives the nuclear gradient in Hartree/Bohr; `capacity` and `count` count doubles. |
+| Layout | `out` points at `capacity` doubles; `count` points at one `size_t` that receives the required component count. |
+| Ownership | The caller owns `out` and `count`; the copied gradient does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 after copying the complete gradient; -1 for a NULL argument, no valid gradient, a zero-length gradient, or insufficient `capacity`. The legacy snapshot limits successful evaluations to 4096 components. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped; `cpmdc.Session.energy_forces` returns the force, the negative of this gradient. |
+| Defaults | none |
+
+### ~cpmdc_session_last_gradient~
+
+| Item | Description |
+|--------+--------|
+| Units | `out` receives the nuclear gradient in Hartree/Bohr; `capacity` and `count` count doubles. |
+| Layout | `out` points at `capacity` doubles; `count` points at one `size_t` that receives the required component count. |
+| Ownership | `session` is borrowed and stays owned by the caller; the caller owns `out` and `count`, and the copy does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 after copying the session's complete last gradient; -1 for a NULL argument, no valid gradient, a zero-length gradient, or insufficient `capacity`. The legacy snapshot limits successful evaluations to 4096 components. Does not write `cpmdc_last_error()`. |
+| Python | not wrapped; `cpmdc.Session.energy_forces` returns the force, the negative of this gradient. |
+| Defaults | none |
+
+### ~cpmdc_last_dipole~
+
+| Item | Description |
+|--------+--------|
+| Units | the fields of `CPMDCDipole` in electron Bohr. |
+| Layout | `out` points at one `CPMDCDipole` that the call clears before checking availability. |
+| Ownership | The caller owns `out`; the copied dipole does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when OpenCPMD recomputed the dipole for the current geometry; -1 for NULL `out` or when the reference, isolated, k-point, or unrequested evaluation has no dipole. An unavailable call leaves `out->valid` zero and does not write `cpmdc_last_error()`. |
+| Python | not wrapped directly; `cpmdc.Session.energy_forces` uses the session form. |
+| Defaults | none |
+
+### ~cpmdc_session_last_dipole~
+
+| Item | Description |
+|--------+--------|
+| Units | the fields of `CPMDCDipole` in electron Bohr. |
+| Layout | `out` points at one `CPMDCDipole` that the call clears before checking availability. |
+| Ownership | `session` is borrowed and stays owned by the caller; the caller owns `out` and the copy does not alias library memory. |
+| Threads and MPI | Not thread-safe against a running evaluation on that session: read from the thread that evaluates. MPI: local to each rank, no communication. |
+| Returns and errors | Returns 0 only when that session's last evaluation recomputed the dipole for its current geometry; -1 for a NULL argument or when the reference, isolated, k-point, or unrequested evaluation has no dipole. An unavailable call leaves `out->valid` zero and does not write `cpmdc_last_error()`. |
+| Python | `cpmdc.Session.energy_forces` reads this value; -1 gives `Evaluation.dipole_e_bohr` of `None`. |
 | Defaults | none |
 
 ### ~cpmdc_last_stress~
@@ -7338,9 +7517,18 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Item | Description |
 |--------+--------|
 | Layout | An `int valid`, then `size_t hessian_count` and `double hessian[4096]`, `size_t dipole_count` and `double dipole[3]`, `size_t polarizability_count` and `double polarizability[9]`. |
-| Units | Atomic units: `hessian` holds the nuclear gradient in Hartree/Bohr (it is a gradient, cut at 4096 values), `dipole` is the dipole in atomic units, `polarizability` is always zeros. |
+| Units | Atomic units: `hessian` holds the nuclear gradient in Hartree/Bohr, `dipole` is the molecular dipole in electron Bohr, and `polarizability` is always zeros. Evaluations above the 4096-component gradient capacity fail instead of truncating. |
 | Ownership | Filled by `cpmdc_last_property_snapshot()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
+
+## ~CPMDCDipole~
+
+| Item | Description |
+|--------+--------|
+| Layout | An `int valid`, followed by `double values[3]` in Cartesian x, y, z order. |
+| Units | Electron Bohr. The periodic Berry-phase dipole is defined for a neutral cell modulo a lattice quantum. |
+| Ownership | Filled by `cpmdc_last_dipole()` or `cpmdc_session_last_dipole()` into a caller-owned struct; no pointers. |
+| Python | `cpmdc.Evaluation.dipole_e_bohr` holds the three values, or `None` when `valid` is 0. |
 
 ## ~CPMDCStressTensor~
 
@@ -7572,12 +7760,12 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 
 | Item | Description |
 |--------+--------|
-| Signature | `Evaluation(energy_h, forces_h_bohr, stress_h_bohr3)` |
-| Units | Hartree, Hartree/Bohr and Hartree/Bohr^3 (atomic units, not eV). |
-| Shape and dtype | A dataclass of three fields, compared and hashed by identity: `energy_h` a `float`, `forces_h_bohr` an N by 3 `list[list[float]]`, `stress_h_bohr3` nine floats or `None`. |
+| Signature | `Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None)` |
+| Units | Hartree, Hartree/Bohr, Hartree/Bohr^3 and electron Bohr (atomic units, not eV). |
+| Shape and dtype | A dataclass of four fields, compared and hashed by identity: `energy_h` a `float`, `forces_h_bohr` an N by 3 `list[list[float]]`, `stress_h_bohr3` nine floats or `None`, and `dipole_e_bohr` three floats or `None`. |
 | Ownership and threads | Plain data the caller owns; it holds no handle. Not thread-safe to mutate; reading it from several threads is safe. |
 | Raises | none |
-| Defaults | none: the three fields are required, in this order or by keyword. |
+| Defaults | `dipole_e_bohr=None`; the first three fields are required, in this order or by keyword. |
 
 ### ~cpmdc.Evaluation.energy_h~
 
@@ -7611,6 +7799,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
 | Raises | none |
 | Defaults | No default. |
+
+### ~cpmdc.Evaluation.dipole_e_bohr~
+
+| Item | Description |
+|--------+--------|
+| Signature | `dipole_e_bohr (attribute)` |
+| Units | Electron Bohr. |
+| Shape and dtype | Three `float` values in Cartesian x, y, z order, or `None` unless OpenCPMD recomputed the dipole for the current geometry. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | `None`. |
 
 ### ~cpmdc.Potential~
 
@@ -7687,6 +7886,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Shape and dtype | Returns a `bool`. |
 | Ownership and threads | Calls `cpmdc_available()`, which initialises the embed on the first call, so call it from one thread first; otherwise thread-safe. MPI: local. |
 | Raises | none: cannot fail, even on a closed session. |
+| Defaults | none |
+
+### ~cpmdc.Session.dipole_possible~
+
+| Item | Description |
+|--------+--------|
+| Signature | `dipole_possible()` |
+| Units | none |
+| Shape and dtype | Returns a `bool`: before the first step it reports whether OpenCPMD is linked; afterward it reports whether the last evaluation produced a dipole. |
+| Ownership and threads | Reads the session handle and its last dipole state. Not thread-safe against evaluation or close on the same session. MPI: local. |
+| Raises | none: a closed session and the reference evaluator return `False`. |
 | Defaults | none |
 
 ### ~cpmdc.Session.calculate_au~
@@ -7786,6 +7996,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Shape and dtype | N rows of three floats in; a new N by 3 `list[list[float]]` out. |
 | Ownership and threads | Stateless pure function: thread-safe, keeps nothing, returns new objects. |
 | Raises | none: a row that is not a sequence of numbers raises the ordinary `TypeError` of the multiplication. |
+| Defaults | none |
+
+### ~cpmdc.dipole_to_e_angstrom~
+
+| Item | Description |
+|--------+--------|
+| Signature | `dipole_to_e_angstrom(dipole_e_bohr)` |
+| Units | Electron Bohr in, e*Angstrom out. |
+| Shape and dtype | Three Cartesian floats in; a new list of three floats out. |
+| Ownership and threads | Stateless pure function: thread-safe, keeps nothing, returns a new object. |
+| Raises | `ValueError` when there are not three components. |
 | Defaults | none |
 
 ### ~cpmdc.stress_to_ev_per_angstrom3~
@@ -8331,6 +8552,7 @@ The properties `CPMDCCalculator` implements, in ASE units.
 | free_energy | eV | scalar `float` | Equal to `energy`. | As for `energy`. |
 | forces | eV/Angstrom | (N, 3) `float64` array | The negative nuclear gradient `-dE/dR`. | As for `energy`. |
 | stress | eV/Angstrom^3 | (6,) `float64` array in Voigt order xx, yy, zz, yz, xz, xy | ASE sign, `(1/V) dE/d(strain)`, the opposite of the OpenCPMD sign; shear parts are averaged. | `PropertyNotImplementedError` for a cluster (every `pbc` flag false) or for a step the library gave no stress for; `ValueError` for a partly periodic cell. |
+| dipole | e*Angstrom | (3,) `float64` Cartesian array | Molecular dipole from the current geometry only when OpenCPMD recomputed it; the periodic Berry-phase value is defined modulo a lattice quantum. | `PropertyNotImplementedError` when the reference, isolated, k-point or unrequested evaluation produced no dipole. |
 
 # ASE parameters
 
@@ -10828,8 +11050,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `ATOMIC_NUMBER_MIN`, `ATOMIC_NUMBER_MAX` | `1` and `118` (dimensionless `int`), the range of atomic numbers that `Session` and the C evaluation calls accept |
 | `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails |
 | `CpmdcError` | deprecated alias of `CPMDCError`, the same class; reading it warns with `DeprecationWarning` |
-| `Evaluation` | `Evaluation(energy_h, forces_h_bohr, stress_h_bohr3)`: dataclass of one finished step (all three fields required, no defaults); it compares and hashes by identity (`eq=False`) |
-| `Evaluation.energy_h`, `Evaluation.forces_h_bohr`, `Evaluation.stress_h_bohr3` | `energy_h` in Hartree (`float`), `forces_h_bohr` as an N by 3 `list[list[float]]` in Hartree/Bohr (the negative nuclear gradient), and `stress_h_bohr3` as nine row-major Hartree/Bohr^3 values with the OpenCPMD sign `-(1/V) dE/d(strain)`, or `None` without a periodic cell or stress tensor |
+| `Evaluation` | `Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None)`: dataclass of one finished step; it compares and hashes by identity (`eq=False`) |
+| `Evaluation.energy_h`, `Evaluation.forces_h_bohr`, `Evaluation.stress_h_bohr3`, `Evaluation.dipole_e_bohr` | `energy_h` in Hartree (`float`), `forces_h_bohr` as an N by 3 `list[list[float]]` in Hartree/Bohr (the negative nuclear gradient), `stress_h_bohr3` as nine row-major Hartree/Bohr^3 values with the OpenCPMD sign `-(1/V) dE/d(strain)` or `None`, and `dipole_e_bohr` as three electron-Bohr values only when OpenCPMD recomputed the dipole for that geometry or `None` |
 | `ConstantCutoff` | `ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)`: frozen dataclass of the constant-cutoff kinetic functional in Rydberg; a field that is not a number (or is `bool`) raises `TypeError`, and one that is not finite and positive raises `ValueError` |
 | `ConstantCutoff.cutoff_ry`, `ConstantCutoff.height_ry`, `ConstantCutoff.width_ry` | `E0`, `A`, and `sigma` in Rydberg; `cutoff_ry` is required, `height_ry=None` selects 50 times the deck cutoff for `A`, and `width_ry=None` selects `cutoff_ry / 10` for `sigma` |
 | `ConstantCutoff.coerce` | `coerce(value)`: convert `value` (`None`, a `ConstantCutoff`, a mapping of its fields, or `E0` in Rydberg) to a `ConstantCutoff` or `None`; raises `TypeError` or `ValueError` on invalid input |
@@ -10842,21 +11064,23 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Session.version` | `version()`: return `cpmdc/` and the compiled version string |
 | `Session.abi_version` | `abi_version()`: return the numeric ABI generation (`int`) |
 | `Session.available` | `available()`: return `True` when OpenCPMD is linked, `False` for the reference evaluator |
+| `Session.dipole_possible` | `dipole_possible()`: return `True` when OpenCPMD is linked and the last evaluation did not report the dipole unavailable; return `False` for the reference evaluator, after a deck produces no dipole, and on a closed session |
 | `Session.close` | `close()`: destroy the handle (idempotent); a later evaluation or orbital call raises `CPMDCError` |
 | `Potential` | `Potential(params, *, library=None, schema=None, constant_cutoff=None)`: rgpot-shaped provider and context manager over one `Session`; `params` is serialized `CPMDParams` `bytes` or a file path (required); `library=None` and `constant_cutoff=None` (in Rydberg) go to `Session`; `schema=None` is deprecated and ignored (`DeprecationWarning` when not `None`); raises `CPMDCError`, `FileNotFoundError`, `TypeError`, or `ValueError` |
-| `Potential.evaluate` | `evaluate(positions, numbers, box=None)`: evaluate one step from Angstrom `positions` of shape (N, 3), N atomic `numbers` in 1..118, and optional Angstrom `box=None` (3x3 or nine row-major floats, or `None` for an isolated system); returns a `dict` with `energy` in eV, `forces` in eV/Angstrom of shape (N, 3), and optional nine-component row-major `stress` in eV/Angstrom^3 with the ASE sign `(1/V) dE/d(strain)`; raises `CPMDCError`, `TypeError`, or `ValueError` |
-| `Potential.caps` | `caps()`: return `{"stress": True, "energies": False}` |
+| `Potential.evaluate` | `evaluate(positions, numbers, box=None)`: evaluate one step from Angstrom `positions` of shape (N, 3), N atomic `numbers` in 1..118, and optional Angstrom `box=None` (3x3 or nine row-major floats, or `None` for an isolated system); returns a `dict` with `energy` in eV, `forces` in eV/Angstrom of shape (N, 3), optional nine-component row-major `stress` in eV/Angstrom^3 with the ASE sign `(1/V) dE/d(strain)`, and optional `dipole` in e*Angstrom; raises `CPMDCError`, `TypeError`, or `ValueError` |
+| `Potential.caps` | `caps()`: return `stress` true, `energies` false, and `dipole` as `Session.dipole_possible()` answers |
 | `Potential.close` | `close()`: close the owned `Session` (idempotent) |
 | `find_library` | `find_library(path=None)`: return the `Path` of `libcpmdc`; tries an explicit `path` first, then `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE` in that order, then `.cpmdc.mesonpy.libs/libcpmdc.so` and `.cpmdc.mesonpy.libs/libcpmdc.dylib` beside the package, then `ctypes.util.find_library("cpmdc")`, then `build/libcpmdc.so` and `build/libcpmdc.dylib` in the working directory; raises `CPMDCError` when not found |
 | `find_schema` | `find_schema(path=None)`: return the `Path` of `schema/Potentials.capnp` for `capnp encode` of `CPMDParams` text; tries an explicit `path` first, then `CPMDC_SCHEMA`, then the wheel's `cpmdc/schema/Potentials.capnp`, then `schema/Potentials.capnp` in the working directory; raises `CPMDCError` when not found |
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
+| `dipole_to_e_angstrom` | `dipole_to_e_angstrom(dipole_e_bohr)`: convert a three-component molecular dipole from electron Bohr to e*Angstrom; raises `ValueError` unless there are three components |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |
-| `CPMDCCalculator` | ASE calculator: `CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)` for `energy` (eV), `free_energy` (eV), `forces` (eV/Angstrom), and `stress` (eV/Angstrom^3, Voigt); takes `params`, `library`, and `constant_cutoff` (Rydberg), and ASE's `directory`, `label`, `atoms`, and `parameters`; registered under `"cpmdc"` for `get_calculator_class("cpmdc")` and in `ase.plugins` |
+| `CPMDCCalculator` | ASE calculator: `CPMDCCalculator(params=None, *, library=None, constant_cutoff=None, **kwargs)` for `energy` (eV), `free_energy` (eV), `forces` (eV/Angstrom), `stress` (eV/Angstrom^3, Voigt), and `dipole` (e*Angstrom) when available; takes `params`, `library`, and `constant_cutoff` (Rydberg), and ASE's `directory`, `label`, `atoms`, and `parameters`; registered under `"cpmdc"` for `get_calculator_class("cpmdc")` and in `ase.plugins` |
 | `CPMDCCalculator.default_parameters` | `params`, `library`, and `constant_cutoff`, all `None`; a `params` or `library` path is stored absolute, resolved against the working directory of the process when it is set; a `constant_cutoff` is stored as E0 in Ry, or as the mapping of `ConstantCutoff.todict` when it sets a height or a width |
-| `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, and `stress` |
+| `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, `stress`, and `dipole` |
 | `CPMDCCalculator.ignored_changes` | `initial_charges` and `initial_magmoms`: a change of either keeps the stored results, because `params` sets the charge and the multiplicity |
 | `CPMDCCalculator.discard_results_on_any_change` | `True`: a parameter that `set` changes clears the stored results |
-| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and `stress` for a periodic cell |
+| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole` |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is left out, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
@@ -10966,6 +11190,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_set_constant_cutoff` | setup | Y | Y | Y | Y |
 | `cpmdc_session_destroy` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_session_select_orbitals` | setup | Y | Y | Y | Y |
+| `cpmdc_session_copy_orbitals` | setup | Y | Y | Y | Y |
 | `cpmdc_session_energy_gradient` | step, arrays | Y | Y | Y | Y |
 | `cpmdc_session_energy` | step, arrays | Y | Y | Y | Y |
 | `cpmdc_session_energy_forces` | step, arrays | Y | Y | Y | Y |
@@ -10986,6 +11211,8 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_finalize` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_last_energy_components` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_last_property_snapshot` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_last_gradient` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_last_dipole` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_last_stress` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_last_rank_spread` | MPI | Y | Y | Y | Y |
 | `cpmdc_last_md_trajectory_row` | result snapshot | Y | Y | Y | Y |
@@ -10996,18 +11223,20 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_last_multi_state_energies` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_md_trajectory_row` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_property_snapshot` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_session_last_gradient` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_session_last_dipole` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_stress` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_feature_count` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_table` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_find` | discovery | Y | Y | Y | Y |
 
-45 symbols in `abi_symbols`, 45 with every column present.
+51 symbols in `abi_symbols`, 51 with every column present.
 
 # Exported symbols
 `schema/inventory/surface_map_abi.txt` is generated by
 `scripts/abi_inventory.py` from the exported symbols of `libcpmdc` (`nm -D --defined-only`, or `nm -gU` on macOS; `NM` names another `nm`) and the declarations in `include/cpmdc.h`
 and `include/cpmdc_features.h`.
-It lists the 45 public functions with their header, the ABI generation
+It lists the 51 public functions with their header, the ABI generation
 (`CPMDC_ABI_VERSION`, 0), and a `@since` column that stays `-` until a
 declaration records a later generation.
 `libcpmdc` exports exactly those symbols: internal glue is hidden (see the C ABI reference (file:c-abi.org)
@@ -11414,7 +11643,7 @@ and prints a summary:
 "$CPMDC/build/example_host_step" water.params.bin water.step.bin
 
 energy_h=0.958703877646
-potential_result_size_bytes=816
+potential_result_size_bytes=792
 message=ok
 ener_com_etot=0.958703877646
 ener_com_ekin=0.000000000000
