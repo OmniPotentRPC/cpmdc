@@ -3,7 +3,8 @@
  * or a new composition in a new session) and after a stopgm during setup.
  * Every energy matches, to 1e-8 Ha, the energy of a fresh process that sets
  * up that system once. The fresh-process references run in child processes
- * before this process touches CPMD.
+ * before this process touches CPMD. Two DIPOLE DYNAMICS decks across a basis
+ * change run in children of their own.
  */
 #define _POSIX_C_SOURCE 200809L
 #include "cpmdc.h"
@@ -54,7 +55,8 @@ struct blob {
   size_t size;
 };
 
-static struct blob g_water_params, g_silylamine_params, g_stop_params;
+static struct blob g_water_params, g_silylamine_params, g_stop_params,
+    g_dipole_40_params, g_dipole_50_params;
 
 struct ref_ctx {
   const struct blob *params;
@@ -138,6 +140,51 @@ static int fresh_process_energy(const struct blob *params,
   return 0;
 }
 
+/* Two DIPOLE DYNAMICS decks of water, one session each. count is the number
+ * of decks evaluated, in the order of params[]. */
+struct dipole_ctx {
+  const struct blob *params[2];
+  int count;
+};
+
+struct dipole_out {
+  int count;
+  CPMDCResult r[2];
+  int dipole_rc[2];
+  CPMDCDipole dipole[2];
+};
+
+static void dipole_child(void *vctx, void *vout) {
+  const struct dipole_ctx *ctx = (const struct dipole_ctx *)vctx;
+  struct dipole_out *o = (struct dipole_out *)vout;
+  for (int i = 0; i < ctx->count; ++i) {
+    CPMDCSession *s =
+        cpmdc_session_create(ctx->params[i]->data, ctx->params[i]->size);
+    if (!s)
+      return;
+    o->r[i] = in_session(s, &water);
+    o->dipole_rc[i] = cpmdc_session_last_dipole(s, &o->dipole[i]);
+    cpmdc_session_destroy(s);
+    o->count = i + 1;
+  }
+}
+
+static void run_dipole_decks(const struct dipole_ctx *ctx,
+                             struct dipole_out *out) {
+  char why[256];
+  if (run_setup_child(dipole_child, (void *)ctx, out, sizeof(*out), why,
+                      sizeof(why)) != 0)
+    fail_msg("dipole decks: %s", why);
+  if (out->count != ctx->count)
+    fail_msg("dipole decks: %d of %d evaluated", out->count, ctx->count);
+  for (int i = 0; i < ctx->count; ++i) {
+    if (!out->r[i].ok)
+      fail_msg("dipole deck %d: %s", i, out->r[i].message);
+    assert_int_equal(out->dipole_rc[i], 0);
+    assert_int_equal(out->dipole[i].valid, 1);
+  }
+}
+
 static int group_setup(void **state) {
   (void)state;
   if (!cpmdc_available())
@@ -219,17 +266,54 @@ static void test_setup_after_stopgm(void **state) {
                 "water after a stopgm in setup");
 }
 
+/* localize2 keeps its orbital maps and dipole matrices in SAVE arrays sized
+ * by the first basis. A DIPOLE DYNAMICS deck at 40 Ry and then another at
+ * 50 Ry used them at the larger size and faulted in opeigr. Both run in one
+ * child, which has not entered localize2 before; its second energy and dipole
+ * are those of a fresh process at 50 Ry. */
+static void test_dipole_decks_across_a_basis_change(void **state) {
+  (void)state;
+  require_embed();
+  struct dipole_ctx fresh_ctx = {{&g_dipole_50_params, NULL}, 1};
+  struct dipole_out fresh;
+  run_dipole_decks(&fresh_ctx, &fresh);
+
+  struct dipole_ctx both_ctx = {{&g_dipole_40_params, &g_dipole_50_params}, 2};
+  struct dipole_out both;
+  run_dipole_decks(&both_ctx, &both);
+
+  print_message("40 Ry: E = %.10f Ha\n", both.r[0].energy_h);
+  print_message("50 Ry after 40 Ry: E = %.10f Ha, fresh process %.10f Ha\n",
+                both.r[1].energy_h, fresh.r[0].energy_h);
+  if (fabs(both.r[1].energy_h - fresh.r[0].energy_h) > ENERGY_TOL_HA)
+    fail_msg("50 Ry energy %.12f differs from the fresh process %.12f",
+             both.r[1].energy_h, fresh.r[0].energy_h);
+  assert_true(fabs(both.r[1].energy_h - both.r[0].energy_h) > 1e-6);
+  for (int k = 0; k < 3; ++k) {
+    print_message("dipole[%d]: %.8f e Bohr, fresh process %.8f\n", k,
+                  both.dipole[1].values[k], fresh.dipole[0].values[k]);
+    if (fabs(both.dipole[1].values[k] - fresh.dipole[0].values[k]) > 1e-6)
+      fail_msg("50 Ry dipole component %d is %.10f, fresh process %.10f", k,
+               both.dipole[1].values[k], fresh.dipole[0].values[k]);
+  }
+}
+
 int main(int argc, char **argv) {
-  if (argc < 4) {
-    fprintf(stderr, "usage: %s water.bin silylamine.bin water_pbe0.bin\n",
+  if (argc < 6) {
+    fprintf(stderr,
+            "usage: %s water.bin silylamine.bin water_pbe0.bin "
+            "dipole_40ry.bin dipole_50ry.bin\n",
             argv[0]);
     return 2;
   }
   g_water_params = read_file(argv[1]);
   g_silylamine_params = read_file(argv[2]);
   g_stop_params = read_file(argv[3]);
+  g_dipole_40_params = read_file(argv[4]);
+  g_dipole_50_params = read_file(argv[5]);
   if (!g_water_params.data || !g_silylamine_params.data ||
-      !g_stop_params.data) {
+      !g_stop_params.data || !g_dipole_40_params.data ||
+      !g_dipole_50_params.data) {
     fprintf(stderr, "cannot read the parameter files\n");
     return 2;
   }
@@ -237,11 +321,14 @@ int main(int argc, char **argv) {
       cmocka_unit_test(test_new_params_set_up_again),
       cmocka_unit_test(test_new_composition_new_session),
       cmocka_unit_test(test_setup_after_stopgm),
+      cmocka_unit_test(test_dipole_decks_across_a_basis_change),
   };
   int rc = cmocka_run_group_tests(tests, group_setup, NULL);
   cpmdc_finalize();
   free(g_water_params.data);
   free(g_silylamine_params.data);
   free(g_stop_params.data);
+  free(g_dipole_40_params.data);
+  free(g_dipole_50_params.data);
   return rc;
 }
