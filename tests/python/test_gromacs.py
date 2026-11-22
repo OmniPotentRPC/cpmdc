@@ -776,7 +776,8 @@ def test_gromacs_generated_input_uses_params_variable(periodic_params, tmp_path)
     assert np.isfinite(frame["f"]).all()
     log = (tmp_path / "md_cp2k.out").read_text()
     assert "atoms 6 qm 6 mm 0 cell PERIODIC embedding NONE" in log
-    assert "first step: backend reference" in log
+    backend = "opencpmd" if OPENCPMD else "reference"
+    assert f"first step: backend {backend}" in log
 
 
 @needs_gmx
