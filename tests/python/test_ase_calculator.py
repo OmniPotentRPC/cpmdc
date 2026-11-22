@@ -17,6 +17,7 @@ import pickle
 import re
 import shutil
 import subprocess
+import sys
 import warnings
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from ase.calculators.calculator import (
     CalculationFailed,
     Calculator,
     PropertyNotImplementedError,
+    get_calculator_class,
+    names as calculator_names,
 )
 from ase.calculators.fd import calculate_numerical_forces, calculate_numerical_stress
 from ase.calculators.test import gradient_test
@@ -34,7 +37,7 @@ from ase.filters import FrechetCellFilter
 from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
-from conftest import ROOT, WATER
+from conftest import INSTALLED, ROOT, WATER
 
 import cpmdc
 from cpmdc import (
@@ -948,3 +951,109 @@ def test_constant_cutoff_values_are_checked(value, error):
         "width_ry": 2.0,
     }
     assert ConstantCutoff.coerce(None) is None
+
+
+def test_get_calculator_class_returns_cpmdc_calculator():
+    assert get_calculator_class("cpmdc") is CPMDCCalculator
+    assert "cpmdc" in calculator_names
+
+
+def _import_env(*extra: Path) -> dict[str, str]:
+    """Environment for a child process that imports this checkout's ``cpmdc``."""
+    env = os.environ.copy()
+    paths = [str(path) for path in extra]
+    if not INSTALLED:
+        paths.append(str(ROOT / "python"))
+    if env.get("PYTHONPATH"):
+        paths.append(env["PYTHONPATH"])
+    if paths:
+        env["PYTHONPATH"] = os.pathsep.join(paths)
+    return env
+
+
+def test_repeated_registration_is_idempotent():
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import importlib, cpmdc.ase\n"
+            "from ase.calculators.calculator import get_calculator_class, names\n"
+            "for _ in range(2):\n"
+            "    importlib.reload(cpmdc.ase)\n"
+            "assert get_calculator_class('cpmdc') is cpmdc.ase.CPMDCCalculator\n"
+            "assert names.count('cpmdc') == 1\n",
+        ],
+        env=_import_env(),
+        check=True,
+    )
+
+
+def test_global_plugin_collection_lists_cpmdc_after_cpmdc_ase_import(tmp_path):
+    pytest.importorskip("ase._4.plugins", reason="ASE v4 plugin API is not present")
+    extra = []
+    if not INSTALLED:
+        dist = tmp_path / "cpmdc-0.0.0.dist-info"
+        dist.mkdir()
+        (dist / "METADATA").write_text("Metadata-Version: 2.1\nName: cpmdc\nVersion: 0.0.0\n")
+        (dist / "entry_points.txt").write_text("[ase.plugins]\ncpmdc = cpmdc.ase\n")
+        extra.append(tmp_path)
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import cpmdc.ase\n"
+            "from ase._4.plugins import plugins\n"
+            "by_name = {plugin.name: plugin for plugin in plugins.calculators}\n"
+            "assert by_name['cpmdc']() is cpmdc.ase.CPMDCCalculator, sorted(by_name)\n",
+        ],
+        env=_import_env(*extra),
+        check=True,
+    )
+
+
+@pytest.mark.parametrize("periodic", [False, True], ids=["cluster", "periodic"])
+def test_calculator_built_via_lookup_matches_direct(params, periodic_params, opencpmd, periodic):
+    cls = get_calculator_class("cpmdc")
+    deck = periodic_params if periodic else params
+    atoms = water(cell=TRICLINIC, pbc=True) if periodic else water()
+    other = atoms.copy()
+    with cls(deck) as looked_up, CPMDCCalculator(deck) as direct:
+        atoms.calc = looked_up
+        other.calc = direct
+        energy, forces = atoms.get_potential_energy(), atoms.get_forces()
+        ref_energy, ref_forces = other.get_potential_energy(), other.get_forces()
+        scf = dict(rel=0, abs=1e-5) if opencpmd else dict(rel=1e-14)
+        force_atol = 1e-3 if opencpmd else 0.0
+        assert energy == pytest.approx(ref_energy, **scf)
+        np.testing.assert_allclose(forces, ref_forces, rtol=1e-14, atol=force_atol)
+        if periodic:
+            stress_atol = 1e-4 if opencpmd else 0.0
+            np.testing.assert_allclose(
+                atoms.get_stress(), other.get_stress(), rtol=1e-12, atol=stress_atol
+            )
+
+
+def test_ase_plugin_resolves_cpmdc_calculator(params, opencpmd):
+    pytest.importorskip("ase._4.plugins", reason="ASE v4 plugin API is not present")
+    from ase._4.plugins import PluginCollection
+
+    import cpmdc.ase as ase_mod
+
+    plugins = PluginCollection(ase_mod.__ase_plugins__).calculators
+    by_name = {plugin.name: plugin for plugin in plugins}
+    assert "cpmdc" in by_name
+    cls = by_name["cpmdc"]()
+    assert cls is ase_mod.CPMDCCalculator
+    atoms = water()
+    other = water()
+    with cls(params) as via_plugin, ase_mod.CPMDCCalculator(params) as direct:
+        atoms.calc = via_plugin
+        other.calc = direct
+        scf = dict(rel=0, abs=1e-5) if opencpmd else dict(rel=1e-14)
+        force_atol = 1e-3 if opencpmd else 0.0
+        assert atoms.get_potential_energy() == pytest.approx(
+            other.get_potential_energy(), **scf
+        )
+        np.testing.assert_allclose(
+            atoms.get_forces(), other.get_forces(), rtol=1e-14, atol=force_atol
+        )
