@@ -78,8 +78,11 @@ A different rank count sums different partials, so it agrees with the
 serial loop to ~CPMDC_PWSCALE_RTOL~ and not bitwise.
 Each rank holds ~(ranks + 1) * (3 * natoms + 4)~ doubles for the sum.
 
-The library timer now runs from a rank's entry to the arrival of every
-partial, without the two barriers.
+The library timer now runs from the entry of ~cpmdc_pwscale_eval_mpi_bound~
+to the end of its rank-ordered sum, without the two barriers.
+For ~cpmdc_pwscale_eval_mpi~ it starts after the call has made its binding,
+so the binding is not timed.
+It covers the rank's own partial, the gather, and the sum.
 The harness column ~call_s~ times the whole call on rank 0 after the
 ranks leave a barrier together, so it compares builds whose library
 timers differ.

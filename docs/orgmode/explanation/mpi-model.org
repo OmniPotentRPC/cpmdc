@@ -35,9 +35,12 @@ then splits ~MPI_COMM_WORLD~ with ~MPI_Comm_split~, colour
 installs the new communicator as ~mp_comm_world~ before ~mp_start~.
 Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
-The split happens once per process.
+The split happens at most once per process.
 ~embed_calculator_bound~, a module variable in ~cpmd_embed_c_api~, records it,
-and a second bind only reports the group index.
+and a second bind does not split again.
+It returns ~world_rank / ranks_per_calc~ for its own value, or -1 when that
+value does not divide the world size or is above it, and the communicator
+already stored stays as it was.
 A host that already holds the calculator communicator calls
 ~cpmdc_adopt_calculator_comm~ instead.
 That call reads rank and size from the adopted communicator, copies it into

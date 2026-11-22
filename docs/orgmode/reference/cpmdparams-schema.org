@@ -134,9 +134,11 @@ Ge; see [[file:../howto/write-cpmdparams.org][writing a CPMDParams message]].
 
 * ~PotentialConfig~
 A union of backend arms plus a ~common~ overlay (~CommonMethodSpec~).
-~cpmdc~ accepts the ~cpmd~ arm, the overlay alone, or both together.
+~cpmdc~ accepts the ~cpmd~ arm, which holds a ~CPMDParams~, the overlay alone,
+or both together.
 When both are set, a value the arm sets beats the overlay, and the overlay
-beats a schema default.
+fills only what the arm leaves at the schema defaults and beats a schema
+default.
 The overlay fills ~xcFunctionals~, ~planewaveCutoffEv~, ~charge~,
 ~spinMultiplicity~, Fermi ~smearing~ (when ~&CPMD~ sets none), and
 ~vanDerWaalsS6~ (into a ~vdwParams~ section with ~s6~ unset).

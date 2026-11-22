@@ -1082,9 +1082,12 @@ then splits `MPI_COMM_WORLD` with `MPI_Comm_split`, colour
 installs the new communicator as `mp_comm_world` before `mp_start`.
 Each colour is one calculator: its own CPMD setup, its own SCF, its own stored
 orbitals, all driven by the same deck.
-The split happens once per process.
+The split happens at most once per process.
 `embed_calculator_bound`, a module variable in `cpmd_embed_c_api`, records it,
-and a second bind only reports the group index.
+and a second bind does not split again.
+It returns `world_rank / ranks_per_calc` for its own value, or -1 when that
+value does not divide the world size or is above it, and the communicator
+already stored stays as it was.
 A host that already holds the calculator communicator calls
 `cpmdc_adopt_calculator_comm` instead.
 That call reads rank and size from the adopted communicator, copies it into
@@ -1277,8 +1280,10 @@ The calculator split does not need a patch:
 `mp_start` assigns `mp_comm_world` only when CPMD itself calls `MPI_Init`, and
 `cpmdc_bind_calculator()` initialises MPI and stores its communicator before
 that.
-A module flag, `embed_calculator_bound`, makes a second bind return the same
-index.
+A module flag, `embed_calculator_bound`, stops a second bind from splitting
+again: it returns `world_rank / ranks_per_calc` for its own value, or -1 when
+that value does not divide the world size or is above it, and keeps the
+communicator it has.
 The timer patch changes `tistopgm`.
 `trace_depth` stays `HUGE(0)` until `tistart`, and without the guard the call-stack walk indexes `trace_names`
 from that value, so a `stopgm` before `tistart` faults instead of writing
@@ -1656,12 +1661,15 @@ Each session keeps a counter of its own successful calls.
 | Call | Condition | What runs |
 |------+-----------+-----------|
 | cold | first call of the process, or a changed functional, deck, cell, cutoff, charge, multiplicity, atom count, or elemental composition | the full CPMD setup on the composed deck, then the SCF from CPMD's initial guess, or from `RESTART` when the deck has `RESTART WAVEFUNCTION` |
-| warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers | new positions into `tau0`, `phfac`, then the SCF from the stored `c0` |
-| in place | as warm, but a constant-cutoff deck under `CPMDC_CELL_IN_PLACE` whose new cell lies within the strain limit of the setup cell | the new cell on the setup's plane waves, then as warm |
+| warm | a previous success in this process kept the same functional, deck, cell, cutoff, charge, multiplicity, and elemental composition, including a new session or a reordering of those atomic numbers, and the geometry is within `CPMDC_WARM_RMSD` (default 0.15 Angstrom) of a stored geometry | new positions into `tau0`, `phfac`, then the SCF from the stored `c0` |
+| deck guess without full setup | the same basis and cell match as a warm call, but every stored geometry lies beyond `CPMDC_WARM_RMSD` | new positions into `tau0`, `phfac`, then the SCF from the deck's guess without re-running CPMD setup |
+| in place | as warm or deck guess without full setup, on a constant-cutoff deck under `CPMDC_CELL_IN_PLACE` whose new periodic cell lies within the strain limit of the setup cell (`has_cell` and `embed_saved_has_cell` are both non-zero) | the new cell on the setup's plane waves, then as warm within `CPMDC_WARM_RMSD` or from the deck's guess beyond it |
 
 A cell counts as unchanged when every component of `ForceInput.box` matches the
 stored cell within 1e-8 Angstrom, and when both calls agree on having a box at
-all.
+all (a step without a cell matches only when the latched state also has no
+cell; `CPMDC_CELL_IN_PLACE` does not apply there because
+`embed_cell_moves_in_place` returns false when `has_cell` is 0).
 A new session has no cell of its own yet, so that comparison uses the cell
 stored with the orbitals.
 The cutoff matches within 1e-8 Rydberg.
@@ -1776,8 +1784,9 @@ It is either the store, which holds the selected key's own copy or, when that
 key has none, the copy of the key last left, or another key's parked copy, which
 is copied so the donor keeps its own.
 When that distance exceeds `CPMDC_WARM_RMSD` (default 0.15 Angstrom), the SCF
-starts from the deck's guess instead, and the stored copy of that call is
-dropped.
+starts from the deck's guess without full CPMD setup instead, a third case that
+is neither a warm start from stored orbitals nor a cold start after full setup,
+and the stored copy of that call is dropped.
 A negative limit starts from the store at any distance.
 When the native `tclust` flag is false, the metric uses minimage's Euclidean
 closest lattice image in the native cell, including skew cells.
@@ -2299,7 +2308,8 @@ with CPMDCCalculator("water.params.bin") as calc:
 
 `set()` returns a dictionary of the parameters that changed, with their new
 values.
-A new `params` or `library` opens a new session and clears the stored results.
+A new `params`, `library`, or `constant_cutoff` opens a new session and clears
+the stored results.
 A value that cannot be opened raises and leaves the old session in use.
 
 # Choose the working directory
@@ -2340,7 +2350,7 @@ says.
 | Condition | Raised |
 |-----------+--------|
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | `cpmdc.ase.CalculationFailed` |
-| a keyword other than `params`, `library`, and ASE's own; no `params` | `TypeError` |
+| a keyword other than `params`, `library`, `constant_cutoff`, and ASE's own; no `params` | `TypeError` |
 | stress or dipole where the step has none; `energies`, `magmoms`, or `charges` | `ase.calculators.calculator.PropertyNotImplementedError` |
 | mixed `pbc` flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | `ValueError` |
 | a step on a calculator without atoms | `ValueError` |
@@ -3381,16 +3391,16 @@ Without Pixi, install the same set from your package manager:
 
 | Dependency | Version in `pixi.toml` | Needed for |
 |------------+------------------------+------------|
-| Meson, Ninja | Meson 1.5.2 or newer, Ninja 1.11 or newer | every build |
+| Meson, Ninja | Meson 1.5.2 or newer, below 2; Ninja 1.11 or newer, below 2 | every build |
 | Cap'n Proto (`capnp` compiler) | 1.0.2 or newer, below 2 | generating the schema readers, encoding messages |
 | C and Fortran compilers | any recent GCC and gfortran | every build |
 | C++ compiler and Rust (`cargo`) | Rust 1.70 or newer, below 2 | the `minimage` subproject |
-| pkg-config | 2.5.1 or newer | dependency lookup |
-| Python 3 | 3.10 or newer | build helpers and tests |
-| ASE, pytest, i-PI | ASE 3.23 or newer, pytest 7 or newer, i-PI 3.3 or newer | the `python-api` and `python-pytest` tests |
-| cmocka | 1.1.7 or newer | `-Dwith_tests=true` |
-| MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | `-Dwith_cpmd=true` |
-| FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
+| pkg-config | 2.5.1 or newer, below 3 | dependency lookup |
+| Python 3 | 3.10 or newer, below 4 | build helpers and tests |
+| ASE, pytest, i-PI | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the `python-api` and `python-pytest` tests |
+| cmocka | 1.1.7 or newer, below 3 | `-Dwith_tests=true` |
+| MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 or newer, below 6; OpenBLAS 0.3.34 or newer, below 0.4 | `-Dwith_cpmd=true` |
+| FFTW3 | 3.3.11 or newer, below 4; optional | linked when OpenCPMD was configured with FFTW3 |
 
 CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
 `bench/constant_cutoff_npt.py run` needs ASE 3.27 for `LangevinBAOAB`.
@@ -3810,7 +3820,7 @@ Rank 0 of `MPI_COMM_WORLD` is then CPMD's parent rank.
 `ranks_per_calc` consecutive ranks.
 Each group becomes one CPMD calculator with its own communicator and its own
 wavefunction, running the same deck.
-Call it on every rank, once, before the first evaluation:
+Call it on every rank, before the first evaluation:
 
 #include <cpmdc.h>
 #include <mpi.h>
@@ -3834,15 +3844,58 @@ int main(int argc, char **argv) {
   return 0;
 }
 
+## How the ranks are divided
+`ranks_per_calc` is the number of ranks in each group.
+The world size must be a multiple of it.
+`cpmdc` makes no group of a different size: there is no remainder group and no
+smaller last group.
+A world size that is not a multiple, such as 6 ranks with `ranks_per_calc` 4, or
+a `ranks_per_calc` above the world size, is refused on every rank and nothing is
+split.
+
+The groups are consecutive blocks of world ranks.
+Group `g` holds world ranks `g * ranks_per_calc` to
+`(g + 1) * ranks_per_calc - 1`, and there are `world_size / ranks_per_calc`
+groups.
+With 16 ranks and `ranks_per_calc` 4, group 0 is ranks 0 to 3, group 1 is ranks
+4 to 7, and so on.
+A rank's group index is `world_rank / ranks_per_calc`, with integer division,
+and its rank inside the group is `world_rank % ranks_per_calc`.
+The group's first rank, world rank `group * ranks_per_calc`, is its parent rank.
+
 | Argument or result | Meaning |
 |--------------------+---------|
 | `ranks_per_calc > 0` | ranks per calculator; the world size must be a multiple of it |
-| `ranks_per_calc <= 0` | one calculator over the whole world |
-| return value `>= 0` | index of this rank's calculator, `world_rank / ranks_per_calc` |
-| return value `-1` | the split was refused, or the library has no CPMD backend (the default build and the stub) |
+| `ranks_per_calc <= 0` | the world size is used: one calculator over every rank |
+| return value `>= 0` | index of this rank's calculator: `world_rank / ranks_per_calc`, or 0 when `ranks_per_calc <= 0` |
+| return value `-1` | the world size is not a multiple of `ranks_per_calc`, `MPI_Comm_split` returned an error, or the library has no CPMD backend (the default build and the stub) |
 
-A second call returns the same index without splitting again.
-The group's first rank, world rank `group * ranks_per_calc`, is its parent rank.
+A call that returns -1 for the world size splits nothing, and a later call with
+a valid value can still split.
+`cpmdc_last_error()` gives the reason.
+
+## Calls after the first
+The first call that is not refused splits `MPI_COMM_WORLD`.
+A later call does not split again, also when the communicator in use came from
+`cpmdc_adopt_calculator_comm` instead of an earlier bind.
+It still checks its own `ranks_per_calc` as above, and it returns
+`world_rank / ranks_per_calc` for that value.
+That is the index of the group in use only when the value is the same as the
+one that made the split.
+A value that does not divide the world size, or is above it, returns -1 on
+every rank, as it does on the first call, and the split already in use stays as
+it was.
+
+## MPI start
+On an OpenCPMD build, `cpmdc_bind_calculator` calls `MPI_Init` when MPI is not
+running, before it looks at `ranks_per_calc`, so the call starts MPI even when
+it then refuses the value.
+`cpmdc` starts MPI only in OpenCPMD builds.
+The default build, which runs the reference evaluator, and the link stub never
+call `MPI_Init`.
+In those builds `cpmdc_bind_calculator` returns -1 without calling MPI, and
+`cpmdc_adopt_calculator_comm` returns -1 while MPI is not running, so the host
+has to start MPI itself.
 `cpmdc` remembers the split in `embed_calculator_bound`.
 `mp_start` assigns `mp_comm_world` only when CPMD itself calls `MPI_Init`, and
 `cpmdc_bind_calculator` has already initialised MPI and stored the calculator
@@ -4266,8 +4319,11 @@ A different rank count sums different partials, so it agrees with the
 serial loop to `CPMDC_PWSCALE_RTOL` and not bitwise.
 Each rank holds `(ranks + 1) * (3 * natoms + 4)` doubles for the sum.
 
-The library timer now runs from a rank's entry to the arrival of every
-partial, without the two barriers.
+The library timer now runs from the entry of `cpmdc_pwscale_eval_mpi_bound`
+to the end of its rank-ordered sum, without the two barriers.
+For `cpmdc_pwscale_eval_mpi` it starts after the call has made its binding,
+so the binding is not timed.
+It covers the rank's own partial, the gather, and the sum.
 The harness column `call_s` times the whole call on rank 0 after the
 ranks leave a barrier together, so it compares builds whose library
 timers differ.
@@ -4339,7 +4395,9 @@ From a checkout, set `CPMDC_LIBRARY` to `build/libcpmdc.so` and `PYTHONPATH` to
 `python`, or pass the library path as `library`.
 The search is the rgpot order: an explicit path, then
 `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE`, then the wheel's
-library.
+library, then `libcpmdc` from the dynamic linker, then `build/libcpmdc.so` in
+the working directory.
+An environment variable counts only when it names an existing file.
 A periodic cell needs nothing more: the package encodes each step as a
 `ForceInput` message itself.
 
@@ -4476,6 +4534,8 @@ each contract.
 
 Build options, artifacts, and Pixi tasks (file:../reference/build-options.org)
 lists the Meson test suites and the tests in each.
+The stub suite includes `adopt-comm-stub` and `bind-calculator-stub`, which
+run on four ranks when MPI is found.
 
 # Run the host example
 `examples/host_step.c` is a minimal C host for the public ABI.
@@ -4621,8 +4681,8 @@ cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2
 The driver opens the session before it connects, so a bad `CPMDParams`
 file fails at once.
 It exits with status 0 after `EXIT` or when the server closes the
-connection between messages, and with status 1 and a message on standard
-error otherwise.
+connection between messages, with status 1 and a message on standard
+error after an error, and with status 2 for a usage error.
 
 # From ASE
 `SocketIOCalculator` without `calc` binds the socket and waits for a client.
@@ -4969,6 +5029,11 @@ not apply its configuration.
 # Fix:* call
 `cpmdc_finalize()` only at shutdown; check the message with `CPMDC_DECK_OUT` for
 a rendering failure.
+After a finalize, a session evaluation that repeats the step the session stored
+last still returns 0 from its cache, so only a new step fails with this text.
+The link stub never evaluates; its text is
+`OpenCPMD embed not available in cpmdc stub` followed by the function's name in
+parentheses, and linking `libcpmdc` instead fixes it.
 
 # Forces
 
@@ -5633,7 +5698,7 @@ These suites group the tests of the default build by layer.
 
 | Suite | Tests |
 |-------+-------|
-| `stub` | `tests/test_stub_abi.c` |
+| `stub` | `tests/test_stub_abi.c`, and when MPI is found `adopt-comm-stub` and `bind-calculator-stub`, which run on four ranks |
 | `abi` | exported header and feature-discovery surface |
 | `cmocka`, `capnp` | structured `CPMDParams` deck rendering |
 | `params`, `inventory` | schema field coverage and CPMD catalog feature IDs |
@@ -5954,10 +6019,10 @@ entries a call filled.
 
 | Function | Returns |
 |----------+---------|
-| `const char *cpmdc_version(void)` | `"cpmdc/"` followed by the project version |
+| `const char *cpmdc_version(void)` | `"cpmdc/"` followed by the project version, or `"cpmdc-stub/"` followed by the project version in the link stub |
 | `int cpmdc_abi_version(void)` | the ABI generation, equal to `CPMDC_ABI_VERSION` and the shared-library soversion, which are the first field of `version.txt` |
 | `int cpmdc_available(void)` | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
-| `void cpmdc_finalize(void)` | marks the runtime finalized; later evaluations fail with `CPMD embed not available`; does not call `MPI_Finalize` |
+| `void cpmdc_finalize(void)` | reference and OpenCPMD builds: marks the runtime finalized; later calls that need it fail with `CPMD embed not available`, but a session evaluation that repeats the step the session stored last still returns 0 from the session's cache; the link stub does nothing and its evaluations always fail with `OpenCPMD embed not available in cpmdc stub` followed by the called function's name in parentheses; no build calls `MPI_Finalize` |
 | `const char *cpmdc_last_error(void)` | per-thread text of the last failing public call, empty after a success |
 
 `cpmdc_last_error()` is written by `cpmdc_set_params()`,
@@ -5981,11 +6046,12 @@ A capabilities return of -1 is the size query.
 
 | Function | Behaviour |
 |----------+-----------|
-| `int cpmdc_bind_calculator(int ranks_per_calc)` | collective on `MPI_COMM_WORLD`; initialises MPI when needed and splits the world into calculators of `ranks_per_calc` consecutive ranks; `ranks_per_calc <= 0` keeps one calculator; returns this rank's calculator index, or -1 when the world size is not a multiple or the library has no CPMD backend; a second call returns the same index |
+| `int cpmdc_bind_calculator(int ranks_per_calc)` | collective on `MPI_COMM_WORLD`; splits the world into calculators of `ranks_per_calc` consecutive ranks, group `g` holding world ranks `g * ranks_per_calc` to `(g + 1) * ranks_per_calc - 1`; the world size must be a multiple of `ranks_per_calc`, with no remainder group, and any other world size or a value above it returns -1 on every rank and splits nothing; `ranks_per_calc <= 0` means the world size, one calculator; returns this rank's calculator index `world_rank / ranks_per_calc`, or -1 when the world size is not a multiple, `MPI_Comm_split` returns an error, or the library has no CPMD backend; on an OpenCPMD build it calls `MPI_Init` when MPI is not running, and the reference build and the link stub return -1 without calling MPI; a later call does not split again and returns the index its own `ranks_per_calc` gives, or -1 on every rank when that value does not divide the world size or is above it, and the existing split stays |
 | `int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)` | collective on the caller's communicator; reads rank and size from that communicator; does not call `MPI_Init` or `MPI_Comm_split`; when `ranks_per_calc > 0` the adopted size must equal it, and a mismatch returns -1 with both numbers in `cpmdc_last_error()`; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same `ranks_per_calc > 0` on every rank enforces; an OpenCPMD build stores the communicator as `mp_comm_world`; a later call replaces it when no live `CPMDCSession` has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
 | `int cpmdc_adopted_comm(void *out, size_t nbytes)` | copies the stored calculator communicator into `out` (on an OpenCPMD build, `mp_comm_world`); returns 0, or -1 when no communicator is stored; does not write `cpmdc_last_error()` |
 
-`cpmdc_bind_calculator()` runs once per process, before the first evaluation.
+`cpmdc_bind_calculator()` splits at most once per process, so call it before the first evaluation.
+A later call does not split again.
 `cpmdc_adopt_calculator_comm()` may run again after every session has been
 destroyed.
 See running under mpirun (file:../howto/mpi.org).
@@ -6077,14 +6143,22 @@ Every rejection leaves a `cpmdc_last_error()` that names its cause.
 An arm `inputBlocks`, `inputSections`, or `directives` list the merge cannot
 read is reported with the overlay field that needed it, as in
 `charge cannot merge: the cpmd arm has an invalid inputBlocks list`.
+A message with neither the arm nor an overlay applies nothing and returns 0.
 
 # Global array calls
-Each call applies the message it is given and then evaluates.
-The call is cold when the process has no stored basis, or when the
-functional, deck, cell, cutoff, charge, multiplicity, atom count, or
-elemental composition differs from that basis.
-A matching basis is warm, including a constant-cutoff cell that stays
-within `CPMDC_CELL_IN_PLACE`.
+Each call applies the message it is given like `cpmdc_set_params()` and then
+evaluates.
+`cpmdc_set_params()` detaches the process image without clearing the stored
+orbitals: a call whose functional, deck, cutoff, charge, multiplicity, atom
+count, and elemental composition match the latched basis, and whose step
+without a cell matches a latched state that also has no cell
+(`CPMDC_CELL_IN_PLACE` does not apply without a cell, because
+`embed_cell_moves_in_place` returns false when `has_cell` is 0), skips full
+CPMD setup.
+It starts the SCF from the stored orbitals when the geometry is within
+`CPMDC_WARM_RMSD` (default 0.15 Angstrom) of a stored geometry, and from the
+deck's guess without full setup beyond that limit.
+Any other call runs full CPMD setup and starts from a cold SCF.
 
 | Function | Output |
 |----------+--------|
@@ -6100,7 +6174,7 @@ The output array holds `3 * n_atoms` doubles.
 |----------+-----------|
 | `CPMDCSession *cpmdc_session_create(const void *params, size_t size)` | copy and render `CPMDParams`; `NULL` on a decode or render failure |
 | `CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)` | resolve a `PotentialConfig` like `cpmdc_configure()`, then create a session |
-| `int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)` | replace the parameters and drop any overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
+| `int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)` | replace the parameters and drop any `common` overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
@@ -6192,9 +6266,15 @@ Every quantity is in atomic units.
 | `forces_h_bohr` | `3 * n_atoms` doubles, atom-major, Hartree/Bohr, `-dE/dR` |
 | `virial_h` | `NULL`, or nine doubles, row-major, Hartree |
 
-`cell_bohr` follows the `ForceInput.box` rules above: `NULL` and an all-zero
-cell are a system without a cell, and a non-zero cell replaces the deck's `CELL`
-lines and `SYMMETRY`.
+`cell_bohr` follows the `ForceInput.box` rules above for the deck: `NULL` and an
+all-zero cell leave the deck's `CELL` in place, and a cell with a non-zero entry
+replaces the deck's `CELL` lines and `SYMMETRY`.
+The session still keeps an all-zero cell as a step with a cell.
+A repeat of a step with a `NULL` cell does not match a stored step with an
+all-zero cell, and the other way round.
+With OpenCPMD linked, stored orbitals follow the same rule: an all-zero cell
+starts from them only when the latched step had a cell equal to it, and `NULL`
+only when the latched step had none.
 The virial is `W = -dE/d(strain)`, the strain derivative of the energy taken
 with the opposite sign, so a compressed cell whose energy falls on expansion has
 a positive diagonal.
@@ -6456,7 +6536,7 @@ Calls that report the build and the failure text. None of them evaluates.
 | Layout | none |
 | Ownership | none: live `CPMDCSession` objects stay valid and the caller still destroys them. |
 | Threads and MPI | Not thread-safe: call once, from the thread that ran the evaluations, after the last evaluation. MPI: does not call `MPI_Finalize` and does not communicate; call it on every rank. |
-| Returns and errors | none: cannot fail. Later evaluations fail with `CPMD embed not available`. |
+| Returns and errors | none: cannot fail. In the reference and OpenCPMD builds, later calls that need the runtime fail with `CPMD embed not available`: the no-session evaluations, `cpmdc_set_params()`, `cpmdc_configure()`, and a session evaluation of any step but the one that session stored last. A session evaluation that repeats its stored step still returns 0 from the session's cache, and `cpmdc_last_error()` stays empty. The link stub does nothing and its evaluations always fail with `OpenCPMD embed not available in cpmdc stub` followed by the called function's name in parentheses. |
 | Python | not wrapped; `cpmdc.Session` never finalizes the runtime. |
 | Defaults | none |
 
@@ -6481,10 +6561,10 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 | Item | Description |
 |--------+--------|
 | Units | none |
-| Layout | none: `ranks_per_calc` is a rank count; the world is split into consecutive blocks of that size. |
+| Layout | none: `ranks_per_calc` is a rank count; the world is split into consecutive blocks of that size, group `g` holding world ranks `g * ranks_per_calc` to `(g + 1) * ranks_per_calc - 1`. |
 | Ownership | none: the library keeps the new communicator and the caller cannot free it. |
-| Threads and MPI | Not thread-safe: call once, from one thread, before the first evaluation. MPI: collective on `MPI_COMM_WORLD`; initialises MPI when it is not running and splits the world with `MPI_Comm_split`; every rank passes the same value. |
-| Returns and errors | Returns this rank's calculator index, 0 or more; -1 when the world size is not a multiple of `ranks_per_calc`, the split is refused, or the library has no CPMD backend (the reference build always returns -1); the text is `cpmdc_last_error()`. A second call returns the same index and does not split again. |
+| Threads and MPI | Not thread-safe: call from one thread, before the first evaluation. MPI: collective on `MPI_COMM_WORLD`; on an OpenCPMD build it initialises MPI when it is not running, and the reference build and the link stub never call MPI; it splits the world with `MPI_Comm_split`; every rank passes the same value. |
+| Returns and errors | Returns this rank's calculator index `world_rank / ranks_per_calc`, 0 or more; -1 when the world size is not a multiple of `ranks_per_calc` (no remainder group is made, nothing is split, and every rank gets -1), `MPI_Comm_split` returns an error, or the library has no CPMD backend (the reference build and the link stub always return -1); the text is `cpmdc_last_error()`. A second call does not split again; it checks its own `ranks_per_calc` as the first call does, returns the index that value gives, or returns -1 on every rank when the value does not divide the world size or is above it, and the existing split stays. |
 | Python | not wrapped; use `cpmdc.lammps.FixExternal` or the host's own communicator. |
 | Defaults | `ranks_per_calc` zero or less takes the whole world as one calculator |
 
@@ -9931,9 +10011,11 @@ Ge; see writing a CPMDParams message (file:../howto/write-cpmdparams.org).
 
 # ~PotentialConfig~
 A union of backend arms plus a `common` overlay (`CommonMethodSpec`).
-`cpmdc` accepts the `cpmd` arm, the overlay alone, or both together.
+`cpmdc` accepts the `cpmd` arm, which holds a `CPMDParams`, the overlay alone,
+or both together.
 When both are set, a value the arm sets beats the overlay, and the overlay
-beats a schema default.
+fills only what the arm leaves at the schema defaults and beats a schema
+default.
 The overlay fills `xcFunctionals`, `planewaveCutoffEv`, `charge`,
 `spinMultiplicity`, Fermi `smearing` (when `&CPMD` sets none), and
 `vanDerWaalsS6` (into a `vdwParams` section with `s6` unset).
@@ -9993,7 +10075,7 @@ C ABI reference (file:c-abi.org) for the lowering rules.
 | `CPMDC_DECK_OUT` | `src/cpmdc.c`, each time a message is rendered | file that receives the rendered method deck; each write replaces the last |
 | `CPMDC_STRESS` | `src/cpmd_embed_c_api.F90`, each evaluation, OpenCPMD or the reference evaluator | `0` skips the stress tensor on periodic cells; any other value, or unset, computes it |
 | `CPMDC_SCF_STEPS` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation | `1` writes `cpmdc_warm_start`, `cpmdc_wfn_extrapolated K`, and `cpmdc_scf_steps N` to the error stream |
-| `CPMDC_WARM_RMSD` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF; default 0.15, a negative value takes them at any distance |
+| `CPMDC_WARM_RMSD` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation | largest root-mean-square distance per atom, Angstrom, at which stored orbitals start the SCF on a matching basis; default 0.15, a negative value takes them at any distance, and beyond the limit the SCF starts from the deck's guess without full setup |
 | `CPMDC_CELL_IN_PLACE` | `src/cpmdc_orbital_limit.c`, before each OpenCPMD evaluation or orbital copy | calculator rank 0's largest principal strain from the cell CPMD was set up at, as a fraction of a length, at which a constant-cutoff deck keeps its plane waves and stored orbitals; unset, 0, a negative value, or a value that does not parse sets CPMD up again for every new cell |
 | `CPMDC_RECENTER` | `src/cpmd_embed_c_api.F90`, each OpenCPMD evaluation on an isolated deck | `mass` (default) or `geometry` moves the atoms rigidly so that that centre is the middle of the cell along every non-periodic lattice vector, and removes the net force; `off` or `0` keeps the caller's coordinates; `MASS`, `GEOMETRY` and `OFF` are accepted too; any other value fails the call |
 | `CPMDC_RECENTER_MARGIN` | same place | least distance, Angstrom, between an atom and a face of the isolated cell after the move; a closer atom fails the call; default 0, a negative value turns the check off, a value that does not parse fails the call |
@@ -10801,7 +10883,7 @@ predicates `cpmdc_pwscale_within`, `cpmdc_pwscale_sample_check`,
 | `CPMDC_PWSCALE_ERR_NOMPI` | -2 | the build has no MPI |
 | `CPMDC_PWSCALE_ERR_NOCUDA` | -3 | the build has no CUDA, or the host has no CUDA device |
 | `CPMDC_PWSCALE_ERR_CUDA` | -4 | a CUDA allocation or kernel launch failed |
-| `CPMDC_PWSCALE_ERR_NOFFTW` | -5 | declared for the FFT timing driver `bench/pwscale_fft.c`, which returns it when built without FFTW; no function of this header returns it |
+| `CPMDC_PWSCALE_ERR_NOFFTW` | -5 | returned by the FFT timing driver `bench/pwscale_fft.c` when built without FFTW, when `fftw_init_threads()` fails, or when FFTW plan creation fails; no function of this header returns it |
 | `CPMDC_PWSCALE_DIST_PW` | 0 | split the plane-wave loop |
 | `CPMDC_PWSCALE_DIST_ATOMS` | 1 | split the atom loop |
 | `CPMDC_PWSCALE_RTOL` | `1e-8` | relative tolerance of agreement: a gap passes when it is at most `RTOL * max(1, fabs(got), fabs(reference))` |
@@ -10947,8 +11029,9 @@ It is the one-shot form of the binding calls (*Binding).
 The call is collective over the communicator.
 Every rank receives the partials of every rank and adds them in rank order, so
 every rank ends with the same bytes.
-`stats->seconds` runs from the entry of the bound call to the arrival of every
-partial; the binding step before it is not timed.
+`stats->seconds` runs from the entry of the bound call to the end of the
+rank-ordered sum, the Allgather included; the binding step before it is not
+timed.
 `stats->alloc_bytes` holds `(ranks + 1) * (3 * natoms + 4)` doubles of exchange
 buffers plus the scratch of this rank's team.
 
@@ -12096,3 +12179,5 @@ over several ranks.
 # Build and test cpmdc
 This page moved to Build and test cpmdc (file:../howto/quickstart.org) under
 the how-to guides.
+The suite list there names the stub tests, including `adopt-comm-stub` and
+`bind-calculator-stub` on four ranks when MPI is found.

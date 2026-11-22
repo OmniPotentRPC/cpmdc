@@ -952,6 +952,38 @@ if get_option('with_tests')
       timeout: 180,
       is_parallel: false,
     )
+    bind_calculator_stub = executable(
+      'test_bind_calculator_stub',
+      'tests/test_bind_calculator_mpi.c',
+      dependencies: [cpmdc_stub_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + ['-DCPMDC_TEST_STUB=1'],
+    )
+    test(
+      'bind-calculator-stub',
+      python,
+      args: [run_mpi_test, '4', bind_calculator_stub.full_path()],
+      depends: [bind_calculator_stub],
+      suite: ['stub', 'mpi'],
+      timeout: 180,
+      is_parallel: false,
+    )
+    bind_calculator_shell = executable(
+      'test_bind_calculator_shell',
+      'tests/test_bind_calculator_mpi.c',
+      dependencies: [cpmdc_embed_shell_dep, mpi_c_dep],
+      include_directories: inc,
+      c_args: common_c_args + (has_cpmd ? ['-DCPMDC_HAS_CPMD=1'] : []),
+    )
+    test(
+      'bind-calculator-shell',
+      python,
+      args: [run_mpi_test, '4', bind_calculator_shell.full_path()],
+      depends: [bind_calculator_shell],
+      suite: has_cpmd ? ['mpi', 'embed', 'opencpmd'] : ['mpi', 'embed'],
+      timeout: 180,
+      is_parallel: false,
+    )
     orbital_limit_agree = executable(
       'test_orbital_limit_agree_mpi',
       'tests/test_orbital_limit_agree_mpi.c',
@@ -1526,7 +1558,7 @@ if get_option('with_tests')
     args: [water_params_bin.full_path(), water_periodic_params_bin.full_path()],
     depends: [water_params_bin, water_periodic_params_bin],
     suite: ['abi', 'e2e', 'cmocka'],
-    timeout: has_sanitize ? 900 : 300,
+    timeout: has_sanitize or has_cpmd ? 900 : 300,
   )
 
   fd_check_exe = executable(

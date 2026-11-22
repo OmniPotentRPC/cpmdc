@@ -61,7 +61,7 @@ These suites group the tests of the default build by layer.
 
 | Suite | Tests |
 |-------+-------|
-| ~stub~ | ~tests/test_stub_abi.c~ |
+| ~stub~ | ~tests/test_stub_abi.c~, and when MPI is found ~adopt-comm-stub~ and ~bind-calculator-stub~, which run on four ranks |
 | ~abi~ | exported header and feature-discovery surface |
 | ~cmocka~, ~capnp~ | structured ~CPMDParams~ deck rendering |
 | ~params~, ~inventory~ | schema field coverage and CPMD catalog feature IDs |
