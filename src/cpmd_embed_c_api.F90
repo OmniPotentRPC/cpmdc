@@ -208,6 +208,12 @@ MODULE cpmd_embed_c_api
       REAL(c_double), INTENT(IN) :: cell(9)
       INTEGER(c_int) :: cpmdc_cell_rank3_state
     END FUNCTION
+    FUNCTION cpmdc_cell_volume3(cell, volume) BIND(C, NAME='cpmdc_cell_volume3')
+      IMPORT :: c_double, c_int
+      REAL(c_double), INTENT(IN) :: cell(9)
+      REAL(c_double), INTENT(OUT) :: volume
+      INTEGER(c_int) :: cpmdc_cell_volume3
+    END FUNCTION
   END INTERFACE
 
 CONTAINS
@@ -1669,9 +1675,9 @@ CONTAINS
            cell(4), cell(5), cell(6), NEW_LINE('A'), &
            cell(7), cell(8), cell(9), NEW_LINE('A')
     ELSE
-      WRITE(text, '(A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A)') &
+      WRITE(text, '(A,ES23.16E3,1X,ES23.16E3,1X,ES23.16E3,A)') &
            ' CELL'//NEW_LINE('A')//'  ', &
-           cell_a, b_over_a, c_over_a, ' 0.0 0.0 0.0'//NEW_LINE('A')
+           cell_a, b_over_a, c_over_a, ' 0 0 0'//NEW_LINE('A')
     END IF
     ntext = LEN_TRIM(text)
   END SUBROUTINE
@@ -1989,11 +1995,11 @@ CONTAINS
       END IF
       symmetry_indent = ''
       IF (osym == 0) symmetry_indent = '  '
-      WRITE(text, '(A,A,A,I0,A,A,A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,A)') &
+      WRITE(text, '(A,A,A,I0,A,A,A,ES23.16E3,1X,ES23.16E3,1X,ES23.16E3,A,A)') &
            ' SYMMETRY', NEW_LINE('A'), &
            symmetry_indent, k, NEW_LINE('A'), ' CELL', NEW_LINE('A'), &
            c(1), c(5) / c(1), &
-           c(9) / c(1), ' 0.0 0.0 0.0', NEW_LINE('A')
+           c(9) / c(1), ' 0 0 0', NEW_LINE('A')
     ELSE
       WRITE(text, '(2A,ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
            'ES24.16E3,1X,ES24.16E3,1X,ES24.16E3,A,' // &
@@ -2090,6 +2096,7 @@ CONTAINS
 
 #if !defined(CPMDC_HAS_CPMD)
   SUBROUTINE run_reference_pef(image, n_atoms, pos, z, cell, has_cell, energy_h, grad, ok)
+    USE cpmdc_embed_host_iface, ONLY: cpmdc_note_embed_failure
     TYPE(embed_knobs) :: knobs
     TYPE(cpmdc_embed_image), INTENT(INOUT) :: image
     INTEGER, INTENT(IN) :: n_atoms, has_cell
@@ -2100,7 +2107,7 @@ CONTAINS
     INTEGER(c_int), INTENT(OUT) :: ok
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
     REAL(real64) :: k, r_bohr, coord_bohr, z_scale, deck_scale
-    INTEGER :: i, j, idx
+    INTEGER :: i, j, idx, stress_rc
     knobs = knobs_of(image)
     ok = 0_c_int
     energy_h = 0.0_c_double
@@ -2141,10 +2148,26 @@ CONTAINS
     ! box volume and no tensor. CPMDC_STRESS=0 skips the tensor too.
     image%stress%values = 0.0_c_double
     image%stress%valid = 0_c_int
-    IF (reference_stress_wanted() .AND. has_cell /= 0 .AND. &
-         .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
-      IF (reference_pef_fill_stress(image, n_atoms, pos, z, cell, k) /= 0) &
-           image%stress%valid = 1_c_int
+    IF (reference_stress_wanted() .AND. has_cell /= 0) THEN
+      IF (ANY(ABS(cell(1:9)) > 0.0_c_double) .AND. &
+           .NOT. reference_deck_isolated(knobs%input_deck, cell, has_cell)) THEN
+        stress_rc = reference_pef_fill_stress(image, n_atoms, pos, z, cell, k)
+        IF (stress_rc > 0) THEN
+          image%stress%valid = 1_c_int
+        ELSE
+          ok = 0_c_int
+          energy_h = 0.0_c_double
+          grad(1:3 * n_atoms) = 0.0_c_double
+          CALL clear_last_energy_components(image)
+          IF (stress_rc < 0) THEN
+            CALL cpmdc_note_embed_failure('cell volume is too large for ' // &
+                 'binary64' // c_null_char)
+          ELSE
+            CALL cpmdc_note_embed_failure('cell volume is not ' // &
+                 'representable for stress' // c_null_char)
+          END IF
+        END IF
+      END IF
     END IF
   END SUBROUTINE
 
@@ -2210,8 +2233,10 @@ CONTAINS
     INTEGER(c_int), INTENT(IN) :: z(*)
     REAL(real64), INTENT(IN) :: k
     REAL(real64), PARAMETER :: bohr_to_ang = 0.529177210903_real64
-    REAL(real64) :: a(3), b(3), cvec(3), h(3, 3), r(3), ded(3, 3)
+    REAL(real64) :: h(3, 3), r(3), ded(3, 3)
     REAL(real64) :: vol, inv_b, z_scale
+    REAL(c_double) :: cell_bohr(9), vol_c
+    INTEGER(c_int) :: vol_status
     INTEGER :: i, j, ia, vec, slot
     reference_pef_fill_stress = 0
     inv_b = 1.0_real64 / bohr_to_ang
@@ -2219,14 +2244,17 @@ CONTAINS
       h(i, 1) = REAL(cell(i), KIND=real64)
       h(i, 2) = REAL(cell(3 + i), KIND=real64)
       h(i, 3) = REAL(cell(6 + i), KIND=real64)
-      a(i) = h(i, 1) * inv_b
-      b(i) = h(i, 2) * inv_b
-      cvec(i) = h(i, 3) * inv_b
     END DO
-    vol = ABS(a(1) * (b(2) * cvec(3) - b(3) * cvec(2)) + &
-         a(2) * (b(3) * cvec(1) - b(1) * cvec(3)) + &
-         a(3) * (b(1) * cvec(2) - b(2) * cvec(1)))
-    IF (vol <= 0.0_real64) RETURN
+    DO i = 1, 9
+      cell_bohr(i) = REAL(REAL(cell(i), KIND=real64) * inv_b, KIND=c_double)
+    END DO
+    vol_status = cpmdc_cell_volume3(cell_bohr, vol_c)
+    IF (vol_status /= 0_c_int) THEN
+      reference_pef_fill_stress = -1
+      RETURN
+    END IF
+    vol = REAL(vol_c, KIND=real64)
+    IF (.NOT. (vol > 0.0_real64)) RETURN
     ded = 0.0_real64
     DO ia = 1, n_atoms
       z_scale = REAL(MAX(1, INT(z(ia))), KIND=real64)

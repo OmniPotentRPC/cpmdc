@@ -723,8 +723,48 @@ def test_virial_that_overflows_is_refused() -> None:
 
 @pytest.mark.parametrize(
     "text",
-    [b"batch_size:nope", b"batch_size:", b"batch_size:1.5", b"\xff"],
-    ids=["word", "empty", "fraction", "not-utf8"],
+    [
+        b"batch_size:nope",
+        b"batch_size:",
+        b"batch_size:1.5",
+        b"batch_size:+1",
+        b"batch_size:+4",
+        b"batch_size:+0",
+        b"batch_size:--1",
+        b"batch_size:+-1",
+        b"batch_size:0_1",
+        b"batch_size:\xd9\xa1",
+        b"batch_size:\xef\xbc\x91",
+        b"batch_size:\xe0\xa5\xa7",
+        b"batch_size:\x0b1",
+        b"batch_size:\x0c1",
+        b"batch_size:\xc2\xa01",
+        b"batch_size:1\xc2\xa0",
+        b"batch_size:1\x0b",
+        b"batch_size:\xe2\x80\x831",
+        b"\xff",
+    ],
+    ids=[
+        "word",
+        "empty",
+        "fraction",
+        "plus-one",
+        "plus-four",
+        "plus-zero",
+        "double-minus",
+        "plus-minus",
+        "underscore",
+        "arabic-indic-digit",
+        "fullwidth-digit",
+        "devanagari-digit",
+        "leading-vt",
+        "leading-ff",
+        "leading-nbsp",
+        "trailing-nbsp",
+        "trailing-vt",
+        "leading-em-space",
+        "not-utf8",
+    ],
 )
 def test_unreadable_batch_size_is_an_error(text: bytes) -> None:
     with pytest.raises(ProtocolError):
@@ -741,6 +781,8 @@ def test_batch_size_one_is_one() -> None:
     assert cpmdc.ipi._batch_size(b"") == 1
     assert cpmdc.ipi._batch_size(b"batch_size:1") == 1
     assert cpmdc.ipi._batch_size(b"comment, batch_size: 1") == 1
+    assert cpmdc.ipi._batch_size(b" \tbatch_size\r\n : \t1\r\n") == 1
+    assert cpmdc.ipi._batch_size(b"batch_size\xc2\xa0:4") == 1
 
 
 @pytest.mark.parametrize(

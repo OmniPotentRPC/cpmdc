@@ -74,10 +74,7 @@ def test_virial_uses_the_scaled_lu_volume(periodic_params):
     """The virial is that volume times the stress, bit for bit.
 
     For this cell the unscaled three-term determinant is one unit in the
-    last place away from the LU volume, so the two are told apart. The
-    reference build computes its own stress from a three-term product, so
-    a cancelling cell gets no stress there; the cell helpers are compared
-    on such cells in test_cell_rank_parity.py.
+    last place away from the LU volume, so the two are told apart.
     """
     cell = [18.7, 0.2, 0.0, 0.3, 19.3, 0.4, 0.7, -1.1, 18.1]
     rows = [cell[3 * k : 3 * k + 3] for k in range(3)]
@@ -98,6 +95,46 @@ def test_virial_uses_the_scaled_lu_volume(periodic_params):
         )
     assert done.stress_h_bohr3 is not None and any(done.stress_h_bohr3)
     assert list(virial) == [volume * component for component in done.stress_h_bohr3]
+
+
+def test_near_singular_cancelling_cell_gets_stress_and_virial(periodic_params, opencpmd):
+    if opencpmd:
+        pytest.skip("uses the reference evaluator's stress formula")
+    near = 1.0 + 28.0 * sys.float_info.epsilon
+    cell_bohr = [1.0, 1.0, 1.0, 1.0, near, 1.0, 1.0, 1.0, near]
+    rows_bohr = [cell_bohr[3 * k : 3 * k + 3] for k in range(3)]
+    three_term = abs(
+        cell_bohr[0] * (cell_bohr[4] * cell_bohr[8] - cell_bohr[5] * cell_bohr[7])
+        - cell_bohr[1] * (cell_bohr[3] * cell_bohr[8] - cell_bohr[5] * cell_bohr[6])
+        + cell_bohr[2] * (cell_bohr[3] * cell_bohr[7] - cell_bohr[4] * cell_bohr[6])
+    )
+    assert three_term == 0.0
+    volume = _cell_volume(rows_bohr)
+    assert volume > 0.0
+    rows_ang = [[value * BOHR_TO_ANGSTROM for value in row] for row in rows_bohr]
+    with Session(periodic_params) as session:
+        _, _, virial = session.calculate_au(_water_bohr(), [8, 1, 1], cell_bohr)
+        done = session.energy_forces(WATER, [8, 1, 1], rows_ang)
+    assert done.stress_h_bohr3 is not None and any(done.stress_h_bohr3)
+    assert any(virial)
+    assert list(virial) == [volume * component for component in done.stress_h_bohr3]
+
+
+def test_overflowing_periodic_cell_fails_instead_of_dropping_stress(periodic_params, opencpmd):
+    if opencpmd:
+        pytest.skip("uses the reference evaluator's stress formula")
+    side = sys.float_info.max / 2.0
+    cell_rows = [[side, 0.0, 0.0], [0.0, side, 0.0], [0.0, 0.0, side]]
+    with Session(periodic_params) as session:
+        with pytest.raises(CPMDCError, match="cell volume is too large for binary64"):
+            session.energy_forces(WATER, [8, 1, 1], cell_rows)
+        with pytest.raises(CPMDCError, match="cell volume is too large for binary64"):
+            session.calculate_au(
+                _water_bohr(),
+                [8, 1, 1],
+                [side, 0.0, 0.0, 0.0, side, 0.0, 0.0, 0.0, side],
+                virial=None,
+            )
 
 
 def test_virial_volume_above_the_largest_float_is_refused(periodic_params):
