@@ -150,6 +150,13 @@ Meson keeps a build-tree run path only on uninstalled binaries. After
 tree or at the prefix path used for that install, so the tree can be moved
 and ~libcpmdc_gromacs~ still opens ~libcpmdc~.
 
+The installed ~cpmdc.pc~, ~cpmdc-restart.pc~, and ~libcp2k.pc~ files derive
+~prefix~ and ~includedir~ from ~${pcfiledir}~, using the relative path from
+the pkg-config directory to those locations. ~-Dlibdir=.~, a nested
+~libdir~, a ~libdir~ that contains ~..~, and an absolute ~includedir~ under
+the prefix stay inside the prefix. A directory that cannot be expressed as
+one relative path fails at configure time.
+
 * Install the Python package
 Release tags publish wheels for Linux x86_64 and aarch64 (manylinux_2_28) and
 macOS arm64 (macOS 15 or newer).

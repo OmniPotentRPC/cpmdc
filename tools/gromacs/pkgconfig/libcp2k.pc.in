@@ -1,5 +1,6 @@
 libdir=@LIBDIR@
 includedir=@INCLUDEDIR@
+prefix=@PREFIX@
 
 Name: libcp2k
 Description: cpmdc behind the libcp2k C API of the GROMACS QM/MM interface
