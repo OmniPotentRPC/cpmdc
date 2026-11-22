@@ -91,8 +91,8 @@ cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2
 The driver opens the session before it connects, so a bad ~CPMDParams~
 file fails at once.
 It exits with status 0 after ~EXIT~ or when the server closes the
-connection between messages, and with status 1 and a message on standard
-error otherwise.
+connection between messages, with status 1 and a message on standard
+error after an error, and with status 2 for a usage error.
 
 * From ASE
 ~SocketIOCalculator~ without ~calc~ binds the socket and waits for a client.

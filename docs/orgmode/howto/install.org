@@ -38,16 +38,16 @@ Without Pixi, install the same set from your package manager:
 
 | Dependency | Version in ~pixi.toml~ | Needed for |
 |------------+------------------------+------------|
-| Meson, Ninja | Meson 1.5.2 or newer, Ninja 1.11 or newer | every build |
+| Meson, Ninja | Meson 1.5.2 or newer, below 2; Ninja 1.11 or newer, below 2 | every build |
 | Cap'n Proto (~capnp~ compiler) | 1.0.2 or newer, below 2 | generating the schema readers, encoding messages |
 | C and Fortran compilers | any recent GCC and gfortran | every build |
 | C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
-| pkg-config | 2.5.1 or newer | dependency lookup |
-| Python 3 | 3.10 or newer | build helpers and tests |
-| ASE, pytest, i-PI | ASE 3.23 or newer, pytest 7 or newer, i-PI 3.3 or newer | the ~python-api~ and ~python-pytest~ tests |
-| cmocka | 1.1.7 or newer | ~-Dwith_tests=true~ |
-| MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 to 5, OpenBLAS 0.3 | ~-Dwith_cpmd=true~ |
-| FFTW3 | optional | linked when OpenCPMD was configured with FFTW3 |
+| pkg-config | 2.5.1 or newer, below 3 | dependency lookup |
+| Python 3 | 3.10 or newer, below 4 | build helpers and tests |
+| ASE, pytest, i-PI | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the ~python-api~ and ~python-pytest~ tests |
+| cmocka | 1.1.7 or newer, below 3 | ~-Dwith_tests=true~ |
+| MPI with Fortran bindings, BLAS and LAPACK | OpenMPI 4.1 or newer, below 6; OpenBLAS 0.3.34 or newer, below 0.4 | ~-Dwith_cpmd=true~ |
+| FFTW3 | 3.3.11 or newer, below 4; optional | linked when OpenCPMD was configured with FFTW3 |
 
 CI runs those two tests on ASE 3.23.0 and on the newest ASE 3 release.
 ~bench/constant_cutoff_npt.py run~ needs ASE 3.27 for ~LangevinBAOAB~.

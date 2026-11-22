@@ -59,6 +59,8 @@ each contract.
 
 [[file:../reference/build-options.org][Build options, artifacts, and Pixi tasks]]
 lists the Meson test suites and the tests in each.
+The stub suite includes ~adopt-comm-stub~ and ~bind-calculator-stub~, which
+run on four ranks when MPI is found.
 
 * Run the host example
 ~examples/host_step.c~ is a minimal C host for the public ABI.

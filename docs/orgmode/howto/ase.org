@@ -297,7 +297,8 @@ with CPMDCCalculator("water.params.bin") as calc:
 
 ~set()~ returns a dictionary of the parameters that changed, with their new
 values.
-A new ~params~ or ~library~ opens a new session and clears the stored results.
+A new ~params~, ~library~, or ~constant_cutoff~ opens a new session and clears
+the stored results.
 A value that cannot be opened raises and leaves the old session in use.
 
 * Choose the working directory
@@ -338,7 +339,7 @@ says.
 | Condition | Raised |
 |-----------+--------|
 | a step that the library rejects, such as one without a pseudopotential directory, or one whose energy, forces, or stress is NaN or infinite | ~cpmdc.ase.CalculationFailed~ |
-| a keyword other than ~params~, ~library~, and ASE's own; no ~params~ | ~TypeError~ |
+| a keyword other than ~params~, ~library~, ~constant_cutoff~, and ASE's own; no ~params~ | ~TypeError~ |
 | stress or dipole where the step has none; ~energies~, ~magmoms~, or ~charges~ | ~ase.calculators.calculator.PropertyNotImplementedError~ |
 | mixed ~pbc~ flags, a periodic cell of rank below 3 (the numpy.linalg.matrix_rank cutoff), or a cell volume below the normal float64 range | ~ValueError~ |
 | a step on a calculator without atoms | ~ValueError~ |

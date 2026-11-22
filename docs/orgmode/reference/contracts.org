@@ -75,7 +75,7 @@ Calls that report the build and the failure text. None of them evaluates.
 | Layout | none |
 | Ownership | none: live ~CPMDCSession~ objects stay valid and the caller still destroys them. |
 | Threads and MPI | Not thread-safe: call once, from the thread that ran the evaluations, after the last evaluation. MPI: does not call ~MPI_Finalize~ and does not communicate; call it on every rank. |
-| Returns and errors | none: cannot fail. Later evaluations fail with ~CPMD embed not available~. |
+| Returns and errors | none: cannot fail. In the reference and OpenCPMD builds, later calls that need the runtime fail with ~CPMD embed not available~: the no-session evaluations, ~cpmdc_set_params()~, ~cpmdc_configure()~, and a session evaluation of any step but the one that session stored last. A session evaluation that repeats its stored step still returns 0 from the session's cache, and ~cpmdc_last_error()~ stays empty. The link stub does nothing and its evaluations always fail with ~OpenCPMD embed not available in cpmdc stub~ followed by the called function's name in parentheses. |
 | Python | not wrapped; ~cpmdc.Session~ never finalizes the runtime. |
 | Defaults | none |
 
@@ -100,10 +100,10 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 | Item | Description |
 |--------+--------|
 | Units | none |
-| Layout | none: ~ranks_per_calc~ is a rank count; the world is split into consecutive blocks of that size. |
+| Layout | none: ~ranks_per_calc~ is a rank count; the world is split into consecutive blocks of that size, group ~g~ holding world ranks ~g * ranks_per_calc~ to ~(g + 1) * ranks_per_calc - 1~. |
 | Ownership | none: the library keeps the new communicator and the caller cannot free it. |
-| Threads and MPI | Not thread-safe: call once, from one thread, before the first evaluation. MPI: collective on ~MPI_COMM_WORLD~; initialises MPI when it is not running and splits the world with ~MPI_Comm_split~; every rank passes the same value. |
-| Returns and errors | Returns this rank's calculator index, 0 or more; -1 when the world size is not a multiple of ~ranks_per_calc~, the split is refused, or the library has no CPMD backend (the reference build always returns -1); the text is ~cpmdc_last_error()~. A second call returns the same index and does not split again. |
+| Threads and MPI | Not thread-safe: call from one thread, before the first evaluation. MPI: collective on ~MPI_COMM_WORLD~; on an OpenCPMD build it initialises MPI when it is not running, and the reference build and the link stub never call MPI; it splits the world with ~MPI_Comm_split~; every rank passes the same value. |
+| Returns and errors | Returns this rank's calculator index ~world_rank / ranks_per_calc~, 0 or more; -1 when the world size is not a multiple of ~ranks_per_calc~ (no remainder group is made, nothing is split, and every rank gets -1), ~MPI_Comm_split~ returns an error, or the library has no CPMD backend (the reference build and the link stub always return -1); the text is ~cpmdc_last_error()~. A second call does not split again; it checks its own ~ranks_per_calc~ as the first call does, returns the index that value gives, or returns -1 on every rank when the value does not divide the world size or is above it, and the existing split stays. |
 | Python | not wrapped; use ~cpmdc.lammps.FixExternal~ or the host's own communicator. |
 | Defaults | ~ranks_per_calc~ zero or less takes the whole world as one calculator |
 

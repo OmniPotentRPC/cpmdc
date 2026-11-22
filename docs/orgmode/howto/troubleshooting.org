@@ -145,6 +145,11 @@ not apply its configuration.
 *Fix:* call
 ~cpmdc_finalize()~ only at shutdown; check the message with ~CPMDC_DECK_OUT~ for
 a rendering failure.
+After a finalize, a session evaluation that repeats the step the session stored
+last still returns 0 from its cache, so only a new step fails with this text.
+The link stub never evaluates; its text is
+~OpenCPMD embed not available in cpmdc stub~ followed by the function's name in
+parentheses, and linking ~libcpmdc~ instead fixes it.
 
 * Forces
 

@@ -23,7 +23,9 @@ From a checkout, set ~CPMDC_LIBRARY~ to ~build/libcpmdc.so~ and ~PYTHONPATH~ to
 ~python~, or pass the library path as ~library~.
 The search is the rgpot order: an explicit path, then
 ~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, and ~RGPOT_CPMD_ENGINE~, then the wheel's
-library.
+library, then ~libcpmdc~ from the dynamic linker, then ~build/libcpmdc.so~ in
+the working directory.
+An environment variable counts only when it names an existing file.
 A periodic cell needs nothing more: the package encodes each step as a
 ~ForceInput~ message itself.
 
