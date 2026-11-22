@@ -271,12 +271,19 @@ Regenerate RST after editing Org sources:
 pixi run -e docs mkrst
 #+end_src
 
-Regenerate the LLM index files after editing ~docs/orgmode/~ or the feature
-inventory:
+Regenerate the LLM index files (~llms.txt~ and ~llms-full.txt~) after editing
+~docs/orgmode/~ or ~schema/inventory/cpmd_features.json~:
 
 #+begin_src bash
 python3 scripts/generate_llms_txt.py
 #+end_src
+
+The generator writes deterministic output without timestamps or host paths.
+Verify that committed index files match the sources with
+~python3 scripts/generate_llms_txt.py --check~ or
+~meson test -C build llms-txt --print-errorlogs~; when a file is stale or
+missing, the check names the file, prints the regeneration command above, and
+shows a short unified diff head.
 
 Check the links in the README, the Org sources, and the newsfragments:
 
