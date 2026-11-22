@@ -3,16 +3,17 @@ name: wheels
 # Wheels and an sdist for python/cpmdc with libcpmdc bundled. A v* tag
 # publishes them to PyPI; every other trigger only builds and tests.
 concurrency:
-  group: wheels-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number ||
+    github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.ref !=
+    'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')) }}
 on:
   push:
     tags:
-      - "v*"
+      - '*'
     branches:
       - main
-      - "ci/**"
+      - develop
     paths:
       - "pyproject.toml"
       - "meson.build"
@@ -92,6 +93,9 @@ jobs:
           if-no-files-found: error
 
   sdist:
+    if: github.event_name == 'workflow_dispatch' || github.ref ==
+      'refs/heads/main' || startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.pull_request.labels.*.name, 'ci:full')
     runs-on: ubuntu-latest
     # Where `cc` and `c++` resolve to clang, clang selects the newest GCC
     # installation for its C++ runtime. When that one has no libstdc++
@@ -176,7 +180,8 @@ jobs:
       - name: Publish with trusted publishing
         id: oidc
         continue-on-error: true
-        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        uses:
+          pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086     # release/v1
         with:
           packages-dir: dist/
           skip-existing: true
@@ -190,7 +195,8 @@ jobs:
             || { echo "trusted publishing failed and PYPI_TOKEN is empty" >&2; exit 1; }
       - name: Publish with PYPI_TOKEN
         if: steps.oidc.outcome == 'failure'
-        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        uses:
+          pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086     # release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_TOKEN }}

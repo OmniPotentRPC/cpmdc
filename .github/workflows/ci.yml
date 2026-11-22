@@ -4,11 +4,21 @@ on:
   push:
     branches:
       - main
-      - 'ci/**'
-      - 'feat/**'
-      - 'fix/**'
+      - develop
+    tags:
+      - '*'
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - newsfragments/**
+      - LICENSE
   pull_request:
     branches: [main, develop]
+    paths-ignore:
+      - docs/**
+      - '**/*.md'
+      - newsfragments/**
+      - LICENSE
   workflow_dispatch:
 
 jobs:
@@ -120,6 +130,9 @@ jobs:
 
   sanitize-gcc13:
     name: sanitize (ubuntu-24.04 gcc-13)
+    if: github.event_name == 'workflow_dispatch' || github.ref ==
+      'refs/heads/main' || startsWith(github.ref, 'refs/tags/') ||
+      contains(github.event.pull_request.labels.*.name, 'ci:full')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -229,7 +242,8 @@ jobs:
           pixi-version: latest
           cache: true
       - name: Patched OpenCPMD archive
-        run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd" "${RUNNER_TEMP}/opencpmd-build"
+        run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd"
+          "${RUNNER_TEMP}/opencpmd-build"
       - name: Pseudopotentials
         run: |
           scripts/ci/fetch_pseudopotentials.sh "${RUNNER_TEMP}/pp" "${RUNNER_TEMP}/regtests"
@@ -297,7 +311,10 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/gromacs-2025.5-${{ matrix.route }}
-          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{ hashFiles('scripts/ci/build_gromacs_cpmdc.sh', 'tools/gromacs/libcp2k.h', 'tools/gromacs/patches/*', 'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
+          key: gromacs-2025.5-cpmdc-${{ matrix.route }}-${{
+            hashFiles('scripts/ci/build_gromacs_cpmdc.sh',
+            'tools/gromacs/libcp2k.h', 'tools/gromacs/patches/*',
+            'tools/gromacs/pkgconfig/*', 'pixi.lock') }}
       - name: GROMACS 2025.5, double, GMX_CP2K=ON against libcpmdc_gromacs
         run: |
           prefix="${RUNNER_TEMP}/gromacs-2025.5-${{ matrix.route }}"
@@ -390,7 +407,8 @@ jobs:
     needs: stub-and-e2e
     permissions:
       contents: read
-    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
+    uses:
+      OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
     with:
       artifact-name: unstripped-libs-x86_64
       allow-file: isa-allow.toml
@@ -401,8 +419,14 @@ jobs:
     needs: stub-and-e2e-arm64
     permissions:
       contents: read
-    uses: OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
+    uses:
+      OmniPotentRPC/rgpot/.github/workflows/isa-audit.yml@06638f2ece83b12731b387ba819b67dc2151556b
     with:
       artifact-name: unstripped-libs-arm64
       allow-file: isa-allow.toml
       baseline: armv8-a
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number ||
+    github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.ref !=
+    'refs/heads/main' && !startsWith(github.ref, 'refs/tags/')) }}
