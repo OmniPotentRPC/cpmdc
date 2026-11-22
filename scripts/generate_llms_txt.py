@@ -8,6 +8,7 @@ text derived from every Org page under docs/orgmode/.
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import sys
@@ -19,14 +20,16 @@ INVENTORY = ROOT / "schema" / "inventory" / "cpmd_features.json"
 SITE = "https://cpmdc.rgoswami.me"
 SUMMARY_PATH = ROOT / "llms.txt"
 FULL_PATH = ROOT / "llms-full.txt"
+REGEN_COMMAND = "python3 scripts/generate_llms_txt.py"
+DEFAULT_DIFF_HEAD_LINES = 20
 
 TOCTREE_CAPTION = re.compile(r":caption:\s*(.+)")
 TOCTREE_ENTRY = re.compile(r"^\s+(\S+)\s*$")
 TITLE_LINE = re.compile(r"^#\+TITLE:\s*(.+)", re.I)
 
 
-def repo_rel_doc_url(org_path: Path) -> str:
-    rel = org_path.relative_to(ORG_ROOT).with_suffix("").as_posix()
+def repo_rel_doc_url(org_path: Path, org_root: Path = ORG_ROOT) -> str:
+    rel = org_path.relative_to(org_root).with_suffix("").as_posix()
     return f"{SITE}/{rel}"
 
 
@@ -68,9 +71,9 @@ def org_plaintext(text: str) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def discover_sections() -> list[tuple[str, list[Path]]]:
+def discover_sections(org_root: Path = ORG_ROOT) -> list[tuple[str, list[Path]]]:
     """Sections and pages from index.org toctree blocks."""
-    index = (ORG_ROOT / "index.org").read_text(encoding="utf-8")
+    index = (org_root / "index.org").read_text(encoding="utf-8")
     sections: list[tuple[str, list[Path]]] = []
     current_caption = "Documentation"
     current_pages: list[Path] = []
@@ -88,9 +91,7 @@ def discover_sections() -> list[tuple[str, list[Path]]]:
             entry = TOCTREE_ENTRY.match(line)
             if entry:
                 stem = entry.group(1)
-                org = ORG_ROOT / f"{stem}.org"
-                if not org.is_file() and "/" in stem:
-                    org = ORG_ROOT / f"{stem}.org"
+                org = org_root / f"{stem}.org"
                 if org.is_file():
                     current_pages.append(org)
                 continue
@@ -108,10 +109,13 @@ def discover_sections() -> list[tuple[str, list[Path]]]:
     return sections
 
 
-def api_summary_lines() -> list[str]:
-    if not INVENTORY.is_file():
-        return []
-    data = json.loads(INVENTORY.read_text(encoding="utf-8"))
+def api_summary_lines(root: Path = ROOT) -> list[str]:
+    inventory = root / "schema" / "inventory" / "cpmd_features.json"
+    if not inventory.is_file():
+        raise FileNotFoundError(
+            "missing feature inventory: schema/inventory/cpmd_features.json"
+        )
+    data = json.loads(inventory.read_text(encoding="utf-8"))
     feats = data.get("features", [])
     abi = sum(1 for f in feats if str(f.get("feature_id", "")).startswith("abi."))
     params = sum(1 for f in feats if str(f.get("feature_id", "")).startswith("params."))
@@ -130,7 +134,8 @@ def api_summary_lines() -> list[str]:
     ]
 
 
-def build_llms_txt() -> str:
+def build_llms_txt(root: Path = ROOT) -> str:
+    org_root = root / "docs" / "orgmode"
     desc = (
         "C ABI for embedding OpenCPMD in OmniPotentRPC tools. Hosts pass "
         "Cap'n Proto CPMDParams once, ForceInput per geometry step, and receive "
@@ -145,38 +150,49 @@ def build_llms_txt() -> str:
         "Human docs source: docs/orgmode/ (export to Sphinx with pixi run -e docs docbld).",
         "",
     ]
-    parts.extend(api_summary_lines())
+    parts.extend(api_summary_lines(root))
     parts.append("")
-    parts.append(f"AGENTS.md at the repository root describes layout, build, test, and docs for agents.")
-    parts.append(f"Full plain text of every page: {SITE}/llms-full.txt (committed as llms-full.txt).")
+    parts.append(
+        "AGENTS.md at the repository root describes layout, build, test, and docs for agents."
+    )
+    parts.append(
+        f"Full plain text of every page: {SITE}/llms-full.txt (committed as llms-full.txt)."
+    )
     parts.append("")
-    for caption, pages in discover_sections():
+    for caption, pages in discover_sections(org_root):
         parts.append(f"## {caption}")
         parts.append("")
         for org in pages:
             title = page_title(org)
-            url = repo_rel_doc_url(org)
+            url = repo_rel_doc_url(org, org_root)
             parts.append(f"- [{title}]({url})")
         parts.append("")
     parts.append("## Repository")
     parts.append("")
-    parts.append(f"- [Source](https://github.com/OmniPotentRPC/cpmdc): MIT licensed cpmdc")
+    parts.append("- [Source](https://github.com/OmniPotentRPC/cpmdc): MIT licensed cpmdc")
     parts.append(f"- [Schema]({SITE}/reference/cpmdparams-schema): Potentials.capnp CPMDParams")
     parts.append("")
     return "\n".join(parts)
 
 
-def build_llms_full() -> str:
+def build_llms_full(root: Path = ROOT) -> str:
+    org_root = root / "docs" / "orgmode"
+    if not org_root.is_dir():
+        raise FileNotFoundError("missing docs source directory: docs/orgmode")
     chunks: list[str] = [
         "# cpmdc documentation (full text export)",
         "",
         f"Site: {SITE}",
         "",
     ]
-    for path in sorted(ORG_ROOT.rglob("*.org")):
+    org_files = sorted(
+        org_root.rglob("*.org"),
+        key=lambda path: path.relative_to(org_root).as_posix(),
+    )
+    for path in org_files:
         if path.name == "changelog.org":
             continue
-        rel = path.relative_to(ORG_ROOT).as_posix()
+        rel = path.relative_to(org_root).as_posix()
         chunks.append(f"## File: docs/orgmode/{rel}")
         chunks.append("")
         chunks.append(org_plaintext(path.read_text(encoding="utf-8")))
@@ -184,29 +200,58 @@ def build_llms_full() -> str:
     return "\n".join(chunks).rstrip("\n") + "\n"
 
 
-def write_outputs() -> tuple[str, str]:
-    summary = build_llms_txt()
-    full = build_llms_full()
-    SUMMARY_PATH.write_text(summary, encoding="utf-8", newline="\n")
-    FULL_PATH.write_text(full, encoding="utf-8", newline="\n")
+def write_outputs(root: Path = ROOT) -> tuple[str, str]:
+    summary = build_llms_txt(root)
+    full = build_llms_full(root)
+    with (root / "llms.txt").open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(summary)
+    with (root / "llms-full.txt").open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(full)
     return summary, full
 
 
-def check_outputs() -> list[str]:
+def format_unified_diff_head(
+    rel_path: str,
+    actual: str,
+    expected: str,
+    max_lines: int = DEFAULT_DIFF_HEAD_LINES,
+) -> str:
+    diff = list(
+        difflib.unified_diff(
+            actual.splitlines(keepends=True),
+            expected.splitlines(keepends=True),
+            fromfile=f"a/{rel_path}",
+            tofile=f"b/{rel_path}",
+        )
+    )
+    if not diff:
+        return "(content differs in line endings or trailing whitespace)"
+    head = diff[:max_lines]
+    if len(diff) > max_lines:
+        head.append(f"... ({len(diff) - max_lines} more diff lines)\n")
+    return "".join(head).rstrip("\n")
+
+
+def check_outputs(
+    root: Path = ROOT, max_diff_lines: int = DEFAULT_DIFF_HEAD_LINES
+) -> list[str]:
     failures: list[str] = []
-    expected_summary = build_llms_txt()
-    expected_full = build_llms_full()
-    for path, expected in (
-        (SUMMARY_PATH, expected_summary),
-        (FULL_PATH, expected_full),
+    expected_summary = build_llms_txt(root)
+    expected_full = build_llms_full(root)
+    for rel, path, expected in (
+        ("llms.txt", root / "llms.txt", expected_summary),
+        ("llms-full.txt", root / "llms-full.txt", expected_full),
     ):
         if not path.is_file():
-            failures.append(f"{path}: missing; run scripts/generate_llms_txt.py")
+            failures.append(f"{rel}: missing; run `{REGEN_COMMAND}` to regenerate")
             continue
-        actual = path.read_text(encoding="utf-8")
+        actual = path.read_bytes().decode("utf-8")
         if actual != expected:
+            diff_head = format_unified_diff_head(
+                rel, actual, expected, max_lines=max_diff_lines
+            )
             failures.append(
-                f"{path}: stale (run python3 scripts/generate_llms_txt.py to refresh)"
+                f"{rel}: stale; run `{REGEN_COMMAND}` to regenerate\n{diff_head}"
             )
     return failures
 
@@ -218,17 +263,32 @@ def main() -> int:
         action="store_true",
         help="fail when llms.txt or llms-full.txt are not up to date",
     )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=ROOT,
+        help="repository root containing docs/orgmode and schema/inventory",
+    )
+    parser.add_argument(
+        "--diff-lines",
+        type=int,
+        default=DEFAULT_DIFF_HEAD_LINES,
+        help="maximum unified diff lines to print per stale file",
+    )
     args = parser.parse_args()
+    if args.diff_lines < 1:
+        parser.error("--diff-lines must be positive")
+    root = args.root.resolve()
     if args.check:
-        failures = check_outputs()
+        failures = check_outputs(root, max_diff_lines=args.diff_lines)
         if failures:
             print("\n".join(failures), file=sys.stderr)
             return 1
         print("llms.txt and llms-full.txt are current")
         return 0
-    write_outputs()
-    print(f"wrote {SUMMARY_PATH}")
-    print(f"wrote {FULL_PATH}")
+    write_outputs(root)
+    print("wrote llms.txt")
+    print("wrote llms-full.txt")
     return 0
 
 
