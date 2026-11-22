@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -135,6 +136,12 @@ def assert_embed_rwfopt(patch: Path) -> None:
         "CALL stopgm('embed_restore_orbitals'",
         "saved orbitals do not match c0; call embed_reset_warm_orbitals",
         "USE rinitwf_driver,                  ONLY: embed_have_orbitals",
+        "PUBLIC :: embed_set_orbital_slot_limit",
+        "CPMDC_ORBITAL_SLOT_LIMIT",
+        "PUBLIC :: embed_copy_orbital_slot",
+        "PUBLIC :: embed_park_partial_orbital_slot",
+        "SUBROUTINE embed_replace_key_store(c0, geo, key)",
+        "LOGICAL, SAVE :: embed_store_converged = .FALSE.",
         "IF (.NOT. embed_slots(src)%converged) RETURN",
         "embed_slots(i)%converged = embed_store_converged",
         "embed_store_converged = embed_slots(i)%converged",
@@ -362,8 +369,35 @@ def assert_atomwf_kpts_ortho(patch: Path) -> None:
             raise AssertionError(f"{patch.name}: missing {needle}")
 
 
+def assert_patch_application_order(repo: Path) -> None:
+    script = (repo / "scripts" / "ci" / "build_opencpmd.sh").read_text(encoding="utf-8")
+    match = re.search(r"for p in(.*?); do", script, flags=re.S)
+    if not match:
+        raise AssertionError("build_opencpmd.sh: missing patch application loop")
+    tokens = [tok for tok in match.group(1).replace("\\", " ").split() if tok]
+    try:
+        rwfopt_at = tokens.index("embed_rwfopt")
+        extrap_at = tokens.index("embed_extrapolate")
+    except ValueError as exc:
+        raise AssertionError(
+            "build_opencpmd.sh: missing embed_rwfopt or embed_extrapolate in patch loop"
+        ) from exc
+    if rwfopt_at >= extrap_at:
+        raise AssertionError(
+            "build_opencpmd.sh: embed_rwfopt must apply before embed_extrapolate"
+        )
+    extrap = (repo / "tools" / "opencpmd_embed_extrapolate.patch").read_text(
+        encoding="utf-8"
+    )
+    if "diff --git a/src/rwfopt_utils.mod.F90 b/src/rwfopt_utils.mod.F90" not in extrap:
+        raise AssertionError(
+            "opencpmd_embed_extrapolate.patch: must patch rwfopt_utils.mod.F90"
+        )
+
+
 def main() -> int:
     repo = Path(sys.argv[1]).resolve()
+    assert_patch_application_order(repo)
     for name, expected_target in PATCHES.items():
         patch = repo / "tools" / name
         rows = patch_numstat(repo, patch)
