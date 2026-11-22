@@ -227,15 +227,12 @@ int main(int argc, char **argv) {
   void *symbolize_base = NULL;
   size_t symbolize_size = 0;
   char symbolize_path[PATH_MAX];
-  if (symbolize_dso != NULL && symbolize_dso[0] != '\0' &&
+  int have_symbol_map =
+      symbolize_dso != NULL && symbolize_dso[0] != '\0' &&
       preserve_lsan_symbol_map(symbolize_dso, &symbolize_base, &symbolize_size,
-                               symbolize_path) != 0) {
-    fprintf(stderr, "could not preserve symbols for %s\n", symbolize_dso);
-    dlclose(handle);
-    return 1;
-  }
+                               symbolize_path) == 0;
   dlclose(handle);
-  if (symbolize_dso != NULL && symbolize_dso[0] != '\0') {
+  if (have_symbol_map) {
     if (restore_lsan_symbol_map(symbolize_base, symbolize_size,
                                 symbolize_path) != 0) {
       fprintf(stderr, "could not restore symbols for %s\n", symbolize_dso);
