@@ -68,6 +68,11 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # FixExternal's evaluation step lives in rgpot.lammps. The skip check
+      # below fails the job when the LAMMPS module is missing; this step
+      # keeps the fix route from skipping for lack of the frontend.
+      - name: rgpot.lammps
+        run: pixi run -e lammps bash scripts/ci/install_rgpot_lammps.sh
       - name: Build the LAMMPS test fixtures
         run: pixi run -e lammps bash -c '. scripts/with_baseline_flags.sh && meson setup build-lammps -Dwith_tests=true && meson compile -C build-lammps && meson compile -C build-lammps water_params_bin water_periodic_params_bin'
       - name: FixExternal Python and two-rank tests
@@ -228,6 +233,11 @@ jobs:
         with:
           pixi-version: latest
           cache: true
+      # The LAMMPS convention tests drive cpmdc.lammps.FixExternal, whose
+      # evaluation step lives in rgpot.lammps, and the skip check below
+      # fails the job when they skip.
+      - name: rgpot.lammps
+        run: pixi run bash scripts/ci/install_rgpot_lammps.sh
       - name: Patched OpenCPMD archive
         run: pixi run scripts/ci/build_opencpmd.sh "${RUNNER_TEMP}/opencpmd" "${RUNNER_TEMP}/opencpmd-build"
       - name: Pseudopotentials

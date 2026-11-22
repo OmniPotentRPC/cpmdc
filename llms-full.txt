@@ -3528,13 +3528,18 @@ once per force evaluation; both pass the same numbers to LAMMPS.
 
 | Route | LAMMPS side | Needs |
 |-------+-------------+-------|
-| `cpmdc.lammps.FixExternal` | `fix external pf/callback` from LAMMPS' Python module | the `lammps` Python module (`pip install lammps` works), `mpi4py` for more than one rank |
+| `cpmdc.lammps.FixExternal` | rgpot's generic `fix external pf/callback` frontend | `rgpot`, the `lammps` Python module (`pip install lammps` works), `mpi4py` for more than one rank |
 | `pair_style cpmdc` | a LAMMPS plugin, `cpmdcplugin.so`, loaded with `plugin load` | LAMMPS with the `PLUGIN` package and the headers it was built from; no Python |
 | i-PI sockets | `fix ipi`, a client of an i-PI server | i-PI and `cpmdc-ipi`; see the socket drivers (file:socket-drivers.org) |
 
 The plugin suits LAMMPS input scripts run by `lmp` and has the least overhead
 per step (see cpmdc inside MD engines (file:../explanation/md-engines.org)).
-`FixExternal` suits Python workflows and needs no compiler.
+`FixExternal` suits Python workflows and needs no compiler.  The cpmdc class is
+a compatibility wrapper: it presents a `cpmdc.Session` as a Python rgpot
+potential and delegates the LAMMPS protocol, unit conversion, cell, virial,
+MPI gather and callback errors to `rgpot.lammps.FixExternal`.  Install rgpot
+alongside cpmdc to use this route.  `rgpot.lammps` is not in a released rgpot
+wheel yet; the Python tests skip, with that reason, when the import fails.
 The socket route keeps cpmdc in a separate process and lets i-PI integrate;
 LAMMPS then contributes forces of its own.
 
@@ -10594,6 +10599,9 @@ reason.
 Both routes of Run LAMMPS on cpmdc forces (file:../howto/lammps.org),
 `cpmdc.lammps.FixExternal` and `pair_style cpmdc`, pass the same numbers to
 LAMMPS.
+The Python class adapts `cpmdc.Session` to the standard rgpot Python potential
+protocol and delegates its LAMMPS mechanics to `rgpot.lammps.FixExternal`.
+The plugin remains cpmdc's compiled, LAMMPS-specific route.
 This page gives their units, the cell and positions they send, and the virial
 they return.
 
@@ -11090,8 +11098,10 @@ access, which is empty on an ASE release without `ase._4.plugins`, so importing
 discovery.
 `cpmdc.ipi` is the `cpmdc-ipi` socket driver; it needs ASE only for
 `--structure`.
-`cpmdc.lammps` couples a `lammps` object from LAMMPS' Python module; it imports
-neither LAMMPS nor `mpi4py` until a run needs them.
+`cpmdc.lammps` couples a `lammps` object from LAMMPS' Python module. Loading
+it uses `rgpot.lammps` when that frontend is installed, and stays importable
+when the module is absent. It imports neither LAMMPS nor `mpi4py` until a run
+needs them.
 `cpmdc.gromacs` writes the grompp `-qmi` input of `libcpmdc_gromacs` and holds
 GROMACS' unit factors; it imports nothing outside the standard library.
 
@@ -11151,7 +11161,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.ipi.unix_socket_path` | `unix_socket_path(name, prefix=None)`: the socket file for an address, with the i-PI and ASE prefix |
 | `cpmdc.ipi.HEADER_BYTES`, `cpmdc.ipi.DEFAULT_SOCKET_PREFIX` | the 12-byte width of a protocol header, and the socket-name prefix that i-PI and ASE use |
 | `cpmdc.ipi.main` | `main(argv=None)`: the `cpmdc-ipi` command; returns the exit status |
-| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)`: cpmdc as the force engine of a `fix external pf/callback` |
+| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)`: cpmdc as the force engine of a `fix external pf/callback`, delegating the LAMMPS protocol to `rgpot.lammps.FixExternal` |
 | `FixExternal.run` | `run(steps, *keywords)`: run `steps` with LAMMPS keywords; raises `CPMDCError` for a failed step |
 | `FixExternal.close` | `close()`: close the session and remove the fixes it added; also on leaving a `with` block |
 | `FixExternal.error`, `energy`, `evaluations` | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |

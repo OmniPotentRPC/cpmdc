@@ -1,7 +1,11 @@
 """cpmdc inside LAMMPS: cpmdc.lammps.FixExternal and pair_style cpmdc.
 
 LAMMPS comes from its Python module; every test skips with the reason when
-that module cannot start LAMMPS. The plugin is ``CPMDC_LAMMPS_PLUGIN`` or
+that module cannot start LAMMPS.
+``rgpot.lammps`` is the frontend ``FixExternal`` subclasses. A released
+rgpot wheel does not ship it, so fix-external cases skip when it is absent;
+a broken installation still fails collection. Pair-style plugin cases do
+not need that frontend. The plugin is ``CPMDC_LAMMPS_PLUGIN`` or
 ``build/cpmdcplugin.so`` of this checkout, and the plugin cases skip when
 neither exists. Energies, forces, and virials are compared with
 ``CPMDCCalculator``, which reaches the library through ``ForceInput``
@@ -36,6 +40,12 @@ from cpmdc.lammps import UNIT_STYLES, FixExternal, box_rows, type_numbers, unit_
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from lammps_case import CMDARGS, THERMO, attach, build, measure
+from lammps_import import import_rgpot_lammps
+
+RGPOT_LAMMPS = import_rgpot_lammps()
+needs_rgpot_lammps = pytest.mark.skipif(
+    RGPOT_LAMMPS is None, reason="rgpot.lammps is not installed"
+)
 
 
 def lammps_problem() -> str:
@@ -63,7 +73,7 @@ def plugin_path() -> Path | None:
 
 PLUGIN = plugin_path()
 ROUTES = [
-    "fix",
+    pytest.param("fix", marks=needs_rgpot_lammps),
     pytest.param(
         "plugin",
         marks=pytest.mark.skipif(PLUGIN is None, reason="cpmdcplugin.so is not built"),
@@ -538,6 +548,7 @@ def largest_miss(derivative: np.ndarray, virial: np.ndarray) -> float:
     return float(np.abs(derivative - virial).max() / np.abs(virial).max())
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="the reference forces are linear, so a difference is exact there",
@@ -583,6 +594,7 @@ def test_forces_are_the_energy_gradient(tight_params, cpmd_backend, record_prope
     np.testing.assert_allclose(difference, forces, rtol=0.0, atol=1e-4)
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="test_virial_is_the_strain_derivative runs on the reference well",
@@ -614,6 +626,7 @@ def richardson(route: str, params: Path, cell, step: float) -> tuple[np.ndarray,
     return fine, coarse, (4.0 * fine - coarse) / 3.0
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="the reference well has no plane waves",
@@ -663,6 +676,7 @@ def reference_cell_params(tmp_path_factory) -> Path:
     )
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="the reference well has no plane waves",
@@ -698,6 +712,7 @@ def test_reference_cell_holds_the_basis(
     assert largest_miss(extrapolated, virial) < 5e-5
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="the reference well has no plane waves",
@@ -817,6 +832,7 @@ def drift_and_wobble(log: np.ndarray) -> tuple[float, float]:
     )
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="test_nve_conserves_energy_across_the_boundary runs on the reference well",
@@ -889,6 +905,7 @@ def test_npt_conserves_the_extended_energy(route, periodic_params, cpmd_backend)
     assert drift(log, 3) < 5e-3
 
 
+@needs_rgpot_lammps
 @pytest.mark.cpmd_backend(
     "opencpmd",
     reason="test_npt_conserves_the_extended_energy runs on the reference well",
@@ -1084,6 +1101,7 @@ def test_plugin_reports_a_bad_params_file(tmp_path, periodic_params):
         lmp.close()
 
 
+@needs_rgpot_lammps
 def test_failed_step_stops_the_run(periodic_params):
     case = spec("fix", "metal", periodic_params)
     lmp = build(case)
@@ -1106,6 +1124,7 @@ def test_failed_step_stops_the_run(periodic_params):
         lmp.close()
 
 
+@needs_rgpot_lammps
 def test_bad_params_raise_before_the_run(tmp_path, periodic_params):
     lmp = build(spec("fix", "metal", periodic_params))
     try:
