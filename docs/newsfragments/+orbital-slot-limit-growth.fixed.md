@@ -1,1 +1,0 @@
-The table of parked orbital keys in the reference evaluator grows only when it is full, and not on every new key, so two keys that alternate no longer exhaust memory. A growth that cannot be sized or allocated fails the call on every rank and leaves the table unchanged.

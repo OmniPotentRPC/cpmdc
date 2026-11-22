@@ -310,7 +310,7 @@ The [contributing guide](docs/orgmode/contributing/index.org) lists the checks t
 ## Version
 
 <!-- [[[cog cog.outl(f'This README describes cpmdc {open("version.txt").read().strip()}.') ]]] -->
-This README describes cpmdc 0.5.0.
+This README describes cpmdc 0.6.0.
 <!-- [[[end]]] -->
 `version.txt` holds the only hand-written copy of the version.
 `pixi run version-sync` regenerates the other copies, and CI fails when

@@ -121,6 +121,21 @@ def main() -> int:
         failures.append(str(exc))
     fragments = root / "docs" / "newsfragments"
     reference = root / "docs" / "orgmode" / "reference"
+    overlay_fragments = (
+        fragments / "+overlay-merge-fields.fixed.md",
+        fragments / "+overlay-typed-presence.fixed.md",
+    )
+    if all(path.is_file() for path in overlay_fragments):
+        overlay_notes = " ".join(path.read_text() for path in overlay_fragments)
+    else:
+        changelog = (root / "CHANGELOG.md").read_text()
+        version = (root / "version.txt").read_text().strip()
+        section = re.search(
+            rf"## \[{re.escape(version)}\].*?(?=\n## \[|\Z)",
+            changelog,
+            re.S,
+        )
+        overlay_notes = section.group(0) if section else changelog
     docs = {
         "include/cpmdc.h cpmdc_configure()": flat(
             configure_comment((root / "include" / "cpmdc.h").read_text())
@@ -130,11 +145,7 @@ def main() -> int:
             .read_text()
             .replace("~", "`")
         ),
-        "overlay release notes": flat(
-            (fragments / "+overlay-merge-fields.fixed.md").read_text()
-            + " "
-            + (fragments / "+overlay-typed-presence.fixed.md").read_text()
-        ),
+        "overlay release notes": flat(overlay_notes),
     }
     required = (
         "beats the overlay",

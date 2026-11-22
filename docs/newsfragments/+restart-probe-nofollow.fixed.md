@@ -1,1 +1,0 @@
-On POSIX, `cpmdc_restart_write_path` probes the final component of the destination with `fstatat` and `AT_SYMLINK_NOFOLLOW` on the already opened no-follow directory, instead of `lstat` on the whole path, so no stat walks through a directory symlink that the recorded `RESTART` chain does not hold. A path through such a link now fails with "cannot open the RESTART directory".
