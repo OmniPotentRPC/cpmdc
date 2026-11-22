@@ -37,6 +37,7 @@ PATCHES = {
         "src/initclust_utils.mod.F90",
         "src/k_odiis_utils.mod.F90",
         "src/k_pcgrad_utils.mod.F90",
+        "src/localize_utils.mod.F90",
         "src/mixing_g_utils.mod.F90",
         "src/mixing_r_utils.mod.F90",
         "src/moverho_utils.mod.F90",
@@ -63,6 +64,10 @@ PATCHES = {
         "src/control_test_utils.mod.F90",
         "src/embed_ctrl.mod.F90",
         "src/rwfopt_utils.mod.F90",
+    ),
+    "opencpmd_embed_dipole.patch": (
+        "src/ddipo_utils.mod.F90",
+        "src/wfopts_utils.mod.F90",
     ),
     "opencpmd_constant_cutoff_precon.patch": "src/hesele_utils.mod.F90",
     "opencpmd_atomwf_kpts_ortho.patch": (
@@ -255,6 +260,25 @@ def assert_embed_teardown(patch: Path) -> None:
     )
     if guards < 30:
         raise AssertionError(f"{patch.name}: {guards} first-call guards, expected 30 or more")
+    # localize2 keeps SAVE maps sized by the first basis; a second basis
+    # overruns them in opeigr, so it resets like ddipo does.
+    block = text.split("diff --git a/src/localize_utils.mod.F90", 1)
+    if len(block) != 2:
+        raise AssertionError(f"{patch.name}: localize_utils.mod.F90 is not patched")
+    block = block[1].split("\ndiff --git ", 1)[0]
+    for needle in (
+        "+  USE embed_ctrl,                      ONLY: embed_teardowns",
+        "+       IF (ALLOCATED(mapcol)) DEALLOCATE(mapcol)",
+        "+       IF (ALLOCATED(mapful)) DEALLOCATE(mapful)",
+        "+       IF (ALLOCATED(rotlsd)) DEALLOCATE(rotlsd)",
+        "+       IF (ALLOCATED(rotmat)) DEALLOCATE(rotmat)",
+        "+       IF (ALLOCATED(xyzmat)) DEALLOCATE(xyzmat)",
+        "+       i_comp = 0",
+        "+       ifirst = 0",
+        "+       embed_seen = embed_teardowns",
+    ):
+        if needle not in block:
+            raise AssertionError(f"{patch.name}: localize2 reset missing {needle}")
     # tistart executes STOP on a second call; the teardown keeps its state.
     if "USE timer" in text.split("+MODULE embed_teardown", 1)[1].split("END MODULE", 1)[0]:
         raise AssertionError(f"{patch.name}: embed_teardown must not touch the timers")
@@ -284,6 +308,34 @@ def assert_embed_extrapolate(patch: Path) -> None:
     # control_test still turns cntl%textrap off, so cpmd.x keeps its jobs.
     if "-       cntl%textrap=.FALSE." in text:
         raise AssertionError(f"{patch.name}: must not change cpmd.x's textrap")
+
+
+def assert_embed_dipole(patch: Path) -> None:
+    text = patch.read_text(encoding="utf-8")
+    for needle in (
+        "PUBLIC :: embed_get_dipole",
+        "PUBLIC :: embed_set_dipole_snapshot",
+        "embed_dipole_valid = .FALSE.",
+        "CALL ddipo_embed(tau0,c0(:,:,1),dip_cm,c2,sc0(:,:,1),crge%n,center)",
+        "PUBLIC :: ddipo_embed",
+        "SUBROUTINE ddipo_embed(tau0,c0,cm,c2,sc0,nstate,center)",
+        "embed_dipole = moment%dmom",
+        ".NOT.isos1%tclust",
+        "(cntl%tdipd .OR. prop1%dberry)",
+        "USE embed_ctrl,                      ONLY: embed_teardowns",
+        "IF (ALLOCATED(mapful)) DEALLOCATE(mapful)",
+        "embed_seen = embed_teardowns",
+        "wannier_recomput = wannier_recomput .OR. embed_force_recompute",
+    ):
+        if needle not in text:
+            raise AssertionError(f"{patch.name}: missing {needle}")
+    # ddipo keeps the argument list that its other callers were compiled with.
+    for needle in ("force_recompute)", "PRESENT(force_recompute)", "OPTIONAL"):
+        if any(
+            line.startswith("+") and needle in line and "embed_force_recompute" not in line
+            for line in text.splitlines()
+        ):
+            raise AssertionError(f"{patch.name}: ddipo must not gain an argument ({needle})")
 
 
 def assert_constant_cutoff_precon(patch: Path) -> None:
@@ -351,6 +403,8 @@ def main() -> int:
             assert_embed_teardown(patch)
         elif name == "opencpmd_embed_extrapolate.patch":
             assert_embed_extrapolate(patch)
+        elif name == "opencpmd_embed_dipole.patch":
+            assert_embed_dipole(patch)
         elif name == "opencpmd_constant_cutoff_precon.patch":
             if removed <= 0:
                 raise AssertionError(f"{name}: patch must replace upstream code")

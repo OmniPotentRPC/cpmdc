@@ -128,7 +128,7 @@ def main() -> int:
 
     with Potential(periodic, library=library) as pot:
         caps = pot.caps()
-        if caps != {"stress": True, "energies": False}:
+        if caps != {"stress": True, "dipole": bool(pot._session.available()), "energies": False}:
             raise AssertionError(caps)
         raw = pot.evaluate(
             positions,

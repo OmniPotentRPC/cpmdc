@@ -44,6 +44,34 @@ static void test_unsupported_rejected(void **state) {
   assert_int_equal(cpmdc_params_reject_unsupported_inputs("BLYP", "N_STREAMS\n"), -1);
 }
 
+static void test_dipole_dynamics_with_kpoints_rejected(void **state) {
+  (void)state;
+  const char *both =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION\n DIPOLE DYNAMICS\n&END\n"
+      "&SYSTEM\n KPOINTS MONKHORST-PACK\n 2 2 2\n CUTOFF\n 40.0\n&END\n";
+  const char *lower =
+      "&cpmd\n dipole dynamics sample wannier\n&end\n"
+      "&system\n  kpoints\n 1\n 0.0 0.0 0.0 1.0\n&end\n";
+  const char *gamma_only =
+      "&CPMD\n DIPOLE DYNAMICS\n&END\n&SYSTEM\n CUTOFF\n 40.0\n&END\n";
+  const char *kpoints_only =
+      "&CPMD\n OPTIMIZE WAVEFUNCTION\n&END\n&SYSTEM\n KPOINTS\n 1\n"
+      " 0.0 0.0 0.0 1.0\n&END\n";
+  /* RESTART KPOINTS in &CPMD is a restart option, not a k-point mesh. */
+  const char *restart =
+      "&CPMD\n DIPOLE DYNAMICS\n RESTART WAVEFUNCTION KPOINTS\n&END\n"
+      "&SYSTEM\n CUTOFF\n 40.0\n&END\n";
+  const char *reason = cpmdc_params_deck_conflict(both);
+  assert_non_null(reason);
+  assert_non_null(strstr(reason, "DIPOLE DYNAMICS"));
+  assert_non_null(strstr(reason, "KPOINTS"));
+  assert_non_null(cpmdc_params_deck_conflict(lower));
+  assert_null(cpmdc_params_deck_conflict(gamma_only));
+  assert_null(cpmdc_params_deck_conflict(kpoints_only));
+  assert_null(cpmdc_params_deck_conflict(restart));
+  assert_null(cpmdc_params_deck_conflict(""));
+}
+
 static void test_all_results_through_c_and_wire(void **state) {
   (void)state;
   size_t ps = 0, ss = 0;
@@ -89,13 +117,28 @@ static void test_all_results_through_c_and_wire(void **state) {
   CPMDCPropertySnapshot prop;
   assert_int_equal(cpmdc_last_property_snapshot(&prop), 0);
   assert_int_equal(prop.valid, 1);
-  assert_int_equal(prop.dipole_count, 3);
+  assert_int_equal(prop.dipole_count, 0);
   assert_int_equal(prop.polarizability_count, 9);
   for (int i = 0; i < 9; ++i)
     assert_true(prop.polarizability[i] == 0.0); /* never computed */
   assert_true(prop.hessian_count >= 3); /* PEF 2 atoms => 6 */
   printf("pod_prop dipole=%zu hess=%zu pol=%zu\n", prop.dipole_count,
          prop.hessian_count, prop.polarizability_count);
+  double gradient[4096];
+  size_t gradient_count = 0;
+  assert_int_equal(cpmdc_last_gradient(gradient, 4096, &gradient_count), 0);
+  assert_int_equal(gradient_count, prop.hessian_count);
+  for (size_t i = 0; i < gradient_count; ++i)
+    assert_true(fabs(gradient[i] - prop.hessian[i]) < 1e-12);
+  gradient_count = 0;
+  assert_int_equal(
+      cpmdc_session_last_gradient(session, gradient, 1, &gradient_count), -1);
+  assert_int_equal(gradient_count, prop.hessian_count);
+  CPMDCDipole dipole;
+  memset(&dipole, 0xab, sizeof(dipole));
+  assert_int_equal(cpmdc_last_dipole(&dipole), -1);
+  assert_int_equal(dipole.valid, 0);
+  assert_true(dipole.values[0] == 0.0);
 
   struct capn arena;
   assert_int_equal(capn_init_mem(&arena, out, (int)wrote, 0), 0);
@@ -128,8 +171,7 @@ static void test_all_results_through_c_and_wire(void **state) {
               1e-12);
   assert_true(capn_to_f64(capn_get64(view.mdTrajectoryRow, 11)) == 0.0);
 
-  assert_true(view.dipole.p.type != CAPN_NULL);
-  assert_int_equal(capn_len(view.dipole), 3);
+  assert_int_equal(capn_len(view.dipole), 0);
   assert_true(view.polarizability.p.type != CAPN_NULL);
   assert_int_equal(capn_len(view.polarizability), 9);
   assert_true(view.gradient.p.type != CAPN_NULL);
@@ -170,6 +212,98 @@ static void test_all_results_through_c_and_wire(void **state) {
   cpmdc_finalize();
 }
 
+static void test_gradient_limit_fails_before_evaluation(void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *session = cpmdc_session_create(params, ps);
+  assert_non_null(session);
+  double *positions = calloc(components, sizeof(*positions));
+  double *gradient = calloc(components, sizeof(*gradient));
+  int *numbers = malloc(atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+  CPMDCResult result =
+      cpmdc_session_energy_gradient(session, atoms, positions, numbers, gradient);
+  assert_int_equal(result.ok, 0);
+  assert_non_null(strstr(result.message, "at most 1365 atoms"));
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
+static void water_step(double *positions, int *numbers) {
+  static const double water[9] = {0.0, 0.0, 0.1173, 0.0, 0.7572, -0.4692,
+                                  0.0, -0.7572, -0.4692};
+  memcpy(positions, water, sizeof(water));
+  numbers[0] = 8;
+  numbers[1] = 1;
+  numbers[2] = 1;
+}
+
+static void test_topology_change_is_reported_before_the_gradient_limit(
+    void **state) {
+  (void)state;
+  enum { atoms = 1366, components = atoms * 3 };
+  size_t ps = 0;
+  unsigned char *params = read_file(g_params, &ps);
+  assert_non_null(params);
+  CPMDCSession *session = cpmdc_session_create(params, ps);
+  assert_non_null(session);
+  double *positions = calloc(components, sizeof(*positions));
+  double *gradient = calloc(components, sizeof(*gradient));
+  int *numbers = malloc(atoms * sizeof(*numbers));
+  assert_non_null(positions);
+  assert_non_null(gradient);
+  assert_non_null(numbers);
+  for (int i = 0; i < atoms; ++i)
+    numbers[i] = 1;
+
+  double water_positions[9];
+  int water_numbers[3];
+  water_step(water_positions, water_numbers);
+
+  /* A first call that is too large is refused for its size and leaves the
+   * session without a topology. Water is then accepted as the topology; the
+   * reference build has no array evaluator and says so after that. */
+  CPMDCResult big = cpmdc_session_energy_gradient(session, atoms, positions,
+                                                  numbers, gradient);
+  assert_int_equal(big.ok, 0);
+  assert_non_null(strstr(big.message, "at most 1365 atoms"));
+  CPMDCResult first = cpmdc_session_energy_gradient(
+      session, 3, water_positions, water_numbers, gradient);
+  assert_null(strstr(first.message, "topology change"));
+  assert_null(strstr(first.message, "at most 1365 atoms"));
+
+  /* The session now holds water. Another system, even one that is too
+   * large, is a topology change. */
+  CPMDCResult changed = cpmdc_session_energy_gradient(session, atoms, positions,
+                                                      numbers, gradient);
+  assert_int_equal(changed.ok, 0);
+  assert_non_null(strstr(changed.message, "topology change"));
+  assert_null(strstr(changed.message, "at most 1365 atoms"));
+  assert_non_null(strstr(cpmdc_last_error(), "topology change"));
+
+  /* The refused call did not disturb the stored topology. */
+  CPMDCResult again = cpmdc_session_energy_gradient(
+      session, 3, water_positions, water_numbers, gradient);
+  assert_null(strstr(again.message, "topology change"));
+  assert_int_equal(again.ok, first.ok);
+
+  free(numbers);
+  free(gradient);
+  free(positions);
+  cpmdc_session_destroy(session);
+  free(params);
+}
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "usage: %s params.bin step.bin\n", argv[0]);
@@ -179,7 +313,10 @@ int main(int argc, char **argv) {
   g_step = argv[2];
   const struct CMUnitTest tests[] = {
       cmocka_unit_test(test_unsupported_rejected),
+      cmocka_unit_test(test_dipole_dynamics_with_kpoints_rejected),
       cmocka_unit_test(test_all_results_through_c_and_wire),
+      cmocka_unit_test(test_gradient_limit_fails_before_evaluation),
+      cmocka_unit_test(test_topology_change_is_reported_before_the_gradient_limit),
   };
   return cmocka_run_group_tests(tests, NULL, NULL);
 }
