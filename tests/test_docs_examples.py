@@ -65,9 +65,10 @@ OPENCPMD = {
     "howto/opencpmd-archive.org:6": "an OpenCPMD source tree",
     "howto/wavefunction-optimiser.org:2": "an OpenCPMD source tree",
     "reference/feature-inventory.org:2": "an OpenCPMD source tree",
-    "tutorials/eon-rgpot.org:7": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
-    "tutorials/eon-rgpot.org:8": "transcript of an OpenCPMD run with eonclient",
-    "tutorials/eon-rgpot.org:10": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
+    "tutorials/eon-rgpot.org:8": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
+    "tutorials/eon-rgpot.org:9": "the run.log of an OpenCPMD run with eonclient",
+    "tutorials/eon-rgpot.org:12": "transcript of an OpenCPMD run with eonclient",
+    "tutorials/eon-rgpot.org:16": "libcpmdc from an OpenCPMD build, pseudopotentials, and eonclient",
     "tutorials/first-energy.org:10": "an OpenCPMD build",
     "tutorials/first-energy.org:11": "the OpenCPMD pseudopotentials",
     "tutorials/first-energy.org:12": "an OpenCPMD build and pseudopotentials",
@@ -138,7 +139,12 @@ SKIP = {
     "tutorials/eon-rgpot.org:1": "sets the environment of the eonclient build",
     "tutorials/eon-rgpot.org:2": "clones and builds rgpot",
     "tutorials/eon-rgpot.org:3": "clones and builds eOn",
-    "tutorials/eon-rgpot.org:11": "error transcript, not a command",
+    "tutorials/eon-rgpot.org:7": "runs eonclient; tests/test_tutorials_run.py runs these steps",
+    "tutorials/eon-rgpot.org:10": "expected transcript",
+    "tutorials/eon-rgpot.org:11": "expected transcript",
+    "tutorials/eon-rgpot.org:13": "expected transcript",
+    "tutorials/eon-rgpot.org:14": "expected transcript",
+    "tutorials/eon-rgpot.org:17": "error transcript, not a command",
     "tutorials/first-energy.org:0": "clones the repository",
     "tutorials/first-energy.org:1": "opens a pixi shell outside the checkout",
     "tutorials/first-energy.org:6": "expected transcript",
@@ -211,7 +217,7 @@ RUN = {
     "tutorials/eon-rgpot.org:4",
     "tutorials/eon-rgpot.org:5",
     "tutorials/eon-rgpot.org:6",
-    "tutorials/eon-rgpot.org:9",
+    "tutorials/eon-rgpot.org:15",
     "tutorials/first-energy.org:2",
     "tutorials/first-energy.org:3",
     "tutorials/first-energy.org:4",
@@ -662,7 +668,7 @@ def main() -> int:
             config.read(eon / "config.ini")
             if not (eon / config["RgpotPot"]["params_path"]).is_file():
                 return fail("tutorials/eon-rgpot.org:6 params_path names no file in eon-water")
-            shell("tutorials/eon-rgpot.org:9", found["tutorials/eon-rgpot.org:9"].body, eon, env)
+            shell("tutorials/eon-rgpot.org:15", found["tutorials/eon-rgpot.org:15"].body, eon, env)
 
             quick = found["howto/quickstart.org:4"].body.replace("tutorial-work", tmp)
             shell("howto/quickstart.org:4", quick, root, env)

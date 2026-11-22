@@ -222,6 +222,22 @@ repository root, so lychee failed on them.
 They now give the paths as code, and lychee finds no broken link inside
 the tree.
 
+### Gap seven, fresh run
+
+Gap seven stays closed. At commit `2a62d2a` `tutorials/eon-rgpot.org`
+already showed the `results.dat` and final energy of a real run.
+A fresh run of the page on a clean checkout, with its pinned rgpot and
+eOn commits and the toolchain it names, reproduced those numbers: 7 force
+calls and -464.1301944953 eV on OpenCPMD, and -4.641301944941e+02 in
+`results.dat` on four ranks. No build or run step needed a change.
+The page now also shows the default-build transcript of the same
+minimisation (39 iterations, 79 force calls, 10.63288405405 eV), eOn's
+`[Matter]` table with the force norm of each iteration, the SCF
+iterations of each force call, and the tolerances a reader should expect.
+`tests/test_tutorials_run.py` checks the default-build numbers, and the
+OpenCPMD numbers when the library links OpenCPMD, whenever an `eonclient`
+is available.
+
 ### Gaps six and eight
 
 This part grades gaps six and eight again on top of commit `7c90229`.
