@@ -3257,7 +3257,34 @@ Its QM/MM module stores cpmdc's forces as `real`, which is `float` in a
 mixed-precision build, and the 1e-10 agreement below holds only for `gmx_d`.
 
 # Set up a run
-The QM group is an index group; `qmmm-cp2k-qmmethod = INPUT` makes grompp take
+The QM group is an index group.
+For GROMACS to generate its normal CP2K input, select the same functional,
+charge, and multiplicity as the `CPMDParams` message:
+
+qmmm-cp2k-active      = true
+qmmm-cp2k-qmgroup     = QM
+qmmm-cp2k-qmmethod    = BLYP
+qmmm-cp2k-qmcharge    = 0
+qmmm-cp2k-qmmultiplicity = 1
+
+Build the `.tpr` from the `.mdp`, then name the message when running it:
+
+gmx_d grompp -f md.mdp -c conf.gro -p topol.top -n index.ndx -o md.tpr
+CPMDC_GROMACS_PARAMS=water.params.bin \
+  gmx_d mdrun -deffnm md -ntmpi 1
+
+`PBE` works in place of `BLYP` when the deck's effective functional is
+`PBE`.
+The library refuses a disagreement in the functional, charge, or
+multiplicity instead of replacing the deck value.
+
+GROMACS writes zero, not the original topology charge, for every QM atom in
+its generated PDB.
+A generated run with charged MM atoms therefore cannot obtain the
+`QM_CHARGES` needed for mechanical embedding and is refused.
+Use the explicit route below for that case.
+
+The explicit route sets `qmmm-cp2k-qmmethod = INPUT` and makes grompp take
 the cpmdc settings from the file of `-qmi`:
 
 qmmm-cp2k-active      = true
@@ -3282,8 +3309,8 @@ gives the QM atoms' classical charges, and `QM_RANKS` the ranks of an MPI
 GROMACS.
 The reference (file:../reference/gromacs.org) lists every key and what the
 library writes to `md_cp2k.out`.
-GROMACS' own generated input (`qmmethod = PBE` or `BLYP`) has no `&CPMDC`
-section and is refused.
+An explicit `&CPMDC` section takes precedence over
+`CPMDC_GROMACS_PARAMS`.
 
 # Pressure and NPT
 NPT works with a GROMACS patched as in Build (*Build).
@@ -5700,7 +5727,7 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
-`libcpmdc` exports those 51 functions and no other symbol; the exported symbols
+`libcpmdc` exports those 52 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 `schema/inventory/surface_map_abi.txt` records them; it is generated from the
 built library, and the `c-abi-inventory` test fails when the headers, the
@@ -5859,6 +5886,15 @@ Each snapshot struct starts with `int valid`, set by a successful evaluation.
 | `CPMDCDipole` | `valid` and the molecular dipole in `values[3]` | electron Bohr |
 | `CPMDCStressTensor` | row-major `values[9]`, `paiu/omega` | Hartree/Bohr^3 |
 | `CPMDCRankSpread` | `ranks`, `energy_h`, `gradient_h_bohr` (see Results of the last evaluation (*Results of the last evaluation)) | Hartree, Hartree/Bohr |
+| `CPMDCMethodInfo` | effective `functional[64]`, `charge`, and `multiplicity` decoded from `CPMDParams` | text and integers |
+
+Fields of `CPMDCMethodInfo`:
+
+| Field | Type | Meaning |
+|-------+------+---------|
+| `functional[64]` | `char` | null-terminated effective DFT functional |
+| `charge` | `int` | effective total system charge |
+| `multiplicity` | `int` | effective spin multiplicity, `2S + 1` |
 
 With OpenCPMD linked, `CPMDCEnergyComponents` fills `etot`, `ekin`, `epseu`,
 `enl`, `eht`, and `exc`; the other fields stay zero.
@@ -5960,7 +5996,8 @@ entries a call filled.
 | `void cpmdc_finalize(void)` | marks the runtime finalized; later evaluations fail with `CPMD embed not available`; does not call `MPI_Finalize` |
 | `const char *cpmdc_last_error(void)` | per-thread text of the last failing public call, empty after a success |
 
-`cpmdc_last_error()` is written by `cpmdc_set_params()`,
+`cpmdc_last_error()` is written by `cpmdc_params_method()`,
+`cpmdc_set_params()`,
 `cpmdc_configure()`, `cpmdc_bind_calculator()`, `cpmdc_adopt_calculator_comm()`,
 `cpmdc_session_create()`,
 `cpmdc_session_set_params()`, `cpmdc_session_select_orbitals()`,
@@ -5995,6 +6032,7 @@ These calls configure the process-wide state that the global array calls use.
 
 | Function | Behaviour |
 |----------+-----------|
+| `int cpmdc_params_method(const void *params, size_t size, CPMDCMethodInfo *out)` | decode the effective functional, charge, and multiplicity without applying the deck; 0 or -1 |
 | `int cpmdc_set_params(const void *params, size_t size)` | decode `CPMDParams`, render the deck, apply it; 0 or -1 |
 | `int cpmdc_configure(const void *config, size_t size)` | resolve a `PotentialConfig` and apply the result like `cpmdc_set_params()`; 0 or -1 |
 
@@ -6517,6 +6555,18 @@ Calls that choose the communicator of one calculator. See the MPI how-to for the
 These calls use the process-wide state.
 An evaluation is cold when the process has no stored basis or the basis
 differs, and warm when the basis matches.
+
+### ~cpmdc_params_method~
+
+| Item | Description |
+|--------+--------|
+| Units | `functional` is a method token, `charge` is an integer elementary-charge count, and `multiplicity` is dimensionless. |
+| Layout | `params_capnp` points at `params_capnp_size_bytes` bytes of one unpacked flat `CPMDParams` message; `out` points at one `CPMDCMethodInfo`. |
+| Ownership | The caller owns `params_capnp` and `out` and may free them on return; the library keeps nothing. |
+| Threads and MPI | Thread-safe except for the thread-local error text. MPI: local, no communication and no OpenCPMD initialization. |
+| Returns and errors | Returns 0 after filling `out`; -1 for a NULL output, a NULL or empty message, a parse failure, or unreadable effective settings. Failure text is `cpmdc_last_error()`. |
+| Python | `cpmdc.params_method` returns the corresponding frozen `cpmdc.MethodInfo`. |
+| Defaults | Top-level functional `BLYP`, charge 0 and multiplicity 1; a non-default structured DFT or SYSTEM value takes precedence. |
 
 ### ~cpmdc_set_params~
 
@@ -7597,6 +7647,15 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Ownership | Filled by `cpmdc_last_rank_spread()` into a caller-owned struct; no pointers. |
 | Python | Not wrapped. |
 
+## ~CPMDCMethodInfo~
+
+| Item | Description |
+|--------+--------|
+| Layout | `char functional[64]`, then `int charge` and `int multiplicity`. The functional is NUL-terminated. |
+| Units | none: one method token and two integer quantum numbers. |
+| Ownership | Filled by `cpmdc_params_method()` into a caller-owned struct; no pointers. |
+| Python | Wrapped as the frozen `cpmdc.MethodInfo` dataclass. |
+
 ## ~CPMDCSession~
 
 | Item | Description |
@@ -7860,6 +7919,50 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | none |
 | Defaults | `None`. |
 
+### ~cpmdc.MethodInfo~
+
+| Item | Description |
+|--------+--------|
+| Signature | `MethodInfo(functional, charge, multiplicity)` |
+| Units | none |
+| Shape and dtype | A frozen dataclass with one `str` and two `int` fields. |
+| Ownership and threads | Immutable value owned by the caller; thread-safe. |
+| Raises | none |
+| Defaults | none: all three fields are required. |
+
+### ~cpmdc.MethodInfo.functional~
+
+| Item | Description |
+|--------+--------|
+| Signature | `functional (attribute)` |
+| Units | none |
+| Shape and dtype | `str`, the effective DFT functional token. |
+| Ownership and threads | Immutable attribute of `MethodInfo`. |
+| Raises | none |
+| Defaults | No default. |
+
+### ~cpmdc.MethodInfo.charge~
+
+| Item | Description |
+|--------+--------|
+| Signature | `charge (attribute)` |
+| Units | none: an integer elementary-charge count. |
+| Shape and dtype | scalar `int`, the effective total system charge. |
+| Ownership and threads | Immutable attribute of `MethodInfo`. |
+| Raises | none |
+| Defaults | No default. |
+
+### ~cpmdc.MethodInfo.multiplicity~
+
+| Item | Description |
+|--------+--------|
+| Signature | `multiplicity (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, the effective spin multiplicity `2S + 1`. |
+| Ownership and threads | Immutable attribute of `MethodInfo`. |
+| Raises | none |
+| Defaults | No default. |
+
 ### ~cpmdc.Potential~
 
 | Item | Description |
@@ -8035,6 +8138,17 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Returns a new `Path`; stateless apart from reading the environment, so thread-safe. |
 | Raises | `CPMDCError` when no schema file is found. |
 | Defaults | `path` is `None`: `CPMDC_SCHEMA`, then the copy a wheel installs inside the package, then `schema/Potentials.capnp` in the working directory. |
+
+### ~cpmdc.params_method~
+
+| Item | Description |
+|--------+--------|
+| Signature | `params_method(params, *, library=None)` |
+| Units | none |
+| Shape and dtype | `params` is serialized `CPMDParams` bytes or a path; returns a frozen `MethodInfo`. |
+| Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
+| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, or a library failure. |
+| Defaults | `library` is `None`, using `find_library`. |
 
 ### ~cpmdc.forces_to_ev_per_angstrom~
 
@@ -10151,6 +10265,7 @@ decide which `libcpmdc` a host loads.
 
 | Variable | Host | Effect |
 |----------+------+--------|
+| `CPMDC_GROMACS_PARAMS` | `libcpmdc_gromacs` | `CPMDParams` message used when GROMACS generated `md_cp2k.inp` from an `.mdp` and `.tpr` without an explicit `&CPMDC` section; its functional, charge, and multiplicity must match the generated input |
 | `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, `RGPOT_CPMD_ENGINE` | `rgpot` `CPMDPot` and `python/cpmdc` | path of the `libcpmdc.so` to `dlopen`, tried in that order after an explicit engine path |
 | `CPMDC_PARAMS` | `examples/python/ase_energy.py` | encoded `CPMDParams` the example reads; the ASE tutorial (file:../tutorials/ase-energy.org) sets it |
 | `CPMDC_SCHEMA` | `python/cpmdc` `find_schema` | path of `schema/Potentials.capnp` for encoding `CPMDParams` text; a cell needs no schema, because the package encodes `ForceInput` itself |
@@ -10409,7 +10524,25 @@ GROMACS stores it in the `.tpr`, writes it out at `mdrun` as `md_cp2k.inp` with
 the name of the PDB file it generates, and passes both to the library.
 The PDB file gives each atom's element, whether it is QM or MM, and each MM
 atom's charge.
-The cpmdc settings are a `&CPMDC` section inside `&FORCE_EVAL`:
+
+With `qmmm-cp2k-qmmethod = PBE` or `BLYP`, GROMACS 2024.6, 2025.5,
+and 2026.4 generate this structure:
+
+- `&DFT` contains `CHARGE`, `MULTIPLICITY`, and
+  `&XC_FUNCTIONAL PBE` or `BLYP`;
+- `&QMMM` contains a periodic QM cell, QM atom indices, `ECOUPL GAUSS`,
+  and any `&LINK` sections;
+- `&SUBSYS &CELL` contains the full GROMACS box;
+- the generated PDB contains every atom, each MM topology charge, and zero
+  instead of every QM topology charge.
+
+When the input has no `&CPMDC` section,
+`CPMDC_GROMACS_PARAMS` names the `CPMDParams` message.
+The library compares its effective functional, charge, and multiplicity with
+the generated values and refuses any disagreement.
+The cell and embedding defaults are the same as below.
+
+An explicit `&CPMDC` section inside `&FORCE_EVAL` takes precedence:
 
 | Key | Meaning |
 |-----+---------|
@@ -10424,10 +10557,9 @@ The cpmdc settings are a `&CPMDC` section inside `&FORCE_EVAL`:
 | `QM_RANKS ALL` | under an MPI GROMACS, every rank of `mdrun` takes part in one cpmdc calculator; the default |
 | `QM_RANKS 1` | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
-Everything outside `&CPMDC` is checked and otherwise ignored: the method is the
-`CPMDParams` deck, not CP2K's `&DFT`.
-GROMACS' generated input (`qmmethod = PBE` or `BLYP`) has no `&CPMDC` section
-and is refused.
+On the explicit path, everything outside `&CPMDC` is checked and otherwise
+ignored: the method is the `CPMDParams` deck, not CP2K's `&DFT`.
+With neither `&CPMDC` nor `CPMDC_GROMACS_PARAMS`, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (`md_cp2k.out`):
 the cpmdc version, the atom counts, the cell and embedding modes, the number of
@@ -10500,6 +10632,15 @@ sides:
 The returned energy is the QM energy plus that Coulomb energy; both appear in
 `Quantum En.`.
 An MD step adds `O(N_k (N_QM + N_MM))` work for the reciprocal sum.
+
+GROMACS saves each QM charge as zero before it writes the generated PDB.
+No general rule can recover the original QM topology charges from
+`md_cp2k.inp` or `md_cp2k.pdb`.
+A generated input with charged MM atoms is therefore refused with a message
+naming the missing `QM_CHARGES` key.
+Use an explicit `&CPMDC` section to select `EMBEDDING MECHANICAL` and provide
+`QM_CHARGES`, or explicitly select `EMBEDDING NONE` after deciding that
+omitting the QM-MM Coulomb interaction is appropriate.
 
 Not implemented:
 
@@ -11113,6 +11254,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `ATOMIC_NUMBER_MIN`, `ATOMIC_NUMBER_MAX` | `1` and `118` (dimensionless `int`), the range of atomic numbers that `Session` and the C evaluation calls accept |
 | `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails |
 | `CpmdcError` | deprecated alias of `CPMDCError`, the same class; reading it warns with `DeprecationWarning` |
+| `MethodInfo` | `MethodInfo(functional, charge, multiplicity)`: frozen dataclass of the effective method settings decoded from `CPMDParams` (all three fields required) |
+| `MethodInfo.functional`, `MethodInfo.charge`, `MethodInfo.multiplicity` | `functional` as the functional token (`str`), `charge` as the total system charge in elementary charges (`int`), and `multiplicity` as the spin multiplicity (dimensionless `int`) |
 | `Evaluation` | `Evaluation(energy_h, forces_h_bohr, stress_h_bohr3, dipole_e_bohr=None)`: dataclass of one finished step; it compares and hashes by identity (`eq=False`) |
 | `Evaluation.energy_h`, `Evaluation.forces_h_bohr`, `Evaluation.stress_h_bohr3`, `Evaluation.dipole_e_bohr` | `energy_h` in Hartree (`float`), `forces_h_bohr` as an N by 3 `list[list[float]]` in Hartree/Bohr (the negative nuclear gradient), `stress_h_bohr3` as nine row-major Hartree/Bohr^3 values with the OpenCPMD sign `-(1/V) dE/d(strain)` or `None`, and `dipole_e_bohr` as three electron-Bohr values only when OpenCPMD recomputed the dipole for that geometry or `None` |
 | `ConstantCutoff` | `ConstantCutoff(cutoff_ry, height_ry=None, width_ry=None)`: frozen dataclass of the constant-cutoff kinetic functional in Rydberg; a field that is not a number (or is `bool`) raises `TypeError`, and one that is not finite and positive raises `ValueError` |
@@ -11135,6 +11278,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Potential.close` | `close()`: close the owned `Session` (idempotent) |
 | `find_library` | `find_library(path=None)`: return the `Path` of `libcpmdc`; tries an explicit `path` first, then `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE` in that order, then `.cpmdc.mesonpy.libs/libcpmdc.so` and `.cpmdc.mesonpy.libs/libcpmdc.dylib` beside the package, then `ctypes.util.find_library("cpmdc")`, then `build/libcpmdc.so` and `build/libcpmdc.dylib` in the working directory; raises `CPMDCError` when not found |
 | `find_schema` | `find_schema(path=None)`: return the `Path` of `schema/Potentials.capnp` for `capnp encode` of `CPMDParams` text; tries an explicit `path` first, then `CPMDC_SCHEMA`, then the wheel's `cpmdc/schema/Potentials.capnp`, then `schema/Potentials.capnp` in the working directory; raises `CPMDCError` when not found |
+| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer or a failed call |
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
 | `dipole_to_e_angstrom` | `dipole_to_e_angstrom(dipole_e_bohr)`: convert a three-component molecular dipole from electron Bohr to e*Angstrom; raises `ValueError` unless there are three components |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |
@@ -11241,6 +11385,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 
 | Symbol | Role | Header | Build | Stub | Feature row |
 |--------+------+--------+-------+------+-------------|
+| `cpmdc_params_method` | setup | Y | Y | Y | Y |
 | `cpmdc_set_params` | setup | Y | Y | Y | Y |
 | `cpmdc_energy_gradient` | step, arrays | Y | Y | Y | Y |
 | `cpmdc_energy` | step, arrays | Y | Y | Y | Y |
@@ -11293,13 +11438,13 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_feature_table` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_find` | discovery | Y | Y | Y | Y |
 
-51 symbols in `abi_symbols`, 51 with every column present.
+52 symbols in `abi_symbols`, 52 with every column present.
 
 # Exported symbols
 `schema/inventory/surface_map_abi.txt` is generated by
 `scripts/abi_inventory.py` from the exported symbols of `libcpmdc` (`nm -D --defined-only`, or `nm -gU` on macOS; `NM` names another `nm`) and the declarations in `include/cpmdc.h`
 and `include/cpmdc_features.h`.
-It lists the 51 public functions with their header, the ABI generation
+It lists the 52 public functions with their header, the ABI generation
 (`CPMDC_ABI_VERSION`, 0), and a `@since` column that stays `-` until a
 declaration records a later generation.
 `libcpmdc` exports exactly those symbols: internal glue is hidden (see the C ABI reference (file:c-abi.org)
