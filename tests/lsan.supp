@@ -1,4 +1,2 @@
-# Frame _dl_catch_exception in ld-linux. GCC 14 LeakSanitizer reports
-# 24 bytes from the dynamic linker while dlopen loads libcpmdc. The
-# allocation is in the loader, not in cpmdc.
-leak:_dl_catch_exception
+# rdma-core's libibverbs registers a driver while libfabric is loaded.
+leak:libibverbs.so

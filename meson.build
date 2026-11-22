@@ -13,32 +13,57 @@ add_project_arguments(
 fc = meson.get_compiler('fortran')
 has_sanitize = get_option('b_sanitize') not in ['', 'none']
 # An ASan libcpmdc loaded by ctypes aborts unless the ASan runtime is the
-# first library of the interpreter process. Those tests also compile samples
-# with gcc, which inherits the preload. CPython, its extension modules, and
-# cc1 do not free their pools, so LeakSanitizer aborts them. Leak detection
-# stays on for the C and Fortran tests, which do not preload.
+# first library of the interpreter process. Those tests also start a compiler,
+# which inherits the preload. CPython, its extension modules, and the compiler
+# do not free their pools, so LeakSanitizer aborts them. Leak detection stays
+# on for serial C and Fortran tests that do not preload; MPI and pwscale tests
+# disable it in tests/run_mpi_test.py.
+fs = import('fs')
 asan_preload_env = {}
-if 'address' in get_option('b_sanitize').split(',') and cc.get_id() == 'gcc'
-  asan_preload_env = {
-    'LD_PRELOAD': run_command(
+if 'address' in get_option('b_sanitize').split(',')
+  asan_runtime = ''
+  if cc.get_id() == 'gcc'
+    asan_probe = run_command(
       cc.cmd_array(),
       '-print-file-name=libasan.so',
       check: true,
-    ).stdout().strip(),
-    'ASAN_OPTIONS': 'halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0',
-  }
+    ).stdout().strip()
+    if asan_probe != '' and fs.is_file(asan_probe)
+      asan_runtime = asan_probe
+    endif
+  elif cc.get_id() == 'clang' and host_machine.system() == 'linux'
+    foreach asan_rt_name : ['libclang_rt.asan-' + host_machine.cpu_family() + '.so', 'libclang_rt.asan.so']
+      asan_probe = run_command(
+        cc.cmd_array(),
+        '-print-file-name=' + asan_rt_name,
+        check: false,
+      )
+      if asan_probe.returncode() == 0
+        asan_candidate = asan_probe.stdout().strip()
+        if asan_candidate != '' and asan_candidate != asan_rt_name and fs.is_file(asan_candidate)
+          asan_runtime = asan_candidate
+          break
+        endif
+      endif
+    endforeach
+    if asan_runtime != '' and cc.has_link_argument('-shared-libasan')
+      add_project_link_arguments(
+        '-shared-libasan',
+        '-Wl,-rpath,' + fs.parent(asan_runtime),
+        language: 'c',
+      )
+    else
+      asan_runtime = ''
+    endif
+  endif
+  if asan_runtime != ''
+    asan_preload_env = {
+      'LD_PRELOAD': asan_runtime,
+      'ASAN_OPTIONS': 'halt_on_error=1:abort_on_error=1:print_summary=1:detect_leaks=0',
+    }
+  endif
 endif
-# Default for every test under AddressSanitizer. tests/lsan.supp names the
-# third party frame. A test that sets its own environment still wins.
-if 'address' in get_option('b_sanitize').split(',')
-  add_test_setup(
-    'lsan',
-    env: environment({
-      'LSAN_OPTIONS': 'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
-    }),
-    is_default: true,
-  )
-endif
+asan_preload_missing = 'address' in get_option('b_sanitize').split(',') and asan_preload_env.keys().length() == 0
 quadmath_dep = fc.find_library('quadmath', required: false)
 python = find_program('python3')
 run_mpi_test = meson.current_source_dir() / 'tests' / 'run_mpi_test.py'
@@ -1097,6 +1122,17 @@ if get_option('with_tests')
     ),
     suite: ['embed'],
   )
+  shared_dlopen_test_env = environment()
+  if 'address' in get_option('b_sanitize').split(',') and host_machine.system() == 'linux'
+    shared_dlopen_test_env.set(
+      'LSAN_OPTIONS',
+      'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
+    )
+    shared_dlopen_test_env.set(
+      'CPMDC_LSAN_SYMBOLIZE_DSO',
+      'libibverbs.so.1',
+    )
+  endif
   test(
     'shared-dlopen-abi',
     executable(
@@ -1108,8 +1144,33 @@ if get_option('with_tests')
     ),
     args: [cpmdc_shared.full_path()],
     depends: [cpmdc_shared],
+    env: shared_dlopen_test_env,
     suite: ['embed', 'dlopen'],
   )
+  if 'address' in get_option('b_sanitize').split(',')
+    dlopen_leak_ctor = shared_module(
+      'test_dlopen_leak_ctor',
+      'tests/test_dlopen_leak_ctor.c',
+      c_args: common_c_args,
+    )
+    dlopen_leak_driver = executable(
+      'test_dlopen_leak_driver',
+      'tests/test_dlopen_leak_driver.c',
+      dependencies: [dl_dep],
+      c_args: common_c_args,
+    )
+    test(
+      'dlopen-leak',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_dlopen_leak.py',
+        dlopen_leak_driver.full_path(),
+        dlopen_leak_ctor.full_path(),
+      ],
+      depends: [dlopen_leak_driver, dlopen_leak_ctor],
+      suite: ['embed', 'dlopen'],
+    )
+  endif
 
   # E2E suites use the deterministic reference PEF or the linked OpenCPMD runtime.
   e2e_single_point_exe = executable(
@@ -1597,6 +1658,7 @@ test(
     ],
     suite: ['docs', 'examples'],
   )
+  asan_skip_args = ['-c', 'import sys; print("skipped: shared ASan runtime not available for preload"); sys.exit(77)']
   test(
     'reference-audit',
     python,
@@ -1630,7 +1692,7 @@ test(
   test(
     'python-api',
     python,
-    args: [
+    args: asan_preload_missing ? asan_skip_args : [
       meson.current_source_dir() / 'tests/test_python_api.py',
       meson.current_source_dir(),
       cpmdc_shared.full_path(),
@@ -1638,7 +1700,7 @@ test(
       water_periodic_params_bin.full_path(),
     ],
     env: asan_preload_env,
-    depends: [cpmdc_shared, water_params_bin, water_periodic_params_bin],
+    depends: asan_preload_missing ? [] : [cpmdc_shared, water_params_bin, water_periodic_params_bin],
     suite: ['python', 'e2e'],
     timeout: has_cpmd ? 900 : 120,
   )
@@ -1663,9 +1725,9 @@ test(
   test(
     'python-pytest',
     python,
-    args: ['-m', 'pytest', '-q', meson.current_source_dir() / 'tests/python'],
-    env: pytest_env,
-    depends: pytest_depends,
+    args: asan_preload_missing ? asan_skip_args : ['-m', 'pytest', '-q', meson.current_source_dir() / 'tests/python'],
+    env: asan_preload_missing ? {} : pytest_env,
+    depends: asan_preload_missing ? [] : pytest_depends,
     suite: ['python', 'e2e'],
     timeout: has_cpmd ? 3600 : 300,
   )
@@ -1676,7 +1738,7 @@ test(
   test(
     'docs-examples',
     python,
-    args: [
+    args: asan_preload_missing ? asan_skip_args : [
       meson.current_source_dir() / 'tests/test_docs_examples.py',
       meson.current_source_dir(),
       meson.current_build_dir(),
@@ -1686,7 +1748,7 @@ test(
       restart_test_exe.full_path(),
     ],
     env: asan_preload_env,
-    depends: [
+    depends: asan_preload_missing ? [] : [
       cpmdc_shared,
       water_params_bin,
       water_force_bin,
@@ -1701,7 +1763,7 @@ test(
   test(
     'tutorials-run',
     python,
-    args: [
+    args: asan_preload_missing ? asan_skip_args : [
       meson.current_source_dir() / 'tests/test_tutorials_run.py',
       meson.current_source_dir(),
       meson.current_build_dir(),
@@ -1709,7 +1771,7 @@ test(
       water_params_bin.full_path(),
     ],
     env: asan_preload_env,
-    depends: [cpmdc_shared, water_params_bin],
+    depends: asan_preload_missing ? [] : [cpmdc_shared, water_params_bin],
     suite: ['docs', 'examples', 'e2e'],
     timeout: has_cpmd ? 900 : 180,
   )
