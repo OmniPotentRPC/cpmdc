@@ -1114,6 +1114,17 @@ if get_option('with_tests')
     ),
     suite: ['embed'],
   )
+  shared_dlopen_test_env = environment()
+  if 'address' in get_option('b_sanitize').split(',') and host_machine.system() == 'linux'
+    shared_dlopen_test_env.set(
+      'LSAN_OPTIONS',
+      'suppressions=' + meson.current_source_dir() / 'tests/lsan.supp',
+    )
+    shared_dlopen_test_env.set(
+      'CPMDC_LSAN_SYMBOLIZE_DSO',
+      'libibverbs.so.1',
+    )
+  endif
   test(
     'shared-dlopen-abi',
     executable(
@@ -1125,6 +1136,7 @@ if get_option('with_tests')
     ),
     args: [cpmdc_shared.full_path()],
     depends: [cpmdc_shared],
+    env: shared_dlopen_test_env,
     suite: ['embed', 'dlopen'],
   )
   if 'address' in get_option('b_sanitize').split(',')
