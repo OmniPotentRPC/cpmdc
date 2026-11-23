@@ -10,13 +10,14 @@
  * cpmdc forces in process. GROMACS adds the energy to its "Quantum En."
  * term (F_EQM), which enters the potential and the conserved energy.
  *
- * The input is the file of grompp -qmi with qmmm-cp2k-qmmethod = INPUT.
- * GROMACS checks it for CHARGE, MULTIPLICITY, RUN_TYPE ENERGY_FORCE,
- * COORD_FILE_FORMAT PDB, CHARGE_EXTENDED TRUE, and COORD_FILE_NAME, and at
- * mdrun writes it out with the name of the PDB file it generates. That PDB
- * gives every atom's element, whether it is QM or MM, and the classical
- * charge of each MM atom (QM atoms carry 0: grompp removes their charges).
- * The cpmdc settings sit in a &CPMDC section:
+ * The input is either the file of grompp -qmi with
+ * qmmm-cp2k-qmmethod = INPUT, or GROMACS' generated PBE/BLYP input with the
+ * CPMDParams message named by CPMDC_GROMACS_PARAMS. The generated
+ * functional, charge, and multiplicity must match that message. GROMACS
+ * writes the input at mdrun with the name of the PDB file it generates.
+ * That PDB gives every atom's element, whether it is QM or MM, and the
+ * classical charge of each MM atom (QM atoms carry 0: grompp removes their
+ * charges). An explicit &CPMDC section takes precedence and contains:
  *
  *   PARAMS path           CPMDParams message (required)
  *   CELL PERIODIC|NONE    send the GROMACS box to cpmdc, or the deck's cell
@@ -65,6 +66,7 @@
 
 #include <complex.h>
 #include <ctype.h>
+#include <limits.h>
 #ifdef __ELF__
 #include <dlfcn.h>
 #endif
@@ -118,6 +120,7 @@ typedef struct {
   CPMDCSession *session;
   int adopted;
   int cell_mode, qm_ranks;
+  int generated_input;
   int nqm;
   int *qm_index, *qm_z;
   double *qm_x, *qm_prev, *qm_f;
@@ -220,9 +223,12 @@ static int words(char *line, char **out, int max) {
       break;
     }
   char *save = NULL;
-  for (char *tok = strtok_r(line, " \t\r", &save); tok && n < max;
-       tok = strtok_r(NULL, " \t\r", &save))
+  for (char *tok = strtok_r(line, " \t\r", &save); tok;
+       tok = strtok_r(NULL, " \t\r", &save)) {
+    if (n >= max)
+      return -1;
     out[n++] = tok;
+  }
   return n;
 }
 
@@ -234,9 +240,65 @@ static double number(Env *env, const char *text, const char *key) {
   return v;
 }
 
+static int integer(Env *env, const char *text, const char *key) {
+  char *end = NULL;
+  long value = strtol(text, &end, 10);
+  if (end == text || *end != '\0' || value < INT_MIN || value > INT_MAX)
+    die(env, "%s value %s is not an integer", key, text);
+  return (int)value;
+}
+
+static void copy_token_checked(Env *env, char *dst, size_t cap,
+                               const char *src, const char *field) {
+  size_t n = strlen(src);
+  if (n >= cap)
+    die(env, "%s token is too long (%zu bytes, max %zu)", field, n, cap - 1);
+  memcpy(dst, src, n + 1);
+}
+
+static int is_section(const char *word, const char *name) {
+  return word[0] == '&' && strcasecmp(word + 1, name) == 0;
+}
+
+static int in_section(char sections[][32], int depth, const char *name) {
+  for (int i = 0; i < depth; ++i)
+    if (strcasecmp(sections[i], name) == 0)
+      return 1;
+  return 0;
+}
+
+static void push_section(Env *env, char sections[][32], int *depth, const char *word) {
+  size_t n = strlen(word + 1);
+  if (n == 0)
+    die(env, "empty section name %s", word);
+  if (n >= sizeof(sections[0]))
+    die(env, "section name %s is too long", word);
+  if (*depth >= 32)
+    die(env, "too many nested sections in generated input");
+  memcpy(sections[*depth], word + 1, n + 1);
+  *depth += 1;
+}
+
+static void pop_section(Env *env, char sections[][32], int *depth, char **w, int n) {
+  if (*depth == 0)
+    die(env, "unexpected &END without an open section");
+  if (n > 2)
+    die(env, "&END takes at most one section name");
+  if (n == 2 && strcasecmp(sections[*depth - 1], w[1]) != 0)
+    die(env, "&END %s closes %s", w[1], sections[*depth - 1]);
+  *depth -= 1;
+}
+
 static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_cap) {
   char *text = read_file(env, path, NULL, "the QM/MM input");
   int in_cpmdc = 0, saw_cpmdc = 0, nq = 0, capq = 64;
+  char sections[32][32] = {{0}};
+  int depth = 0;
+  int saw_charge = 0, saw_multiplicity = 0, saw_functional = 0;
+  int generated_charge = 0, generated_multiplicity = 0;
+  char generated_charge_text[64] = {0};
+  char generated_multiplicity_text[64] = {0};
+  char generated_functional[64] = {0};
   char *params_path = NULL;
   pdb_path[0] = '\0';
   env->cell_mode = CELL_DEFAULT;
@@ -249,21 +311,68 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   for (char *line = strtok_r(text, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
     char *w[256];
     int n = words(line, w, 256);
+    if (n < 0)
+      die(env, "%s has a line with too many tokens", path);
     if (n == 0)
       continue;
     if (strcasecmp(w[0], "&LINK") == 0)
       die(env, "%s has a &LINK section: cpmdc-gromacs supports QM regions of whole "
                "molecules only, without QM-MM covalent bonds",
           path);
-    if (strcasecmp(w[0], "COORD_FILE_NAME") == 0 && n >= 2) {
-      snprintf(pdb_path, pdb_cap, "%s", w[1]);
+    if (strcasecmp(w[0], "COORD_FILE_NAME") == 0) {
+      if (n != 2)
+        die(env, "COORD_FILE_NAME takes one value");
+      copy_token_checked(env, pdb_path, pdb_cap, w[1], "COORD_FILE_NAME");
+      continue;
+    }
+    if (!in_cpmdc && strcasecmp(w[0], "&END") == 0) {
+      pop_section(env, sections, &depth, w, n);
+      continue;
+    }
+    if (!in_cpmdc && w[0][0] == '&') {
+      if (is_section(w[0], "CPMDC")) {
+        if (n != 1)
+          die(env, "&CPMDC takes no value");
+        in_cpmdc = 1;
+        saw_cpmdc = 1;
+        continue;
+      }
+      if (n > 2)
+        die(env, "%s takes at most one value", w[0]);
+      if (is_section(w[0], "XC_FUNCTIONAL")) {
+        if (!in_section(sections, depth, "DFT"))
+          continue;
+        if (n != 2)
+          die(env, "&XC_FUNCTIONAL in &DFT takes one value");
+        copy_token_checked(env, generated_functional, sizeof(generated_functional),
+                           w[1], "&XC_FUNCTIONAL");
+        saw_functional = 1;
+      }
+      push_section(env, sections, &depth, w[0]);
+      continue;
+    }
+    if (!in_cpmdc && strcasecmp(w[0], "CHARGE") == 0) {
+      if (!in_section(sections, depth, "DFT"))
+        continue;
+      if (n != 2)
+        die(env, "CHARGE in &DFT takes one value");
+      copy_token_checked(env, generated_charge_text, sizeof(generated_charge_text),
+                         w[1], "CHARGE");
+      saw_charge = 1;
+      continue;
+    }
+    if (!in_cpmdc && strcasecmp(w[0], "MULTIPLICITY") == 0) {
+      if (!in_section(sections, depth, "DFT"))
+        continue;
+      if (n != 2)
+        die(env, "MULTIPLICITY in &DFT takes one value");
+      copy_token_checked(env, generated_multiplicity_text,
+                         sizeof(generated_multiplicity_text), w[1],
+                         "MULTIPLICITY");
+      saw_multiplicity = 1;
       continue;
     }
     if (!in_cpmdc) {
-      if (strcasecmp(w[0], "&CPMDC") == 0) {
-        in_cpmdc = 1;
-        saw_cpmdc = 1;
-      }
       continue;
     }
     if (strcasecmp(w[0], "&END") == 0) {
@@ -326,18 +435,63 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
       die(env, "unknown &CPMDC keyword %s", w[0]);
     }
   }
+  if (!in_cpmdc && depth != 0)
+    die(env, "%s ended with an open section &%s", path, sections[depth - 1]);
   free(text);
-  if (!saw_cpmdc)
-    die(env, "%s has no &CPMDC section. Set qmmm-cp2k-qmmethod = INPUT and pass the "
-             "cpmdc input to grompp with -qmi",
-        path);
-  if (!params_path)
+  if (!saw_cpmdc) {
+    const char *fallback = getenv("CPMDC_GROMACS_PARAMS");
+    if (!fallback || !*fallback)
+      die(env, "%s has no &CPMDC section and CPMDC_GROMACS_PARAMS is not set. "
+               "Set it to a CPMDParams message, or use "
+               "qmmm-cp2k-qmmethod = INPUT with an explicit &CPMDC section",
+          path);
+    if (!saw_functional)
+      die(env, "%s has no &XC_FUNCTIONAL value", path);
+    if (!saw_charge)
+      die(env, "%s has no CHARGE value", path);
+    if (!saw_multiplicity)
+      die(env, "%s has no MULTIPLICITY value", path);
+    generated_charge =
+        integer(env, generated_charge_text, "generated input CHARGE");
+    generated_multiplicity = integer(env, generated_multiplicity_text,
+                                     "generated input MULTIPLICITY");
+    params_path = strdup(fallback);
+    if (!params_path)
+      die(env, "out of memory");
+    env->generated_input = 1;
+  } else if (!params_path) {
     die(env, "&CPMDC needs PARAMS, the path of a CPMDParams message");
+  }
   if (pdb_path[0] == '\0')
     die(env, "%s names no COORD_FILE_NAME", path);
   env->params = read_file(env, params_path, &env->params_len, "the CPMDParams message");
   if (env->params_len == 0)
     die(env, "the CPMDParams message %s is empty", params_path);
+  if (env->generated_input) {
+    CPMDCMethodInfo method;
+    if (cpmdc_params_method(env->params, env->params_len, &method) != 0) {
+      const char *why = cpmdc_last_error();
+      if (!why || !*why)
+        die(env, "cannot read CPMDC_GROMACS_PARAMS deck %s", params_path);
+      die(env, "cannot read CPMDC_GROMACS_PARAMS deck %s: %s", params_path,
+          why);
+    }
+    if (strcasecmp(generated_functional, method.functional) != 0)
+      die(env,
+          "generated input functional %s disagrees with "
+          "CPMDC_GROMACS_PARAMS functional %s",
+          generated_functional, method.functional);
+    if (generated_charge != method.charge)
+      die(env,
+          "generated input CHARGE %d disagrees with CPMDC_GROMACS_PARAMS "
+          "charge %d",
+          generated_charge, method.charge);
+    if (generated_multiplicity != method.multiplicity)
+      die(env,
+          "generated input MULTIPLICITY %d disagrees with "
+          "CPMDC_GROMACS_PARAMS multiplicity %d",
+          generated_multiplicity, method.multiplicity);
+  }
   free(params_path);
   env->qm_charges_listed = nq;
 }
@@ -354,6 +508,8 @@ static void parse_pdb(Env *env, const char *path) {
       continue;
     char *w[32];
     int nw = words(line, w, 32);
+    if (nw < 0)
+      die(env, "%s: atom line %d has too many tokens", path, n + 1);
     if (nw < 6)
       die(env, "%s: cannot read the atom line %d", path, n + 1);
     if (n == cap) {
@@ -412,6 +568,12 @@ static void parse_pdb(Env *env, const char *path) {
   if (env->cell_mode == CELL_DEFAULT)
     env->cell_mode = nmm == 0 ? CELL_PERIODIC : CELL_NONE;
   if (env->embedding == EMBED_UNSET) {
+    if (charged_mm && env->generated_input)
+      die(env,
+          "generated GROMACS input has charged MM atoms but no QM_CHARGES; "
+          "GROMACS writes zero instead of the QM topology charges. Use an "
+          "explicit &CPMDC section with EMBEDDING MECHANICAL and QM_CHARGES, "
+          "or select EMBEDDING NONE");
     if (charged_mm)
       die(env, "the MM atoms carry charges: set &CPMDC EMBEDDING MECHANICAL (with "
                "QM_CHARGES) or EMBEDDING NONE");

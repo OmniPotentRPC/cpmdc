@@ -49,12 +49,14 @@ __all__ = [
     "CPMDCError",
     "ConstantCutoff",
     "Evaluation",
+    "MethodInfo",
     "Potential",
     "Session",
     "find_library",
     "find_schema",
     "dipole_to_e_angstrom",
     "forces_to_ev_per_angstrom",
+    "params_method",
     "stress_to_ev_per_angstrom3",
 ]
 
@@ -141,6 +143,15 @@ class Evaluation:
     dipole_e_bohr: list[float] | None = None
 
 
+@dataclass(frozen=True)
+class MethodInfo:
+    """Effective functional, charge, and multiplicity of ``CPMDParams``."""
+
+    functional: str
+    charge: int
+    multiplicity: int
+
+
 class _CResult(ctypes.Structure):
     _fields_ = [
         ("ok", ctypes.c_int),
@@ -163,6 +174,14 @@ class _CDipole(ctypes.Structure):
         ("valid", ctypes.c_int),
         ("_pad", ctypes.c_int),
         ("values", ctypes.c_double * 3),
+    ]
+
+
+class _CMethodInfo(ctypes.Structure):
+    _fields_ = [
+        ("functional", ctypes.c_char * 64),
+        ("charge", ctypes.c_int),
+        ("multiplicity", ctypes.c_int),
     ]
 
 
@@ -475,6 +494,12 @@ def _load(path: Path) -> ctypes.CDLL:
         lib = ctypes.CDLL(str(path))
     except OSError as exc:
         raise CPMDCError(f"failed to load {path}") from exc
+    lib.cpmdc_params_method.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_size_t,
+        ctypes.POINTER(_CMethodInfo),
+    ]
+    lib.cpmdc_params_method.restype = ctypes.c_int
     lib.cpmdc_session_create.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
     lib.cpmdc_session_create.restype = ctypes.c_void_p
     lib.cpmdc_session_destroy.argtypes = [ctypes.c_void_p]
@@ -541,9 +566,36 @@ def _load(path: Path) -> ctypes.CDLL:
     lib.cpmdc_version.restype = ctypes.c_char_p
     lib.cpmdc_abi_version.argtypes = []
     lib.cpmdc_abi_version.restype = ctypes.c_int
+    if not hasattr(lib, "cpmdc_available"):
+        raise CPMDCError(
+            f"{path} has no cpmdc_available symbol; use a newer libcpmdc"
+        )
     lib.cpmdc_available.argtypes = []
     lib.cpmdc_available.restype = ctypes.c_int
     return lib
+
+
+def params_method(
+    params: bytes | str | os.PathLike[str],
+    *,
+    library: str | os.PathLike[str] | None = None,
+) -> MethodInfo:
+    """Return the effective scalar method settings in ``CPMDParams``."""
+    blob = Path(params).read_bytes() if not isinstance(params, bytes) else params
+    if not blob:
+        raise CPMDCError("CPMDParams buffer is empty")
+    lib = _load(find_library(library))
+    buffer = ctypes.create_string_buffer(blob)
+    method = _CMethodInfo()
+    if lib.cpmdc_params_method(buffer, len(blob), ctypes.byref(method)) != 0:
+        raw = lib.cpmdc_last_error()
+        if raw is None or not raw:
+            raise CPMDCError("cpmdc_params_method failed without an error message")
+        raise CPMDCError(raw.decode("utf-8", "replace"))
+    functional = bytes(method.functional).split(b"\0", 1)[0].decode(
+        "utf-8", "replace"
+    )
+    return MethodInfo(functional, int(method.charge), int(method.multiplicity))
 
 
 def _message(result: _CResult) -> str:

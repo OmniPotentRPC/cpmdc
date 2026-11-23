@@ -168,6 +168,7 @@ decide which ~libcpmdc~ a host loads.
 
 | Variable | Host | Effect |
 |----------+------+--------|
+| ~CPMDC_GROMACS_PARAMS~ | ~libcpmdc_gromacs~ | ~CPMDParams~ message used when GROMACS generated ~md_cp2k.inp~ from an ~.mdp~ and ~.tpr~ without an explicit ~&CPMDC~ section; its functional, charge, and multiplicity must match the generated input |
 | ~CPMDC_LIBRARY~, ~RGPOT_CPMDC_ENGINE~, ~RGPOT_CPMD_ENGINE~ | ~rgpot~ ~CPMDPot~ and ~python/cpmdc~ | path of the ~libcpmdc.so~ to ~dlopen~, tried in that order after an explicit engine path |
 | ~CPMDC_PARAMS~ | ~examples/python/ase_energy.py~ | encoded ~CPMDParams~ the example reads; the [[file:../tutorials/ase-energy.org][ASE tutorial]] sets it |
 | ~CPMDC_SCHEMA~ | ~python/cpmdc~ ~find_schema~ | path of ~schema/Potentials.capnp~ for encoding ~CPMDParams~ text; a cell needs no schema, because the package encodes ~ForceInput~ itself |

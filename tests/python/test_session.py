@@ -256,6 +256,61 @@ def test_old_error_name_is_the_same_class():
         cpmdc.NoSuchName
 
 
+def test_params_method_reads_effective_scalars(params):
+    method = cpmdc.params_method(params)
+    assert method == cpmdc.MethodInfo(
+        functional="BLYP", charge=0, multiplicity=1
+    )
+
+
+def _encode_params_text(tmp_path, text):
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("capnp is not on PATH")
+    done = subprocess.run(
+        [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+        input=text.encode(),
+        stdout=subprocess.PIPE,
+        check=True,
+    )
+    path = tmp_path / "params.bin"
+    path.write_bytes(done.stdout)
+    return path
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        (
+            """(
+  functional = "BLYP",
+  inputSections = [ ( raw = "&DFT\\n FUNCTIONAL\\n  PBE\\n&END\\n" ) ]
+)""",
+            "raw section opens &DFT",
+        ),
+        (
+            """(
+  functional = "BLYP",
+  inputSections = [ ( generic = ( name = "SYSTEM", directives = [ ( keyword = "CHARGE", args = ["2"] ) ] ) ) ]
+)""",
+            "generic section opens &SYSTEM",
+        ),
+        (
+            """(
+  functional = "BLYP",
+  inputSections = [ ( set = ( key = "SYSTEM.CHARGE", value = "2" ) ) ]
+)""",
+            "SYSTEM scalar set directive",
+        ),
+    ],
+    ids=["raw-dft", "generic-system", "set-charge"],
+)
+def test_params_method_rejects_opaque_scalar_sections(tmp_path, text, message):
+    params = _encode_params_text(tmp_path, text)
+    with pytest.raises(CPMDCError, match=message):
+        cpmdc.params_method(params)
+
+
 def test_repeated_geometry_is_deterministic(params):
     with Session(params) as session:
         first = session.energy_forces(WATER, [8, 1, 1])
@@ -382,3 +437,19 @@ def test_available_matches_the_build(params):
             "dipole": bool(library.cpmdc_available()),
             "energies": False,
         }
+
+
+def test_load_rejects_library_without_available_symbol(monkeypatch):
+    class NoAvailableProxy:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            if name == "cpmdc_available":
+                raise AttributeError(name)
+            return getattr(self._inner, name)
+
+    original = ctypes.CDLL(str(cpmdc.find_library()))
+    monkeypatch.setattr(cpmdc.ctypes, "CDLL", lambda _path: NoAvailableProxy(original))
+    with pytest.raises(CPMDCError, match="has no cpmdc_available symbol"):
+        cpmdc._load(cpmdc.find_library())

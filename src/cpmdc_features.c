@@ -1291,6 +1291,7 @@ static const CPMDCFeatureEntry g_features[] = {
     CPMDC_PARAM_FEATURE("params.inputSections.set.key"),
     CPMDC_PARAM_FEATURE("params.inputSections.set.value"),
     CPMDC_PARAM_FEATURE("params.inputSections.raw"),
+    {"abi.cpmdc_params_method", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_set_params", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_energy_gradient", CPMDC_FEATURE_ABI, 1, 1},
     {"abi.cpmdc_energy", CPMDC_FEATURE_ABI, 1, 1},

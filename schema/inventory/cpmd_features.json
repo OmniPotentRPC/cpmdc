@@ -287,6 +287,7 @@
  ],
  "abi_symbols": [
   "cpmdc_set_params",
+  "cpmdc_params_method",
   "cpmdc_energy_gradient",
   "cpmdc_energy",
   "cpmdc_energy_forces",
@@ -10791,6 +10792,13 @@
    "kind": "structured_params_field",
    "name": "raw",
    "section": "raw",
+   "stub_applicable": true,
+   "embed_applicable": true
+  },
+  {
+   "feature_id": "abi.cpmdc_params_method",
+   "kind": "abi",
+   "name": "cpmdc_params_method",
    "stub_applicable": true,
    "embed_applicable": true
   },
