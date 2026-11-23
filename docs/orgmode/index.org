@@ -77,7 +77,7 @@ composition requires a new session.
      - Install dependencies, a prefix build, or the ``cpmdc[ase]`` wheel
      - :doc:`Install and build <howto/install>`
    * - Link a real OpenCPMD archive
-     - Apply the patches in ``tools/`` and build a portable ``-fPIC`` archive
+     - Apply the patches in ``tools/`` and build with ``-fPIC`` and ``-march=x86-64`` or ``-march=armv8-a``
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - Turn a CPMD deck into a message
      - Pick typed section fields before raw deck text
