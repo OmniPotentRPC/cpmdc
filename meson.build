@@ -460,6 +460,8 @@ bindir_opt = get_option('bindir')
 libdir_opt = get_option('libdir')
 resolved_bindir = fs.is_absolute(bindir_opt) ? bindir_opt : install_prefix / bindir_opt
 resolved_libdir = fs.is_absolute(libdir_opt) ? libdir_opt : install_prefix / libdir_opt
+includedir_opt = get_option('includedir')
+resolved_includedir = fs.is_absolute(includedir_opt) ? includedir_opt : install_prefix / includedir_opt
 install_lib_from_bin = fs.relative_to(resolved_libdir, resolved_bindir).replace('\\', '/')
 if install_lib_from_bin == '' or fs.is_absolute(install_lib_from_bin) or install_lib_from_bin.contains(':') or install_lib_from_bin.contains('$')
   error('cannot express an install run path from ' + resolved_bindir + ' to ' + resolved_libdir + ' (' + install_lib_from_bin + ')')
@@ -659,11 +661,22 @@ if not get_option('with_gromacs_shim').disabled() and not get_option('with_pytho
   # build/tools/gromacs here and <libdir>/cpmdc/gromacs once installed.
   subdir('tools/gromacs/pkgconfig')
 endif
-pc_up = ['${pcfiledir}']
-foreach _ : range(get_option('libdir').split('/').length() + 1)
-  pc_up += ['..']
+# pc files live in <libdir>/pkgconfig. Counting libdir components walks
+# above the prefix for libdir '.' or a path that contains '..', and joining
+# that prefix onto an absolute includedir writes the absolute path into the
+# file. fs.relative_to from the pkgconfig directory matches install_exe_rpath.
+pc_pkgdir = resolved_libdir / 'pkgconfig'
+pc_prefix_rel = fs.relative_to(install_prefix, pc_pkgdir).replace('\\', '/')
+pc_includedir_rel = fs.relative_to(resolved_includedir, pc_pkgdir).replace('\\', '/')
+pc_libdir_rel = fs.relative_to(resolved_libdir, pc_pkgdir).replace('\\', '/')
+foreach rel : [pc_prefix_rel, pc_includedir_rel, pc_libdir_rel]
+  if rel == '' or fs.is_absolute(rel) or rel.contains(':') or rel.contains('$')
+    error('cannot express a pkg-config path from ' + pc_pkgdir + ' (' + rel + ')')
+  endif
 endforeach
-pc_prefix = '/'.join(pc_up)
+pc_prefix = pc_prefix_rel == '.' ? '${pcfiledir}' : '${pcfiledir}/' + pc_prefix_rel
+pc_includedir = pc_includedir_rel == '.' ? '${pcfiledir}' : '${pcfiledir}/' + pc_includedir_rel
+pc_libdir = pc_libdir_rel == '.' ? '${pcfiledir}' : '${pcfiledir}/' + pc_libdir_rel
 foreach pc_spec : [
   [
     'cpmdc-restart',
@@ -678,8 +691,8 @@ foreach pc_spec : [
 ]
   pc_conf = configuration_data()
   pc_conf.set('PREFIX', pc_prefix)
-  pc_conf.set('INCLUDEDIR', pc_prefix / get_option('includedir'))
-  pc_conf.set('LIBDIR', '${pcfiledir}/..')
+  pc_conf.set('INCLUDEDIR', pc_includedir)
+  pc_conf.set('LIBDIR', pc_libdir)
   pc_conf.set('NAME', pc_spec[0])
   pc_conf.set('LIB', pc_spec[1])
   pc_conf.set('DESCRIPTION', pc_spec[2])
@@ -2622,6 +2635,28 @@ test(
         meson.current_source_dir(),
         '--build-root',
         meson.current_build_dir() / 'installed-runpath',
+        '--meson',
+        meson_prog.full_path(),
+        '--cc',
+        cc.cmd_array().length() > 1 ? cc.cmd_array()[1] : cc.cmd_array()[0],
+        '--fc',
+        fc.cmd_array().length() > 1 ? fc.cmd_array()[1] : fc.cmd_array()[0],
+      ],
+      is_parallel: false,
+      timeout: 1200,
+      suite: 'packaging',
+    )
+  endif
+  if meson_prog.found()
+    test(
+      'cpmdc-installed-pkgconfig-layouts',
+      python,
+      args: [
+        meson.current_source_dir() / 'tests/test_installed_pkgconfig_layouts.py',
+        '--source-dir',
+        meson.current_source_dir(),
+        '--build-root',
+        meson.current_build_dir() / 'installed-pkgconfig-layouts',
         '--meson',
         meson_prog.full_path(),
         '--cc',
