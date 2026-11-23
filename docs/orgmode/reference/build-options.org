@@ -61,13 +61,22 @@ These suites group the tests of the default build by layer.
 
 | Suite | Tests |
 |-------+-------|
-| ~stub~ | ~tests/test_stub_abi.c~, and when MPI is found ~adopt-comm-stub~ and ~bind-calculator-stub~, which run on four ranks |
-| ~abi~ | exported header and feature-discovery surface |
-| ~cmocka~, ~capnp~ | structured ~CPMDParams~ deck rendering |
-| ~params~, ~inventory~ | schema field coverage and CPMD catalog feature IDs |
+| ~stub~ | ~stub-abi~, ~capabilities-cmocka~, ~stub-abi-symbol-coverage~, and when MPI is found ~adopt-comm-stub~ and ~bind-calculator-stub~ on four ranks |
+| ~abi~ | exported header, symbol-table, baseline, and feature-discovery checks |
+| ~cmocka~, ~capnp~, ~capnp-fortran~ | structured ~CPMDParams~ deck rendering, Fortran bridge application, and cmocka unit checks |
+| ~params~, ~inventory~, ~schema~ | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
+| ~cpmdc~ | geometry RMSD and ~CPMDC_WARM_RMSD~ warm-start selector checks |
 | ~socket~ | ~ForceInput~ sizing and session ~PotentialResult~ buffer contract |
-| ~e2e~ | one-shot and session calls through the deterministic reference evaluator |
-| ~docs~ | the documentation examples and the reference contract |
+| ~embed~, ~dlopen~, ~mpi~ | Fortran embed shell, ~dlopen~ ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests |
+| ~e2e~, ~fd-check~ | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
+| ~python~ | Python bindings, ~pytest~ suite, ~mypy~ strict check (skips without ~mypy~), and Python reference audit |
+| ~restart~ | ~libcpmdc_restart~ binary ~RESTART~ reader/writer and header macro checks |
+| ~packaging~ | installed ~RUNPATH~, relocatable ~pkg-config~ layouts, and CMake/pkg-config consumer build |
+| ~docs~, ~examples~ | ~example-host-step~, runnable documentation blocks, ~llms.txt~ freshness, and API reference contracts |
+
+Opt-in options add ~restart-con~ (~-Dwith_readcon=true~), ~pwscale~
+(~-Dwith_pwscale=true~), and ~opencpmd~ plus ~water~ (~-Dwith_cpmd=true~ with a
+non-empty ~cpmd_root~).
 
 In the ~e2e~ suite, ~e2e-single-point~ runs ~cpmdc_calculate_result~ and
 ~cpmdc_energy_forces~ on one ~ForceInput~.

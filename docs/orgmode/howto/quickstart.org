@@ -11,9 +11,10 @@ The default build compiles the parser, the generated Cap'n Proto readers, the
 shared ~libcpmdc~, the feature table, the session runtime, and the deterministic
 reference evaluator.
 
-Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:
+Install Meson, Ninja, CMake, pkg-config, Cap'n Proto, cmocka, C, C++, and
+Fortran compilers, Rust (~cargo~), and Python 3 with ASE, ~pytest~, and ~i-PI~
+(see [[file:install.org][Install and build]] for version floors and offline
+subprojects), or use the checked-in Pixi environment:
 
 #+begin_src bash
 pixi run test-stub
@@ -30,7 +31,11 @@ meson test -C build --print-errorlogs
 The run passes when every configured test passes: parser, ABI, feature
 inventory, session lifecycle, result sizing, unit conversion, and the
 reference-evaluator E2E tests.
-The tests that need OpenCPMD report ~SKIP~.
+OpenCPMD-only Meson tests (~water-capnp-cli-parity~, ~box-cell-energy~,
+~embed-teardown~, and ~scf-unconverged~) are registered only when OpenCPMD is
+linked; in the default build ~extrapolate-wfn~ reports ~SKIP~
+(~cpmdc_available() == 0~), OpenCPMD sub-cases inside the cmocka executables
+skip internally, and ~python-mypy-strict~ reports ~SKIP~ when ~mypy~ is absent.
 
 * Work Loop
 Build once, then iterate with focused tests.
@@ -41,9 +46,9 @@ default suite when the focused command passes.
 |--------+---------|
 | Build definitions or dependencies | ~meson setup --reconfigure build~ |
 | One named contract, such as an inventory, ABI, or docs test | ~meson test -C build <test-name> --print-errorlogs~ |
-| Deck rendering or Cap'n Proto fixtures | ~meson test -C build --suite cmocka --print-errorlogs~ |
+| Deck rendering or Cap'n Proto fixtures | ~meson test -C build --suite cmocka --print-errorlogs~ or ~pixi run test-cmocka~ |
 | Session lifecycle, topology, or units | ~meson test -C build --suite e2e --print-errorlogs~ or ~pixi run test-e2e~ |
-| Public prose, Org sources, or API headers | ~pixi run -e docs sphinxbld~ |
+| Public prose, Org sources, or API headers | ~python3 scripts/generate_llms_txt.py~, ~meson test -C build --suite docs --print-errorlogs~, ~pixi run -e docs docbld~, and ~pixi run -e docs lychee~ |
 | The link to an OpenCPMD archive | ~CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs~ |
 | Anything, before publishing | ~meson test -C build --print-errorlogs~ |
 
@@ -66,7 +71,7 @@ run on four ranks when MPI is found.
 ~examples/host_step.c~ is a minimal C host for the public ABI.
 It reads one serialized ~CPMDParams~ file and one serialized ~ForceInput~ file,
 creates a ~CPMDCSession~, sizes the ~PotentialResult~ output, evaluates one
-step, and prints the result summary.
+step, reads ~cpmdc_last_energy_components()~, and prints the result summary.
 
 #+begin_src bash
 meson test -C build example-host-step --print-errorlogs
@@ -78,6 +83,10 @@ The example output has this shape:
 energy_h=...
 potential_result_size_bytes=...
 message=...
+ener_com_etot=...
+ener_com_ekin=...
+ener_com_exc=...
+ener_com_eht=...
 #+end_src
 
 The Meson test feeds the example from the fixture binaries of the E2E suites,
@@ -106,9 +115,11 @@ The same C ABI links against a patched OpenCPMD archive instead of the reference
 evaluator.
 Build the archive as the [[file:opencpmd-archive.org][archive how-to]]
 describes, then follow [[file:install.org][the install how-to]] to
-configure ~build-cpmd~ with ~-Dwith_cpmd=true~.
-With ~with_cpmd=true~ the water Cap'n Proto parity tests are added and the long
-E2E tests run the linked archive.
+configure ~build-cpmd~ with ~-Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build~.
+Both options are required before ~meson.build~ links the archive: that build
+adds ~water-capnp-cli-parity~, ~box-cell-energy~, ~embed-teardown~, and
+~scf-unconverged~, and runs ~extrapolate-wfn~ plus the ~e2e~ and ~mpi~ suites
+against the linked archive.
 When a build or a call fails, see
 [[file:troubleshooting.org][troubleshooting]].
 
