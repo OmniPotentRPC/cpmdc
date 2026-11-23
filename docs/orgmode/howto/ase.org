@@ -361,13 +361,13 @@ session and opens a new one from the same ~params~.
 
 ~calc.parameters~ holds ~params~, ~library~, and ~constant_cutoff~, with
 absolute paths.
-~calc.todict()~ returns them for a trajectory or a database row, and leaves out
-a ~params~ buffer given as bytes, because bytes are not JSON data.
+~calc.todict()~ returns them for a trajectory or a database row.
+A ~params~ buffer given as bytes is encoded as standard Base64 under
+~{"cpmdparams_base64": ...}~, so the dictionary stays JSON data and still
+rebuilds the same calculator.
 ~CPMDCCalculator(**calc.todict())~ builds an equal calculator in any working
 directory, and ~CPMDCCalculator(parameters="calc.ase")~ reads a file written by
 ~calc.parameters.write("calc.ase")~.
-A calculator built from bytes has no ~params~ in ~todict()~, so rebuilding it
-from that dictionary raises ~TypeError~ that asks for ~params~.
 
 ASE rebuilds a calculator from ~calc.name~ and ~calc.todict()~, in a trajectory,
 an ~ase.db~ row, and ~PythonSubProcessCalculator~, and asks no pickling of a

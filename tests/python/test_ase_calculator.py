@@ -589,7 +589,8 @@ def test_set_returns_changes_and_resets(calc, params, periodic_params, calls):
     assert atoms.get_potential_energy() != first
     blob = params.read_bytes()
     assert calc.set(params=blob) == {"params": blob}
-    assert calc.todict() == {}
+    saved = calc.todict()
+    assert saved["params"].keys() == {"cpmdparams_base64"}
     assert atoms.get_potential_energy() == first
     assert len(calls) == 3
 
@@ -1121,6 +1122,20 @@ def test_library_and_bytearray_params_round_trip(params):
             calc.set(library=str(Path(library).parent / "missing.so"))
         assert calc.parameters["library"] == library
         assert atoms.get_potential_energy() == energy
+
+
+@pytest.mark.parametrize(
+    ("value", "error", "message"),
+    [
+        ({"base64": "QQ=="}, TypeError, "cpmdparams_base64"),
+        ({"cpmdparams_base64": 1}, TypeError, "cpmdparams_base64"),
+        ({"cpmdparams_base64": "***"}, ValueError, "valid standard base64"),
+    ],
+)
+def test_todict_params_mapping_is_validated(params, value, error, message):
+    with CPMDCCalculator(params) as calc:
+        with pytest.raises(error, match=message):
+            calc.set(params=value)
 
 
 @pytest.mark.parametrize(

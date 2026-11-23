@@ -47,3 +47,28 @@ def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
     with pytest.raises(ValueError, match="multiplicity must be 1 or more"):
         write_qmi(tmp_path / "bad.qmi", "water.bin", multiplicity=0)
     assert not (tmp_path / "bad.qmi").exists()
+
+
+@pytest.mark.parametrize(
+    ("params", "error", "fragment"),
+    [
+        (b"water.bin", TypeError, "params must be a path string or path-like object"),
+        (bytearray(b"water.bin"), TypeError, "params must be a path string or path-like object"),
+        ("", ValueError, "params must not be empty"),
+    ],
+)
+def test_params_path_is_validated(params, error, fragment):
+    with pytest.raises(error, match=fragment):
+        qmi_input(params)
+
+
+@pytest.mark.parametrize(
+    ("path", "error", "fragment"),
+    [
+        (b"water.qmi", TypeError, "path must be a path string or path-like object"),
+        ("", ValueError, "path must not be empty"),
+    ],
+)
+def test_write_qmi_target_path_is_validated(tmp_path, path, error, fragment):
+    with pytest.raises(error, match=fragment):
+        write_qmi(path, tmp_path / "water.bin")

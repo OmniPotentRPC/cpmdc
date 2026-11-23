@@ -61,6 +61,17 @@ _CELLS = ("PERIODIC", "NONE")
 _EMBEDDINGS = ("MECHANICAL", "NONE")
 
 
+def _path_text(value: Any, what: str) -> str:
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        raise TypeError(f"{what} must be a path string or path-like object, got {type(value).__name__}")
+    text = os.fspath(value)
+    if not isinstance(text, str):
+        raise TypeError(f"{what} must resolve to text, got {type(text).__name__}")
+    if not text:
+        raise ValueError(f"{what} must not be empty")
+    return text
+
+
 def _number(value: Any, what: str, *, positive: bool = False) -> str:
     if isinstance(value, bool) or not isinstance(value, Real):
         raise TypeError(f"{what} must be a real number, got {type(value).__name__}")
@@ -122,7 +133,7 @@ def qmi_input(
     multiplicity_value = _integer(multiplicity, "multiplicity")
     if multiplicity_value < 1:
         raise ValueError(f"multiplicity must be 1 or more, got {multiplicity!r}")
-    lines = ["&CPMDC", f"  PARAMS {os.fspath(params)}"]
+    lines = ["&CPMDC", f"  PARAMS {_path_text(params, 'params')}"]
     if cell is not None:
         cell = cell.upper()
         if cell not in _CELLS:
@@ -189,7 +200,7 @@ def write_qmi(
     multiplicity: int = 1,
 ) -> Path:
     """Write :func:`qmi_input` to ``path`` and return it; the options are those of :func:`qmi_input`."""
-    target = Path(path)
+    target = Path(_path_text(path, "path"))
     text = qmi_input(
         params,
         cell=cell,
