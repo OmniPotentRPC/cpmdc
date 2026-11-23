@@ -12355,19 +12355,3 @@ when the atomic numbers are reordered.
 The eOn tutorial (file:eon-rgpot.org) drives exactly that loop from a
 minimiser, and running under mpirun (file:../howto/mpi.org) spreads each SCF
 over several ranks.
-
-
-## File: docs/orgmode/tutorials/quickstart.org
-
-:orphan:
-
-.. raw:: html
-
-   <meta http-equiv="refresh" content="0; url=../howto/quickstart.html">
-
-
-# Build and test cpmdc
-This page moved to Build and test cpmdc (file:../howto/quickstart.org) under
-the how-to guides.
-The suite list there names the stub tests, including `adopt-comm-stub` and
-`bind-calculator-stub` on four ranks when MPI is found.
