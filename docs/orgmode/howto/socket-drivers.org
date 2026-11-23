@@ -94,6 +94,14 @@ It exits with status 0 after ~EXIT~ or when the server closes the
 connection between messages, with status 1 and a message on standard
 error after an error, and with status 2 for a usage error.
 
+Each driver evaluates when the server's ~POSDATA~ message arrives and sends
+the stored result when ~GETFORCE~ asks for it.
+~cpmdc-ipi~ holds one Python ~Session~ and evaluates through
+~Session.energy_forces()~ in ~python/cpmdc/ipi.py~, which calls
+~cpmdc_session_energy_forces()~ without a cell, or
+~cpmdc_session_calculate_forces()~ when the step sends a cell that is not all
+zero and ~--cluster~ is not set.
+
 * From ASE
 ~SocketIOCalculator~ without ~calc~ binds the socket and waits for a client.
 Start ~cpmdc-ipi~ against the same name, then use the calculator as any
@@ -220,6 +228,8 @@ The species in i-PI's structure, in the LAMMPS data file, and in
 ~cpmdc-ipi-c~ speaks the same protocol from C, through
 ~cpmdc_session_calculate_au()~ of the [[file:../reference/c-abi.org][C ABI]], with no Python
 interpreter.
+It holds one ~CPMDCSession *~ and calls ~cpmdc_session_calculate_au()~ in
+~tools/cpmdc_ipi.c~ directly with Bohr arrays and the virial output.
 Meson builds it from ~tools/cpmdc_ipi.c~ on platforms with UNIX sockets and
 installs it in ~bin~ beside ~libcpmdc~; the wheel ships ~cpmdc-ipi~ instead.
 It links ~libcpmdc~ and finds it through its run path, so no

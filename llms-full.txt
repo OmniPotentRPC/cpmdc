@@ -361,6 +361,7 @@ library.
 | Fortran decode | `src/cpmdc_embed_apply_params.f90`, generated `capnp-fortran` readers | the scalar method knobs, read on the Fortran side |
 | Engine bridge | `src/cpmd_embed_c_api.F90` | `bind(C)` entry points; the reference evaluator, or with `CPMDC_HAS_CPMD` the calls into OpenCPMD |
 | Support | `src/cpmdc_memfd.c`, `src/cpmd_stop_intercept.c` | the in-memory deck file and working-directory switch; the `stopgm` catch |
+| Host helpers | `src/cpmdc_embed_host.c`, declared in `src/cpmdc_embed_host.h` | the pseudopotential directory (`CPMDC_PSEUDO_DIR`, else `CPMD_PP_LIBRARY_PATH`) and the map that returns species-block gradients to atom order; the same header declares the working-directory switch of `src/cpmdc_memfd.c`, which enters the pseudopotential directory while CPMD reads the files and returns to the host directory, and the note of an embed failure for the C result path, which `src/cpmdc.c` defines |
 | Discovery | `src/cpmdc_features.c`, `src/cpmdc_capabilities.c` | the feature table and the `Capabilities` message |
 | Stub | `src/cpmdc_stub.c` | the same symbols for link checks; calls that need OpenCPMD fail, and `cpmdc_adopt_calculator_comm` still returns the calculator index when MPI is linked |
 
@@ -4684,6 +4685,14 @@ It exits with status 0 after `EXIT` or when the server closes the
 connection between messages, with status 1 and a message on standard
 error after an error, and with status 2 for a usage error.
 
+Each driver evaluates when the server's `POSDATA` message arrives and sends
+the stored result when `GETFORCE` asks for it.
+`cpmdc-ipi` holds one Python `Session` and evaluates through
+`Session.energy_forces()` in `python/cpmdc/ipi.py`, which calls
+`cpmdc_session_energy_forces()` without a cell, or
+`cpmdc_session_calculate_forces()` when the step sends a cell that is not all
+zero and `--cluster` is not set.
+
 # From ASE
 `SocketIOCalculator` without `calc` binds the socket and waits for a client.
 Start `cpmdc-ipi` against the same name, then use the calculator as any
@@ -4798,6 +4807,8 @@ The species in i-PI's structure, in the LAMMPS data file, and in
 `cpmdc-ipi-c` speaks the same protocol from C, through
 `cpmdc_session_calculate_au()` of the C ABI (file:../reference/c-abi.org), with no Python
 interpreter.
+It holds one `CPMDCSession *` and calls `cpmdc_session_calculate_au()` in
+`tools/cpmdc_ipi.c` directly with Bohr arrays and the virial output.
 Meson builds it from `tools/cpmdc_ipi.c` on platforms with UNIX sockets and
 installs it in `bin` beside `libcpmdc`; the wheel ships `cpmdc-ipi` instead.
 It links `libcpmdc` and finds it through its run path, so no
@@ -5833,7 +5844,7 @@ sources directly; the Python package loads only public functions.
 
 | Item | Convention |
 |------+------------|
-| Parameter buffers | unpacked flat Cap'n Proto messages: `CPMDParams`, `PotentialConfig`, or `ForceInput` from `schema/Potentials.capnp` |
+| Parameter buffers | unpacked flat Cap'n Proto messages: `CPMDParams`, `PotentialConfig`, or `ForceInput` from `schema/Potentials.capnp`; the header does not redefine their fields as a C struct |
 | Positions in array calls | Angstrom, `3 * n_atoms` doubles, atom-major (`x0 y0 z0 x1 ...`) |
 | Energy in `CPMDCResult` | Hartree |
 | Gradient and force arrays | Hartree/Bohr; forces are the negative gradient |
@@ -5849,6 +5860,8 @@ sources directly; the Python package loads only public functions.
 | Ownership | the caller owns every buffer it passes; the library copies what it keeps |
 | Threads | one process-wide CPMD state; serialize calls into one library instance |
 
+The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other
+Cap'n Proto binding that writes the standard flat stream format.
 `ForceInput` unit strings are matched without regard to case.
 Length: `angstrom`, `angstroms`, `a`, `aa`, `bohr`, `au`, `a.u.`, `atomic`,
 `nm`, `nanometer`.
@@ -6047,7 +6060,7 @@ A capabilities return of -1 is the size query.
 | Function | Behaviour |
 |----------+-----------|
 | `int cpmdc_bind_calculator(int ranks_per_calc)` | collective on `MPI_COMM_WORLD`; splits the world into calculators of `ranks_per_calc` consecutive ranks, group `g` holding world ranks `g * ranks_per_calc` to `(g + 1) * ranks_per_calc - 1`; the world size must be a multiple of `ranks_per_calc`, with no remainder group, and any other world size or a value above it returns -1 on every rank and splits nothing; `ranks_per_calc <= 0` means the world size, one calculator; returns this rank's calculator index `world_rank / ranks_per_calc`, or -1 when the world size is not a multiple, `MPI_Comm_split` returns an error, or the library has no CPMD backend; on an OpenCPMD build it calls `MPI_Init` when MPI is not running, and the reference build and the link stub return -1 without calling MPI; a later call does not split again and returns the index its own `ranks_per_calc` gives, or -1 on every rank when that value does not divide the world size or is above it, and the existing split stays |
-| `int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)` | collective on the caller's communicator; reads rank and size from that communicator; does not call `MPI_Init` or `MPI_Comm_split`; when `ranks_per_calc > 0` the adopted size must equal it, and a mismatch returns -1 with both numbers in `cpmdc_last_error()`; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same `ranks_per_calc > 0` on every rank enforces; an OpenCPMD build stores the communicator as `mp_comm_world`; a later call replaces it when no live `CPMDCSession` has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
+| `int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)` | collective on the caller's communicator; reads rank and size from that communicator; does not call `MPI_Init` or `MPI_Comm_split`; when `ranks_per_calc > 0` the adopted size must equal it, and a mismatch returns -1 with both numbers in `cpmdc_last_error()`; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same `ranks_per_calc > 0` on every rank enforces; the handle is borrowed, so the caller keeps ownership and does not free the communicator until the last session is destroyed or a later adopt replaces it; an OpenCPMD build stores the communicator as `mp_comm_world`; a later call replaces it when no live `CPMDCSession` has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
 | `int cpmdc_adopted_comm(void *out, size_t nbytes)` | copies the stored calculator communicator into `out` (on an OpenCPMD build, `mp_comm_world`); returns 0, or -1 when no communicator is stored; does not write `cpmdc_last_error()` |
 
 `cpmdc_bind_calculator()` splits at most once per process, so call it before the first evaluation.
@@ -6239,8 +6252,13 @@ volume (`cell volume is too large for binary64` or ~cell volume is not
 representable for stress~).
 `cpmdc_session_calculate_result()` writes the required byte count to `*out_size`
 before it checks `capacity`.
-When `capacity` is too small it returns `ok == 0` with
-`PotentialResult buffer too small` and does not evaluate.
+When `capacity` is too small, or `out` is `NULL`, it returns `ok == 0` with
+`PotentialResult buffer too small` and does not evaluate; this is the contract
+of the session result call of the NWChem library `nwchemc` as well.
+`out_size` is required: a `NULL` there fails with `ok == 0`, and it is set to 0
+when the `ForceInput` does not parse or its geometry is invalid.
+A `forces_len` below `3 * n_atoms` fails `cpmdc_session_calculate_forces()`
+with `ok == 0`.
 The written `PotentialResult` carries `energy` and `forces` in the requested
 units, `stress`, `gradient`, `dipole`, `polarizability`, and the `cpmdc`
 extension fields `energyComponents`, `chargeIntegrals`, `multiStateEnergies`,
@@ -6329,6 +6347,9 @@ Use a session for more than one step.
 # Results of the last evaluation
 Each getter copies a snapshot into `*out` and returns 0 when `out->valid` is
 set, -1 otherwise.
+A host reads the energy terms in Hartree through
+`cpmdc_last_energy_components()` without parsing CLI `ENERGY` files or opening a
+network socket.
 The plain form reads the calculator that ran last: the active session, or the
 global state after a global call.
 The `session` form reads that session's own last result, also after another
