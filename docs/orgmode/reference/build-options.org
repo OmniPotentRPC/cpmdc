@@ -20,8 +20,8 @@ Pass one as ~-DNAME=VALUE~ to ~meson setup~.
 | ~with_gromacs_shim~ | feature | ~auto~ | build ~libcpmdc_gromacs~ and ~libcp2k.pc~ for the GROMACS QM/MM interface (see [[file:../howto/gromacs.org][the GROMACS how-to]]) |
 
 Meson takes the project version from ~version.txt~.
-~pyproject.toml~ keeps the Python package version dynamic from that Meson
-version, not from VCS tags.
+~pyproject.toml~ leaves the Python package version dynamic and takes it from
+that Meson version.
 
 Configuration stops when ~with_cpmd=true~ and ~DIR/lib/libcpmd.a~ or
 ~DIR/obj/timetag.o~ is missing.
