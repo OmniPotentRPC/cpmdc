@@ -39,6 +39,7 @@ Importing this module imports ASE. ``import cpmdc`` does not.
 from __future__ import annotations
 
 import functools
+import base64
 import os
 import warnings
 from contextlib import AbstractContextManager, nullcontext
@@ -94,6 +95,11 @@ _NO_DIPOLE = (
     "has no electronic dipole, and OpenCPMD recomputes one only for a periodic "
     "Gamma-point deck with DIPOLE DYNAMICS or PROP DIPOLE MOMENT BERRY"
 )
+_PARAMS_INLINE_B64_KEY = "cpmdparams_base64"
+_PARAMS_INLINE_B64_ERROR = (
+    "params mapping must be "
+    "{'cpmdparams_base64': '<standard-base64-bytes>'}"
+)
 
 
 class CalculationFailed(CPMDCError, _ASECalculationFailed):
@@ -127,6 +133,20 @@ def _params_bytes(params: Any) -> bytes:
         return handle.read()
 
 
+def _inline_params_blob(value: Any) -> bytes:
+    if not isinstance(value, dict) or set(value) != {_PARAMS_INLINE_B64_KEY}:
+        raise TypeError(_PARAMS_INLINE_B64_ERROR)
+    encoded = value[_PARAMS_INLINE_B64_KEY]
+    if not isinstance(encoded, str):
+        raise TypeError(_PARAMS_INLINE_B64_ERROR)
+    try:
+        return base64.b64decode(encoded.encode("ascii"), validate=True)
+    except (UnicodeEncodeError, ValueError) as exc:
+        raise ValueError(
+            f"params[{_PARAMS_INLINE_B64_KEY!r}] is not valid standard base64"
+        ) from exc
+
+
 def _param_value(key: str, value: Any) -> Any:
     if value is None:
         return None
@@ -139,6 +159,8 @@ def _param_value(key: str, value: Any) -> Any:
         return cutoff.todict()
     if key == "params" and isinstance(value, (bytearray, memoryview)):
         return bytes(value)
+    if key == "params" and isinstance(value, dict):
+        return _inline_params_blob(value)
     if isinstance(value, bytes):
         return value
     path = os.fspath(value)
@@ -296,13 +318,18 @@ class CPMDCCalculator(Calculator):
     def todict(self, skip_default: bool = True) -> dict[str, Any]:
         """Parameters for a trajectory or a database row.
 
-        A ``params`` buffer given as bytes is not JSON data and is left
-        out. A path is kept absolute, so ``CPMDCCalculator(**todict())``
-        reads the same files from any working directory.
+        A ``params`` buffer given as bytes is stored as standard base64
+        under ``{"cpmdparams_base64": ...}``, so
+        ``CPMDCCalculator(**todict())`` rebuilds the same calculator from
+        JSON data. A path is kept absolute, so
+        ``CPMDCCalculator(**todict())`` also reads the same files from any
+        working directory.
         """
         dct: dict[str, Any] = Calculator.todict(self, skip_default=skip_default)
         if isinstance(dct.get("params"), bytes):
-            del dct["params"]
+            dct["params"] = {
+                _PARAMS_INLINE_B64_KEY: base64.b64encode(dct["params"]).decode("ascii")
+            }
         return dct
 
     def reset(self) -> None:

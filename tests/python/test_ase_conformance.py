@@ -1050,12 +1050,20 @@ def test_todict_rebuilds_the_calculator_from_another_directory(
         clone.close()
 
 
-def test_a_bytes_message_is_left_out_of_todict_and_named_on_rebuild(params):
-    with CPMDCCalculator(Path(params).read_bytes()) as calc:
+def test_a_bytes_message_round_trips_through_todict(params, tolerance):
+    blob = Path(params).read_bytes()
+    with CPMDCCalculator(blob) as calc:
         saved = json.loads(json.dumps(calc.todict()))
-    assert "params" not in saved
-    with pytest.raises(TypeError, match="params is required"):
-        CPMDCCalculator(**saved)
+    assert saved["params"].keys() == {"cpmdparams_base64"}
+    rebuilt = Atoms("OHH", positions=np.array(WATER).copy())
+    with CPMDCCalculator(**saved) as calc:
+        rebuilt.calc = calc
+        through = rebuilt.get_potential_energy()
+    direct = Atoms("OHH", positions=np.array(WATER).copy())
+    with CPMDCCalculator(blob) as calc:
+        direct.calc = calc
+        expected = direct.get_potential_energy()
+    assert through == pytest.approx(expected, rel=0, abs=tolerance)
 
 
 def strain_energy(atoms: Atoms, calc: CPMDCCalculator, pair: tuple[int, int], delta: float) -> float:
