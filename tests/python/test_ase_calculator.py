@@ -17,6 +17,7 @@ import os
 import pickle
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import warnings
@@ -415,10 +416,6 @@ def test_unchanged_atoms_reuse_the_step(calc, calls):
     atoms.get_potential_energy(force_consistent=True)
     calc.get_property("energy", atoms.copy())
     assert len(calls) == 1
-    atoms.set_initial_charges([0.5, 0.0, 0.0])
-    atoms.set_initial_magnetic_moments([1.0, 0.0, 0.0])
-    atoms.get_forces()
-    assert len(calls) == 1
 
 
 @pytest.mark.parametrize(
@@ -667,12 +664,6 @@ def test_charge_and_multiplicity_come_from_cpmdparams(cluster_variant, opencpmd,
     with CPMDCCalculator(plain) as calc:
         atoms.calc = calc
         energy = atoms.get_potential_energy()
-        tagged = water()
-        tagged.set_initial_charges([2.0, 0.0, 0.0])
-        tagged.set_initial_magnetic_moments([2.0, 0.0, 0.0])
-        with CPMDCCalculator(plain) as fresh:
-            tagged.calc = fresh
-            assert tagged.get_potential_energy() == energy
         assert calc.set(params=cluster_variant(old, new)) != {}
         assert calc.results == {}
         assert atoms.get_potential_energy() != energy
@@ -1259,3 +1250,270 @@ def test_ase_plugin_resolves_cpmdc_calculator(params, opencpmd):
         np.testing.assert_allclose(
             atoms.get_forces(), other.get_forces(), rtol=1e-14, atol=force_atol
         )
+
+
+CHARGE_TWO = ("charge = 0,", "charge = 2,")
+MULTIPLICITY_THREE = ("multiplicity = 1,", "multiplicity = 3,")
+
+
+def tagged_water(charges=None, magmoms=None) -> Atoms:
+    atoms = water()
+    if charges is not None:
+        atoms.set_initial_charges(charges)
+    if magmoms is not None:
+        atoms.set_initial_magnetic_moments(magmoms)
+    return atoms
+
+
+def energy_of(blob: Path, atoms: Atoms) -> float:
+    with CPMDCCalculator(blob) as calculator:
+        atoms.calc = calculator
+        return atoms.get_potential_energy()
+
+
+def test_all_zero_atoms_leave_the_method_to_cpmdparams(cluster_variant, calls):
+    plain = cluster_variant()
+    with CPMDCCalculator(plain) as calc:
+        bare = water()
+        bare.calc = calc
+        energy = bare.get_potential_energy()
+        zeros = tagged_water([0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        zeros.calc = calc
+        assert zeros.get_potential_energy() == energy
+        assert calc._override == (None, None)
+    assert energy_of(plain, tagged_water(np.zeros(3), np.zeros(3))) == energy
+    # A cancelling set of partial charges is a total charge of zero.
+    assert energy_of(plain, tagged_water([0.5, -0.25, -0.25])) == energy
+    # Zero moments of the non-collinear shape are not a moment either.
+    assert energy_of(plain, tagged_water(None, np.zeros((3, 3)))) == energy
+    charged = cluster_variant(*CHARGE_TWO)
+    assert energy_of(charged, tagged_water(np.zeros(3), np.zeros(3))) == energy_of(
+        charged, water()
+    )
+
+
+@pytest.mark.parametrize(
+    "variant, charges, magmoms",
+    [
+        (CHARGE_TWO, [2.0, 0.0, 0.0], None),
+        (CHARGE_TWO, [0.5, 1.0, 0.5], None),
+        (MULTIPLICITY_THREE, None, [2.0, 0.0, 0.0]),
+        (MULTIPLICITY_THREE, None, [-1.0, -1.0, 0.0]),
+    ],
+    ids=["charge", "charge-spread", "multiplicity", "multiplicity-negative"],
+)
+def test_atoms_set_the_charge_and_multiplicity(
+    cluster_variant, opencpmd, variant, charges, magmoms
+):
+    if opencpmd:
+        pytest.skip("a charged or open-shell water is a separate OpenCPMD SCF")
+    plain = cluster_variant()
+    expected = energy_of(cluster_variant(*variant), water())
+    assert expected != energy_of(plain, water())
+    assert energy_of(plain, tagged_water(charges, magmoms)) == expected
+
+
+@pytest.mark.parametrize("variant", [CHARGE_TWO, MULTIPLICITY_THREE], ids=["charge", "multiplicity"])
+def test_the_edited_message_is_the_message_capnp_encodes(cluster_variant, variant):
+    from cpmdc.ase import _params_with_method
+
+    plain = cluster_variant().read_bytes()
+    encoded = cluster_variant(*variant).read_bytes()
+    charge, multiplicity = (2, None) if variant is CHARGE_TWO else (None, 3)
+    assert _params_with_method(plain, charge, multiplicity) == encoded
+    assert _params_with_method(plain, None, None) is plain
+
+
+def test_a_message_without_the_scalar_words_is_refused():
+    from cpmdc.ase import _params_with_method
+
+    root = (1 << 32) | 0
+    short = struct.pack("<II", 0, 2) + struct.pack("<Q", root) + bytes(8)
+    with pytest.raises(CPMDCError, match="data bytes"):
+        _params_with_method(short, 1, None)
+    with pytest.raises(CPMDCError, match="segment"):
+        _params_with_method(b"\0\0\0\0", 1, None)
+    far = struct.pack("<II", 0, 1) + struct.pack("<Q", 2)
+    with pytest.raises(CPMDCError, match="struct pointer"):
+        _params_with_method(far, 1, None)
+    with pytest.raises(ValueError, match="Int32"):
+        _params_with_method(short, 2**31, None)
+
+
+def test_agreeing_atoms_and_cpmdparams_are_silent(cluster_variant, opencpmd):
+    if opencpmd:
+        pytest.skip("a charged or open-shell water is a separate OpenCPMD SCF")
+    both = cluster_variant(
+        "charge = 0,\n  multiplicity = 1,", "charge = 2,\n  multiplicity = 3,"
+    )
+    expected = energy_of(both, water())
+    assert energy_of(both, tagged_water([2.0, 0.0, 0.0], [2.0, 0.0, 0.0])) == expected
+    assert energy_of(both, tagged_water([2.0, 0.0, 0.0])) == expected
+    assert energy_of(both, tagged_water(None, [-2.0, 0.0, 0.0])) == expected
+
+
+def test_a_charge_that_disagrees_with_cpmdparams_raises(cluster_variant, calls):
+    charged = cluster_variant(*CHARGE_TWO)
+    with CPMDCCalculator(charged) as calc:
+        atoms = tagged_water([1.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError) as caught:
+            atoms.get_potential_energy()
+        message = str(caught.value)
+        assert "charge 1" in message and "Atoms.initial_charges" in message
+        assert "charge 2" in message and "CPMDParams" in message
+        assert calc.results == {}
+        with pytest.raises(ValueError, match="disagrees"):
+            atoms.get_potential_energy()
+        assert calls == []
+
+
+def test_a_multiplicity_that_disagrees_with_cpmdparams_raises(cluster_variant, calls):
+    triplet = cluster_variant(*MULTIPLICITY_THREE)
+    with CPMDCCalculator(triplet) as calc:
+        atoms = tagged_water(None, [4.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError) as caught:
+            atoms.get_potential_energy()
+        message = str(caught.value)
+        assert "multiplicity 5" in message and "Atoms.initial_magmoms" in message
+        assert "multiplicity 3" in message and "CPMDParams" in message
+        assert calls == []
+
+
+def test_a_charge_that_a_typed_section_pins_is_refused(tmp_path, calls):
+    capnp = shutil.which("capnp")
+    if capnp is None:
+        pytest.skip("put capnp on PATH to encode a CPMDParams variant")
+    text = (ROOT / "tests" / "params_system_has_charge_zero.capnp.txt").read_bytes()
+    blob = tmp_path / "pinned.bin"
+    blob.write_bytes(
+        subprocess.run(
+            [capnp, "encode", str(ROOT / "schema" / "Potentials.capnp"), "CPMDParams"],
+            input=text,
+            stdout=subprocess.PIPE,
+            check=True,
+        ).stdout
+    )
+    assert cpmdc.params_method(blob).charge == 0
+    with CPMDCCalculator(blob) as calc:
+        atoms = tagged_water([2.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError, match="fixes it"):
+            atoms.get_potential_energy()
+        assert calls == []
+
+
+@pytest.mark.parametrize(
+    "charges, magmoms, message",
+    [
+        ([0.5, 0.0, 0.0], None, "Atoms.initial_charges sums to 0.5"),
+        ([0.001, 0.0, 0.0], None, "not an integer"),
+        ([0.1] * 3, None, "not an integer"),
+        (None, [0.5, 0.0, 0.0], "Atoms.initial_magmoms sums to 0.5"),
+        (None, [1.0, 0.25, 0.0], "not an integer"),
+        ([float("nan"), 0.0, 0.0], None, "non-finite"),
+        (None, [float("inf"), 0.0, 0.0], "non-finite"),
+    ],
+)
+def test_a_non_integral_total_raises(cluster_variant, calls, charges, magmoms, message):
+    with CPMDCCalculator(cluster_variant()) as calc:
+        atoms = tagged_water(charges, magmoms)
+        atoms.calc = calc
+        with pytest.raises(ValueError, match=message):
+            atoms.get_potential_energy()
+        assert calls == []
+        assert calc.results == {}
+
+
+def test_a_sum_within_float64_rounding_of_an_integer_is_accepted(cluster_variant, opencpmd):
+    if opencpmd:
+        pytest.skip("a charged water is a separate OpenCPMD SCF")
+    plain = cluster_variant()
+    expected = energy_of(cluster_variant(*CHARGE_TWO), water())
+    third = [2.0 / 3.0] * 3
+    assert energy_of(plain, tagged_water(third)) == expected
+    tenths = Atoms("H10", positions=np.arange(30.0).reshape(10, 3))
+    tenths.set_initial_charges([0.1] * 10)
+    with CPMDCCalculator(plain) as calc:
+        assert calc._method_override(tenths) == (1, None)
+
+
+def test_non_collinear_moments_raise(cluster_variant, calls):
+    with CPMDCCalculator(cluster_variant()) as calc:
+        atoms = tagged_water(None, [[0.0, 0.0, 1.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        atoms.calc = calc
+        with pytest.raises(ValueError, match="non-collinear"):
+            atoms.get_potential_energy()
+        assert calls == []
+
+
+def test_a_change_of_initial_charges_evaluates_again(cluster_variant, calls, opencpmd):
+    with CPMDCCalculator(cluster_variant()) as calc:
+        atoms = water()
+        atoms.calc = calc
+        neutral = atoms.get_potential_energy()
+        session = calc.potential
+        assert len(calls) == 1
+        atoms.set_initial_charges([2.0, 0.0, 0.0])
+        charged = atoms.get_potential_energy()
+        assert len(calls) == 2
+        assert calc.potential is not session
+        if not opencpmd:
+            assert charged != neutral
+        reopened = calc.potential
+        atoms.set_initial_charges([0.0, 2.0, 0.0])
+        assert calc.check_state(atoms) == ["initial_charges"]
+        assert atoms.get_potential_energy() == charged
+        assert len(calls) == 3
+        assert calc.potential is reopened
+        atoms.set_initial_charges([0.0, 0.0, 0.0])
+        assert atoms.get_potential_energy() == pytest.approx(
+            neutral, rel=0, abs=1e-5 if opencpmd else 0
+        )
+        assert len(calls) == 4
+        assert calc.potential is not reopened
+
+
+def test_a_change_of_params_resets_the_atoms_override(cluster_variant, calls, opencpmd):
+    if opencpmd:
+        pytest.skip("a charged water is a separate OpenCPMD SCF")
+    plain = cluster_variant()
+    charged = cluster_variant(*CHARGE_TWO)
+    with CPMDCCalculator(plain) as calc:
+        atoms = tagged_water([2.0, 0.0, 0.0])
+        atoms.calc = calc
+        energy = atoms.get_potential_energy()
+        assert calc.set(params=charged) != {}
+        assert calc._override == (None, None)
+        assert atoms.get_potential_energy() == energy
+        assert calc._override == (None, None)
+        bad = tagged_water([1.0, 0.0, 0.0])
+        bad.calc = calc
+        with pytest.raises(ValueError, match="disagrees"):
+            bad.get_potential_energy()
+
+
+def test_the_atoms_override_survives_todict_and_pickle(cluster_variant, opencpmd):
+    if opencpmd:
+        pytest.skip("a charged water is a separate OpenCPMD SCF")
+    plain = cluster_variant()
+    expected = energy_of(cluster_variant(*CHARGE_TWO), water())
+    with CPMDCCalculator(plain) as calc:
+        atoms = tagged_water([2.0, 0.0, 0.0])
+        atoms.calc = calc
+        assert atoms.get_potential_energy() == expected
+        saved = calc.todict()
+        assert set(saved) == {"params"}
+        restored = pickle.loads(pickle.dumps(calc))
+        copied = copy.deepcopy(calc)
+    with restored, copied, CPMDCCalculator(**saved) as rebuilt:
+        assert restored.todict() == saved
+        assert restored.results["energy"] == expected
+        for other in (restored, copied, rebuilt):
+            again = tagged_water([2.0, 0.0, 0.0])
+            again.calc = other
+            assert again.get_potential_energy() == expected
+            neutral = water()
+            neutral.calc = other
+            assert neutral.get_potential_energy() != expected
