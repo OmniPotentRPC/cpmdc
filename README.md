@@ -23,7 +23,7 @@ portable result carrier used by RPC-facing callers.
 
 | Need | Do this first |
 | --- | --- |
-| Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then read the matching call contract in [Embedding cpmdc](docs/orgmode/howto/embedding.org) |
+| Choose the API path first | Pick a row from [Main API Choices](#main-api-choices), then follow [Embedding cpmdc](docs/orgmode/howto/embedding.org) and read the matching call contract in the [C ABI reference](docs/orgmode/reference/c-abi.org) |
 | Run LAMMPS on cpmdc forces | Load `pair_style cpmdc` from the plugin, or attach `cpmdc.lammps.FixExternal`, as [Run LAMMPS on cpmdc forces](docs/orgmode/howto/lammps.org) shows |
 | Call it from ASE or Python | Run `pip install "cpmdc[ase]"` as in [Python Quickstart](#python-quickstart), then read [Use cpmdc as an ASE calculator](docs/orgmode/howto/ase.org), or [Call cpmdc from Python](docs/orgmode/howto/python.org) without ASE |
 | Build and test the stub library | Run the default Meson commands in [Build and Test](#build-and-test) |

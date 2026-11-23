@@ -264,6 +264,8 @@ README. `docs/orgmode/index.org` had already dropped its option-mapping
 sample and its runtime-contract table, and it links to the reference
 pages.
 
+The embedding item is closed: `howto/embedding.org` is now ordered by host task and links to `reference/c-abi.org` for the call contracts it used to repeat.
+
 ## Diataxis follow-up
 
 `tutorials/quickstart.org` is now the how-to "Build and test cpmdc" and sits

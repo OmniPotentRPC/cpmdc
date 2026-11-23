@@ -76,7 +76,7 @@ sources directly; the Python package loads only public functions.
 
 | Item | Convention |
 |------+------------|
-| Parameter buffers | unpacked flat Cap'n Proto messages: ~CPMDParams~, ~PotentialConfig~, or ~ForceInput~ from ~schema/Potentials.capnp~ |
+| Parameter buffers | unpacked flat Cap'n Proto messages: ~CPMDParams~, ~PotentialConfig~, or ~ForceInput~ from ~schema/Potentials.capnp~; the header does not redefine their fields as a C struct |
 | Positions in array calls | Angstrom, ~3 * n_atoms~ doubles, atom-major (~x0 y0 z0 x1 ...~) |
 | Energy in ~CPMDCResult~ | Hartree |
 | Gradient and force arrays | Hartree/Bohr; forces are the negative gradient |
@@ -92,6 +92,8 @@ sources directly; the Python package loads only public functions.
 | Ownership | the caller owns every buffer it passes; the library copies what it keeps |
 | Threads | one process-wide CPMD state; serialize calls into one library instance |
 
+The bytes can come from pycapnp, a memory-mapped file, rgpot, or any other
+Cap'n Proto binding that writes the standard flat stream format.
 ~ForceInput~ unit strings are matched without regard to case.
 Length: ~angstrom~, ~angstroms~, ~a~, ~aa~, ~bohr~, ~au~, ~a.u.~, ~atomic~,
 ~nm~, ~nanometer~.
@@ -300,7 +302,7 @@ A capabilities return of -1 is the size query.
 | Function | Behaviour |
 |----------+-----------|
 | ~int cpmdc_bind_calculator(int ranks_per_calc)~ | collective on ~MPI_COMM_WORLD~; splits the world into calculators of ~ranks_per_calc~ consecutive ranks, group ~g~ holding world ranks ~g * ranks_per_calc~ to ~(g + 1) * ranks_per_calc - 1~; the world size must be a multiple of ~ranks_per_calc~, with no remainder group, and any other world size or a value above it returns -1 on every rank and splits nothing; ~ranks_per_calc <= 0~ means the world size, one calculator; returns this rank's calculator index ~world_rank / ranks_per_calc~, or -1 when the world size is not a multiple, ~MPI_Comm_split~ returns an error, or the library has no CPMD backend; on an OpenCPMD build it calls ~MPI_Init~ when MPI is not running, and the reference build and the link stub return -1 without calling MPI; a later call does not split again and returns the index its own ~ranks_per_calc~ gives, or -1 on every rank when that value does not divide the world size or is above it, and the existing split stays |
-| ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no live ~CPMDCSession~ has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
+| ~int cpmdc_adopt_calculator_comm(const void *comm, size_t nbytes, int ranks_per_calc)~ | collective on the caller's communicator; reads rank and size from that communicator; does not call ~MPI_Init~ or ~MPI_Comm_split~; when ~ranks_per_calc > 0~ the adopted size must equal it, and a mismatch returns -1 with both numbers in ~cpmdc_last_error()~; the group must be one aligned block of world ranks, and any other layout returns -1 on every rank; the calculator index is the lowest world rank of that block divided by the adopted size; indices are unique when every group has the same size, which the same ~ranks_per_calc > 0~ on every rank enforces; the handle is borrowed, so the caller keeps ownership and does not free the communicator until the last session is destroyed or a later adopt replaces it; an OpenCPMD build stores the communicator as ~mp_comm_world~; a later call replaces it when no live ~CPMDCSession~ has started an evaluation, and if any rank has a live session that has evaluated every rank returns -1; a session that has not evaluated does not block it; also returns -1 when the pointer is null, MPI is not initialized, or the build has no MPI |
 | ~int cpmdc_adopted_comm(void *out, size_t nbytes)~ | copies the stored calculator communicator into ~out~ (on an OpenCPMD build, ~mp_comm_world~); returns 0, or -1 when no communicator is stored; does not write ~cpmdc_last_error()~ |
 
 ~cpmdc_bind_calculator()~ splits at most once per process, so call it before the first evaluation.
@@ -493,8 +495,13 @@ volume (~cell volume is too large for binary64~ or ~cell volume is not
 representable for stress~).
 ~cpmdc_session_calculate_result()~ writes the required byte count to ~*out_size~
 before it checks ~capacity~.
-When ~capacity~ is too small it returns ~ok == 0~ with
-~PotentialResult buffer too small~ and does not evaluate.
+When ~capacity~ is too small, or ~out~ is ~NULL~, it returns ~ok == 0~ with
+~PotentialResult buffer too small~ and does not evaluate; this is the contract
+of the session result call of the NWChem library ~nwchemc~ as well.
+~out_size~ is required: a ~NULL~ there fails with ~ok == 0~, and it is set to 0
+when the ~ForceInput~ does not parse or its geometry is invalid.
+A ~forces_len~ below ~3 * n_atoms~ fails ~cpmdc_session_calculate_forces()~
+with ~ok == 0~.
 The written ~PotentialResult~ carries ~energy~ and ~forces~ in the requested
 units, ~stress~, ~gradient~, ~dipole~, ~polarizability~, and the ~cpmdc~
 extension fields ~energyComponents~, ~chargeIntegrals~, ~multiStateEnergies~,
@@ -583,6 +590,9 @@ Use a session for more than one step.
 * Results of the last evaluation
 Each getter copies a snapshot into ~*out~ and returns 0 when ~out->valid~ is
 set, -1 otherwise.
+A host reads the energy terms in Hartree through
+~cpmdc_last_energy_components()~ without parsing CLI ~ENERGY~ files or opening a
+network socket.
 The plain form reads the calculator that ran last: the active session, or the
 global state after a global call.
 The ~session~ form reads that session's own last result, also after another
