@@ -555,11 +555,14 @@ def _load(path: Path) -> ctypes.CDLL:
         ctypes.POINTER(_CStress),
     ]
     lib.cpmdc_session_last_stress.restype = ctypes.c_int
-    lib.cpmdc_session_last_dipole.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(_CDipole),
-    ]
-    lib.cpmdc_session_last_dipole.restype = ctypes.c_int
+    # Additive at ABI 0. An older library still loads. Bind the symbol
+    # only when this build exports it.
+    if hasattr(lib, "cpmdc_session_last_dipole"):
+        lib.cpmdc_session_last_dipole.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(_CDipole),
+        ]
+        lib.cpmdc_session_last_dipole.restype = ctypes.c_int
     lib.cpmdc_last_error.argtypes = []
     lib.cpmdc_last_error.restype = ctypes.c_char_p
     lib.cpmdc_version.argtypes = []
@@ -732,14 +735,33 @@ class Session:
             float(result.energy_h), _rows(force_buf, n_atoms), tensor, dipole_value
         )
 
+    def _dipole_reader(self) -> Any:
+        return getattr(self._lib, "cpmdc_session_last_dipole", None)
+
+    def _missing_dipole_symbol(self) -> str | None:
+        """Error text when this library cannot return a dipole, else ``None``."""
+        if self._dipole_reader() is None:
+            return (
+                "this libcpmdc has no cpmdc_session_last_dipole; "
+                "use a library built from cpmdc with dipole support"
+            )
+        return None
+
     def _last_dipole(self) -> list[float] | None:
         """The dipole of the last evaluation in electron Bohr, or ``None``.
 
         Also records whether that evaluation produced one, for
-        :meth:`dipole_possible`.
+        :meth:`dipole_possible`. A library without
+        ``cpmdc_session_last_dipole`` leaves the dipole unavailable and does
+        not fail the evaluation. Requesting the dipole, as ASE does, is what
+        raises.
         """
+        reader = self._dipole_reader()
+        if reader is None:
+            self._dipole_seen = False
+            return None
         dipole = _CDipole()
-        have = self._lib.cpmdc_session_last_dipole(self._handle, ctypes.byref(dipole))
+        have = reader(self._handle, ctypes.byref(dipole))
         value = (
             [float(dipole.values[i]) for i in range(3)]
             if have == 0 and dipole.valid
@@ -751,15 +773,18 @@ class Session:
     def dipole_possible(self) -> bool:
         """Whether this session can produce a molecular dipole.
 
-        Only a library linked to OpenCPMD can, and only for a periodic
-        Gamma-point deck that asks for ``DIPOLE DYNAMICS`` or
-        ``PROP / DIPOLE MOMENT BERRY``. The reference evaluator never can.
-        Before the first evaluation the deck is not known to OpenCPMD, so a
-        linked library answers ``True``. After an evaluation the answer is
-        whether that evaluation produced a dipole. A closed session answers
-        ``False``.
+        Only a library that exports ``cpmdc_session_last_dipole`` and is
+        linked to OpenCPMD can, and only for a periodic Gamma-point deck
+        that asks for ``DIPOLE DYNAMICS`` or ``PROP / DIPOLE MOMENT BERRY``.
+        The reference evaluator never can, and neither can a library built
+        before that symbol existed. Before the first evaluation the deck is
+        not known to OpenCPMD, so a linked library that has the symbol
+        answers ``True``. After an evaluation the answer is whether that
+        evaluation produced a dipole. A closed session answers ``False``.
         """
         if not getattr(self, "_handle", None):
+            return False
+        if self._dipole_reader() is None:
             return False
         if not self.available():
             return False
@@ -893,7 +918,9 @@ class Potential:
         """Capabilities an rgpot calculator consults before a step.
 
         ``dipole`` is :meth:`Session.dipole_possible`: false for the reference
-        evaluator and for a deck whose last evaluation produced no dipole.
+        evaluator, for a library without ``cpmdc_session_last_dipole``, and
+        for a deck whose last evaluation produced no dipole. The dict is not
+        a constant: it follows that session.
         """
         return {"stress": True, "dipole": self._session.dipole_possible(), "energies": False}
 

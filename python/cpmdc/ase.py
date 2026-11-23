@@ -171,8 +171,8 @@ def _param_value(key: str, value: Any) -> Any:
 
 
 def _require_finite(evaluated: Any) -> None:
-    """Refuse a step whose energy, forces, or stress is NaN or infinite."""
-    for name in ("energy", "forces", "stress"):
+    """Refuse a step whose energy, forces, stress, or dipole is NaN or infinite."""
+    for name in ("energy", "forces", "stress", "dipole"):
         if name in evaluated and not np.all(np.isfinite(np.asarray(evaluated[name], dtype=float))):
             raise CPMDCError(f"the library returned a non-finite {name}")
 
@@ -408,7 +408,8 @@ class CPMDCCalculator(Calculator):
         if "dipole" in evaluated:
             self.results["dipole"] = np.asarray(evaluated["dipole"], dtype=float)
         else:
-            self._no_dipole = _NO_DIPOLE
+            missing = potential._session._missing_dipole_symbol()
+            self._no_dipole = missing if missing is not None else _NO_DIPOLE
             if "dipole" in properties:
                 raise PropertyNotImplementedError(self._no_dipole)
 
