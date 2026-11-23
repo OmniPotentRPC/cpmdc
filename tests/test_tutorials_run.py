@@ -188,6 +188,11 @@ def close(got: float, want: float, rel: float) -> bool:
     return abs(got - want) <= rel * max(1.0, abs(want))
 
 
+def within(got: float, want: float, tol: float) -> bool:
+    """Return whether ``got`` is within the absolute tolerance ``tol`` of ``want``."""
+    return abs(got - want) <= tol
+
+
 def eon_minimisation(root: Path, library: Path) -> int:
     """Run the eOn tutorial and compare its numbers; skip without eonclient."""
     eonclient = os.environ.get("EONCLIENT") or shutil.which("eonclient")
@@ -238,7 +243,7 @@ def eon_minimisation(root: Path, library: Path) -> int:
             if got.get(key) != want[key]:
                 return fail(f"eon results.dat {key} is {got.get(key)!r}, the page shows {want[key]!r}")
         energy_tol = 1.0e-4 if live else 1.0e-6
-        if not close(float(got["potential_energy"]), float(want["potential_energy"]), energy_tol):
+        if not within(float(got["potential_energy"]), float(want["potential_energy"]), energy_tol):
             return fail(
                 f"eon potential_energy {got['potential_energy']} is not within {energy_tol:g} of "
                 f"{want['potential_energy']}"
