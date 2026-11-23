@@ -2,7 +2,7 @@
 """Generate llms.txt and llms-full.txt from docs/orgmode and the public inventory.
 
 Follows https://llmstxt.org/ for the summary file. The full file concatenates plain
-text derived from every Org page under docs/orgmode/.
+text derived from every non-orphan Org page under docs/orgmode/.
 """
 
 from __future__ import annotations
@@ -192,10 +192,13 @@ def build_llms_full(root: Path = ROOT) -> str:
     for path in org_files:
         if path.name == "changelog.org":
             continue
+        text = path.read_text(encoding="utf-8")
+        if "\n:orphan:\n" in text:
+            continue
         rel = path.relative_to(org_root).as_posix()
         chunks.append(f"## File: docs/orgmode/{rel}")
         chunks.append("")
-        chunks.append(org_plaintext(path.read_text(encoding="utf-8")))
+        chunks.append(org_plaintext(text))
         chunks.append("")
     return "\n".join(chunks).rstrip("\n") + "\n"
 

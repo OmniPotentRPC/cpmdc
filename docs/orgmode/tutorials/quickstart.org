@@ -3,6 +3,7 @@
 
 #+begin_export rst
 :orphan:
+:nosearch:
 
 .. raw:: html
 
@@ -13,5 +14,3 @@
 * Build and test cpmdc
 This page moved to [[file:../howto/quickstart.org][Build and test cpmdc]] under
 the how-to guides.
-The suite list there names the stub tests, including ~adopt-comm-stub~ and
-~bind-calculator-stub~ on four ranks when MPI is found.

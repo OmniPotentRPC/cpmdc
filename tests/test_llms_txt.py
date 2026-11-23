@@ -80,6 +80,14 @@ def test_deterministic_generation(root: Path = ROOT) -> None:
                     raise AssertionError(
                         f"{label} leaked absolute path {marker!r}"
                     )
+            if (
+                "## File: docs/orgmode/tutorials/quickstart.org" in payload
+                or 'http-equiv="refresh"' in payload
+                or "cpmdc.rgoswami.me/tutorials/quickstart" in payload
+            ):
+                raise AssertionError(
+                    f"{label} leaked orphan redirect page tutorials/quickstart"
+                )
 
 
 def test_stale_failure_is_actionable(root: Path = ROOT) -> None:
