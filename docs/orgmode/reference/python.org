@@ -93,8 +93,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | ~cpmdc.lammps.UNIT_STYLES~ | LAMMPS unit style to (length per Bohr, energy per Hartree) for ~metal~, ~real~, ~electron~ |
 | ~cpmdc.lammps.unit_factors~ | ~unit_factors(style)~: that pair for one style; ~ValueError~ for any other |
 | ~cpmdc.lammps.box_rows~ | ~box_rows(boxlo, boxhi, xy, yz, xz)~: ~boxlo~, ~boxhi~, ~xy~, ~yz~, ~xz~ to the 3x3 cell with one lattice vector per row |
-| ~cpmdc.gromacs.qmi_input~ | ~qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, qm_ranks=None, charge=0, multiplicity=1)~: text of the grompp ~-qmi~ file (~ewald_rcut~ in nm, ~qm_ranks~ ~"ALL"~ or ~1~); ~ValueError~ or ~TypeError~ for a value the library would refuse |
-| ~cpmdc.gromacs.write_qmi~ | ~write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, qm_ranks=None, charge=0, multiplicity=1)~: write that text to ~path~ and return it |
+| ~cpmdc.gromacs.qmi_input~ | ~qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)~: text of the grompp ~-qmi~ file (~ewald_rcut~ in nm, ~qm_ranks~ ~"ALL"~ or ~1~); ~ValueError~ or ~TypeError~ for a value the library would refuse |
+| ~cpmdc.gromacs.write_qmi~ | ~write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)~: write that text to ~path~ and return it |
 | ~cpmdc.gromacs.BOHR_TO_NM~, ~HARTREE_TO_KJ_PER_MOL~, ~HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM~ | GROMACS' QM/MM conversion factors, built as ~src/gromacs/math/units.h~ builds them |
 | ~cpmdc.lammps.type_numbers~ | ~type_numbers(elements, n_types)~: atomic numbers per atom type from ~"O H"~, ~"8 1"~, or a sequence; ~ValueError~ unless there are ~n_types~ |
 

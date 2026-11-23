@@ -91,6 +91,7 @@ def qmi_input(
     qm_charges: Sequence[float] | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
+    epsilon_r: float | None = None,
     qm_ranks: str | int | None = None,
     charge: int = 0,
     multiplicity: int = 1,
@@ -120,6 +121,13 @@ def qmi_input(
         ``erfc(alpha * rcut)``, which also sets the reciprocal-space cutoff.
         The library default is ``1e-8``, assigned by
         ``tools/gromacs/cpmdc_gromacs.c`` when the key is omitted.
+    epsilon_r:
+        Relative dielectric constant dividing the mechanical-embedding QM-MM
+        Coulomb energy, forces, and virial (dimensionless, positive). The
+        library default is ``1``; GROMACS does not forward ``.mdp``
+        ``epsilon-r`` through ``libcp2k``, so pass the same value here when
+        ``epsilon-r`` differs from 1. The QM calculation itself is not
+        screened.
     qm_ranks:
         Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
         calculation on every rank mdrun gives the interface, as one cpmdc
@@ -156,6 +164,11 @@ def qmi_input(
         lines.append(f"  EWALD_RCUT {_number(ewald_rcut, 'ewald_rcut', positive=True)}")
     if ewald_precision is not None:
         lines.append(f"  EWALD_PRECISION {_number(ewald_precision, 'ewald_precision', positive=True)}")
+    if epsilon_r is not None:
+        text_eps = _number(epsilon_r, "epsilon_r", positive=True)
+        if embedding != "MECHANICAL":
+            raise ValueError("epsilon_r needs embedding='MECHANICAL'")
+        lines.append(f"  EPSILON_R {text_eps}")
     if qm_ranks is not None:
         ranks = str(qm_ranks).upper()
         if ranks not in ("ALL", "1"):
@@ -195,6 +208,7 @@ def write_qmi(
     qm_charges: Sequence[float] | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
+    epsilon_r: float | None = None,
     qm_ranks: str | int | None = None,
     charge: int = 0,
     multiplicity: int = 1,
@@ -208,6 +222,7 @@ def write_qmi(
         qm_charges=qm_charges,
         ewald_rcut=ewald_rcut,
         ewald_precision=ewald_precision,
+        epsilon_r=epsilon_r,
         qm_ranks=qm_ranks,
         charge=charge,
         multiplicity=multiplicity,

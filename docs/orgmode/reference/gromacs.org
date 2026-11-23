@@ -43,6 +43,7 @@ An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 | ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
 | ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
 | ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 10^-8 as assigned in ~tools/gromacs/cpmdc_gromacs.c~ |
+| ~EPSILON_R r~ | relative dielectric constant dividing the mechanical-embedding QM-MM Coulomb energy, forces, and virial (positive, finite); default 1; requires ~EMBEDDING MECHANICAL~ |
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
@@ -51,8 +52,9 @@ ignored: the method is the ~CPMDParams~ deck, not CP2K's ~&DFT~.
 With neither ~&CPMDC~ nor ~CPMDC_GROMACS_PARAMS~, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (~md_cp2k.out~):
-the cpmdc version, the atom counts, the cell and embedding modes, the number of
-ranks and of QM ranks, the Ewald parameters in Bohr, and, for the first step,
+the cpmdc version, the atom counts, the cell and embedding modes, the Ewald
+precision, ~epsilon_r~, the number of ranks and of QM ranks, the Ewald
+parameters in Bohr, and, for the first step,
 the backend (~opencpmd~, or ~reference~ for the evaluator of a build without
 OpenCPMD) and the QM and QM-MM energies.
 A refused input or a failed step prints ~cpmdc-gromacs:~ and the reason to
@@ -131,14 +133,47 @@ Use an explicit ~&CPMDC~ section to select ~EMBEDDING MECHANICAL~ and provide
 ~QM_CHARGES~, or explicitly select ~EMBEDDING NONE~ after deciding that
 omitting the QM-MM Coulomb interaction is appropriate.
 
+With ~EPSILON_R~ (default 1), the mechanical-embedding QM-MM Coulomb energy,
+forces, and Ewald virial are divided by ~EPSILON_R~ while the QM energy, QM
+forces, and QM virial stay unscaled, because ~cpmdc_session_calculate_au()~
+takes no dielectric constant.
+GROMACS' CP2K QM/MM module (~src/gromacs/applied_forces/qmmm/~ in 2024.6,
+2025.5, and 2026.4) never reads ~t_inputrec~ or ~t_interaction_const~ and passes
+neither the ~.mdp~ ~epsilon-r~ option (~readir.cpp~, ~interaction_const.cpp~) nor
+~epsfac~ into ~md_cp2k.inp~, ~md_cp2k.pdb~, or ~libcp2k~ (~ForceProviderInput~
+carries only coordinates, atom count, charges, masses, time, step, box, and the
+communication record).
+On the explicit ~&CPMDC~ route, set ~EPSILON_R~ to match ~.mdp~'s ~epsilon-r~
+whenever ~epsilon-r~ differs from 1; ~EPSILON_R~ is refused unless positive,
+finite, and paired with ~EMBEDDING MECHANICAL~.
+On the generated-input route (~PBE~ or ~BLYP~), any run with charged MM atoms
+is already refused for lacking ~QM_CHARGES~, so GROMACS' unforwarded
+~epsilon-r~ cannot enter a mechanical-embedding sum there.
+
+Charge precision across the interface:
+
+- ~libcpmdc_gromacs~ parses both ~QM_CHARGES~ and the MM charges in the PDB
+  file with ~strtod~ into ~double~ (refusing non-finite charges), and
+  ~cpmdc.gromacs.qmi_input~ serializes ~qm_charges~ with ~repr(float)~ at full
+  IEEE-754 ~float64~ precision;
+- upstream GROMACS (~QMMMInputGenerator::generateCP2KPdb()~ in
+  ~src/gromacs/applied_forces/qmmm/qmmminputgenerator.cpp~) formats every
+  charge written to ~md_cp2k.pdb~ with ~%lf~ (6 decimal places, rounding MM
+  charges to 10^-6 e and writing zero for magnitudes below 5e-7 e) even in a
+  double-precision build (~-DGMX_DOUBLE=ON~, where ~t_atom::q~ is ~double~), and
+  ~QMMMForceProvider::calculateForces()~ never forwards ~fInput.chargeA_~
+  through ~libcp2k~;
+- the total QM charge (~qmmm-cp2k-qmcharge~, ~CHARGE~ in ~&DFT~, and
+  ~CPMDCMethodInfo.charge~) is an integer (~int~); ~grompp~ checks the removed
+  classical charge of the QM atoms against it and warns if they differ by more
+  than 10^-5 e (~qmmmoptions.cpp~).
+
 Not implemented:
 
 - electrostatic embedding: the MM charges do not polarize the QM density.
   ~cpmdc_session_calculate_au()~ takes no external potential, so
   ~EMBEDDING ELECTROSTATIC~ is refused;
-- link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused;
-- a relative dielectric constant other than 1 in the QM-MM sum;
-- PDB charges have six decimals, the precision of GROMACS' file.
+- link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused.
 
 * QM virial
 GROMACS adds the
@@ -175,7 +210,8 @@ a symmetric strain that moves every atom with the box:
   The grid still leaves a small torque, and a symmetric strain does not see the
   antisymmetric part;
 - ~EMBEDDING MECHANICAL~ with a box: plus the strain derivative of the QM-MM
-  Ewald sum, its real-space, reciprocal, and background terms.
+  Ewald sum (its real-space, reciprocal, and background terms), divided by
+  ~EPSILON_R~.
 
 It reports the stress as unavailable with no box (~pbc = no~), and with
 ~CELL PERIODIC~ when cpmdc computes no stress: an isolated deck, or
