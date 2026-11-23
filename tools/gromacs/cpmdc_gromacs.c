@@ -299,6 +299,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
   char generated_charge_text[64] = {0};
   char generated_multiplicity_text[64] = {0};
   char generated_functional[64] = {0};
+  char xc_error[256] = {0};
   char *params_path = NULL;
   pdb_path[0] = '\0';
   env->cell_mode = CELL_DEFAULT;
@@ -337,16 +338,23 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
         saw_cpmdc = 1;
         continue;
       }
-      if (n > 2)
-        die(env, "%s takes at most one value", w[0]);
-      if (is_section(w[0], "XC_FUNCTIONAL")) {
-        if (!in_section(sections, depth, "DFT"))
-          continue;
-        if (n != 2)
-          die(env, "&XC_FUNCTIONAL in &DFT takes one value");
-        copy_token_checked(env, generated_functional, sizeof(generated_functional),
-                           w[1], "&XC_FUNCTIONAL");
-        saw_functional = 1;
+      if (is_section(w[0], "XC_FUNCTIONAL") && in_section(sections, depth, "DFT")) {
+        if (n != 2) {
+          if (xc_error[0] == '\0')
+            snprintf(xc_error, sizeof(xc_error),
+                     "&XC_FUNCTIONAL in &DFT takes one value");
+        } else {
+          size_t flen = strlen(w[1]);
+          if (flen >= sizeof(generated_functional)) {
+            if (xc_error[0] == '\0')
+              snprintf(xc_error, sizeof(xc_error),
+                       "&XC_FUNCTIONAL token is too long (%zu bytes, max %zu)",
+                       flen, sizeof(generated_functional) - 1);
+          } else {
+            memcpy(generated_functional, w[1], flen + 1);
+            saw_functional = 1;
+          }
+        }
       }
       push_section(env, sections, &depth, w[0]);
       continue;
@@ -445,6 +453,8 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
                "Set it to a CPMDParams message, or use "
                "qmmm-cp2k-qmmethod = INPUT with an explicit &CPMDC section",
           path);
+    if (xc_error[0] != '\0')
+      die(env, "%s", xc_error);
     if (!saw_functional)
       die(env, "%s has no &XC_FUNCTIONAL value", path);
     if (!saw_charge)

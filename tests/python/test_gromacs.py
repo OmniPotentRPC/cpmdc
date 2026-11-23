@@ -679,6 +679,37 @@ def test_generated_input_rejects_truncated_functional_token(params, tmp_path):
 
 
 @needs_lib
+def test_generated_input_rejects_extra_xc_functional_tokens(params, tmp_path):
+    qmi = generated_input("PBE").replace("&XC_FUNCTIONAL PBE", "&XC_FUNCTIONAL PBE EXTRA")
+    stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
+    assert "&XC_FUNCTIONAL in &DFT takes one value" in stderr
+
+
+@needs_lib
+def test_explicit_cpmdc_ignores_multivalue_section_headers(params, tmp_path):
+    qmi = qmi_input(params).replace(
+        "&SUBSYS\n",
+        "&SUBSYS\n    &KIND O H\n    &END KIND\n",
+    ).replace(
+        "&FORCE_EVAL\n",
+        "&FORCE_EVAL\n  &EXTRA a b\n  &END EXTRA\n",
+    ).replace(
+        "  &DFT\n",
+        "  &DFT\n    &XC\n      &XC_FUNCTIONAL PBE EXTRA\n      &END XC_FUNCTIONAL\n    &END XC\n",
+    )
+    inp = setup_env(
+        tmp_path,
+        qmi,
+        "OHH",
+        [True] * 3,
+        [0.0] * 3,
+        np.zeros((3, 3)),
+    )
+    shim = Shim(inp, tmp_path / "sys.out")
+    shim.close()
+
+
+@needs_lib
 @pytest.mark.parametrize(
     "case, message",
     [
