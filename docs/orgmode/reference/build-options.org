@@ -11,13 +11,17 @@ Pass one as ~-DNAME=VALUE~ to ~meson setup~.
 | ~with_cpmd~ | boolean | ~false~ | link OpenCPMD instead of the reference evaluator; takes effect only with a non-empty ~cpmd_root~ |
 | ~cpmd_root~ | string | empty | OpenCPMD build tree holding ~lib/libcpmd.a~, ~obj/~, and ~src/~ |
 | ~with_mpi~ | feature | ~auto~ | link MPI into the default library; ~disabled~ keeps it serial. ~with_cpmd~ always needs MPI |
-| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it, and it turns off the LAMMPS plugin, the GROMACS library, and the install of ~cpmdc-ipi-c~ |
+| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unsuffixed ~libcpmdc~; ~pyproject.toml~ sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of ~cpmdc-ipi-c~ |
 | ~with_readcon~ | boolean | ~false~ | link ~readcon-core~ (Rust) for ~cpmdc-restart export-con~ and ~import-con~ |
 | ~with_pwscale~ | boolean | ~false~ | build the plane-wave scaling scaffold ([[file:pwscale.org][reference]], [[file:../howto/pwscale-ranks.org][rank how-to]]); it is not on the force path |
 | ~with_pwscale_cuda~ | boolean | ~false~ | compile the CUDA backend of that scaffold |
 | ~with_lammps_plugin~ | feature | ~auto~ | build ~cpmdcplugin.so~, the LAMMPS ~pair_style cpmdc~; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
 | ~lammps_include~ | string | empty | directory holding ~lammps.h~ and ~pair.h~; empty takes ~include/lammps~ of an importable ~lammps~ Python package |
 | ~with_gromacs_shim~ | feature | ~auto~ | build ~libcpmdc_gromacs~ and ~libcp2k.pc~ for the GROMACS QM/MM interface (see [[file:../howto/gromacs.org][the GROMACS how-to]]) |
+
+Meson takes the project version from ~version.txt~.
+~pyproject.toml~ keeps the Python package version dynamic from that Meson
+version, not from VCS tags.
 
 Configuration stops when ~with_cpmd=true~ and ~DIR/lib/libcpmd.a~ or
 ~DIR/obj/timetag.o~ is missing.
@@ -41,7 +45,7 @@ match only symbols that are present.
 
 | Artifact | Installed as | Built when |
 |----------+--------------+------------|
-| ~libcpmdc~ | ~lib/libcpmdc.so.MAJOR~ | always |
+| ~libcpmdc~ | ~lib/libcpmdc.so.MAJOR~ with ~with_python~ off, and unsuffixed ~libcpmdc.so~ with ~with_python~ on | always |
 | public headers | ~include/cpmdc/cpmdc.h~, ~cpmdc_features.h~, ~cpmdc_export.h~, ~cpmdc_restart.h~ | always |
 | ~libcpmdc_restart.a~ | ~lib/libcpmdc_restart.a~ | always |
 | ~cpmdc-restart~ | ~bin/cpmdc-restart~ | always |
@@ -52,6 +56,7 @@ match only symbols that are present.
 | ~libcpmdc_gromacs~ | ~lib/libcpmdc_gromacs.so~, ~include/cpmdc/gromacs/libcp2k.h~, ~lib/cpmdc/gromacs/pkgconfig/libcp2k.pc~ | ~with_gromacs_shim~ is not disabled and ~with_python~ is off |
 
 ~MAJOR~ is the soversion, the first field of ~version.txt~.
+With ~with_python~, Meson does not set a soversion on ~libcpmdc~.
 The stub archive ~libcpmdc_stub.a~ is built for the tests and not installed.
 
 * Meson test suites
@@ -67,12 +72,17 @@ These suites group the tests of the default build by layer.
 | ~params~, ~inventory~, ~schema~ | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
 | ~cpmdc~ | geometry RMSD and ~CPMDC_WARM_RMSD~ warm-start selector checks |
 | ~socket~ | ~ForceInput~ sizing and session ~PotentialResult~ buffer contract |
-| ~embed~, ~dlopen~, ~mpi~ | Fortran embed shell, ~dlopen~ ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests |
+| ~embed~, ~dlopen~, ~mpi~ | Fortran embed shell, ~dlopen~ ABI loading, and MPI communicator tests: adoption and binding on four ranks, ~orbital-limit-agree-mpi~, ~periodic-cell-mpi~, and ~orbital-divergence-mpi~ on two ranks, and ~rank-consensus~ on four ranks of the reference build |
 | ~e2e~, ~fd-check~ | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
 | ~python~ | Python bindings, ~pytest~ suite, ~mypy~ strict check (skips without ~mypy~), and Python reference audit |
 | ~restart~ | ~libcpmdc_restart~ binary ~RESTART~ reader/writer and header macro checks |
 | ~packaging~ | installed ~RUNPATH~, relocatable ~pkg-config~ layouts, and CMake/pkg-config consumer build |
 | ~docs~, ~examples~ | ~example-host-step~, runnable documentation blocks, ~llms.txt~ freshness, and API reference contracts |
+
+The ~mpi~ tests above are added when ~with_tests=true~ and the C MPI
+dependency is found.
+They launch through ~tests/run_mpi_test.py~, which uses ~mpirun~ or ~mpiexec~
+when one is on ~PATH~, and otherwise exits 77 so Meson marks the test skipped.
 
 Opt-in options add ~restart-con~ (~-Dwith_readcon=true~), ~pwscale~
 (~-Dwith_pwscale=true~), and ~opencpmd~ plus ~water~ (~-Dwith_cpmd=true~ with a
