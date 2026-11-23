@@ -96,6 +96,7 @@ html_baseurl = "https://cpmdc.rgoswami.me/"
 # Sphinx sets language to "en". The default sitemap scheme is
 # {lang}{version}{link}, so every page would be published under /en/.
 sitemap_url_scheme = "{link}"
+sitemap_excludes = ["tutorials/quickstart.html"]
 # Navbar falls back to html_logo when light_logo/dark_logo are unset.
 # The badge reads on both headers; the wordmarks are the page hero.
 html_logo = "_static/icon.svg"

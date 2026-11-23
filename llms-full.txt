@@ -4543,9 +4543,10 @@ The default build compiles the parser, the generated Cap'n Proto readers, the
 shared `libcpmdc`, the feature table, the session runtime, and the deterministic
 reference evaluator.
 
-Install Meson, Ninja, Cap'n Proto, cmocka, C and Fortran compilers, and
-pkg-config with your system package manager, or use the checked-in Pixi
-environment:
+Install Meson, Ninja, CMake, pkg-config, Cap'n Proto, cmocka, C, C++, and
+Fortran compilers, Rust (`cargo`), and Python 3 with ASE, `pytest`, and `i-PI`
+(see Install and build (file:install.org) for version floors and offline
+subprojects), or use the checked-in Pixi environment:
 
 pixi run test-stub
 
@@ -4558,7 +4559,11 @@ meson test -C build --print-errorlogs
 The run passes when every configured test passes: parser, ABI, feature
 inventory, session lifecycle, result sizing, unit conversion, and the
 reference-evaluator E2E tests.
-The tests that need OpenCPMD report `SKIP`.
+OpenCPMD-only Meson tests (`water-capnp-cli-parity`, `box-cell-energy`,
+`embed-teardown`, and `scf-unconverged`) are registered only when OpenCPMD is
+linked; in the default build `extrapolate-wfn` reports `SKIP`
+(`cpmdc_available() == 0`), OpenCPMD sub-cases inside the cmocka executables
+skip internally, and `python-mypy-strict` reports `SKIP` when `mypy` is absent.
 
 # Work Loop
 Build once, then iterate with focused tests.
@@ -4569,9 +4574,9 @@ default suite when the focused command passes.
 |--------+---------|
 | Build definitions or dependencies | `meson setup --reconfigure build` |
 | One named contract, such as an inventory, ABI, or docs test | `meson test -C build <test-name> --print-errorlogs` |
-| Deck rendering or Cap'n Proto fixtures | `meson test -C build --suite cmocka --print-errorlogs` |
+| Deck rendering or Cap'n Proto fixtures | `meson test -C build --suite cmocka --print-errorlogs` or `pixi run test-cmocka` |
 | Session lifecycle, topology, or units | `meson test -C build --suite e2e --print-errorlogs` or `pixi run test-e2e` |
-| Public prose, Org sources, or API headers | `pixi run -e docs sphinxbld` |
+| Public prose, Org sources, or API headers | `python3 scripts/generate_llms_txt.py`, `meson test -C build --suite docs --print-errorlogs`, `pixi run -e docs docbld`, and `pixi run -e docs lychee` |
 | The link to an OpenCPMD archive | `CPMDC_PSEUDO_DIR=/path/to/PP_LIBRARY meson test -C build-cpmd --print-errorlogs` |
 | Anything, before publishing | `meson test -C build --print-errorlogs` |
 
@@ -4594,7 +4599,7 @@ run on four ranks when MPI is found.
 `examples/host_step.c` is a minimal C host for the public ABI.
 It reads one serialized `CPMDParams` file and one serialized `ForceInput` file,
 creates a `CPMDCSession`, sizes the `PotentialResult` output, evaluates one
-step, and prints the result summary.
+step, reads `cpmdc_last_energy_components()`, and prints the result summary.
 
 meson test -C build example-host-step --print-errorlogs
 
@@ -4603,6 +4608,10 @@ The example output has this shape:
 energy_h=...
 potential_result_size_bytes=...
 message=...
+ener_com_etot=...
+ener_com_ekin=...
+ener_com_exc=...
+ener_com_eht=...
 
 The Meson test feeds the example from the fixture binaries of the E2E suites,
 encoded from
@@ -4628,9 +4637,11 @@ The same C ABI links against a patched OpenCPMD archive instead of the reference
 evaluator.
 Build the archive as the archive how-to (file:opencpmd-archive.org)
 describes, then follow the install how-to (file:install.org) to
-configure `build-cpmd` with `-Dwith_cpmd=true`.
-With `with_cpmd=true` the water Cap'n Proto parity tests are added and the long
-E2E tests run the linked archive.
+configure `build-cpmd` with `-Dwith_cpmd=true -Dcpmd_root=/path/to/opencpmd-build`.
+Both options are required before `meson.build` links the archive: that build
+adds `water-capnp-cli-parity`, `box-cell-energy`, `embed-teardown`, and
+`scf-unconverged`, and runs `extrapolate-wfn` plus the `e2e` and `mpi` suites
+against the linked archive.
 When a build or a call fails, see
 troubleshooting (file:troubleshooting.org).
 
@@ -5531,15 +5542,24 @@ composition requires a new session.
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
-   * - Build and test the project
-     - Run the default Meson suite and learn what it covers
-     - :doc:`Build and test cpmdc <howto/quickstart>` and :doc:`Install and build <howto/install>`
+   * - Build and test a checkout
+     - Run the default Meson suite and pick focused tests in the work loop
+     - :doc:`Build and test cpmdc <howto/quickstart>`
+   * - Install the library or Python package
+     - Install dependencies, a prefix build, or the ``cpmdc[ase]`` wheel
+     - :doc:`Install and build <howto/install>`
    * - Link a real OpenCPMD archive
-     - Apply the patches in ``tools/`` and build with ``-fPIC``
+     - Apply the patches in ``tools/`` and build with ``-fPIC`` and ``-march=x86-64`` or ``-march=armv8-a``
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - Turn a CPMD deck into a message
      - Pick typed section fields before raw deck text
      - :doc:`Write a CPMDParams message <howto/write-cpmdparams>`
+   * - Call cpmdc from a C or Fortran host process
+     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
+     - :doc:`Embedding cpmdc <howto/embedding>`
+   * - Call cpmdc from Python without ASE
+     - Drive ``Session`` or an in-process ``Potential`` directly from NumPy arrays
+     - :doc:`Call cpmdc from Python <howto/python>`
    * - Run cpmdc under i-PI or an ASE socket calculator
      - Use the rgpot frontend after its documented CPMD command gaps close; the cpmdc drivers remain transitional
      - :doc:`i-PI frontend status and transitional commands <howto/socket-drivers>`
@@ -5549,21 +5569,30 @@ composition requires a new session.
    * - Run GROMACS on cpmdc forces
      - Link ``libcpmdc_gromacs`` into GROMACS' CP2K QM/MM interface, for a QM group or the whole system
      - :doc:`Run GROMACS on cpmdc forces <howto/gromacs>`
-   * - Call cpmdc from a host process
-     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
-     - :doc:`Embedding cpmdc <howto/embedding>` and :doc:`C ABI reference <reference/c-abi>`
    * - Run on many ranks
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
+   * - Tune SCF convergence in ``&CPMD``
+     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
+   * - Extrapolate orbitals across trajectory steps
+     - Seed each SCF from recent step orbitals with ASPC
+     - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
+   * - Inspect the rendered CPMD ``INPUT`` deck
+     - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections
+     - :doc:`Inspect the rendered CPMD deck <howto/debug-deck>`
+   * - Verify forces and stress numerically
+     - Compare analytic forces and stress against central finite differences
+     - :doc:`Check forces and stress by finite differences <howto/check-forces>`
+   * - Benchmark MPI rank scaling for a grid
+     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
-     - Write the deck with ``CPMDC_DECK_OUT``
+     - Match common error strings and failure modes to their fixes
      - :doc:`Troubleshooting <howto/troubleshooting>`
    * - Understand what happens inside a call
      - Layers, the in-process route, orbitals between calls
      - :doc:`Architecture <explanation/architecture>`
-   * - Build OpenCPMD for more than one CPU
-     - Use the PIC configure file, which passes ``-march=x86-64`` or ``-march=armv8-a``
-     - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - See which instruction sets cpmdc compiles for
      - The force path has no hot kernel and nothing reads ``CPMDC_SIMD``
      - :doc:`SIMD paths and dispatch <explanation/simd-paths>`
@@ -5761,13 +5790,22 @@ These suites group the tests of the default build by layer.
 
 | Suite | Tests |
 |-------+-------|
-| `stub` | `tests/test_stub_abi.c`, and when MPI is found `adopt-comm-stub` and `bind-calculator-stub`, which run on four ranks |
-| `abi` | exported header and feature-discovery surface |
-| `cmocka`, `capnp` | structured `CPMDParams` deck rendering |
-| `params`, `inventory` | schema field coverage and CPMD catalog feature IDs |
+| `stub` | `stub-abi`, `capabilities-cmocka`, `stub-abi-symbol-coverage`, and when MPI is found `adopt-comm-stub` and `bind-calculator-stub` on four ranks |
+| `abi` | exported header, symbol-table, baseline, and feature-discovery checks |
+| `cmocka`, `capnp`, `capnp-fortran` | structured `CPMDParams` deck rendering, Fortran bridge application, and cmocka unit checks |
+| `params`, `inventory`, `schema` | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
+| `cpmdc` | geometry RMSD and `CPMDC_WARM_RMSD` warm-start selector checks |
 | `socket` | `ForceInput` sizing and session `PotentialResult` buffer contract |
-| `e2e` | one-shot and session calls through the deterministic reference evaluator |
-| `docs` | the documentation examples and the reference contract |
+| `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests |
+| `e2e`, `fd-check` | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
+| `python` | Python bindings, `pytest` suite, `mypy` strict check (skips without `mypy`), and Python reference audit |
+| `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
+| `packaging` | installed `RUNPATH`, relocatable `pkg-config` layouts, and CMake/pkg-config consumer build |
+| `docs`, `examples` | `example-host-step`, runnable documentation blocks, `llms.txt` freshness, and API reference contracts |
+
+Opt-in options add `restart-con` (`-Dwith_readcon=true`), `pwscale`
+(`-Dwith_pwscale=true`), and `opencpmd` plus `water` (`-Dwith_cpmd=true` with a
+non-empty `cpmd_root`).
 
 In the `e2e` suite, `e2e-single-point` runs `cpmdc_calculate_result` and
 `cpmdc_energy_forces` on one `ForceInput`.
@@ -11606,14 +11644,18 @@ QMMM, PROPERTIES, BICANONICAL, and CDFT are `&CPMD` keywords, not sections.
 ## File: docs/orgmode/tutorials/ase-energy.org
 
 # Run the example
-This lesson evaluates the water geometry of the
-first tutorial (file:first-energy.org) with the ASE calculator.
-The default build's reference well supplies the number.
+This lesson evaluates the same internal water geometry as the
+first tutorial (file:first-energy.org), placed near the origin rather than
+at , with the ASE calculator.
+The default build's origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.
 
-Configure and compile the default tree with `-Dwith_tests=true`, as the
+Build and test the default tree with `pixi run test-stub` (or
+`meson setup build -Dwith_tests=true` followed by `meson test -C build` or
+`meson compile -C build cpmdc water_params_bin`), as the
 build-and-test how-to (file:../howto/quickstart.org) does.
-The build writes the shared library and the encoded water message
+Plain `meson compile -C build` compiles `build/libcpmdc.so` while the test run
+or `water_params_bin` target writes the encoded water message
 `build/water_blyp_params.bin`.
 Point the example at both from the root of the checkout:
 
@@ -11641,7 +11683,9 @@ neither does `get_forces` after it: one step computes both.
 `get_forces` returns an array of shape .
 Change a position and the next call computes again on the same session, which a
 relaxation with `BFGS` and `FixAtoms` relies on.
-`energy` is in eV and `forces` in eV/Angstrom, the units of `ase.units`.
+`energy` is in eV and `forces` in eV/Angstrom, matching ASE's unit system and
+converted from Hartree and Bohr with `cpmdc.HARTREE_TO_EV` and
+`cpmdc.BOHR_TO_ANGSTROM` (CODATA 2018).
 `tests/python/test_ase_conformance.py` checks those units, the cache, and the
 errors of the calculator with ASE's own tools, against the same reference well.
 Use cpmdc as an ASE calculator (file:../howto/ase.org) lists every property,
@@ -12348,27 +12392,16 @@ A library force call writes no `RESTART.1`, `LATEST`, `GEOMETRY`, or
 `GEOMETRY.xyz`.
 The pseudopotential directory is unchanged.
 To evaluate many geometries, call `cpmdc_session_calculate_forces()` again on
-the same session. A call starts from the previous orbitals when the
+the same session.
+On an OpenCPMD build, a call starts from the stored orbitals when the
 functional, deck, cell, cutoff, charge, multiplicity, and elemental
-composition match.
-A new session with that same basis starts from those orbitals too, including
-when the atomic numbers are reordered.
+composition match and the geometry lies within `CPMDC_WARM_RMSD` (default
+`0.15` Angstrom root-mean-square distance per atom) of the stored geometry;
+beyond `CPMDC_WARM_RMSD` it skips full setup and starts from the deck's guess
+instead (see
+wavefunction state between calls (file:../explanation/wavefunction-state.org)).
+A new session with that same basis starts from those orbitals under the same
+distance rule, including when the atomic numbers are reordered.
 The eOn tutorial (file:eon-rgpot.org) drives exactly that loop from a
 minimiser, and running under mpirun (file:../howto/mpi.org) spreads each SCF
 over several ranks.
-
-
-## File: docs/orgmode/tutorials/quickstart.org
-
-:orphan:
-
-.. raw:: html
-
-   <meta http-equiv="refresh" content="0; url=../howto/quickstart.html">
-
-
-# Build and test cpmdc
-This page moved to Build and test cpmdc (file:../howto/quickstart.org) under
-the how-to guides.
-The suite list there names the stub tests, including `adopt-comm-stub` and
-`bind-calculator-stub` on four ranks when MPI is found.
