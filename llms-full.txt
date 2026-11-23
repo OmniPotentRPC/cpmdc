@@ -8273,7 +8273,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Units | none |
 | Shape and dtype | `params` is serialized `CPMDParams` bytes or a path; returns a frozen `MethodInfo`. |
 | Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
-| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, or a library failure. |
+| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, a library without `cpmdc_params_method`, or a library failure. |
 | Defaults | `library` is `None`, using `find_library`. |
 
 ### ~cpmdc.forces_to_ev_per_angstrom~
@@ -11407,7 +11407,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Potential.close` | `close()`: close the owned `Session` (idempotent) |
 | `find_library` | `find_library(path=None)`: return the `Path` of `libcpmdc`; tries an explicit `path` first, then `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE` in that order, then `.cpmdc.mesonpy.libs/libcpmdc.so` and `.cpmdc.mesonpy.libs/libcpmdc.dylib` beside the package, then `ctypes.util.find_library("cpmdc")`, then `build/libcpmdc.so` and `build/libcpmdc.dylib` in the working directory; raises `CPMDCError` when not found |
 | `find_schema` | `find_schema(path=None)`: return the `Path` of `schema/Potentials.capnp` for `capnp encode` of `CPMDParams` text; tries an explicit `path` first, then `CPMDC_SCHEMA`, then the wheel's `cpmdc/schema/Potentials.capnp`, then `schema/Potentials.capnp` in the working directory; raises `CPMDCError` when not found |
-| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer or a failed call |
+| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer, a library without `cpmdc_params_method`, or a failed call |
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
 | `dipole_to_e_angstrom` | `dipole_to_e_angstrom(dipole_e_bohr)`: convert a three-component molecular dipole from electron Bohr to e*Angstrom; raises `ValueError` unless there are three components |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |

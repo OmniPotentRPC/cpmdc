@@ -477,3 +477,27 @@ def test_load_rejects_library_without_available_symbol(monkeypatch):
     monkeypatch.setattr(cpmdc.ctypes, "CDLL", lambda _path: NoAvailableProxy(original))
     with pytest.raises(CPMDCError, match="has no cpmdc_available symbol"):
         cpmdc._load(cpmdc.find_library())
+
+
+def test_older_library_without_params_method_loads_and_reports_unavailable(
+    params, monkeypatch
+):
+    class NoParamsMethodProxy:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __getattr__(self, name):
+            if name == "cpmdc_params_method":
+                raise AttributeError(name)
+            return getattr(self._inner, name)
+
+    original = ctypes.CDLL(str(cpmdc.find_library()))
+    monkeypatch.setattr(
+        cpmdc.ctypes, "CDLL", lambda _path: NoParamsMethodProxy(original)
+    )
+    loaded = cpmdc._load(cpmdc.find_library())
+    assert not hasattr(loaded, "cpmdc_params_method")
+    with Session(params) as session:
+        assert session.abi_version() == 0
+    with pytest.raises(CPMDCError, match="no cpmdc_params_method"):
+        cpmdc.params_method(params)

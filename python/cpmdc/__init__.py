@@ -494,12 +494,13 @@ def _load(path: Path) -> ctypes.CDLL:
         lib = ctypes.CDLL(str(path))
     except OSError as exc:
         raise CPMDCError(f"failed to load {path}") from exc
-    lib.cpmdc_params_method.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_size_t,
-        ctypes.POINTER(_CMethodInfo),
-    ]
-    lib.cpmdc_params_method.restype = ctypes.c_int
+    if hasattr(lib, "cpmdc_params_method"):
+        lib.cpmdc_params_method.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.POINTER(_CMethodInfo),
+        ]
+        lib.cpmdc_params_method.restype = ctypes.c_int
     lib.cpmdc_session_create.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
     lib.cpmdc_session_create.restype = ctypes.c_void_p
     lib.cpmdc_session_destroy.argtypes = [ctypes.c_void_p]
@@ -588,9 +589,15 @@ def params_method(
     if not blob:
         raise CPMDCError("CPMDParams buffer is empty")
     lib = _load(find_library(library))
+    method_fn = getattr(lib, "cpmdc_params_method", None)
+    if method_fn is None:
+        raise CPMDCError(
+            "this libcpmdc has no cpmdc_params_method; "
+            "use a library built from cpmdc with method metadata support"
+        )
     buffer = ctypes.create_string_buffer(blob)
     method = _CMethodInfo()
-    if lib.cpmdc_params_method(buffer, len(blob), ctypes.byref(method)) != 0:
+    if method_fn(buffer, len(blob), ctypes.byref(method)) != 0:
         raw = lib.cpmdc_last_error()
         if raw is None or not raw:
             raise CPMDCError("cpmdc_params_method failed without an error message")

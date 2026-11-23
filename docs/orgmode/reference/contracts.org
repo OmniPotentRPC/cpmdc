@@ -1728,7 +1728,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Units | none |
 | Shape and dtype | ~params~ is serialized ~CPMDParams~ bytes or a path; returns a frozen ~MethodInfo~. |
 | Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
-| Raises | ~FileNotFoundError~ for an unreadable path; ~CPMDCError~ for an empty or invalid message, a missing library, or a library failure. |
+| Raises | ~FileNotFoundError~ for an unreadable path; ~CPMDCError~ for an empty or invalid message, a missing library, a library without ~cpmdc_params_method~, or a library failure. |
 | Defaults | ~library~ is ~None~, using ~find_library~. |
 
 *** ~cpmdc.forces_to_ev_per_angstrom~
