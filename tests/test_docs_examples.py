@@ -100,7 +100,7 @@ SKIP = {
     "explanation/constant-cutoff-npt.org:1": "needs the run records, which stay out of the repository",
     "howto/constant-cutoff.org:1": "section fragment, not a CPMDParams message",
     "howto/debug-deck.org:1": "diffs a caller-supplied reference deck",
-    "howto/embedding.org:1": "expected transcript, not a command",
+    "howto/embedding.org:3": "expected transcript, not a command",
     "howto/extrapolate-orbitals.org:0": "section fragment, not a CPMDParams message",
     "howto/extrapolate-orbitals.org:1": "log transcript",
     "howto/install.org:0": "downloads subprojects",
@@ -162,8 +162,8 @@ OTHER_MESON_PROJECT = {
 COMPILE = {
     "howto/constant-cutoff.org:2",
     "howto/embedding.org:0",
+    "howto/embedding.org:1",
     "howto/embedding.org:2",
-    "howto/embedding.org:3",
     "howto/mpi.org:1",
     "howto/mpi.org:2",
     "howto/mpi.org:4",
