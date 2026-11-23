@@ -198,7 +198,7 @@ extern double *forces;
 
 # The bash block of each page encodes the messages that its Python blocks read.
 PYTHON_HOWTO = [f"howto/python.org:{index}" for index in range(3)]
-ASE_HOWTO = [f"howto/ase.org:{index}" for index in range(7)]
+ASE_HOWTO = [f"howto/ase.org:{index}" for index in range(8)]
 
 RUN = {
     "README.md:5",

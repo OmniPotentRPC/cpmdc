@@ -253,8 +253,8 @@ A call on an unchanged structure returns the stored step.
 A change of ~positions~, ~numbers~, ~cell~, or ~pbc~ evaluates the structure
 again, and ~calc.calculation_required(atoms, properties)~ returns true for such
 a structure until it is evaluated.
-A change of ~initial_charges~ or ~initial_magmoms~ reuses the step, because the
-calculator does not read them.
+A change of ~initial_charges~ or ~initial_magmoms~ evaluates the structure
+again, because the calculator reads both; the next section says how.
 A change of ~tags~, ~momenta~, ~info~, or a constraint reuses the step as well,
 because none of them is a system change: ASE applies a constraint to the forces
 after the calculator returns them.
@@ -275,13 +275,79 @@ value, or ~None~ when that structure has not been evaluated.
 The ~charge~ and ~multiplicity~ fields of the ~CPMDParams~ message set the
 charge and the spin, beside the functional, the cutoff, and the
 pseudopotentials.
-The calculator has no keyword for any of them, and it does not read
-~atoms.get_initial_charges()~ or ~atoms.get_initial_magnetic_moments()~.
+The calculator has no keyword for any of them.
+It reads ~atoms.initial_charges~ and ~atoms.initial_magmoms~ as the ASE
+calculators for GPAW, ORCA, NWChem, and Psi4 do, so a charged or spin-polarised
+~Atoms~ needs no second source of truth.
+
+The total charge is ~Q = sum(atoms.get_initial_charges())~ and the total moment
+is ~M = sum(atoms.get_initial_magnetic_moments())~.
+The moments are collinear, one per atom: an array of shape ~(N, 3)~ with a
+nonzero entry raises ~ValueError~.
+~Q~ and ~M~ must be integers.
+A sum counts as an integer when it lies within ~n * eps * sum(|x|)~ of one, the
+bound on the rounding error of adding ~n~ float64 terms ~x~, where ~eps~ is the
+float64 unit roundoff; any other sum raises ~ValueError~ that names the sum.
+The multiplicity is ~|M| + 1~.
+
+~cpmdc.params_method~ reports the effective charge and multiplicity of the
+message, and a charge of 0 or a multiplicity of 1 is the schema default, so the
+calculator takes it as unset whether the message left the field out or wrote the
+default.
+Each of the two settings follows the same rules:
+
+| ~Atoms~ value | message value | result |
+|--------+--------+--------|
+| zero | any | the message value; nothing changes for an existing script |
+| nonzero | unset | the ~Atoms~ value, written into the top-level ~charge~ or ~multiplicity~ field of the message the session opens with |
+| nonzero | equal | the shared value, silently |
+| nonzero | set and different | ~ValueError~ that names both values and both sources, ~Atoms.initial_charges~ or ~Atoms.initial_magmoms~ and the ~CPMDParams~ message in ~params~ |
+
+An explicit charge of 0 or multiplicity of 1 in the message cannot be told from
+the default, so a nonzero ~Atoms~ value replaces it.
+A message whose typed ~system~ section fixes the charge, such as one with
+~system.hasCharge~ ~true~, keeps that value after the edit, and the calculator
+raises ~ValueError~ instead of evaluating the wrong method.
+A message that ~cpmdc_params_method()~ refuses as ambiguous, because a raw
+~&SYSTEM~ block or a ~SYSTEM.~ set directive holds the scalar, raises
+~CPMDCError~ the first time an ~Atoms~ value needs it.
+
+A change of ~initial_charges~ or ~initial_magmoms~ discards the stored results,
+and the next call evaluates the structure again.
+The calculator opens a new session only when the effective charge or
+multiplicity changes; moving the charge from one atom to another keeps the
+session.
+~todict()~ and ~Parameters.write~ hold only ~params~, ~library~, and
+~constant_cutoff~, because the charge and the spin travel with the ~Atoms~.
+
+This example evaluates a water cation with a doublet spin, and shows the error
+for partial charges, which are not a total charge:
+
+#+begin_src python
+from ase import Atoms
+from cpmdc.ase import CPMDCCalculator
+
+water = [[0.0, 0.0, 0.1173], [0.0, 0.7572, -0.4692], [0.0, -0.7572, -0.4692]]
+cation = Atoms("OHH", positions=water)
+cation.set_initial_charges([1.0, 0.0, 0.0])
+cation.set_initial_magnetic_moments([1.0, 0.0, 0.0])
+partial = Atoms("OHH", positions=water)
+partial.set_initial_charges([0.5, 0.0, 0.0])
+with CPMDCCalculator("water.params.bin") as calc:
+    cation.calc = calc
+    print(cation.get_potential_energy())
+    partial.calc = calc
+    try:
+        partial.get_potential_energy()
+    except ValueError as exc:
+        print(exc)
+#+end_src
+
 A keyword such as ~charge~, ~multiplicity~, or ~xc~ raises ~TypeError~ in the
 constructor and in ~set()~, and the message names the key and points at
-~params~.
-To change the method, encode another message and pass it to ~set()~; this
-example switches to the periodic message:
+~params~ and at the ~Atoms~ arrays.
+To change the rest of the method, encode another message and pass it to
+~set()~; this example switches to the periodic message:
 
 #+begin_src python
 from cpmdc.ase import CPMDCCalculator
