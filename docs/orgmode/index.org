@@ -70,15 +70,24 @@ composition requires a new session.
    * - Relax a structure from eOn
      - Pass a ``CPMDParams`` file through ``[RgpotPot] params_path``
      - :doc:`eOn through rgpot <tutorials/eon-rgpot>`
-   * - Build and test the project
-     - Run the default Meson suite and learn what it covers
-     - :doc:`Build and test cpmdc <howto/quickstart>` and :doc:`Install and build <howto/install>`
+   * - Build and test a checkout
+     - Run the default Meson suite and pick focused tests in the work loop
+     - :doc:`Build and test cpmdc <howto/quickstart>`
+   * - Install the library or Python package
+     - Install dependencies, a prefix build, or the ``cpmdc[ase]`` wheel
+     - :doc:`Install and build <howto/install>`
    * - Link a real OpenCPMD archive
-     - Apply the patches in ``tools/`` and build with ``-fPIC``
+     - Apply the patches in ``tools/`` and build a portable ``-fPIC`` archive
      - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - Turn a CPMD deck into a message
      - Pick typed section fields before raw deck text
      - :doc:`Write a CPMDParams message <howto/write-cpmdparams>`
+   * - Call cpmdc from a C or Fortran host process
+     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
+     - :doc:`Embedding cpmdc <howto/embedding>`
+   * - Call cpmdc from Python without ASE
+     - Drive ``Session`` or an in-process ``Potential`` directly from NumPy arrays
+     - :doc:`Call cpmdc from Python <howto/python>`
    * - Run cpmdc under i-PI or an ASE socket calculator
      - Use the rgpot frontend after its documented CPMD command gaps close; the cpmdc drivers remain transitional
      - :doc:`i-PI frontend status and transitional commands <howto/socket-drivers>`
@@ -88,21 +97,30 @@ composition requires a new session.
    * - Run GROMACS on cpmdc forces
      - Link ``libcpmdc_gromacs`` into GROMACS' CP2K QM/MM interface, for a QM group or the whole system
      - :doc:`Run GROMACS on cpmdc forces <howto/gromacs>`
-   * - Call cpmdc from a host process
-     - Choose the API path first; new hosts usually want ``cpmdc_session_calculate_result``
-     - :doc:`Embedding cpmdc <howto/embedding>` and :doc:`C ABI reference <reference/c-abi>`
    * - Run on many ranks
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
+   * - Tune SCF convergence in ``&CPMD``
+     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
+   * - Extrapolate orbitals across trajectory steps
+     - Seed each SCF from recent step orbitals with ASPC
+     - :doc:`Extrapolate orbitals between steps <howto/extrapolate-orbitals>`
+   * - Inspect the rendered CPMD ``INPUT`` deck
+     - Capture the generated deck with ``CPMDC_DECK_OUT`` and compare sections
+     - :doc:`Inspect the rendered CPMD deck <howto/debug-deck>`
+   * - Verify forces and stress numerically
+     - Compare analytic forces and stress against central finite differences
+     - :doc:`Check forces and stress by finite differences <howto/check-forces>`
+   * - Benchmark MPI rank scaling for a grid
+     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
-     - Write the deck with ``CPMDC_DECK_OUT``
+     - Match common error strings and failure modes to their fixes
      - :doc:`Troubleshooting <howto/troubleshooting>`
    * - Understand what happens inside a call
      - Layers, the in-process route, orbitals between calls
      - :doc:`Architecture <explanation/architecture>`
-   * - Build OpenCPMD for more than one CPU
-     - Use the PIC configure file, which passes ``-march=x86-64`` or ``-march=armv8-a``
-     - :doc:`OpenCPMD archive <howto/opencpmd-archive>`
    * - See which instruction sets cpmdc compiles for
      - The force path has no hot kernel and nothing reads ``CPMDC_SIMD``
      - :doc:`SIMD paths and dispatch <explanation/simd-paths>`
