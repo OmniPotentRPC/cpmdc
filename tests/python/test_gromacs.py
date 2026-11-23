@@ -368,15 +368,34 @@ def test_mechanical_embedding_matches_numpy_ewald(box, params, tmp_path):
     rc = gc.default_rcut(rows, BOHR_TO_NM)
     coul, fq, fm = gc.ewald_qm_mm(x[:3], QM_CHARGES, x[3:], mm_q, rows, rc, 1e-8)
     qm_e, qm_f = ase_au(params, "OHH", x[:3])
+    # Both sides sum the same terms, with the same alpha, rc and kmax, so they
+    # differ by rounding only. With about 1e3 terms and partial sums of at most
+    # 5e-3 Ha that is at most 1e3 * 2**-53 * 5e-3 = 6e-16 Ha on the energy and
+    # as much on a force element. The runs measured at most 4e-17 on aarch64
+    # and on x86-64, the latter also with contracted multiply-adds (-mfma -O3).
+    # The tolerances below are three orders above that bound. One image pair
+    # counted on one side only would add 1e-10 to 5e-10 Ha (erfc(alpha rc) =
+    # 1e-8 times |q_i q_j| / rc), two orders above them; a k vector on the
+    # cutoff adds about 1e-12 Ha, so the reciprocal cutoff is checked only to
+    # that level.
     assert energy == pytest.approx(qm_e + coul, rel=1e-11, abs=1e-12)
     np.testing.assert_allclose(forces[:3], qm_f + fq, rtol=1e-10, atol=1e-12)
     np.testing.assert_allclose(forces[3:], fm, rtol=1e-10, atol=1e-12)
     words = (tmp_path / "sys.out").read_text().split()
-    assert float(words[words.index("rcut_bohr") + 1]) == pytest.approx(rc, rel=1e-15)
+    # pytest.approx(rel=r) alone still accepts an absolute 1e-12, which is a
+    # relative 7e-14 at rc and 3.5e-12 at alpha, so abs=0 says what is checked.
+    # The shim forms the volume by cofactors and NumPy by LU; rc = V / 2|b x c|
+    # then differs by a few units of rounding, 1.5e-15 relative in the cubic and
+    # triclinic boxes, and alpha = f(rc) follows with the same relative error
+    # (d ln alpha / d ln rc = -1, bisection resolution 2**-60). 1e-14 is about
+    # six times the measured difference.
+    assert float(words[words.index("rcut_bohr") + 1]) == pytest.approx(rc, rel=1e-14, abs=0.0)
     assert float(words[words.index("alpha_per_bohr") + 1]) == pytest.approx(
-        gc.ewald_alpha(rc, 1e-8), rel=1e-15
+        gc.ewald_alpha(rc, 1e-8), rel=1e-14, abs=0.0
     )
-    assert float(words[words.index("coulomb_qm_mm_hartree") + 1]) == pytest.approx(coul, rel=1e-11)
+    assert float(words[words.index("coulomb_qm_mm_hartree") + 1]) == pytest.approx(
+        coul, rel=1e-11, abs=1e-12
+    )
 
 
 @needs_lib

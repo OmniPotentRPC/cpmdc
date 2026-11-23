@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+import blas_probe
+
 ROOT = Path(__file__).resolve().parents[2]
 INSTALLED = os.environ.get("CPMDC_TEST_INSTALLED") == "1"
 
@@ -126,6 +128,13 @@ def _checked_backend(name: str, mark: pytest.Mark) -> str:
     if set(mark.kwargs) - {"reason"}:
         raise pytest.UsageError(f"{name}: cpmd_backend takes only reason=")
     return str(mark.args[0])
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Stop before collection when ``@`` returns wrong numbers (blas_probe.py)."""
+    problem = blas_probe.environment_problem()
+    if problem is not None:
+        pytest.exit(problem, returncode=3)
 
 
 def pytest_configure(config: pytest.Config) -> None:
