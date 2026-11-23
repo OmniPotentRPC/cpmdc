@@ -15,6 +15,18 @@ from cpmdc.gromacs import qmi_input, write_qmi
         ({"ewald_rcut": -0.5}, ValueError, "ewald_rcut must be positive"),
         ({"ewald_rcut": 0.0}, ValueError, "ewald_rcut must be positive"),
         ({"ewald_precision": -1.0e-8}, ValueError, "ewald_precision must be positive"),
+        ({"epsilon_r": float("nan")}, ValueError, "epsilon_r must be finite"),
+        ({"epsilon_r": float("inf")}, ValueError, "epsilon_r must be finite"),
+        ({"epsilon_r": -2.0}, ValueError, "epsilon_r must be positive"),
+        ({"epsilon_r": 0.0}, ValueError, "epsilon_r must be positive"),
+        ({"epsilon_r": "2.0"}, TypeError, "epsilon_r must be a real number, got str"),
+        ({"epsilon_r": True}, TypeError, "epsilon_r must be a real number, got bool"),
+        ({"epsilon_r": 4.0}, ValueError, "epsilon_r needs embedding='MECHANICAL'"),
+        (
+            {"embedding": "NONE", "epsilon_r": 4.0},
+            ValueError,
+            "epsilon_r needs embedding='MECHANICAL'",
+        ),
         ({"ewald_rcut": "0.7"}, TypeError, "ewald_rcut must be a real number, got str"),
         ({"ewald_rcut": True}, TypeError, "ewald_rcut must be a real number, got bool"),
         ({"charge": 1.5}, ValueError, "charge must be an integer"),
@@ -42,8 +54,27 @@ def test_whole_floats_and_numpy_integers_are_charges():
 
 def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
     target = tmp_path / "water.qmi"
-    assert write_qmi(target, "water.bin", ewald_rcut=0.7, charge=1) == target
-    assert target.read_text(encoding="utf-8") == qmi_input("water.bin", ewald_rcut=0.7, charge=1)
+    assert (
+        write_qmi(
+            target,
+            "water.bin",
+            embedding="MECHANICAL",
+            qm_charges=[-0.834, 0.417, 0.417],
+            ewald_rcut=0.7,
+            epsilon_r=78.4,
+            charge=1,
+        )
+        == target
+    )
+    assert target.read_text(encoding="utf-8") == qmi_input(
+        "water.bin",
+        embedding="MECHANICAL",
+        qm_charges=[-0.834, 0.417, 0.417],
+        ewald_rcut=0.7,
+        epsilon_r=78.4,
+        charge=1,
+    )
+    assert "EPSILON_R 78.4\n" in target.read_text(encoding="utf-8")
     with pytest.raises(ValueError, match="multiplicity must be 1 or more"):
         write_qmi(tmp_path / "bad.qmi", "water.bin", multiplicity=0)
     assert not (tmp_path / "bad.qmi").exists()

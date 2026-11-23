@@ -105,19 +105,21 @@ def test_units_are_gromacs_units():
 def test_qmi_input_has_the_keys_grompp_checks(tmp_path):
     text = qmi_input(
         "w.bin", embedding="mechanical", qm_charges=[-0.8, 0.4, 0.4], cell="none",
-        ewald_rcut=0.6, ewald_precision=1e-9,
+        ewald_rcut=0.6, ewald_precision=1e-9, epsilon_r=2.5,
     )
     for line in (
         "RUN_TYPE ENERGY_FORCE", "CHARGE 0", "MULTIPLICITY 1", "COORD_FILE_FORMAT PDB",
         "CHARGE_EXTENDED TRUE", "COORD_FILE_NAME gromacs.pdb", "PARAMS w.bin", "CELL NONE",
         "EMBEDDING MECHANICAL", "QM_CHARGES -0.8 0.4 0.4", "EWALD_RCUT 0.6",
-        "EWALD_PRECISION 1e-09",
+        "EWALD_PRECISION 1e-09", "EPSILON_R 2.5",
     ):
         assert line in text
     with pytest.raises(ValueError, match="needs qm_charges"):
         qmi_input("w.bin", embedding="MECHANICAL")
     with pytest.raises(ValueError, match="needs embedding='MECHANICAL'"):
         qmi_input("w.bin", qm_charges=[0.0])
+    with pytest.raises(ValueError, match="needs embedding='MECHANICAL'"):
+        qmi_input("w.bin", epsilon_r=2.5)
     with pytest.raises(ValueError, match="PERIODIC or NONE"):
         qmi_input("w.bin", cell="XY")
 
@@ -407,6 +409,132 @@ def test_mechanical_embedding_without_a_box_is_a_direct_sum(params, tmp_path):
     np.testing.assert_allclose(forces[3:], fm, rtol=1e-11, atol=1e-13)
 
 
+@needs_lib
+@pytest.mark.parametrize("epsilon_r", [2.5, 78.4])
+@pytest.mark.parametrize(
+    "box",
+    [QMMM_BOX_NM, QMMM_BOX_NM @ np.array([[1, 0, 0], [0.1, 1, 0], [-0.08, 0.12, 1]]), np.zeros((3, 3))],
+    ids=["cube", "triclinic", "direct"],
+)
+def test_mechanical_embedding_epsilon_r_scales_coulomb_only(box, epsilon_r, params, tmp_path):
+    """EPSILON_R scales only the mechanical-embedding QM-MM Coulomb energy and forces."""
+    (e1, f1), mm_q = mechanical(tmp_path / "eps1", params, QMMM_NM, box)
+    (e_eps, f_eps), _ = mechanical(tmp_path / "eps", params, QMMM_NM, box, epsilon_r=epsilon_r)
+    x = QMMM_NM / BOHR_TO_NM
+    rows = box / BOHR_TO_NM
+    qm_e, qm_f = ase_au(params, "OHH", x[:3])
+    if np.any(box):
+        rc = gc.default_rcut(rows, BOHR_TO_NM)
+        coul_1, fq_1, fm_1 = gc.ewald_qm_mm(x[:3], QM_CHARGES, x[3:], mm_q, rows, rc, 1e-8)
+        coul_e, fq_e, fm_e = gc.ewald_qm_mm(
+            x[:3], QM_CHARGES, x[3:], mm_q, rows, rc, 1e-8, epsilon_r=epsilon_r
+        )
+    else:
+        coul_1, fq_1, fm_1 = gc.direct_qm_mm(x[:3], QM_CHARGES, x[3:], mm_q)
+        coul_e, fq_e, fm_e = gc.direct_qm_mm(x[:3], QM_CHARGES, x[3:], mm_q, epsilon_r=epsilon_r)
+    assert coul_e == pytest.approx(coul_1 / epsilon_r, rel=1e-14)
+    assert e_eps == pytest.approx(qm_e + coul_e, rel=1e-11, abs=1e-12)
+    assert (e_eps - qm_e) == pytest.approx((e1 - qm_e) / epsilon_r, rel=1e-12, abs=1e-13)
+    np.testing.assert_allclose(f_eps[:3], qm_f + fq_e, rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(f_eps[:3] - qm_f, (f1[:3] - qm_f) / epsilon_r, rtol=1e-12, atol=1e-13)
+    np.testing.assert_allclose(f_eps[3:], fm_e, rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(f_eps[3:], f1[3:] / epsilon_r, rtol=1e-12, atol=1e-13)
+    assert abs(coul_1) > 1e-4
+    words = (tmp_path / "eps" / "sys.out").read_text().split()
+    assert float(words[words.index("epsilon_r") + 1]) == pytest.approx(epsilon_r, rel=1e-15)
+    assert float(words[words.index("coulomb_qm_mm_hartree") + 1]) == pytest.approx(coul_e, rel=1e-11)
+
+
+@needs_lib
+def test_mechanical_embedding_epsilon_r_is_conservative(params, tmp_path):
+    """Under EPSILON_R, forces remain -dE/dx for both QM and MM atoms."""
+    epsilon_r = 3.25
+    (e0, f0), _ = mechanical(tmp_path / "c", params, QMMM_NM, QMMM_BOX_NM, epsilon_r=epsilon_r)
+    assert np.isfinite(e0)
+    h = 1e-4
+    for atom, axis in [(0, 0), (2, 1), (4, 2), (9, 0)]:
+        plus, minus = QMMM_NM.copy(), QMMM_NM.copy()
+        plus[atom, axis] += h * BOHR_TO_NM
+        minus[atom, axis] -= h * BOHR_TO_NM
+        (ep, _), _ = mechanical(
+            tmp_path / f"p{atom}{axis}", params, plus, QMMM_BOX_NM, epsilon_r=epsilon_r
+        )
+        (em, _), _ = mechanical(
+            tmp_path / f"m{atom}{axis}", params, minus, QMMM_BOX_NM, epsilon_r=epsilon_r
+        )
+        assert -(ep - em) / (2 * h) == pytest.approx(f0[atom, axis], abs=1e-7)
+
+
+@needs_lib
+def test_pdb_and_qm_charges_keep_double_precision(params, tmp_path):
+    """libcpmdc_gromacs parses PDB MM charges and QM_CHARGES in double precision."""
+    # Include a small charge below 5e-7 e that 6-decimal %lf rounding would zero,
+    # plus 15-digit perturbations beyond both 6-decimal PDB and float32 precision.
+    precise_qm = [-0.834000456789012, 0.417000228394506, 0.417000228394506]
+    precise_mm = [
+        -0.834123456789012,
+        0.417061728394506,
+        0.417061728394506,
+        3.456789123456e-07,
+        -1.728394561728e-07,
+        -1.728394561728e-07,
+        -0.834000000234567,
+        0.417000000117283,
+        0.417000000117284,
+    ]
+    lines = []
+    for i, (sym, is_qm, q, row) in enumerate(
+        zip("OHH" * 4, [True] * 3 + [False] * 9, [0.0] * 3 + precise_mm, QMMM_NM)
+    ):
+        label = " QM     1     " if is_qm else " MM     2     "
+        xyz = "%7.3f %7.3f %7.3f  1.00  0.00         " % tuple(10.0 * np.asarray(row))
+        lines.append(f"ATOM  {i % 100000:5d}  {sym:<3s} {label}{xyz} {sym:<3s} {q:.17g}")
+    pdb_hi = tmp_path / "hi" / "sys.pdb"
+    pdb_hi.parent.mkdir()
+    pdb_hi.write_text("\n".join(lines) + "\n")
+    inp_hi = pdb_hi.parent / "sys.inp"
+    inp_hi.write_text(
+        qmi_input(params, embedding="MECHANICAL", qm_charges=precise_qm).replace(
+            "gromacs.pdb", str(pdb_hi)
+        )
+    )
+    shim = Shim(inp_hi, pdb_hi.parent / "sys.out")
+    x = QMMM_NM / BOHR_TO_NM
+    e_hi, f_hi = shim.step(x, np.zeros((3, 3)))
+    shim.close()
+
+    # Compare against the same system rounded to 6 decimals (PDB %lf) and float32.
+    rounded_mm = [round(q, 6) for q in precise_mm]
+    rounded_qm = [round(q, 6) for q in precise_qm]
+    (tmp_path / "lo").mkdir()
+    inp_lo = setup_env(
+        tmp_path / "lo",
+        qmi_input(params, embedding="MECHANICAL", qm_charges=rounded_qm),
+        "OHH" * 4,
+        [True] * 3 + [False] * 9,
+        [0.0] * 3 + rounded_mm,
+        QMMM_NM,
+    )
+    shim_lo = Shim(inp_lo, tmp_path / "lo" / "sys.out")
+    e_lo, _ = shim_lo.step(x, np.zeros((3, 3)))
+    shim_lo.close()
+
+    coul_hi, fq_hi, fm_hi = gc.direct_qm_mm(x[:3], precise_qm, x[3:], precise_mm)
+    coul_lo, _, _ = gc.direct_qm_mm(x[:3], rounded_qm, x[3:], rounded_mm)
+    coul_f32, _, _ = gc.direct_qm_mm(
+        x[:3], np.asarray(precise_qm, np.float32), x[3:], np.asarray(precise_mm, np.float32)
+    )
+    qm_e, qm_f = ase_au(params, "OHH", x[:3])
+    assert abs(coul_hi - coul_lo) > 5e-9
+    assert abs(e_hi - e_lo) > 5e-9
+    assert abs(coul_hi - coul_f32) > 1e-12
+    assert abs(e_hi - (qm_e + coul_f32)) > 1e-12
+    assert e_hi == pytest.approx(qm_e + coul_hi, rel=1e-14, abs=1e-15)
+    assert e_lo == pytest.approx(qm_e + coul_lo, rel=1e-14, abs=1e-15)
+    np.testing.assert_allclose(f_hi[:3], qm_f + fq_hi, rtol=1e-13, atol=1e-15)
+    np.testing.assert_allclose(f_hi[3:], fm_hi, rtol=1e-13, atol=1e-15)
+
+
 # --- stress -------------------------------------------------------------------
 
 
@@ -508,6 +636,66 @@ def test_qmmm_stress_matches_ase_numerical_stress(box, embedding, params, tmp_pa
         moment = x[:3].T @ forces[:3]
         expected = 0.5 * (moment + moment.T) / volume
         np.testing.assert_allclose(stress, expected, rtol=1e-14, atol=1e-14 * np.abs(expected).max())
+
+
+@needs_lib
+@reference_precision
+@pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_qmmm_stress_with_epsilon_r_matches_ase_numerical_stress(box, params, tmp_path):
+    """EPSILON_R scales the Ewald virial by 1/epsilon_r while keeping the QM virial unscaled."""
+    epsilon_r = 2.5
+    mm_q = [gc.TIP3P[s] for s in "OHH" * 3]
+    x = QMMM_NM / BOHR_TO_NM
+    rows = box / BOHR_TO_NM
+    stresses = {}
+    for label, emb, extra in (
+        ("qm_only", "NONE", {}),
+        ("eps1", "MECHANICAL", {"qm_charges": QM_CHARGES}),
+        ("eps", "MECHANICAL", {"qm_charges": QM_CHARGES, "epsilon_r": epsilon_r}),
+    ):
+        work = tmp_path / label
+        work.mkdir()
+        qmi = qmi_input(
+            params,
+            embedding=emb,
+            ewald_rcut=0.7,
+            ewald_precision=1e-12,
+            **extra,
+        )
+        inp = setup_env(
+            work,
+            qmi,
+            "OHH" * 4,
+            [True] * 3 + [False] * 9,
+            [0.0] * 3 + (mm_q if emb == "MECHANICAL" else [0.0] * 9),
+            QMMM_NM,
+        )
+        shim = Shim(inp, work / "sys.out")
+        shim.step(x, rows)
+        stress, available = shim.stress()
+        assert available == 1
+        stresses[label] = stress
+        if label == "eps":
+            atoms = Atoms(
+                "OHH" * 4,
+                positions=x * BOHR_TO_ANGSTROM,
+                cell=rows * BOHR_TO_ANGSTROM,
+                pbc=True,
+            )
+            atoms.calc = ShimCalculator(shim)
+            numeric = numerical_stress(atoms)
+        shim.close()
+
+    ours = ase_stress(stresses["eps"])
+    scale = np.abs(numeric).max()
+    np.testing.assert_allclose(ours, numeric, rtol=0, atol=1e-8 * scale)
+    expected = stresses["qm_only"] + (stresses["eps1"] - stresses["qm_only"]) / epsilon_r
+    np.testing.assert_allclose(
+        stresses["eps"],
+        expected,
+        rtol=1e-13,
+        atol=1e-14 * np.abs(expected).max(),
+    )
 
 
 @needs_lib
@@ -720,6 +908,12 @@ def test_explicit_cpmdc_ignores_multivalue_section_headers(params, tmp_path):
         ("unknown", "unknown &CPMDC keyword BASIS"),
         ("electrostatic", "EMBEDDING ELECTROSTATIC is not implemented"),
         ("unset embedding", "the MM atoms carry charges: set &CPMDC EMBEDDING"),
+        ("epsilon zero", "&CPMDC EPSILON_R must be positive"),
+        ("epsilon negative", "&CPMDC EPSILON_R must be positive"),
+        ("epsilon nan", "&CPMDC EPSILON_R: nan is not a number"),
+        ("epsilon none", "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL"),
+        ("epsilon unset", "&CPMDC EPSILON_R needs EMBEDDING MECHANICAL"),
+        ("pdb nan", "atom 4 has no finite charge"),
         ("charge count", "QM_CHARGES lists 2 charges for 3 QM atoms"),
         ("vsite", "QM atom 3 is X, not an element"),
         ("atom count", "cp2k_set_positions got 6 values; the PDB file has 3 atoms"),
@@ -745,6 +939,32 @@ def test_refused_inputs_stop_with_a_message(case, message, params, tmp_path):
         qmi = good
         kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
                   "charges": (0.0,) * 3 + (-0.834, 0.417, 0.417)}
+    elif case == "epsilon zero":
+        qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES).replace(
+            "&END CPMDC", "  EPSILON_R 0\n&END CPMDC"
+        )
+        kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
+                  "charges": (0.0,) * 3 + (-0.834, 0.417, 0.417)}
+    elif case == "epsilon negative":
+        qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES).replace(
+            "&END CPMDC", "  EPSILON_R -2.5\n&END CPMDC"
+        )
+        kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
+                  "charges": (0.0,) * 3 + (-0.834, 0.417, 0.417)}
+    elif case == "epsilon nan":
+        qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES).replace(
+            "&END CPMDC", "  EPSILON_R nan\n&END CPMDC"
+        )
+        kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
+                  "charges": (0.0,) * 3 + (-0.834, 0.417, 0.417)}
+    elif case == "epsilon none":
+        qmi = good.replace("&END CPMDC", "  EMBEDDING NONE\n  EPSILON_R 4.0\n&END CPMDC")
+    elif case == "epsilon unset":
+        qmi = good.replace("&END CPMDC", "  EPSILON_R 4.0\n&END CPMDC")
+    elif case == "pdb nan":
+        qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES)
+        kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
+                  "charges": (0.0,) * 3 + (float("nan"), 0.417, 0.417)}
     elif case == "charge count":
         qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=[-0.834, 0.417])
         kwargs = {"symbols": "OHHOHH", "qm": (True,) * 3 + (False,) * 3,
@@ -877,6 +1097,114 @@ def test_gromacs_mechanical_embedding_matches_references(params, tmp_path):
     np.testing.assert_allclose(
         frame["f"][:3], (qm_f + fq) * HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM, rtol=1e-10, atol=1e-9
     )
+
+
+@needs_gmx
+@pytest.mark.parametrize("box", [QMMM_BOX_NM, MECHANICAL_TRICLINIC_NM], ids=["cube", "triclinic"])
+def test_gromacs_epsilon_r_matches_references_and_strain_derivative(box, params, tmp_path):
+    """GROMACS epsilon-r + &CPMDC EPSILON_R: Quantum En., forces, and virial match references."""
+    epsilon_r = 2.5
+    qmi = qmi_input(
+        params,
+        embedding="MECHANICAL",
+        qm_charges=QM_CHARGES,
+        ewald_rcut=0.7,
+        ewald_precision=1e-12,
+        epsilon_r=epsilon_r,
+    )
+    mdp = {
+        "integrator": "md-vv",
+        "rcoulomb": 0.7,
+        "rvdw": 0.7,
+        "fourier-nx": 24,
+        "fourier-ny": 24,
+        "fourier-nz": 24,
+        "ewald-rtol": 1e-10,
+        "epsilon-r": epsilon_r,
+        "nstxout": 1,
+        "nstvout": 0,
+        "nstfout": 1,
+    }
+
+    def run_box(work, x_nm, box_nm, *, with_lj=True):
+        gc.write_system(
+            work, positions=x_nm, box=box_nm, qm_molecules=[0], qmi=qmi, mdp=mdp, qm_lj=with_lj
+        )
+        gc.run(GMX, work)
+        return gc.energies(GMX, work, "Quantum-En.", "Potential")[0]
+
+    # Step 0 energy & forces without QM LJ so frame["f"][:3] is pure libcpmdc_gromacs.
+    e_row = run_box(tmp_path / "ef", QMMM_NM, box, with_lj=False)
+    frame = gc.read_trr(tmp_path / "ef" / "md.trr")[0]
+    rows = frame["box"] / BOHR_TO_NM
+    x = frame["x"] / BOHR_TO_NM
+    x[1:3] -= np.rint((x[1:3] - x[0]) @ np.linalg.inv(rows)) @ rows
+    mm_q = np.array([gc.TIP3P[s] for s in "OHH" * 3])
+    coul, fq, _ = gc.ewald_qm_mm(
+        x[:3], QM_CHARGES, x[3:], mm_q, rows, 0.7 / BOHR_TO_NM, 1e-12, epsilon_r=epsilon_r
+    )
+    qm_e, qm_f = ase_au(params, "OHH", x[:3])
+    assert e_row[1] == pytest.approx((qm_e + coul) * HARTREE_TO_KJ_PER_MOL, rel=1e-10)
+    np.testing.assert_allclose(
+        frame["f"][:3], (qm_f + fq) * HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM, rtol=1e-10, atol=1e-9
+    )
+
+    # Full strain derivative of GROMACS' Potential energy (MM-MM PME with epsilon-r + QM + QM-MM).
+    x_nm = QMMM_NM + 0.4
+    run_box(tmp_path / "0", x_nm, box)
+    virial, _ = virial_and_pressure(tmp_path / "0")
+    h = 1e-5
+    pairs = [(a, b) for a in range(3) for b in range(a, 3)]
+    derivative = np.zeros((3, 3))
+    for a, b in pairs:
+        plus = run_box(tmp_path / f"{a}{b}+", *strained(x_nm, box, a, b, h))[2]
+        minus = run_box(tmp_path / f"{a}{b}-", *strained(x_nm, box, a, b, -h))[2]
+        derivative[a, b] = (plus - minus) / (2 * h)
+    scale = np.abs(virial).max()
+    for a, b in pairs:
+        assert virial[b, a] == pytest.approx(0.5 * derivative[a, b], abs=1e-8 * scale), (a, b)
+    np.testing.assert_allclose(virial, virial.T, atol=1e-9 * scale)
+
+
+@needs_gmx
+def test_gromacs_pdb_rounds_mm_charges_to_six_decimals(params, tmp_path):
+    """Upstream GROMACS writes md_cp2k.pdb MM charges with %lf (6 decimals)."""
+    mm_top_charges = (-0.8341234, 0.4170617, 0.4170617)
+    qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES)
+    gc.write_system(
+        tmp_path,
+        positions=QMMM_NM,
+        box=QMMM_BOX_NM,
+        qm_molecules=[0],
+        qmi=qmi,
+        mdp={"rcoulomb": 0.7, "rvdw": 0.7},
+        mm_charges=mm_top_charges,
+    )
+    gc.run(GMX, tmp_path)
+    pdb_lines = [
+        line.split()[-1]
+        for line in (tmp_path / "md_cp2k.pdb").read_text().splitlines()
+        if line.startswith("ATOM")
+    ]
+    assert pdb_lines[:3] == ["0.000000", "0.000000", "0.000000"]
+    assert pdb_lines[3:6] == ["-0.834123", "0.417062", "0.417062"]
+
+    frame = gc.read_trr(tmp_path / "md.trr")[0]
+    rows = frame["box"] / BOHR_TO_NM
+    x = frame["x"] / BOHR_TO_NM
+    x[1:3] -= np.rint((x[1:3] - x[0]) @ np.linalg.inv(rows)) @ rows
+    rc = gc.default_rcut(rows, BOHR_TO_NM)
+    coul_pdb, _, _ = gc.ewald_qm_mm(
+        x[:3], QM_CHARGES, x[3:], np.array([float(s) for s in pdb_lines[3:]]), rows, rc, 1e-8
+    )
+    coul_top, _, _ = gc.ewald_qm_mm(
+        x[:3], QM_CHARGES, x[3:], np.array(list(mm_top_charges) * 3), rows, rc, 1e-8
+    )
+    qm_e, _ = ase_au(params, "OHH", x[:3])
+    q_en = gc.energies(GMX, tmp_path, "Quantum-En.")[0, 1]
+    assert abs(coul_pdb - coul_top) > 1e-8
+    assert q_en == pytest.approx((qm_e + coul_pdb) * HARTREE_TO_KJ_PER_MOL, rel=1e-11)
+    assert abs(q_en - (qm_e + coul_top) * HARTREE_TO_KJ_PER_MOL) > 1e-5
 
 
 @needs_gmx
@@ -1027,18 +1355,40 @@ def dd_positions() -> np.ndarray:
     return x
 
 
-def dd_run(tmp_path, params, ranks, qm_ranks="ALL", mdrun_args=("-npme", "0"), **kw):
-    qmi = qmi_input(params, embedding="MECHANICAL", qm_charges=QM_CHARGES, qm_ranks=qm_ranks)
+def dd_run(
+    tmp_path, params, ranks, qm_ranks="ALL", mdrun_args=("-npme", "0"), epsilon_r=None, **kw
+):
+    qmi = qmi_input(
+        params,
+        embedding="MECHANICAL",
+        qm_charges=QM_CHARGES,
+        epsilon_r=epsilon_r,
+        qm_ranks=qm_ranks,
+    )
+    mdp = {
+        "rcoulomb": 0.55,
+        "rvdw": 0.55,
+        "rlist": 0.55,
+        "nstlist": 1,
+        "verlet-buffer-tolerance": -1,
+        "nsteps": 20,
+        "nstxout": 10,
+        "nstvout": 0,
+        "nstfout": 10,
+        "nstenergy": 1,
+        "gen-vel": "yes",
+        "gen-temp": 300,
+        "gen-seed": 4928,
+    }
+    if epsilon_r is not None:
+        mdp["epsilon-r"] = epsilon_r
     gc.write_system(
         tmp_path, positions=dd_positions(), box=DD_BOX_NM, qm_molecules=[DD_QM], qmi=qmi,
         qm_lj=True,
         # A pair list rebuilt every step with no buffer: the Verlet buffer
         # lets each decomposition miss different pairs between rebuilds. The
         # cutoff is off the lattice spacing, where rounding would decide pairs.
-        mdp={"rcoulomb": 0.55, "rvdw": 0.55, "rlist": 0.55, "nstlist": 1,
-             "verlet-buffer-tolerance": -1, "nsteps": 20, "nstxout": 10, "nstvout": 0,
-             "nstfout": 10, "nstenergy": 1, "gen-vel": "yes", "gen-temp": 300,
-             "gen-seed": 4928},
+        mdp=mdp,
     )
     return gc.run(GMX_MPI, tmp_path, check=False, launcher=LAUNCHER, ranks=ranks,
                   mdrun_args=["-dlb", "no", *mdrun_args], timeout=600, **kw)
@@ -1089,6 +1439,31 @@ def test_mpi_domain_decomposition_matches_one_rank(ranks, qm_ranks, single_rank,
         scale = np.abs(ref["f"]).max()
         np.testing.assert_allclose(frame["f"], ref["f"], rtol=0, atol=1e-10 * scale)
         np.testing.assert_allclose(frame["f"][qm], ref["f"][qm], rtol=1e-10, atol=1e-10)
+
+
+@needs_gmx_mpi
+def test_mpi_domain_decomposition_with_epsilon_r(params, tmp_path):
+    done_1 = dd_run(tmp_path / "r1", params, 1, epsilon_r=2.5)
+    assert done_1.returncode == 0, done_1.stderr[-3000:]
+    _, ref_frames, ref_table, ref_tensors = dd_result(tmp_path / "r1")
+
+    done_4 = dd_run(tmp_path / "r4", params, 4, "ALL", epsilon_r=2.5)
+    assert done_4.returncode == 0, done_4.stderr[-3000:]
+    log, frames, table, tensors = dd_result(tmp_path / "r4")
+    grid = re.search(r"Domain decomposition grid (\d+) x (\d+) x (\d+)", log)
+    assert grid and int(grid.group(1)) >= 2, "no decomposition along x"
+    assert "epsilon_r 2.5" in (tmp_path / "r4" / "md_cp2k.out").read_text()
+    np.testing.assert_allclose(table[:, 1], ref_table[:, 1], rtol=1e-10, atol=0)
+    np.testing.assert_allclose(table[:, 2:], ref_table[:, 2:], rtol=1e-10, atol=0)
+    for name, ref in ref_tensors.items():
+        np.testing.assert_allclose(
+            tensors[name], ref, rtol=0, atol=1e-9 * np.abs(ref).max(), err_msg=name
+        )
+    for frame, ref in zip(frames, ref_frames):
+        np.testing.assert_allclose(frame["x"], ref["x"], rtol=0, atol=1e-10)
+        np.testing.assert_allclose(
+            frame["f"], ref["f"], rtol=0, atol=1e-10 * np.abs(ref["f"]).max()
+        )
 
 
 @needs_gmx_mpi

@@ -53,9 +53,9 @@ MOLECULE = """
 {name} 2
 
 [ atoms ]
-1 {o} 1 {name} OW 1 -0.834 15.9994
-2 {h} 1 {name} HW1 1 0.417 1.008
-3 {h} 1 {name} HW2 1 0.417 1.008
+1 {o} 1 {name} OW 1 {qo} 15.9994
+2 {h} 1 {name} HW1 1 {qh1} 1.008
+3 {h} 1 {name} HW2 1 {qh2} 1.008
 
 [ bonds ]
 1 2 1 0.09572 502416.0
@@ -150,6 +150,7 @@ def write_system(
     qmi: str,
     mdp: dict[str, Any],
     qm_lj: bool = False,
+    mm_charges: Sequence[float] = (-0.834, 0.417, 0.417),
 ) -> None:
     """Waters ``i`` in ``qm_molecules`` are QM.
 
@@ -169,9 +170,19 @@ def write_system(
     lines.append(gro_box(np.asarray(box)))
     (workdir / "conf.gro").write_text("\n".join(lines) + "\n")
 
+    qo, qh1, qh2 = mm_charges
     top = [TOPOLOGY_HEAD]
-    top.append(MOLECULE.format(name="SOL", o="OW", h="HW"))
-    top.append(MOLECULE.format(name="QMW", o="OW" if qm_lj else "OQ", h="HL" if qm_lj else "HQ"))
+    top.append(MOLECULE.format(name="SOL", o="OW", h="HW", qo=qo, qh1=qh1, qh2=qh2))
+    top.append(
+        MOLECULE.format(
+            name="QMW",
+            o="OW" if qm_lj else "OQ",
+            h="HL" if qm_lj else "HQ",
+            qo=-0.834,
+            qh1=0.417,
+            qh2=0.417,
+        )
+    )
     top.append("\n[ system ]\nwaters\n\n[ molecules ]")
     for mol in range(nmol):
         top.append(f"{'QMW' if mol in qm_molecules else 'SOL'} 1")
@@ -351,7 +362,7 @@ def default_rcut(rows: np.ndarray, bohr_to_nm: float) -> float:
     return min(1.0 / bohr_to_nm, 0.5 * min(heights))
 
 
-def ewald_qm_mm(xq, qq, xm, qm, rows, rc, tol):
+def ewald_qm_mm(xq, qq, xm, qm, rows, rc, tol, epsilon_r: float = 1.0):
     """Ewald QM-MM Coulomb energy and forces, atomic units, every k and image.
 
     The real-space sum takes every image pair closer than ``rc``; the
@@ -407,10 +418,15 @@ def ewald_qm_mm(xq, qq, xm, qm, rows, rc, tol):
     fq += pref * (qq[:, None] * np.imag(pq * np.conj(sm)[None, :]) * f[None, :]) @ kv
     fm += pref * (qm[:, None] * np.imag(pm * np.conj(sq)[None, :]) * f[None, :]) @ kv
     energy -= math.pi * qq.sum() * qm.sum() / (volume * alpha**2)
+    if epsilon_r != 1.0:
+        inv_eps = 1.0 / epsilon_r
+        energy *= inv_eps
+        fq *= inv_eps
+        fm *= inv_eps
     return energy, fq, fm
 
 
-def direct_qm_mm(xq, qq, xm, qm):
+def direct_qm_mm(xq, qq, xm, qm, epsilon_r: float = 1.0):
     """Plain Coulomb sum between QM and MM charges, atomic units."""
     xq, xm = np.asarray(xq, float), np.asarray(xm, float)
     d = xq[:, None, :] - xm[None, :, :]
@@ -420,4 +436,9 @@ def direct_qm_mm(xq, qq, xm, qm):
     g = qij / r**3
     fq = (g[:, :, None] * d).sum(axis=1)
     fm = -(g[:, :, None] * d).sum(axis=0)
+    if epsilon_r != 1.0:
+        inv_eps = 1.0 / epsilon_r
+        energy *= inv_eps
+        fq *= inv_eps
+        fm *= inv_eps
     return energy, fq, fm
