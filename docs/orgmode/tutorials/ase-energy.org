@@ -2,14 +2,18 @@
 #+OPTIONS: toc:nil todo:nil num:nil author:nil title:t
 
 * Run the example
-This lesson evaluates the water geometry of the
-[[file:first-energy.org][first tutorial]] with the ASE calculator.
-The default build's reference well supplies the number.
+This lesson evaluates the same internal water geometry as the
+[[file:first-energy.org][first tutorial]], placed near the origin rather than
+at ~(5, 5, 5)~, with the ASE calculator.
+The default build's origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.
 
-Configure and compile the default tree with ~-Dwith_tests=true~, as the
+Build and test the default tree with ~pixi run test-stub~ (or
+~meson setup build -Dwith_tests=true~ followed by ~meson test -C build~ or
+~meson compile -C build cpmdc water_params_bin~), as the
 [[file:../howto/quickstart.org][build-and-test how-to]] does.
-The build writes the shared library and the encoded water message
+Plain ~meson compile -C build~ compiles ~build/libcpmdc.so~ while the test run
+or ~water_params_bin~ target writes the encoded water message
 ~build/water_blyp_params.bin~.
 Point the example at both from the root of the checkout:
 
@@ -41,7 +45,9 @@ neither does ~get_forces~ after it: one step computes both.
 ~get_forces~ returns an array of shape ~(natoms, 3)~.
 Change a position and the next call computes again on the same session, which a
 relaxation with ~BFGS~ and ~FixAtoms~ relies on.
-~energy~ is in eV and ~forces~ in eV/Angstrom, the units of ~ase.units~.
+~energy~ is in eV and ~forces~ in eV/Angstrom, matching ASE's unit system and
+converted from Hartree and Bohr with ~cpmdc.HARTREE_TO_EV~ and
+~cpmdc.BOHR_TO_ANGSTROM~ (CODATA 2018).
 ~tests/python/test_ase_conformance.py~ checks those units, the cache, and the
 errors of the calculator with ASE's own tools, against the same reference well.
 [[file:../howto/ase.org][Use cpmdc as an ASE calculator]] lists every property,

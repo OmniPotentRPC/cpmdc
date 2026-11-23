@@ -11625,14 +11625,18 @@ QMMM, PROPERTIES, BICANONICAL, and CDFT are `&CPMD` keywords, not sections.
 ## File: docs/orgmode/tutorials/ase-energy.org
 
 # Run the example
-This lesson evaluates the water geometry of the
-first tutorial (file:first-energy.org) with the ASE calculator.
-The default build's reference well supplies the number.
+This lesson evaluates the same internal water geometry as the
+first tutorial (file:first-energy.org), placed near the origin rather than
+at , with the ASE calculator.
+The default build's origin-anchored reference well supplies the number.
 No OpenCPMD checkout is required.
 
-Configure and compile the default tree with `-Dwith_tests=true`, as the
+Build and test the default tree with `pixi run test-stub` (or
+`meson setup build -Dwith_tests=true` followed by `meson test -C build` or
+`meson compile -C build cpmdc water_params_bin`), as the
 build-and-test how-to (file:../howto/quickstart.org) does.
-The build writes the shared library and the encoded water message
+Plain `meson compile -C build` compiles `build/libcpmdc.so` while the test run
+or `water_params_bin` target writes the encoded water message
 `build/water_blyp_params.bin`.
 Point the example at both from the root of the checkout:
 
@@ -11660,7 +11664,9 @@ neither does `get_forces` after it: one step computes both.
 `get_forces` returns an array of shape .
 Change a position and the next call computes again on the same session, which a
 relaxation with `BFGS` and `FixAtoms` relies on.
-`energy` is in eV and `forces` in eV/Angstrom, the units of `ase.units`.
+`energy` is in eV and `forces` in eV/Angstrom, matching ASE's unit system and
+converted from Hartree and Bohr with `cpmdc.HARTREE_TO_EV` and
+`cpmdc.BOHR_TO_ANGSTROM` (CODATA 2018).
 `tests/python/test_ase_conformance.py` checks those units, the cache, and the
 errors of the calculator with ASE's own tools, against the same reference well.
 Use cpmdc as an ASE calculator (file:../howto/ase.org) lists every property,
@@ -12367,11 +12373,16 @@ A library force call writes no `RESTART.1`, `LATEST`, `GEOMETRY`, or
 `GEOMETRY.xyz`.
 The pseudopotential directory is unchanged.
 To evaluate many geometries, call `cpmdc_session_calculate_forces()` again on
-the same session. A call starts from the previous orbitals when the
+the same session.
+On an OpenCPMD build, a call starts from the stored orbitals when the
 functional, deck, cell, cutoff, charge, multiplicity, and elemental
-composition match.
-A new session with that same basis starts from those orbitals too, including
-when the atomic numbers are reordered.
+composition match and the geometry lies within `CPMDC_WARM_RMSD` (default
+`0.15` Angstrom root-mean-square distance per atom) of the stored geometry;
+beyond `CPMDC_WARM_RMSD` it skips full setup and starts from the deck's guess
+instead (see
+wavefunction state between calls (file:../explanation/wavefunction-state.org)).
+A new session with that same basis starts from those orbitals under the same
+distance rule, including when the atomic numbers are reordered.
 The eOn tutorial (file:eon-rgpot.org) drives exactly that loop from a
 minimiser, and running under mpirun (file:../howto/mpi.org) spreads each SCF
 over several ranks.
