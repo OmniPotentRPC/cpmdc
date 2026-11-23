@@ -5290,13 +5290,19 @@ Set only one optimiser in a message.
 Check the rendered `&CPMD` section with `CPMDC_DECK_OUT` (see
 debugging a deck (file:debug-deck.org)).
 
-# When to keep PCG
+# ODIIS retry path and when to keep PCG
 `cpmdc` applies one deck to every call of a session, so the optimiser chosen
 for the warm calls also runs the cold first call from atomic orbitals.
-Keep `PCG MINIMIZE` for a system whose ODIIS calls stop at `MAXITER`: each
-such call is reported as a failure (see troubleshooting (file:troubleshooting.org)),
-and the optimiser choice does not change the converged state, only the path
-to it.
+
+When the deck selects ODIIS, `cpmdc` runs one `wfopts` pass with that deck.
+If that pass does not meet the orbital threshold, DIIS is active, and no
+`stopgm` has fired, `cpmdc` runs one continuation with `PCG MINIMIZE` from the
+stored warm orbitals. That continuation is attempted once per call.
+
+Keep `PCG MINIMIZE` in the deck for a system that still fails after this
+single continuation, or when ODIIS paths frequently hit stops where a
+continuation is not attempted (see troubleshooting (file:troubleshooting.org)).
+The optimiser choice does not change the converged state, only the path to it.
 
 # Always set MAXITER
 Without `maxIter`, the OpenCPMD path inserts `MAXITER 40` into the first deck.
@@ -5572,7 +5578,7 @@ composition requires a new session.
      - Bind calculator groups and share the parent rank's result
      - :doc:`Run under mpirun <howto/mpi>`
    * - Tune SCF convergence in ``&CPMD``
-     - Pick ODIIS, PCG, or dynamic optimiser fallback for difficult steps
+     - Pick ODIIS or PCG, and know when ODIIS retries once with ``PCG MINIMIZE``
      - :doc:`Choose a wavefunction optimiser <howto/wavefunction-optimiser>`
    * - Extrapolate orbitals across trajectory steps
      - Seed each SCF from recent step orbitals with ASPC
@@ -5584,7 +5590,7 @@ composition requires a new session.
      - Compare analytic forces and stress against central finite differences
      - :doc:`Check forces and stress by finite differences <howto/check-forces>`
    * - Benchmark MPI rank scaling for a grid
-     - Measure 3D FFT scaling with the opt-in ``pwscale`` scaffold
+     - Measure structure-factor rank scaling with the opt-in ``pwscale`` scaffold
      - :doc:`Choose an MPI rank count <howto/pwscale-ranks>`
    * - Find out why a call failed or an energy is off
      - Match common error strings and failure modes to their fixes
@@ -5792,15 +5798,18 @@ These suites group the tests of the default build by layer.
 | `stub` | `stub-abi`, `capabilities-cmocka`, `stub-abi-symbol-coverage`, and when MPI is found `adopt-comm-stub` and `bind-calculator-stub` on four ranks |
 | `abi` | exported header, symbol-table, baseline, and feature-discovery checks |
 | `cmocka`, `capnp`, `capnp-fortran` | structured `CPMDParams` deck rendering, Fortran bridge application, and cmocka unit checks |
-| `params`, `inventory`, `schema` | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
-| `cpmdc` | geometry RMSD and `CPMDC_WARM_RMSD` warm-start selector checks |
+| `params`, `inventory` | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
 | `socket` | `ForceInput` sizing and session `PotentialResult` buffer contract |
-| `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests |
+| `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading, and communicator tests on four ranks (`adopt-comm-*`, `bind-calculator-*`, `rank-consensus`) and two ranks (`orbital-limit-agree-mpi`, `periodic-cell-mpi`, `orbital-divergence-mpi`) |
 | `e2e`, `fd-check` | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
 | `python` | Python bindings, `pytest` suite, `mypy` strict check (skips without `mypy`), and Python reference audit |
 | `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
 | `packaging` | installed `RUNPATH`, relocatable `pkg-config` layouts, and CMake/pkg-config consumer build |
 | `docs`, `examples` | `example-host-step`, runnable documentation blocks, `llms.txt` freshness, and API reference contracts |
+
+`geometry-rmsd`, `warm-selector`, and `warm-selector-abi` are standalone
+named tests, not a Meson suite. Run them by name:
+`meson test -C build geometry-rmsd warm-selector warm-selector-abi`.
 
 Opt-in options add `restart-con` (`-Dwith_readcon=true`), `pwscale`
 (`-Dwith_pwscale=true`), and `opencpmd` plus `water` (`-Dwith_cpmd=true` with a
