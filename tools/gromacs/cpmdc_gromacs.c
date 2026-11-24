@@ -447,7 +447,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
     }
     if (strcasecmp(w[0], "CHARGE") == 0) {
       if (n != 2)
-        die(env, "CHARGE in &DFT takes one value");
+        die(env, "CHARGE takes one value");
       if (!saw_charge) {
         copy_token_checked(env, input_charge_text, sizeof(input_charge_text),
                            w[1], "CHARGE");
@@ -458,7 +458,7 @@ static void parse_input(Env *env, const char *path, char *pdb_path, size_t pdb_c
     }
     if (strcasecmp(w[0], "MULTIPLICITY") == 0) {
       if (n != 2)
-        die(env, "MULTIPLICITY in &DFT takes one value");
+        die(env, "MULTIPLICITY takes one value");
       if (!saw_multiplicity) {
         copy_token_checked(env, input_multiplicity_text,
                            sizeof(input_multiplicity_text), w[1],

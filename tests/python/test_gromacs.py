@@ -1017,7 +1017,7 @@ def test_generated_input_reads_charge_tokens_outside_dft(params, tmp_path):
 def test_generated_input_rejects_extra_tokens(params, tmp_path):
     qmi = generated_input().replace("CHARGE 0", "CHARGE 0 1")
     stderr = shim_fails(tmp_path, qmi, gromacs_params=params)
-    assert "CHARGE in &DFT takes one value" in stderr
+    assert "CHARGE takes one value" in stderr
 
 
 @needs_lib
