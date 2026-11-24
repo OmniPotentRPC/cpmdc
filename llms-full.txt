@@ -3417,7 +3417,7 @@ The tests use it to check the ABI without a working evaluator.
 
 | Artifact | Installed as | Purpose |
 |----------+--------------+---------|
-| `libcpmdc.so` | `lib/libcpmdc.so.MAJOR` | the C ABI from `include/cpmdc.h` |
+| `libcpmdc.so` | `lib/libcpmdc.so.MAJOR`, or an unversioned `lib/libcpmdc.so` when `with_python` is on | the C ABI from `include/cpmdc.h` |
 | public headers | `include/cpmdc/cpmdc.h`, `cpmdc_features.h`, `cpmdc_export.h`, `cpmdc_restart.h` | declarations for hosts |
 | `libcpmdc_restart.a` | `lib/libcpmdc_restart.a` | reader and writer for CPMD `RESTART` files |
 | `cpmdc-restart` | `bin/cpmdc-restart` | command-line front end to `libcpmdc_restart` |
@@ -3428,7 +3428,8 @@ The optional tools (`cpmdc-ipi-c`, the LAMMPS plugin, and `libcpmdc_gromacs`)
 are listed with the options that build them in the
 build reference (file:../reference/build-options.org).
 
-`MAJOR` is the soversion, the first field of `version.txt`.
+`MAJOR` is the soversion, the first field of `version.txt`. A `with_python` build
+sets no soversion, because a wheel stores no symlinks.
 
 # Requirements
 The checked-in Pixi manifest pins every build dependency.
@@ -5796,7 +5797,7 @@ These suites group the tests of the default build by layer.
 | `params`, `inventory`, `schema` | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
 | `cpmdc` | geometry RMSD and `CPMDC_WARM_RMSD` warm-start selector checks |
 | `socket` | `ForceInput` sizing and session `PotentialResult` buffer contract |
-| `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading, and the MPI tests. `adopt-comm-shell`, `bind-calculator-shell`, and `rank-consensus` run on four ranks. `orbital-limit-agree-mpi`, `periodic-cell-mpi`, and `orbital-divergence-mpi` run on two. The `mpi` suite also holds the two `stub` tests above. Every MPI test registers only when MPI is found, and skips when no `mpirun` or `mpiexec` is on `PATH` |
+| `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading (`dlopen-leak` only when `b_sanitize` includes `address`), and the MPI tests. `adopt-comm-shell` and `bind-calculator-shell` run on four ranks; `orbital-limit-agree-mpi`, `periodic-cell-mpi`, and `orbital-divergence-mpi` run on two (those five join the `opencpmd` suite when `has_cpmd` is true). `rank-consensus` runs on four ranks and registers only when MPI is found and `has_cpmd` is false, because it compares exact per-rank values from the reference evaluator. The `mpi` suite also holds the two `stub` tests above. All MPI tests register only when MPI is found, and skip when no `mpirun` or `mpiexec` is on `PATH` |
 | `e2e`, `fd-check` | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
 | `python` | Python bindings, `pytest` suite, `mypy` strict check (skips without `mypy`), and Python reference audit |
 | `restart` | `libcpmdc_restart` binary `RESTART` reader/writer and header macro checks |
