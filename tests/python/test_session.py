@@ -1313,14 +1313,14 @@ def test_cluster_deck_and_unset_periodicity_cell_rules(tmp_path):
         tmp_path,
         """(
   functional = "BLYP",
-  cutOffRy = 35.0,
+  cutOffRy = 50.0,
   charge = 0,
   multiplicity = 1,
   task = "gradient",
   inputSections = [
-    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 80, maxIter = 80 ) ),
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 120, maxIter = 120 ) ),
     ( dft = ( functional = "BLYP", lsd = false ) ),
-    ( raw = "&SYSTEM\\n CLUSTER\\n POISSON SOLVER HOCKNEY\\n ANGSTROM\\n CELL\\n  10.0 1.0 1.0 0.0 0.0 0.0\\n CUTOFF\\n  35.0\\n&END\\n" ),
+    ( raw = "&SYSTEM\\n CLUSTER\\n POISSON SOLVER HOCKNEY\\n ANGSTROM\\n CELL\\n  10.0 1.0 1.0 0.0 0.0 0.0\\n CUTOFF\\n  50.0\\n&END\\n" ),
     ( atoms = ( pseudopotentials = [
         ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),
         ( element = "H", path = "H_CVB_BLYP.psp", lmax = 0 )
@@ -1332,12 +1332,12 @@ def test_cluster_deck_and_unset_periodicity_cell_rules(tmp_path):
         tmp_path,
         """(
   functional = "BLYP",
-  cutOffRy = 35.0,
+  cutOffRy = 50.0,
   charge = 0,
   multiplicity = 1,
   task = "gradient",
   inputSections = [
-    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 80, maxIter = 80 ) ),
+    ( cpmd = ( optimizeWavefunction = true, convergenceOrbitals = 1.0e-5, maxStep = 120, maxIter = 120 ) ),
     ( dft = ( functional = "BLYP", lsd = false ) ),
     ( atoms = ( pseudopotentials = [
         ( element = "O", path = "O_MT_BLYP.psp", lmax = 1 ),

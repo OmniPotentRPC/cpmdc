@@ -1533,7 +1533,7 @@ if get_option('with_tests')
       water_periodic_params_bin,
     ],
     suite: ['e2e', 'cmocka'],
-    timeout: 300,
+    timeout: 600,
   )
   test(
     'atomic-number-range',

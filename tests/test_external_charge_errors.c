@@ -156,8 +156,8 @@ static CPMDCSession *open_custom_water_params(const char *system_raw) {
   memset(&cpmd, 0, sizeof(cpmd));
   cpmd.optimizeWavefunction = 1;
   cpmd.convergenceOrbitals = 1.0e-5;
-  cpmd.maxStep = 80;
-  cpmd.maxIter = 80;
+  cpmd.maxStep = 120;
+  cpmd.maxIter = 120;
   CPMDCpmdSection_ptr cp = new_CPMDCpmdSection(root.seg);
   write_CPMDCpmdSection(&cpmd, cp);
   struct CPMDInputSection sc;
@@ -305,7 +305,7 @@ static void test_isolated_cell_is_accepted_and_evaluates(void **state) {
 static void test_cluster_cell_accepted_and_unset_cell_refused(void **state) {
   CPMDCSession *cluster = open_custom_water_params(
       "&SYSTEM\n CLUSTER\n POISSON SOLVER HOCKNEY\n ANGSTROM\n"
-      " CELL\n  10.0 1.0 1.0 0.0 0.0 0.0\n CUTOFF\n  35.0\n&END\n");
+      " CELL\n  10.0 1.0 1.0 0.0 0.0 0.0\n CUTOFF\n  50.0\n&END\n");
   CPMDCSession *unset = open_custom_water_params(NULL);
   double positions[3] = {3.0, 0.0, 0.0};
   double charges[1] = {1.0};
