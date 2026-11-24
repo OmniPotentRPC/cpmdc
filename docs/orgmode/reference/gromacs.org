@@ -48,9 +48,23 @@ An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
-On the explicit path, everything outside ~&CPMDC~ is checked and otherwise
-ignored, apart from the ~&LINK~ sections of [[*Link atoms][Link atoms]]: the method is the ~CPMDParams~
-deck, not CP2K's ~&DFT~.
+On the explicit path the method is the ~CPMDParams~ deck, not CP2K's ~&DFT~, and
+the library refuses a file whose ~&DFT~ ~CHARGE~ or ~MULTIPLICITY~ differs from
+the effective charge or multiplicity of that deck, as it does for the generated
+input.
+GROMACS takes the QM charge from those two keys, so a value that the deck does
+not share would run another system than the one GROMACS set up.
+The message names both values, for example
+~&DFT CHARGE 1 disagrees with &CPMDC PARAMS charge 0~, and a value that is not
+an integer is refused.
+A ~CHARGE~ or ~MULTIPLICITY~ outside ~&DFT~ is not read.
+The ~&XC_FUNCTIONAL~ of the file is not compared, because CP2K writes a
+functional as nested sections as well as a name; the deck holds the functional.
+A link hydrogen is not part of that comparison. The values are the effective
+charge and multiplicity of the deck, which describes the QM atoms, and not a
+recount of the capped region.
+Everything else outside ~&CPMDC~ is checked for structure and otherwise
+ignored, apart from the ~&LINK~ sections of [[*Link atoms][Link atoms]].
 With neither ~&CPMDC~ nor ~CPMDC_GROMACS_PARAMS~, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (~md_cp2k.out~):
