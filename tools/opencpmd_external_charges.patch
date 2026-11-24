@@ -1,0 +1,61 @@
+diff --git a/src/efld.mod.F90 b/src/efld.mod.F90
+index ab764e6..8c7a265 100644
+--- a/src/efld.mod.F90
++++ b/src/efld.mod.F90
+@@ -7,6 +7,34 @@ MODULE efld
+
+   REAL(real_8), POINTER :: extf(:)
+
++  ABSTRACT INTERFACE
++     SUBROUTINE cpmdc_external_force_interface(rhoe)
++       IMPORT :: real_8
++       REAL(real_8), INTENT(IN) :: rhoe(*)
++     END SUBROUTINE cpmdc_external_force_interface
++  END INTERFACE
++
++  PROCEDURE(cpmdc_external_force_interface), POINTER :: &
++       cpmdc_external_force_hook => NULL()
++
+   ! ==================================================================
+
++CONTAINS
++
++  SUBROUTINE set_cpmdc_external_force_hook(hook)
++    PROCEDURE(cpmdc_external_force_interface), OPTIONAL :: hook
++    IF (PRESENT(hook)) THEN
++       cpmdc_external_force_hook => hook
++    ELSE
++       NULLIFY(cpmdc_external_force_hook)
++    END IF
++  END SUBROUTINE set_cpmdc_external_force_hook
++
++  SUBROUTINE run_cpmdc_external_force_hook(rhoe)
++    REAL(real_8), INTENT(IN) :: rhoe(*)
++    IF (ASSOCIATED(cpmdc_external_force_hook)) THEN
++       CALL cpmdc_external_force_hook(rhoe)
++    END IF
++  END SUBROUTINE run_cpmdc_external_force_hook
++
+ END MODULE efld
+diff --git a/src/eextern_utils.mod.F90 b/src/eextern_utils.mod.F90
+index 3adf268..d7ac256 100644
+--- a/src/eextern_utils.mod.F90
++++ b/src/eextern_utils.mod.F90
+@@ -1,7 +1,8 @@
+ MODULE eextern_utils
+   USE atomc_utils,                     ONLY: positx
+   USE cnst,                            ONLY: pi
+-  USE efld,                            ONLY: extf
++  USE efld,                            ONLY: extf,&
++                                             run_cpmdc_external_force_hook
+   USE epot_types,                      ONLY: epot1,&
+                                              epot2,&
+                                              epot3,&
+@@ -58,6 +59,7 @@ CONTAINS
+     IF (tfor.OR.cntl%texadd) THEN
+        gfac=parm%omega/(spar%nr1s*spar%nr2s*spar%nr3s)
+        eext=ddot(fpar%nnr1,rhoe,1,extf,1)*gfac
++       CALL run_cpmdc_external_force_hook(rhoe)
+        ! ..ENERGY VEXT*RHOI AND GRADIENT
+        eext2=0._real_8
+        eexti=0._real_8

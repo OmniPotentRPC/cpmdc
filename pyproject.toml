@@ -26,7 +26,7 @@ keywords = ["CPMD", "OpenCPMD", "ASE", "rgpot", "capnproto", "ctypes"]
 
 [project.optional-dependencies]
 ase = ["ase>=3.23"]
-test = ["ase>=3.23", "pytest>=7"]
+test = ["ase>=3.23", "mpmath>=1.3,<2", "pytest>=7"]
 # The LAMMPS Python module used by cpmdc.lammps. rgpot.lammps is not in a
 # released rgpot wheel, so it is not declared here: pip would build the
 # full rgpot project, torch included. scripts/ci/install_rgpot_lammps.sh

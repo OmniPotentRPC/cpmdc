@@ -177,8 +177,8 @@ With `gmx_d` from `CPMDC_GMX` or on `PATH`, it also runs `grompp` and `mdrun`:
   each element of `Vir` equals half the central difference of `Potential` under
   a 1e-5 strain of the box and positions, to 1e-8 of its largest element, so the
   QM, QM-MM, and classical terms all enter it;
-- generated input, `EMBEDDING ELECTROSTATIC`, and charged MM atoms without an
-  embedding each stop `mdrun` with the reason.
+- generated input, and charged MM atoms without an embedding, each stop
+  `mdrun` with the reason. `EMBEDDING ELECTROSTATIC` accepts those charges.
 
 With `gmx_mpi_d` from `CPMDC_GMX_MPI`, a double-precision GROMACS built with
 `-DGMX_MPI=ON`, launched by `CPMDC_MPIEXEC` (default `mpiexec`):
@@ -738,6 +738,15 @@ the route for an MPI-launched CPMD that integrates.
 For GROMACS integrating on cpmdc forces, the CP2K interface is the one
 in-process route that carries the energy, the forces, and the box at full
 precision, and it is the one built and tested here.
+
+Both in-process adapters can use the session external-charge ABI. GROMACS
+`EMBEDDING ELECTROSTATIC` takes MM positions and charges from its generated
+PDB. Python `cpmdc.lammps.FixExternal(qm_types=...)` takes the atoms outside
+those types, reads their LAMMPS `q` values, and returns forces to both groups.
+The Gaussian charge potential polarizes the CPMD density; its energy is part of
+the QM energy. Periodic electrostatic embedding is rejected until a periodic
+sum is implemented. Mechanical embedding and whole-system LAMMPS operation are
+unchanged.
 
 # OpenCPMD in GROMACS
 `bench/gromacs_opencpmd.py` runs GROMACS on the OpenCPMD backend: one BLYP water (the deck of `tests/water_blyp_params.capnp.txt`,
@@ -2896,7 +2905,7 @@ on it, with unit conversion, the triclinic cell, and the MPI gather to one rank;
 Run LAMMPS on cpmdc forces (file:lammps.org) documents it beside the Python
 `fix external` route.
 `tools/gromacs/cpmdc_gromacs.c` is a host on the same call behind another
-program's C API, libcp2k, with mechanical QM-MM embedding; see
+program's C API, libcp2k, with electrostatic and mechanical QM-MM embedding; see
 Run GROMACS on cpmdc forces (file:gromacs.org).
 
 Arguments, units, and return conventions of each row are in
@@ -3442,10 +3451,10 @@ pass `charge=` and `multiplicity=` to `write_qmi()` for a deck that is not
 neutral and singlet, and `mdrun` stops with both values when they differ.
 The file of `-qmi` holds a `&CPMDC` section inside
 `&FORCE_EVAL`: `PARAMS` names the `CPMDParams` message, `CELL` and `EMBEDDING` choose the cell and the QM-MM Coulomb term, `QM_CHARGES`
-gives the QM atoms' classical charges, `EPSILON_R` scales the mechanical-embedding
-QM-MM Coulomb term when `.mdp` sets `epsilon-r` other than 1 (because GROMACS'
-CP2K module does not forward `epsilon-r` to `libcp2k`), and `QM_RANKS` sets the
-ranks of an MPI GROMACS.
+gives the QM atoms' classical charges, `EPSILON_R` scales the QM-MM Coulomb term
+under `MECHANICAL` or `ELECTROSTATIC` embedding when `.mdp` sets `epsilon-r`
+other than 1 (because GROMACS' CP2K module does not forward `epsilon-r` to
+`libcp2k`), and `QM_RANKS` sets the ranks of an MPI GROMACS.
 The reference (file:../reference/gromacs.org) lists every key and what the
 library writes to `md_cp2k.out`.
 An explicit `&CPMDC` section takes precedence over
@@ -4245,6 +4254,7 @@ GCC 14 rejects the stock return of a pointer from that function.
 | `opencpmd_pcg_step.patch` (optional) | `src/pcgrad_driver.mod.F90` | the PCG line minimisation can suppress its interpolated step for strict orbital targets; see the optimiser how-to (file:wavefunction-optimiser.org) |
 | `opencpmd_constant_cutoff_precon.patch` (optional) | `src/hesele_utils.mod.F90` | with `CONSTANT CUTOFF` the ODIIS preconditioner misses the penalty on plane waves above E0, ODIIS stops at its step limit, and `cpmdc` falls back to PCG: a water stress call at 60 Ry took 42.5 s instead of 7.1 s; see relaxing a cell at a constant cutoff (file:constant-cutoff.org) |
 | `opencpmd_atomwf_kpts_ortho.patch` | `src/atomwf_utils.mod.F90`, `src/gsortho_utils.mod.F90` | k-point atomic wavefunction initialization with randomized extra states overflows `zmatat` because `gs_ortho_c` passes `2*np*n0` to `mp_sum` on a `COMPLEX(real_8)` array and `atomwf` passes `zmatat(atwp%nattot, atwp%nattot)` instead of sizing the orthogonalization scratch to `(nleft, MAX(atwp%nattot, nleft))` |
+| `opencpmd_external_charges.patch` | `src/efld.mod.F90`, `src/eextern_utils.mod.F90` | external-charge embedding has no density-force hook on the real-space grid, and `libcpmdc` does not link against `set_cpmdc_external_force_hook` |
 
 The loops below apply every patch but the optional
 `pcg_step` and `constant_cutoff_precon`; `scripts/ci/build_opencpmd.sh` applies
@@ -4283,7 +4293,7 @@ git checkout 062582b7cfd832d36f88f504cd08e4ead42eb404
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
          embed_teardown embed_extrapolate embed_dipole omp_info \
-         atomwf_kpts_ortho; do
+         atomwf_kpts_ortho external_charges; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 
@@ -4322,13 +4332,14 @@ cd /path/to/opencpmd-source
 for p in embed_rinitwf embed_geometry embed_rwfopt converged_state \
          kpoints_inputfile stopgm_return tistopgm c_mem_addrs \
          embed_teardown embed_extrapolate embed_dipole omp_info \
-         atomwf_kpts_ortho; do
+         atomwf_kpts_ortho external_charges; do
   patch -p1 < /path/to/cpmdc/tools/opencpmd_$p.patch
 done
 /path/to/cpmdc/tools/rebuild_opencpmd_embed.sh /path/to/opencpmd-build
 /path/to/cpmdc/tools/rebuild_opencpmd_omp_info.sh /path/to/opencpmd-build
 
 `rebuild_opencpmd_embed.sh` recompiles the object of the embedding patch,
+`efld.mod.o`, `eextern_utils.mod.o`,
 `error_handling.mod.o`, `embed_ctrl.mod.o`, `control_test_utils.mod.o`,
 `rinitwf_driver.mod.o`, `initrun_driver.mod.o`,
 `rwfopt_utils.mod.o`, `ddipo_utils.mod.o`, `wfopts_utils.mod.o`,
@@ -6083,7 +6094,7 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
-`libcpmdc` exports those 52 functions and no other symbol; the exported symbols
+`libcpmdc` exports those 55 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 `schema/inventory/surface_map_abi.txt` records them; it is generated from the
 built library, and the `c-abi-inventory` test fails when the headers, the
@@ -6354,6 +6365,16 @@ entries a call filled.
 | `int cpmdc_available(void)` | 1 when OpenCPMD is linked, ready, and not finalized; 0 on the reference build; 0 after finalize and from the link stub |
 | `void cpmdc_finalize(void)` | reference and OpenCPMD builds: marks the runtime finalized; later calls that need it fail with `CPMD embed not available`, but a session evaluation that repeats the step the session stored last still returns 0 from the session's cache; the link stub does nothing and its evaluations always fail with `OpenCPMD embed not available in cpmdc stub` followed by the called function's name in parentheses; no build calls `MPI_Finalize` |
 | `const char *cpmdc_last_error(void)` | per-thread text of the last failing public call, empty after a success |
+| `CPMDCErrorCode cpmdc_last_error_code(void)` | machine-readable code for that failure; periodic electrostatic embedding is `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`, and a deck `EXTERNAL POTENTIAL` combined with session charges is `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` |
+
+| `CPMDCErrorCode` constant | Value | Meaning |
+|---------------------------+-------+---------|
+| `CPMDC_ERROR_NONE` | 0 | no failure recorded on the calling thread |
+| `CPMDC_ERROR_INVALID_ARGUMENT` | 1 | a null handle, a bad buffer, or a value the call refuses, such as a Gaussian width below 1e-12 Angstrom |
+| `CPMDC_ERROR_UNAVAILABLE` | 2 | the backend is not linked, not ready, or this build is the link stub |
+| `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` | 3 | session charges with a periodic cell or a periodic deck |
+| `CPMDC_ERROR_EVALUATION_FAILED` | 4 | the evaluation ran and produced no result |
+| `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` | 5 | session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` |
 
 `cpmdc_last_error()` is written by `cpmdc_params_method()`,
 `cpmdc_set_params()`,
@@ -6368,8 +6389,10 @@ point, `cpmdc_session_calculate_au()` among them.
 When the call returns `CPMDCResult`, the text matches `message`, including a
 missing pseudopotential directory.
 Snapshot readers (`cpmdc_last_stress()` and the other
-`cpmdc_last_*` / `cpmdc_session_last_*` getters) do not write it: -1 means the
-snapshot is absent or the output pointer is null.
+`cpmdc_last_*` / `cpmdc_session_last_*` getters) do not write it, except
+`cpmdc_session_last_external_charge_forces()`, which writes the code and the
+text on every failure and clears both on success. For the other readers, -1
+means the snapshot is absent or the output pointer is null.
 `cpmdc_adopted_comm()` and `cpmdc_capabilities_result()` do not write it either.
 A capabilities return of -1 is the size query.
 
@@ -6508,6 +6531,8 @@ The output array holds `3 * n_atoms` doubles.
 | `CPMDCSession *cpmdc_session_create_from_config(const void *config, size_t size)` | resolve a `PotentialConfig` like `cpmdc_configure()`, then create a session |
 | `int cpmdc_session_set_params(CPMDCSession *s, const void *params, size_t size)` | replace the parameters and drop any `common` overlay; -1 once the session has accepted a topology; a failed call leaves the session unchanged |
 | `int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry, double height_ry, double width_ry)` | add `CONSTANT CUTOFF` to the rendered `&SYSTEM`; `cutoff_ry <= 0` removes it; same topology rule |
+| `int cpmdc_session_set_external_charges(CPMDCSession *s, size_t n, const double *positions_ang, const double *charges_e, const double *widths_ang)` | copy `n` Gaussian MM charges for subsequent calls; widths may be `NULL` for the 0.30 Angstrom default and must be at least 1e-12 Angstrom; `n == 0` clears them |
+| `int cpmdc_session_last_external_charge_forces(const CPMDCSession *s, double *forces_h_bohr, size_t forces_len)` | copy the `3 * n` MM forces from the last successful evaluation and clear `cpmdc_last_error()`; -1 writes `CPMDC_ERROR_INVALID_ARGUMENT` for a null session, a missing result, the wrong length, or a null buffer |
 | `int cpmdc_session_configure(CPMDCSession *s, const void *config, size_t size)` | replace the configuration from a `PotentialConfig`; same rule, and a failed call keeps the previous parameters and overlay |
 | `void cpmdc_session_destroy(CPMDCSession *s)` | free the session; `NULL` is accepted |
 | `int cpmdc_session_select_orbitals(CPMDCSession *s, long long key)` | record `key`; the next evaluations start from the orbitals stored under `key`; a key named and replaced before an evaluation parks nothing; every calculator rank names the same key; an evaluation that would park another copy past `CPMDC_ORBITAL_SLOT_LIMIT` fails, `cpmdc_last_error()` and the result message name that variable, and the parked copies already stored are left unchanged; -1 for a `NULL` session |
@@ -6533,6 +6558,35 @@ A later step with a different count or composition fails with
 `topology change requires a new session` before CPMD runs.
 A reordering of the same elements stays on the session.
 Coordinates, the cell, and units may change between steps.
+External charges contribute
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic potential.
+For \(r/\sigma > 1/8\) the closed form is used. At or below that ratio the
+potential and the force coefficient are evaluated from their Taylor series in
+\((r/\sigma)^2\) through \((r/\sigma)^{14}\), because the closed force
+coefficient subtracts two terms of size \(O(1/r^2)\) and loses digits to that
+cancellation as \(r\) shrinks.
+The series is continuous with the closed form at the switch, finite at
+\(r = 0\), and keeps the force on a charge that sits on an ion.
+No term is dropped and nothing is clamped to the origin.
+Every charge and position must be finite, and every width must be finite and at
+least 1e-12 Angstrom, from the argument or from `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG`.
+A narrower width fails `cpmdc_session_set_external_charges()` with
+`CPMDC_ERROR_INVALID_ARGUMENT` and keeps the previous charge set, because the
+\(1/\sigma^4\) force terms overflow to NaN for much narrower Gaussians.
+The total energy includes electron--MM and ion--MM coupling; QM and MM force
+arrays are both `-dE/dR`. External charges are supported on an isolated system
+only, because periodic images are not implemented. A step with a periodic cell
+(a non-zero cell on a deck that leaves periodicity unset), or a step on a deck
+that is not an isolated system (a `SYMMETRY` above 0, a `SURFACE` or `POLYMER`
+deck, or `CELL VECTORS` without an isolated keyword), fails with
+`CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING` on every evaluation path,
+including `cpmdc_session_energy_gradient()`. An isolated or cluster deck
+(`SYMMETRY 0`, `SYMMETRY ISOLATED`, `POISSON SOLVER`, `CLUSTER`, or
+`ISOLATED MOLECULE`) with an isolated cell, and an all-zero cell, are accepted.
+Session charges and a deck-defined `EXTERNAL POTENTIAL` or
+`EXTERNAL POTENTIAL ADD` are mutually exclusive.
+An evaluation that requests both fails with
+`CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL` instead of replacing the deck potential.
 On an isolated OpenCPMD deck the atoms are moved to the middle of the deck's
 cell before each evaluation and the net force is removed, so a rigid translation
 of every atom changes neither the energy nor the forces (see `CPMDC_RECENTER` in environment variables (file:environment.org)).
@@ -6894,6 +6948,18 @@ Calls that report the build and the failure text. None of them evaluates.
 | Python | the text of `cpmdc.CPMDCError`; the package reads it after each failing call. |
 | Defaults | empty string before any call |
 
+### ~cpmdc_last_error_code~
+
+| Item | Description |
+|--------+--------|
+| Units | none |
+| Layout | none |
+| Ownership | none: the code is returned by value, so there is nothing to free. |
+| Threads and MPI | Thread-safe: each thread reads its own code, written together with its `cpmdc_last_error()` text. MPI: local to each rank; the gate messages of a collective evaluation map to the same code on every rank. |
+| Returns and errors | none: cannot fail. The code is `CPMDC_ERROR_NONE` when the text is empty and otherwise names the failure: a bad argument, an unavailable backend, periodic embedding, an evaluation that produced no result, or a deck `EXTERNAL POTENTIAL` combined with session charges. A later failure replaces an earlier code. |
+| Python | the `code` attribute of `cpmdc.CPMDCError` and of its subclasses; a library without the symbol gives code 0. |
+| Defaults | `CPMDC_ERROR_NONE` before any call |
+
 ## MPI calculator binding
 
 Calls that choose the communicator of one calculator. See the MPI how-to for the sequence.
@@ -7075,6 +7141,30 @@ A session is created by one of two functions and released by `cpmdc_session_dest
 | Returns and errors | Returns 0 on success and -1 for a NULL session, a value that is not finite, a session that has accepted a topology, E0 + 2 sigma above the deck cutoff, a message that sets `system.constantCutoff`, or a raw `&SYSTEM` block; the session keeps its previous setting and the text is `cpmdc_last_error()`. The link stub returns -1. |
 | Python | `cpmdc.CPMDCError` from the `cpmdc.Session` constructor when `constant_cutoff=` is given. |
 | Defaults | `cutoff_ry` zero or less turns the functional off; `height_ry` zero or less selects 50 times the deck cutoff; `width_ry` zero or less selects `cutoff_ry / 10` |
+
+### ~cpmdc_session_set_external_charges~
+
+| Item | Description |
+|--------+--------|
+| Units | `positions_ang` and `widths_ang` in Angstrom; `charges_e` in units of the elementary charge. |
+| Layout | none: `positions_ang` holds `3 * n` doubles in C order, `charges_e` `n` doubles, and `widths_ang` `n` doubles or NULL for the default width of 0.30 Angstrom (or `CPMDC_EXTERNAL_CHARGE_WIDTH_ANG` when set). |
+| Ownership | `session` stays owned by the caller; the library copies `positions_ang`, `charges_e` and `widths_ang`, so the caller keeps and may free them on return. `n` of 0 clears the set. |
+| Threads and MPI | Not thread-safe: one thread at a time, and never during an evaluation. MPI: local to the rank, no communication; every rank of a calculator makes the same call before the same evaluation. |
+| Returns and errors | Returns 0 on success and -1 with `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session, NULL arrays with `n` above 0, a value that is not finite, or a width below 1e-12 Angstrom; the previous set is kept. The link stub returns -1 with `CPMDC_ERROR_UNAVAILABLE`. A periodic or deck-potential clash is reported by the next evaluation, not by this call. A successful call clears `cpmdc_last_error()`, and every failure writes it. |
+| Python | `cpmdc.Session.set_external_charges` raises `cpmdc.CPMDCInvalidArgument`. |
+| Defaults | no external charges |
+
+### ~cpmdc_session_last_external_charge_forces~
+
+| Item | Description |
+|--------+--------|
+| Units | Hartree/Bohr. |
+| Layout | none: `forces_h_bohr` holds `3 * n` doubles in C order for the `n` charges of the last successful evaluation, in the order they were set. |
+| Ownership | `session` stays owned by the caller; the caller owns the output buffer `forces_h_bohr`. |
+| Threads and MPI | Thread-safe only with the session: one thread at a time. MPI: local to the rank, no communication. |
+| Returns and errors | Returns 0 and clears `cpmdc_last_error()`, or -1 with `CPMDC_ERROR_INVALID_ARGUMENT` for a NULL session or buffer, a length that is not `3 * n`, or no successful evaluation with charges. The link stub returns -1 with `CPMDC_ERROR_UNAVAILABLE`. |
+| Python | `cpmdc.Session.external_charge_forces_au` raises `cpmdc.CPMDCInvalidArgument`. |
+| Defaults | none |
 
 ### ~cpmdc_session_destroy~
 
@@ -7959,6 +8049,15 @@ Each type of the installed headers, with the rows Layout, Units, Ownership and P
 | Ownership | Returned by value; the caller owns the copy. `message` is inside the struct, so there is nothing to free. |
 | Python | Not wrapped as a type; the Python `Session` reads `ok`, `energy_h` and `message` and raises `cpmdc.CPMDCError` with the message when `ok` is 0. |
 
+## ~CPMDCErrorCode~
+
+| Item | Description |
+|--------+--------|
+| Layout | An `enum` of `int` values 0 to 5: `CPMDC_ERROR_NONE`, `CPMDC_ERROR_INVALID_ARGUMENT`, `CPMDC_ERROR_UNAVAILABLE`, `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`, `CPMDC_ERROR_EVALUATION_FAILED`, `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
+| Units | none |
+| Ownership | Returned by value from `cpmdc_last_error_code()`. |
+| Python | Not wrapped as a type; the integer is `cpmdc.CPMDCError.code` and selects the subclass that the package raises. |
+
 ## ~CPMDCEnergyComponents~
 
 | Item | Description |
@@ -8102,6 +8201,12 @@ Every macro and enum constant of the installed headers.
 |--------+--------+--------+--------|
 | CPMDC_ABI_VERSION | 0 for every 0.x release | The ABI generation: the major number of `version.txt`, written into the header by cog. Compare it with `cpmdc_abi_version()`. | `cpmdc.Session.abi_version` returns the compiled value. |
 | CPMDC_API | the platform export attribute | Marks an exported function: default visibility on GCC and Clang, `__declspec(dllexport)` or `dllimport` on Windows, empty for a static build. | none |
+| CPMDC_ERROR_NONE | 0 | `CPMDCErrorCode`: no failure recorded. | `cpmdc.CPMDCError.code` is 0 for a failure that did not come from the library. |
+| CPMDC_ERROR_INVALID_ARGUMENT | 1 | `CPMDCErrorCode`: a null handle, a bad buffer, or a refused value. | `cpmdc.CPMDCInvalidArgument` |
+| CPMDC_ERROR_UNAVAILABLE | 2 | `CPMDCErrorCode`: the backend is not linked or this build is the link stub. | `cpmdc.CPMDCUnavailable` |
+| CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING | 3 | `CPMDCErrorCode`: session charges with a periodic cell or deck. | `cpmdc.CPMDCUnsupportedPeriodicEmbedding` |
+| CPMDC_ERROR_EVALUATION_FAILED | 4 | `CPMDCErrorCode`: the evaluation ran and produced no result. | `cpmdc.CPMDCEvaluationFailed` |
+| CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL | 5 | `CPMDCErrorCode`: session charges with a deck `EXTERNAL POTENTIAL`. | `cpmdc.CPMDCDeckExternalPotential` |
 | CPMDC_FEATURE_SECTION | 1 | `CPMDCFeatureKind`: a CPMD input section, such as `catalog.section.PIMD`. | none |
 | CPMDC_FEATURE_PARAMS | 2 | `CPMDCFeatureKind`: a `CPMDParams` field. | none |
 | CPMDC_FEATURE_ABI | 3 | `CPMDCFeatureKind`: an exported C function. | none |
@@ -8181,6 +8286,127 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Ownership and threads | Stateless: raised and caught on the calling thread, safe to pass between threads. It never holds a session. |
 | Raises | none: this is the exception. It subclasses `RuntimeError`. The C status codes map to it as listed in the C contracts, and `cpmdc.ase.CalculationFailed` and `cpmdc.ipi.ProtocolError` subclass it. |
 | Defaults | none: the message is whatever the library or the loader reported. |
+
+### ~cpmdc.CPMDCError.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`: the `CPMDCErrorCode` of the library failure, or 0 when Python rejected the call or the library lacks `cpmdc_last_error_code()`. |
+| Ownership and threads | Plain attribute of the exception instance; read it on the thread that caught the exception. |
+| Raises | none |
+| Defaults | 0 on `CPMDCError`; each subclass has its own class value, and the constructor takes `code=None` to keep it. |
+
+### ~cpmdc.CPMDCInvalidArgument~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCInvalidArgument(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 1. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below 1e-12 Angstrom. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCInvalidArgument.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 1. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 1, equal to `CPMDC_ERROR_INVALID_ARGUMENT`. |
+
+### ~cpmdc.CPMDCUnavailable~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCUnavailable(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 2. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised when the backend is not linked or the library is the link stub. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCUnavailable.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 2. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 2, equal to `CPMDC_ERROR_UNAVAILABLE`. |
+
+### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCUnsupportedPeriodicEmbedding(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 3. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for session charges with a periodic cell or a periodic deck. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCUnsupportedPeriodicEmbedding.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 3. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 3, equal to `CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`. |
+
+### ~cpmdc.CPMDCEvaluationFailed~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCEvaluationFailed(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 4. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised when an evaluation ran and produced no result. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCEvaluationFailed.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 4. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 4, equal to `CPMDC_ERROR_EVALUATION_FAILED`. |
+
+### ~cpmdc.CPMDCDeckExternalPotential~
+
+| Item | Description |
+|--------+--------|
+| Signature | `CPMDCDeckExternalPotential(cpmdc.CPMDCError)` |
+| Units | none |
+| Shape and dtype | An exception carrying one message string and `code` 5. |
+| Ownership and threads | Stateless: raised and caught on the calling thread. It never holds a session. |
+| Raises | none: this is the exception. Raised for session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD`. |
+| Defaults | none: the message is what the library reported. |
+
+### ~cpmdc.CPMDCDeckExternalPotential.code~
+
+| Item | Description |
+|--------+--------|
+| Signature | `code (attribute)` |
+| Units | none |
+| Shape and dtype | scalar `int`, 5. |
+| Ownership and threads | Class attribute; immutable by convention and readable from any thread. |
+| Raises | none |
+| Defaults | 5, equal to `CPMDC_ERROR_DECK_EXTERNAL_POTENTIAL`. |
 
 ### ~cpmdc.ConstantCutoff~
 
@@ -8479,6 +8705,28 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Raises | `ValueError` for empty or ragged positions, a non-finite value, a wrong number of atomic numbers or one outside 1..118, or a malformed cell; `TypeError` for an atomic number that is not an integer (a whole float such as `8.0` is accepted); `CPMDCError` for a closed session, a change of atom count or composition, a non-zero cell rejected by the C ABI (rank below 3, volume underflow, volume overflow, or isolated-deck mismatch), or a failed step. |
 | Defaults | `cell` is `None`: an isolated system, evaluated with `cpmdc_session_energy_forces()`; a cell goes through `cpmdc_session_calculate_forces()`. |
 
+### ~cpmdc.Session.set_external_charges~
+
+| Item | Description |
+|--------+--------|
+| Signature | `set_external_charges(positions_angstrom, charges_e, widths_angstrom=None)` |
+| Units | `positions_angstrom` and `widths_angstrom` in Angstrom; `charges_e` in units of the elementary charge. |
+| Shape and dtype | `positions_angstrom` holds `3 * M` finite floats, flat or `M` rows; `charges_e` and `widths_angstrom` hold `M` finite floats; `M` of 0 clears the charges. |
+| Ownership and threads | The library copies the arrays; the caller keeps them. Not thread-safe: the C library keeps the active calculator in process globals, so one session is used by one thread at a time. MPI: the package never calls MPI; every rank of a calculator makes the same call. |
+| Raises | `ValueError` for a non-finite value or a wrong length; `cpmdc.CPMDCInvalidArgument` for a width below 1e-12 Angstrom, with the previous charges kept; `CPMDCError` for a closed session, or for a library without `cpmdc_session_set_external_charges`. |
+| Defaults | `widths_angstrom` is `None`: the library default of 0.30 Angstrom. A new session has no charges. |
+
+### ~cpmdc.Session.external_charge_forces_au~
+
+| Item | Description |
+|--------+--------|
+| Signature | `external_charge_forces_au(n_charges)` |
+| Units | Hartree/Bohr. |
+| Shape and dtype | `n_charges` a non-negative `int`; returns `3 * n_charges` floats in an `array('d')`, in the order the charges were set. |
+| Ownership and threads | Returns a new buffer. Not thread-safe: one session is used by one thread at a time. MPI: local to the rank. |
+| Raises | `ValueError` for a negative count; `cpmdc.CPMDCInvalidArgument` before a successful evaluation or for a count that differs from the charges set; `CPMDCError` for a closed session or for a library without `cpmdc_session_last_external_charge_forces`. |
+| Defaults | none: the count is required. |
+
 ### ~cpmdc.Session.select_orbitals~
 
 | Item | Description |
@@ -8531,7 +8779,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Units | none |
 | Shape and dtype | `params` is serialized `CPMDParams` bytes or a path; returns a frozen `MethodInfo`. |
 | Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
-| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, a library without `cpmdc_params_method`, or a library failure. |
+| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty message, a missing library, or a library without `cpmdc_params_method`; a library failure raises the subclass `cpmdc_last_error_code` selects, `CPMDCInvalidArgument` for a refused message. |
 | Defaults | `library` is `None`, using `find_library`. |
 
 ### ~cpmdc.forces_to_ev_per_angstrom~
@@ -8601,7 +8849,7 @@ The ASE calculator. Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | `atoms` an `ase.Atoms`; fills `results` with `energy` and `free_energy` floats, `forces` an N by 3 `float64` array, and `stress` a six-component `float64` array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; `atoms` is copied by ASE. Not thread-safe. The step runs with `directory` as the working directory, which is a process-wide change. |
-| Raises | `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets, where charge 0 is set when `hasCharge` is true and unset when `hasCharge` is false (the message names both values and both sources, and the set charge is kept) or that a typed section of `params` fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
+| Raises | `ValueError` for no atoms, an `initial_charges` or `initial_magmoms` total that is not an integer (it must lie within `n * eps * sum(abs(x))` of one, the float64 rounding bound of `n` terms, `eps` the float64 unit roundoff), non-collinear `initial_magmoms`, a nonzero total charge or total moment that differs from the charge or multiplicity `params` sets (the message names both values and both sources) or that a typed section of `params` fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, `pbc` of the wrong length, and invalid coordinates or atomic numbers; `PropertyNotImplementedError` when stress is asked for a cluster or for a step the library gave no stress for; `CalculationFailed` when the library rejects the step or returns a non-finite value; `CPMDCError` when an `Atoms` total needs `cpmdc_params_method()` and the library has none or refuses the message as ambiguous. |
 | Defaults | `atoms` is `None`: the atoms already attached; `properties` is `None`: `['energy']`, but all four properties are always filled; `system_changes` is ASE's `all_changes`. |
 
 ### ~cpmdc.ase.CPMDCCalculator.close~
@@ -8755,19 +9003,19 @@ Input files and unit constants for GROMACS.
 
 | Item | Description |
 |--------+--------|
-| Signature | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)` |
-| Units | `ewald_rcut` in nm; `ewald_precision`, `epsilon_r`, `link_alpha` and `multiplicity` are dimensionless; `qm_charges` in units of the elementary charge; `charge` in elementary charges. |
+| Signature | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)` |
+| Units | `mm_width` and `ewald_rcut` in nm; `ewald_precision`, `epsilon_r`, `link_alpha`, and `multiplicity` are dimensionless; `qm_charges` in units of the elementary charge; `charge` in elementary charges. |
 | Shape and dtype | `params` a path; `qm_charges` a sequence of floats, one per QM atom; `links` a sequence of  pairs of 1-based GROMACS atom numbers, one `&LINK` section each in `&QMMM`; the others are scalars or strings. Returns the `qmi` file as one `str` that ends in a newline. |
 | Ownership and threads | Builds a new string and touches no file; stateless, so thread-safe. |
-| Raises | `ValueError` for an unknown `cell` or `embedding` keyword, `qm_ranks` other than `ALL` or `1`, `qm_charges` or `epsilon_r` without `MECHANICAL` embedding or `MECHANICAL` embedding without `qm_charges`, a non-finite value, a non-positive `ewald_rcut`, `ewald_precision`, or `epsilon_r`, a `multiplicity` below 1, a `charge`, `multiplicity`, or link atom number that is not a whole number, a link that is not a pair, has an atom number below 1, or joins an atom to itself, a `link_alpha` of 1 or less, or `link_alpha` without `links`; `TypeError` for a value that is not a real number or not an integer. |
-| Defaults | `cell`, `embedding`, `qm_charges`, `ewald_rcut`, `ewald_precision`, `epsilon_r` and `qm_ranks` are `None` and not written, so the library defaults apply (`PERIODIC` when every atom is QM and `NONE` otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; `EPSILON_R` 1; `ALL`); `links` and `link_alpha` are `None`, so no bond is capped, and `ALPHA_IMOMM` is not written, so the library takes 1.38; `charge` is 0 and `multiplicity` is 1. |
+| Raises | `ValueError` for an unknown `cell` or `embedding` keyword (`ELECTROSTATIC`, `MECHANICAL`, and `NONE` are known), `qm_ranks` other than `ALL` or `1`, `qm_charges` without `MECHANICAL` embedding or `MECHANICAL` embedding without `qm_charges`, `epsilon_r` without `MECHANICAL` or `ELECTROSTATIC` embedding, `mm_width` without `ELECTROSTATIC` embedding or below 1e-13 nm, `ELECTROSTATIC` embedding with `cell="PERIODIC"`, a non-finite value, a non-positive `ewald_rcut`, `ewald_precision`, or `epsilon_r`, a `multiplicity` below 1, a `charge`, `multiplicity`, or link atom number that is not a whole number, a link that is not a pair, has an atom number below 1, or joins an atom to itself, a `link_alpha` of 1 or less, or `link_alpha` without `links`; `TypeError` for a value that is not a real number or not an integer. |
+| Defaults | `cell`, `embedding`, `qm_charges`, `mm_width`, `ewald_rcut`, `ewald_precision`, `epsilon_r` and `qm_ranks` are `None` and not written, so the library defaults apply (`PERIODIC` when every atom is QM and `NONE` otherwise; no embedding; `MM_WIDTH` 0.03 nm; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; `EPSILON_R` 1; `ALL`); `links` and `link_alpha` are `None`, so no bond is capped, and `ALPHA_IMOMM` is not written, so the library takes 1.38; `charge` is 0 and `multiplicity` is 1. |
 
 ### ~cpmdc.gromacs.write_qmi~
 
 | Item | Description |
 |--------+--------|
-| Signature | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)` |
-| Units | As for `qmi_input`: `ewald_rcut` in nm, `qm_charges` and `charge` in elementary charges, `epsilon_r` and `link_alpha` dimensionless. |
+| Signature | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)` |
+| Units | As for `qmi_input`: `mm_width` and `ewald_rcut` in nm, `qm_charges` and `charge` in elementary charges, `ewald_precision`, `epsilon_r`, `link_alpha`, and `multiplicity` dimensionless. |
 | Shape and dtype | `path` is the file to write, `params` a path; the options are those of `qmi_input`. Returns the `pathlib.Path` written. |
 | Ownership and threads | Writes one file in UTF-8, replacing it; thread-safe for distinct paths. |
 | Raises | `ValueError` as for `qmi_input`; `OSError` when the file cannot be written. |
@@ -8950,12 +9198,12 @@ The `fix external` driver for LAMMPS.
 
 | Item | Description |
 |--------+--------|
-| Signature | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)` |
-| Units | The LAMMPS unit style of the run: `metal` (Angstrom, eV), `real` (Angstrom, kcal/mol) or `electron` (Bohr, Hartree). |
-| Shape and dtype | `lmp` a `lammps.lammps` object with box, atoms and masses; `elements` one symbol or atomic number per atom type; atom IDs must be positive and unique but may have gaps. |
+| Signature | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None, qm_types=None, mm_width_angstrom=0.3)` |
+| Units | The LAMMPS unit style of the run: `metal` (Angstrom, eV), `real` (Angstrom, kcal/mol) or `electron` (Bohr, Hartree); `mm_width_angstrom` in Angstrom; the charges of the MM atoms are the LAMMPS `q` in units of the elementary charge. |
+| Shape and dtype | `lmp` a `lammps.lammps` object with box, atoms and masses; `elements` one symbol or atomic number per atom type; atom IDs must be positive and unique but may have gaps; `qm_types` a sequence of atom type numbers, whose complement is MM; `mm_width_angstrom` a scalar. With MM atoms the virial is zero and the charge set is cleared on the first step that has none. |
 | Ownership and threads | Owns the session on world rank 0 and the fixes it creates, removed by `close()` or by leaving a `with` block (it is a context manager). `lmp` and `comm` are borrowed. Not thread-safe: LAMMPS calls back from one thread. MPI: with more than one rank every rank constructs the object and calls `run`; rank 0 adopts `MPI_COMM_SELF` and evaluates, and `mpi4py` is needed. |
-| Raises | `ValueError` for an unsupported unit style, a wrong number of elements, an unknown element, or a partly periodic box; `CPMDCError` when the session cannot be opened, `mpi4py` is missing on several ranks, or `comm` has the wrong size. |
-| Defaults | `fix_id` is `'cpmdc'`, `create` is `True`, `library` is `None`, `comm` is `None` (`MPI.COMM_WORLD`). |
+| Raises | `ValueError` for an unsupported unit style, a wrong number of elements, an unknown element, a partly periodic box, empty `qm_types`, or an `mm_width_angstrom` that is not finite or is below 1e-12; `CPMDCError` in a step for MM atoms on a periodic box, for a LAMMPS atom style without charges, or for no QM atom; `CPMDCError` when the session cannot be opened, `mpi4py` is missing on several ranks, or `comm` has the wrong size. |
+| Defaults | `fix_id` is `'cpmdc'`, `create` is `True`, `library` is `None`, `comm` is `None` (`MPI.COMM_WORLD`), `qm_types` is `None` (every atom is QM), `mm_width_angstrom` is 0.3. |
 
 ### ~cpmdc.lammps.FixExternal.close~
 
@@ -9012,6 +9260,17 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | The `fix_id` argument, `'cpmdc'` by default. |
 
+### ~cpmdc.lammps.FixExternal.mm_width_angstrom~
+
+| Item | Description |
+|--------+--------|
+| Signature | `mm_width_angstrom (attribute)` |
+| Units | Angstrom. |
+| Shape and dtype | scalar `float`, finite and at least 1e-12. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | Set by the constructor from `mm_width_angstrom`, 0.3. |
+
 ### ~cpmdc.lammps.FixExternal.periodic~
 
 | Item | Description |
@@ -9022,6 +9281,17 @@ The `fix external` driver for LAMMPS.
 | Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
 | Raises | none |
 | Defaults | Set by the constructor from the box. |
+
+### ~cpmdc.lammps.FixExternal.qm_types~
+
+| Item | Description |
+|--------+--------|
+| Signature | `qm_types (attribute)` |
+| Units | none |
+| Shape and dtype | `frozenset` of `int` atom types, or `None` when every atom is QM. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | Set by the constructor from `qm_types`. |
 
 ### ~cpmdc.lammps.FixExternal.run~
 
@@ -10918,8 +11188,7 @@ and 2026.4 generate this structure:
 - `&DFT` contains `CHARGE`, `MULTIPLICITY`, and
   `&XC_FUNCTIONAL PBE` or `BLYP`;
 - `&QMMM` contains a periodic QM cell, QM atom indices, `ECOUPL GAUSS`,
-  and one `&LINK` with `QM_INDEX` and `MM_INDEX` for each bond between a QM
-  atom and an MM atom;
+  and any `&LINK` sections;
 - `&SUBSYS &CELL` contains the full GROMACS box;
 - the generated PDB contains every atom, each MM topology charge, and zero
   instead of every QM topology charge.
@@ -10937,12 +11206,14 @@ An explicit `&CPMDC` section inside `&FORCE_EVAL` takes precedence:
 | `PARAMS path` | the `CPMDParams` message; a relative path is relative to `mdrun`'s directory. Required |
 | `CELL PERIODIC` | send the GROMACS box as the cell; the default when every atom is QM |
 | `CELL NONE` | send no cell, so the deck's cell holds the QM region; the default with MM atoms |
+| `EMBEDDING ELECTROSTATIC` | apply the PDB MM charges to the CPMD density as Gaussian-smeared external charges and return their forces |
 | `EMBEDDING MECHANICAL` | add the QM-MM Coulomb energy and forces of `QM_CHARGES` and the MM charges |
 | `EMBEDDING NONE` | add nothing; allowed only when no MM atom carries a charge |
+| `MM_WIDTH w` | Gaussian standard deviation in nm for `ELECTROSTATIC`; default 0.03 nm; at least 1e-13 nm and finite, and refused with any other `EMBEDDING` |
 | `QM_CHARGES q ...` | one classical charge per QM atom, in index-group order; required by `MECHANICAL` |
 | `EWALD_RCUT r` | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
 | `EWALD_PRECISION p` | `erfc(alpha rcut) = p`, and the reciprocal cutoff `2 alpha sqrt(-ln p)`; default 10^-8 as assigned in `tools/gromacs/cpmdc_gromacs.c` |
-| `EPSILON_R r` | relative dielectric constant dividing the mechanical-embedding QM-MM Coulomb energy, forces, and virial (positive, finite); default 1; requires `EMBEDDING MECHANICAL` |
+| `EPSILON_R r` | relative dielectric constant (positive, finite); divides the mechanical-embedding Coulomb energy, forces, and virial, or scales the electrostatic-embedding MM charges by `1 / r`; default 1; requires `EMBEDDING MECHANICAL` or `EMBEDDING ELECTROSTATIC` |
 | `QM_RANKS ALL` | under an MPI GROMACS, every rank of `mdrun` takes part in one cpmdc calculator; the default |
 | `QM_RANKS 1` | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
@@ -10962,13 +11233,13 @@ A link hydrogen is not part of that comparison. The values are the effective
 charge and multiplicity of the deck, which describes the QM atoms, and not a
 recount of the capped region.
 Everything else outside `&CPMDC` is checked for structure and otherwise
-ignored, apart from the `&LINK` sections of Link atoms (*Link atoms).
+ignored.
 With neither `&CPMDC` nor `CPMDC_GROMACS_PARAMS`, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (`md_cp2k.out`):
 the cpmdc version, the atom counts, the cell and embedding modes, the Ewald
-precision, `epsilon_r`, the number of ranks, QM ranks, and link atoms, the
-Ewald parameters in Bohr, and, for the first step,
+precision, `epsilon_r`, the number of ranks and of QM ranks, the Ewald
+parameters in Bohr, and, for the first step,
 the backend (`opencpmd`, or `reference` for the evaluator of a build without
 OpenCPMD) and the QM and QM-MM energies.
 A refused input or a failed step prints `cpmdc-gromacs:` and the reason to
@@ -11014,56 +11285,6 @@ The cell must still hold the region with room for its density;
 `CPMDC_RECENTER_MARGIN` makes a step fail when an atom comes closer to a face
 than that.
 
-# Link atoms
-GROMACS cuts a covalent bond between a QM atom and an MM atom and leaves the
-valence of the QM atom open; CP2K caps it with a hydrogen that exists in the
-QM calculation only.
-`libcpmdc_gromacs` does the same for every `&LINK` section of the input, in
-the generated input and beside `&CPMDC` in a `-qmi` file:
-
-| Key | Meaning |
-|-----+---------|
-| `QM_INDEX n` | the QM atom of the bond, a 1-based GROMACS atom number; required |
-| `MM_INDEX n` | the MM atom of the bond, a 1-based GROMACS atom number; required |
-| `ALPHA_IMOMM alpha` | the bond is scaled by 1/alpha; default 1.38, CP2K's default, the ratio of a C-C to a C-H bond; must exceed 1 |
-| `LINK_TYPE IMOMM` | the only scheme implemented; any other value is refused |
-
-Any other key, a `QM_INDEX` that is not a QM atom of the PDB file, an `MM_INDEX`
-that is not an MM atom, an atom number outside the system, and a repeated pair
-stop `mdrun` with the reason.
-GROMACS writes no `ALPHA_IMOMM`, so a generated input uses 1.38;
-an input of `-qmi` may set it for each bond.
-One QM atom can have several links, and one MM atom can be the end of several.
-
-Each link adds a hydrogen to the atoms of `cpmdc_session_calculate_au()`, after
-the QM atoms, at the IMOMM position of CP2K,
-
-x_H = x_QM + (x_MM - x_QM) / alpha = (1 - a) x_QM + a x_MM,   a = 1 / alpha
-
-with the nearest image of the MM atom to the QM atom when GROMACS sends a box.
-The QM energy is that of the capped region, so the topology must describe the
-QM atoms' bonds with the MM atom at the MM level, as GROMACS' preprocessing
-does: bonded terms that cross the boundary stay, and bonds, angles, and
-dihedrals of QM atoms only go.
-
-The hydrogen moves with the two atoms of its bond, so by the chain rule the
-library returns the share `1 - a` of its force to the QM atom and `a` to the
-MM atom, the distribution of CP2K's IMOMM link.
-The two shares add up to the force on the hydrogen, and the force on the MM
-atom joins the other forces GROMACS reads for it.
-
-The virial is the strain derivative of the energy returned, for a strain that
-moves every atom and the box, as without links.
-With `CELL NONE` the sum `x (x) f` runs over the QM atoms and the hydrogens at
-the positions cpmdc used, which equals the sum over the two bonded atoms with
-the MM atom at the image the hydrogen used.
-With `CELL PERIODIC` cpmdc's stress already treats the hydrogen as an atom
-that scales with the cell.
-
-Not implemented: the `PSEUDO` link scheme, a cap other than hydrogen, and any
-redistribution of the MM charges around a cut bond other than the one that
-Embedding (*Embedding) describes.
-
 # Embedding
 GROMACS' CP2K interface assumes electrostatic embedding: grompp zeroes the
 charges of the QM atoms, removes the bonds, angles, and dihedrals within the QM
@@ -11071,7 +11292,23 @@ group, excludes QM-QM Lennard-Jones, and keeps QM-MM Lennard-Jones and the
 bonded terms that cross the boundary.
 The QM-MM Coulomb interaction is then the QM program's job [1].
 
-`libcpmdc_gromacs` provides mechanical embedding.
+`libcpmdc_gromacs` provides electrostatic and mechanical embedding.
+With `EMBEDDING ELECTROSTATIC`, each MM charge \(q\) contributes
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic external
+potential. The smearing prevents the short-range electron spill-out that
+motivates the modified short-range coupling of Laio, VandeVondele, and
+Rothlisberger [2]. Their CPMD kernel is rational rather than Gaussian; cpmdc
+uses the explicitly configurable Gaussian kernel above. The returned QM energy
+includes electron--MM and ion--MM terms, and the adapter returns forces on the
+QM atoms and every MM charge.
+
+Electrostatic embedding currently requires `CELL NONE`; `CELL PERIODIC` is
+refused, and a periodic deck is rejected with
+`CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING`. The GROMACS shim
+places every MM charge at its nearest image relative to the first QM atom
+before passing the resulting isolated cluster to cpmdc. It applies no cutoff;
+one nearest image of every MM charge contributes.
+
 `EMBEDDING MECHANICAL` adds the Coulomb energy of fixed point charges on the QM
 atoms, `QM_CHARGES`, with the MM charges of the PDB file, and its forces on both
 sides:
@@ -11083,14 +11320,6 @@ sides:
   QM-QM and MM-MM sums are not included, since GROMACS' PME already has MM-MM
   and the QM charges are zero in GROMACS;
 - no box: the direct sum.
-
-With link atoms, the MM atom of each cut bond sits one bond from a QM charge,
-where a pair of point charges is not a model of anything physical.
-`EMBEDDING MECHANICAL` therefore deletes the charge of that MM atom from the
-QM-MM sum, the Z1 scheme of the QM/MM literature, and keeps the charges of
-every other MM atom, including those two bonds away.
-The charge is removed from the Coulomb term of the library only; GROMACS still
-holds the MM atom's own charge for its classical terms.
 
 The returned energy is the QM energy plus that Coulomb energy; both appear in
 `Quantum En.`.
@@ -11105,10 +11334,16 @@ Use an explicit `&CPMDC` section to select `EMBEDDING MECHANICAL` and provide
 `QM_CHARGES`, or explicitly select `EMBEDDING NONE` after deciding that
 omitting the QM-MM Coulomb interaction is appropriate.
 
-With `EPSILON_R` (default 1), the mechanical-embedding QM-MM Coulomb energy,
-forces, and Ewald virial are divided by `EPSILON_R` while the QM energy, QM
-forces, and QM virial stay unscaled, because `cpmdc_session_calculate_au()`
-takes no dielectric constant.
+With `EPSILON_R` (default 1), the QM self-energy stays unscaled because
+`cpmdc_session_calculate_au()` takes no dielectric constant. Under
+`EMBEDDING MECHANICAL`, the QM-MM Coulomb energy, forces, and Ewald virial are
+divided by `EPSILON_R`. Under `EMBEDDING ELECTROSTATIC`, each MM charge is
+passed to `cpmdc_session_set_external_charges()` as `q / EPSILON_R` so the QM
+density, external potential, and Hellmann-Feynman forces see the screened MM
+charges while remaining variationally consistent; because the QM density
+relaxes self-consistently in response to `q / EPSILON_R`, the permanent-multipole
+coupling scales as `1 / EPSILON_R` and induced polarization scales quadratically
+at leading order.
 GROMACS' CP2K QM/MM module (`src/gromacs/applied_forces/qmmm/` in 2024.6,
 2025.5, and 2026.4) never reads `t_inputrec` or `t_interaction_const` and passes
 neither the `.mdp` `epsilon-r` option (`readir.cpp`, `interaction_const.cpp`) nor
@@ -11117,7 +11352,7 @@ carries only coordinates, atom count, charges, masses, time, step, box, and the
 communication record).
 On the explicit `&CPMDC` route, set `EPSILON_R` to match `.mdp`'s `epsilon-r`
 whenever `epsilon-r` differs from 1; `EPSILON_R` is refused unless positive,
-finite, and paired with `EMBEDDING MECHANICAL`.
+finite, and paired with `EMBEDDING MECHANICAL` or `EMBEDDING ELECTROSTATIC`.
 On the generated-input route (`PBE` or `BLYP`), any run with charged MM atoms
 is already refused for lacking `QM_CHARGES`, so GROMACS' unforwarded
 `epsilon-r` cannot enter a mechanical-embedding sum there.
@@ -11142,9 +11377,8 @@ Charge precision across the interface:
 
 Not implemented:
 
-- electrostatic embedding: the MM charges do not polarize the QM density.
-  `cpmdc_session_calculate_au()` takes no external potential, so
-  `EMBEDDING ELECTROSTATIC` is refused.
+- periodic electrostatic embedding;
+- link atoms across a QM-MM covalent bond; `&LINK` sections are refused.
 
 # QM virial
 GROMACS adds the
@@ -11170,7 +11404,8 @@ a symmetric strain that moves every atom with the box:
 
 - `CELL PERIODIC`: cpmdc's stress for the cell, from
   `cpmdc_session_calculate_au()`;
-- `CELL NONE`: the symmetric part of `sum x (x) f` over the QM atoms.
+- `CELL NONE`: the symmetric part of `sum x (x) f` over the QM atoms and,
+  for electrostatic embedding, the MM charges.
   The QM forces sum to zero, since cpmdc removes the net force of the isolated
   cell, so the sum does not depend on the origin of `x`.
   Without that (`CPMDC_RECENTER=off`) a QM region at `X` with net force `F` adds
@@ -11181,9 +11416,6 @@ a symmetric strain that moves every atom with the box:
 - `EMBEDDING MECHANICAL` with a box: plus the strain derivative of the QM-MM
   Ewald sum (its real-space, reciprocal, and background terms), divided by
   `EPSILON_R`.
-
-Link hydrogens are atoms of the QM calculation in the first two cases, as
-described in Link atoms (*Link atoms).
 
 It reports the stress as unavailable with no box (`pbc = no`), and with
 `CELL PERIODIC` when cpmdc computes no stress: an isolated deck, or
@@ -11205,16 +11437,15 @@ GROMACS is built with, and then:
 - duplicates the communicator, so cpmdc's traffic and error handler stay off
   GROMACS' own;
 - reads the input and the PDB file on rank 0 and broadcasts the atom counts, the
-  QM atoms, the link atoms, and the `CPMDParams` message;
+  QM atoms, and the `CPMDParams` message;
 - hands the duplicate to cpmdc with
   `cpmdc_adopt_calculator_comm()` before the first session, with every rank as one calculator (`QM_RANKS ALL`),
   or `MPI_COMM_SELF` on rank 0 (`QM_RANKS 1`).
   It does so on one rank too: GROMACS has started MPI, and OpenCPMD sets up a
   communicator only when it starts MPI itself;
 - each step broadcasts rank 0's positions and box, so every QM rank evaluates
-  identical input whatever GROMACS' decomposition, builds each link hydrogen
-  from those positions, adds the embedding and the link force shares on rank
-  0, and broadcasts rank 0's energy and forces.
+  identical input whatever GROMACS' decomposition, adds the embedding on rank 0,
+  and broadcasts rank 0's energy and forces.
 
 The forces GROMACS reads are therefore identical on every rank, and domain
 decomposition changes which rank applies a force, not its value, including for
@@ -11233,6 +11464,10 @@ reason.
    Hybrid Quantum-Classical simulations (QM/MM) with CP2K interface (https://manual.gromacs.org/2025.5/reference-manual/special/qmmm.html);
    source `src/gromacs/applied_forces/qmmm/` of GROMACS 2024.6, 2025.5, and
    2026.4.
+2. Alessandro Laio, Joost VandeVondele, and Ursula Rothlisberger,
+   “A Hamiltonian electrostatic coupling scheme for hybrid Car--Parrinello
+   molecular dynamics simulations,” /J. Chem. Phys./ *116*, 6941--6947
+   (2002), doi:10.1063/1.1462041 (https://doi.org/10.1063/1.1462041).
 
 
 ## File: docs/orgmode/reference/lammps.org
@@ -11293,6 +11528,26 @@ Changing the atoms' elemental composition, including by
 cpmdc session before the next
 evaluation and opens a new session for the changed topology. An unchanged
 composition continues on the existing session.
+
+# Electrostatic QM/MM embedding
+Both routes keep their whole-system behavior by default.
+For `FixExternal`, pass `qm_types=[...]`; other atom types provide their LAMMPS
+`q` values as Gaussian MM charges. `mm_width_angstrom` defaults to 0.30.
+For the plugin, write `NULL` for each MM type, for example
+`pair_style cpmdc params.bin width 0.30` followed by
+`pair_coeff * * O H NULL`.
+
+Element entries are QM and `NULL` entries use the per-atom charge. The energy
+includes the QM--MM electrostatic coupling and forces are returned to both
+groups. Electrostatic embedding is currently isolated only; a periodic box is
+rejected instead of using an incomplete image convention, so the virial
+\(-dE/d(\mathrm{strain})\), which needs a cell, is zero on both routes.
+`qm_types` must name at least one type, and `mm_width_angstrom` and the
+plugin's `width` must be finite and at least 1e-12 Angstrom; a smaller value is
+refused when the fix or the pair style is configured.
+Both routes send the charges on every step that has MM atoms, and clear them on
+the first step that has none after a step that had some, so deleting or
+retyping every MM atom leaves no stale charge in the session.
 
 # Virial and pressure
 cpmdc returns the virial `W = -dE/d(strain)` in Hartree.
@@ -11754,7 +12009,12 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `BOHR_TO_ANGSTROM` | `0.529177210903` Angstrom per Bohr, the constant `CPMDC_BOHR_TO_ANGSTROM` in `src/cpmdc_params.h` |
 | `HARTREE_TO_KCAL_PER_MOL` | `627.5094740630558` kcal/mol per Hartree, from CODATA 2018 Hartree energy, the Avogadro constant, and 4184 J per kilocalorie |
 | `ATOMIC_NUMBER_MIN`, `ATOMIC_NUMBER_MAX` | `1` and `118` (dimensionless `int`), the range of atomic numbers that `Session` and the C evaluation calls accept |
-| `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails |
+| `CPMDCError` | `RuntimeError` subclass raised when the library cannot be found or loaded, or when a library call fails; `CPMDCError.code` is the `CPMDCErrorCode` of a library failure and `0` when Python rejected the call or the library predates `cpmdc_last_error_code()` |
+| `CPMDCInvalidArgument` | `CPMDCError` subclass for a null handle, a bad buffer, or a value the library refuses, such as a Gaussian width below `1e-12` Angstrom; `CPMDCInvalidArgument.code` is `1` |
+| `CPMDCUnavailable` | `CPMDCError` subclass for a backend that is not linked or a link stub; `CPMDCUnavailable.code` is `2` |
+| `CPMDCUnsupportedPeriodicEmbedding` | `CPMDCError` subclass for external charges with a periodic cell or a periodic deck; `CPMDCUnsupportedPeriodicEmbedding.code` is `3` |
+| `CPMDCEvaluationFailed` | `CPMDCError` subclass for an evaluation that ran and produced no result; `CPMDCEvaluationFailed.code` is `4` |
+| `CPMDCDeckExternalPotential` | `CPMDCError` subclass for session charges combined with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD`; `CPMDCDeckExternalPotential.code` is `5` |
 | `CpmdcError` | deprecated alias of `CPMDCError`, the same class; reading it warns with `DeprecationWarning` |
 | `MethodInfo` | `MethodInfo(functional, charge, multiplicity)`: frozen dataclass of the effective method settings decoded from `CPMDParams` (all three fields required) |
 | `MethodInfo.functional`, `MethodInfo.charge`, `MethodInfo.multiplicity` | `functional` as the functional token (`str`), `charge` as the total system charge in elementary charges (`int`), and `multiplicity` as the spin multiplicity (dimensionless `int`) |
@@ -11767,6 +12027,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Session` | `Session(params, *, library=None, schema=None, constant_cutoff=None)`: one `CPMDCSession` handle and context manager; `params` is serialized `CPMDParams` `bytes` or a file path (required); `library=None` is a `libcpmdc` path or `None` for `find_library`; `constant_cutoff=None` takes what `ConstantCutoff.coerce` takes (in Rydberg) and calls `cpmdc_session_set_constant_cutoff()`; `schema=None` is deprecated and ignored (`DeprecationWarning` when not `None`); raises `CPMDCError`, `FileNotFoundError`, `TypeError`, or `ValueError` |
 | `Session.energy_forces` | `energy_forces(positions, atomic_numbers, cell=None)`: evaluate one geometry from Angstrom `positions` of shape (N, 3), N integer `atomic_numbers` in 1..118, and optional Angstrom `cell=None` (3x3 or nine row-major floats, encoded as `ForceInput` in process, or `None` for an isolated system); returns `Evaluation` in Hartree, Hartree/Bohr, and Hartree/Bohr^3; raises `CPMDCError`, `TypeError`, or `ValueError` |
 | `Session.calculate_au` | `calculate_au(positions_bohr, atomic_numbers, cell_bohr=None, *, forces=None, virial=None)`: one step through `cpmdc_session_calculate_au()` from `3 * N` Bohr coordinates in `positions_bohr` (flat or N rows), N integer `atomic_numbers` in 1..118, and optional `cell_bohr=None` (nine Bohr values or three rows with one vector per row, or `None`); returns  with `energy_h` in Hartree, `3 * N` forces in Hartree/Bohr, and the nine-component row-major virial `-dE/d(strain)` in Hartree (zero without a cell or stress tensor); C-contiguous `float64` and `int32` inputs pass without a copy, and writable `forces=None` and `virial=None` `float64` buffers are filled in place when given (otherwise new `array('d')` buffers are returned); raises `CPMDCError`, `TypeError`, or `ValueError` |
+| `Session.set_external_charges` | `set_external_charges(positions_angstrom, charges_e, widths_angstrom=None)`: replace the Gaussian MM point charges used by later evaluations; `positions_angstrom` holds `3 * M` Angstrom coordinates, `charges_e` `M` charges in units of the elementary charge, and `widths_angstrom=None` `M` Gaussian standard deviations in Angstrom (the library default, 0.30 Angstrom, when `None`); empty arrays clear the charges; a width below `1e-12` Angstrom raises `CPMDCInvalidArgument` and keeps the previous charges; a non-finite value raises `ValueError`; a library without `cpmdc_session_set_external_charges` raises `CPMDCError` |
+| `Session.external_charge_forces_au` | `external_charge_forces_au(n_charges)`: `3 * n_charges` forces on the MM charges of the last successful evaluation, in Hartree/Bohr; raises `CPMDCInvalidArgument` before a successful step or on a wrong count, `CPMDCError` on a library without `cpmdc_session_last_external_charge_forces`, and `ValueError` for a negative count |
 | `Session.select_orbitals` | `select_orbitals(key)`: call `cpmdc_session_select_orbitals()` with signed 64-bit integer `key` (dimensionless); raises `TypeError`, `ValueError`, or `CPMDCError` |
 | `Session.copy_orbitals` | `copy_orbitals(from_key, to_key)`: call `cpmdc_session_copy_orbitals()` to copy stored orbitals from signed 64-bit integer `from_key` into `to_key` (dimensionless); raises `TypeError`, `ValueError`, or `CPMDCError` |
 | `Session.version` | `version()`: return `cpmdc/` and the compiled version string |
@@ -11780,7 +12042,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Potential.close` | `close()`: close the owned `Session` (idempotent) |
 | `find_library` | `find_library(path=None)`: return the `Path` of `libcpmdc`; tries an explicit `path` first, then `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE` in that order, then `.cpmdc.mesonpy.libs/libcpmdc.so` and `.cpmdc.mesonpy.libs/libcpmdc.dylib` beside the package, then `ctypes.util.find_library("cpmdc")`, then `build/libcpmdc.so` and `build/libcpmdc.dylib` in the working directory; raises `CPMDCError` when not found |
 | `find_schema` | `find_schema(path=None)`: return the `Path` of `schema/Potentials.capnp` for `capnp encode` of `CPMDParams` text; tries an explicit `path` first, then `CPMDC_SCHEMA`, then the wheel's `cpmdc/schema/Potentials.capnp`, then `schema/Potentials.capnp` in the working directory; raises `CPMDCError` when not found |
-| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer, a library without `cpmdc_params_method`, or a failed call |
+| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer or a library without `cpmdc_params_method`, and the subclass `cpmdc_last_error_code` selects (`CPMDCInvalidArgument`) when the library refuses the message |
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
 | `dipole_to_e_angstrom` | `dipole_to_e_angstrom(dipole_e_bohr)`: convert a three-component molecular dipole from electron Bohr to e*Angstrom; raises `ValueError` unless there are three components |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |
@@ -11789,14 +12051,14 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `CPMDCCalculator.implemented_properties` | `energy`, `free_energy`, `forces`, `stress`, and `dipole` |
 | `CPMDCCalculator.ignored_changes` | the empty set: a change of `initial_charges` or `initial_magmoms` discards the stored results, because the calculator reads them as the total charge and, through the total moment, the multiplicity |
 | `CPMDCCalculator.discard_results_on_any_change` | `True`: a parameter that `set` changes clears the stored results |
-| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge only when `params` leaves the charge unset (`hasCharge` false and effective charge 0), and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves the multiplicity at its default of 1; an explicit charge, including 0 with `hasCharge` true, is kept, and a nonzero total that differs from a set value of `params` raises `ValueError` that names both values and both sources; a total that is not an integer within `n * eps * sum(abs(x))` and non-collinear moments raise `ValueError`; zero totals change nothing |
+| `CPMDCCalculator.calculate` | `calculate(atoms=None, properties=None, system_changes=all_changes)`: one step with `directory` as the working directory; fills `energy`, `free_energy`, `forces`, and any available `stress` and `dipole`; the total of `atoms.get_initial_charges()` is the charge and `abs(total of atoms.get_initial_magnetic_moments()) + 1` is the multiplicity when `params` leaves that setting at its default (a charge of 0, a multiplicity of 1); a nonzero total that differs from a set value of `params`, a total that is not an integer within `n * eps * sum(abs(x))`, and non-collinear moments raise `ValueError`; zero totals change nothing |
 | `CPMDCCalculator.set` | `set(**kwargs)`: change `params`, `library`, or `constant_cutoff`, open a new session, clear results, return a dictionary of the changed parameters; `parameters` reads a saved file, and any other key raises `TypeError` |
 | `CPMDCCalculator.todict` | `todict(skip_default=True)`: the parameters as JSON data; a `params` buffer of bytes is encoded as standard Base64 under `{"cpmdparams_base64": ...}`, and a `params` or `library` path is absolute, so `CPMDCCalculator(**calc.todict())` reads the same files from any directory |
 | `CPMDCCalculator.reset` | `reset()`: clear the stored results; the session stays open |
 | `CPMDCCalculator.read` | `read(label)`: always raises `ase.calculators.calculator.ReadError`, because a step stores no file that holds results; `parameters` reads a file written by `Parameters.write` |
 | `CPMDCCalculator.potential` | the `Potential` the calculator owns, opened on first use |
 | `CPMDCCalculator.close` | `close()`: close that potential; the next step opens a new one |
-| `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message |
+| `cpmdc.ase.CalculationFailed` | a step that the library rejected; both ASE's `CalculationFailed` and `CPMDCError`, with the step's working directory in the message and the library code in `CPMDCError.code` |
 | `cpmdc.ipi.Driver` | `Driver(params, atomic_numbers, *, library=None, cluster=False, log=None)`: answer i-PI protocol requests from one `Session` |
 | `Driver.compute` | `compute(positions, cell)`: one step from `3N` Bohr `positions` and the wire's `cell` `h` (lattice vectors as columns, Bohr), in that order; returns Hartree, Hartree/Bohr, and the virial `-dE/d(strain)` in Hartree |
 | `Driver.serve` | `serve(sock)`: answer a connected socket until `EXIT` or a closed connection; return the step count |
@@ -11807,7 +12069,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.ipi.unix_socket_path` | `unix_socket_path(name, prefix=None)`: the socket file for an address, with the i-PI and ASE prefix |
 | `cpmdc.ipi.HEADER_BYTES`, `cpmdc.ipi.DEFAULT_SOCKET_PREFIX` | the 12-byte width of a protocol header, and the socket-name prefix that i-PI and ASE use |
 | `cpmdc.ipi.main` | `main(argv=None)`: the `cpmdc-ipi` command; returns the exit status |
-| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)`: cpmdc as the force engine of a `fix external pf/callback`, delegating the LAMMPS protocol to `rgpot.lammps.FixExternal` |
+| `cpmdc.lammps.FixExternal` | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None, qm_types=None, mm_width_angstrom=0.30)`: cpmdc as the force engine of a `fix external pf/callback`, delegating the LAMMPS protocol to `rgpot.lammps.FixExternal`; with `qm_types` (atom types evaluated as QM) every other atom is a Gaussian MM charge with its LAMMPS `q` and width `mm_width_angstrom` (finite, at least `1e-12`), on an isolated box only, and the charge set is cleared on the first step that has no MM atom |
 | `FixExternal.run` | `run(steps, *keywords)`: run `steps` with LAMMPS keywords; raises `CPMDCError` for a failed step |
 | `FixExternal.close` | `close()`: close the session and remove the fixes it added; also on leaving a `with` block |
 | `FixExternal.error`, `energy`, `evaluations` | the last failure, the last energy in LAMMPS units, the evaluation count on rank 0 |
@@ -11815,8 +12077,8 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `cpmdc.lammps.UNIT_STYLES` | LAMMPS unit style to (length per Bohr, energy per Hartree) for `metal`, `real`, `electron` |
 | `cpmdc.lammps.unit_factors` | `unit_factors(style)`: that pair for one style; `ValueError` for any other |
 | `cpmdc.lammps.box_rows` | `box_rows(boxlo, boxhi, xy, yz, xz)`: `boxlo`, `boxhi`, `xy`, `yz`, `xz` to the 3x3 cell with one lattice vector per row |
-| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`, `links` a sequence of 1-based  pairs written as `&LINK` sections, `link_alpha` their `ALPHA_IMOMM`); `ValueError` or `TypeError` for a value the library would refuse |
-| `cpmdc.gromacs.write_qmi` | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: write that text to `path` and return it |
+| `cpmdc.gromacs.qmi_input` | `qmi_input(params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: text of the grompp `-qmi` file (`embedding` is `"ELECTROSTATIC"`, `"MECHANICAL"`, or `"NONE"`; `mm_width` is the Gaussian width in nm of `"ELECTROSTATIC"` and is refused for any other embedding, below `1e-13` nm, or when not finite; `epsilon_r` divides the mechanical Coulomb terms or scales the electrostatic MM charges by `1/epsilon_r` and is refused with `"NONE"` or unset embedding; `ewald_rcut` in nm, `qm_ranks` `"ALL"` or `1`, `links` a sequence of 1-based  pairs written as `&LINK` sections, and `link_alpha` the `ALPHA_IMOMM` factor for those links); `ValueError` or `TypeError` for a value the library would refuse |
+| `cpmdc.gromacs.write_qmi` | `write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, mm_width=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)`: write that text to `path` and return it |
 | `cpmdc.gromacs.BOHR_TO_NM`, `HARTREE_TO_KJ_PER_MOL`, `HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM` | GROMACS' QM/MM conversion factors, built as `src/gromacs/math/units.h` builds them |
 | `cpmdc.lammps.type_numbers` | `type_numbers(elements, n_types)`: atomic numbers per atom type from `"O H"`, `"8 1"`, or a sequence; `ValueError` unless there are `n_types` |
 
@@ -11837,6 +12099,10 @@ covers `cpmdc.lammps`.
 | empty or invalid `CPMDParams`, library or schema not found, library load or call failed, closed `Session`, changed atom count or composition | `CPMDCError` |
 | a `constant_cutoff` whose E0 + 2 sigma exceeds the deck cutoff, on a message with a raw `&SYSTEM` block or with `system.constantCutoff`, or on a library without `cpmdc_session_set_constant_cutoff` | `CPMDCError` |
 | `Session.copy_orbitals` on a library without `cpmdc_session_copy_orbitals`, before any evaluation, or from a key without converged orbitals | `CPMDCError` |
+| `Session.set_external_charges` with a width below `1e-12` Angstrom, a null buffer, or a failed charge copy; `Session.external_charge_forces_au` before a successful step or with the wrong count | `CPMDCInvalidArgument` |
+| session charges with a periodic cell, or with a periodic deck on a call that passes no cell | `CPMDCUnsupportedPeriodicEmbedding` |
+| session charges with a deck `EXTERNAL POTENTIAL` or `EXTERNAL POTENTIAL ADD` | `CPMDCDeckExternalPotential` |
+| `Session.set_external_charges` or `Session.external_charge_forces_au` on a library without `cpmdc_session_set_external_charges` or `cpmdc_session_last_external_charge_forces` | `CPMDCError` with code `0` |
 | a `CPMDCCalculator` step that the library rejects | `cpmdc.ase.CalculationFailed`, which is a `CPMDCError` and ASE's `CalculationFailed` |
 | missing `params` file | `FileNotFoundError` |
 | empty or non-3D positions, mismatched `atomic_numbers` or `numbers` length, a cell or box that is not 3x3 or 9 numbers, a `stress_h_bohr3` without 9 components, a non-finite coordinate or cell value, an atomic number outside 1..118, a non-positive or non-finite `ConstantCutoff` field, a whole-number argument that is a fraction such as `14.9`, an orbital key outside the signed 64-bit range | `ValueError` |
@@ -11850,8 +12116,8 @@ covers `cpmdc.lammps`.
 | a changed atom count, an `INIT` that is not UTF-8 or whose `batch_size` is duplicated or is not the integer 1, a message out of order, a connection closed mid-message, or an unusable periodic cell on the socket | `cpmdc.ipi.ProtocolError` |
 | a negative, NaN or infinite `cpmdc.ipi.connect(wait=...)` | `ValueError`, before a socket is opened |
 | `Session.calculate_au` with a failed evaluation; positions, numbers, cell, or output arrays of the wrong size, or non-writable or non-contiguous `forces` or `virial` buffers | `CPMDCError`; `ValueError` for the sizes, buffers, non-finite values, and atomic numbers outside 1..118; `TypeError` for non-numeric coordinates or non-integer atomic numbers |
-| `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, or with the wrong number of elements | `ValueError` |
-| `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, or a failed step in `FixExternal.run` | `CPMDCError` |
+| `FixExternal` on a unit style other than `metal`, `real`, `electron`, on a box with mixed periodicity, with the wrong number of elements, with empty `qm_types`, or with an `mm_width_angstrom` that is not finite or is below `1e-12` | `ValueError` |
+| `FixExternal` with unreadable `params`, on several ranks without `mpi4py`, a step with MM atoms on a periodic box or without atom charges, or a failed step in `FixExternal.run` | `CPMDCError` |
 
 
 ## File: docs/orgmode/reference/surface-map.org
@@ -11901,6 +12167,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_create` | setup | Y | Y | Y | Y |
 | `cpmdc_session_set_params` | setup | Y | Y | Y | Y |
 | `cpmdc_session_set_constant_cutoff` | setup | Y | Y | Y | Y |
+| `cpmdc_session_set_external_charges` | setup | Y | Y | Y | Y |
 | `cpmdc_session_destroy` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_session_select_orbitals` | setup | Y | Y | Y | Y |
 | `cpmdc_session_copy_orbitals` | setup | Y | Y | Y | Y |
@@ -11920,6 +12187,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_create_from_config` | setup | Y | Y | Y | Y |
 | `cpmdc_session_configure` | setup | Y | Y | Y | Y |
 | `cpmdc_last_error` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_last_error_code` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_available` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_finalize` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_last_energy_components` | result snapshot | Y | Y | Y | Y |
@@ -11938,18 +12206,19 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_last_property_snapshot` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_gradient` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_dipole` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_session_last_external_charge_forces` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_stress` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_feature_count` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_table` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_find` | discovery | Y | Y | Y | Y |
 
-52 symbols in `abi_symbols`, 52 with every column present.
+55 symbols in `abi_symbols`, 55 with every column present.
 
 # Exported symbols
 `schema/inventory/surface_map_abi.txt` is generated by
 `scripts/abi_inventory.py` from the exported symbols of `libcpmdc` (`nm -D --defined-only`, or `nm -gU` on macOS; `NM` names another `nm`) and the declarations in `include/cpmdc.h`
 and `include/cpmdc_features.h`.
-It lists the 52 public functions with their header, the ABI generation
+It lists the 55 public functions with their header, the ABI generation
 (`CPMDC_ABI_VERSION`, 0), and a `@since` column that stays `-` until a
 declaration records a later generation.
 `libcpmdc` exports exactly those symbols: internal glue is hidden (see the C ABI reference (file:c-abi.org)

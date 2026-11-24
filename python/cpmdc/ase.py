@@ -575,7 +575,9 @@ class CPMDCCalculator(Calculator):
             checked = _require_finite(evaluated)
         except CPMDCError as exc:
             where = os.path.abspath(self.directory)
-            raise CalculationFailed(f"cpmdc could not evaluate the step in {where}: {exc}") from exc
+            raise CalculationFailed(
+                f"cpmdc could not evaluate the step in {where}: {exc}", exc.code
+            ) from exc
         self._composition = composition
         energy = float(checked["energy"])
         self.results["energy"] = energy

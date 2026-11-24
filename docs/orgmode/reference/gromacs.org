@@ -20,8 +20,7 @@ and 2026.4 generate this structure:
 - ~&DFT~ contains ~CHARGE~, ~MULTIPLICITY~, and
   ~&XC_FUNCTIONAL PBE~ or ~BLYP~;
 - ~&QMMM~ contains a periodic QM cell, QM atom indices, ~ECOUPL GAUSS~,
-  and one ~&LINK~ with ~QM_INDEX~ and ~MM_INDEX~ for each bond between a QM
-  atom and an MM atom;
+  and any ~&LINK~ sections;
 - ~&SUBSYS &CELL~ contains the full GROMACS box;
 - the generated PDB contains every atom, each MM topology charge, and zero
   instead of every QM topology charge.
@@ -39,12 +38,14 @@ An explicit ~&CPMDC~ section inside ~&FORCE_EVAL~ takes precedence:
 | ~PARAMS path~ | the ~CPMDParams~ message; a relative path is relative to ~mdrun~'s directory. Required |
 | ~CELL PERIODIC~ | send the GROMACS box as the cell; the default when every atom is QM |
 | ~CELL NONE~ | send no cell, so the deck's cell holds the QM region; the default with MM atoms |
+| ~EMBEDDING ELECTROSTATIC~ | apply the PDB MM charges to the CPMD density as Gaussian-smeared external charges and return their forces |
 | ~EMBEDDING MECHANICAL~ | add the QM-MM Coulomb energy and forces of ~QM_CHARGES~ and the MM charges |
 | ~EMBEDDING NONE~ | add nothing; allowed only when no MM atom carries a charge |
+| ~MM_WIDTH w~ | Gaussian standard deviation in nm for ~ELECTROSTATIC~; default 0.03 nm; at least 1e-13 nm and finite, and refused with any other ~EMBEDDING~ |
 | ~QM_CHARGES q ...~ | one classical charge per QM atom, in index-group order; required by ~MECHANICAL~ |
 | ~EWALD_RCUT r~ | real-space cutoff of the QM-MM Ewald sum in nm; default the smaller of 1 nm and half the smallest box height |
 | ~EWALD_PRECISION p~ | ~erfc(alpha rcut) = p~, and the reciprocal cutoff ~2 alpha sqrt(-ln p)~; default 10^-8 as assigned in ~tools/gromacs/cpmdc_gromacs.c~ |
-| ~EPSILON_R r~ | relative dielectric constant dividing the mechanical-embedding QM-MM Coulomb energy, forces, and virial (positive, finite); default 1; requires ~EMBEDDING MECHANICAL~ |
+| ~EPSILON_R r~ | relative dielectric constant (positive, finite); divides the mechanical-embedding Coulomb energy, forces, and virial, or scales the electrostatic-embedding MM charges by ~1 / r~; default 1; requires ~EMBEDDING MECHANICAL~ or ~EMBEDDING ELECTROSTATIC~ |
 | ~QM_RANKS ALL~ | under an MPI GROMACS, every rank of ~mdrun~ takes part in one cpmdc calculator; the default |
 | ~QM_RANKS 1~ | rank 0 alone runs the QM calculation, the other ranks wait for its result |
 
@@ -64,13 +65,13 @@ A link hydrogen is not part of that comparison. The values are the effective
 charge and multiplicity of the deck, which describes the QM atoms, and not a
 recount of the capped region.
 Everything else outside ~&CPMDC~ is checked for structure and otherwise
-ignored, apart from the ~&LINK~ sections of [[*Link atoms][Link atoms]].
+ignored.
 With neither ~&CPMDC~ nor ~CPMDC_GROMACS_PARAMS~, the input is refused.
 
 The library writes one log, the CP2K output file GROMACS names (~md_cp2k.out~):
 the cpmdc version, the atom counts, the cell and embedding modes, the Ewald
-precision, ~epsilon_r~, the number of ranks, QM ranks, and link atoms, the
-Ewald parameters in Bohr, and, for the first step,
+precision, ~epsilon_r~, the number of ranks and of QM ranks, the Ewald
+parameters in Bohr, and, for the first step,
 the backend (~opencpmd~, or ~reference~ for the evaluator of a build without
 OpenCPMD) and the QM and QM-MM energies.
 A refused input or a failed step prints ~cpmdc-gromacs:~ and the reason to
@@ -116,58 +117,6 @@ The cell must still hold the region with room for its density;
 ~CPMDC_RECENTER_MARGIN~ makes a step fail when an atom comes closer to a face
 than that.
 
-* Link atoms
-GROMACS cuts a covalent bond between a QM atom and an MM atom and leaves the
-valence of the QM atom open; CP2K caps it with a hydrogen that exists in the
-QM calculation only.
-~libcpmdc_gromacs~ does the same for every ~&LINK~ section of the input, in
-the generated input and beside ~&CPMDC~ in a ~-qmi~ file:
-
-| Key | Meaning |
-|-----+---------|
-| ~QM_INDEX n~ | the QM atom of the bond, a 1-based GROMACS atom number; required |
-| ~MM_INDEX n~ | the MM atom of the bond, a 1-based GROMACS atom number; required |
-| ~ALPHA_IMOMM alpha~ | the bond is scaled by 1/alpha; default 1.38, CP2K's default, the ratio of a C-C to a C-H bond; must exceed 1 |
-| ~LINK_TYPE IMOMM~ | the only scheme implemented; any other value is refused |
-
-Any other key, a ~QM_INDEX~ that is not a QM atom of the PDB file, an ~MM_INDEX~
-that is not an MM atom, an atom number outside the system, and a repeated pair
-stop ~mdrun~ with the reason.
-GROMACS writes no ~ALPHA_IMOMM~, so a generated input uses 1.38;
-an input of ~-qmi~ may set it for each bond.
-One QM atom can have several links, and one MM atom can be the end of several.
-
-Each link adds a hydrogen to the atoms of ~cpmdc_session_calculate_au()~, after
-the QM atoms, at the IMOMM position of CP2K,
-
-#+begin_example
-x_H = x_QM + (x_MM - x_QM) / alpha = (1 - a) x_QM + a x_MM,   a = 1 / alpha
-#+end_example
-
-with the nearest image of the MM atom to the QM atom when GROMACS sends a box.
-The QM energy is that of the capped region, so the topology must describe the
-QM atoms' bonds with the MM atom at the MM level, as GROMACS' preprocessing
-does: bonded terms that cross the boundary stay, and bonds, angles, and
-dihedrals of QM atoms only go.
-
-The hydrogen moves with the two atoms of its bond, so by the chain rule the
-library returns the share ~1 - a~ of its force to the QM atom and ~a~ to the
-MM atom, the distribution of CP2K's IMOMM link.
-The two shares add up to the force on the hydrogen, and the force on the MM
-atom joins the other forces GROMACS reads for it.
-
-The virial is the strain derivative of the energy returned, for a strain that
-moves every atom and the box, as without links.
-With ~CELL NONE~ the sum ~x (x) f~ runs over the QM atoms and the hydrogens at
-the positions cpmdc used, which equals the sum over the two bonded atoms with
-the MM atom at the image the hydrogen used.
-With ~CELL PERIODIC~ cpmdc's stress already treats the hydrogen as an atom
-that scales with the cell.
-
-Not implemented: the ~PSEUDO~ link scheme, a cap other than hydrogen, and any
-redistribution of the MM charges around a cut bond other than the one that
-[[*Embedding][Embedding]] describes.
-
 * Embedding
 GROMACS' CP2K interface assumes electrostatic embedding: grompp zeroes the
 charges of the QM atoms, removes the bonds, angles, and dihedrals within the QM
@@ -175,7 +124,23 @@ group, excludes QM-QM Lennard-Jones, and keeps QM-MM Lennard-Jones and the
 bonded terms that cross the boundary.
 The QM-MM Coulomb interaction is then the QM program's job [1].
 
-~libcpmdc_gromacs~ provides mechanical embedding.
+~libcpmdc_gromacs~ provides electrostatic and mechanical embedding.
+With ~EMBEDDING ELECTROSTATIC~, each MM charge \(q\) contributes
+\(-q\,\mathrm{erf}(r/(\sqrt{2}\sigma))/r\) to the electronic external
+potential. The smearing prevents the short-range electron spill-out that
+motivates the modified short-range coupling of Laio, VandeVondele, and
+Rothlisberger [2]. Their CPMD kernel is rational rather than Gaussian; cpmdc
+uses the explicitly configurable Gaussian kernel above. The returned QM energy
+includes electron--MM and ion--MM terms, and the adapter returns forces on the
+QM atoms and every MM charge.
+
+Electrostatic embedding currently requires ~CELL NONE~; ~CELL PERIODIC~ is
+refused, and a periodic deck is rejected with
+~CPMDC_ERROR_UNSUPPORTED_PERIODIC_EMBEDDING~. The GROMACS shim
+places every MM charge at its nearest image relative to the first QM atom
+before passing the resulting isolated cluster to cpmdc. It applies no cutoff;
+one nearest image of every MM charge contributes.
+
 ~EMBEDDING MECHANICAL~ adds the Coulomb energy of fixed point charges on the QM
 atoms, ~QM_CHARGES~, with the MM charges of the PDB file, and its forces on both
 sides:
@@ -187,14 +152,6 @@ sides:
   QM-QM and MM-MM sums are not included, since GROMACS' PME already has MM-MM
   and the QM charges are zero in GROMACS;
 - no box: the direct sum.
-
-With link atoms, the MM atom of each cut bond sits one bond from a QM charge,
-where a pair of point charges is not a model of anything physical.
-~EMBEDDING MECHANICAL~ therefore deletes the charge of that MM atom from the
-QM-MM sum, the Z1 scheme of the QM/MM literature, and keeps the charges of
-every other MM atom, including those two bonds away.
-The charge is removed from the Coulomb term of the library only; GROMACS still
-holds the MM atom's own charge for its classical terms.
 
 The returned energy is the QM energy plus that Coulomb energy; both appear in
 ~Quantum En.~.
@@ -209,10 +166,16 @@ Use an explicit ~&CPMDC~ section to select ~EMBEDDING MECHANICAL~ and provide
 ~QM_CHARGES~, or explicitly select ~EMBEDDING NONE~ after deciding that
 omitting the QM-MM Coulomb interaction is appropriate.
 
-With ~EPSILON_R~ (default 1), the mechanical-embedding QM-MM Coulomb energy,
-forces, and Ewald virial are divided by ~EPSILON_R~ while the QM energy, QM
-forces, and QM virial stay unscaled, because ~cpmdc_session_calculate_au()~
-takes no dielectric constant.
+With ~EPSILON_R~ (default 1), the QM self-energy stays unscaled because
+~cpmdc_session_calculate_au()~ takes no dielectric constant. Under
+~EMBEDDING MECHANICAL~, the QM-MM Coulomb energy, forces, and Ewald virial are
+divided by ~EPSILON_R~. Under ~EMBEDDING ELECTROSTATIC~, each MM charge is
+passed to ~cpmdc_session_set_external_charges()~ as ~q / EPSILON_R~ so the QM
+density, external potential, and Hellmann-Feynman forces see the screened MM
+charges while remaining variationally consistent; because the QM density
+relaxes self-consistently in response to ~q / EPSILON_R~, the permanent-multipole
+coupling scales as ~1 / EPSILON_R~ and induced polarization scales quadratically
+at leading order.
 GROMACS' CP2K QM/MM module (~src/gromacs/applied_forces/qmmm/~ in 2024.6,
 2025.5, and 2026.4) never reads ~t_inputrec~ or ~t_interaction_const~ and passes
 neither the ~.mdp~ ~epsilon-r~ option (~readir.cpp~, ~interaction_const.cpp~) nor
@@ -221,7 +184,7 @@ carries only coordinates, atom count, charges, masses, time, step, box, and the
 communication record).
 On the explicit ~&CPMDC~ route, set ~EPSILON_R~ to match ~.mdp~'s ~epsilon-r~
 whenever ~epsilon-r~ differs from 1; ~EPSILON_R~ is refused unless positive,
-finite, and paired with ~EMBEDDING MECHANICAL~.
+finite, and paired with ~EMBEDDING MECHANICAL~ or ~EMBEDDING ELECTROSTATIC~.
 On the generated-input route (~PBE~ or ~BLYP~), any run with charged MM atoms
 is already refused for lacking ~QM_CHARGES~, so GROMACS' unforwarded
 ~epsilon-r~ cannot enter a mechanical-embedding sum there.
@@ -246,9 +209,8 @@ Charge precision across the interface:
 
 Not implemented:
 
-- electrostatic embedding: the MM charges do not polarize the QM density.
-  ~cpmdc_session_calculate_au()~ takes no external potential, so
-  ~EMBEDDING ELECTROSTATIC~ is refused.
+- periodic electrostatic embedding;
+- link atoms across a QM-MM covalent bond; ~&LINK~ sections are refused.
 
 * QM virial
 GROMACS adds the
@@ -276,7 +238,8 @@ a symmetric strain that moves every atom with the box:
 
 - ~CELL PERIODIC~: cpmdc's stress for the cell, from
   ~cpmdc_session_calculate_au()~;
-- ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms.
+- ~CELL NONE~: the symmetric part of ~sum x (x) f~ over the QM atoms and,
+  for electrostatic embedding, the MM charges.
   The QM forces sum to zero, since cpmdc removes the net force of the isolated
   cell, so the sum does not depend on the origin of ~x~.
   Without that (~CPMDC_RECENTER=off~) a QM region at ~X~ with net force ~F~ adds
@@ -287,9 +250,6 @@ a symmetric strain that moves every atom with the box:
 - ~EMBEDDING MECHANICAL~ with a box: plus the strain derivative of the QM-MM
   Ewald sum (its real-space, reciprocal, and background terms), divided by
   ~EPSILON_R~.
-
-Link hydrogens are atoms of the QM calculation in the first two cases, as
-described in [[*Link atoms][Link atoms]].
 
 It reports the stress as unavailable with no box (~pbc = no~), and with
 ~CELL PERIODIC~ when cpmdc computes no stress: an isolated deck, or
@@ -311,16 +271,15 @@ GROMACS is built with, and then:
 - duplicates the communicator, so cpmdc's traffic and error handler stay off
   GROMACS' own;
 - reads the input and the PDB file on rank 0 and broadcasts the atom counts, the
-  QM atoms, the link atoms, and the ~CPMDParams~ message;
+  QM atoms, and the ~CPMDParams~ message;
 - hands the duplicate to cpmdc with
   ~cpmdc_adopt_calculator_comm()~ before the first session, with every rank as one calculator (~QM_RANKS ALL~),
   or ~MPI_COMM_SELF~ on rank 0 (~QM_RANKS 1~).
   It does so on one rank too: GROMACS has started MPI, and OpenCPMD sets up a
   communicator only when it starts MPI itself;
 - each step broadcasts rank 0's positions and box, so every QM rank evaluates
-  identical input whatever GROMACS' decomposition, builds each link hydrogen
-  from those positions, adds the embedding and the link force shares on rank
-  0, and broadcasts rank 0's energy and forces.
+  identical input whatever GROMACS' decomposition, adds the embedding on rank 0,
+  and broadcasts rank 0's energy and forces.
 
 The forces GROMACS reads are therefore identical on every rank, and domain
 decomposition changes which rank applies a force, not its value, including for
@@ -339,3 +298,7 @@ reason.
    [[https://manual.gromacs.org/2025.5/reference-manual/special/qmmm.html][Hybrid Quantum-Classical simulations (QM/MM) with CP2K interface]];
    source ~src/gromacs/applied_forces/qmmm/~ of GROMACS 2024.6, 2025.5, and
    2026.4.
+2. Alessandro Laio, Joost VandeVondele, and Ursula Rothlisberger,
+   “A Hamiltonian electrostatic coupling scheme for hybrid Car--Parrinello
+   molecular dynamics simulations,” /J. Chem. Phys./ *116*, 6941--6947
+   (2002), [[https://doi.org/10.1063/1.1462041][doi:10.1063/1.1462041]].

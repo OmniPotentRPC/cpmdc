@@ -60,7 +60,9 @@ HARTREE_TO_KJ_PER_MOL = _HARTREE_TO_KJ * _AVOGADRO
 HARTREE_PER_BOHR_TO_KJ_PER_MOL_NM = HARTREE_TO_KJ_PER_MOL / BOHR_TO_NM
 
 _CELLS = ("PERIODIC", "NONE")
-_EMBEDDINGS = ("MECHANICAL", "NONE")
+_EMBEDDINGS = ("ELECTROSTATIC", "MECHANICAL", "NONE")
+# The library refuses a Gaussian narrower than 1e-12 Angstrom.
+_MIN_MM_WIDTH_NM = 1.0e-13
 
 
 def _path_text(value: Any, what: str) -> str:
@@ -91,6 +93,7 @@ def qmi_input(
     cell: str | None = None,
     embedding: str | None = None,
     qm_charges: Sequence[float] | None = None,
+    mm_width: float | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
     epsilon_r: float | None = None,
@@ -112,12 +115,14 @@ def qmi_input(
         ``"NONE"`` sends none, so the deck's cell applies. The library
         defaults to ``PERIODIC`` when every atom is QM and ``NONE`` otherwise.
     embedding:
-        ``"MECHANICAL"`` adds the QM-MM Coulomb energy of ``qm_charges`` and
-        the MM charges; ``"NONE"`` adds nothing. Required when MM atoms
-        carry charges.
+        ``"ELECTROSTATIC"`` lets Gaussian-smeared MM charges polarize the QM
+        density, ``"MECHANICAL"`` adds the classical QM-MM Coulomb energy,
+        and ``"NONE"`` adds nothing. Required when MM atoms carry charges.
     qm_charges:
         Classical charge of each QM atom, in atom-index order, for
         mechanical embedding.
+    mm_width:
+        Gaussian width in nm for electrostatic embedding (default 0.03 nm).
     ewald_rcut:
         Real-space cutoff of the QM-MM Ewald sum, nm. The library default is
         the smaller of 1 nm and half the shortest box height.
@@ -126,12 +131,14 @@ def qmi_input(
         The library default is ``1e-8``, assigned by
         ``tools/gromacs/cpmdc_gromacs.c`` when the key is omitted.
     epsilon_r:
-        Relative dielectric constant dividing the mechanical-embedding QM-MM
-        Coulomb energy, forces, and virial (dimensionless, positive). The
-        library default is ``1``; GROMACS does not forward ``.mdp``
-        ``epsilon-r`` through ``libcp2k``, so pass the same value here when
-        ``epsilon-r`` differs from 1. The QM calculation itself is not
-        screened.
+        Relative dielectric constant (dimensionless, positive). The library
+        default is ``1``; GROMACS does not forward ``.mdp`` ``epsilon-r``
+        through ``libcp2k``, so pass the same value here when ``epsilon-r``
+        differs from 1. Under ``"MECHANICAL"`` it divides the classical QM-MM
+        Coulomb energy, forces, and virial by ``epsilon_r``; under
+        ``"ELECTROSTATIC"`` each MM charge is passed as ``q / epsilon_r`` so
+        the QM density and forces see the screened external charges. The QM
+        self-energy is not scaled.
     qm_ranks:
         Under an MPI GROMACS, ``"ALL"`` (the library default) runs the QM
         calculation on every rank mdrun gives the interface, as one cpmdc
@@ -166,8 +173,12 @@ def qmi_input(
     if embedding is not None:
         embedding = embedding.upper()
         if embedding not in _EMBEDDINGS:
-            raise ValueError(f"embedding is MECHANICAL or NONE, not {embedding!r}")
+            raise ValueError(
+                f"embedding is ELECTROSTATIC, MECHANICAL or NONE, not {embedding!r}"
+            )
         lines.append(f"  EMBEDDING {embedding}")
+    if embedding == "ELECTROSTATIC" and cell == "PERIODIC":
+        raise ValueError("periodic electrostatic embedding is unsupported")
     if qm_charges is not None:
         if embedding != "MECHANICAL":
             raise ValueError("qm_charges needs embedding='MECHANICAL'")
@@ -176,14 +187,21 @@ def qmi_input(
             lines.append("  QM_CHARGES " + " ".join(values[start : start + 8]))
     elif embedding == "MECHANICAL":
         raise ValueError("embedding='MECHANICAL' needs qm_charges")
+    if mm_width is not None:
+        if embedding != "ELECTROSTATIC":
+            raise ValueError("mm_width needs embedding='ELECTROSTATIC'")
+        text = _number(mm_width, "mm_width", positive=True)
+        if float(mm_width) < _MIN_MM_WIDTH_NM:
+            raise ValueError(f"mm_width must be at least {_MIN_MM_WIDTH_NM:g} nm, got {mm_width!r}")
+        lines.append(f"  MM_WIDTH {text}")
     if ewald_rcut is not None:
         lines.append(f"  EWALD_RCUT {_number(ewald_rcut, 'ewald_rcut', positive=True)}")
     if ewald_precision is not None:
         lines.append(f"  EWALD_PRECISION {_number(ewald_precision, 'ewald_precision', positive=True)}")
     if epsilon_r is not None:
         text_eps = _number(epsilon_r, "epsilon_r", positive=True)
-        if embedding != "MECHANICAL":
-            raise ValueError("epsilon_r needs embedding='MECHANICAL'")
+        if embedding not in ("MECHANICAL", "ELECTROSTATIC"):
+            raise ValueError("epsilon_r needs embedding='MECHANICAL' or 'ELECTROSTATIC'")
         lines.append(f"  EPSILON_R {text_eps}")
     if qm_ranks is not None:
         ranks = str(qm_ranks).upper()
@@ -245,6 +263,7 @@ def write_qmi(
     cell: str | None = None,
     embedding: str | None = None,
     qm_charges: Sequence[float] | None = None,
+    mm_width: float | None = None,
     ewald_rcut: float | None = None,
     ewald_precision: float | None = None,
     epsilon_r: float | None = None,
@@ -261,6 +280,7 @@ def write_qmi(
         cell=cell,
         embedding=embedding,
         qm_charges=qm_charges,
+        mm_width=mm_width,
         ewald_rcut=ewald_rcut,
         ewald_precision=ewald_precision,
         epsilon_r=epsilon_r,

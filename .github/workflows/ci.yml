@@ -160,7 +160,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       # mpifort reads OMPI_FC, not FC. The three wrappers then use the
       # same GCC 13 compilers as CC, CXX, and FC.
@@ -211,7 +211,7 @@ jobs:
       - name: Meson, ASE and i-PI
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
-          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10'
+          "${RUNNER_TEMP}/meson-venv/bin/pip" install 'meson>=1.5.2,<2' 'ase>=3.23' 'pytest>=7' 'ipi>=3.3' 'mypy>=1.10' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Full meson suite
         run: |
@@ -288,6 +288,14 @@ jobs:
             echo "session tests skipped for a reason other than the reference stress formula"
             exit 1
           fi
+      - name: Electrostatic embedding against OpenCPMD
+        run: |
+          pixi run meson test -C build-cpmd external-charge-errors --print-errorlogs
+          CPMDC_LIBRARY="$PWD/build-cpmd/libcpmdc.so" \
+            CPMDC_TEST_PARAMS="$PWD/build-cpmd/water_blyp_params.bin" \
+            CPMDC_TEST_EMBEDDING_PARAMS="$PWD/build-cpmd/water_blyp_embedding_params.bin" \
+            CPMDC_TEST_PERIODIC_PARAMS="$PWD/build-cpmd/water_blyp_periodic_params.bin" \
+            pixi run python -m pytest -q -rs tests/python/test_session.py
 
   gromacs-qmmm:
     name: gromacs-qmmm (${{ matrix.route }})
@@ -409,7 +417,7 @@ jobs:
         run: |
           python3 -m venv "${RUNNER_TEMP}/meson-venv"
           "${RUNNER_TEMP}/meson-venv/bin/pip" install \
-            'meson>=1.5.2,<2' "${{ matrix.ase_spec }}" 'pytest>=7' 'ipi>=3.3'
+            'meson>=1.5.2,<2' "${{ matrix.ase_spec }}" 'pytest>=7' 'ipi>=3.3' 'mpmath>=1.3,<2'
           echo "${RUNNER_TEMP}/meson-venv/bin" >> "${GITHUB_PATH}"
       - name: Rust for minimage
         run: |

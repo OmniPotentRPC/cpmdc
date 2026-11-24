@@ -35,9 +35,11 @@ private:
   std::vector<int> composition;
   CPMDCSession *session;
   double length_per_bohr, energy_per_hartree;
+  double external_width_ang;
+  bool external_active;
   int adopted;
 
-  std::vector<double> positions, forces;
+  std::vector<double> positions, forces, charges;
   std::vector<int> numbers, owner;
   std::vector<long long> tags;
 

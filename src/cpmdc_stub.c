@@ -10,6 +10,9 @@
 static _Thread_local char g_last_error[512];
 
 const char *cpmdc_last_error(void) { return g_last_error; }
+CPMDCErrorCode cpmdc_last_error_code(void) {
+  return g_last_error[0] ? CPMDC_ERROR_UNAVAILABLE : CPMDC_ERROR_NONE;
+}
 
 static void stub_store_error(const char *entry) {
   if (entry && entry[0] != '\0')
@@ -144,6 +147,27 @@ int cpmdc_session_set_constant_cutoff(CPMDCSession *session, double cutoff_ry,
   (void)height_ry;
   (void)width_ry;
   stub_store_error("cpmdc_session_set_constant_cutoff");
+  return -1;
+}
+
+int cpmdc_session_set_external_charges(
+    CPMDCSession *session, size_t n_charges, const double *positions_ang,
+    const double *charges_e, const double *widths_ang) {
+  (void)session;
+  (void)n_charges;
+  (void)positions_ang;
+  (void)charges_e;
+  (void)widths_ang;
+  stub_store_error("cpmdc_session_set_external_charges");
+  return -1;
+}
+
+int cpmdc_session_last_external_charge_forces(
+    const CPMDCSession *session, double *forces_h_bohr, size_t forces_len) {
+  (void)session;
+  (void)forces_h_bohr;
+  (void)forces_len;
+  stub_store_error("cpmdc_session_last_external_charge_forces");
   return -1;
 }
 

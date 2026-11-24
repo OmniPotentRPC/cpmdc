@@ -120,6 +120,11 @@ int cpmdc_embed_set_config(const char *functional, int functional_len,
 int cpmdc_embed_energy_grad(int n_atoms, const double *positions_ang,
                             const int *atomic_numbers, const double *cell_ang,
                             int has_cell, double *energy_h, double *grad_h_bohr,
+                            int n_external,
+                            const double *external_positions_ang,
+                            const double *external_charges_e,
+                            const double *external_widths_ang,
+                            double *external_forces_h_bohr,
                             CPMDCEmbedImage *image);
 
 static void test_two_images_keep_distinct_energies(void **state) {
@@ -139,11 +144,11 @@ static void test_two_images_keep_distinct_energies(void **state) {
   assert_int_not_equal(cpmdc_embed_init(), 0);
   assert_int_not_equal(
       cpmdc_embed_energy_grad(1, pos_first, z, cell, 0, &energy_first,
-                              grad_first, &first),
+                              grad_first, 0, NULL, NULL, NULL, NULL, &first),
       0);
   assert_int_not_equal(
       cpmdc_embed_energy_grad(1, pos_second, z, cell, 0, &energy_second,
-                              grad_second, &second),
+                              grad_second, 0, NULL, NULL, NULL, NULL, &second),
       0);
   assert_int_equal(first.energy.valid, 1);
   assert_int_equal(second.energy.valid, 1);
@@ -170,9 +175,11 @@ static void test_two_images_keep_distinct_cutoffs(void **state) {
   assert_int_not_equal(
       cpmdc_embed_set_config("BLYP", 4, 140.0, 0, 1, "", 0, "", 0, &high), 0);
   assert_int_not_equal(
-      cpmdc_embed_energy_grad(1, pos, z, cell, 0, &energy_low, grad, &low), 0);
+      cpmdc_embed_energy_grad(1, pos, z, cell, 0, &energy_low, grad, 0, NULL,
+                             NULL, NULL, NULL, &low), 0);
   assert_int_not_equal(
-      cpmdc_embed_energy_grad(1, pos, z, cell, 0, &energy_high, grad, &high), 0);
+      cpmdc_embed_energy_grad(1, pos, z, cell, 0, &energy_high, grad, 0, NULL,
+                             NULL, NULL, NULL, &high), 0);
   assert_true(fabs(low.energy.etot - energy_low) < 1e-12);
   assert_true(fabs(high.energy.etot - energy_high) < 1e-12);
   assert_true(fabs(energy_low - energy_high) > 1e-8);

@@ -138,8 +138,8 @@ With ~gmx_d~ from ~CPMDC_GMX~ or on ~PATH~, it also runs ~grompp~ and ~mdrun~:
   each element of ~Vir~ equals half the central difference of ~Potential~ under
   a 1e-5 strain of the box and positions, to 1e-8 of its largest element, so the
   QM, QM-MM, and classical terms all enter it;
-- generated input, ~EMBEDDING ELECTROSTATIC~, and charged MM atoms without an
-  embedding each stop ~mdrun~ with the reason.
+- generated input, and charged MM atoms without an embedding, each stop
+  ~mdrun~ with the reason. ~EMBEDDING ELECTROSTATIC~ accepts those charges.
 
 With ~gmx_mpi_d~ from ~CPMDC_GMX_MPI~, a double-precision GROMACS built with
 ~-DGMX_MPI=ON~, launched by ~CPMDC_MPIEXEC~ (default ~mpiexec~):
