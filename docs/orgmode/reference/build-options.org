@@ -11,13 +11,17 @@ Pass one as ~-DNAME=VALUE~ to ~meson setup~.
 | ~with_cpmd~ | boolean | ~false~ | link OpenCPMD instead of the reference evaluator; takes effect only with a non-empty ~cpmd_root~ |
 | ~cpmd_root~ | string | empty | OpenCPMD build tree holding ~lib/libcpmd.a~, ~obj/~, and ~src/~ |
 | ~with_mpi~ | feature | ~auto~ | link MPI into the default library; ~disabled~ keeps it serial. ~with_cpmd~ always needs MPI |
-| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it, and it turns off the LAMMPS plugin, the GROMACS library, and the install of ~cpmdc-ipi-c~ |
+| ~with_python~ | boolean | ~false~ | install ~python/cpmdc~, its schema, and an unversioned ~libcpmdc~ for a wheel; ~pyproject.toml~ sets it for wheel builds, and it turns off the LAMMPS plugin, the GROMACS library, and the install of ~cpmdc-ipi-c~ |
 | ~with_readcon~ | boolean | ~false~ | link ~readcon-core~ (Rust) for ~cpmdc-restart export-con~ and ~import-con~ |
 | ~with_pwscale~ | boolean | ~false~ | build the plane-wave scaling scaffold ([[file:pwscale.org][reference]], [[file:../howto/pwscale-ranks.org][rank how-to]]); it is not on the force path |
 | ~with_pwscale_cuda~ | boolean | ~false~ | compile the CUDA backend of that scaffold |
 | ~with_lammps_plugin~ | feature | ~auto~ | build ~cpmdcplugin.so~, the LAMMPS ~pair_style cpmdc~; needs a C++ compiler, MPI for C++, and the LAMMPS headers (see [[file:../howto/lammps.org][the LAMMPS how-to]]) |
 | ~lammps_include~ | string | empty | directory holding ~lammps.h~ and ~pair.h~; empty takes ~include/lammps~ of an importable ~lammps~ Python package |
 | ~with_gromacs_shim~ | feature | ~auto~ | build ~libcpmdc_gromacs~ and ~libcp2k.pc~ for the GROMACS QM/MM interface (see [[file:../howto/gromacs.org][the GROMACS how-to]]) |
+
+Meson takes the project version from ~version.txt~.
+~pyproject.toml~ leaves the Python package version dynamic and takes it from
+that Meson version.
 
 Configuration stops when ~with_cpmd=true~, ~cpmd_root=DIR~ is non-empty, and
 ~DIR/lib/libcpmd.a~ or ~DIR/obj/timetag.o~ is missing.
@@ -74,6 +78,11 @@ These suites group the tests of the default build by layer.
 | ~restart~ | ~libcpmdc_restart~ binary ~RESTART~ reader/writer and header macro checks |
 | ~packaging~ | installed ~RUNPATH~, relocatable ~pkg-config~ layouts, and CMake/pkg-config consumer build |
 | ~docs~, ~examples~ | ~example-host-step~, runnable documentation blocks, ~llms.txt~ freshness, and API reference contracts |
+
+The ~mpi~ tests above are added when ~with_tests=true~ and the C MPI
+dependency is found (~rank-consensus~ also requires ~has_cpmd~ to be false).
+They launch through ~tests/run_mpi_test.py~, which uses ~mpirun~ or ~mpiexec~
+when one is on ~PATH~, and otherwise exits 77 so Meson marks the test skipped.
 
 Opt-in options add ~restart-con~ (~-Dwith_readcon=true~), ~pwscale~
 (~-Dwith_pwscale=true~), and ~opencpmd~ plus ~water~ (~-Dwith_cpmd=true~ with a
