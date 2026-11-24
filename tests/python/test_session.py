@@ -60,10 +60,48 @@ def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
 
 
 def test_session_preserves_an_accepted_small_triclinic_cell(periodic_params):
+    """Tilt components far below the lengths ride along with a physical cell.
+
+    The cell passes the rank guard with a tilt of 2.58e-12 and 1e-13 Angstrom
+    beside 6 Angstrom edges. It must give the energy, forces and stress of
+    the same cell with the tilts set to zero, on the reference evaluator and
+    on OpenCPMD alike.
+    """
+    tilted = [[6.0, 0.0, 0.0], [2.58e-12, 6.0, 0.0], [1.0e-13, 0.0, 6.0]]
+    straight = [[6.0, 0.0, 0.0], [0.0, 6.0, 0.0], [0.0, 0.0, 6.0]]
+    with Session(periodic_params) as session:
+        done = session.energy_forces(WATER, [8, 1, 1], tilted)
+    with Session(periodic_params) as session:
+        base = session.energy_forces(WATER, [8, 1, 1], straight)
+    assert done.stress_h_bohr3 is not None
+    assert done.energy_h == pytest.approx(base.energy_h, abs=1e-9)
+    flat = [value for row in done.forces_h_bohr for value in row]
+    flat_base = [value for row in base.forces_h_bohr for value in row]
+    assert flat == pytest.approx(flat_base, abs=1e-9)
+    assert done.stress_h_bohr3 == pytest.approx(base.stress_h_bohr3, abs=1e-9)
+
+
+def test_session_accepts_a_cell_thinner_than_any_electronic_structure(periodic_params, opencpmd):
+    """The rank guard takes this cell, so only the backend can judge it.
+
+    The third vector is 1e-13 Angstrom long. The reference evaluator
+    returns a stress for it. OpenCPMD is handed the cell as written, with
+    the lattice vectors, reciprocal vectors and the 8 by 8 by 4 mesh the
+    cell implies, and its plane wave basis shrinks to 5 waves for 4 orbitals
+    at a density near 1e13 electrons per cubic bohr. The first electronic
+    gradient is already 1e13 on the first step of a cold start and the SCF
+    cannot converge. The error comes from CPMD, not from the cell guard.
+    """
     cell = [[1.0, 0.0, 0.0], [2.58e-12, 1.0, 0.0], [1.0e-13, 0.0, 1.0e-13]]
     with Session(periodic_params) as session:
-        done = session.energy_forces(WATER, [8, 1, 1], cell)
-    assert done.stress_h_bohr3 is not None
+        if not opencpmd:
+            done = session.energy_forces(WATER, [8, 1, 1], cell)
+            assert done.stress_h_bohr3 is not None
+            return
+        with pytest.raises(CPMDCError, match=r"CPMD (SCF did not converge|stopgm)") as failure:
+            session.energy_forces(WATER, [8, 1, 1], cell)
+    assert "independent vectors" not in str(failure.value)
+    assert "too small" not in str(failure.value)
 
 
 def _water_bohr() -> list[float]:
