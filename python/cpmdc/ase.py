@@ -24,8 +24,25 @@ library also runs, so both make the same decision for the same cell. A mixed per
 the non-periodic axes.
 
 The CPMDParams message holds the method, including the charge and the
-multiplicity; ``initial_charges`` and ``initial_magmoms`` are not read.
-Each step runs with ``directory`` as the working directory, so CPMD
+multiplicity, and ``initial_charges`` and ``initial_magmoms`` of the
+``Atoms`` are read as ASE's other calculators read them. The total charge
+is ``Q = sum(atoms.get_initial_charges())`` and the total moment is
+``M = sum(atoms.get_initial_magnetic_moments())``, collinear only: a
+non-collinear moment raises ``ValueError``. ``Q`` and ``M`` must be
+integers. A sum is accepted when it lies within ``n * eps * sum(|x|)`` of
+an integer, the bound on the rounding error of summing ``n`` float64
+terms ``x``, with ``eps`` the float64 unit roundoff; otherwise it raises
+``ValueError``. The multiplicity is ``|M| + 1``. ``cpmdc_params_method``
+reports the effective value of the message, so a message charge of 0 or
+multiplicity of 1 is the schema default and counts as unset, whether the
+message left it out or wrote the default. For each of the two, an
+``Atoms`` value of zero changes nothing. A nonzero ``Atoms`` value is used
+when the message leaves the setting unset, and passes silently when it
+equals the message's value. When it differs from a set value of the
+message, ``ValueError`` names both values and both sources. A change of
+``initial_charges`` or ``initial_magmoms`` evaluates the structure again,
+and opens a new session when the effective charge or multiplicity
+changes. Each step runs with ``directory`` as the working directory, so CPMD
 reads and writes there when the message sets neither ``permanentDir``
 nor ``scratchDir``.
 
@@ -41,6 +58,7 @@ from __future__ import annotations
 import functools
 import base64
 import os
+import struct
 import warnings
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any, Sequence
@@ -61,15 +79,23 @@ from ase.calculators.calculator import (
 from ase.stress import full_3x3_to_voigt_6_stress
 from ase.utils import workdir
 
-from cpmdc import ConstantCutoff, CPMDCError, Potential, _warn_schema
+from cpmdc import (
+    ConstantCutoff,
+    CPMDCError,
+    MethodInfo,
+    Potential,
+    _warn_schema,
+    params_method,
+)
 from cpmdc._rank import _cell_is_rank_deficient
 
 __all__ = ["CPMDCCalculator", "CalculationFailed"]
 
 _NEED_PARAMS = "params is required: a CPMDParams path or bytes"
 _METHOD_IN_PARAMS = (
-    "the charge, the multiplicity, the functional, the cutoff, and every "
-    "other method setting come from the CPMDParams message in params"
+    "the functional, the cutoff, and every other method setting come from "
+    "the CPMDParams message in params; the charge and the multiplicity come "
+    "from it or from atoms.initial_charges and atoms.initial_magmoms"
 )
 _RESTART_IGNORED = (
     "restart is ignored and will be removed: a cpmdc step writes no restart "
@@ -95,6 +121,18 @@ _NO_DIPOLE = (
     "has no electronic dipole, and OpenCPMD recomputes one only for a periodic "
     "Gamma-point deck with DIPOLE DYNAMICS or PROP DIPOLE MOMENT BERRY"
 )
+_NO_OVERRIDE: tuple[int | None, int | None] = (None, None)
+_FLOAT64_EPS = float(np.finfo(np.float64).eps)
+# CPMDParams in schema/Potentials.capnp: ``charge`` and ``multiplicity`` are
+# the two Int32 halves of the second data word. A Cap'n Proto Int32 holds its
+# value XOR the schema default, so a multiplicity of 1 is stored as 0.
+_PARAMS_CHARGE_BYTE = 8
+_PARAMS_MULTIPLICITY_BYTE = 12
+_PARAMS_MULTIPLICITY_DEFAULT = 1
+_PARAMS_SCALAR_BYTES = 16
+_CAPNP_WORD = 8
+_INT32_MIN = -(2**31)
+_INT32_MAX = 2**31 - 1
 _PARAMS_INLINE_B64_KEY = "cpmdparams_base64"
 _PARAMS_INLINE_B64_ERROR = (
     "params mapping must be "
@@ -177,6 +215,90 @@ def _require_finite(evaluated: Any) -> None:
             raise CPMDCError(f"the library returned a non-finite {name}")
 
 
+def _integral_total(values: np.ndarray, source: str) -> int:
+    """Sum ``values`` and return the integer it equals up to float64 rounding.
+
+    Summing ``n`` float64 terms ``x`` is exact to within ``n * eps *
+    sum(|x|)``, so a sum farther than that from an integer is not one.
+    """
+    if not np.all(np.isfinite(values)):
+        raise ValueError(f"{source} holds a non-finite value")
+    total = float(np.sum(values))
+    bound = values.size * _FLOAT64_EPS * float(np.sum(np.abs(values)))
+    nearest = round(total)
+    if abs(total - nearest) > bound:
+        raise ValueError(
+            f"{source} sums to {total!r}, which is not an integer within "
+            f"{bound!r}; cpmdc needs an integral total charge and moment"
+        )
+    return int(nearest)
+
+
+def _initial_charge(atoms: Atoms) -> int:
+    charges = np.asarray(atoms.get_initial_charges(), dtype=float)
+    return _integral_total(charges, "Atoms.initial_charges")
+
+
+def _initial_moment(atoms: Atoms) -> int:
+    magmoms = np.asarray(atoms.get_initial_magnetic_moments(), dtype=float)
+    if magmoms.ndim == 2:
+        if np.any(magmoms != 0.0):
+            raise ValueError(
+                "Atoms.initial_magmoms holds non-collinear moments, shape "
+                f"{magmoms.shape}; cpmdc takes one collinear moment per atom"
+            )
+        return 0
+    return _integral_total(magmoms, "Atoms.initial_magmoms")
+
+
+def _params_with_method(blob: bytes, charge: int | None, multiplicity: int | None) -> bytes:
+    """``blob`` with the top-level ``charge`` or ``multiplicity`` of ``CPMDParams`` replaced.
+
+    ``None`` leaves a field as it is. The message is edited in place at the
+    word that the schema fixes, so every other byte, including a typed
+    section, stays as written. The caller checks the result with
+    ``cpmdc_params_method``.
+    """
+    if charge is None and multiplicity is None:
+        return blob
+    for name, value in (("charge", charge), ("multiplicity", multiplicity)):
+        if value is not None and not _INT32_MIN <= value <= _INT32_MAX:
+            raise ValueError(f"{name} {value} does not fit the Int32 of CPMDParams")
+    buffer = bytearray(blob)
+    where = "the CPMDParams message cannot take a charge or multiplicity from the Atoms"
+    if len(buffer) < _CAPNP_WORD:
+        raise CPMDCError(f"{where}: it is shorter than a Cap'n Proto segment table")
+    segments = struct.unpack_from("<I", buffer, 0)[0] + 1
+    table = 4 + 4 * segments
+    table += -table % _CAPNP_WORD
+    if len(buffer) < table:
+        raise CPMDCError(f"{where}: its segment table is truncated")
+    first_words = struct.unpack_from("<I", buffer, 4)[0]
+    first = table
+    end = first + _CAPNP_WORD * first_words
+    if first_words < 1 or end > len(buffer):
+        raise CPMDCError(f"{where}: its first segment is empty or truncated")
+    pointer = struct.unpack_from("<Q", buffer, first)[0]
+    if pointer & 3 != 0:
+        raise CPMDCError(f"{where}: its root is not a struct pointer in the first segment")
+    offset = (pointer >> 2) & 0x3FFFFFFF
+    if offset >= 1 << 29:
+        offset -= 1 << 30
+    data_bytes = ((pointer >> 32) & 0xFFFF) * _CAPNP_WORD
+    start = first + _CAPNP_WORD * (1 + offset)
+    if start < first or start + data_bytes > end or data_bytes < _PARAMS_SCALAR_BYTES:
+        raise CPMDCError(
+            f"{where}: the root struct has {data_bytes} data bytes and "
+            f"{_PARAMS_SCALAR_BYTES} are needed; encode it with the current schema"
+        )
+    if charge is not None:
+        struct.pack_into("<i", buffer, start + _PARAMS_CHARGE_BYTE, charge)
+    if multiplicity is not None:
+        stored = multiplicity ^ _PARAMS_MULTIPLICITY_DEFAULT
+        struct.pack_into("<i", buffer, start + _PARAMS_MULTIPLICITY_BYTE, stored)
+    return bytes(buffer)
+
+
 def _working_directory(directory: str) -> AbstractContextManager[Any]:
     # workdir() calls os.getcwd(), which raises when the current directory was deleted.
     return nullcontext() if directory == "." else workdir(directory)
@@ -215,6 +337,12 @@ class CPMDCCalculator(Calculator):
     Each step runs with ``directory`` as the working directory. The
     calculator writes no files of its own there.
 
+    The charge and the multiplicity also come from ``atoms.initial_charges``
+    and ``atoms.initial_magmoms``, as the module documentation describes; a
+    value that differs from one that ``params`` sets raises ``ValueError``.
+    A change of either array evaluates the structure again, and opens a new
+    session when the effective charge or multiplicity changes.
+
     ``parameters`` holds ``params``, ``library``, and ``constant_cutoff``.
     :meth:`set` changes them, opens a new session, and clears the stored results. The
     calculator can be copied, deep-copied, and pickled; a copy opens its
@@ -227,9 +355,12 @@ class CPMDCCalculator(Calculator):
         "library": None,
         "constant_cutoff": None,
     }
-    # Charge and multiplicity come from CPMDParams, not from the Atoms.
-    ignored_changes = {"initial_charges", "initial_magmoms"}
+    # Every change of the Atoms is a system change: initial_charges and
+    # initial_magmoms can set the charge and the multiplicity of the session.
+    ignored_changes: set[str] = set()
     discard_results_on_any_change = True
+    _override: tuple[int | None, int | None] = _NO_OVERRIDE
+    _method: MethodInfo | None = None
 
     def __init__(
         self,
@@ -246,6 +377,8 @@ class CPMDCCalculator(Calculator):
         self._potential: Potential | None = None
         self._blob = b""
         self._composition: tuple[int, ...] | None = None
+        self._override = _NO_OVERRIDE
+        self._method = None
         self._no_stress = ""
         self._no_dipole = ""
         # A value left as None would override a parameters= file.
@@ -268,7 +401,7 @@ class CPMDCCalculator(Calculator):
         """
         if self._potential is None:
             self._potential = Potential(
-                self._blob,
+                self._method_blob(self._override),
                 library=self.parameters.get("library"),
                 constant_cutoff=self.parameters.get("constant_cutoff"),
             )
@@ -313,6 +446,8 @@ class CPMDCCalculator(Calculator):
             self._release()
             self._potential = potential
             self._blob = blob
+            self._override = _NO_OVERRIDE
+            self._method = None
         return changed
 
     def todict(self, skip_default: bool = True) -> dict[str, Any]:
@@ -374,6 +509,11 @@ class CPMDCCalculator(Calculator):
             raise ValueError(_NO_ATOMS)
         self._no_stress = ""
         self._no_dipole = ""
+        override = self._method_override(self.atoms)
+        if override != self._override:
+            self._method_blob(override)
+            self._release()
+            self._override = override
         cell = self._periodic_cell(self.atoms)
         if "stress" in properties and cell is None:
             self._no_stress = _NO_STRESS_CLUSTER
@@ -412,6 +552,72 @@ class CPMDCCalculator(Calculator):
             self._no_dipole = missing if missing is not None else _NO_DIPOLE
             if "dipole" in properties:
                 raise PropertyNotImplementedError(self._no_dipole)
+
+    def _params_method(self) -> MethodInfo:
+        """The effective method of ``params``, read once per message."""
+        if self._method is None:
+            self._method = params_method(self._blob, library=self.parameters.get("library"))
+        return self._method
+
+    def _method_override(self, atoms: Atoms) -> tuple[int | None, int | None]:
+        """The charge and multiplicity the ``Atoms`` add to the message.
+
+        An entry is ``None`` when the message already holds the value, or
+        the ``Atoms`` carry none. ``ValueError`` when a nonzero ``Atoms``
+        value differs from a value that the message sets.
+        """
+        total_charge = _initial_charge(atoms)
+        moment = _initial_moment(atoms)
+        if total_charge == 0 and moment == 0:
+            return _NO_OVERRIDE
+        method = self._params_method()
+        charge: int | None = None
+        if total_charge != 0 and method.charge != total_charge:
+            if method.charge != 0:
+                raise ValueError(
+                    f"charge {total_charge} from Atoms.initial_charges disagrees with "
+                    f"charge {method.charge} from the CPMDParams message in params; "
+                    "set it in one place, or make the two equal"
+                )
+            charge = total_charge
+        multiplicity: int | None = None
+        wanted = abs(moment) + 1
+        if moment != 0 and method.multiplicity != wanted:
+            if method.multiplicity != _PARAMS_MULTIPLICITY_DEFAULT:
+                raise ValueError(
+                    f"multiplicity {wanted} (moment {moment}) from Atoms.initial_magmoms "
+                    f"disagrees with multiplicity {method.multiplicity} from the "
+                    "CPMDParams message in params; set it in one place, or make the "
+                    "two equal"
+                )
+            multiplicity = wanted
+        return (charge, multiplicity)
+
+    def _method_blob(self, override: tuple[int | None, int | None]) -> bytes:
+        """The message a session opens with: ``params`` plus the ``Atoms`` override.
+
+        The edited message is read back with ``cpmdc_params_method``. A
+        value that a typed section or a directive of the message pins is not
+        the one the top-level field sets, and that raises ``ValueError``.
+        """
+        charge, multiplicity = override
+        blob = _params_with_method(self._blob, charge, multiplicity)
+        if blob is self._blob:
+            return blob
+        applied = params_method(blob, library=self.parameters.get("library"))
+        if charge is not None and applied.charge != charge:
+            raise ValueError(
+                f"charge {charge} from Atoms.initial_charges is not the charge "
+                f"{applied.charge} that the CPMDParams message in params gives: a "
+                "typed section or a directive of the message fixes it"
+            )
+        if multiplicity is not None and applied.multiplicity != multiplicity:
+            raise ValueError(
+                f"multiplicity {multiplicity} from Atoms.initial_magmoms is not the "
+                f"multiplicity {applied.multiplicity} that the CPMDParams message in "
+                "params gives: a typed section or a directive of the message fixes it"
+            )
+        return blob
 
     @staticmethod
     def _periodic_cell(atoms: Atoms) -> np.ndarray | None:

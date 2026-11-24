@@ -295,15 +295,15 @@ def test_an_equal_structure_reuses_the_step(calc, steps):
     assert len(steps) == 1
 
 
-def test_initial_charges_and_moments_do_not_invalidate(calc, steps):
+def test_initial_charges_and_moments_invalidate(calc, steps):
     atoms = water()
     atoms.calc = calc
     atoms.get_forces()
     atoms.set_initial_charges([1.0, -0.5, -0.5])
     atoms.set_initial_magnetic_moments([2.0, 0.0, 0.0])
-    assert calc.check_state(atoms) == []
+    assert sorted(calc.check_state(atoms)) == ["initial_charges", "initial_magmoms"]
     atoms.get_forces()
-    assert len(steps) == 1
+    assert len(steps) == 2
 
 
 def test_returned_arrays_do_not_alias_the_stored_step(calc):

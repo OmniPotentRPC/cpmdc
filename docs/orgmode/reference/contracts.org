@@ -1798,7 +1798,7 @@ The ASE calculator. Importing it imports ASE.
 | Units | ASE units: energy in eV, forces in eV/Angstrom, stress in eV/Angstrom^3 in Voigt order. |
 | Shape and dtype | ~atoms~ an ~ase.Atoms~; fills ~results~ with ~energy~ and ~free_energy~ floats, ~forces~ an N by 3 ~float64~ array, and ~stress~ a six-component ~float64~ array when the cell is fully periodic. |
 | Ownership and threads | The calculator keeps the results; ~atoms~ is copied by ASE. Not thread-safe. The step runs with ~directory~ as the working directory, which is a process-wide change. |
-| Raises | ~ValueError~ for no atoms, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value. |
+| Raises | ~ValueError~ for no atoms, an ~initial_charges~ or ~initial_magmoms~ total that is not an integer (it must lie within ~n * eps * sum(abs(x))~ of one, the float64 rounding bound of ~n~ terms, ~eps~ the float64 unit roundoff), non-collinear ~initial_magmoms~, a nonzero total charge or total moment that differs from the charge or multiplicity ~params~ sets (the message names both values and both sources) or that a typed section of ~params~ fixes, a partly periodic cell, a cell of rank below 3 (singular values count only above sigma_max times 3 times the float64 unit roundoff, the numpy.linalg.matrix_rank cutoff), a cell volume below the normal float64 range, ~pbc~ of the wrong length, and invalid coordinates or atomic numbers; ~PropertyNotImplementedError~ when stress is asked for a cluster or for a step the library gave no stress for; ~CalculationFailed~ when the library rejects the step or returns a non-finite value; ~CPMDCError~ when an ~Atoms~ total needs ~cpmdc_params_method()~ and the library has none or refuses the message as ambiguous. |
 | Defaults | ~atoms~ is ~None~: the atoms already attached; ~properties~ is ~None~: ~['energy']~, but all four properties are always filled; ~system_changes~ is ASE's ~all_changes~. |
 
 *** ~cpmdc.ase.CPMDCCalculator.close~
@@ -1843,7 +1843,7 @@ The ASE calculator. Importing it imports ASE.
 | Shape and dtype | A ~set~ of ASE change names. |
 | Ownership and threads | Class attribute read by ASE; do not mutate it. |
 | Raises | none |
-| Defaults | ~initial_charges~ and ~initial_magmoms~: the charge and the multiplicity come from the ~CPMDParams~ message. |
+| Defaults | The empty set: ~initial_charges~ and ~initial_magmoms~ are system changes, because the calculator reads them as the total charge and the multiplicity. |
 
 *** ~cpmdc.ase.CPMDCCalculator.implemented_properties~
 
