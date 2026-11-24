@@ -43,6 +43,7 @@ Without Pixi, install the same set from your package manager:
 | C and Fortran compilers | any recent GCC and gfortran | every build |
 | C++ compiler and Rust (~cargo~) | Rust 1.70 or newer, below 2 | the ~minimage~ subproject |
 | pkg-config | 2.5.1 or newer, below 3 | dependency lookup |
+| CMake | 3.24 or newer | writing ~cpmdcConfig.cmake~ and the ~packaging~ consumer build |
 | Python 3 | 3.10 or newer, below 4 | build helpers and tests |
 | ASE, pytest, i-PI | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the ~python-api~ and ~python-pytest~ tests |
 | cmocka | 1.1.7 or newer, below 3 | ~-Dwith_tests=true~ |
