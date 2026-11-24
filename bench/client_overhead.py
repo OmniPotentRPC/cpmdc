@@ -281,6 +281,12 @@ def build_mock(directory: Path) -> Path:
     return target
 
 
+def compiler_banner() -> str:
+    compiler = os.environ.get("CC", "cc")
+    done = subprocess.run([compiler, "--version"], check=True, capture_output=True, text=True)
+    return done.stdout.splitlines()[0]
+
+
 def machine_info() -> dict[str, str]:
     model = "unknown"
     cpuinfo = Path("/proc/cpuinfo")
@@ -295,7 +301,7 @@ def machine_info() -> dict[str, str]:
         "kernel": platform.release(),
         "python": platform.python_version(),
         "numpy": np.__version__,
-        "cpmdc": cpmdc.__file__,
+        "cc": compiler_banner(),
     }
 
 
