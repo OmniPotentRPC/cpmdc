@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import shutil
+import struct
 import subprocess
 import sys
 from array import array
+from collections.abc import Iterator
 
+import numpy as np
 import pytest
 from conftest import ROOT, WATER
 
@@ -59,11 +63,249 @@ def test_periodic_step_needs_no_capnp(periodic_params, monkeypatch):
     assert len(done["stress"]) == 9
 
 
+def _decode_force_input_box(raw: bytes) -> list[float]:
+    """Decode ForceInput.box directly from Cap'n Proto single-segment bytes."""
+    seg_count_minus_one, seg_words = struct.unpack_from("<II", raw, 0)
+    assert seg_count_minus_one == 0
+    assert len(raw) == 8 + 8 * seg_words
+    root_word = struct.unpack_from("<Q", raw, 8)[0]
+    assert (root_word & 0x3) == 0
+    struct_offset = (root_word >> 2) & 0x3FFFFFFF
+    if struct_offset & 0x20000000:
+        struct_offset -= 0x40000000
+    data_words = (root_word >> 32) & 0xFFFF
+    ptr_words = (root_word >> 48) & 0xFFFF
+    assert ptr_words >= 3
+    box_ptr_byte = 8 + 8 * (1 + struct_offset + data_words + 2)
+    box_ptr = struct.unpack_from("<Q", raw, box_ptr_byte)[0]
+    assert (box_ptr & 0x3) == 1
+    list_offset = (box_ptr >> 2) & 0x3FFFFFFF
+    if list_offset & 0x20000000:
+        list_offset -= 0x40000000
+    elem_size = (box_ptr >> 32) & 0x7
+    elem_count = (box_ptr >> 35) & 0x1FFFFFFF
+    assert elem_size == 5
+    assert elem_count == 9
+    target_byte = box_ptr_byte + 8 + 8 * list_offset
+    return list(struct.unpack_from("<9d", raw, target_byte))
+
+
+@contextlib.contextmanager
+def _captured_force_input_boxes(session: Session) -> Iterator[list[list[float]]]:
+    boxes: list[list[float]] = []
+    original = session._lib.cpmdc_session_calculate_forces
+
+    def capture(handle, payload, length, forces, capacity):
+        boxes.append(_decode_force_input_box(ctypes.string_at(payload, length)))
+        return original(handle, payload, length, forces, capacity)
+
+    session._lib.cpmdc_session_calculate_forces = capture
+    try:
+        yield boxes
+    finally:
+        session._lib.cpmdc_session_calculate_forces = original
+
+
 def test_session_preserves_an_accepted_small_triclinic_cell(periodic_params):
-    cell = [[1.0, 0.0, 0.0], [2.58e-12, 1.0, 0.0], [1.0e-13, 0.0, 1.0e-13]]
+    """Tilt components far below the lengths ride along with a physical cell.
+
+    The cell passes the rank guard with a tilt of 2.58e-12 and 1e-13 Angstrom
+    beside 6 Angstrom edges. It must give the energy, forces and stress of
+    the same cell with the tilts set to zero, on the reference evaluator and
+    on OpenCPMD alike, while still keeping the off-diagonal tilts in ForceInput.
+    """
+    tilted = [[6.0, 0.0, 0.0], [2.58e-12, 6.0, 0.0], [1.0e-13, 0.0, 6.0]]
+    straight = [[6.0, 0.0, 0.0], [0.0, 6.0, 0.0], [0.0, 0.0, 6.0]]
+    assert tilted != straight
+    assert tilted[1][0] != 0.0 and tilted[2][0] != 0.0
     with Session(periodic_params) as session:
-        done = session.energy_forces(WATER, [8, 1, 1], cell)
+        with _captured_force_input_boxes(session) as boxes:
+            done = session.energy_forces(WATER, [8, 1, 1], tilted)
+    assert boxes == [[6.0, 0.0, 0.0, 2.58e-12, 6.0, 0.0, 1.0e-13, 0.0, 6.0]]
+    with Session(periodic_params) as session:
+        base = session.energy_forces(WATER, [8, 1, 1], straight)
     assert done.stress_h_bohr3 is not None
+    assert done.energy_h == pytest.approx(base.energy_h, abs=1e-9)
+    flat = [value for row in done.forces_h_bohr for value in row]
+    flat_base = [value for row in base.forces_h_bohr for value in row]
+    assert flat == pytest.approx(flat_base, abs=1e-9)
+    assert done.stress_h_bohr3 == pytest.approx(base.stress_h_bohr3, abs=1e-9)
+
+
+def test_session_accepts_a_cell_thinner_than_any_electronic_structure(periodic_params, opencpmd):
+    """The rank guard takes this cell, so only the backend can judge it.
+
+    The third vector is 1e-13 Angstrom long. The reference evaluator
+    returns a stress for it. OpenCPMD is handed the cell as written, with
+    the lattice vectors, reciprocal vectors and the 8 by 8 by 4 mesh the
+    cell implies, and its plane wave basis shrinks to 5 waves for 4 orbitals
+    at a density near 1e13 electrons per cubic bohr. The first electronic
+    gradient is already 1e13 on the first step of a cold start and the SCF
+    cannot converge. The error comes from CPMD, not from the cell guard.
+    """
+    cell = [[1.0, 0.0, 0.0], [2.58e-12, 1.0, 0.0], [1.0e-13, 0.0, 1.0e-13]]
+    assert cell[1][0] != 0.0 and cell[2][0] != 0.0
+    with Session(periodic_params) as session:
+        with _captured_force_input_boxes(session) as boxes:
+            if not opencpmd:
+                done = session.energy_forces(WATER, [8, 1, 1], cell)
+                assert boxes == [[1.0, 0.0, 0.0, 2.58e-12, 1.0, 0.0, 1.0e-13, 0.0, 1.0e-13]]
+                assert done.stress_h_bohr3 is not None
+                return
+            with pytest.raises(CPMDCError, match=r"CPMD (SCF did not converge|stopgm)") as failure:
+                session.energy_forces(WATER, [8, 1, 1], cell)
+    assert boxes == [[1.0, 0.0, 0.0, 2.58e-12, 1.0, 0.0, 1.0e-13, 0.0, 1.0e-13]]
+    assert "independent vectors" not in str(failure.value)
+    assert "too small" not in str(failure.value)
+
+
+def test_session_triclinic_tilt_oracle_and_rejects_transpose(periodic_params, opencpmd):
+    """A 1 Angstrom triclinic tilt matches an independent numpy oracle and fails when transposed or zeroed."""
+    # Expected lattice vectors (rows in Angstrom) computed independently of cpmdc.
+    oracle_vectors = np.array(
+        [
+            [6.5, 0.0, 0.0],
+            [1.2, 6.2, 0.0],
+            [-0.9, 0.8, 6.4],
+        ],
+        dtype=np.float64,
+    )
+    tilted = [[6.5, 0.0, 0.0], [1.2, 6.2, 0.0], [-0.9, 0.8, 6.4]]
+    straight = [[6.5, 0.0, 0.0], [0.0, 6.2, 0.0], [0.0, 0.0, 6.4]]
+    transposed_vectors = oracle_vectors.T
+    transposed = transposed_vectors.tolist()
+
+    # Hand-computed volume of the lower-triangular cell: 6.5 * 6.2 * 6.4 = 257.92 A^3.
+    hand_volume_ang3 = 6.5 * 6.2 * 6.4
+    oracle_volume_ang3 = abs(
+        float(np.dot(oracle_vectors[0], np.cross(oracle_vectors[1], oracle_vectors[2])))
+    )
+    assert oracle_volume_ang3 == pytest.approx(hand_volume_ang3, rel=1e-14, abs=1e-14)
+    assert abs(float(np.linalg.det(oracle_vectors))) == pytest.approx(
+        hand_volume_ang3, rel=1e-14, abs=1e-14
+    )
+
+    # Independent fractional <-> Cartesian mapping in plain numpy.
+    water_np = np.array(WATER, dtype=np.float64)
+    inv_vectors = np.linalg.inv(oracle_vectors)
+    frac_water = water_np @ inv_vectors
+    np.testing.assert_allclose(frac_water @ oracle_vectors, water_np, rtol=1e-14, atol=1e-15)
+
+    shifted_frac = frac_water.copy()
+    shifted_frac[1] += np.array([0.0, 1.0, 0.0])
+    shifted_cart = shifted_frac @ oracle_vectors
+    np.testing.assert_allclose(
+        shifted_cart[1] - water_np[1], np.array([1.2, 6.2, 0.0]), rtol=1e-14, atol=1e-15
+    )
+    assert not np.allclose(shifted_frac @ transposed_vectors, shifted_cart, atol=1e-3)
+
+    with Session(periodic_params) as session:
+        with _captured_force_input_boxes(session) as boxes:
+            done = session.energy_forces(WATER, [8, 1, 1], tilted)
+            shifted_done = session.energy_forces(shifted_cart.tolist(), [8, 1, 1], tilted)
+            straight_done = session.energy_forces(WATER, [8, 1, 1], straight)
+            trans_done = session.energy_forces(WATER, [8, 1, 1], transposed)
+            trans_shifted = session.energy_forces(
+                shifted_cart.tolist(), [8, 1, 1], transposed
+            )
+            no_cell_done = session.energy_forces(WATER, [8, 1, 1], None)
+
+        assert done.stress_h_bohr3 is not None
+        assert trans_done.stress_h_bohr3 is not None
+        assert straight_done.stress_h_bohr3 is not None
+
+        if opencpmd:
+            # Periodic-image invariance holds only under the un-transposed, tilted cell.
+            assert shifted_done.energy_h == pytest.approx(done.energy_h, abs=1e-9)
+            np.testing.assert_allclose(
+                shifted_done.forces_h_bohr, done.forces_h_bohr, rtol=1e-9, atol=1e-11
+            )
+            np.testing.assert_allclose(
+                shifted_done.stress_h_bohr3, done.stress_h_bohr3, rtol=1e-9, atol=1e-11
+            )
+
+            # Zeroing the off-diagonal tilts changes both energy and stress significantly.
+            assert abs(done.energy_h - straight_done.energy_h) > 1e-4
+            assert (
+                np.max(
+                    np.abs(np.array(done.stress_h_bohr3) - np.array(straight_done.stress_h_bohr3))
+                )
+                > 1e-6
+            )
+
+            # A transposed cell reaching the session fails cell-orientation and lattice-shift checks.
+            assert abs(trans_done.energy_h - done.energy_h) > 1e-4
+            assert (
+                np.max(
+                    np.abs(np.array(trans_done.stress_h_bohr3) - np.array(done.stress_h_bohr3))
+                )
+                > 1e-6
+            )
+            assert abs(trans_shifted.energy_h - trans_done.energy_h) > 1e-2
+        else:
+            # Independent plain-numpy oracle for the reference evaluator (CODATA 2018 Bohr).
+            bohr_ang = 0.529177210903
+            vol_bohr3 = hand_volume_ang3 / bohr_ang**3
+            pos_bohr = water_np / bohr_ang
+            atomic_numbers = np.array([8, 1, 1], dtype=np.float64)
+            k = 1.0e-3 * max(0.1, 40.0 / 70.0)
+            oracle_cell_energy = 1.0e-10 * float(np.sum(oracle_vectors**2))
+            oracle_forces = -(k * atomic_numbers[:, None] * pos_bohr)
+            ded_atoms = k * (pos_bohr.T @ (atomic_numbers[:, None] * pos_bohr))
+            ded_cell = 2.0e-10 * (oracle_vectors.T @ oracle_vectors)
+            oracle_stress = -(ded_atoms + ded_cell) / vol_bohr3
+            oracle_virial = vol_bohr3 * oracle_stress
+
+            assert (done.energy_h - no_cell_done.energy_h) == pytest.approx(
+                oracle_cell_energy, rel=1e-13, abs=1e-15
+            )
+            np.testing.assert_allclose(done.forces_h_bohr, oracle_forces, rtol=1e-13, atol=1e-15)
+            np.testing.assert_allclose(
+                done.stress_h_bohr3, oracle_stress.ravel(), rtol=1e-12, atol=1e-15
+            )
+
+            au_energy, au_forces, au_virial = session.calculate_au(
+                pos_bohr.ravel().tolist(), [8, 1, 1], (oracle_vectors / bohr_ang).ravel().tolist()
+            )
+            assert (au_energy - no_cell_done.energy_h) == pytest.approx(
+                oracle_cell_energy, rel=1e-13, abs=1e-15
+            )
+            np.testing.assert_allclose(
+                list(au_forces), oracle_forces.ravel(), rtol=1e-13, atol=1e-15
+            )
+            np.testing.assert_allclose(
+                list(au_virial), oracle_virial.ravel(), rtol=1e-12, atol=1e-15
+            )
+
+            # Zeroing off-diagonals changes both reference energy and stress beyond oracle tolerance.
+            assert abs(done.energy_h - straight_done.energy_h) > 1e-11
+            assert (
+                np.max(
+                    np.abs(np.array(done.stress_h_bohr3) - np.array(straight_done.stress_h_bohr3))
+                )
+                > 1e-13
+            )
+
+            # A transposed cell reaching the session fails the independent stress oracle.
+            with pytest.raises(AssertionError):
+                np.testing.assert_allclose(
+                    trans_done.stress_h_bohr3, oracle_stress.ravel(), rtol=1e-12, atol=1e-15
+                )
+
+        assert boxes[0] == oracle_vectors.ravel().tolist()
+        assert boxes[0] != transposed_vectors.ravel().tolist()
+        assert boxes[2] == [6.5, 0.0, 0.0, 0.0, 6.2, 0.0, 0.0, 0.0, 6.4]
+        assert boxes[3] == transposed_vectors.ravel().tolist()
+
+    with Potential(periodic_params) as pot:
+        pot_res = pot.evaluate(WATER, [8, 1, 1], tilted)
+    assert pot_res["energy"] == pytest.approx(done.energy_h * cpmdc.HARTREE_TO_EV, rel=1e-12)
+    np.testing.assert_allclose(
+        pot_res["stress"],
+        [-value for value in cpmdc.stress_to_ev_per_angstrom3(done.stress_h_bohr3)],
+        rtol=1e-12,
+        atol=1e-15,
+    )
 
 
 def _water_bohr() -> list[float]:

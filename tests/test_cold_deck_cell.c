@@ -179,6 +179,41 @@ static void test_small_triclinic_components_are_preserved(void **state) {
   lines_within_80(deck);
 }
 
+static void test_triclinic_tilt_deck_rejects_transpose(void **state) {
+  (void)state;
+  char deck[8192];
+  const double tilted[9] = {6.5, 0.0, 0.0, 1.2, 6.2, 0.0, -0.9, 0.8, 6.4};
+  const double transposed[9] = {6.5, 1.2, -0.9, 0.0, 6.2, 0.8, 0.0, 0.0, 6.4};
+  const double straight[9] = {6.5, 0.0, 0.0, 0.0, 6.2, 0.0, 0.0, 0.0, 6.4};
+  const double expected_straight[3] = {6.5, 6.2 / 6.5, 6.4 / 6.5};
+  double parsed[9];
+  const char *vectors;
+
+  assert_int_equal(
+      compose_with_deck(kPeriodicDeck, tilted, deck, (int)sizeof(deck)), 1);
+  assert_cell_vectors_equal(deck, tilted);
+  assert_null(strstr(deck, " SYMMETRY\n"));
+  lines_within_80(deck);
+
+  assert_int_equal(
+      compose_with_deck(kPeriodicDeck, transposed, deck, (int)sizeof(deck)), 1);
+  vectors = strstr(deck, " CELL VECTORS\n");
+  assert_non_null(vectors);
+  vectors += strlen(" CELL VECTORS\n");
+  assert_int_equal(
+      sscanf(vectors, "%lf %lf %lf %lf %lf %lf %lf %lf %lf", &parsed[0],
+             &parsed[1], &parsed[2], &parsed[3], &parsed[4], &parsed[5],
+             &parsed[6], &parsed[7], &parsed[8]),
+      9);
+  assert_memory_not_equal(parsed, tilted, sizeof(parsed));
+
+  assert_int_equal(
+      compose_with_deck(kPeriodicDeck, straight, deck, (int)sizeof(deck)), 1);
+  assert_null(strstr(deck, " CELL VECTORS\n"));
+  assert_non_null(strstr(deck, " SYMMETRY\n8\n CELL\n"));
+  assert_cell_equal(deck, expected_straight);
+}
+
 static void test_box_in_bohr_without_angstrom(void **state) {
   (void)state;
   char bohr_deck[sizeof(kPeriodicDeck)];
@@ -211,6 +246,7 @@ int main(void) {
       cmocka_unit_test(test_minimal_deck_refuses_a_skewed_box),
       cmocka_unit_test(test_box_replaces_the_deck_cell),
       cmocka_unit_test(test_small_triclinic_components_are_preserved),
+      cmocka_unit_test(test_triclinic_tilt_deck_rejects_transpose),
       cmocka_unit_test(test_box_in_bohr_without_angstrom),
       cmocka_unit_test(test_zero_box_keeps_the_deck_cell),
   };
