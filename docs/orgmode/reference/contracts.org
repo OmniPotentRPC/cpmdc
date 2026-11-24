@@ -1952,19 +1952,19 @@ Input files and unit constants for GROMACS.
 
 | Item | Description |
 |--------+--------|
-| Signature | ~qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)~ |
-| Units | ~ewald_rcut~ in nm; ~ewald_precision~, ~epsilon_r~, and ~multiplicity~ are dimensionless; ~qm_charges~ in units of the elementary charge; ~charge~ in elementary charges. |
-| Shape and dtype | ~params~ a path; ~qm_charges~ a sequence of floats, one per QM atom; the others are scalars or strings. Returns the ~qmi~ file as one ~str~ that ends in a newline. |
+| Signature | ~qmi_input(params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)~ |
+| Units | ~ewald_rcut~ in nm; ~ewald_precision~, ~epsilon_r~, ~link_alpha~ and ~multiplicity~ are dimensionless; ~qm_charges~ in units of the elementary charge; ~charge~ in elementary charges. |
+| Shape and dtype | ~params~ a path; ~qm_charges~ a sequence of floats, one per QM atom; ~links~ a sequence of ~(qm_index, mm_index)~ pairs of 1-based GROMACS atom numbers, one ~&LINK~ section each in ~&QMMM~; the others are scalars or strings. Returns the ~qmi~ file as one ~str~ that ends in a newline. |
 | Ownership and threads | Builds a new string and touches no file; stateless, so thread-safe. |
-| Raises | ~ValueError~ for an unknown ~cell~ or ~embedding~ keyword, ~qm_ranks~ other than ~ALL~ or ~1~, ~qm_charges~ or ~epsilon_r~ without ~MECHANICAL~ embedding or ~MECHANICAL~ embedding without ~qm_charges~, a non-finite value, a non-positive ~ewald_rcut~, ~ewald_precision~, or ~epsilon_r~, a ~multiplicity~ below 1, or a ~charge~ or ~multiplicity~ that is not a whole number; ~TypeError~ for a value that is not a real number or not an integer. |
-| Defaults | ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~, ~ewald_precision~, ~epsilon_r~ and ~qm_ranks~ are ~None~ and not written, so the library defaults apply (~PERIODIC~ when every atom is QM and ~NONE~ otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; ~EPSILON_R~ 1; ~ALL~); ~charge~ is 0 and ~multiplicity~ is 1. |
+| Raises | ~ValueError~ for an unknown ~cell~ or ~embedding~ keyword, ~qm_ranks~ other than ~ALL~ or ~1~, ~qm_charges~ or ~epsilon_r~ without ~MECHANICAL~ embedding or ~MECHANICAL~ embedding without ~qm_charges~, a non-finite value, a non-positive ~ewald_rcut~, ~ewald_precision~, or ~epsilon_r~, a ~multiplicity~ below 1, a ~charge~, ~multiplicity~, or link atom number that is not a whole number, a link that is not a pair, has an atom number below 1, or joins an atom to itself, a ~link_alpha~ of 1 or less, or ~link_alpha~ without ~links~; ~TypeError~ for a value that is not a real number or not an integer. |
+| Defaults | ~cell~, ~embedding~, ~qm_charges~, ~ewald_rcut~, ~ewald_precision~, ~epsilon_r~ and ~qm_ranks~ are ~None~ and not written, so the library defaults apply (~PERIODIC~ when every atom is QM and ~NONE~ otherwise; no embedding; the smaller of 1 nm and half the shortest box height; Ewald precision 10^-8 as assigned in tools/gromacs/cpmdc_gromacs.c; ~EPSILON_R~ 1; ~ALL~); ~links~ and ~link_alpha~ are ~None~, so no bond is capped, and ~ALPHA_IMOMM~ is not written, so the library takes 1.38; ~charge~ is 0 and ~multiplicity~ is 1. |
 
 *** ~cpmdc.gromacs.write_qmi~
 
 | Item | Description |
 |--------+--------|
-| Signature | ~write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, charge=0, multiplicity=1)~ |
-| Units | As for ~qmi_input~: ~ewald_rcut~ in nm, ~qm_charges~ and ~charge~ in elementary charges, ~epsilon_r~ dimensionless. |
+| Signature | ~write_qmi(path, params, *, cell=None, embedding=None, qm_charges=None, ewald_rcut=None, ewald_precision=None, epsilon_r=None, qm_ranks=None, links=None, link_alpha=None, charge=0, multiplicity=1)~ |
+| Units | As for ~qmi_input~: ~ewald_rcut~ in nm, ~qm_charges~ and ~charge~ in elementary charges, ~epsilon_r~ and ~link_alpha~ dimensionless. |
 | Shape and dtype | ~path~ is the file to write, ~params~ a path; the options are those of ~qmi_input~. Returns the ~pathlib.Path~ written. |
 | Ownership and threads | Writes one file in UTF-8, replacing it; thread-safe for distinct paths. |
 | Raises | ~ValueError~ as for ~qmi_input~; ~OSError~ when the file cannot be written. |

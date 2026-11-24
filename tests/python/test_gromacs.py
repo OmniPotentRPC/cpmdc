@@ -923,7 +923,7 @@ def test_explicit_cpmdc_ignores_multivalue_section_headers(params, tmp_path):
         ("generated", "CPMDC_GROMACS_PARAMS is not set"),
         ("no params", "&CPMDC needs PARAMS"),
         ("missing params", "cannot open the CPMDParams message"),
-        ("link", "has a &LINK section"),
+        ("link", "has a &LINK section without QM_INDEX"),
         ("unknown", "unknown &CPMDC keyword BASIS"),
         ("electrostatic", "EMBEDDING ELECTROSTATIC is not implemented"),
         ("unset embedding", "the MM atoms carry charges: set &CPMDC EMBEDDING"),

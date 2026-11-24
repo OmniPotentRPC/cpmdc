@@ -38,6 +38,15 @@ from cpmdc.gromacs import qmi_input, write_qmi
             ValueError,
             "qm_charges must be finite",
         ),
+        ({"links": [(0, 4)]}, ValueError, "links are 1-based atom numbers"),
+        ({"links": [(1, -4)]}, ValueError, "links are 1-based atom numbers"),
+        ({"links": [(2, 2)]}, ValueError, "a link joins two atoms"),
+        ({"links": [(1, 2, 3)]}, ValueError, "each link is a"),
+        ({"links": [(1.5, 4)]}, ValueError, "links qm_index must be an integer"),
+        ({"links": [("1", 4)]}, TypeError, "links qm_index must be an integer, got str"),
+        ({"links": [(1, 4)], "link_alpha": 1.0}, ValueError, "link_alpha must exceed 1"),
+        ({"links": [(1, 4)], "link_alpha": float("nan")}, ValueError, "link_alpha must be finite"),
+        ({"link_alpha": 1.38}, ValueError, "link_alpha needs links"),
     ],
 )
 def test_bad_options_are_refused(options, error, fragment):
@@ -50,6 +59,25 @@ def test_whole_floats_and_numpy_integers_are_charges():
     text = qmi_input("water.bin", charge=numpy.int64(-1), multiplicity=2.0)
     assert "CHARGE -1" in text
     assert "MULTIPLICITY 2\n" in text
+
+
+def test_links_are_link_sections_of_qmmm():
+    text = qmi_input("water.bin", links=[(1, 4), (numpy_index(2), 7)], link_alpha=1.5)
+    assert text.count("&LINK") == 2
+    assert text.count("&END LINK") == 2
+    assert text.count("ALPHA_IMOMM 1.5") == 2
+    lines = [line.strip() for line in text.splitlines()]
+    assert lines.index("QM_INDEX 1") < lines.index("MM_INDEX 4") < lines.index("&END LINK")
+    assert "QM_INDEX 2" in lines and "MM_INDEX 7" in lines
+    assert lines.index("&QMMM") < lines.index("&LINK") < lines.index("&END QMMM")
+    assert lines.index("&END QMMM") < lines.index("&SUBSYS")
+    assert "&QMMM" not in qmi_input("water.bin")
+    assert "ALPHA_IMOMM" not in qmi_input("water.bin", links=[(1, 4)])
+
+
+def numpy_index(value):
+    numpy = pytest.importorskip("numpy")
+    return numpy.int64(value)
 
 
 def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
@@ -75,6 +103,8 @@ def test_write_qmi_is_qmi_input_in_a_file(tmp_path):
         charge=1,
     )
     assert "EPSILON_R 78.4\n" in target.read_text(encoding="utf-8")
+    linked = write_qmi(tmp_path / "linked.qmi", "water.bin", links=[(1, 4)], link_alpha=1.4)
+    assert linked.read_text(encoding="utf-8") == qmi_input("water.bin", links=[(1, 4)], link_alpha=1.4)
     with pytest.raises(ValueError, match="multiplicity must be 1 or more"):
         write_qmi(tmp_path / "bad.qmi", "water.bin", multiplicity=0)
     assert not (tmp_path / "bad.qmi").exists()

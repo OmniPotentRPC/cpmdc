@@ -160,6 +160,36 @@ library writes to ~md_cp2k.out~.
 An explicit ~&CPMDC~ section takes precedence over
 ~CPMDC_GROMACS_PARAMS~.
 
+* Cap a bond across the QM boundary
+A QM group that cuts a covalent bond needs no extra step with the generated
+input: grompp finds each bond between a QM atom and an MM atom and writes a
+~&LINK~ section for it, and the library caps the bond with a hydrogen in the
+QM calculation.
+The ~CPMDParams~ message describes the QM atoms only; the hydrogens are added
+to them for you, so their number does not appear in the deck.
+~md_cp2k.out~ reports ~links N~ on its line of atom counts.
+
+With ~qmmm-cp2k-qmmethod = INPUT~ name each bond beside ~&CPMDC~, by the
+1-based atom numbers of the GROMACS system, QM atom first:
+
+#+begin_src python
+from cpmdc.gromacs import write_qmi
+
+# atom 1 (QM) is bonded to atom 4 (MM)
+write_qmi("cpmdc.inp", "water.params.bin", embedding="NONE", links=[(1, 4)])
+#+end_src
+
+~link_alpha~ sets ~ALPHA_IMOMM~; the library default is CP2K's 1.38.
+Choose it as the ratio of the equilibrium QM-MM bond length to the QM-H bond
+length of the method.
+
+The MM atom gets its share of the force on the hydrogen, so GROMACS integrates
+it as it does any other atom.
+With ~EMBEDDING MECHANICAL~ the charge of the MM atom of each cut bond leaves
+the QM-MM Coulomb sum; see the [[file:../reference/gromacs.org][reference]] for
+the hydrogen position, the force shares, the virial, and what is not
+implemented.
+
 * Pressure and NPT
 NPT works with a GROMACS patched as in [[*Build][Build]].
 The QM virial is the full tensor, in a cubic or triclinic box, so C-rescale,
