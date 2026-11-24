@@ -26,11 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
       - name: Version copies match version.txt
         run: python3 scripts/release_assert.py
       - name: LLM index files match doc sources
         run: python3 scripts/generate_llms_txt.py --check
+      - name: Check changelog and newsfragments
+        run: |
+          python3 scripts/towncrier_check.py
+          python3 tests/test_towncrier_check.py
 
   stub-and-e2e:
     runs-on: ubuntu-latest

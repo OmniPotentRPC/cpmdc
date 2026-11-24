@@ -62,6 +62,7 @@ test-stub-sanitize = { cmd = "bash -c '. scripts/with_baseline_flags.sh && meson
 release-assert = { cmd = "python3 scripts/release_assert.py", description = "Fail when a generated version copy differs from version.txt" }
 version-sync = { cmd = "python3 scripts/release_assert.py --sync", description = "Regenerate every version copy from version.txt" }
 towncrier-draft = { cmd = "bash -c 'uvx towncrier build --draft --version \"$(cat version.txt)\"'", description = "Preview changelog fragments" }
+towncrier-check = { cmd = "python3 scripts/towncrier_check.py", description = "Check newsfragments and changelog state against the base branch" }
 release-cog-dry = { cmd = "cog bump --auto --dry-run", description = "Preview the release bump" }
 test-stub = { cmd = "bash -c '. scripts/with_baseline_flags.sh && meson setup build -Dwith_tests=true && meson compile -C build && meson test -C build --print-errorlogs'", description = "Configure, build, and test (stub + embed E2E)" }
 test-readcon = { cmd = "bash -c 'export PATH=\"$HOME/.cargo/bin:$PATH\"; . scripts/with_baseline_flags.sh && meson setup build-readcon -Dwith_tests=true -Dwith_readcon=true && meson compile -C build-readcon && meson test -C build-readcon --suite restart --suite restart-con --print-errorlogs'", description = "Restart tests plus the optional readcon CON bridge" }
