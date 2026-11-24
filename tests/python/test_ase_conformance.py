@@ -1373,3 +1373,74 @@ def test_an_unsupported_structure_leaves_the_calculator_usable(calc, steps):
     atoms.set_pbc(False)
     assert np.isfinite(atoms.get_potential_energy())
     assert len(steps) == 1
+
+
+# --- a cell that the step does not use -----------------------------------------
+
+
+def test_a_cell_change_of_a_cluster_reuses_the_step(calc, steps):
+    atoms = water()
+    atoms.calc = calc
+    energy = atoms.get_potential_energy()
+    forces = atoms.get_forces()
+    atoms.set_cell(CUBE)
+    assert calc.check_state(atoms) == []
+    assert not calc.calculation_required(atoms, ["energy", "forces"])
+    assert atoms.get_potential_energy() == energy
+    np.testing.assert_array_equal(atoms.get_forces(), forces)
+    atoms.set_cell(TRICLINIC)
+    assert atoms.get_potential_energy() == energy
+    assert len(steps) == 1
+
+
+def test_a_cluster_step_sends_no_cell(calc, monkeypatch):
+    boxes = []
+    evaluate = Potential.evaluate
+
+    def recording(self, positions, numbers, box=None):
+        boxes.append(box)
+        return evaluate(self, positions, numbers, box)
+
+    monkeypatch.setattr(Potential, "evaluate", recording)
+    atoms = water(cell=CUBE)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    assert boxes == [None]
+
+
+@pytest.mark.parametrize("what", ["positions", "pbc", "numbers"])
+def test_another_change_of_a_cluster_still_evaluates_the_step(calc, steps, what):
+    atoms = water(cell=CUBE)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    if what == "positions":
+        atoms.positions[1, 1] += 0.01
+    elif what == "pbc":
+        atoms.set_pbc(True)
+    else:
+        atoms.numbers = [1, 8, 1]
+    atoms.set_cell(TRICLINIC)
+    assert what in calc.check_state(atoms)
+    atoms.get_potential_energy()
+    assert len(steps) == 2
+
+
+def test_a_cell_change_of_a_periodic_structure_still_evaluates_the_step(periodic_calc, steps):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = periodic_calc
+    atoms.get_potential_energy()
+    atoms.set_cell(TRICLINIC, scale_atoms=False)
+    assert periodic_calc.check_state(atoms) == ["cell"]
+    atoms.get_potential_energy()
+    assert len(steps) == 2
+
+
+def test_a_cell_change_after_a_periodic_step_evaluates_a_cluster(calc, steps):
+    atoms = water(cell=CUBE, pbc=True)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    atoms.set_pbc(False)
+    atoms.set_cell(TRICLINIC)
+    assert set(calc.check_state(atoms)) == {"cell", "pbc"}
+    atoms.get_potential_energy()
+    assert len(steps) == 2

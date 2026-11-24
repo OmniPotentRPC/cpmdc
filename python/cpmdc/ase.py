@@ -15,7 +15,8 @@ eV/Angstrom^3, and dipole in e*Angstrom. Stress is Voigt order
 energy of the step; the library does not separate an electronic entropy.
 
 A structure with every periodic flag false is a cluster: the cell is not
-sent, and the CPMDParams deck sets the boundary conditions. Every flag
+sent, and the CPMDParams deck sets the boundary conditions. A change of
+``atoms.cell`` alone is then no system change and keeps the stored step. Every flag
 true sends ``atoms.cell`` as the periodic cell. The cell is rejected
 when those three vectors are linearly dependent. Dependence is rank
 below 3: a singular value counts only when it is strictly greater than
@@ -348,6 +349,25 @@ class CPMDCCalculator(Calculator):
                 _PARAMS_INLINE_B64_KEY: base64.b64encode(dct["params"]).decode("ascii")
             }
         return dct
+
+    def check_state(self, atoms: Atoms, tol: float = 1e-15) -> list[str]:
+        """Return the system changes that make the stored step stale.
+
+        ASE's list, without ``"cell"`` while the stored structure and
+        ``atoms`` are both clusters: a cluster step sends no cell, so a
+        different ``atoms.cell`` gives the same step. A cell change that
+        comes with a ``pbc`` change stays, because ``"pbc"`` is then in
+        the list as well.
+        """
+        changes: list[str] = Calculator.check_state(self, atoms, tol)
+        if (
+            "cell" in changes
+            and self.atoms is not None
+            and not np.any(self.atoms.pbc)
+            and not np.any(atoms.pbc)
+        ):
+            changes.remove("cell")
+        return changes
 
     def reset(self) -> None:
         """Clear the stored results; the session stays open."""
