@@ -33,13 +33,22 @@ integers. A sum is accepted when it lies within ``n * eps * sum(|x|)`` of
 an integer, the bound on the rounding error of summing ``n`` float64
 terms ``x``, with ``eps`` the float64 unit roundoff; otherwise it raises
 ``ValueError``. The multiplicity is ``|M| + 1``. ``cpmdc_params_method``
-reports the effective value of the message, so a message charge of 0 or
-multiplicity of 1 is the schema default and counts as unset, whether the
-message left it out or wrote the default. For each of the two, an
-``Atoms`` value of zero changes nothing. A nonzero ``Atoms`` value is used
-when the message leaves the setting unset, and passes silently when it
-equals the message's value. When it differs from a set value of the
-message, ``ValueError`` names both values and both sources. A change of
+reports the effective value of the message. A multiplicity of 1 is the
+schema default and counts as unset, whether the message left it out or
+wrote 1. A charge of 0 counts as unset only when ``hasCharge`` is false.
+Top-level ``hasCharge`` true marks that 0 as explicit. The sum of
+``initial_charges`` is written only when that bit is false and the
+effective charge is still 0. A typed ``system`` section with
+``hasCharge`` true wins over the top-level field. The deck renderer
+and the Fortran embed record that charge. The embed leaves
+``initial_charges`` and the ``ForceInput`` charge fields unread.
+The calculator applies this precedence, and reads the edited message
+back, before the session opens. For each of the two settings, an
+``Atoms`` value of zero changes nothing. A nonzero ``Atoms`` value is
+used when the message leaves the setting unset, and passes silently
+when it equals the message's value.
+When it differs from a set value, ``ValueError`` names both values and
+both sources and the set value is kept. A change of
 ``initial_charges`` or ``initial_magmoms`` evaluates the structure again,
 and opens a new session when the effective charge or multiplicity
 changes. Each step runs with ``directory`` as the working directory, so CPMD
@@ -126,8 +135,11 @@ _FLOAT64_EPS = float(np.finfo(np.float64).eps)
 # CPMDParams in schema/Potentials.capnp: ``charge`` and ``multiplicity`` are
 # the two Int32 halves of the second data word. A Cap'n Proto Int32 holds its
 # value XOR the schema default, so a multiplicity of 1 is stored as 0.
+# ``hasCharge`` is the first bit of the third data word. A data section that
+# ends before that bit stores the schema default, false.
 _PARAMS_CHARGE_BYTE = 8
 _PARAMS_MULTIPLICITY_BYTE = 12
+_PARAMS_HAS_CHARGE_BYTE = 20
 _PARAMS_MULTIPLICITY_DEFAULT = 1
 _PARAMS_SCALAR_BYTES = 16
 _CAPNP_WORD = 8
@@ -251,19 +263,8 @@ def _initial_moment(atoms: Atoms) -> int:
     return _integral_total(magmoms, "Atoms.initial_magmoms")
 
 
-def _params_with_method(blob: bytes, charge: int | None, multiplicity: int | None) -> bytes:
-    """``blob`` with the top-level ``charge`` or ``multiplicity`` of ``CPMDParams`` replaced.
-
-    ``None`` leaves a field as it is. The message is edited in place at the
-    word that the schema fixes, so every other byte, including a typed
-    section, stays as written. The caller checks the result with
-    ``cpmdc_params_method``.
-    """
-    if charge is None and multiplicity is None:
-        return blob
-    for name, value in (("charge", charge), ("multiplicity", multiplicity)):
-        if value is not None and not _INT32_MIN <= value <= _INT32_MAX:
-            raise ValueError(f"{name} {value} does not fit the Int32 of CPMDParams")
+def _params_root(blob: bytes) -> tuple[bytearray, int, int]:
+    """Return ``(buffer, data_start, data_bytes)`` for the root ``CPMDParams`` struct."""
     buffer = bytearray(blob)
     where = "the CPMDParams message cannot take a charge or multiplicity from the Atoms"
     if len(buffer) < _CAPNP_WORD:
@@ -291,6 +292,36 @@ def _params_with_method(blob: bytes, charge: int | None, multiplicity: int | Non
             f"{where}: the root struct has {data_bytes} data bytes and "
             f"{_PARAMS_SCALAR_BYTES} are needed; encode it with the current schema"
         )
+    return buffer, start, data_bytes
+
+
+def _top_level_has_charge(blob: bytes) -> bool:
+    """True when the top-level ``CPMDParams.hasCharge`` bit is set.
+
+    A data section that ends before the bit stores the schema default, false.
+    A typed ``system`` section is a separate word; the calculator reads that
+    charge back from ``cpmdc_params_method`` after an edit.
+    """
+    buffer, start, data_bytes = _params_root(blob)
+    if data_bytes <= _PARAMS_HAS_CHARGE_BYTE:
+        return False
+    return bool(buffer[start + _PARAMS_HAS_CHARGE_BYTE] & 1)
+
+
+def _params_with_method(blob: bytes, charge: int | None, multiplicity: int | None) -> bytes:
+    """``blob`` with the top-level ``charge`` or ``multiplicity`` of ``CPMDParams`` replaced.
+
+    ``None`` leaves a field as it is. The message is edited in place at the
+    word that the schema fixes, so every other byte, including a typed
+    section and ``hasCharge``, stays as written. The caller checks the result
+    with ``cpmdc_params_method``.
+    """
+    if charge is None and multiplicity is None:
+        return blob
+    for name, value in (("charge", charge), ("multiplicity", multiplicity)):
+        if value is not None and not _INT32_MIN <= value <= _INT32_MAX:
+            raise ValueError(f"{name} {value} does not fit the Int32 of CPMDParams")
+    buffer, start, _data_bytes = _params_root(blob)
     if charge is not None:
         struct.pack_into("<i", buffer, start + _PARAMS_CHARGE_BYTE, charge)
     if multiplicity is not None:
@@ -338,8 +369,10 @@ class CPMDCCalculator(Calculator):
     calculator writes no files of its own there.
 
     The charge and the multiplicity also come from ``atoms.initial_charges``
-    and ``atoms.initial_magmoms``, as the module documentation describes; a
-    value that differs from one that ``params`` sets raises ``ValueError``.
+    and ``atoms.initial_magmoms``, as the module documentation describes. The
+    sum of ``initial_charges`` is used only when ``hasCharge`` is false. A
+    value that differs from one that ``params`` sets, including an explicit
+    charge of 0, raises ``ValueError`` and the set value is kept.
     A change of either array evaluates the structure again, and opens a new
     session when the effective charge or multiplicity changes.
 
@@ -563,8 +596,10 @@ class CPMDCCalculator(Calculator):
         """The charge and multiplicity the ``Atoms`` add to the message.
 
         An entry is ``None`` when the message already holds the value, or
-        the ``Atoms`` carry none. ``ValueError`` when a nonzero ``Atoms``
-        value differs from a value that the message sets.
+        the ``Atoms`` carry none. A charge of 0 is already held when the
+        top-level ``hasCharge`` bit is set. ``ValueError`` when a nonzero
+        ``Atoms`` value differs from a value that the message sets. The
+        set value is kept.
         """
         total_charge = _initial_charge(atoms)
         moment = _initial_moment(atoms)
@@ -573,7 +608,10 @@ class CPMDCCalculator(Calculator):
         method = self._params_method()
         charge: int | None = None
         if total_charge != 0 and method.charge != total_charge:
-            if method.charge != 0:
+            # charge != 0 is explicit on its own. hasCharge marks an explicit 0.
+            # A typed system section that pins another charge is refused when
+            # the edited message is read back, before a session opens.
+            if method.charge != 0 or _top_level_has_charge(self._blob):
                 raise ValueError(
                     f"charge {total_charge} from Atoms.initial_charges disagrees with "
                     f"charge {method.charge} from the CPMDParams message in params; "

@@ -1381,6 +1381,107 @@ def test_a_multiplicity_that_disagrees_with_cpmdparams_raises(cluster_variant, c
         assert calls == []
 
 
+def test_explicit_zero_charge_with_nonzero_initial_charges_keeps_zero(
+    cluster_variant, calls, opencpmd
+):
+    explicit = cluster_variant("charge = 0,", "charge = 0,\n  hasCharge = true,")
+    from cpmdc.ase import _top_level_has_charge
+
+    assert _top_level_has_charge(explicit.read_bytes()) is True
+    assert cpmdc.params_method(explicit).charge == 0
+    neutral = energy_of(explicit, water())
+    tol = dict(rel=0, abs=1e-5 if opencpmd else 0)
+    assert energy_of(explicit, tagged_water([0.0, 0.0, 0.0])) == pytest.approx(neutral, **tol)
+    before = len(calls)
+    with CPMDCCalculator(explicit) as calc:
+        atoms = tagged_water([1.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError, match="disagrees") as caught:
+            atoms.get_potential_energy()
+        message = str(caught.value)
+        assert "charge 1" in message and "Atoms.initial_charges" in message
+        assert "charge 0" in message and "CPMDParams" in message
+        assert len(calls) == before
+        assert calc.results == {}
+        assert calc._override == (None, None)
+    assert energy_of(explicit, water()) == pytest.approx(neutral, **tol)
+
+
+def test_an_explicit_nonzero_charge_is_kept(cluster_variant, calls, opencpmd):
+    charged = cluster_variant(*CHARGE_TWO)
+    with CPMDCCalculator(charged) as calc:
+        atoms = tagged_water([1.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError, match="disagrees") as caught:
+            atoms.get_potential_energy()
+        message = str(caught.value)
+        assert "charge 1" in message and "charge 2" in message
+        assert calls == []
+        assert calc._override == (None, None)
+    if opencpmd:
+        pytest.skip("a charged water is a separate OpenCPMD SCF")
+    expected = energy_of(charged, water())
+    assert energy_of(charged, tagged_water([0.0, 0.0, 0.0])) == expected
+    assert energy_of(charged, tagged_water([2.0, 0.0, 0.0])) == expected
+    with CPMDCCalculator(charged) as calc:
+        assert calc._method_override(tagged_water([2.0, 0.0, 0.0])) == (None, None)
+        assert calc._method_override(tagged_water([0.0, 0.0, 0.0])) == (None, None)
+
+
+def test_unset_charge_takes_the_sum_of_initial_charges(cluster_variant, opencpmd):
+    from cpmdc.ase import _top_level_has_charge
+
+    plain = cluster_variant()
+    assert _top_level_has_charge(plain.read_bytes()) is False
+    assert cpmdc.params_method(plain).charge == 0
+    with CPMDCCalculator(plain) as calc:
+        assert calc._method_override(tagged_water([2.0, 0.0, 0.0])) == (2, None)
+        assert calc._method_override(tagged_water([0.5, 1.0, 0.5])) == (2, None)
+    if opencpmd:
+        pytest.skip("a charged water is a separate OpenCPMD SCF")
+    expected = energy_of(cluster_variant(*CHARGE_TWO), water())
+    assert energy_of(plain, tagged_water([2.0, 0.0, 0.0])) == expected
+
+
+def test_all_zero_initial_charges_leave_the_charge_neutral(cluster_variant, opencpmd):
+    plain = cluster_variant()
+    explicit = cluster_variant("charge = 0,", "charge = 0,\n  hasCharge = true,")
+    tol = dict(rel=0, abs=1e-5 if opencpmd else 0)
+    neutral = energy_of(plain, water())
+    assert energy_of(plain, tagged_water([0.0, 0.0, 0.0])) == pytest.approx(neutral, **tol)
+    assert energy_of(explicit, water()) == pytest.approx(neutral, **tol)
+    assert energy_of(explicit, tagged_water([0.0, 0.0, 0.0])) == pytest.approx(neutral, **tol)
+    # Partial charges that cancel are still a total of zero.
+    assert energy_of(explicit, tagged_water([0.5, -0.25, -0.25])) == pytest.approx(
+        neutral, **tol
+    )
+    with CPMDCCalculator(plain) as calc, CPMDCCalculator(explicit) as marked:
+        assert calc._method_override(tagged_water(np.zeros(3))) == (None, None)
+        assert marked._method_override(tagged_water(np.zeros(3))) == (None, None)
+
+
+def test_a_typed_system_explicit_zero_is_kept(cluster_variant, calls, opencpmd):
+    pinned = cluster_variant(
+        "symmetry = 0,",
+        "symmetry = 0, charge = 0, hasCharge = true,",
+    )
+    assert cpmdc.params_method(pinned).charge == 0
+    tol = dict(rel=0, abs=1e-5 if opencpmd else 0)
+    neutral = energy_of(cluster_variant(), water())
+    assert energy_of(pinned, water()) == pytest.approx(neutral, **tol)
+    before = len(calls)
+    with CPMDCCalculator(pinned) as calc:
+        atoms = tagged_water([2.0, 0.0, 0.0])
+        atoms.calc = calc
+        with pytest.raises(ValueError, match="fixes it") as caught:
+            atoms.get_potential_energy()
+        message = str(caught.value)
+        assert "charge 2" in message and "charge 0" in message
+        assert len(calls) == before
+        assert calc.results == {}
+    assert energy_of(pinned, tagged_water([0.0, 0.0, 0.0])) == pytest.approx(neutral, **tol)
+
+
 def test_a_charge_that_a_typed_section_pins_is_refused(tmp_path, calls):
     capnp = shutil.which("capnp")
     if capnp is None:
