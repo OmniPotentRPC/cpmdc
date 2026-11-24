@@ -329,5 +329,54 @@ int main(int argc, char **argv) {
     require_diagonal_cell_fields(deck, "cubic compose");
   }
 
+  {
+    const double one_ang_tilt[9] = {6.5,  0.0, 0.0, 1.2, 6.2,
+                                    0.0, -0.9, 0.8, 6.4};
+    const double one_ang_trans[9] = {6.5, 1.2, -0.9, 0.0, 6.2,
+                                     0.8, 0.0,  0.0, 6.4};
+    const double one_ang_diag[9] = {6.5, 0.0, 0.0, 0.0, 6.2,
+                                    0.0, 0.0, 0.0, 6.4};
+    double parsed[9];
+    const char *vectors;
+    const char *cursor;
+    int mismatch = 0;
+
+    memset(deck, 0, sizeof(deck));
+    if (compose_case(one_ang_tilt, 1, deck, (int)sizeof(deck)) == 0) {
+      require_vectors_preserved(deck, one_ang_tilt, "one-angstrom tilt compose");
+      require_lines_within_80(deck, "one-angstrom tilt compose");
+    }
+
+    memset(deck, 0, sizeof(deck));
+    if (compose_case(one_ang_trans, 1, deck, (int)sizeof(deck)) == 0) {
+      vectors = strstr(deck, "CELL VECTORS\n");
+      if (!vectors) {
+        fprintf(stderr, "one-angstrom transpose compose: missing CELL VECTORS\n");
+        g_failed = 1;
+      } else {
+        cursor = vectors + strlen("CELL VECTORS\n");
+        for (int i = 0; i < 9; ++i) {
+          char *end = NULL;
+          parsed[i] = strtod(cursor, &end);
+          cursor = end;
+          if (parsed[i] != one_ang_tilt[i])
+            mismatch = 1;
+        }
+        if (!mismatch) {
+          fprintf(stderr,
+                  "one-angstrom transpose compose unexpectedly matched tilted\n");
+          g_failed = 1;
+        }
+      }
+    }
+
+    memset(deck, 0, sizeof(deck));
+    if (compose_case(one_ang_diag, 1, deck, (int)sizeof(deck)) == 0) {
+      require_absent(deck, "CELL VECTORS", "one-angstrom zeroed tilt compose");
+      require_has(deck, " SYMMETRY\n  8\n", "one-angstrom zeroed tilt compose");
+      require_diagonal_cell_fields(deck, "one-angstrom zeroed tilt compose");
+    }
+  }
+
   return g_failed ? 1 : 0;
 }
