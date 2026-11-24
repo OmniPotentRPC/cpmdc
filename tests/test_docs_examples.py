@@ -116,7 +116,7 @@ SKIP = {
     "howto/gromacs.org:3": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
     "howto/gromacs.org:4": "GROMACS mdp fragment",
     "howto/gromacs.org:6": "needs gmx_d built against libcpmdc_gromacs; tests/python/test_gromacs.py runs these steps",
-    "howto/gromacs.org:7": "GROMACS mdp fragment",
+    "howto/gromacs.org:8": "GROMACS mdp fragment",
     "howto/lammps.org:0": "needs the lammps Python module; tests/python/test_lammps.py runs these steps",
     "howto/lammps.org:1": "reconfigures the tree",
     "howto/lammps.org:2": "LAMMPS input script for lmp and the plugin",
@@ -207,6 +207,7 @@ RUN = {
     "howto/constant-cutoff.org:0",
     "howto/debug-deck.org:0",
     "howto/gromacs.org:5",
+    "howto/gromacs.org:7",
     *PYTHON_HOWTO,
     *ASE_HOWTO,
     "howto/socket-drivers.org:1",
@@ -580,6 +581,10 @@ def main() -> int:
             run_python(root, library, params, schema, found["howto/gromacs.org:5"].body)
             if "&CPMDC" not in (work / "cpmdc.inp").read_text(encoding="utf-8"):
                 return fail("howto/gromacs.org:5 wrote no &CPMDC section")
+            run_python(root, library, params, schema, found["howto/gromacs.org:7"].body)
+            linked = (work / "cpmdc.inp").read_text(encoding="utf-8")
+            if "QM_INDEX 1" not in linked or "MM_INDEX 4" not in linked:
+                return fail("howto/gromacs.org:7 wrote no &LINK section")
             encode(schema, "CPMDParams", found["reference/cpmd-options.org:1"].body)
 
             cluster = work / "write-cpmdparams"
