@@ -1,1 +1,0 @@
-`cpmdc.pc`, `cpmdc-restart.pc`, and `libcp2k.pc` now derive `prefix` and `includedir` from `${pcfiledir}` with the relative path from the pkg-config directory, so `-Dlibdir=.`, a nested `libdir`, and an absolute `includedir` under the prefix stay inside that prefix.

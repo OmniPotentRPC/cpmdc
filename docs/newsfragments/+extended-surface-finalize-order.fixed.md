@@ -1,1 +1,0 @@
-`test_extended_surface` now calls `cpmdc_finalize()` only in its final shutdown regression test rather than mid-suite, so `test_topology_change_is_reported_before_the_gradient_limit` evaluates on a live embed runtime and post-finalize checks confirm that failed embed preflight leaves open topologies uncommitted while preserving topology checks on already-fixed sessions.

@@ -2,6 +2,191 @@
 
 <!-- towncrier release notes start -->
 
+## [0.7.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.7.0) - 2026-11-24
+
+### Deprecated
+
+- `CPMDCPropertySnapshot.hessian` and `hessian_count` are deprecated. The array
+  contains the nuclear gradient dE/dR, not a Hessian. Existing binaries retain
+  the field; new callers should use `cpmdc_last_gradient()` or
+  `cpmdc_session_last_gradient()`.
+
+### Added
+
+- GROMACS-generated PBE and BLYP QM/MM inputs can load a matching
+  `CPMDParams` message from `CPMDC_GROMACS_PARAMS`.
+
+  The C ABI exposes `cpmdc_params_method()` and Python exposes
+  `params_method()` for reading a message's effective functional, charge, and
+  multiplicity without applying it.
+- The GROMACS interface caps a covalent bond between a QM atom and an MM atom
+  with a link hydrogen, so a QM group no longer has to hold whole molecules.
+  The library reads each `&LINK` section of the generated input, or of a
+  `-qmi` file, places a hydrogen at the IMOMM position of CP2K with
+  `ALPHA_IMOMM` 1.38 unless given, adds it to the QM calculation, and returns
+  its force to the two atoms of the bond in the shares of the chain rule. The
+  virial, MPI runs, and mechanical embedding follow, and the MM atom of a cut
+  bond leaves the QM-MM Coulomb sum.
+
+  `cpmdc.gromacs.qmi_input()` and `write_qmi()` take `links` and `link_alpha`.
+- `cpmdc.ase` registers `CPMDCCalculator` under `"cpmdc"` with `ase.calculators.calculator.register_calculator_class` (idempotently, so `get_calculator_class("cpmdc")` returns `CPMDCCalculator` and repeated registration does not raise), and `pyproject.toml` exposes `cpmdc = "cpmdc.ase"` in the `ase.plugins` entry-point group. The module builds `__ase_plugins__`, a `CalculatorPlugin` set, on first read, so `ase._4.plugins.plugins.calculators` lists `cpmdc` whichever of `cpmdc.ase` and `ase._4.plugins` is imported first, and the set is empty on ASE releases without the plugin API.
+- `cpmdc_last_dipole()` and its session form return a molecular dipole only when
+  linked OpenCPMD recomputed it for the current geometry. Python `Session` and
+  `Potential` expose that value, and `CPMDCCalculator` provides ASE's `dipole`
+  property in e*Angstrom. Reference, isolated, k-point, and unrequested
+  evaluations report the property as unavailable instead of returning a zero or
+  stale value.
+
+  The dipole is a Berry-phase quantity of the periodic cell. It is defined only
+  for a neutral cell, and only modulo the lattice quantum: it can jump by an
+  integer number of electron charges times a lattice vector between geometries.
+  `cpmdc_session_calculate_au()` has no dipole argument, because its argument
+  list is fixed for the LAMMPS, GROMACS, and i-PI callers that bind to it; read
+  `cpmdc_session_last_dipole()` after it returns 0.
+  `Potential.caps()` reports `dipole` as true only when the evaluator can produce
+  one: never for the reference evaluator, and for OpenCPMD until an evaluation
+  comes back without a dipole. `Session.dipole_possible()` gives the same answer.
+- `libcpmdc_gromacs` supports `&CPMDC EPSILON_R` and
+  `cpmdc.gromacs.qmi_input(..., epsilon_r=...)` to divide the
+  mechanical-embedding QM-MM Coulomb energy, forces, and Ewald virial by a
+  positive relative dielectric constant while documenting GROMACS'
+  unforwarded `epsilon-r` and six-decimal PDB charge formatting.
+
+### Changed
+
+- A deck that sets `DIPOLE DYNAMICS` and `KPOINTS` is now rejected when the parameters are installed, with an error that names both keywords, instead of stopping OpenCPMD in `localize2` during the first evaluation.
+  The check reads the rendered deck, so it also covers parameters given as raw input blocks.
+  Use a Gamma-point deck to get a dipole.
+- For rgpot and other consumers of `PotentialResult` and `CPMDCPropertySnapshot`, the dipole fields now say whether a dipole exists.
+  `CPMDCPropertySnapshot.dipole_count` is 3 only when OpenCPMD recomputed the dipole for the current geometry and 0 otherwise; it was always 3, with zeros from the reference evaluator and the stale `ddip%pdipole` from OpenCPMD.
+  `PotentialResult.dipole` is an empty list in the same cases and was three zeros.
+  When present, it is the molecular dipole `dipomod%moment%dmom` in electron Bohr, with the ionic term, in place of `ddip%pdipole`.
+  A consumer must read an empty `dipole` list or `dipole_count == 0` as "no dipole", not as a dipole of zero.
+  `CPMDCDipole` and `cpmdc_last_dipole()` carry the same `valid` flag, and Python `Potential.evaluate()` leaves out the `dipole` key.
+  The dipole is a Berry-phase quantity: defined only for a neutral periodic cell, and only modulo the lattice quantum.
+  The same release makes `PotentialResult.gradient` the negated `forces` in the units of the `ForceInput`.
+  An evaluation of more than 1365 atoms is rejected before it runs, so no wire result carries a gradient for such a system.
+- The README links to the C ABI reference, the CPMD option mapping, and the feature inventory reference instead of copying their session sample, carrier table, mapping rules, and inventory test list. The option mapping gains the manual lines of the old sample. The build-and-test how-to moved from `tutorials/quickstart.org` to `howto/quickstart.org`, its list of test suites moved to `reference/build-options.org`, and the old address keeps a page that links to the new one. The Re-check section of `docs/AUDIT.md` records gaps six and eight as closed.
+- The eOn tutorial `tutorials/eon-rgpot.org` now shows the output of both builds of `libcpmdc`. The default build runs through `eonclient` in about a second and prints 39 iterations, 79 force calls, and a final energy of 10.63288405405 eV; the OpenCPMD build shows eOn's `[Matter]` table with the force norm of each iteration, the SCF iterations of each force call, and its `results.dat`. The page states which tolerances to expect, and `tests/test_tutorials_run.py` runs the page's `pos.con` and `config.ini` through `eonclient` and compares the numbers, or skips that check when no `eonclient` is on `PATH`.
+- The embedding how-to, `docs/orgmode/howto/embedding.org`, is now organised by task: pick the entry point, check what the build supports, send the message, step a session, handle status and errors, keep orbitals between steps, choose a `CPMDParams` carrier, keep the wavefunction from a RESTART file, adopt an MPI communicator, set the OpenCPMD runtime inputs, drive cpmdc through rgpot or a socket, and check forces. It links to `docs/orgmode/reference/c-abi.org` for the call contracts, argument rules, return codes, and size rules that it used to repeat. The C ABI reference gained the sources a `CPMDParams` buffer can come from, the `NULL` and zero-size cases and the `nwchemc` parity of `cpmdc_session_calculate_result()`, the `forces_len` failure of `cpmdc_session_calculate_forces()`, the `cpmdc_last_energy_components()` note, and the borrowed communicator of `cpmdc_adopt_calculator_comm()`. The call routing of `cpmdc-ipi` moved into `docs/orgmode/howto/socket-drivers.org`, and the host helpers of the embed moved into the layer table of `docs/orgmode/explanation/architecture.org`. The README now sends call contracts to the C ABI reference, `tests/test_docs_examples.py` follows the new order of the code blocks, and the Re-check section of `docs/AUDIT.md` records the embedding item as closed.
+- The i-PI documentation now uses rgpot's generic `rgpot-ipi-driver` CPMD route
+  as the primary path and keeps `cpmdc-ipi` and `cpmdc-ipi-c` as compatibility
+  fallbacks.
+- `CPMDCCalculator` reads `Atoms.initial_charges` and `Atoms.initial_magmoms` instead of ignoring them. The total charge is the sum of the charges and the multiplicity is `|M| + 1` for the sum `M` of the collinear moments; each sum must be an integer within the float64 rounding bound of its terms, and non-collinear moments raise `ValueError`. A total that `CPMDParams` leaves unset (charge 0 with `hasCharge` false, multiplicity 1) is applied to the session, one that equals the message value passes silently, and one that differs from a set value, including charge 0 with `hasCharge` true, raises `ValueError` that names both values and both sources. The set value is kept. An `Atoms` with zero totals behaves as before. A change of `initial_charges` or `initial_magmoms` now evaluates the structure again, and `ignored_changes` is empty. See `howto/ase.org`.
+- `Session.energy_forces`, `Session.calculate_au`, `Potential.evaluate`, `CPMDCCalculator`, and the LAMMPS adapter of `cpmdc.lammps` spend less time in Python per step. Positions, atomic numbers, and the `ForceInput` message are packed with `array` and `memoryview` instead of per element checks and argument unpacking, forces come back as rows from one `memoryview.tolist()`, and `CPMDCCalculator` converts each result once and compares compositions as sorted bytes. On the mock library of `bench/client_overhead.py` one `Session.energy_forces` step with a NumPy `(N, 3)` array takes 81 microseconds for 512 atoms where it took 1100, and `CPMDCCalculator` takes 565 where it took 1649; the tables are in `bench/results/client_overhead.org`. Results, units, and errors are unchanged: a coordinate or atomic number that is not a plain `float`, plain `int`, or C-contiguous `float64` or `int32` buffer still goes through the checked loops and keeps its message. `bench/client_overhead.py` measures the client side of an evaluation per call and compares two sets of results.
+- `cpmdc.lammps.FixExternal` now keeps its existing API while delegating LAMMPS callback, unit, cell, virial, MPI and error handling to the generic `rgpot.lammps.FixExternal` frontend.
+- `docs/orgmode/tutorials/quickstart.org` drops its stray stub-suite prose, sets `:nosearch:`, and is excluded from `sitemap.xml` and `llms-full.txt` so the moved URL redirect stub no longer duplicates `docs/orgmode/howto/quickstart.org` in search, sitemaps, or the LLM export. `docs/orgmode/howto/quickstart.org`, `docs/orgmode/reference/build-options.org`, `docs/orgmode/tutorials/ase-energy.org`, `docs/orgmode/tutorials/first-energy.org`, and `docs/orgmode/index.org` now match the `meson.build` toolchain and test suites (the `cpmdc` suite is the project-name suite that Meson gives every registered test, so it selects the whole default build and not only the geometry and warm-selector checks), the `examples/host_step.c` output lines, the `water_params_bin` target prerequisite and origin-shifted geometry of `examples/python/ase_energy.py`, the `CPMDC_WARM_RMSD` orbital reuse rule, and one-line page descriptions in `Start Here`.
+
+### Fixed
+
+- ASE and GROMACS adapter ergonomics were tightened for drop-in use:
+
+  - `CPMDCCalculator.todict()` now keeps in-memory `params` bytes by emitting a
+    JSON-safe `{"cpmdparams_base64": ...}` mapping, and the calculator accepts
+    that mapping in `params` for a lossless rebuild path.
+  - `cpmdc.gromacs.qmi_input()` and `write_qmi()` now validate `params` and output
+    paths up front, with typed errors for binary or empty path inputs.
+- An older `libcpmdc` without `cpmdc_params_method` still loads in Python;
+  calling `params_method()` against it raises `CPMDCError` reporting the
+  missing symbol.
+- An older `libcpmdc` without `cpmdc_session_last_dipole` still loads at the
+  same ABI. Energy and forces are unchanged, and the dipole stays unavailable.
+  Asking ASE for the dipole names the missing symbol.
+- Both LAMMPS routes now accept positive, unique atom IDs with gaps, reopen their session after atom deletion, and report multi-rank input errors without deadlocking.
+- Documentation audit against the code. The `cpmdc_session_calculate_au()` header comment now states the session it needs, buffer ownership, collective use with OpenCPMD, the stub result, the centre of mass recentring, the topology fixed on the first evaluation call that passes its argument checks, the repeat match, and every `-1` cause with what is left unwritten. For `cell_bohr`, a NULL cell and an all-zero cell are read the same way by the deck, but the call keeps an all-zero cell as a step that has a cell, so the two are different steps for the repeat match and for stored OpenCPMD orbitals. The other public header comments gain the missing return codes, side effects, and ranges: `cpmdc_set_params()`, `cpmdc_configure()` (with a `cpmd` arm and a `common` overlay, `xcFunctionals`, `planewaveCutoffEv`, `charge`, and `spinMultiplicity` merge, each only while the arm still has its schema default, which is `BLYP`, 70 Ry, charge 0, and multiplicity 1; `kMesh`, `scfMaxIterations`, `scfEnergyToleranceEv`, `vanDerWaalsMethod`, and `relativityMethod` are rejected with -1, and so is an unmapped `xcFunctionals` token while the functional is still `BLYP`; `basisSet`, `smearing`, and `vanDerWaalsS6` are not applied), `cpmdc_energy_gradient()` (a step without a cell skips full setup only when the latched basis matches and the latched state also has no cell, since `embed_cell_moves_in_place` returns false when `has_cell` is 0; it then starts from the stored orbitals within `CPMDC_WARM_RMSD`, default 0.15 Angstrom, or from the deck's guess without full setup beyond that limit, and any other call runs full setup for a cold SCF), `cpmdc_adopt_calculator_comm()`, `cpmdc_adopted_comm()`, the session `set_params` and `configure` calls and `create_from_config`, `cpmdc_session_calculate_forces()`, `cpmdc_session_calculate_result()`, `cpmdc_capabilities_result()`, `cpmdc_version()` (including the `cpmdc-stub/` prefix of the link stub), `cpmdc_finalize()` (in the reference and OpenCPMD builds a session evaluation that repeats the step the session stored last still returns 0 from the session's cache after the call, while the no-session evaluations, `cpmdc_set_params()`, `cpmdc_configure()`, and any other step fail with `CPMD embed not available`; the link stub does nothing and its evaluations fail with `OpenCPMD embed not available in cpmdc stub` and the function name), `cpmdc_last_error()`, `cpmdc_restart_write_path()`, and `cpmdc_restart_expand_species_symbols()`.
+
+  `cpmdc_bind_calculator()` and the MPI how-to now describe how ranks are divided. `ranks_per_calc` is the size of every group, and zero or less means the world size. The world size must be a multiple of it, and there is no remainder group. A value that does not divide the world size, or that is above it, returns `-1` on every rank and splits nothing. Group `g` holds world ranks `g * ranks_per_calc` to `(g + 1) * ranks_per_calc - 1`, and a later call does not split again, also after `cpmdc_adopt_calculator_comm()`: it returns `world_rank / ranks_per_calc` for its own value, or `-1` on every rank when that value does not divide the world size or is above it, and the split already in use stays as it was. `cpmdc` calls `MPI_Init` only in OpenCPMD builds, and it does so before it looks at the value. The reference build and the link stub return `-1` from `cpmdc_bind_calculator()` without calling MPI, and `cpmdc_adopt_calculator_comm()` returns `-1` there until the host has started MPI. The `cpmdc_session_set_params()` comment lists allocation failure among its errors; it returns `-1` with the text `out of memory`.
+
+  The `cpmdc_pwscale.h` comments give the limits behind `CPMDC_PWSCALE_ERR_ARG`, state that `CPMDC_PWSCALE_ERR_NOFFTW` is returned by `bench/pwscale_fft.c` when built without FFTW or when thread initialisation or plan creation fails, and say that the rank timer ends after the rank-ordered sum. The pwscale rank how-to now says that the library timer of the bound call starts at the entry of that call, so the binding made by `cpmdc_pwscale_eval_mpi()` is not timed. The C ABI reference, environment reference, wavefunction-state explanation, install how-to, Python how-to, ASE how-to (`constant_cutoff`), socket how-to (`cpmdc-ipi` status 2), and quickstart (every Meson test suite from `meson.build`, including the stub suite with `adopt-comm-stub` and `bind-calculator-stub`) match the code.
+
+  New tests cover the claims that had none: `test_session_calculate_au` checks the NULL and all-zero cell repeat match and, on an OpenCPMD build, the warm start source for each cell kind, and `bind-calculator-stub` and `bind-calculator-shell` run `cpmdc_bind_calculator()` on four ranks.
+- Evaluations above the legacy snapshot capacity now fail before evaluation.
+  They no longer return a silently truncated gradient. The ABI-compatible
+  `hessian[4096]` field currently limits an evaluation to 1365 atoms.
+  On a session that already holds another system, the call reports the topology change instead of the limit.
+- Finalization now releases the reference orbital ledger and resets all of its selection and limit state before reinitialization.
+- Installed libraries no longer include environment-controlled test fault hooks when tests are enabled.
+- LAMMPS tests skip the `rgpot.lammps` route only when that optional module is absent. A present but broken module now fails collection, and pair-style plugin tests remain runnable without the Python frontend. That module is not in a released rgpot wheel; CI builds it from the pinned commit that adds the frontend. The `lammps` extra installs the LAMMPS Python module and is separate from the `test` extra.
+- Meson tests now use a default setup that pins `OPENBLAS_NUM_THREADS`,
+  `OMP_NUM_THREADS`, and `MKL_NUM_THREADS` to 1 so parallel `meson test`
+  workers do not oversubscribe OpenBLAS. OpenCPMD live targets
+  `extended-surface`, `session-cached-geometry`, and `configure-overlay`
+  get 300 s timeouts when `with_cpmd` is enabled. Meson replaces those
+  three variables on test children; parent-shell exports do not apply (see
+  `docs/orgmode/reference/build-options.org`).
+- Non-MPI builds no longer define an unused orbital-key mismatch message, and environment documentation no longer promises an unreachable peer-rejection diagnostic.
+- Orbital copies now agree OpenCPMD availability across calculator ranks, MPI state-check failures are reported, and cell-in-place documentation identifies rank 0 as authoritative.
+- Pin `potentials-schema` `1.16.0`, sync the vendored `schema/Potentials.capnp` and feature inventory, and honor `CPMDSystemSection.hasCharge`, `CPMDParams.hasCharge`, and `CommonMethodSpec.hasCharge` across effective config, Fortran embed apply, `&SYSTEM` deck rendering, `Capabilities.loweredCommonFields`, and `PotentialConfig` overlay lowering and conflict checks so an explicit zero charge is distinguished from an unset charge.
+- Prepared orbital-slot moves are now discarded on every rank when any calculator rank cannot prepare the selection.
+- Rank-local embedded evaluation failures now propagate through result serialization without leaving successful MPI ranks blocked in a collective.
+- Rendering a deck with no overlay now rejects a `CUTOFF`, `CHARGE`, or `MULTIPLICITY` directive in the typed `system` section, and a `SYSTEM.CUTOFF`, `SYSTEM.CHARGE`, or `SYSTEM.MULTIPLICITY` set directive. Those lines are the resolved scalars the deck and the recorded configuration share. `CUTOFF` is written on every deck, including the default 70 Ry. `CHARGE` is written only when it is not 0 and `MULTIPLICITY` only when it is greater than 1; an omitted line is the schema default the recorded configuration carries. The directives are rejected for a default value and for any other value alike. A default leaves the directive as a value the recorded configuration does not carry, and any other value leaves two lines. The render names the directive and does not keep one line and drop the other.
+- Session evaluations now validate topology read-only and commit `topology_fixed` only after all orbital preflight collectives succeed, leaving the session unchanged on any preflight failure. Keyed state, stale-orbital cleanup, and orbital preparation outcomes are agreed across all calculator ranks on both the reference and OpenCPMD paths so one rank's divergence or failure fails every rank with the same error instead of hanging.
+- The README, the start-here index, the route overview, and the C surface map now describe `rgpot-ipi-driver` selecting `CPMDPot` in an rgpot build with the RPC stack (`--pot "CPMD params FILE"` or `-m CPMD -o params=FILE`, with `--preserve-open-cell`). `cpmdc-ipi` and `cpmdc-ipi-c` remain compatibility fallbacks. Wrapped Org code spans in the docs tree stay on one line so the plain-text export does not leave a literal tilde.
+- The deck conflict check ignores a CPMD comment, so a commented
+  `DIPOLE DYNAMICS` line is not treated as a request.
+- The eOn tutorial check in `tests/test_tutorials_run.py` now compares the final energy within an absolute 1e-6 eV for the default build and 1e-4 eV for the OpenCPMD build, as `tutorials/eon-rgpot.org` states. It used to scale the tolerance by the size of the expected energy, which let errors of about 1e-5 eV and 0.05 eV pass.
+- The installed `cpmdc.pc`, `cpmdc-restart.pc`, and `libcp2k.pc` files now derive `includedir` and `libdir` from `${pcfiledir}` before setting `prefix`, so consumers compile and link after an installation prefix is moved under both plain `pkg-config` and `pkgconf --define-prefix`. Installed shared libraries and plugins record an `$ORIGIN` install run path (`@loader_path` on macOS), or an empty one when they do not need another library from the prefix, so `libcpmdc_gromacs` still opens `libcpmdc` after that move. `cpmdc-installed-package-consumer` moves the installed prefix, rejects a `.so` or `.dylib` whose `RUNPATH` or `RPATH` points at the build tree or the original prefix, and runs the `cpmdc`, `cpmdc-restart`, `libcp2k`, `cpmdc-ipi-c`, and CMake consumer checks against the relocated prefix under both `pkg-config` modes.
+- The pixi environment now sets `PKG_CONFIG` to its own `pkgconf`, so a host `pkg-config` and a host libcmocka can no longer pair with the conda `cmocka.h` and trip the configure-time cmocka probe in the readcon restart job.
+- The pytest suite passes on ASE 3.23, the declared floor, through the current ASE 3 release. ASE 3.23 names the finite difference helpers `numeric_forces` and `numeric_stress` and calls the step `d`. ASE 3.24 moved them to `ase.calculators.fd` and renamed the step `eps`. ASE 3.26 added `force_consistent`. ASE 3.24 and 3.25 always differentiate `free_energy` and reject that keyword, which failed the six GROMACS stress comparisons. The shear formula is unchanged: off diagonal strain `d` divided by `4 d V` is the same tensor as strain `0.5 eps` divided by `2 eps V`. The GROMACS shim reports `free_energy` equal to `energy`, so that older derivative is the energy derivative. ASE 3.23 still stores `mu0 = 4 pi 1e-7` in its 2018 table, and ASE 3.24 stores the CODATA 2018 permeability. The calculator keeps cpmdc's own constants. The session treats geometries within 1e-8 Angstrom as identical, so the ASE gradient check stops at 1e-7 Angstrom. ASE 3.23 updates the displaced coordinate in place and lands on that identity, while ASE 3.24 rebuilds the coordinate and can slip past it. CI runs pytest on ASE 3.23.0 and on the newest ASE 3 release.
+- The reference evaluator now computes periodic stress using the scaled LU cell volume so accepted near-singular cells receive a valid stress tensor instead of cancelling to zero, and fails explicitly if a non-zero periodic cell cannot represent a positive finite stress volume. Generated diagonal `CELL` lines stay within 80 columns, `cpmdc-ipi` enforces the ASCII integer grammar on `INIT` `batch_size`, and the C ABI and contract references document the cell validation and failure modes.
+- Two `DIPOLE DYNAMICS` evaluations in one process no longer fault in `opeigr_para` when the second uses a larger basis, such as 40 Ry followed by 50 Ry.
+  `localize2` kept the orbital maps and dipole matrices of the first basis; the OpenCPMD teardown patch now resets them like the other routines that keep first-call state.
+  Rebuild `libcpmd.a` with the updated patch; `tools/rebuild_opencpmd_embed.sh` recompiles `localize_utils`.
+- `CPMDCCalculator.read(label)` raises ASE's `ReadError` instead of setting the label and returning as if results had been restored. A step stores no file that holds results, so there is nothing to read; `parameters=` still loads a file written by `Parameters.write`.
+- `CPMDCCalculator` keeps an explicit `CPMDParams` charge of 0 (`hasCharge` true) when `Atoms.initial_charges` sum to another integer. The sum is written only when `hasCharge` is false and the effective charge is still 0. A disagreeing total raises `ValueError` that names both values and both sources, the same refusal as any other set charge, and the step does not run. A typed `system` charge with `hasCharge` true is kept the same way, because the edited message is read back before the session opens. Initial charges that are all zero still leave the message charge unchanged. The embed records that message charge. It does not read `initial_charges`.
+- `CPMDCCalculator` refuses a dipole that is not finite, the same way it
+  refuses a non-finite energy, force, or stress.
+- `CPMDCCalculator`, `cpmdc-ipi`, `cpmdc-ipi-c`, and native deck rendering now use the same float64 rank cutoff for periodic cells and preserve every representable cell component in generated CPMD input; the C library and the Python package decide the rank with the same iteration, so they agree on cells within rounding of the cutoff. Cells whose volume would underflow, duplicate or invalid i-PI `batch_size` values, non-UTF-8 `INIT` data, and negative or non-finite connection waits now report their cause instead of being treated as an ordinary request. Both i-PI drivers judge the cell volume on the Bohr values they receive, `cpmdc-ipi-c` stops on a non-finite position or cell value as `cpmdc-ipi` does, and the virial of `cpmdc_session_calculate_au()` and of both drivers no longer cancels to zero for an accepted near-singular cell; a cell volume above the float64 range or a non-finite virial is reported instead of being sent, and session cell, volume, and virial checks agree rank-local failures across MPI calculator ranks before returning.
+- `cpmdc-ipi-c` records a normalised `$ORIGIN` run path from the resolved `bindir` to the resolved `libdir` (`@loader_path` on macOS). `-Dbindir=.`, absolute `bindir` and `libdir` under the prefix, a nested `libdir`, and paths that contain `..` or a trailing slash install a run path that opens `libcpmdc`. A layout whose relative path cannot be stored as one run path entry fails at configure time.
+- `cpmdc.pc`, `cpmdc-restart.pc`, and `libcp2k.pc` now derive `prefix` and `includedir` from `${pcfiledir}` with the relative path from the pkg-config directory, so `-Dlibdir=.`, a nested `libdir`, and an absolute `includedir` under the prefix stay inside that prefix.
+- `libcpmdc_gromacs` again ignores multi-value `&SECTION` headers outside
+  `&CPMDC` on explicit `&CPMDC` inputs while keeping `&XC_FUNCTIONAL` arity
+  checks for GROMACS-generated `&DFT` inputs.
+- `test_extended_surface` now calls `cpmdc_finalize()` only in its final shutdown regression test rather than mid-suite, so `test_topology_change_is_reported_before_the_gradient_limit` evaluates on a live embed runtime and post-finalize checks confirm that failed embed preflight leaves open topologies uncommitted while preserving topology checks on already-fixed sessions.
+
+### Developer
+
+- AddressSanitizer leak detection stays on for serial C and Fortran tests
+  that do not preload the sanitizer runtime or run under
+  `tests/run_mpi_test.py`. `params-cp-dft-render` keeps its fixture paths
+  in `main` instead of leaving a heap copy for the process exit, and
+  `dlopen-leak` verifies that `dlopen` constructor leaks are reported.
+  `meson.build` sets `detect_leaks=0` for the four ASan preload tests
+  (`python-api`, `python-pytest`, `docs-examples`, and `tutorials-run`)
+  because CPython and compilers started from those tests do not free
+  their pools, and `tests/run_mpi_test.py` sets `detect_leaks=0` for the
+  MPI tests (`adopt-comm-stub`, `adopt-comm-shell`,
+  `orbital-limit-agree-mpi`, and `rank-consensus`, which is registered
+  only for the reference build) and the `pwscale` tests
+  (`pwscale-agreement`, `pwscale-logger`, `pwscale-fft-fail`,
+  `pwscale-agreement-mpi-*`, `pwscale-mpi-fault`,
+  `pwscale-collectives-*`). The pixi `test-stub-sanitize` task and the
+  GCC 13 CI job use that same split.
+
+  The `shared-dlopen-abi` test now pins `libibverbs.so.1` with
+  `RTLD_NOLOAD|RTLD_NODELETE` before `dlclose`. `RTLD_NODELETE` keeps
+  `libibverbs` mapped, so LeakSanitizer sees the allocation as reachable
+  without a suppression file.
+- The `opencpmd-embed` CI job now runs `tests/python/test_session.py` against `cpmd.x`, and fails on any skip other than the three that name the reference evaluator's stress formula. The test `test_session_preserves_an_accepted_small_triclinic_cell` had only run on the reference evaluator. Its cell has a third vector 1e-13 Angstrom long, so OpenCPMD holds 8 electrons in about 1e-13 cubic bohr, a plane wave basis of 5 waves for 4 orbitals and an electronic gradient of 1e13 from the first step. No SCF converges there, and the lattice vectors, the row convention and the mesh that OpenCPMD printed for it were correct: rotating the cell and the atoms together leaves the energy unchanged to 6e-14 hartree, and transposing the cell moves it by 6e-4 hartree. The test now puts the tilt components of 2.58e-12 and 1e-13 Angstrom beside 6 Angstrom edges and requires the energy, forces and stress of the untilted cell on both backends. The cell with the 1e-13 Angstrom vector stays as its own test, which expects the reference evaluator's stress and, on OpenCPMD, an error from CPMD that is not the rank guard's.
+- The `rcut` and `alpha` assertions of `test_mechanical_embedding_matches_numpy_ewald`
+  now check `1e-14` relative with no absolute slack, where `rel=1e-15` had been an
+  absolute `1e-12` in effect, and the other tolerances of that test carry their
+  error bounds.
+- The `sdist` workflow now installs the `test` extra (pytest and ASE) into the installed-wheel check venv, matching cibuildwheel's `test-extras`.
+- The installed-wheel test changes the working directory before loading the bundled shared library.
+- The pytest session now checks NumPy's matrix product against a plain loop
+  before collecting any test, and stops with a message naming the remedies when
+  the two disagree. On aarch64 under `qemu-user` 8.2 with `-cpu max`, OpenBLAS
+  selects its `armv9sme` kernel and `@` returns wrong values, which made the
+  NumPy Ewald reference of `test_mechanical_embedding_matches_numpy_ewald` sum
+  to zero and fail on its energy assertion while the library was correct.
+- The sdist job now sets `CC`, `CXX` and `FC` to the GCC toolchain it installs, so Meson and its cmake module no longer pick a clang `c++` that cannot link.
+- The two-rank LAMMPS cases in `tests/python/test_lammps.py` start their ranks with `OMPI_MCA_pml=ob1` and `OMPI_MCA_btl=self,sm` unless the caller sets them. On GitHub runners with the Azure MANA NIC, UCX finds `mana_0` but cannot open it, and the Open MPI ranks of the `lammps` Pixi environment hung until `test_two_ranks_match_one` and `test_two_rank_duplicate_id_error_does_not_deadlock` timed out. The cases run on one host and need only shared memory.
+- `cpmdc.lammps.FixExternal` evaluates each LAMMPS step through the session adapter of the `rgpot.lammps` frontend, and no longer carries a second copy of that step. The convention tests build the fix with its real constructor against a stand-in LAMMPS object, so they need `rgpot.lammps` and the `opencpmd-embed` job installs it. `mypy --strict` passes whether or not `rgpot.lammps` is installed.
+- `scripts/generate_llms_txt.py` now sorts Org inputs by repository-relative path, rejects a missing feature inventory explicitly, omits absolute paths from diagnostics, and reports stale `llms.txt` or `llms-full.txt` files with the exact regeneration command and a unified diff head; `tests/test_llms_txt.py` verifies repeatability across runs and checks the failure output.
+- `tests/python/test_ase_conformance.py` also checks `CPMDCCalculator` against `SumCalculator` and `VelocityVerlet`, the parameters round trip through `todict` and a `Parameters` file with a `constant_cutoff` mapping, and that a change of tags, momenta, info, or a constraint, or an equal copy of the `Atoms`, reuses the stored step.
+
+
 ## [0.6.0](https://github.com/OmniPotentRPC/cpmdc/tree/v0.6.0) - 2026-11-22
 
 ### Changed

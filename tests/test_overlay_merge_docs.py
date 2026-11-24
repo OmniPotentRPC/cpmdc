@@ -136,9 +136,11 @@ def main() -> int:
         overlay_notes = " ".join(path.read_text() for path in overlay_fragments)
     else:
         changelog = (root / "CHANGELOG.md").read_text()
-        version = (root / "version.txt").read_text().strip()
+        # The two overlay fragments were consumed into the 0.6.0 release
+        # notes, so that section is where their wording lives now. The
+        # current version in version.txt would look in the wrong section.
         section = re.search(
-            rf"## \[{re.escape(version)}\].*?(?=\n## \[|\Z)",
+            r"## \[0\.6\.0\].*?(?=\n## \[|\Z)",
             changelog,
             re.S,
         )
@@ -202,14 +204,19 @@ def main() -> int:
         ],
     }
     fragment = fragments / "+system-scalar-directives.fixed.md"
-    try:
-        system_pages["docs/newsfragments/+system-scalar-directives.fixed.md"] = (
-            flat(fragment.read_text())
+    if fragment.is_file():
+        system_notes = fragment.read_text()
+        system_notes_name = "docs/newsfragments/+system-scalar-directives.fixed.md"
+    else:
+        changelog = (root / "CHANGELOG.md").read_text()
+        section = re.search(
+            r"## \[0\.7\.0\].*?(?=\n## \[|\Z)",
+            changelog,
+            re.S,
         )
-    except FileNotFoundError:
-        failures.append(
-            "docs/newsfragments/+system-scalar-directives.fixed.md: missing"
-        )
+        system_notes = section.group(0) if section else changelog
+        system_notes_name = "CHANGELOG.md [0.7.0]"
+    system_pages[system_notes_name] = flat(system_notes)
     for name, text in system_pages.items():
         for phrase in (SYSTEM_DIRECTIVE, SYSTEM_VALUES):
             if phrase not in text:
