@@ -3441,6 +3441,7 @@ Without Pixi, install the same set from your package manager:
 | C and Fortran compilers | any recent GCC and gfortran | every build |
 | C++ compiler and Rust (`cargo`) | Rust 1.70 or newer, below 2 | the `minimage` subproject |
 | pkg-config | 2.5.1 or newer, below 3 | dependency lookup |
+| CMake | 3.24 or newer | writing `cpmdcConfig.cmake` and the `packaging` consumer build |
 | Python 3 | 3.10 or newer, below 4 | build helpers and tests |
 | ASE, pytest, i-PI | ASE 3.23 or newer, below 4; pytest 7 or newer; i-PI 3.3 or newer, below 4 | the `python-api` and `python-pytest` tests |
 | cmocka | 1.1.7 or newer, below 3 | `-Dwith_tests=true` |
@@ -5815,7 +5816,7 @@ These suites group the tests of the default build by layer.
 | `abi` | exported header, symbol-table, baseline, and feature-discovery checks |
 | `cmocka`, `capnp`, `capnp-fortran` | structured `CPMDParams` deck rendering, Fortran bridge application, and cmocka unit checks |
 | `params`, `inventory`, `schema` | schema sync, field coverage, token fidelity, and CPMD catalog feature IDs |
-| `cpmdc` | geometry RMSD and `CPMDC_WARM_RMSD` warm-start selector checks |
+| `cpmdc` | every registered test: Meson adds the project name as a suite to each test, so `--suite cpmdc` runs the whole default build, and `geometry-rmsd`, `warm-selector`, and `warm-selector-abi` belong to no other suite |
 | `socket` | `ForceInput` sizing and session `PotentialResult` buffer contract |
 | `embed`, `dlopen`, `mpi` | Fortran embed shell, `dlopen` ABI loading, and four-rank communicator adoption, binding, and rank-agreement tests |
 | `e2e`, `fd-check` | one-shot and session calls, Python E2E, orbital extrapolation, and finite-difference force checks |
