@@ -91,10 +91,10 @@ i-PI's ~ipi/interfaces/sockets.py~ and ASE's ~ase/calculators/socketio.py~.
 is the same program.
 It needs a ~CPMDParams~ file (see [[file:python.org][Call cpmdc from Python]]) and the
 species in the order the server sends positions, because the protocol
-carries no species.  For example, use
-~cpmdc-ipi --unix water --params water.params.bin --species "O H H"~ for
-UNIX, or ~cpmdc-ipi --host localhost --port 31415 --params
-water.params.bin --species OH2~ for TCP.
+carries no species.  For a UNIX socket, use
+~cpmdc-ipi --unix water --params water.params.bin --species "O H H"~.
+For TCP, use
+~cpmdc-ipi --host localhost --port 31415 --params water.params.bin --species OH2~.
 
 | Option | Meaning |
 |--------+---------|

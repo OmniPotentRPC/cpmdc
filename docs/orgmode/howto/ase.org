@@ -393,8 +393,9 @@ calculator's own does.
 * Check the calculator with ASE
 ~tests/python/test_ase_conformance.py~ asks of ~CPMDCCalculator~ what any ASE
 user asks of a calculator, and answers with ASE's own tools.
-It runs on the default build, which needs no OpenCPMD archive: ~pixi run
-test-stub~ builds it, and ~pixi run pytest tests/python/test_ase_conformance.py~
+It runs on the default build, which needs no OpenCPMD archive.
+~pixi run test-stub~ builds it, and
+~pixi run pytest tests/python/test_ase_conformance.py~
 runs the file.
 The file checks these points:
 
