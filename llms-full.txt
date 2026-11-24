@@ -177,8 +177,8 @@ With `gmx_d` from `CPMDC_GMX` or on `PATH`, it also runs `grompp` and `mdrun`:
   each element of `Vir` equals half the central difference of `Potential` under
   a 1e-5 strain of the box and positions, to 1e-8 of its largest element, so the
   QM, QM-MM, and classical terms all enter it;
-- generated input, `EMBEDDING ELECTROSTATIC`, and charged MM atoms without an
-  embedding each stop `mdrun` with the reason.
+- generated input, and charged MM atoms without an embedding, each stop
+  `mdrun` with the reason. `EMBEDDING ELECTROSTATIC` accepts those charges.
 
 With `gmx_mpi_d` from `CPMDC_GMX_MPI`, a double-precision GROMACS built with
 `-DGMX_MPI=ON`, launched by `CPMDC_MPIEXEC` (default `mpiexec`):
@@ -6092,7 +6092,7 @@ The public C ABI (application binary interface) of `libcpmdc` is declared in
 Installed headers live under `include/cpmdc/`; include them as
 `#include <cpmdc.h>` with the flags of `pkg-config --cflags cpmdc`.
 Every function has C linkage, and the header compiles as C and as C++.
-`libcpmdc` exports those 52 functions and no other symbol; the exported symbols
+`libcpmdc` exports those 55 functions and no other symbol; the exported symbols
 section below gives the mechanism.
 `schema/inventory/surface_map_abi.txt` records them; it is generated from the
 built library, and the `c-abi-inventory` test fails when the headers, the
@@ -8774,7 +8774,7 @@ The package: sessions, the rgpot-shaped provider and the unit helpers.
 | Units | none |
 | Shape and dtype | `params` is serialized `CPMDParams` bytes or a path; returns a frozen `MethodInfo`. |
 | Ownership and threads | Reads and copies the bytes, loads the library for the call, and returns new immutable data. Thread-safe except for dynamic-loader and environment behavior. |
-| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty or invalid message, a missing library, a library without `cpmdc_params_method`, or a library failure. |
+| Raises | `FileNotFoundError` for an unreadable path; `CPMDCError` for an empty message, a missing library, or a library without `cpmdc_params_method`; a library failure raises the subclass `cpmdc_last_error_code` selects, `CPMDCInvalidArgument` for a refused message. |
 | Defaults | `library` is `None`, using `find_library`. |
 
 ### ~cpmdc.forces_to_ev_per_angstrom~
@@ -12036,7 +12036,7 @@ GROMACS' unit factors; it imports nothing outside the standard library.
 | `Potential.close` | `close()`: close the owned `Session` (idempotent) |
 | `find_library` | `find_library(path=None)`: return the `Path` of `libcpmdc`; tries an explicit `path` first, then `CPMDC_LIBRARY`, `RGPOT_CPMDC_ENGINE`, and `RGPOT_CPMD_ENGINE` in that order, then `.cpmdc.mesonpy.libs/libcpmdc.so` and `.cpmdc.mesonpy.libs/libcpmdc.dylib` beside the package, then `ctypes.util.find_library("cpmdc")`, then `build/libcpmdc.so` and `build/libcpmdc.dylib` in the working directory; raises `CPMDCError` when not found |
 | `find_schema` | `find_schema(path=None)`: return the `Path` of `schema/Potentials.capnp` for `capnp encode` of `CPMDParams` text; tries an explicit `path` first, then `CPMDC_SCHEMA`, then the wheel's `cpmdc/schema/Potentials.capnp`, then `schema/Potentials.capnp` in the working directory; raises `CPMDCError` when not found |
-| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer, a library without `cpmdc_params_method`, or a failed call |
+| `params_method` | `params_method(params, *, library=None)`: decode the effective `MethodInfo` from serialized `CPMDParams` `bytes` or a file path through `cpmdc_params_method()` without applying the deck; `library=None` goes to `find_library`; raises `CPMDCError` on an empty buffer or a library without `cpmdc_params_method`, and the subclass `cpmdc_last_error_code` selects (`CPMDCInvalidArgument`) when the library refuses the message |
 | `forces_to_ev_per_angstrom` | `forces_to_ev_per_angstrom(forces_h_bohr)`: convert N by 3 forces `forces_h_bohr` from Hartree/Bohr to eV/Angstrom |
 | `dipole_to_e_angstrom` | `dipole_to_e_angstrom(dipole_e_bohr)`: convert a three-component molecular dipole from electron Bohr to e*Angstrom; raises `ValueError` unless there are three components |
 | `stress_to_ev_per_angstrom3` | `stress_to_ev_per_angstrom3(stress_h_bohr3)`: convert a nine-component row-major tensor `stress_h_bohr3` from Hartree/Bohr^3 to eV/Angstrom^3, keeping the library sign; raises `ValueError` unless there are nine components |
@@ -12161,6 +12161,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_create` | setup | Y | Y | Y | Y |
 | `cpmdc_session_set_params` | setup | Y | Y | Y | Y |
 | `cpmdc_session_set_constant_cutoff` | setup | Y | Y | Y | Y |
+| `cpmdc_session_set_external_charges` | setup | Y | Y | Y | Y |
 | `cpmdc_session_destroy` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_session_select_orbitals` | setup | Y | Y | Y | Y |
 | `cpmdc_session_copy_orbitals` | setup | Y | Y | Y | Y |
@@ -12180,6 +12181,7 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_create_from_config` | setup | Y | Y | Y | Y |
 | `cpmdc_session_configure` | setup | Y | Y | Y | Y |
 | `cpmdc_last_error` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_last_error_code` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_available` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_finalize` | lifecycle | Y | Y | Y | Y |
 | `cpmdc_last_energy_components` | result snapshot | Y | Y | Y | Y |
@@ -12198,18 +12200,19 @@ builds, implemented for the stub, and present as an `abi.*` feature row.
 | `cpmdc_session_last_property_snapshot` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_gradient` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_dipole` | result snapshot | Y | Y | Y | Y |
+| `cpmdc_session_last_external_charge_forces` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_session_last_stress` | result snapshot | Y | Y | Y | Y |
 | `cpmdc_feature_count` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_table` | discovery | Y | Y | Y | Y |
 | `cpmdc_feature_find` | discovery | Y | Y | Y | Y |
 
-52 symbols in `abi_symbols`, 52 with every column present.
+55 symbols in `abi_symbols`, 55 with every column present.
 
 # Exported symbols
 `schema/inventory/surface_map_abi.txt` is generated by
 `scripts/abi_inventory.py` from the exported symbols of `libcpmdc` (`nm -D --defined-only`, or `nm -gU` on macOS; `NM` names another `nm`) and the declarations in `include/cpmdc.h`
 and `include/cpmdc_features.h`.
-It lists the 52 public functions with their header, the ABI generation
+It lists the 55 public functions with their header, the ABI generation
 (`CPMDC_ABI_VERSION`, 0), and a `@since` column that stays `-` until a
 declaration records a later generation.
 `libcpmdc` exports exactly those symbols: internal glue is hidden (see the C ABI reference (file:c-abi.org)

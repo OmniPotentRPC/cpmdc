@@ -121,6 +121,20 @@ _ERRORS_BY_CODE = {
 }
 
 
+def _library_failure(lib: ctypes.CDLL, fallback: str, message: str = "") -> CPMDCError:
+    """Typed exception for the library failure still stored on this thread.
+
+    A library without ``cpmdc_last_error_code`` keeps the plain error and
+    code 0. An empty stored message uses ``fallback``.
+    """
+    code_fn = getattr(lib, "cpmdc_last_error_code", None)
+    code = 0 if code_fn is None else int(code_fn())
+    if not message:
+        raw = lib.cpmdc_last_error()
+        message = raw.decode("utf-8", "replace") if raw else ""
+    return _ERRORS_BY_CODE.get(code, CPMDCError)(message or fallback, code)
+
+
 def __getattr__(name: str) -> Any:
     # CpmdcError, released in 0.4.0, is the same class under its old name.
     if name == "CpmdcError":
@@ -772,10 +786,9 @@ def params_method(
     buffer = ctypes.create_string_buffer(blob)
     method = _CMethodInfo()
     if method_fn(buffer, len(blob), ctypes.byref(method)) != 0:
-        raw = lib.cpmdc_last_error()
-        if raw is None or not raw:
-            raise CPMDCError("cpmdc_params_method failed without an error message")
-        raise CPMDCError(raw.decode("utf-8", "replace"))
+        raise _library_failure(
+            lib, "cpmdc_params_method failed without an error message"
+        )
     functional = bytes(method.functional).split(b"\0", 1)[0].decode(
         "utf-8", "replace"
     )
@@ -859,10 +872,7 @@ class Session:
 
     def _fail(self, fallback: str, message: str = "") -> CPMDCError:
         """Typed exception for the library failure still stored on this thread."""
-        code_fn = getattr(self._lib, "cpmdc_last_error_code", None)
-        code = 0 if code_fn is None else int(code_fn())
-        text = message or self._error() or fallback
-        return _ERRORS_BY_CODE.get(code, CPMDCError)(text, code)
+        return _library_failure(self._lib, fallback, message)
 
     def version(self) -> str:
         """Compiled library version string."""
