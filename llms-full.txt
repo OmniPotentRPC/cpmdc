@@ -9184,12 +9184,12 @@ The `fix external` driver for LAMMPS.
 
 | Item | Description |
 |--------+--------|
-| Signature | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None)` |
-| Units | The LAMMPS unit style of the run: `metal` (Angstrom, eV), `real` (Angstrom, kcal/mol) or `electron` (Bohr, Hartree). |
-| Shape and dtype | `lmp` a `lammps.lammps` object with box, atoms and masses; `elements` one symbol or atomic number per atom type; atom IDs must be positive and unique but may have gaps. |
+| Signature | `FixExternal(lmp, params, elements, *, fix_id='cpmdc', create=True, library=None, comm=None, qm_types=None, mm_width_angstrom=0.3)` |
+| Units | The LAMMPS unit style of the run: `metal` (Angstrom, eV), `real` (Angstrom, kcal/mol) or `electron` (Bohr, Hartree); `mm_width_angstrom` in Angstrom; the charges of the MM atoms are the LAMMPS `q` in units of the elementary charge. |
+| Shape and dtype | `lmp` a `lammps.lammps` object with box, atoms and masses; `elements` one symbol or atomic number per atom type; atom IDs must be positive and unique but may have gaps; `qm_types` a sequence of atom type numbers, whose complement is MM; `mm_width_angstrom` a scalar. With MM atoms the virial is zero and the charge set is cleared on the first step that has none. |
 | Ownership and threads | Owns the session on world rank 0 and the fixes it creates, removed by `close()` or by leaving a `with` block (it is a context manager). `lmp` and `comm` are borrowed. Not thread-safe: LAMMPS calls back from one thread. MPI: with more than one rank every rank constructs the object and calls `run`; rank 0 adopts `MPI_COMM_SELF` and evaluates, and `mpi4py` is needed. |
-| Raises | `ValueError` for an unsupported unit style, a wrong number of elements, an unknown element, or a partly periodic box; `CPMDCError` when the session cannot be opened, `mpi4py` is missing on several ranks, or `comm` has the wrong size. |
-| Defaults | `fix_id` is `'cpmdc'`, `create` is `True`, `library` is `None`, `comm` is `None` (`MPI.COMM_WORLD`). |
+| Raises | `ValueError` for an unsupported unit style, a wrong number of elements, an unknown element, a partly periodic box, empty `qm_types`, or an `mm_width_angstrom` that is not finite or is below 1e-12; `CPMDCError` in a step for MM atoms on a periodic box, for a LAMMPS atom style without charges, or for no QM atom; `CPMDCError` when the session cannot be opened, `mpi4py` is missing on several ranks, or `comm` has the wrong size. |
+| Defaults | `fix_id` is `'cpmdc'`, `create` is `True`, `library` is `None`, `comm` is `None` (`MPI.COMM_WORLD`), `qm_types` is `None` (every atom is QM), `mm_width_angstrom` is 0.3. |
 
 ### ~cpmdc.lammps.FixExternal.close~
 
@@ -9246,6 +9246,17 @@ The `fix external` driver for LAMMPS.
 | Raises | none |
 | Defaults | The `fix_id` argument, `'cpmdc'` by default. |
 
+### ~cpmdc.lammps.FixExternal.mm_width_angstrom~
+
+| Item | Description |
+|--------+--------|
+| Signature | `mm_width_angstrom (attribute)` |
+| Units | Angstrom. |
+| Shape and dtype | scalar `float`, finite and at least 1e-12. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | Set by the constructor from `mm_width_angstrom`, 0.3. |
+
 ### ~cpmdc.lammps.FixExternal.periodic~
 
 | Item | Description |
@@ -9256,6 +9267,17 @@ The `fix external` driver for LAMMPS.
 | Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
 | Raises | none |
 | Defaults | Set by the constructor from the box. |
+
+### ~cpmdc.lammps.FixExternal.qm_types~
+
+| Item | Description |
+|--------+--------|
+| Signature | `qm_types (attribute)` |
+| Units | none |
+| Shape and dtype | `frozenset` of `int` atom types, or `None` when every atom is QM. |
+| Ownership and threads | Plain attribute of the object; it follows the thread rule of the class. |
+| Raises | none |
+| Defaults | Set by the constructor from `qm_types`. |
 
 ### ~cpmdc.lammps.FixExternal.run~
 
@@ -11527,6 +11549,26 @@ Changing the atoms' elemental composition, including by
 cpmdc session before the next
 evaluation and opens a new session for the changed topology. An unchanged
 composition continues on the existing session.
+
+# Electrostatic QM/MM embedding
+Both routes keep their whole-system behavior by default.
+For `FixExternal`, pass `qm_types=[...]`; other atom types provide their LAMMPS
+`q` values as Gaussian MM charges. `mm_width_angstrom` defaults to 0.30.
+For the plugin, write `NULL` for each MM type, for example
+`pair_style cpmdc params.bin width 0.30` followed by
+`pair_coeff * * O H NULL`.
+
+Element entries are QM and `NULL` entries use the per-atom charge. The energy
+includes the QM--MM electrostatic coupling and forces are returned to both
+groups. Electrostatic embedding is currently isolated only; a periodic box is
+rejected instead of using an incomplete image convention, so the virial
+\(-dE/d(\mathrm{strain})\), which needs a cell, is zero on both routes.
+`qm_types` must name at least one type, and `mm_width_angstrom` and the
+plugin's `width` must be finite and at least 1e-12 Angstrom; a smaller value is
+refused when the fix or the pair style is configured.
+Both routes send the charges on every step that has MM atoms, and clear them on
+the first step that has none after a step that had some, so deleting or
+retyping every MM atom leaves no stale charge in the session.
 
 # Virial and pressure
 cpmdc returns the virial `W = -dE/d(strain)` in Hartree.
