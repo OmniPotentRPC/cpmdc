@@ -216,7 +216,7 @@ These versions produced the output below:
 
 | Component | Version |
 |-----------+---------|
-| cpmdc | 0.6.0, this tree |
+| cpmdc | 0.7.0, this tree |
 | OpenCPMD | ~062582b~ with the patches of the [[file:../howto/opencpmd-archive.org][archive how-to]], OpenCPMD build only |
 | rgpot | ~5fec533f~, version 3.7.0 |
 | eOn | ~579738a93~, version 3.6.0 |

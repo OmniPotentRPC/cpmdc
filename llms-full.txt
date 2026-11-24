@@ -5421,7 +5421,7 @@ for option in info["buildoptions"]:
 
 The default build prints:
 
-cpmdc 0.6.0
+cpmdc 0.7.0
 with_cpmd = False
 cpmd_root = ''
 with_readcon = False
@@ -12207,7 +12207,7 @@ These versions produced the output below:
 
 | Component | Version |
 |-----------+---------|
-| cpmdc | 0.6.0, this tree |
+| cpmdc | 0.7.0, this tree |
 | OpenCPMD | `062582b` with the patches of the archive how-to (file:../howto/opencpmd-archive.org), OpenCPMD build only |
 | rgpot | `5fec533f`, version 3.7.0 |
 | eOn | `579738a93`, version 3.6.0 |
@@ -12612,7 +12612,7 @@ mpif90 first_forces.o -L "$CPMDC/build" -lcpmdc \
 # version = open("version.txt").read().strip()
 # cog.out(re.sub(r"^cpmdc/\S+", f"cpmdc/{version}", cog.previous, flags=re.M))
 # ]]]
-cpmdc/0.6.0 available=0
+cpmdc/0.7.0 available=0
 energy_h=0.95870388
 force[0] =  -0.053992  -0.053992  -0.055259
 force[1] =  -0.006749  -0.007771  -0.006116
@@ -12673,7 +12673,7 @@ The program prints the energy and forces last:
 # version = open("version.txt").read().strip()
 # cog.out(re.sub(r"^cpmdc/\S+", f"cpmdc/{version}", cog.previous, flags=re.M))
 # ]]]
-cpmdc/0.6.0 available=1
+cpmdc/0.7.0 available=1
  ...
  NFI      GEMAX       CNORM           ETOT        DETOT      TCPU
    1  4.082E-02   5.185E-03     -16.731578    0.000E+00      0.58

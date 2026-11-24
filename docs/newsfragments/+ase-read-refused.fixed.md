@@ -1,1 +1,0 @@
-`CPMDCCalculator.read(label)` raises ASE's `ReadError` instead of setting the label and returning as if results had been restored. A step stores no file that holds results, so there is nothing to read; `parameters=` still loads a file written by `Parameters.write`.

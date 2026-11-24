@@ -1,1 +1,0 @@
-The eOn tutorial check in `tests/test_tutorials_run.py` now compares the final energy within an absolute 1e-6 eV for the default build and 1e-4 eV for the OpenCPMD build, as `tutorials/eon-rgpot.org` states. It used to scale the tolerance by the size of the expected energy, which let errors of about 1e-5 eV and 0.05 eV pass.

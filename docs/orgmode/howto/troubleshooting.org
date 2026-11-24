@@ -269,7 +269,7 @@ for option in info["buildoptions"]:
 The default build prints:
 
 #+begin_example
-cpmdc 0.6.0
+cpmdc 0.7.0
 with_cpmd = False
 cpmd_root = ''
 with_readcon = False
